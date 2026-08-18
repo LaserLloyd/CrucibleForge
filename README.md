@@ -8,7 +8,7 @@ and speed** — against **any OpenAI-compatible endpoint**: local (LM Studio,
 Ollama, llama.cpp / llama-server, vLLM, StudioForge) or hosted (DeepSeek,
 OpenRouter, OpenAI, Groq, Together, Mistral, Open WebUI …).
 
-* **Hard tier that doesn't ceiling.** 120+ hard cases: competition-style math
+* **Hard tier that doesn't ceiling.** 140+ hard cases: competition-style math
   (integer answers, every one re-derived by a brute-force `verify` expression),
   logic/state-tracking puzzles with unique solutions, coding problems whose
   tests **enforce the right complexity** (an O(n²) inversion count times out;
@@ -102,7 +102,7 @@ models:
 |---|---|---|
 | **math** | numeric (`Answer: N`), every gold answer re-derived by a `verify` expression | number theory, combinatorics, probability as m+n, digit sums of huge powers, recurrences, Josephus, lattice geometry, dual-base palindromes |
 | **reasoning** | numeric / exact / contains / `reference` (gold-answer judge) | BBH-style logic, unique-solution logic grids, knights & knaves, state tracking, ciphers, letter counting, weekday arithmetic, BFS puzzles, bug-finding & "why does this query double-count" |
-| **coding** | real execution in a `bwrap` sandbox, pass@1, stdout sentinel | LRU-with-peek, expression parser with exact fractions, glob matcher, inversions n=200k, recurrence n=10¹⁸, distinct substrings (suffix automaton), sudoku "Everest", convex hull 100k, word ladder, sweep-line, stack VM, strict roman numerals, rate limiter, LCS by property |
+| **coding** | real execution in a `bwrap` sandbox, pass@1, stdout sentinel | three hard sets: CX (LRU-with-peek, exact-fraction expression parser, glob, inversions 200k, recurrence n=10¹⁸, distinct substrings, sudoku, convex hull, word ladder, sweep-line, stack VM, roman, rate limiter, LCS-by-property), CY (repeat-≥k substring, regex NFA with pathological input, cron next-fire, lazy segment tree, Hungarian assignment, max-flow, 2-SAT, bitset knapsack, sliding median, offline distinct-count), CZ (π(10¹⁰), 200k segment crossings, TCO Lisp interpreter, offline dynamic connectivity, Knuth-optimized BST, bit-parallel LCS, NTT convolution, 3-string LCS, range k-th, k disjoint subarrays) — every test enforces the right complexity, every reference solution is executed by the verifier. DeepSeek v4-flash: 69% at the default budget, 93% at 3× |
 | **tooluse** | deterministic: right tool / args / not-calling, parallel sets, multi-turn loops | decoy tools, 19-tool sets, unit/timezone/enum conversion, missing-info → ask, nested args, 3-step dependent chains, empty-result honesty, injection that tries to trigger `delete_account`, cents/date precision, ID reuse |
 | **instruct** | IFEval-style checks | 5–7 simultaneous constraints (no letter 'e', exact counts, JSON shape, endings) |
 | **longctx** | contains / numeric on generated haystacks (`min_context` skips models that can't fit) | NIAH 12k/16k/24k × depth 10/50/90, multi-key with distractors, multi-hop, aggregation, occurrence counting, needle-absent honesty |

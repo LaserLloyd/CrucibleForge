@@ -145,6 +145,12 @@ def cmd_run(args, cfg):
     entries = resolve_models(cfg, args.models)
     cases = load_cases(_parse_list(args.categories), smoke=args.smoke,
                        difficulties=_parse_list(getattr(args, "difficulty", None)))
+    only = _parse_list(getattr(args, "cases", None))
+    if only:
+        cases = [c for c in cases if c["id"] in only]
+        missing = set(only) - {c["id"] for c in cases}
+        if missing:
+            raise SystemExit(f"unknown case id(s): {sorted(missing)}")
     if not entries:
         raise SystemExit("no models selected (all disabled? pass --models)")
     if not cases:
@@ -360,6 +366,8 @@ def main(argv=None):
                        help="judge self-consistency samples (default: config)")
         p.add_argument("--difficulty", default=None,
                        help="comma-separated tiers to run: easy,medium,hard")
+        p.add_argument("--cases", default=None,
+                       help="comma-separated case ids to run (subset of the selection)")
         p.add_argument("--judge", default=None,
                        help="force a judge: provider:model_id (must not be under test)")
         p.add_argument("--no-link-check", action="store_true",
