@@ -1,0 +1,289 @@
+"""v3 additions: providers/config schema, legacy upgrade, new graders,
+reference judge rubric, long-context generator, case verifier, OpenClaw
+import, GUI markdown + auth. No network."""
+import json
+import threading
+from pathlib import Path
+
+import pytest
+import yaml
+
+from gauntlet import config, graders, judge, longctx_gen, providers, verify_cases
+from gauntlet.api import ChatResult
+from gauntlet.config import ConfigError
+
+
+@pytest.fixture(autouse=True)
+def _clear_provider_cache():
+    providers.clear_cache()
+    yield
+    providers.clear_cache()
+
+
+# ------------------------------------------------------------ config v3
+
+def test_example_config_validates():
+    cfg = config.load_config(config.EXAMPLE_CONFIG_PATH)
+    assert set(cfg["providers"]) >= {"lmstudio", "deepseek", "openrouter"}
+    assert all(m["provider"] in cfg["providers"] for m in cfg["models"])
+    assert cfg["judge"]["candidates"][0]["provider"] in cfg["providers"]
+
+
+def test_legacy_v2_shape_upgrades():
+    v2 = {"endpoint": {"base_url": "http://l/v1", "api_key": "k",
+                       "rig": {"base_url": "http://b/v1", "api_key": ""}},
+          "defaults": {}, "judge": {"candidates": [
+              {"model_id": "pub/repo/file", "thinking": True},
+              {"model_id": "local-key"}]},
+          "models": [{"name": "a", "model_id": "pub/repo/file",
+                      "studioforge": {"reasoning_format": "deepseek"}},
+                     {"name": "b", "model_id": "google/gemma"}]}
+    cfg = config.upgrade_legacy(v2)
+    config.validate_config(cfg)
+    assert cfg["providers"]["lmstudio"]["type"] == "lmstudio"
+    assert cfg["providers"]["studioforge"]["base_url"] == "http://b/v1"
+    a, b = cfg["models"]
+    assert a["provider"] == "studioforge" and a["extra_body"] == {"reasoning_format": "deepseek"}
+    assert "studioforge" not in a
+    assert b["provider"] == "lmstudio"
+    assert cfg["judge"]["candidates"][0]["provider"] == "studioforge"
+    assert cfg["judge"]["candidates"][1]["provider"] == "lmstudio"
+    # idempotent
+    assert config.upgrade_legacy(cfg) is cfg
+
+
+def test_literal_remote_key_rejected():
+    cfg = {"providers": {"r": {"type": "openai", "base_url": "http://x",
+                               "api_key": "a-literal-secret-value-not-an-env-ref"}},
+           "defaults": {}, "judge": {"candidates": []}, "models": []}
+    with pytest.raises(ConfigError):
+        config.validate_config(cfg)
+    cfg["providers"]["r"]["api_key"] = "${MY_KEY}"
+    config.validate_config(cfg)  # env placeholder is fine
+
+
+def test_unknown_provider_on_model_rejected():
+    cfg = {"providers": {"r": {"type": "openai", "base_url": "http://x"}},
+           "defaults": {}, "judge": {"candidates": []},
+           "models": [{"name": "m", "model_id": "x", "provider": "nope"}]}
+    with pytest.raises(ConfigError):
+        config.validate_config(cfg)
+
+
+def test_provider_resolves_env_key(monkeypatch):
+    monkeypatch.setenv("TEST_GAUNTLET_KEY", "abc123")
+    cfg = {"providers": {"r": {"type": "openai", "base_url": "http://x/v1/",
+                               "api_key_env": "TEST_GAUNTLET_KEY", "concurrency": 3}},
+           "defaults": {}, "judge": {"candidates": []}, "models": []}
+    p = providers.get_provider(cfg, "r")
+    assert p.api_key == "abc123" and p.concurrency == 3
+    assert p.base_url == "http://x/v1"          # trailing slash stripped
+    assert p.verify_model is False              # openai default: relaxed
+    q = providers.get_provider({"providers": {"l": {"type": "lmstudio", "base_url": "u"}},
+                                "defaults": {}, "judge": {}, "models": []}, "l")
+    assert q.verify_model is True
+
+
+def test_cost_from_price():
+    entry = {"price": {"input": 1.0, "output": 2.0}}
+    assert providers.cost_usd(entry, 1_000_000, 500_000) == pytest.approx(2.0)
+    assert providers.cost_usd({}, 10, 10) is None
+
+
+def test_results_dir_follows_config(tmp_path, monkeypatch):
+    monkeypatch.delenv("GAUNTLET_RESULTS", raising=False)
+    dst = tmp_path / "models.yaml"
+    dst.write_text(config.EXAMPLE_CONFIG_PATH.read_text())
+    config.load_config(dst)
+    assert config.results_dir() == tmp_path / "results"
+
+
+# -------------------------------------------------------------- graders
+
+def test_exact_grader_normalizes():
+    r = ChatResult(response_text="Reasoning...\nAnswer: B, D, A")
+    assert graders.grade(r, {"grader": "exact", "grader_config": {"answer": "b d a"}})["grade"] == "pass"
+    assert graders.grade(r, {"grader": "exact", "grader_config": {"answer": "a b d"}})["grade"] == "fail"
+    r2 = ChatResult(response_text="Answer: 10110")
+    assert graders.grade(r2, {"grader": "exact", "grader_config": {"answers": ["0b10110", "10110"]}})["grade"] == "pass"
+
+
+def test_contains_forbid():
+    r = ChatResult(response_text="Answer: Alice and Bob")
+    v = graders.grade(r, {"grader": "contains", "grader_config": {
+        "needles": ["alice"], "answer_line": True, "forbid": ["bob"]}})
+    assert v["grade"] == "fail" and "forbidden" in v["detail"]
+
+
+def test_reference_grader_defers_to_judge():
+    r = ChatResult(response_text="It is the second one, obviously.")
+    v = graders.grade(r, {"grader": "reference", "grader_config": {
+        "reference": "option 2", "needles": ["option 2"]}})
+    assert v["grade"] == "pending" and v["needs_judge"] and v["reference"] == "option 2"
+    r2 = ChatResult(response_text="Answer: option 2")
+    assert graders.grade(r2, {"grader": "reference", "grader_config": {
+        "reference": "option 2", "needles": ["option 2"]}})["grade"] == "pass"
+
+
+def test_reference_rubric_parses_and_applies():
+    v = judge.parse_verdict('{"correct": true, "note": "same value"}', "reference")
+    assert v == {"correct": True, "note": "same value"}
+    row = {"rubric": "reference", "grade": "pending"}
+    judge._apply_reference_grade(row, {"judge_failed": False, "scores": v})
+    assert row["grade"] == "pass"
+    judge._apply_reference_grade(row, {"judge_failed": False,
+                                       "scores": {"correct": False, "note": "different set"}})
+    assert row["grade"] == "fail" and "different set" in row["grade_detail"]
+    judge._apply_reference_grade(row, {"judge_failed": True})
+    assert row["grade"] == "fail"
+
+
+def test_reference_judge_input_shows_reference():
+    row = {"rubric": "reference", "prompt": "Q?", "reference": "42", "response": "forty-two"}
+    rubric, text = judge.build_judge_input(row)
+    assert rubric == "reference"
+    assert "## Reference Answer\n42" in text and "forty-two" in text
+    assert "BEGIN MODEL OUTPUT" in text  # fenced
+
+
+def test_select_judge_override_and_under_test():
+    cfg = {"providers": {"p": {"type": "openai", "base_url": "http://x"}},
+           "defaults": {}, "models": [],
+           "judge": {"candidates": [{"provider": "p", "model_id": "j1"},
+                                    {"provider": "p", "model_id": "j2"}]}}
+    assert judge.select_judge(cfg, set(), override="p:j2")["model_id"] == "j2"
+    assert judge.select_judge(cfg, set(), override="j1")["model_id"] == "j1"
+    with pytest.raises(judge.JudgeError):
+        judge.select_judge(cfg, {"j1"}, override="j1")
+    with pytest.raises(judge.JudgeError):
+        judge.select_judge(cfg, set(), override="nonexistent")
+
+
+# ------------------------------------------------------------ longctx gen
+
+def test_longctx_generator_deterministic_and_needled():
+    spec = {"type": "niah", "tokens": 3000, "depth": 0.5, "seed": 11,
+            "needle": "The code is red-fox-77.", "question": "What is the code?"}
+    a, b = longctx_gen.build(spec), longctx_gen.build(spec)
+    assert a == b and "red-fox-77" in a and a.rstrip().endswith("What is the code?")
+    assert 9000 < len(a) < 16000
+    spec2 = dict(spec, seed=12)
+    assert longctx_gen.build(spec2) != a
+
+
+def test_longctx_count_and_multikey():
+    p = longctx_gen.build({"type": "count", "tokens": 2000, "seed": 3, "count": 5,
+                           "marker": "MARK X.", "question": "How many?"})
+    assert p.count("MARK X.") == 5
+    p2 = longctx_gen.build({"type": "multikey", "tokens": 2000, "seed": 4,
+                            "needles": ["A is 1.", "B is 2.", "C is 3."],
+                            "depths": [0.1, 0.5, 0.9], "question": "B?"})
+    assert p2.index("A is 1.") < p2.index("B is 2.") < p2.index("C is 3.")
+
+
+def test_load_cases_materializes_generated_and_min_context():
+    cases = config.load_cases(["longctx"])
+    gen = [c for c in cases if c.get("generator")]
+    assert gen, "expected generated long-context cases"
+    for c in gen:
+        assert c["prompt"] and c["min_context"] > c["generator"]["tokens"]
+
+
+# ---------------------------------------------------------- case verifier
+
+def test_case_set_verifies_clean():
+    cases = config.load_cases()
+    bad = [(c["id"], verify_cases._check(c)) for c in cases if verify_cases._check(c)]
+    assert not bad, bad
+
+
+def test_verifier_catches_bad_reference_and_wrong_gold():
+    bad_ref = {"id": "x", "category": "coding", "max_tokens": 10, "prompt": "p",
+               "grader": "python_exec", "grader_config": {"tests": "assert f(1) == 2"},
+               "reference": "def f(x):\n    return x"}
+    assert any("FAILS" in e for e in verify_cases._check(bad_ref))
+    wrong = {"id": "y", "category": "math", "max_tokens": 10, "prompt": "p",
+             "grader": "numeric", "grader_config": {"answer": 5},
+             "verify": {"python": "2+2"}}
+    assert any("derived" in e for e in verify_cases._check(wrong))
+
+
+def test_hard_tier_is_substantial():
+    cases = config.load_cases()
+    hard = [c for c in cases if c.get("difficulty") == "hard"]
+    assert len(hard) >= 60
+    for cat in ("math", "coding", "reasoning", "tooluse", "longctx"):
+        assert sum(1 for c in hard if c["category"] == cat) >= 8, cat
+
+
+# --------------------------------------------------------- openclaw import
+
+def test_openclaw_import_maps_env_keys_and_prices(tmp_path):
+    from gauntlet.openclaw_import import import_openclaw
+    oc = {"models": {"providers": {
+        "deepseek": {"baseUrl": "https://api.deepseek.com/v1", "api": "openai-completions",
+                     "apiKey": "${DEEPSEEK_API_KEY}",
+                     "models": [{"id": "deepseek-v4-flash", "cost": {"input": 0.14, "output": 0.28},
+                                 "contextWindow": 1000000, "reasoning": True}]},
+        "local": {"baseUrl": "http://127.0.0.1:1234/v1", "api": "openai-completions",
+                  "apiKey": "local", "models": [{"id": "x"}]},
+        "leaky": {"baseUrl": "https://api.example.com/v1", "api": "openai-completions",
+                  "apiKey": "a-literal-secret-value-not-an-env-ref", "models": []},
+    }}}
+    p = tmp_path / "openclaw.json"
+    p.write_text(json.dumps(oc))
+    cfg = {"providers": {}, "models": [], "judge": {"candidates": []}, "defaults": {}}
+    added = import_openclaw(cfg, p)
+    assert "deepseek" in added["providers"] and "local" not in cfg["providers"]
+    assert cfg["providers"]["deepseek"]["api_key_env"] == "DEEPSEEK_API_KEY"
+    m = cfg["models"][0]
+    assert m["model_id"] == "deepseek-v4-flash" and m["price"] == {"input": 0.14, "output": 0.28}
+    assert m["context_length"] == 131072  # capped
+    # a literal secret is never copied
+    assert "sk-" not in json.dumps(cfg)
+    assert cfg["providers"]["leaky"]["api_key_env"] == "LEAKY_API_KEY"
+    # include_local brings the loopback provider in
+    added2 = import_openclaw(cfg, p, include_local=True)
+    assert "local" in added2["providers"]
+
+
+# ----------------------------------------------------------------- GUI
+
+def test_markdown_renders_table_and_escapes():
+    from gauntlet.gui.markdown import md_to_html
+    html = md_to_html("# T\n\n| a | b |\n|---|---|\n| 1 | <script> |\n\n**bold** and `x`")
+    assert "<table>" in html and "&lt;script&gt;" in html
+    assert "<strong>bold</strong>" in html and "<code>x</code>" in html
+
+
+def test_gui_auth_and_csrf(monkeypatch):
+    from gauntlet.gui import server as srv
+    from http.server import BaseHTTPRequestHandler
+
+    class Fake(srv.Handler):
+        def __init__(self, headers, path="/api/state"):
+            self.headers = headers
+            self.path = path
+            self.sent = []
+        def send_response(self, code): self.sent.append(code)
+        def send_header(self, *a): pass
+        def end_headers(self): pass
+        class _W:
+            def write(self, b): pass
+        wfile = _W()
+        def _read_json(self): return {}
+    app = type("A", (), {})()
+    app.token = "sekrit"
+    Fake.app = app
+    # GET without token -> 401
+    h = Fake({})
+    h.do_GET()
+    assert h.sent == [401]
+    # POST with token header but cross-site origin -> 403
+    h = Fake({"X-Gauntlet-Token": "sekrit", "Sec-Fetch-Site": "cross-site"}, "/api/stop")
+    h.do_POST()
+    assert h.sent == [403]
+    # wrong token -> 401
+    h = Fake({"X-Gauntlet-Token": "nope"}, "/api/stop")
+    h.do_POST()
+    assert h.sent == [401]

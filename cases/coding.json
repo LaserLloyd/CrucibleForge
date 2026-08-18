@@ -1,0 +1,513 @@
+[
+  {
+    "id": "C1-fizzbuzz",
+    "smoke": true,
+    "system": "You are an expert Python programmer. Return only the requested function inside a single ```python code block. Do not include example usage or explanation.",
+    "prompt": "Write a Python function `fizzbuzz(n)` that returns a list of strings for the numbers 1..n: 'Fizz' for multiples of 3, 'Buzz' for multiples of 5, 'FizzBuzz' for multiples of both, and the number as a string otherwise.",
+    "temperature": 0.0,
+    "max_tokens": 1200,
+    "grader": "python_exec",
+    "grader_config": {
+      "tests": "assert fizzbuzz(5) == ['1','2','Fizz','4','Buzz'], fizzbuzz(5)\nassert fizzbuzz(15)[-1] == 'FizzBuzz'\nassert fizzbuzz(15)[2] == 'Fizz'\nassert fizzbuzz(1) == ['1']\nassert len(fizzbuzz(100)) == 100"
+    },
+    "difficulty": "easy"
+  },
+  {
+    "id": "C2-two-sum",
+    "system": "You are an expert Python programmer. Return only the requested function inside a single ```python code block. No explanation.",
+    "prompt": "Write a Python function `two_sum(nums, target)` that returns the indices (as a list of two ints) of the two numbers in `nums` that add up to `target`. Exactly one solution exists; you may not use the same element twice.",
+    "temperature": 0.0,
+    "max_tokens": 1200,
+    "grader": "python_exec",
+    "grader_config": {
+      "tests": "assert sorted(two_sum([2,7,11,15], 9)) == [0,1]\nassert sorted(two_sum([3,2,4], 6)) == [1,2]\nassert sorted(two_sum([3,3], 6)) == [0,1]"
+    },
+    "difficulty": "easy"
+  },
+  {
+    "id": "C3-roman",
+    "smoke": true,
+    "system": "You are an expert Python programmer. Return only the requested function inside a single ```python code block. No explanation.",
+    "prompt": "Write a Python function `to_roman(n)` that converts an integer between 1 and 3999 inclusive into its Roman numeral string (uppercase). For example 4 -> 'IV', 1994 -> 'MCMXCIV'.",
+    "temperature": 0.0,
+    "max_tokens": 1200,
+    "grader": "python_exec",
+    "grader_config": {
+      "tests": "assert to_roman(4) == 'IV'\nassert to_roman(9) == 'IX'\nassert to_roman(58) == 'LVIII'\nassert to_roman(1994) == 'MCMXCIV'\nassert to_roman(3999) == 'MMMCMXCIX'\nassert to_roman(1) == 'I'"
+    },
+    "difficulty": "easy"
+  },
+  {
+    "id": "C4-balanced",
+    "system": "You are an expert Python programmer. Return only the requested function inside a single ```python code block. No explanation.",
+    "prompt": "Write a Python function `is_balanced(s)` that returns True if every '(', '[' and '{' in the string `s` is correctly matched and nested with its closing counterpart, and False otherwise. Characters other than brackets are ignored.",
+    "temperature": 0.0,
+    "max_tokens": 1200,
+    "grader": "python_exec",
+    "grader_config": {
+      "tests": "assert is_balanced('()') is True\nassert is_balanced('([{}])') is True\nassert is_balanced('(]') is False\nassert is_balanced('([)]') is False\nassert is_balanced('a(b)c[d]{e}') is True\nassert is_balanced('(') is False\nassert is_balanced('') is True"
+    },
+    "difficulty": "easy"
+  },
+  {
+    "id": "C5-debug",
+    "system": "You are an expert Python programmer. Return only the corrected function inside a single ```python code block. No explanation.",
+    "prompt": "The following function is supposed to return the n-th Fibonacci number with fib(0)=0, fib(1)=1, but it has a bug. Fix it and return the corrected function.\n\n```python\ndef fib(n):\n    a, b = 0, 1\n    for _ in range(n):\n        a, b = b, a\n    return a\n```",
+    "temperature": 0.0,
+    "max_tokens": 1200,
+    "grader": "python_exec",
+    "grader_config": {
+      "tests": "assert fib(0) == 0\nassert fib(1) == 1\nassert fib(2) == 1\nassert fib(10) == 55\nassert fib(15) == 610"
+    },
+    "difficulty": "easy"
+  },
+  {
+    "id": "C6-custom-rle",
+    "system": "You are an expert Python programmer. Return only the requested function inside a single ```python code block. No explanation.",
+    "prompt": "Write a Python function `compress(s)` for lowercase-letter strings using this exact custom rule: a run of the SAME character of length 3 or more is replaced by the character followed by the run length as digits; runs of length 1 or 2 are left as literal characters (not encoded). For example 'aaabbc' -> 'a3bbc', 'aaaabbbbbbbbbb' -> 'a4b10', 'abc' -> 'abc', 'aabbb' -> 'aab3'.",
+    "temperature": 0.0,
+    "max_tokens": 1500,
+    "grader": "python_exec",
+    "grader_config": {
+      "tests": "assert compress('aaabbc') == 'a3bbc', compress('aaabbc')\nassert compress('aaaabbbbbbbbbb') == 'a4b10', compress('aaaabbbbbbbbbb')\nassert compress('abc') == 'abc'\nassert compress('aabbb') == 'aab3', compress('aabbb')\nassert compress('') == ''\nassert compress('zzz') == 'z3'"
+    },
+    "difficulty": "medium"
+  },
+  {
+    "id": "C7-merge-intervals",
+    "system": "You are an expert Python programmer. Return only the requested function inside a single ```python code block. No explanation.",
+    "prompt": "Write a Python function `merge_intervals(intervals)` that takes a list of [start, end] integer pairs and returns a new list of the merged, non-overlapping intervals sorted by start. Intervals that touch or overlap merge into one. For example [[1,3],[2,6],[8,10],[15,18]] -> [[1,6],[8,10],[15,18]]; [[1,4],[4,5]] -> [[1,5]].",
+    "temperature": 0.0,
+    "max_tokens": 1500,
+    "grader": "python_exec",
+    "grader_config": {
+      "tests": "assert merge_intervals([[1,3],[2,6],[8,10],[15,18]]) == [[1,6],[8,10],[15,18]]\nassert merge_intervals([[1,4],[4,5]]) == [[1,5]]\nassert merge_intervals([]) == []\nassert merge_intervals([[1,4],[0,4]]) == [[0,4]]\nassert merge_intervals([[1,4],[2,3]]) == [[1,4]]"
+    },
+    "difficulty": "medium"
+  },
+  {
+    "id": "C8-expr-eval",
+    "system": "You are an expert Python programmer. Return only the requested function inside a single ```python code block. No explanation.",
+    "prompt": "Write a Python function `evaluate(expr)` that evaluates a string arithmetic expression containing non-negative integers and the binary operators + - * with standard precedence (* before + and -), separated by single spaces, with NO parentheses. Return the integer result. Do NOT use eval(). For example evaluate('2 + 3 * 4') == 14, evaluate('10 - 2 - 3') == 5, evaluate('2 * 3 + 4 * 5') == 26.",
+    "temperature": 0.0,
+    "max_tokens": 1800,
+    "grader": "python_exec",
+    "grader_config": {
+      "tests": "assert evaluate('2 + 3 * 4') == 14\nassert evaluate('10 - 2 - 3') == 5\nassert evaluate('2 * 3 + 4 * 5') == 26\nassert evaluate('7') == 7\nassert evaluate('100 - 10 * 9') == 10\nassert evaluate('1 + 2 + 3 + 4') == 10"
+    },
+    "difficulty": "medium"
+  },
+  {
+    "id": "C9-runlength",
+    "system": "You are an expert Python programmer. Return only the requested function inside a single ```python code block. No explanation.",
+    "prompt": "Write a function `def run_length(s):` that performs run-length encoding of a string. Replace each maximal run of one repeated character with that character followed by the length of the run (as a base-10 number). Every run — even a run of length 1 — must include its count. Return the encoded string. For an empty input return an empty string.\n\nExamples:\nrun_length(\"aaabbc\") -> \"a3b2c1\"\nrun_length(\"x\") -> \"x1\"\nrun_length(\"aabbaa\") -> \"a2b2a2\"",
+    "temperature": 0.0,
+    "max_tokens": 1800,
+    "grader": "python_exec",
+    "grader_config": {
+      "tests": "assert run_length(\"aaabbc\") == \"a3b2c1\"\nassert run_length(\"\") == \"\"\nassert run_length(\"x\") == \"x1\"\nassert run_length(\"aaaa\") == \"a4\"\nassert run_length(\"abc\") == \"a1b1c1\"\nassert run_length(\"aabbaa\") == \"a2b2a2\"\n"
+    },
+    "difficulty": "medium"
+  },
+  {
+    "id": "C10-properdivisors",
+    "system": "You are an expert Python programmer. Return only the requested function inside a single ```python code block. No explanation.",
+    "prompt": "Write a function `def sum_proper_divisors(n):` that returns the sum of all proper divisors of a positive integer n. Proper divisors are the positive divisors of n excluding n itself (so 1 counts, but n does not). For n = 1 the answer is 0.\n\nExamples:\nsum_proper_divisors(6) -> 6   (1 + 2 + 3)\nsum_proper_divisors(12) -> 16 (1 + 2 + 3 + 4 + 6)\nsum_proper_divisors(1) -> 0",
+    "temperature": 0.0,
+    "max_tokens": 1800,
+    "grader": "python_exec",
+    "grader_config": {
+      "tests": "assert sum_proper_divisors(1) == 0\nassert sum_proper_divisors(2) == 1\nassert sum_proper_divisors(6) == 6\nassert sum_proper_divisors(12) == 16\nassert sum_proper_divisors(28) == 28\nassert sum_proper_divisors(10) == 8\n"
+    },
+    "difficulty": "medium"
+  },
+  {
+    "id": "C11-rotate90",
+    "system": "You are an expert Python programmer. Return only the requested function inside a single ```python code block. No explanation.",
+    "prompt": "Write a function `def rotate90(matrix):` that rotates a rectangular matrix (a list of equal-length rows) by 90 degrees clockwise and returns the resulting matrix as a new list of lists. An m-by-n input becomes an n-by-m output. The input is not modified. For an empty matrix (`[]`) return `[]`.\n\nExamples:\nrotate90([[1, 2], [3, 4]]) -> [[3, 1], [4, 2]]\nrotate90([[1, 2, 3], [4, 5, 6]]) -> [[4, 1], [5, 2], [6, 3]]\nrotate90([[1], [2], [3]]) -> [[3, 2, 1]]",
+    "temperature": 0.0,
+    "max_tokens": 1800,
+    "grader": "python_exec",
+    "grader_config": {
+      "tests": "assert rotate90([[1, 2], [3, 4]]) == [[3, 1], [4, 2]]\nassert rotate90([[1, 2, 3], [4, 5, 6]]) == [[4, 1], [5, 2], [6, 3]]\nassert rotate90([[1]]) == [[1]]\nassert rotate90([]) == []\nassert rotate90([[1, 2, 3]]) == [[1], [2], [3]]\nassert rotate90([[1], [2], [3]]) == [[3, 2, 1]]\n"
+    },
+    "difficulty": "medium"
+  },
+  {
+    "id": "C12-gascircuit",
+    "system": "You are an expert Python programmer. Return only the requested function inside a single ```python code block. No explanation.",
+    "prompt": "There are stations arranged in a circle. `gas[i]` is the fuel available at station i and `cost[i]` is the fuel needed to drive from station i to station i+1 (wrapping from the last station back to the first). Starting with an empty tank at some station and driving clockwise, write a function `def gas_circuit(gas, cost):` that returns the index of the unique station from which you can complete a full loop without the tank ever going negative, or -1 if no such start exists. `gas` and `cost` have equal length.\n\nExamples:\ngas_circuit([1, 2, 3, 4, 5], [3, 4, 5, 1, 2]) -> 3\ngas_circuit([2, 3, 4], [3, 4, 3]) -> -1\ngas_circuit([5], [4]) -> 0",
+    "temperature": 0.0,
+    "max_tokens": 1800,
+    "grader": "python_exec",
+    "grader_config": {
+      "tests": "assert gas_circuit([1, 2, 3, 4, 5], [3, 4, 5, 1, 2]) == 3\nassert gas_circuit([2, 3, 4], [3, 4, 3]) == -1\nassert gas_circuit([5], [4]) == 0\nassert gas_circuit([3, 1, 1], [1, 2, 2]) == 0\nassert gas_circuit([2, 3, 4, 5, 6], [6, 5, 4, 3, 2]) == 2\nassert gas_circuit([1, 1, 1], [2, 1, 1]) == -1\n"
+    },
+    "difficulty": "medium"
+  },
+  {
+    "id": "C13-josephus",
+    "system": "You are an expert Python programmer. Return only the requested function inside a single ```python code block. No explanation.",
+    "prompt": "n people numbered 0..n-1 stand in a circle. Starting the count at person 0, every k-th person is eliminated (counting is 1-based and continues around the circle over the remaining people) until one survivor remains. Write a function `def josephus(n, k):` returning the 0-based index of the survivor. Assume n >= 1 and k >= 1.\n\nExamples:\njosephus(5, 2) -> 2\njosephus(7, 3) -> 3\njosephus(1, 1) -> 0",
+    "temperature": 0.0,
+    "max_tokens": 1800,
+    "grader": "python_exec",
+    "grader_config": {
+      "tests": "assert josephus(1, 1) == 0\nassert josephus(2, 1) == 1\nassert josephus(5, 2) == 2\nassert josephus(7, 3) == 3\nassert josephus(6, 5) == 0\nassert josephus(10, 2) == 4\n"
+    },
+    "difficulty": "medium"
+  },
+  {
+    "id": "C14-nextgreater",
+    "system": "You are an expert Python programmer. Return only the requested function inside a single ```python code block. No explanation.",
+    "prompt": "Write a function `def next_greater(nums):` that, for each element of the list `nums`, finds the first element to its right that is strictly greater than it. Return a list of the same length where position i holds that next-greater value, or -1 if no later element is greater. For an empty list return `[]`.\n\nExamples:\nnext_greater([2, 1, 3]) -> [3, 3, -1]\nnext_greater([5, 4, 3, 2, 1]) -> [-1, -1, -1, -1, -1]\nnext_greater([1, 2, 3, 4]) -> [2, 3, 4, -1]",
+    "temperature": 0.0,
+    "max_tokens": 1800,
+    "grader": "python_exec",
+    "grader_config": {
+      "tests": "assert next_greater([2, 1, 3]) == [3, 3, -1]\nassert next_greater([]) == []\nassert next_greater([5, 4, 3, 2, 1]) == [-1, -1, -1, -1, -1]\nassert next_greater([1, 2, 3, 4]) == [2, 3, 4, -1]\nassert next_greater([3, 3, 3]) == [-1, -1, -1]\nassert next_greater([2, 7, 3, 5, 4, 6, 8]) == [7, 8, 5, 6, 6, 8, -1]\n"
+    },
+    "difficulty": "medium"
+  },
+  {
+    "id": "C15-parsekv",
+    "system": "You are an expert Python programmer. Return only the requested function inside a single ```python code block. No explanation.",
+    "prompt": "Write a function `def parse_kv(s):` that parses a semicolon-separated list of `key=value` pairs into a dict. Split on ';'; ignore blank segments and any segment with no '=' . Strip surrounding whitespace from both the key and the value. If a value is a valid integer (optionally signed) store it as an int, otherwise store it as the stripped string. If a key repeats, the later value wins. For an empty string return `{}`.\n\nExamples:\nparse_kv(\"a=1;b=hello;c=3\") -> {\"a\": 1, \"b\": \"hello\", \"c\": 3}\nparse_kv(\"x = 5 ; y = 10\") -> {\"x\": 5, \"y\": 10}\nparse_kv(\"name=bob;;age=30\") -> {\"name\": \"bob\", \"age\": 30}",
+    "temperature": 0.0,
+    "max_tokens": 1800,
+    "grader": "python_exec",
+    "grader_config": {
+      "tests": "assert parse_kv(\"a=1;b=hello;c=3\") == {\"a\": 1, \"b\": \"hello\", \"c\": 3}\nassert parse_kv(\"\") == {}\nassert parse_kv(\"x = 5 ; y = 10\") == {\"x\": 5, \"y\": 10}\nassert parse_kv(\"k=1;k=2\") == {\"k\": 2}\nassert parse_kv(\"name=bob;;age=30\") == {\"name\": \"bob\", \"age\": 30}\nassert parse_kv(\"neg=-4\") == {\"neg\": -4}\n"
+    },
+    "difficulty": "medium"
+  },
+  {
+    "id": "C16-decodeways",
+    "system": "You are an expert Python programmer. Return only the requested function inside a single ```python code block. No explanation.",
+    "prompt": "A message of digits is encoded where 'A'->\"1\", 'B'->\"2\", ..., 'Z'->\"26\". Write a function `def decode_ways(s):` that returns the number of distinct ways the digit string `s` can be decoded back into letters. A single digit maps to a letter only if it is 1-9 (a lone '0' is invalid); a pair of digits maps to a letter only if it forms a number from 10 to 26 (so '06' is invalid). Return 0 for the empty string and for strings that cannot be decoded at all.\n\nExamples:\ndecode_ways(\"12\") -> 2   (\"AB\", \"L\")\ndecode_ways(\"226\") -> 3  (\"BZ\", \"VF\", \"BBF\")\ndecode_ways(\"06\") -> 0",
+    "temperature": 0.0,
+    "max_tokens": 1800,
+    "grader": "python_exec",
+    "grader_config": {
+      "tests": "assert decode_ways(\"12\") == 2\nassert decode_ways(\"226\") == 3\nassert decode_ways(\"0\") == 0\nassert decode_ways(\"06\") == 0\nassert decode_ways(\"10\") == 1\nassert decode_ways(\"27\") == 1\nassert decode_ways(\"11106\") == 2\nassert decode_ways(\"\") == 0\n"
+    },
+    "difficulty": "medium"
+  },
+  {
+    "id": "C17-rottime",
+    "system": "You are an expert Python programmer. Return only the requested function inside a single ```python code block. No explanation.",
+    "prompt": "You are given a grid (list of equal-length rows) where each cell is 0 (empty), 1 (fresh), or 2 (rotten). Every minute, any fresh cell that is 4-directionally adjacent (up/down/left/right) to a rotten cell becomes rotten. Write a function `def rot_time(grid):` that returns the minimum number of minutes until no fresh cell remains, or -1 if some fresh cell can never rot. If there are no fresh cells to begin with, return 0. The input grid must not be mutated.\n\nExamples:\nrot_time([[2, 1, 1], [1, 1, 0], [0, 1, 1]]) -> 4\nrot_time([[2, 1, 1], [0, 1, 1], [1, 0, 1]]) -> -1\nrot_time([[0, 2]]) -> 0",
+    "temperature": 0.0,
+    "max_tokens": 1800,
+    "grader": "python_exec",
+    "grader_config": {
+      "tests": "assert rot_time([[2, 1, 1], [1, 1, 0], [0, 1, 1]]) == 4\nassert rot_time([[2, 1, 1], [0, 1, 1], [1, 0, 1]]) == -1\nassert rot_time([[0, 2]]) == 0\nassert rot_time([[1]]) == -1\nassert rot_time([[2, 2], [1, 1]]) == 1\nassert rot_time([[0]]) == 0\n"
+    },
+    "difficulty": "medium"
+  },
+  {
+    "id": "CH1-refactor-distance",
+    "difficulty": "hard",
+    "system": "You are an expert Python programmer. Return only the requested function inside a single ```python code block. No explanation.",
+    "prompt": "Two lowercase strings `source` and `target` are given. In one step you may insert a single character, delete a single character, or replace a single character. Write `def min_edits(source, target):` that returns the minimum number of steps needed to turn `source` into `target`.\n\nExamples:\nmin_edits(\"kitten\", \"sitting\") -> 3\nmin_edits(\"horse\", \"ros\") -> 3\nmin_edits(\"abc\", \"abc\") -> 0\n\nConstraints: 0 <= len(source), len(target) <= 1000. An O(len(source)*len(target)) dynamic programming solution is expected.",
+    "temperature": 0.0,
+    "max_tokens": 3072,
+    "grader": "python_exec",
+    "grader_config": {
+      "tests": "assert min_edits(\"kitten\", \"sitting\") == 3\nassert min_edits(\"horse\", \"ros\") == 3\nassert min_edits(\"\", \"abc\") == 3\nassert min_edits(\"abc\", \"\") == 3\nassert min_edits(\"abc\", \"abc\") == 0\nassert min_edits(\"a\", \"b\") == 1\nassert min_edits(\"intention\", \"execution\") == 5\nassert min_edits(\"sunday\", \"saturday\") == 3\nassert min_edits(\"distance\", \"editing\") == 5\n"
+    }
+  },
+  {
+    "id": "CH2-tender-tally",
+    "difficulty": "hard",
+    "system": "You are an expert Python programmer. Return only the requested function inside a single ```python code block. No explanation.",
+    "prompt": "You have an unlimited supply of coins whose distinct positive denominations are given in the list `coins`. Write `def count_change(amount, coins):` that returns the number of distinct combinations of coins whose values sum to exactly `amount`. Two combinations are the same if they use the same multiset of coins (order does not matter). If `amount` is 0 the answer is 1 (the empty combination).\n\nExamples:\ncount_change(5, [1, 2, 5]) -> 4   # 5, 2+2+1, 2+1+1+1, 1+1+1+1+1\ncount_change(3, [2]) -> 0\ncount_change(0, [1, 2]) -> 1\n\nConstraints: 0 <= amount <= 5000, 1 <= len(coins) <= 30, each denomination in [1, 5000]. Use dynamic programming; return an exact integer (Python ints are unbounded).",
+    "temperature": 0.0,
+    "max_tokens": 3072,
+    "grader": "python_exec",
+    "grader_config": {
+      "tests": "assert count_change(5, [1, 2, 5]) == 4\nassert count_change(3, [2]) == 0\nassert count_change(0, [1, 2]) == 1\nassert count_change(10, [10]) == 1\nassert count_change(11, [1, 5, 10]) == 4\nassert count_change(4, [1, 2, 3]) == 4\nassert count_change(27, [2, 5, 3, 6]) == 39\nassert count_change(100, [1, 5, 10, 25]) == 242\nassert count_change(500, [5, 10, 25]) == 541\n"
+    }
+  },
+  {
+    "id": "CH3-rising-run",
+    "difficulty": "hard",
+    "system": "You are an expert Python programmer. Return only the requested function inside a single ```python code block. No explanation.",
+    "prompt": "Given a list of integers `nums`, write `def longest_rising(nums):` that returns the length of the longest strictly increasing subsequence. A subsequence keeps the original order but need not be contiguous, and every element must be strictly greater than the one before it.\n\nExamples:\nlongest_rising([10, 9, 2, 5, 3, 7, 101, 18]) -> 4   # e.g. 2,3,7,18 or 2,5,7,101\nlongest_rising([7, 7, 7, 7]) -> 1\nlongest_rising([]) -> 0\n\nConstraints: 0 <= len(nums) <= 100000, values may be negative. An O(n log n) solution is expected (patience sorting / binary search).",
+    "temperature": 0.0,
+    "max_tokens": 3072,
+    "grader": "python_exec",
+    "grader_config": {
+      "tests": "assert longest_rising([10, 9, 2, 5, 3, 7, 101, 18]) == 4\nassert longest_rising([0, 1, 0, 3, 2, 3]) == 4\nassert longest_rising([7, 7, 7, 7]) == 1\nassert longest_rising([]) == 0\nassert longest_rising([5, 4, 3, 2, 1]) == 1\nassert longest_rising([1, 2, 3, 4, 5, 6]) == 6\nassert longest_rising([1, 3, 6, 7, 9, 4, 10, 5, 6]) == 6\nassert longest_rising([2, 2, 2, 3, 1, 4]) == 3\nassert longest_rising(list(range(1000)) + [0]) == 1000\n"
+    }
+  },
+  {
+    "id": "CH4-least-toll",
+    "difficulty": "hard",
+    "system": "You are an expert Python programmer. Return only the requested function inside a single ```python code block. No explanation.",
+    "prompt": "A directed weighted graph has `n` nodes labelled 0..n-1. `edges` is a list of triples `(u, v, w)` meaning a one-way road from `u` to `v` with non-negative toll `w`. Write `def cheapest_path(n, edges, start, goal):` that returns the minimum total toll to travel from `start` to `goal`, or -1 if `goal` cannot be reached. If `start == goal` the answer is 0. There may be multiple edges between the same pair of nodes.\n\nExamples:\ncheapest_path(3, [(0,1,5),(1,2,5)], 0, 2) -> 10\ncheapest_path(3, [(0,1,5)], 0, 2) -> -1\ncheapest_path(2, [(0,1,7),(0,1,3)], 0, 1) -> 3\n\nConstraints: 1 <= n <= 100000, 0 <= len(edges) <= 300000, 0 <= w <= 1000000. Use Dijkstra's algorithm with a priority queue.",
+    "temperature": 0.0,
+    "max_tokens": 3072,
+    "grader": "python_exec",
+    "grader_config": {
+      "tests": "assert cheapest_path(5, [(0,1,4),(0,2,1),(2,1,2),(1,3,1),(2,3,5),(3,4,3)], 0, 4) == 7\nassert cheapest_path(3, [(0,1,5),(1,2,5)], 0, 2) == 10\nassert cheapest_path(3, [(0,1,5)], 0, 2) == -1\nassert cheapest_path(1, [], 0, 0) == 0\nassert cheapest_path(4, [(0,1,1),(1,2,1),(2,3,1),(0,3,10)], 0, 3) == 3\nassert cheapest_path(2, [(0,1,7),(0,1,3)], 0, 1) == 3\nassert cheapest_path(6, [(0,1,2),(0,2,4),(1,2,1),(1,3,7),(2,4,3),(4,3,2),(3,5,1),(4,5,5)], 0, 5) == 9\nassert cheapest_path(4, [(0,1,2),(2,3,2)], 3, 3) == 0\n"
+    }
+  },
+  {
+    "id": "CH5-task-lineup",
+    "difficulty": "hard",
+    "system": "You are an expert Python programmer. Return only the requested function inside a single ```python code block. No explanation.",
+    "prompt": "There are `n` tasks labelled 0..n-1. `deps` is a list of pairs `(a, b)` meaning task `a` must be done strictly before task `b`. Write `def build_order(n, deps):` that returns a valid order to perform all tasks as a list. When several valid orders exist, return the lexicographically smallest one (at each step pick the runnable task with the smallest label). If no valid order exists because the dependencies form a cycle, return an empty list [].\n\nExamples:\nbuild_order(4, [(0,1),(1,2),(2,3)]) -> [0, 1, 2, 3]\nbuild_order(2, [(0,1),(1,0)]) -> []\nbuild_order(4, [(1,0),(3,2)]) -> [1, 0, 3, 2]\n\nConstraints: 1 <= n <= 100000, 0 <= len(deps) <= 200000. Use Kahn's algorithm with a min-heap of in-degree-zero tasks.",
+    "temperature": 0.0,
+    "max_tokens": 3072,
+    "grader": "python_exec",
+    "grader_config": {
+      "tests": "assert build_order(4, [(0,1),(1,2),(2,3)]) == [0, 1, 2, 3]\nassert build_order(2, [(0,1),(1,0)]) == []\nassert build_order(3, []) == [0, 1, 2]\nassert build_order(4, [(1,0),(3,2)]) == [1, 0, 3, 2]\nassert build_order(6, [(5,0),(4,0),(5,2),(2,3),(3,1),(4,1)]) == [4, 5, 0, 2, 3, 1]\nassert build_order(3, [(0,1),(1,2),(2,0)]) == []\nassert build_order(5, [(0,1),(0,2),(1,3),(2,3),(3,4)]) == [0, 1, 2, 3, 4]\n"
+    }
+  },
+  {
+    "id": "CH6-sentinel-grid",
+    "difficulty": "hard",
+    "system": "You are an expert Python programmer. Return only the requested function inside a single ```python code block. No explanation.",
+    "prompt": "On an n x n board you must place `n` sentinels so that no two share a row, a column, or a diagonal (the classic non-attacking queens condition). Write `def count_arrangements(n):` that returns the number of distinct full placements. Reflections and rotations count as different arrangements.\n\nExamples:\ncount_arrangements(1) -> 1\ncount_arrangements(4) -> 2\ncount_arrangements(8) -> 92\n\nConstraints: 0 <= n <= 11. count_arrangements(0) is 1 (one empty placement). Use backtracking with column and diagonal pruning.",
+    "temperature": 0.0,
+    "max_tokens": 3072,
+    "grader": "python_exec",
+    "grader_config": {
+      "tests": "assert count_arrangements(1) == 1\nassert count_arrangements(2) == 0\nassert count_arrangements(3) == 0\nassert count_arrangements(4) == 2\nassert count_arrangements(5) == 10\nassert count_arrangements(6) == 4\nassert count_arrangements(8) == 92\nassert count_arrangements(9) == 352\nassert count_arrangements(10) == 724\n"
+    }
+  },
+  {
+    "id": "CH7-basin-catch",
+    "difficulty": "hard",
+    "system": "You are an expert Python programmer. Return only the requested function inside a single ```python code block. No explanation.",
+    "prompt": "A row of vertical bars has widths of 1 and heights given by the list `heights`. After heavy rain, water collects between taller bars. Write `def trapped_volume(heights):` that returns the total units of water trapped. Water above an index is bounded by the tallest bar to its left and the tallest bar to its right; the trapped amount at that index is min(left_max, right_max) - height (if positive).\n\nExamples:\ntrapped_volume([0,1,0,2,1,0,1,3,2,1,2,1]) -> 6\ntrapped_volume([4,2,0,3,2,5]) -> 9\ntrapped_volume([3,3,3]) -> 0\n\nConstraints: 0 <= len(heights) <= 100000, 0 <= each height <= 100000. Aim for an O(n) two-pointer solution.",
+    "temperature": 0.0,
+    "max_tokens": 3072,
+    "grader": "python_exec",
+    "grader_config": {
+      "tests": "assert trapped_volume([0,1,0,2,1,0,1,3,2,1,2,1]) == 6\nassert trapped_volume([4,2,0,3,2,5]) == 9\nassert trapped_volume([]) == 0\nassert trapped_volume([3,3,3]) == 0\nassert trapped_volume([5,4,1,2]) == 1\nassert trapped_volume([2,0,2]) == 2\nassert trapped_volume([0,2,0]) == 0\nassert trapped_volume([5,0,5,0,5]) == 10\n"
+    }
+  },
+  {
+    "id": "CH8-paired-median",
+    "difficulty": "hard",
+    "system": "You are an expert Python programmer. Return only the requested function inside a single ```python code block. No explanation.",
+    "prompt": "Two lists `a` and `b` are each already sorted in non-decreasing order. Write `def dual_median(a, b):` that returns the median of all the numbers from both lists combined, as a float. If the combined length is even, the median is the average of the two middle values. At least one of the two lists is non-empty.\n\nExamples:\ndual_median([1, 3], [2]) -> 2.0\ndual_median([1, 2], [3, 4]) -> 2.5\ndual_median([], [1]) -> 1.0\n\nConstraints: 0 <= len(a), len(b) <= 100000, len(a) + len(b) >= 1, values may be negative. An O(log(min(len(a), len(b)))) binary-search partition is expected. Always return a float.",
+    "temperature": 0.0,
+    "max_tokens": 3072,
+    "grader": "python_exec",
+    "grader_config": {
+      "tests": "assert dual_median([1, 3], [2]) == 2.0\nassert dual_median([1, 2], [3, 4]) == 2.5\nassert dual_median([], [1]) == 1.0\nassert dual_median([0, 0], [0, 0]) == 0.0\nassert dual_median([1, 2, 3, 4, 5, 6], [7, 8, 9]) == 5.0\nassert dual_median([1, 3, 5, 7], [2, 4, 6, 8]) == 4.5\nassert dual_median([1], [2, 3, 4, 5, 6]) == 3.5\nassert dual_median([1, 5, 9, 11], [2, 3, 7, 15, 20]) == 7.0\nassert dual_median([-5, -3, -1], [-2, 0, 2]) == -1.5\n"
+    }
+  },
+  {
+    "id": "CX01-recency-vault",
+    "difficulty": "hard",
+    "system": "You are an expert Python programmer. Return only the requested function inside a single ```python code block. No explanation.",
+    "prompt": "A recency vault holds at most `capacity` key/value pairs. Write `def cache_trace(capacity, ops):` that replays a list of operations and returns a list holding one result per *reading* operation, in order.\n\nOperation tuples:\n- `(\"put\", key, value)` - store or overwrite the key and mark it the most recently used. If storing would exceed `capacity`, first discard the least recently used key. Produces no output.\n- `(\"get\", key)` - append the stored value (or None if absent) to the result list AND mark the key most recently used.\n- `(\"peek\", key)` - append the stored value (or None if absent) to the result list WITHOUT changing how recently used the key is.\n\nA `capacity` of 0 means nothing is ever stored.\n\nExamples:\ncache_trace(2, [(\"put\",1,1),(\"put\",2,2),(\"get\",1),(\"put\",3,3),(\"get\",2),(\"get\",3)]) -> [1, None, 3]\ncache_trace(2, [(\"put\",1,1),(\"put\",2,2),(\"peek\",1),(\"put\",3,3),(\"get\",2),(\"get\",3)]) -> [1, 2, 3]\n\nConstraints: up to 200000 operations, keys are ints. Every operation must run in O(1) average time - scanning the whole store per operation is too slow.",
+    "temperature": 0.0,
+    "max_tokens": 4096,
+    "grader": "python_exec",
+    "grader_config": {
+      "tests": "assert cache_trace(2, [(\"put\",1,1),(\"put\",2,2),(\"get\",1),(\"put\",3,3),(\"get\",2),(\"get\",3)]) == [1, None, 3]\nassert cache_trace(2, [(\"put\",1,1),(\"put\",2,2),(\"peek\",1),(\"put\",3,3),(\"get\",2),(\"get\",3)]) == [1, 2, 3]\nassert cache_trace(0, [(\"put\",1,1),(\"get\",1),(\"peek\",1)]) == [None, None]\nassert cache_trace(1, [(\"put\",1,1),(\"put\",1,9),(\"get\",1)]) == [9]\nassert cache_trace(2, []) == []\nassert cache_trace(2, [(\"get\",5),(\"peek\",5)]) == [None, None]\nassert cache_trace(1, [(\"put\",1,1),(\"put\",2,2),(\"peek\",1),(\"peek\",2)]) == [None, 2]\nassert cache_trace(2, [(\"put\",1,1),(\"put\",2,2),(\"put\",1,9),(\"put\",3,3),(\"get\",2),(\"get\",1)]) == [None, 9]\nassert cache_trace(3, [(\"put\",1,1),(\"put\",2,2),(\"put\",3,3),(\"get\",1),(\"put\",4,4),(\"get\",2),(\"get\",1),(\"get\",3),(\"get\",4)]) == [1, None, 1, 3, 4]\nimport random\n_rnd = random.Random(5)\n_ops = []\nfor _i in range(200000):\n    _r = _rnd.random()\n    if _r < 0.5:\n        _ops.append((\"put\", _rnd.randrange(80000), _i))\n    elif _r < 0.85:\n        _ops.append((\"get\", _rnd.randrange(80000)))\n    else:\n        _ops.append((\"peek\", _rnd.randrange(80000)))\n_res = cache_trace(60000, _ops)\nassert len(_res) == 100084\nassert sum(1 for _x in _res if _x is not None) == 42889\n"
+    },
+    "reference": "from collections import OrderedDict\n\ndef cache_trace(capacity, ops):\n    store = OrderedDict()\n    out = []\n    for op in ops:\n        kind = op[0]\n        if kind == \"put\":\n            k, v = op[1], op[2]\n            if capacity <= 0:\n                continue\n            if k in store:\n                store.pop(k)\n            store[k] = v\n            if len(store) > capacity:\n                store.popitem(last=False)\n        elif kind == \"get\":\n            k = op[1]\n            if k in store:\n                v = store.pop(k)\n                store[k] = v\n                out.append(v)\n            else:\n                out.append(None)\n        else:\n            k = op[1]\n            out.append(store.get(k, None))\n    return out"
+  },
+  {
+    "id": "CX02-arith-reader",
+    "difficulty": "hard",
+    "system": "You are an expert Python programmer. Return only the requested function inside a single ```python code block. No explanation.",
+    "prompt": "Write `def evaluate(expr):` that computes the value of an arithmetic expression given as a string and returns it as a float, or returns None if the string is not a well-formed expression.\n\nSupported syntax:\n- non-negative decimal numbers such as `12` or `3.5` (no exponent notation, no sign attached to the literal)\n- binary `+`, `-`, `*`, `/` with the usual precedence, left-associative\n- `^` for exponentiation, which binds TIGHTER than unary minus and is RIGHT-associative, so `-2^2` is -4 and `2^3^2` is 512\n- unary `+` and `-`, which may be stacked (`--5` is 5)\n- parentheses\n- spaces anywhere between tokens\n\nReturn None for: an empty or blank string, unbalanced parentheses, a missing or doubled operator, any character outside the set above, division by zero, and an exponent that is not a whole number (`2^0.5`). All arithmetic must be exact until the final conversion: `evaluate('0.1+0.2')` must equal 0.3 exactly, and `evaluate('1/3*3')` must equal 1.0, so use fractions.Fraction rather than float arithmetic while parsing.\n\nExamples:\nevaluate('1+2*3') -> 7.0\nevaluate('(1+2)*3') -> 9.0\nevaluate('2^-2') -> 0.25\nevaluate('2*(3+4') -> None",
+    "temperature": 0.0,
+    "max_tokens": 4096,
+    "grader": "python_exec",
+    "grader_config": {
+      "tests": "assert evaluate(\"1+2*3\") == 7.0\nassert evaluate(\"(1+2)*3\") == 9.0\nassert evaluate(\"-2^2\") == -4.0\nassert evaluate(\"2^3^2\") == 512.0\nassert evaluate(\"2^-2\") == 0.25\nassert evaluate(\"10/4\") == 2.5\nassert evaluate(\"  7  \") == 7.0\nassert evaluate(\"--5\") == 5.0\nassert evaluate(\"3.5*2\") == 7.0\nassert evaluate(\"0.1+0.2\") == 0.3\nassert evaluate(\"1/3*3\") == 1.0\nassert evaluate(\"2-3-4\") == -5.0\nassert evaluate(\"100/10/5\") == 2.0\nassert evaluate(\"(2+3)*(4-6)/5\") == -2.0\nassert evaluate(\"1/0\") is None\nassert evaluate(\"2*(3+4\") is None\nassert evaluate(\"\") is None\nassert evaluate(\"   \") is None\nassert evaluate(\"2^0.5\") is None\nassert evaluate(\"4++\") is None\nassert evaluate(\"3 4\") is None\nassert evaluate(\"2$3\") is None\nassert evaluate(\"(1+2))\") is None\n"
+    },
+    "reference": "from fractions import Fraction\n\ndef evaluate(expr):\n    if not isinstance(expr, str):\n        return None\n    s = expr\n    n = len(s)\n    pos = 0\n\n    class Bad(Exception):\n        pass\n\n    def skip():\n        nonlocal pos\n        while pos < n and s[pos] == \" \":\n            pos += 1\n\n    def parse_expr():\n        nonlocal pos\n        val = parse_term()\n        while True:\n            skip()\n            if pos < n and s[pos] in \"+-\":\n                op = s[pos]\n                pos += 1\n                rhs = parse_term()\n                val = val + rhs if op == \"+\" else val - rhs\n            else:\n                return val\n\n    def parse_term():\n        nonlocal pos\n        val = parse_factor()\n        while True:\n            skip()\n            if pos < n and s[pos] in \"*/\":\n                op = s[pos]\n                pos += 1\n                rhs = parse_factor()\n                if op == \"*\":\n                    val = val * rhs\n                else:\n                    if rhs == 0:\n                        raise Bad()\n                    val = val / rhs\n            else:\n                return val\n\n    def parse_factor():\n        nonlocal pos\n        skip()\n        if pos < n and s[pos] in \"+-\":\n            op = s[pos]\n            pos += 1\n            v = parse_factor()\n            return v if op == \"+\" else -v\n        return parse_power()\n\n    def parse_power():\n        nonlocal pos\n        base = parse_atom()\n        skip()\n        if pos < n and s[pos] == \"^\":\n            pos += 1\n            e = parse_factor()\n            if e.denominator != 1:\n                raise Bad()\n            e = int(e)\n            if base == 0 and e < 0:\n                raise Bad()\n            return base ** e\n        return base\n\n    def parse_atom():\n        nonlocal pos\n        skip()\n        if pos >= n:\n            raise Bad()\n        if s[pos] == \"(\":\n            pos += 1\n            v = parse_expr()\n            skip()\n            if pos >= n or s[pos] != \")\":\n                raise Bad()\n            pos += 1\n            return v\n        start = pos\n        seen_dot = False\n        while pos < n and (s[pos].isdigit() or (s[pos] == \".\" and not seen_dot)):\n            if s[pos] == \".\":\n                seen_dot = True\n            pos += 1\n        tok = s[start:pos]\n        if tok in (\"\", \".\"):\n            raise Bad()\n        return Fraction(tok)\n\n    try:\n        v = parse_expr()\n        skip()\n        if pos != n:\n            return None\n        return float(v)\n    except Bad:\n        return None\n    except Exception:\n        return None"
+  },
+  {
+    "id": "CX03-pattern-sieve",
+    "difficulty": "hard",
+    "system": "You are an expert Python programmer. Return only the requested function inside a single ```python code block. No explanation.",
+    "prompt": "Write `def glob_match(pattern, text):` that returns True if the whole of `text` is matched by the shell-style `pattern`, else False.\n\nPattern syntax:\n- `*` matches any run of characters, including none\n- `?` matches exactly one character\n- `[abc]` matches one character from the set; a range like `[a-f]` is allowed and sets may mix items and ranges (`[a-f0-9x]`)\n- `[!abc]` (and `[!a-f]`) matches one character NOT in the set\n- every other character matches itself\n- a `[` with no closing `]` after it is treated as an ordinary literal `[`\n\nThe match must cover the entire text (no partial matches).\n\nExamples:\nglob_match('a*c', 'abc') -> True\nglob_match('a?c', 'ac') -> False\nglob_match('[!abc]d', 'dd') -> True\nglob_match('*.txt', 'notes.txtx') -> False\n\nConstraints: pattern and text up to 2000 characters. Plain recursive backtracking blows up on patterns with many stars; use dynamic programming so the worst case stays polynomial.",
+    "temperature": 0.0,
+    "max_tokens": 4096,
+    "grader": "python_exec",
+    "grader_config": {
+      "tests": "assert glob_match(\"a*c\", \"abc\") is True\nassert glob_match(\"a?c\", \"abc\") is True\nassert glob_match(\"a?c\", \"ac\") is False\nassert glob_match(\"[abc]d\", \"bd\") is True\nassert glob_match(\"[abc]d\", \"dd\") is False\nassert glob_match(\"[!abc]d\", \"dd\") is True\nassert glob_match(\"[!abc]d\", \"ad\") is False\nassert glob_match(\"*\", \"\") is True\nassert glob_match(\"\", \"\") is True\nassert glob_match(\"\", \"a\") is False\nassert glob_match(\"*\", \"anything at all\") is True\nassert glob_match(\"[a-f]x\", \"cx\") is True\nassert glob_match(\"[a-f]x\", \"gx\") is False\nassert glob_match(\"[a-f0-9]\", \"7\") is True\nassert glob_match(\"[!a-f]\", \"g\") is True\nassert glob_match(\"*.txt\", \"notes.txt\") is True\nassert glob_match(\"*.txt\", \"notes.txtx\") is False\nassert glob_match(\"a[\", \"a[\") is True\nassert glob_match(\"**a\", \"ba\") is True\nassert glob_match(\"?*\", \"a\") is True\nassert glob_match(\"?*\", \"\") is False\nassert glob_match(\"*a*b*\", \"xxaybz\") is True\nassert glob_match(\"*a*b*\", \"xxbyaz\") is False\nassert glob_match(\"a*b*c*d*e*f*g*h*i\", \"a\" + \"z\"*300 + \"i\") is False\nassert glob_match(\"*a*a*a*a*a*a*a*b\", \"a\"*2000) is False\nassert glob_match(\"*a*a*a*a*a*a*a*b\", \"a\"*1999 + \"b\") is True\n"
+    },
+    "reference": "def glob_match(pattern, text):\n    p = pattern\n    t = text\n    np_ = len(p)\n    nt = len(t)\n\n    def parse_class(i):\n        # p[i] == '['; returns (matcher_set_fn, next_index) or None if not a valid class\n        j = i + 1\n        neg = False\n        if j < np_ and p[j] == \"!\":\n            neg = True\n            j += 1\n        items = []\n        first = True\n        while j < np_ and (p[j] != \"]\" or first):\n            if j + 2 < np_ and p[j + 1] == \"-\" and p[j + 2] != \"]\":\n                items.append((p[j], p[j + 2]))\n                j += 3\n            else:\n                items.append((p[j], p[j]))\n                j += 1\n            first = False\n        if j >= np_:\n            return None\n        return (neg, items, j + 1)\n\n    # dp[i][j] : pattern[i:] matches text[j:]\n    prev = [False] * (nt + 1)\n    rows = []\n    # precompute segments of the pattern\n    segs = []\n    i = 0\n    while i < np_:\n        if p[i] == \"[\":\n            parsed = parse_class(i)\n            if parsed is None:\n                segs.append((\"lit\", \"[\"))\n                i += 1\n            else:\n                neg, items, nxt = parsed\n                segs.append((\"cls\", (neg, items)))\n                i = nxt\n        elif p[i] == \"*\":\n            segs.append((\"star\", None))\n            i += 1\n        elif p[i] == \"?\":\n            segs.append((\"any\", None))\n            i += 1\n        else:\n            segs.append((\"lit\", p[i]))\n            i += 1\n\n    ns = len(segs)\n    dp = [[False] * (nt + 1) for _ in range(ns + 1)]\n    dp[ns][nt] = True\n    for si in range(ns, -1, -1):\n        for tj in range(nt, -1, -1):\n            if si == ns:\n                continue\n            kind, data = segs[si]\n            if kind == \"star\":\n                ok = dp[si + 1][tj] or (tj < nt and dp[si][tj + 1])\n            elif tj >= nt:\n                ok = False\n            elif kind == \"any\":\n                ok = dp[si + 1][tj + 1]\n            elif kind == \"lit\":\n                ok = (t[tj] == data) and dp[si + 1][tj + 1]\n            else:\n                neg, items = data\n                c = t[tj]\n                inside = any(lo <= c <= hi for lo, hi in items)\n                ok = (inside != neg) and dp[si + 1][tj + 1]\n            dp[si][tj] = ok\n    return dp[0][0]"
+  },
+  {
+    "id": "CX04-out-of-order-pairs",
+    "difficulty": "hard",
+    "system": "You are an expert Python programmer. Return only the requested function inside a single ```python code block. No explanation.",
+    "prompt": "Write `def count_inversions(nums):` that returns how many index pairs (i, j) with i < j satisfy nums[i] > nums[j]. Equal values are never counted.\n\nExamples:\ncount_inversions([1, 2, 3]) -> 0\ncount_inversions([3, 2, 1]) -> 3\ncount_inversions([2, 4, 1, 3, 5]) -> 3\n\nConstraints: 0 <= len(nums) <= 200000, values may repeat and may be negative. The list can contain 200000 elements, so an O(n^2) double loop will not finish in time - use an O(n log n) method such as a merge-sort count or a Fenwick tree over compressed values.",
+    "temperature": 0.0,
+    "max_tokens": 4096,
+    "grader": "python_exec",
+    "grader_config": {
+      "tests": "assert count_inversions([]) == 0\nassert count_inversions([1]) == 0\nassert count_inversions([1, 2, 3]) == 0\nassert count_inversions([3, 2, 1]) == 3\nassert count_inversions([2, 1]) == 1\nassert count_inversions([1, 1, 1, 1]) == 0\nassert count_inversions([2, 4, 1, 3, 5]) == 3\nassert count_inversions([5, 4, 3, 2, 1]) == 10\nassert count_inversions([-1, -5, 0, -3]) == 3\nassert count_inversions([7, 7, 6, 6]) == 4\nimport random\n_rnd = random.Random(7)\n_big = [_rnd.randrange(10**9) for _ in range(200000)]\nassert count_inversions(_big) == 9993732903\n_rnd2 = random.Random(13)\n_dup = [_rnd2.randrange(60) for _ in range(200000)]\nassert count_inversions(_dup) == 9831078429\n"
+    },
+    "reference": "def count_inversions(nums):\n    n = len(nums)\n    if n < 2:\n        return 0\n    order = {v: i + 1 for i, v in enumerate(sorted(set(nums)))}\n    m = len(order)\n    tree = [0] * (m + 1)\n    total = 0\n    seen = 0\n    for v in nums:\n        i = order[v]\n        # count already-seen values strictly greater than v\n        s = 0\n        j = i\n        while j > 0:\n            s += tree[j]\n            j -= j & (-j)\n        total += seen - s\n        seen += 1\n        j = i\n        while j <= m:\n            tree[j] += 1\n            j += j & (-j)\n    return total"
+  },
+  {
+    "id": "CX05-recurrence-jump",
+    "difficulty": "hard",
+    "system": "You are an expert Python programmer. Return only the requested function inside a single ```python code block. No explanation.",
+    "prompt": "A sequence is defined by its first `k` terms and a fixed linear rule. Write `def recurrence_term(coeffs, init, n):` where `coeffs` has length k and `init` holds s[0]..s[k-1], and for every i >= k:\n\n    s[i] = coeffs[0]*s[i-1] + coeffs[1]*s[i-2] + ... + coeffs[k-1]*s[i-k]\n\nReturn s[n] modulo 1000000007. If n < k, return init[n] modulo 1000000007.\n\nExamples:\nrecurrence_term([1, 1], [0, 1], 10) -> 55        (Fibonacci)\nrecurrence_term([1, 1], [0, 1], 1) -> 1\nrecurrence_term([2, 1], [1, 1], 5) -> 41\n\nConstraints: 1 <= k <= 8, 0 <= n <= 10**18, coefficients and initial terms are non-negative ints below 10**9. n is far too large to iterate term by term - use k x k matrix exponentiation (or an equivalent fast-doubling method) so the work is O(k**3 log n).",
+    "temperature": 0.0,
+    "max_tokens": 4096,
+    "grader": "python_exec",
+    "grader_config": {
+      "tests": "assert recurrence_term([1, 1], [0, 1], 10) == 55\nassert recurrence_term([1, 1], [0, 1], 0) == 0\nassert recurrence_term([1, 1], [0, 1], 1) == 1\nassert recurrence_term([2, 1], [1, 1], 5) == 41\nassert recurrence_term([3, 4], [7, 9], 1) == 9\nassert recurrence_term([1], [5], 0) == 5\nassert recurrence_term([2], [3], 40) == (3 * pow(2, 40, 1000000007)) % 1000000007\nassert recurrence_term([0, 1], [4, 9], 6) == 4\nassert recurrence_term([1, 1], [0, 1], 10**18) == 209783453\nassert recurrence_term([1, 1, 1], [0, 1, 1], 10**18) == 926781415\nassert recurrence_term([2, 0, 3, 0, 5], [1, 2, 3, 4, 5], 10**15) == 828048546\nassert recurrence_term([3, 0, 0, 7], [1, 0, 2, 4], 987654321987) == 797683858\n_seq = [0, 1]\nfor _i in range(2, 60):\n    _seq.append(_seq[-1] + _seq[-2])\nassert recurrence_term([1, 1], [0, 1], 59) == _seq[59] % 1000000007\n"
+    },
+    "reference": "def recurrence_term(coeffs, init, n):\n    MOD = 1000000007\n    k = len(coeffs)\n    if n < k:\n        return init[n] % MOD\n    def mul(A, B):\n        size = k\n        C = [[0] * size for _ in range(size)]\n        for i in range(size):\n            Ai = A[i]\n            Ci = C[i]\n            for x in range(size):\n                a = Ai[x]\n                if a:\n                    Bx = B[x]\n                    for j in range(size):\n                        Ci[j] = (Ci[j] + a * Bx[j]) % MOD\n        return C\n    M = [[0] * k for _ in range(k)]\n    for j in range(k):\n        M[0][j] = coeffs[j] % MOD\n    for i in range(1, k):\n        M[i][i - 1] = 1\n    R = [[1 if i == j else 0 for j in range(k)] for i in range(k)]\n    e = n - (k - 1)\n    base = M\n    while e:\n        if e & 1:\n            R = mul(R, base)\n        base = mul(base, base)\n        e >>= 1\n    vec = [init[k - 1 - i] % MOD for i in range(k)]\n    return sum(R[0][i] * vec[i] for i in range(k)) % MOD"
+  },
+  {
+    "id": "CX06-distinct-chunks",
+    "difficulty": "hard",
+    "system": "You are an expert Python programmer. Return only the requested function inside a single ```python code block. No explanation.",
+    "prompt": "Write `def distinct_chunks(s):` that returns the number of DIFFERENT non-empty contiguous substrings of the string `s`. Substrings that occur more than once are counted once.\n\nExamples:\ndistinct_chunks('') -> 0\ndistinct_chunks('aa') -> 2          ('a', 'aa')\ndistinct_chunks('abc') -> 6\ndistinct_chunks('banana') -> 15\n\nConstraints: 0 <= len(s) <= 20000, lowercase letters only. A 20000-character string has about 200 million substrings, so materialising them in a set will run out of both time and memory - use a suffix automaton (sum of len(state) - len(link(state))) or a suffix array with LCP.",
+    "temperature": 0.0,
+    "max_tokens": 4096,
+    "grader": "python_exec",
+    "grader_config": {
+      "tests": "assert distinct_chunks(\"\") == 0\nassert distinct_chunks(\"a\") == 1\nassert distinct_chunks(\"aa\") == 2\nassert distinct_chunks(\"ab\") == 3\nassert distinct_chunks(\"abc\") == 6\nassert distinct_chunks(\"aba\") == 5\nassert distinct_chunks(\"banana\") == 15\nassert distinct_chunks(\"aaaa\") == 4\nassert distinct_chunks(\"abab\") == 7\n_s = \"mississippi\"\nassert distinct_chunks(_s) == len({_s[_i:_j] for _i in range(len(_s)) for _j in range(_i+1, len(_s)+1)})\nimport random\n_big = \"\".join(random.Random(3).choice(\"abcd\") for _ in range(20000))\nassert distinct_chunks(_big) == 20000\n_ab = \"\".join(random.Random(17).choice(\"ab\") for _ in range(15000))\nassert distinct_chunks(_ab) == 15000\nassert distinct_chunks(\"z\" * 12000) == 12000\n"
+    },
+    "reference": "def distinct_chunks(s):\n    if not s:\n        return 0\n    MAXN = 2 * len(s) + 5\n    link = [-1] * MAXN\n    length = [0] * MAXN\n    trans = [None] * MAXN\n    trans[0] = {}\n    last = 0\n    size = 1\n    for ch in s:\n        cur = size\n        size += 1\n        length[cur] = length[last] + 1\n        link[cur] = -1\n        trans[cur] = {}\n        p = last\n        while p != -1 and ch not in trans[p]:\n            trans[p][ch] = cur\n            p = link[p]\n        if p == -1:\n            link[cur] = 0\n        else:\n            q = trans[p][ch]\n            if length[p] + 1 == length[q]:\n                link[cur] = q\n            else:\n                clone = size\n                size += 1\n                length[clone] = length[p] + 1\n                trans[clone] = dict(trans[q])\n                link[clone] = link[q]\n                while p != -1 and trans[p].get(ch) == q:\n                    trans[p][ch] = clone\n                    p = link[p]\n                link[q] = clone\n                link[cur] = clone\n        last = cur\n    total = 0\n    for v in range(1, size):\n        total += length[v] - length[link[v]]\n    return total"
+  },
+  {
+    "id": "CX07-lattice-fill",
+    "difficulty": "hard",
+    "system": "You are an expert Python programmer. Return only the requested function inside a single ```python code block. No explanation.",
+    "prompt": "A 9x9 grid is given as a list of 9 lists of ints, where 0 marks an empty cell. Write `def solve_grid(grid):` that returns a completed grid (a new list of 9 lists) in which every row, every column and each of the nine 3x3 blocks contains the digits 1..9 exactly once, keeping all the given digits in place. Return None if the puzzle has no solution (including when the givens already clash). The grid passed in must not be modified.\n\nConstraints: the tests include a puzzle that is deliberately hard for a solver that simply fills the first empty cell in reading order - it must finish within a few seconds. Use bitmask candidate sets and always branch on the empty cell with the fewest candidates.",
+    "temperature": 0.0,
+    "max_tokens": 4096,
+    "grader": "python_exec",
+    "grader_config": {
+      "tests": "def _mk(_s):\n    return [[int(_ch) for _ch in _s[_i*9:(_i+1)*9]] for _i in range(9)]\n\ndef _ok(_sol, _puz):\n    if _sol is None:\n        return False\n    if len(_sol) != 9 or any(len(_r) != 9 for _r in _sol):\n        return False\n    _d = set(range(1, 10))\n    for _i in range(9):\n        if set(_sol[_i]) != _d:\n            return False\n        if set(_sol[_r][_i] for _r in range(9)) != _d:\n            return False\n    for _br in range(0, 9, 3):\n        for _bc in range(0, 9, 3):\n            if set(_sol[_br+_a][_bc+_b] for _a in range(3) for _b in range(3)) != _d:\n                return False\n    for _i in range(9):\n        for _j in range(9):\n            if _puz[_i][_j] and _puz[_i][_j] != _sol[_i][_j]:\n                return False\n    return True\n\n_easy = _mk(\"530070000600195000098000060800060003400803001700020006060000280000419005000080079\")\n_copy = [_r[:] for _r in _easy]\n_sol = solve_grid(_easy)\nassert _ok(_sol, _copy)\nassert _easy == _copy, \"input grid was modified\"\n_plat = _mk(\"000000012000000003002300400001800005060070800000009000008500000900040500470006000\")\nassert _ok(solve_grid(_plat), _plat)\n_ever = _mk(\"800000000003600000070090200050007000000045700000100030001000068008500010090000400\")\nassert _ok(solve_grid(_ever), _ever)\n_done = solve_grid(_mk(\"530070000600195000098000060800060003400803001700020006060000280000419005000080079\"))\nassert _ok(solve_grid(_done), _done)\nassert solve_grid(_mk(\"123456780000000009000000000000000000000000000000000000000000000000000000000000000\")) is None\nassert solve_grid(_mk(\"110000000000000000000000000000000000000000000000000000000000000000000000000000000\")) is None\nassert solve_grid([[0]*9 for _ in range(9)]) is not None\nassert _ok(solve_grid([[0]*9 for _ in range(9)]), [[0]*9 for _ in range(9)])\n"
+    },
+    "reference": "def solve_grid(grid):\n    rows = [0] * 9\n    cols = [0] * 9\n    boxes = [0] * 9\n    board = [row[:] for row in grid]\n    blanks = []\n    for r in range(9):\n        for c in range(9):\n            v = board[r][c]\n            if v:\n                b = (r // 3) * 3 + c // 3\n                bit = 1 << (v - 1)\n                if rows[r] & bit or cols[c] & bit or boxes[b] & bit:\n                    return None\n                rows[r] |= bit\n                cols[c] |= bit\n                boxes[b] |= bit\n            else:\n                blanks.append((r, c))\n\n    full = (1 << 9) - 1\n\n    def solve():\n        if not blanks:\n            return True\n        best = -1\n        best_mask = 0\n        best_count = 10\n        for idx, (r, c) in enumerate(blanks):\n            b = (r // 3) * 3 + c // 3\n            mask = full & ~(rows[r] | cols[c] | boxes[b])\n            cnt = bin(mask).count(\"1\")\n            if cnt < best_count:\n                best_count = cnt\n                best = idx\n                best_mask = mask\n                if cnt <= 1:\n                    break\n        if best_count == 0:\n            return False\n        r, c = blanks.pop(best)\n        b = (r // 3) * 3 + c // 3\n        mask = best_mask\n        while mask:\n            bit = mask & (-mask)\n            mask -= bit\n            rows[r] |= bit\n            cols[c] |= bit\n            boxes[b] |= bit\n            board[r][c] = bit.bit_length()\n            if solve():\n                return True\n            rows[r] -= bit\n            cols[c] -= bit\n            boxes[b] -= bit\n            board[r][c] = 0\n        blanks.insert(best, (r, c))\n        return False\n\n    if solve():\n        return board\n    return None"
+  },
+  {
+    "id": "CX08-fence-span",
+    "difficulty": "hard",
+    "system": "You are an expert Python programmer. Return only the requested function inside a single ```python code block. No explanation.",
+    "prompt": "Write `def hull_double_area(points):` that takes a list of integer (x, y) pairs and returns TWICE the area of their convex hull, as an exact int. Doubling keeps the answer whole, so no floating point is needed anywhere.\n\nReturn 0 when the points cannot enclose any area: fewer than three distinct points, or all points on one straight line. Duplicate points may appear in the input.\n\nExamples:\nhull_double_area([(0,0),(4,0),(4,3),(0,3)]) -> 24\nhull_double_area([(0,0),(4,0),(4,3),(0,3),(2,1)]) -> 24\nhull_double_area([(0,0),(1,0),(2,0)]) -> 0\n\nConstraints: up to 100000 points with coordinates within +/-1000000. Build the hull with Andrew's monotone chain in O(n log n) and use the shoelace formula on integers - a pairwise O(n^2) approach is far too slow.",
+    "temperature": 0.0,
+    "max_tokens": 4096,
+    "grader": "python_exec",
+    "grader_config": {
+      "tests": "assert hull_double_area([]) == 0\nassert hull_double_area([(0,0)]) == 0\nassert hull_double_area([(0,0),(1,1)]) == 0\nassert hull_double_area([(0,0),(1,0),(2,0)]) == 0\nassert hull_double_area([(2,2),(2,2),(2,2)]) == 0\nassert hull_double_area([(0,0),(1,0),(0,1)]) == 1\nassert hull_double_area([(0,0),(4,0),(4,3),(0,3)]) == 24\nassert hull_double_area([(0,0),(4,0),(4,3),(0,3),(2,1)]) == 24\nassert hull_double_area([(0,0),(0,0),(3,0),(0,4)]) == 12\nassert hull_double_area([(-2,-2),(2,-2),(2,2),(-2,2),(0,0),(1,1)]) == 32\nassert isinstance(hull_double_area([(0,0),(4,0),(4,3),(0,3)]), int)\nassert hull_double_area([(0,0),(5,0),(10,0),(10,5),(5,5),(0,5)]) == 100\nimport random\n_rnd = random.Random(9)\n_pts = [(_rnd.randrange(-10**6, 10**6), _rnd.randrange(-10**6, 10**6)) for _ in range(100000)]\nassert hull_double_area(_pts) == 7997423321845\n_rnd2 = random.Random(23)\n_pts2 = [(_rnd2.randrange(-1000, 1001), _rnd2.randrange(-1000, 1001)) for _ in range(50000)]\nassert hull_double_area(_pts2) == 7998426\n"
+    },
+    "reference": "def hull_double_area(points):\n    pts = sorted(set(points))\n    if len(pts) < 3:\n        return 0\n\n    def cross(o, a, b):\n        return (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0])\n\n    lower = []\n    for p in pts:\n        while len(lower) >= 2 and cross(lower[-2], lower[-1], p) <= 0:\n            lower.pop()\n        lower.append(p)\n    upper = []\n    for p in reversed(pts):\n        while len(upper) >= 2 and cross(upper[-2], upper[-1], p) <= 0:\n            upper.pop()\n        upper.append(p)\n    hull = lower[:-1] + upper[:-1]\n    if len(hull) < 3:\n        return 0\n    area2 = 0\n    for i in range(len(hull)):\n        x1, y1 = hull[i]\n        x2, y2 = hull[(i + 1) % len(hull)]\n        area2 += x1 * y2 - x2 * y1\n    return abs(area2)"
+  },
+  {
+    "id": "CX09-word-rungs",
+    "difficulty": "hard",
+    "system": "You are an expert Python programmer. Return only the requested function inside a single ```python code block. No explanation.",
+    "prompt": "Write `def ladder_length(start, goal, words):` that returns the number of words in the shortest chain from `start` to `goal` where each step changes exactly one letter and every word AFTER the first must be present in `words` (a list of equal-length lowercase words). The count includes both `start` and `goal`. Return 0 if no such chain exists. `start` itself does not have to be in `words`; if `start == goal` and `goal` is in `words`, the answer is 1.\n\nExamples:\nladder_length('hit', 'cog', ['hot','dot','dog','lot','log','cog']) -> 5   (hit -> hot -> dot -> dog -> cog)\nladder_length('hit', 'cog', ['hot','dot','dog','lot','log']) -> 0\n\nConstraints: up to 8000 dictionary words of length up to 8. Comparing every pair of words is too slow - do a breadth-first search over wildcard buckets such as 'h*t', which costs O(N * L) to build.",
+    "temperature": 0.0,
+    "max_tokens": 4096,
+    "grader": "python_exec",
+    "grader_config": {
+      "tests": "assert ladder_length(\"hit\", \"cog\", [\"hot\",\"dot\",\"dog\",\"lot\",\"log\",\"cog\"]) == 5\nassert ladder_length(\"hit\", \"cog\", [\"hot\",\"dot\",\"dog\",\"lot\",\"log\"]) == 0\nassert ladder_length(\"a\", \"a\", [\"a\"]) == 1\nassert ladder_length(\"a\", \"c\", [\"b\",\"c\"]) == 2\nassert ladder_length(\"ab\", \"cd\", []) == 0\nassert ladder_length(\"abc\", \"abd\", [\"abd\"]) == 2\nassert ladder_length(\"abc\", \"xyz\", [\"abd\",\"abe\"]) == 0\nassert ladder_length(\"aaa\", \"bbb\", [\"baa\",\"bba\",\"bbb\"]) == 4\nassert ladder_length(\"aaa\", \"bbb\", [\"baa\",\"bba\"]) == 0\nimport random\n_rnd = random.Random(11)\n_words = set()\nfor _i in range(1, 8):\n    _words.add(\"d\"*_i + \"a\"*(7-_i))\nwhile len(_words) < 8000:\n    _words.add(\"\".join(_rnd.choice(\"abcd\") for _ in range(7)))\n_words = sorted(_words)\nassert ladder_length(\"aaaaaaa\", \"ddddddd\", _words) == 8\nassert ladder_length(\"aaaaaaa\", \"zzzzzzz\", _words) == 0\n"
+    },
+    "reference": "from collections import deque\n\ndef ladder_length(start, goal, words):\n    wordset = set(words)\n    if goal not in wordset:\n        return 0\n    if start == goal:\n        return 1\n    L = len(start)\n    buckets = {}\n    for w in wordset:\n        if len(w) != L:\n            continue\n        for i in range(L):\n            buckets.setdefault(w[:i] + \"*\" + w[i + 1:], []).append(w)\n    seen = {start}\n    q = deque([(start, 1)])\n    while q:\n        w, d = q.popleft()\n        for i in range(L):\n            key = w[:i] + \"*\" + w[i + 1:]\n            for nxt in buckets.get(key, ()):\n                if nxt in seen:\n                    continue\n                if nxt == goal:\n                    return d + 1\n                seen.add(nxt)\n                q.append((nxt, d + 1))\n            buckets[key] = []\n    return 0"
+  },
+  {
+    "id": "CX10-busiest-moment",
+    "difficulty": "hard",
+    "system": "You are an expert Python programmer. Return only the requested function inside a single ```python code block. No explanation.",
+    "prompt": "Each booking is a half-open interval [start, end) on a timeline. Write `def peak_overlap(intervals):` that returns a tuple `(count, when)` where `count` is the largest number of bookings active at the same instant and `when` is the EARLIEST time at which that many are active. Because the intervals are half-open, a booking ending at time t does not overlap one starting at t.\n\nIf the list is empty, or every interval is empty (end <= start), return `(0, None)`.\n\nExamples:\npeak_overlap([(1,5),(2,3),(4,9)]) -> (2, 2)\npeak_overlap([(1,2),(2,3)]) -> (1, 1)\npeak_overlap([]) -> (0, None)\n\nConstraints: up to 200000 intervals, times may be negative and are ints. Sort the endpoints and sweep in O(n log n); processing every interval against every other is too slow. Note that at equal times the ends must be applied before the starts.",
+    "temperature": 0.0,
+    "max_tokens": 4096,
+    "grader": "python_exec",
+    "grader_config": {
+      "tests": "assert peak_overlap([]) == (0, None)\nassert peak_overlap([(1,5)]) == (1, 1)\nassert peak_overlap([(1,5),(2,3),(4,9)]) == (2, 2)\nassert peak_overlap([(1,2),(2,3)]) == (1, 1)\nassert peak_overlap([(1,1)]) == (0, None)\nassert peak_overlap([(3,3),(5,5)]) == (0, None)\nassert peak_overlap([(0,10),(1,2),(1,3),(5,6)]) == (3, 1)\nassert peak_overlap([(-5,0),(-3,4),(-1,1)]) == (3, -1)\nassert peak_overlap([(0,1),(0,1),(0,1)]) == (3, 0)\nassert peak_overlap([(0,5),(5,10),(10,15)]) == (1, 0)\nassert peak_overlap([(2,4),(0,9),(4,6)]) == (2, 2)\nimport random\n_rnd = random.Random(21)\n_iv = []\nfor _ in range(200000):\n    _s = _rnd.randrange(0, 10**6)\n    _iv.append((_s, _s + _rnd.randrange(1, 1000)))\nassert peak_overlap(_iv) == (147, 17883)\n"
+    },
+    "reference": "def peak_overlap(intervals):\n    if not intervals:\n        return (0, None)\n    events = []\n    for s, e in intervals:\n        if e <= s:\n            continue\n        events.append((s, 1))\n        events.append((e, -1))\n    if not events:\n        return (0, None)\n    events.sort(key=lambda x: (x[0], x[1]))\n    best = 0\n    best_t = None\n    cur = 0\n    for t, d in events:\n        cur += d\n        if d == 1 and cur > best:\n            best = cur\n            best_t = t\n    if best == 0:\n        return (0, None)\n    return (best, best_t)"
+  },
+  {
+    "id": "CX11-stack-machine",
+    "difficulty": "hard",
+    "system": "You are an expert Python programmer. Return only the requested function inside a single ```python code block. No explanation.",
+    "prompt": "Write `def run_program(program):` that runs a tiny stack machine and returns the list of values it printed, or None if the program faults.\n\nThe machine has an operand stack (empty at start) and 16 memory cells indexed 0..15 (all 0 at start). `program` is a list of tuples; the program counter starts at 0 and normally advances by one.\n\n- `(\"PUSH\", n)` push the int n\n- `(\"POP\",)` discard the top\n- `(\"DUP\",)` push a copy of the top\n- `(\"SWAP\",)` exchange the top two values\n- `(\"ADD\",)` / `(\"SUB\",)` / `(\"MUL\",)` pop b, then pop a, push a+b / a-b / a*b\n- `(\"LOAD\", i)` push the value of memory cell i\n- `(\"STORE\", i)` pop the top and write it into memory cell i\n- `(\"PRINT\",)` pop the top and append it to the output\n- `(\"JMP\", t)` set the program counter to t\n- `(\"JZ\", t)` pop the top; jump to t if it is 0, otherwise continue\n- `(\"HALT\",)` stop and return the output collected so far\n\nFaults that make the function return None: any pop from an empty stack (SWAP needs two values), a memory index outside 0..15, a jump target outside 0..len(program), an unknown opcode, and executing more than 2000000 instructions (a runaway loop). Running past the last instruction is NOT a fault - it ends the program and returns the output.\n\nExamples:\nrun_program([(\"PUSH\",3),(\"PUSH\",4),(\"ADD\",),(\"PRINT\",),(\"HALT\",)]) -> [7]\nrun_program([(\"POP\",)]) -> None\nrun_program([(\"JMP\",0)]) -> None\n\nConstraints: the tests include a loop that executes hundreds of thousands of instructions, so keep the interpreter a simple flat loop (no per-instruction recursion or re-parsing).",
+    "temperature": 0.0,
+    "max_tokens": 4096,
+    "grader": "python_exec",
+    "grader_config": {
+      "tests": "assert run_program([(\"PUSH\",3),(\"PUSH\",4),(\"ADD\",),(\"PRINT\",),(\"HALT\",)]) == [7]\nassert run_program([]) == []\nassert run_program([(\"PUSH\",5),(\"PUSH\",2),(\"SUB\",),(\"PRINT\",),(\"HALT\",)]) == [3]\nassert run_program([(\"PUSH\",4),(\"PUSH\",5),(\"SWAP\",),(\"SUB\",),(\"PRINT\",),(\"HALT\",)]) == [1]\nassert run_program([(\"PUSH\",7),(\"STORE\",1),(\"LOAD\",1),(\"DUP\",),(\"MUL\",),(\"PRINT\",),(\"HALT\",)]) == [49]\nassert run_program([(\"PUSH\",1),(\"PUSH\",2),(\"PUSH\",3),(\"POP\",),(\"PRINT\",),(\"PRINT\",)]) == [2, 1]\nassert run_program([(\"LOAD\",0),(\"PRINT\",),(\"HALT\",)]) == [0]\nassert run_program([(\"POP\",)]) is None\nassert run_program([(\"PUSH\",1),(\"ADD\",)]) is None\nassert run_program([(\"PUSH\",1),(\"SWAP\",)]) is None\nassert run_program([(\"PUSH\",1),(\"STORE\",16)]) is None\nassert run_program([(\"PUSH\",1),(\"JMP\",99)]) is None\nassert run_program([(\"NOP\",)]) is None\nassert run_program([(\"JMP\",0)]) is None\nassert run_program([(\"PUSH\",0),(\"JZ\",4),(\"PUSH\",9),(\"PRINT\",),(\"HALT\",)]) == []\nassert run_program([(\"PUSH\",1),(\"JZ\",4),(\"PUSH\",9),(\"PRINT\",),(\"HALT\",)]) == [9]\n_N = 30000\n_prog = [(\"PUSH\",0),(\"STORE\",0),\n         (\"PUSH\",_N),(\"STORE\",1),\n         (\"LOAD\",1),(\"JZ\",15),\n         (\"LOAD\",0),(\"LOAD\",1),(\"ADD\",),(\"STORE\",0),\n         (\"LOAD\",1),(\"PUSH\",1),(\"SUB\",),(\"STORE\",1),\n         (\"JMP\",4),(\"LOAD\",0),(\"PRINT\",),(\"HALT\",)]\nassert run_program(_prog) == [_N*(_N+1)//2]\n_spin = [(\"PUSH\",1),(\"JMP\",0)]\nassert run_program(_spin) is None\n"
+    },
+    "reference": "def run_program(program):\n    stack = []\n    mem = [0] * 16\n    out = []\n    pc = 0\n    steps = 0\n    n = len(program)\n    LIMIT = 2000000\n    while pc < n:\n        steps += 1\n        if steps > LIMIT:\n            return None\n        ins = program[pc]\n        op = ins[0]\n        if op == \"PUSH\":\n            stack.append(ins[1])\n            pc += 1\n        elif op == \"POP\":\n            if not stack:\n                return None\n            stack.pop()\n            pc += 1\n        elif op in (\"ADD\", \"SUB\", \"MUL\"):\n            if len(stack) < 2:\n                return None\n            b = stack.pop()\n            a = stack.pop()\n            if op == \"ADD\":\n                stack.append(a + b)\n            elif op == \"SUB\":\n                stack.append(a - b)\n            else:\n                stack.append(a * b)\n            pc += 1\n        elif op == \"DUP\":\n            if not stack:\n                return None\n            stack.append(stack[-1])\n            pc += 1\n        elif op == \"SWAP\":\n            if len(stack) < 2:\n                return None\n            stack[-1], stack[-2] = stack[-2], stack[-1]\n            pc += 1\n        elif op == \"LOAD\":\n            i = ins[1]\n            if not (0 <= i < 16):\n                return None\n            stack.append(mem[i])\n            pc += 1\n        elif op == \"STORE\":\n            i = ins[1]\n            if not (0 <= i < 16) or not stack:\n                return None\n            mem[i] = stack.pop()\n            pc += 1\n        elif op == \"PRINT\":\n            if not stack:\n                return None\n            out.append(stack.pop())\n            pc += 1\n        elif op == \"JMP\":\n            t = ins[1]\n            if not (0 <= t <= n):\n                return None\n            pc = t\n        elif op == \"JZ\":\n            if not stack:\n                return None\n            t = ins[1]\n            if not (0 <= t <= n):\n                return None\n            v = stack.pop()\n            pc = t if v == 0 else pc + 1\n        elif op == \"HALT\":\n            return out\n        else:\n            return None\n    return out"
+  },
+  {
+    "id": "CX12-roman-strict",
+    "difficulty": "medium",
+    "system": "You are an expert Python programmer. Return only the requested function inside a single ```python code block. No explanation.",
+    "prompt": "Write `def roman_value(s):` that converts a Roman numeral string to its int value, or returns None if the string is not a properly formed Roman numeral.\n\nOnly the single canonical spelling of a number is accepted, so the function must reject: lowercase letters, characters outside IVXLCDM, the empty string, more than three repeats of I, X, C or M, any repeat of V, L or D, non-canonical subtractions such as IIII, VX, IM, IL, IC or XIIX, and anything whose value falls outside 1..3999.\n\nExamples:\nroman_value('XLII') -> 42\nroman_value('MCMXCIV') -> 1994\nroman_value('IIII') -> None\nroman_value('iv') -> None\n\nA reliable strategy: parse the string, then re-encode the resulting number in canonical form and accept only if it reproduces the input exactly.",
+    "temperature": 0.0,
+    "max_tokens": 3072,
+    "grader": "python_exec",
+    "grader_config": {
+      "tests": "assert roman_value(\"I\") == 1\nassert roman_value(\"IV\") == 4\nassert roman_value(\"IX\") == 9\nassert roman_value(\"XLII\") == 42\nassert roman_value(\"MCMXCIV\") == 1994\nassert roman_value(\"MMMCMXCIX\") == 3999\nassert roman_value(\"CDXLIV\") == 444\nassert roman_value(\"LVIII\") == 58\nassert roman_value(\"\") is None\nassert roman_value(\"IIII\") is None\nassert roman_value(\"VX\") is None\nassert roman_value(\"IM\") is None\nassert roman_value(\"IL\") is None\nassert roman_value(\"IC\") is None\nassert roman_value(\"XIIX\") is None\nassert roman_value(\"VV\") is None\nassert roman_value(\"LC\") is None\nassert roman_value(\"MMMM\") is None\nassert roman_value(\"iv\") is None\nassert roman_value(\"ABC\") is None\nassert roman_value(\"X I\") is None\nassert roman_value(\"XXXX\") is None\n_seen = set()\nfor _n in range(1, 4000):\n    _tab = [(1000,\"M\"),(900,\"CM\"),(500,\"D\"),(400,\"CD\"),(100,\"C\"),(90,\"XC\"),(50,\"L\"),(40,\"XL\"),(10,\"X\"),(9,\"IX\"),(5,\"V\"),(4,\"IV\"),(1,\"I\")]\n    _r = _n\n    _out = []\n    for _v, _sym in _tab:\n        while _r >= _v:\n            _out.append(_sym)\n            _r -= _v\n    _s = \"\".join(_out)\n    assert roman_value(_s) == _n, _s\n    _seen.add(_s)\nassert roman_value(\"DD\") is None\nassert roman_value(\"XCX\") is None\n"
+    },
+    "reference": "def roman_value(s):\n    if not isinstance(s, str) or not s:\n        return None\n    vals = {\"I\": 1, \"V\": 5, \"X\": 10, \"L\": 50, \"C\": 100, \"D\": 500, \"M\": 1000}\n    for ch in s:\n        if ch not in vals:\n            return None\n    total = 0\n    i = 0\n    while i < len(s):\n        v = vals[s[i]]\n        if i + 1 < len(s) and vals[s[i + 1]] > v:\n            total += vals[s[i + 1]] - v\n            i += 2\n        else:\n            total += v\n            i += 1\n    if total < 1 or total > 3999:\n        return None\n    table = [(1000, \"M\"), (900, \"CM\"), (500, \"D\"), (400, \"CD\"), (100, \"C\"),\n             (90, \"XC\"), (50, \"L\"), (40, \"XL\"), (10, \"X\"), (9, \"IX\"),\n             (5, \"V\"), (4, \"IV\"), (1, \"I\")]\n    out = []\n    rest = total\n    for value, sym in table:\n        while rest >= value:\n            out.append(sym)\n            rest -= value\n    if \"\".join(out) != s:\n        return None\n    return total",
+    "smoke": true
+  },
+  {
+    "id": "CX13-span-reader",
+    "difficulty": "medium",
+    "system": "You are an expert Python programmer. Return only the requested function inside a single ```python code block. No explanation.",
+    "prompt": "Write `def parse_duration(s):` that turns a compact duration string into a whole number of seconds, or returns None if the string is malformed.\n\nA valid string is an optional leading '-' followed by one or more `<digits><unit>` groups with no spaces. The units are `d` (86400s), `h` (3600s), `m` (60s) and `s`. Each unit may appear at most once and the groups must be written in descending unit order (d before h before m before s), though any of them may be omitted. Digit runs are non-negative decimal integers and may carry leading zeros or exceed the natural range ('90m' is 5400). A leading '-' negates the whole total.\n\nReturn None for: the empty string, a lone '-', a number with no unit ('1h30'), a unit with no number ('h'), units out of order or repeated ('1m2h', '1h1h'), spaces, and any other character.\n\nExamples:\nparse_duration('1h30m15s') -> 5415\nparse_duration('2d4h') -> 187200\nparse_duration('-30m') -> -1800\nparse_duration('1h30') -> None",
+    "temperature": 0.0,
+    "max_tokens": 3072,
+    "grader": "python_exec",
+    "grader_config": {
+      "tests": "assert parse_duration(\"1h30m15s\") == 5415\nassert parse_duration(\"2d4h\") == 187200\nassert parse_duration(\"45s\") == 45\nassert parse_duration(\"90m\") == 5400\nassert parse_duration(\"0s\") == 0\nassert parse_duration(\"10d\") == 864000\nassert parse_duration(\"1d2h3m4s\") == 93784\nassert parse_duration(\"01h\") == 3600\nassert parse_duration(\"-30m\") == -1800\nassert parse_duration(\"-1d\") == -86400\nassert parse_duration(\"-0s\") == 0\nassert parse_duration(\"\") is None\nassert parse_duration(\"-\") is None\nassert parse_duration(\"1h30\") is None\nassert parse_duration(\"h\") is None\nassert parse_duration(\"1m2h\") is None\nassert parse_duration(\"1h1h\") is None\nassert parse_duration(\"1s0s\") is None\nassert parse_duration(\"1 h\") is None\nassert parse_duration(\"1x\") is None\nassert parse_duration(\"1h-\") is None\nassert parse_duration(\"--1h\") is None\nassert parse_duration(\"1H\") is None\nassert parse_duration(\"1.5h\") is None\nassert parse_duration(\"s1\") is None\n"
+    },
+    "reference": "def parse_duration(s):\n    if not isinstance(s, str) or not s:\n        return None\n    neg = False\n    body = s\n    if body[0] == \"-\":\n        neg = True\n        body = body[1:]\n    if not body:\n        return None\n    units = {\"d\": 86400, \"h\": 3600, \"m\": 60, \"s\": 1}\n    order = [\"d\", \"h\", \"m\", \"s\"]\n    last_rank = -1\n    total = 0\n    i = 0\n    n = len(body)\n    while i < n:\n        start = i\n        while i < n and body[i].isdigit():\n            i += 1\n        if i == start:\n            return None\n        num = int(body[start:i])\n        if i >= n:\n            return None\n        u = body[i]\n        if u not in units:\n            return None\n        rank = order.index(u)\n        if rank <= last_rank:\n            return None\n        last_rank = rank\n        total += num * units[u]\n        i += 1\n    return -total if neg else total"
+  },
+  {
+    "id": "CX14-burst-guard",
+    "difficulty": "hard",
+    "system": "You are an expert Python programmer. Return only the requested function inside a single ```python code block. No explanation.",
+    "prompt": "Requests arrive at the non-decreasing integer times in `timestamps`. Write `def allow_flags(timestamps, limit, window):` that returns a list of booleans, one per request, saying whether it was allowed.\n\nA request at time t is allowed when the number of PREVIOUSLY ALLOWED requests with timestamp strictly greater than t - window is less than `limit`; otherwise it is rejected. A rejected request is not remembered, so it never blocks a later one. A `limit` of 0 rejects everything.\n\nExamples:\nallow_flags([1,2,3,4], 2, 10) -> [True, True, False, False]\nallow_flags([0,9,10,19,20], 1, 10) -> [True, False, True, False, True]\n\nConstraints: up to 200000 timestamps, limit up to 100000. Re-scanning the accepted history for every request is too slow - keep a sliding window (a deque of accepted times) so the whole run is O(n).",
+    "temperature": 0.0,
+    "max_tokens": 4096,
+    "grader": "python_exec",
+    "grader_config": {
+      "tests": "assert allow_flags([1,2,3,4], 2, 10) == [True, True, False, False]\nassert allow_flags([], 3, 5) == []\nassert allow_flags([1], 0, 5) == [False]\nassert allow_flags([0,1,2,10,11], 2, 10) == [True, True, False, True, True]\nassert allow_flags([0,0,0], 2, 1) == [True, True, False]\nassert allow_flags([5,5,5,5], 3, 100) == [True, True, True, False]\nassert allow_flags([0,10,20], 1, 10) == [True, True, True]\nassert allow_flags([0,9,10,19,20], 1, 10) == [True, False, True, False, True]\nassert allow_flags([1,2,3], 5, 1) == [True, True, True]\nassert allow_flags([0,0,0,0], 1, 1) == [True, False, False, False]\nassert allow_flags([-5,-4,0], 2, 3) == [True, True, True]\nimport random\n_rnd = random.Random(31)\n_ts = []\n_t = 0\nfor _ in range(200000):\n    _t += _rnd.randrange(0, 3)\n    _ts.append(_t)\n_out = allow_flags(_ts, 50, 1000)\nassert len(_out) == 200000\nassert all(isinstance(_b, bool) for _b in _out[:100])\nassert sum(_out) == 10050\nassert _out[-6:] == [False, False, False, False, False, False]\n"
+    },
+    "reference": "from collections import deque\n\ndef allow_flags(timestamps, limit, window):\n    out = []\n    accepted = deque()\n    for t in timestamps:\n        while accepted and accepted[0] <= t - window:\n            accepted.popleft()\n        if limit > 0 and len(accepted) < limit:\n            accepted.append(t)\n            out.append(True)\n        else:\n            out.append(False)\n    return out"
+  },
+  {
+    "id": "CX15-exact-change",
+    "difficulty": "hard",
+    "system": "You are an expert Python programmer. Return only the requested function inside a single ```python code block. No explanation.",
+    "prompt": "Write `def fewest_coins(coins, amount):` that returns the smallest number of coins whose values add up exactly to `amount`, or -1 if no combination does. Each denomination in `coins` may be used any number of times, and the list may contain duplicates. `fewest_coins(coins, 0)` is always 0, even when `coins` is empty.\n\nExamples:\nfewest_coins([1, 2, 5], 11) -> 3\nfewest_coins([2], 3) -> -1\nfewest_coins([186, 419, 83, 408], 6249) -> 20\n\nConstraints: 0 <= amount <= 100000, up to 50 denominations, each a positive int. Denominations are arbitrary, so a greedy largest-coin-first rule gives wrong answers - use bottom-up dynamic programming over the amounts, which is O(amount * len(coins)).",
+    "temperature": 0.0,
+    "max_tokens": 4096,
+    "grader": "python_exec",
+    "grader_config": {
+      "tests": "assert fewest_coins([1, 2, 5], 11) == 3\nassert fewest_coins([2], 3) == -1\nassert fewest_coins([], 0) == 0\nassert fewest_coins([], 7) == -1\nassert fewest_coins([1], 0) == 0\nassert fewest_coins([5, 10], 3) == -1\nassert fewest_coins([3, 3, 3], 9) == 3\nassert fewest_coins([100000], 100000) == 1\nassert fewest_coins([186, 419, 83, 408], 6249) == 20\nassert fewest_coins([1, 3, 4], 6) == 2\nassert fewest_coins([2, 5, 10, 1], 27) == 4\nassert fewest_coins([9, 6, 5, 1], 11) == 2\nassert fewest_coins([1, 7, 17, 29, 97], 100000) == 1036\nassert fewest_coins([7, 11], 100000) == 9092\nassert fewest_coins([13, 19, 41, 53], 99999) == 1887\nassert fewest_coins([4, 6], 99999) == -1\n"
+    },
+    "reference": "def fewest_coins(coins, amount):\n    if amount == 0:\n        return 0\n    INF = float(\"inf\")\n    dp = [0] + [INF] * amount\n    for c in set(coins):\n        if c <= 0 or c > amount:\n            continue\n        for v in range(c, amount + 1):\n            alt = dp[v - c] + 1\n            if alt < dp[v]:\n                dp[v] = alt\n    return -1 if dp[amount] == INF else dp[amount]"
+  },
+  {
+    "id": "CX16-shared-thread",
+    "difficulty": "hard",
+    "system": "You are an expert Python programmer. Return only the requested function inside a single ```python code block. No explanation.",
+    "prompt": "Write `def longest_shared(a, b):` that returns one longest common subsequence of the two strings as a string. A subsequence keeps the original order but may skip characters. When several longest subsequences exist, any one of them is acceptable; return '' when there is no common character or either string is empty.\n\nExamples:\nlongest_shared('abcde', 'ace') -> 'ace'\nlongest_shared('abc', 'xyz') -> ''\n\nConstraints: each string is at most 600 characters. Compute the table with dynamic programming and then reconstruct an actual subsequence (not just its length); an exponential search over subsequences will time out.",
+    "temperature": 0.0,
+    "max_tokens": 4096,
+    "grader": "python_exec",
+    "grader_config": {
+      "tests": "def _lcs_len(_a, _b):\n    _prev = [0] * (len(_b) + 1)\n    for _ch in _a:\n        _cur = [0] * (len(_b) + 1)\n        for _j, _cb in enumerate(_b):\n            if _ch == _cb:\n                _cur[_j+1] = _prev[_j] + 1\n            else:\n                _cur[_j+1] = _cur[_j] if _cur[_j] >= _prev[_j+1] else _prev[_j+1]\n        _prev = _cur\n    return _prev[-1]\n\ndef _is_sub(_s, _t):\n    _it = iter(_t)\n    return all(_c in _it for _c in _s)\n\ndef _check(_a, _b):\n    _r = longest_shared(_a, _b)\n    assert isinstance(_r, str), _r\n    assert _is_sub(_r, _a), (_a, _b, _r)\n    assert _is_sub(_r, _b), (_a, _b, _r)\n    assert len(_r) == _lcs_len(_a, _b), (_a, _b, _r)\n    return _r\n\nassert longest_shared(\"\", \"\") == \"\"\nassert longest_shared(\"\", \"abc\") == \"\"\nassert longest_shared(\"abc\", \"\") == \"\"\nassert longest_shared(\"abc\", \"xyz\") == \"\"\nassert longest_shared(\"abc\", \"abc\") == \"abc\"\n_check(\"abcde\", \"ace\")\n_check(\"aggtab\", \"gxtxayb\")\n_check(\"banana\", \"atana\")\n_check(\"aaaa\", \"aa\")\n_check(\"abcbdab\", \"bdcaba\")\n_check(\"xmjyauz\", \"mzjawxu\")\n_check(\"a\" * 50, \"a\" * 30)\nimport random\n_rnd = random.Random(41)\nfor _t in range(8):\n    _x = \"\".join(_rnd.choice(\"abcd\") for _ in range(_rnd.randrange(0, 120)))\n    _y = \"\".join(_rnd.choice(\"abcd\") for _ in range(_rnd.randrange(0, 120)))\n    _check(_x, _y)\n_big_a = \"\".join(_rnd.choice(\"abcde\") for _ in range(600))\n_big_b = \"\".join(_rnd.choice(\"abcde\") for _ in range(600))\n_check(_big_a, _big_b)\n"
+    },
+    "reference": "def longest_shared(a, b):\n    n, m = len(a), len(b)\n    if n == 0 or m == 0:\n        return \"\"\n    prev = [0] * (m + 1)\n    rows = []\n    for i in range(n):\n        cur = [0] * (m + 1)\n        ai = a[i]\n        for j in range(m):\n            if ai == b[j]:\n                cur[j + 1] = prev[j] + 1\n            else:\n                cur[j + 1] = cur[j] if cur[j] >= prev[j + 1] else prev[j + 1]\n        rows.append(cur)\n        prev = cur\n    out = []\n    i, j = n, m\n    while i > 0 and j > 0:\n        if a[i - 1] == b[j - 1]:\n            out.append(a[i - 1])\n            i -= 1\n            j -= 1\n        else:\n            up = rows[i - 2][j] if i >= 2 else 0\n            left = rows[i - 1][j - 1]\n            if up >= left:\n                i -= 1\n            else:\n                j -= 1\n    return \"\".join(reversed(out))"
+  }
+]

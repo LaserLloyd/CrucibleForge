@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gauntlet — LLM benchmark</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand"><span class="logo">⚔</span> Gauntlet <span class="ver" id="revision"></span></div>
+  <nav id="tabs">
+    <button data-tab="dash" class="active">Dashboard</button>
+    <button data-tab="run">Run</button>
+    <button data-tab="results">Results</button>
+    <button data-tab="models">Models</button>
+    <button data-tab="cases">Cases</button>
+  </nav>
+  <div class="jobbar" id="jobbar"><span class="dot idle" id="jobdot"></span><span id="jobtext">idle</span>
+    <button id="stopbtn" class="danger small" hidden>Stop</button></div>
+</header>
+
+<main>
+<!-- ================= Dashboard ================= -->
+<section id="tab-dash" class="tab active">
+  <div class="grid2">
+    <div class="card">
+      <h2>Providers <button class="small ghost" id="refreshprov">re-check</button></h2>
+      <table class="list" id="provtable"><thead><tr><th>name</th><th>type</th><th>endpoint</th><th>key</th><th>state</th></tr></thead><tbody></tbody></table>
+    </div>
+    <div class="card">
+      <h2>Judge</h2>
+      <div id="judgeinfo" class="muted"></div>
+      <h2 style="margin-top:1rem">Case set</h2>
+      <table class="list" id="casetable"><thead><tr><th>category</th><th>cases</th><th>hard</th><th>smoke</th></tr></thead><tbody></tbody></table>
+    </div>
+  </div>
+  <div class="card">
+    <h2>Registry</h2>
+    <table class="list" id="dashmodels"><thead><tr><th>model</th><th>provider</th><th>id</th><th>ctx</th><th>price $/1M</th><th>results</th></tr></thead><tbody></tbody></table>
+    <p class="muted" id="paths"></p>
+  </div>
+</section>
+
+<!-- ================= Run ================= -->
+<section id="tab-run" class="tab">
+  <div class="grid2">
+    <div class="card">
+      <h2>Models under test</h2>
+      <div id="runmodels" class="checks"></div>
+      <div class="row"><button class="small ghost" id="selall">all enabled</button><button class="small ghost" id="selnone">none</button></div>
+    </div>
+    <div class="card">
+      <h2>What to run</h2>
+      <div id="runcats" class="checks"></div>
+      <div class="row"><label>difficulty</label>
+        <label class="chk"><input type="checkbox" name="diff" value="easy" checked> easy</label>
+        <label class="chk"><input type="checkbox" name="diff" value="medium" checked> medium</label>
+        <label class="chk"><input type="checkbox" name="diff" value="hard" checked> hard</label></div>
+      <div class="row">
+        <label class="chk"><input type="checkbox" id="smoke"> smoke (fast subset)</label>
+        <label class="chk"><input type="checkbox" id="fresh"> fresh (archive prior results)</label>
+        <label class="chk"><input type="checkbox" id="thenjudge" checked> judge afterwards</label>
+        <label class="chk"><input type="checkbox" id="nolink"> skip pre-flight probe</label>
+      </div>
+      <div class="row">
+        <label>judge</label><select id="judgesel"><option value="">auto (first available candidate)</option></select>
+        <label>samples</label><input type="number" id="samples" min="1" max="7" value="1" style="width:4em">
+      </div>
+      <div class="row">
+        <button id="startrun" class="primary">Start benchmark</button>
+        <button id="judgeonly">Judge pending rows</button>
+        <button id="reportonly">Re-render report</button>
+        <button id="pairwisebtn">Pairwise Elo</button>
+      </div>
+      <p class="muted" id="runhint"></p>
+    </div>
+  </div>
+  <div class="card">
+    <h2>Log <button class="small ghost" id="clearlog">clear</button></h2>
+    <pre id="log" class="log"></pre>
+  </div>
+</section>
+
+<!-- ================= Results ================= -->
+<section id="tab-results" class="tab">
+  <div class="card">
+    <div class="row between">
+      <h2>Report</h2>
+      <div class="row">
+        <select id="drillmodel"><option value="">drill-down: pick a model…</option></select>
+        <label class="chk"><input type="checkbox" id="drillfailed" checked> failures only</label>
+        <button class="small ghost" id="drillgo">show rows</button>
+        <a class="small ghost btnlink" href="/api/report.json" target="_blank">report.json</a>
+      </div>
+    </div>
+    <div id="report" class="report"></div>
+  </div>
+  <div class="card" id="drillcard" hidden>
+    <h2>Rows <span class="muted" id="drillcount"></span></h2>
+    <div id="drill"></div>
+  </div>
+  <div class="card" id="pairwisecard" hidden>
+    <h2>Pairwise</h2>
+    <div id="pairwise" class="report"></div>
+  </div>
+</section>
+
+<!-- ================= Models ================= -->
+<section id="tab-models" class="tab">
+  <div class="grid2">
+    <div class="card">
+      <h2>Providers</h2>
+      <table class="list" id="provedit"><thead><tr><th>name</th><th>type</th><th>endpoint</th><th>key env</th><th></th></tr></thead><tbody></tbody></table>
+      <details><summary>Add / update provider</summary>
+        <form id="provform" class="form">
+          <label>name <input name="name" required placeholder="deepseek"></label>
+          <label>type <select name="type"><option value="openai">openai (any OpenAI-compatible API)</option><option value="lmstudio">lmstudio (managed via lms CLI)</option><option value="studioforge">studioforge (llama.cpp multi-model)</option></select></label>
+          <label>base URL <input name="base_url" required placeholder="https://api.deepseek.com/v1"></label>
+          <label>API key env var <input name="api_key_env" placeholder="DEEPSEEK_API_KEY"></label>
+          <label>literal key (local servers only) <input name="api_key" placeholder="lm-studio"></label>
+          <label>concurrency <input name="concurrency" type="number" min="1" max="32" value="1"></label>
+          <label>extra headers (JSON) <input name="headers" placeholder='{"HTTP-Referer": "..."}'></label>
+          <div class="row"><button class="primary">Save provider</button><button type="button" id="provtest">Test connection</button></div>
+          <div id="provtestout" class="muted"></div>
+        </form>
+      </details>
+    </div>
+    <div class="card">
+      <h2>Models</h2>
+      <table class="list" id="modeledit"><thead><tr><th>on</th><th>name</th><th>provider</th><th>id</th><th>ctx</th><th>$/1M in/out</th><th></th></tr></thead><tbody></tbody></table>
+      <details open><summary>Add model</summary>
+        <form id="modelform" class="form">
+          <label>label <input name="name" required placeholder="deepseek-flash"></label>
+          <label>provider <select name="provider" id="modelprov"></select> <button type="button" class="small ghost" id="discover">discover models</button></label>
+          <label>model id <input name="model_id" required list="discovered" placeholder="deepseek-v4-flash"><datalist id="discovered"></datalist></label>
+          <label>context length <input name="context_length" type="number" value="32768"></label>
+          <label>price $/1M in <input name="price_in" type="number" step="0.001" placeholder="0.14"> out <input name="price_out" type="number" step="0.001" placeholder="0.28"></label>
+          <label>extra_body (JSON) <input name="extra_body" placeholder='{"reasoning_format": "deepseek"}'></label>
+          <label>tags <input name="tags" placeholder="remote, cheap"></label>
+          <div class="row"><button class="primary">Add model</button><button type="button" id="modeltest">Test model</button></div>
+          <div id="modeltestout" class="muted"></div>
+        </form>
+      </details>
+    </div>
+  </div>
+  <div class="card">
+    <h2>Judge candidates <span class="muted">(first available, not under test, wins — order matters)</span></h2>
+    <table class="list" id="judgeedit"><thead><tr><th>#</th><th>provider</th><th>model id</th><th>ctx</th><th>thinking</th><th></th></tr></thead><tbody></tbody></table>
+    <form id="judgeform" class="form inline">
+      <select name="provider" id="judgeprov"></select>
+      <input name="model_id" placeholder="model id" required>
+      <input name="context_length" type="number" placeholder="ctx" style="width:6em">
+      <label class="chk"><input type="checkbox" name="thinking"> thinking model</label>
+      <button class="primary small">Add candidate</button>
+    </form>
+  </div>
+</section>
+
+<!-- ================= Cases ================= -->
+<section id="tab-cases" class="tab">
+  <div class="card">
+    <div class="row between"><h2>Cases</h2>
+      <div class="row"><input id="casefilter" placeholder="filter…"><select id="casecat"><option value="">all categories</option></select></div></div>
+    <table class="list" id="caselist"><thead><tr><th>category</th><th>tier</th><th>grader</th><th>id</th><th>prompt</th></tr></thead><tbody></tbody></table>
+  </div>
+</section>
+</main>
+<div id="toast" class="toast" hidden></div>
+<script src="/static/app.js"></script>
+</body>
+</html>

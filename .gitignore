@@ -1,0 +1,16 @@
+# local config (holds your endpoints; API keys must stay in env vars anyway)
+models.yaml
+# outputs
+results/
+*.log
+# python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+dist/
+build/
+*.egg-info/
+# editors
+.idea/
+.vscode/

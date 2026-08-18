@@ -1,0 +1,110 @@
+# Gauntlet model registry — copy to ./models.yaml (or ~/.config/gauntlet/models.yaml)
+# and edit. API keys NEVER go in this file: name an environment variable with
+# api_key_env. `gauntlet status` shows what resolves.
+#
+# providers:  where models are served.
+#   type: openai       any OpenAI-compatible /chat/completions server, no load
+#                      management (DeepSeek, OpenRouter, OpenAI, Groq, Together,
+#                      Mistral, Open WebUI /api, Ollama /v1, vLLM, llama-server,
+#                      LM Studio if you don't want `lms` managing loads)
+#   type: lmstudio     LM Studio managed via the `lms` CLI (one model loaded at a
+#                      time, measured load time, snapshot/restore, wrong-model guard)
+#   type: studioforge  llama.cpp multi-model server that JIT-loads on request
+#   concurrency: N     parallel requests for remote APIs (local servers: 1)
+#   verify_model:      fail if the server answers from a different model id
+#                      (default true for lmstudio/studioforge, false for openai)
+#   headers: {...}     extra HTTP headers (e.g. OpenRouter's HTTP-Referer)
+#   extra_body: {...}  extra request fields for every model on this provider
+providers:
+  lmstudio:
+    type: lmstudio
+    base_url: http://localhost:1234/v1
+    api_key: lm-studio
+  ollama:
+    type: openai
+    base_url: http://localhost:11434/v1
+    api_key: ollama
+  llamacpp:                       # llama-server / StudioForge / any local OpenAI-compatible
+    type: openai
+    base_url: http://localhost:8080/v1
+  deepseek:
+    type: openai
+    base_url: https://api.deepseek.com/v1
+    api_key_env: DEEPSEEK_API_KEY
+    concurrency: 4
+  openrouter:
+    type: openai
+    base_url: https://openrouter.ai/api/v1
+    api_key_env: OPENROUTER_API_KEY
+    concurrency: 4
+    headers: {HTTP-Referer: "https://github.com/your/gauntlet", X-Title: "gauntlet"}
+  openai:
+    type: openai
+    base_url: https://api.openai.com/v1
+    api_key_env: OPENAI_API_KEY
+    concurrency: 4
+  openwebui:                      # Open WebUI exposes an OpenAI-compatible API under /api
+    type: openai
+    base_url: http://localhost:3000/api
+    api_key_env: OPENWEBUI_API_KEY
+
+defaults:
+  context_length: 32768   # for models without an explicit value
+  min_tok_per_s: 1.0      # viability floor: abort a model measured slower than this (0 = off)
+  repeats:                # scored repeats per case, by category
+    perf: 3
+    rp: 2
+    nsfw: 2
+    coding: 1             # temp 0 — deterministic, one run is enough
+    tooluse: 1
+    instruct: 1
+    reasoning: 1
+    math: 1
+    steer: 1
+    overrefusal: 1
+    longctx: 1
+    planning: 1
+
+# Judge: first candidate whose provider is up, serves the model, and is not
+# itself under test. A local UNCENSORED model is needed to score the NSFW/RP
+# rows (hosted judges may refuse them — the calibration canary aborts if so);
+# any small instruct model is enough for the `reference` rubric (hard
+# questions with a gold answer). `--judge provider:model_id` forces one.
+judge:
+  temperature: 0.1
+  max_tokens: 4096
+  samples: 1              # self-consistency passes per row (3 for a rigorous ranking)
+  candidates:
+    - {provider: lmstudio, model_id: "your-local-uncensored-judge", context_length: 16384}
+    - {provider: deepseek, model_id: "deepseek-v4-flash"}
+    - {provider: openrouter, model_id: "deepseek/deepseek-v4-flash"}
+
+# models under test.  price = USD per 1M tokens (report shows total cost).
+# extra_body = per-model request fields (llama.cpp: reasoning_format: deepseek
+# keeps a thinking model's CoT out of `content` so tool JSON/code stay clean).
+models:
+  - name: local-gemma-e4b
+    provider: lmstudio
+    model_id: google/gemma-4-e4b
+    context_length: 8192
+    tags: [local, small]
+
+  - name: ollama-qwen3-8b
+    provider: ollama
+    model_id: qwen3:8b
+    context_length: 32768
+    enabled: false
+
+  - name: deepseek-flash
+    provider: deepseek
+    model_id: deepseek-v4-flash
+    context_length: 131072
+    price: {input: 0.14, output: 0.28}
+    tags: [remote, cheap]
+
+  - name: deepseek-pro
+    provider: deepseek
+    model_id: deepseek-v4-pro
+    context_length: 131072
+    price: {input: 0.435, output: 0.87}
+    enabled: false
