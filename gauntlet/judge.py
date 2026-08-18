@@ -21,7 +21,7 @@ import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 
-from .api import TransportError, WrongModelError
+from .api import RequestRejected, TransportError, WrongModelError
 from .config import load_transcripts, append_transcript
 from .graders import refusal_heuristic
 from .providers import Provider, get_provider, model_extra_body
@@ -255,6 +255,7 @@ class JudgeClient:
         self.extra_body = model_extra_body(cand)
         self.concurrency = (self.provider.concurrency
                             if self.provider.type == "openai" else 1)
+        self.no_schema = bool(cand.get("no_schema", False))
 
     @property
     def label(self) -> str:
@@ -267,7 +268,20 @@ class JudgeClient:
         kw.setdefault("extra_body", self.extra_body)
         kw.setdefault("max_tokens", self.max_tokens)
         kw.setdefault("temperature", self.temperature)
-        return self.provider.chat(self.model_id, messages, **kw)
+        if self.no_schema:
+            kw.pop("response_format", None)
+        try:
+            return self.provider.chat(self.model_id, messages, **kw)
+        except RequestRejected as e:
+            # Hosted APIs (e.g. DeepSeek) reject json_schema response_format.
+            # parse_verdict handles free-text JSON, so drop it and remember.
+            if kw.get("response_format") and "response_format" in e.body:
+                log.warning("judge %s: provider rejects response_format — falling "
+                            "back to free-text JSON for this session", self.label)
+                self.no_schema = True
+                kw.pop("response_format", None)
+                return self.provider.chat(self.model_id, messages, **kw)
+            raise
 
 
 def select_judge(cfg: dict, benched_model_ids: set[str],
@@ -648,10 +662,6 @@ def run_judge(cfg: dict, labels: list[str], force: bool = False,
     """
     by_name = {m["name"]: m for m in cfg["models"]}
     benched_ids = {by_name[l]["model_id"] for l in labels if l in by_name}
-
-    judge_entry = select_judge(cfg, benched_ids, override=judge_override)
-    jc = JudgeClient(cfg, judge_entry)
-    judge_id = jc.model_id
     if samples is None:
         samples = int(cfg["judge"].get("samples", 1))
 
@@ -661,7 +671,20 @@ def run_judge(cfg: dict, labels: list[str], force: bool = False,
     total = sum(len(v) for v in pending.values())
     if total == 0:
         log.info("nothing to judge")
-        return {"judged": 0, "failed": 0, "judge": judge_id, "samples": samples}
+        return {"judged": 0, "failed": 0, "judge": None, "samples": samples}
+
+    # The under-test exclusion guards against self-preference on SUBJECTIVE
+    # rubrics. Reference rows only ask "is this equal to the gold answer?", so
+    # when nothing else is pending the benched model may judge them itself.
+    only_reference = all(r.get("rubric") == "reference"
+                         for rows in pending.values() for r in rows)
+    if only_reference and benched_ids:
+        log.info("only reference-answer rows pending — the under-test exclusion "
+                 "is relaxed (nothing subjective to bias)")
+    judge_entry = select_judge(cfg, set() if only_reference else benched_ids,
+                               override=judge_override)
+    jc = JudgeClient(cfg, judge_entry)
+    judge_id = jc.model_id
 
     log.info("loading judge %s (%d rows, samples=%d, thinking=%s)",
              jc.label, total, samples, jc.thinking)

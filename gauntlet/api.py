@@ -83,6 +83,17 @@ class TransportError(RuntimeError):
     """Server unreachable / HTTP error / stream died."""
 
 
+class RequestRejected(TransportError):
+    """HTTP 4xx other than 408/429: the request itself is wrong (bad model id,
+    unsupported parameter, auth). Retrying verbatim cannot help — callers
+    that can adapt (e.g. drop response_format) do so on this type."""
+
+    def __init__(self, status: int, body: str):
+        super().__init__(f"HTTP {status}: {body}")
+        self.status = status
+        self.body = body
+
+
 class WrongModelError(RuntimeError):
     """The server answered with a different model than requested."""
 
@@ -184,6 +195,8 @@ def stream_chat(base_url: str, api_key: str, model: str, messages: list[dict], *
             ) as resp:
                 if resp.status_code >= 400:
                     err = resp.read().decode(errors="replace")[:500]
+                    if 400 <= resp.status_code < 500 and resp.status_code not in (408, 429):
+                        raise RequestRejected(resp.status_code, err)
                     raise TransportError(f"HTTP {resp.status_code}: {err}")
                 buffer = ""
                 saw_sse = False
@@ -234,7 +247,7 @@ def stream_chat(base_url: str, api_key: str, model: str, messages: list[dict], *
                     # server answered 200 with a non-SSE body (error JSON)
                     raise TransportError("no SSE data in 200 response")
     except (WrongModelError, TransportError):
-        raise
+        raise  # RequestRejected is a TransportError
     except Exception as e:
         raise TransportError(str(e)) from e
 
@@ -289,8 +302,8 @@ def stream_chat_retried(base_url: str, api_key: str, model: str, messages: list[
     for attempt in range(1, MAX_TRANSPORT_RETRIES + 1):
         try:
             return stream_chat(base_url, api_key, model, messages, **kwargs)
-        except WrongModelError:
-            raise
+        except (WrongModelError, RequestRejected):
+            raise  # retrying an identical bad request cannot succeed
         except TransportError as e:
             last_err = e
             if attempt < MAX_TRANSPORT_RETRIES:

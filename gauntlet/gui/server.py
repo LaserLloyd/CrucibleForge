@@ -447,15 +447,19 @@ class Handler(BaseHTTPRequestHandler):
                 finally:
                     guard.restore()
                 out = {"run": summary}
-                if then_judge and not JOB.stop_event.is_set():
-                    from ..judge import run_judge
-                    out["judge"] = run_judge(cfg, labels, samples=(1 if smoke else samples),
-                                             judge_override=judge_override,
-                                             stop=JOB.stop_event)
-                if then_report:
-                    from ..report import generate
-                    generate(None)
-                    out["report"] = "written"
+                try:
+                    if then_judge and not JOB.stop_event.is_set():
+                        from ..judge import run_judge
+                        out["judge"] = run_judge(cfg, labels, samples=(1 if smoke else samples),
+                                                 judge_override=judge_override,
+                                                 stop=JOB.stop_event)
+                finally:
+                    # the report is written even when judging fails — the
+                    # objective results are already worth reading
+                    if then_report:
+                        from ..report import generate
+                        generate(None)
+                        out["report"] = "written"
                 return out
             JOB.start("run", _do)
             return self._json({"ok": True, "job": JOB.status(),
@@ -595,7 +599,7 @@ class Handler(BaseHTTPRequestHandler):
             if alive and data.get("model_id"):
                 try:
                     r = prov.chat(str(data["model_id"]), [{"role": "user", "content": "Say OK."}],
-                                  max_tokens=8, temperature=0.0)
+                                  max_tokens=64, temperature=0.0)
                     probe = {"ok": True, "text": r.response_text[:80],
                              "served_model": r.served_model,
                              "ttft_ms": round((r.ttft_s or 0) * 1000)}

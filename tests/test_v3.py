@@ -287,3 +287,21 @@ def test_gui_auth_and_csrf(monkeypatch):
     h = Fake({"X-Gauntlet-Token": "nope"}, "/api/stop")
     h.do_POST()
     assert h.sent == [401]
+
+
+# ------------------------------------------------------- thinking budget
+
+def test_thinking_budget_auto_detects():
+    from gauntlet.runner import _Ctx
+    cfg = {"providers": {"p": {"type": "openai", "base_url": "http://x"}},
+           "defaults": {"thinking_max_tokens_factor": 4, "thinking_max_tokens_cap": 10000},
+           "judge": {"candidates": []}, "models": []}
+    prov = providers.get_provider(cfg, "p")
+    ctx = _Ctx(cfg, {"name": "m", "model_id": "m", "provider": "p"}, prov, 8192)
+    assert ctx.thinking is None and ctx.budget(1024) == 1024
+    ctx._observe(ChatResult(response_text="x", reasoning_text="thinking...", reasoning_tokens=50))
+    assert ctx.thinking is True and ctx.budget(1024) == 4096
+    assert ctx.budget(4096) == 10000            # capped
+    ctx2 = _Ctx(cfg, {"name": "m", "model_id": "m", "provider": "p", "thinking": False}, prov, 8192)
+    ctx2._observe(ChatResult(reasoning_text="cot"))
+    assert ctx2.thinking is False and ctx2.budget(1024) == 1024

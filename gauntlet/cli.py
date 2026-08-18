@@ -227,8 +227,12 @@ def cmd_all(args, cfg):
     rc = cmd_run(args, cfg)
     if rc:
         return rc
-    cmd_judge(args, cfg)
-    return cmd_report(args, cfg)
+    try:
+        cmd_judge(args, cfg)
+    except Exception as e:  # noqa: BLE001 — objective results are still worth a report
+        log.error("judge phase failed: %s — rendering the report without judged rows", e)
+        rc = 1
+    return cmd_report(args, cfg) or rc
 
 
 def cmd_gui(args, cfg):

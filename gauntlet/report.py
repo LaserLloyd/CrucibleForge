@@ -278,6 +278,9 @@ def model_stats(label: str) -> dict:
         "n": len(prose_rows),
     }
 
+    # objective failures that were really truncations (budget artifacts)
+    obj_trunc = sum(1 for r in rows if r.get("grade") == "fail" and r.get("truncated")
+                    and r.get("category") not in ("rp", "nsfw", "steer", "overrefusal", "planning"))
     # ---- cost (priced/remote models) + hard-tier headline ----
     cost_total = sum((r.get("cost_usd") or 0.0) for r in rows)
     priced = any("cost_usd" in r for r in rows)
@@ -297,7 +300,7 @@ def model_stats(label: str) -> dict:
         "coding": pass_rate("coding"), "tooluse": pass_rate("tooluse"),
         "instruct": pass_rate("instruct"), "reasoning": pass_rate("reasoning"),
         "math": pass_rate("math"), "longctx_obj": pass_rate("longctx"),
-        "hard": hard,
+        "hard": hard, "objective_truncated_fails": obj_trunc,
         "cost_usd": (round(cost_total, 4) if priced else None),
         "steer": steer,
         "needle": {"rate": (_mean([1.0 if r["grade"] == "pass" else 0.0
@@ -624,6 +627,12 @@ def render_markdown(labels: list[str], stats: dict, cfg: dict | None) -> str:
             notes.append(f"- ⚠️ **{label}: {med:.2f} tok/s is below the "
                          f"{floor:g} tok/s viability floor** — too slow for "
                          f"practical use as a live bot.")
+        if s.get("objective_truncated_fails"):
+            notes.append(f"- ⚠️ {label}: {s['objective_truncated_fails']} objective "
+                         f"failure(s) were **truncations** (finish=length) — the reply "
+                         f"never reached an answer. For a thinking model raise "
+                         f"`defaults.thinking_max_tokens_factor` / set `thinking: true`; "
+                         f"otherwise the model is over-verbose for the case budget.")
         if s["pending_judge"]:
             notes.append(f"- **{label}: {s['pending_judge']} quality rows are "
                          f"NOT yet judged** — run `bench judge` then re-report.")

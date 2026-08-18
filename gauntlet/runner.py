@@ -115,16 +115,59 @@ class _Ctx:
         self.extra_body = model_extra_body(entry)
         self.lock = threading.Lock()
 
-    def call(self, messages, **kw) -> ChatResult:
-        """One completion; on eviction/wrong-model, reload once and retry."""
-        kw.setdefault("extra_body", self.extra_body)
+        # Thinking models spend the completion budget on CoT; a case's
+        # max_tokens (sized for a direct answer) then truncates them before
+        # any answer appears. entry.thinking: true|false|"auto" (default auto:
+        # flips to true the first time a reply carries reasoning tokens).
+        t = entry.get("thinking", "auto")
+        self.thinking: bool | None = None if t == "auto" else bool(t)
+        d = cfg.get("defaults", {})
+        self.think_factor = float(d.get("thinking_max_tokens_factor", 4))
+        self.think_cap = int(d.get("thinking_max_tokens_cap", 32768))
+
+    def budget(self, max_tokens: int) -> int:
+        """max_tokens to actually send for this model."""
+        if self.thinking:
+            return int(min(self.think_cap, max(max_tokens, max_tokens * self.think_factor)))
+        return int(max_tokens)
+
+    def _observe(self, result: ChatResult) -> None:
+        if self.thinking is None and (result.reasoning_tokens or result.reasoning_text):
+            log.info("%s emits reasoning tokens — treating it as a thinking model "
+                     "(max_tokens ×%g, cap %d)", self.model_id, self.think_factor, self.think_cap)
+            self.thinking = True
+
+    def detect_thinking(self) -> None:
+        """One tiny probe so ``thinking`` is settled before concurrent cases
+        start (otherwise the first few would run on the un-boosted budget)."""
+        if self.thinking is not None:
+            return
         try:
-            return self.provider.chat(self.model_id, messages, **kw)
+            r = self.provider.chat(self.model_id, [{"role": "user", "content": "Reply with OK."}],
+                                   max_tokens=64, temperature=0.0, seed=42,
+                                   extra_body=self.extra_body)
+        except (TransportError, WrongModelError) as e:
+            log.warning("thinking probe failed (%s) — will auto-detect from replies", e)
+            return
+        self._observe(r)
+        if self.thinking is None:
+            self.thinking = False  # probe showed no reasoning channel
+
+    def call(self, messages, *, budgeted: bool = False, **kw) -> ChatResult:
+        """One completion; on eviction/wrong-model, reload once and retry.
+        budgeted=True means max_tokens is already the value to send."""
+        kw.setdefault("extra_body", self.extra_body)
+        if "max_tokens" in kw and not budgeted:
+            kw["max_tokens"] = self.budget(kw["max_tokens"])
+        try:
+            r = self.provider.chat(self.model_id, messages, **kw)
         except WrongModelError as e:
             log.warning("%s — reloading and retrying once", e)
             with self.lock:
                 self.provider.switch_model(self.model_id, self.ctx_len)
-            return self.provider.chat(self.model_id, messages, **kw)
+            r = self.provider.chat(self.model_id, messages, **kw)
+        self._observe(r)
+        return r
 
 
 def run_models(cfg: dict, model_entries: list[dict], cases: list[dict],
@@ -210,6 +253,7 @@ def _run_one_model(cfg, entry, cases, csvw: _Csv, smoke) -> dict:
         raise ModelRunError(f"{model_id} is not served by provider {provider.name}")
     load_s = provider.switch_model(model_id, ctx_len)
     _write_meta(label, entry, provider, load_s=load_s, bench_run_id=bench_run_id)
+    ctx.detect_thinking()
 
     state = {"rows": 0, "sanity_total": 0, "sanity_empty": 0,
              "speed_samples": [], "speed_gated": False, "skipped": 0,
@@ -360,7 +404,8 @@ def _run_one_model(cfg, entry, cases, csvw: _Csv, smoke) -> dict:
 
 
 def _run_single(case, base_row, ctx: _Ctx, max_tokens, temperature, top_p, seed) -> dict:
-    result = ctx.call(_messages_for(case), max_tokens=max_tokens,
+    sent = ctx.budget(max_tokens)
+    result = ctx.call(_messages_for(case), max_tokens=sent, budgeted=True,
                       temperature=temperature, top_p=top_p, seed=seed,
                       tools=case.get("tools"))
     row = {**base_row, "run_id": str(uuid.uuid4())[:8], "turn": None,
@@ -369,11 +414,20 @@ def _run_single(case, base_row, ctx: _Ctx, max_tokens, temperature, top_p, seed)
            "reasoning": result.reasoning_text, "tool_calls": result.tool_calls,
            "finish_reason": result.finish_reason,
            "truncated": result.finish_reason == "length",
+           "max_tokens_sent": sent,
+           "answered_in_reasoning": (not result.response_text.strip()
+                                     and bool(result.reasoning_text.strip())),
            "metrics": _metrics(result)}
     verdict = grade(result, case)
     if verdict:
         row["grade"] = verdict["grade"]
-        row["grade_detail"] = verdict["detail"]
+        detail = verdict["detail"]
+        if verdict["grade"] == "fail" and result.finish_reason == "length":
+            # be honest about WHY: a truncated reply is a budget/verbosity
+            # failure, not necessarily a wrong answer
+            detail = (f"TRUNCATED at {sent} tokens "
+                      f"({result.reasoning_tokens or 0} reasoning); {detail}")
+        row["grade_detail"] = detail
         if verdict.get("needs_judge"):
             # reference-answer grading: a (small) LLM judge compares the
             # model's answer to the gold answer — see judge.RUBRICS["reference"]

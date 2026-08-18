@@ -102,3 +102,5 @@ pre.log .err { color: var(--danger); } pre.log .warn { color: var(--warn); }
 .toast { position: fixed; bottom: 1.2rem; left: 50%; transform: translateX(-50%); background: var(--panel2);
   border: 1px solid var(--line); border-radius: 8px; padding: .6rem 1rem; box-shadow: 0 6px 24px #0006; z-index: 10; max-width: 80vw; }
 .toast.err { border-color: var(--danger); }
+select { max-width: 100%; }
+#judgesel { max-width: 520px; }

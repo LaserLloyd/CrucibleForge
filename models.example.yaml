@@ -51,6 +51,12 @@ providers:
 defaults:
   context_length: 32768   # for models without an explicit value
   min_tok_per_s: 1.0      # viability floor: abort a model measured slower than this (0 = off)
+  # Thinking models spend the completion budget on CoT. A model entry may set
+  # thinking: true|false|auto (default auto = flips on the first reply that
+  # carries reasoning tokens); when thinking, every case's max_tokens is
+  # multiplied by this factor (capped) so the answer is not cut off.
+  thinking_max_tokens_factor: 4
+  thinking_max_tokens_cap: 32768
   repeats:                # scored repeats per case, by category
     perf: 3
     rp: 2
@@ -100,6 +106,7 @@ models:
     model_id: deepseek-v4-flash
     context_length: 131072
     price: {input: 0.14, output: 0.28}
+    thinking: auto          # reasoning model → ×4 completion budget once detected
     tags: [remote, cheap]
 
   - name: deepseek-pro

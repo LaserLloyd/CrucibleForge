@@ -579,7 +579,7 @@
    "question": "Exactly how many times does the sentence 'Reminder: the west gate is closed for resurfacing.' appear in the document? Give the number."
   },
   "temperature": 0.0,
-  "max_tokens": 256,
+  "max_tokens": 1024,
   "grader": "numeric",
   "grader_config": {
    "answer": 9,
@@ -599,7 +599,7 @@
    "question": "Exactly how many times does the sentence 'Notice: parking permits are checked on Tuesdays.' appear in the document? Give the number."
   },
   "temperature": 0.0,
-  "max_tokens": 256,
+  "max_tokens": 1024,
   "grader": "numeric",
   "grader_config": {
    "answer": 13,
