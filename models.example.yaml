@@ -9,7 +9,9 @@
 #                      LM Studio if you don't want `lms` managing loads)
 #   type: lmstudio     LM Studio managed via the `lms` CLI (one model loaded at a
 #                      time, measured load time, snapshot/restore, wrong-model guard)
-#   type: studioforge  llama.cpp multi-model server that JIT-loads on request
+#   type: studioforge  llama.cpp multi-model server; loads the server's recommended
+#                      placement profile (parallel slots) and runs that many
+#                      requests at once (concurrency: auto)
 #   concurrency: N     parallel requests for remote APIs (local servers: 1)
 #   verify_model:      fail if the server answers from a different model id
 #                      (default true for lmstudio/studioforge, false for openai)

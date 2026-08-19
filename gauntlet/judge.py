@@ -253,8 +253,7 @@ class JudgeClient:
         self.temperature = float(cand.get("temperature", jcfg.get("temperature", 0.1)))
         self.max_tokens = int(cand.get("max_tokens", jcfg.get("max_tokens", 1536)))
         self.extra_body = model_extra_body(cand)
-        self.concurrency = (self.provider.concurrency
-                            if self.provider.type == "openai" else 1)
+        self.concurrency = self.provider.workers(self.model_id) if self.provider.type != "lmstudio" else 1
         self.no_schema = bool(cand.get("no_schema", False))
 
     @property
@@ -262,7 +261,10 @@ class JudgeClient:
         return f"{self.model_id} @ {self.provider.name}"
 
     def load(self) -> float:
-        return self.provider.switch_model(self.model_id, self.context_length)
+        t = self.provider.switch_model(self.model_id, self.context_length)
+        if self.provider.type != "lmstudio":
+            self.concurrency = self.provider.workers(self.model_id)
+        return t
 
     def chat(self, messages: list[dict], **kw):
         kw.setdefault("extra_body", self.extra_body)

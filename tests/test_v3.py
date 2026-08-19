@@ -364,3 +364,43 @@ def test_select_judge_accepts_dict_override():
     assert j["extra_body"] == {"a": 1}
     with pytest.raises(judge.JudgeError):
         judge.select_judge(cfg, {"m"}, override={"provider": "p", "model_id": "m"})
+
+
+# ------------------------------------------------- studioforge recommended load
+
+def test_recommended_load_picks_best_fitting_profile(monkeypatch):
+    from gauntlet import studioforge
+    import httpx
+
+    class FakeResp:
+        status_code = 200
+        def __init__(self, d): self._d = d
+        def json(self): return self._d
+    profiles = {"profiles": [
+        {"mode": "slow", "fits": True, "est_gen_tps": 30, "max_parallel": 8,
+         "load_args": {"model_id": "m", "ctx_size": 32768, "parallel": 8, "kv_cache_type": "f16"}},
+        {"mode": "fast", "fits": True, "est_gen_tps": 60, "max_parallel": 5,
+         "load_args": {"model_id": "m", "ctx_size": 32768, "parallel": 5, "kv_cache_type": "f16"}},
+        {"mode": "nofit", "fits": False, "est_gen_tps": 99, "max_parallel": 9,
+         "load_args": {"model_id": "m", "ctx_size": 32768, "parallel": 9}}]}
+
+    class FakeClient:
+        def __init__(self, *a, **k): pass
+        def __enter__(self): return self
+        def __exit__(self, *a): pass
+        def get(self, url, headers=None): return FakeResp(profiles)
+    monkeypatch.setattr(httpx, "Client", FakeClient)
+    args = studioforge.recommended_load("m", "http://x/v1", "", context_length=16384)
+    assert args["parallel"] == 5 and args["_profile"]["mode"] == "fast"
+    assert args["ctx_size"] == 16384          # registry ctx caps the recommendation
+    assert "model_id" not in args
+
+
+def test_studioforge_workers_follow_server(monkeypatch):
+    from gauntlet import studioforge
+    cfg = {"providers": {"sf": {"type": "studioforge", "base_url": "http://x/v1"},
+                         "sf2": {"type": "studioforge", "base_url": "http://y/v1", "concurrency": 2}},
+           "defaults": {}, "judge": {"candidates": []}, "models": []}
+    monkeypatch.setattr(studioforge, "loaded_parallel", lambda *a: 5)
+    assert providers.get_provider(cfg, "sf").workers("m") == 5       # auto = follow server
+    assert providers.get_provider(cfg, "sf2").workers("m") == 2      # explicit cap wins

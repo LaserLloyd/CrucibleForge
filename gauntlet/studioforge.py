@@ -84,6 +84,67 @@ def loaded_models(base_url: str = DEFAULT_BASE_URL,
     return out
 
 
+def _api(base_url: str) -> str:
+    """StudioForge's management API lives beside /v1 (…/api/*)."""
+    return base_url[:-3] if base_url.endswith("/v1") else base_url
+
+
+def _quote(model_id: str) -> str:
+    from urllib.parse import quote
+    return quote(model_id, safe="")
+
+
+def loaded_plan(model_id: str, base_url: str, api_key: str) -> dict | None:
+    """The server's live plan for a loaded model (parallel slots, ctx, devices)
+    from GET /api/status, or None if it is not loaded."""
+    headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
+    try:
+        with httpx.Client(timeout=15) as http:
+            resp = http.get(f"{_api(base_url)}/api/status", headers=headers)
+        if resp.status_code != 200:
+            return None
+        for m in resp.json().get("loaded", []):
+            if m.get("model_id") == model_id:
+                return {"state": m.get("state"), **(m.get("plan") or {})}
+    except (httpx.HTTPError, ValueError):
+        return None
+    return None
+
+
+def recommended_load(model_id: str, base_url: str, api_key: str,
+                     context_length: int | None = None) -> dict | None:
+    """Pick the server's best placement profile (GET /api/models/<id>/profiles)
+    and return its load_args — the 'recommended loading'. Preference: profiles
+    that fit, then the highest estimated single-stream gen tok/s, then the most
+    parallel slots. Returns None when the endpoint is unavailable (older
+    server) so the caller falls back to a plain JIT load."""
+    headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
+    try:
+        with httpx.Client(timeout=30) as http:
+            resp = http.get(f"{_api(base_url)}/api/models/{_quote(model_id)}/profiles",
+                            headers=headers)
+        if resp.status_code != 200:
+            return None
+        data = resp.json()
+    except (httpx.HTTPError, ValueError):
+        return None
+    profs = [p for p in data.get("profiles", []) if p.get("fits")]
+    if not profs:
+        return None
+    profs.sort(key=lambda p: (-(p.get("est_gen_tps") or 0), -(p.get("max_parallel") or 0)))
+    best = profs[0]
+    args = dict(best.get("load_args") or {})
+    args.pop("model_id", None)
+    if not args.get("parallel"):
+        args["parallel"] = best.get("max_parallel") or 1
+    if context_length and args.get("ctx_size") and context_length < args["ctx_size"]:
+        args["ctx_size"] = int(context_length)  # never ask for more than the registry wants
+    args["_profile"] = {"mode": best.get("mode"), "est_gen_tps": best.get("est_gen_tps"),
+                        "est_gen_tps_batched": best.get("est_gen_tps_batched"),
+                        "vram_gib": best.get("vram_gib")}
+    return args
+
+
 def warm_model(model_id: str, base_url: str, api_key: str) -> float:
     """Trigger a JIT load with a tiny completion; return seconds to first
     response. Raises StudioForgeError if the model can't serve."""
@@ -99,10 +160,53 @@ def warm_model(model_id: str, base_url: str, api_key: str) -> float:
 
 
 def load_model(model_id: str, base_url: str, api_key: str,
-               context_length: int | None = None) -> float:
-    """'Load' a StudioForge model: a warm-up completion (JIT load). StudioForge
-    manages its own context window; ``context_length`` is ignored."""
-    return warm_model(model_id, base_url, api_key)
+               context_length: int | None = None,
+               recommended: bool = True) -> float:
+    """Load a StudioForge model the way the server recommends (placement
+    profile with parallel slots), then warm it. Falls back to a plain JIT
+    warm-up when the management API is unavailable. Returns load seconds.
+    A model already loaded with the recommended slot count is left alone."""
+    t0 = time.perf_counter()
+    args = recommended_load(model_id, base_url, api_key, context_length) if recommended else None
+    if args:
+        prof = args.pop("_profile", {})
+        live = loaded_plan(model_id, base_url, api_key)
+        want_par = int(args.get("parallel") or 1)
+        if live and int(live.get("parallel") or 1) >= want_par and live.get("state") == "ready":
+            log.info("%s already loaded with parallel=%s", model_id, live.get("parallel"))
+            return 0.0
+        headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
+        body = {k: v for k, v in args.items() if k in ("ctx_size", "kv_cache_type", "parallel")}
+        body["force"] = True
+        log.info("loading %s via recommended profile %s (parallel=%s, ctx=%s, est %s tok/s "
+                 "single / %s batched)", model_id, prof.get("mode"), body.get("parallel"),
+                 body.get("ctx_size"), prof.get("est_gen_tps"), prof.get("est_gen_tps_batched"))
+        try:
+            with httpx.Client(timeout=WARMUP_TIMEOUT_S) as http:
+                if live:
+                    http.post(f"{_api(base_url)}/api/models/{_quote(model_id)}/unload",
+                              headers=headers)
+                resp = http.post(f"{_api(base_url)}/api/models/{_quote(model_id)}/load",
+                                 json=body, headers=headers)
+            if resp.status_code >= 400:
+                log.warning("recommended load rejected (HTTP %d: %s) — falling back to JIT",
+                            resp.status_code, resp.text[:200])
+        except httpx.HTTPError as e:
+            log.warning("recommended load failed (%s) — falling back to JIT", e)
+    warm_model(model_id, base_url, api_key)
+    live = loaded_plan(model_id, base_url, api_key) or {}
+    log.info("%s serving: parallel=%s ctx=%s devices=%s", model_id,
+             live.get("parallel"), live.get("ctx_size"), live.get("devices"))
+    return time.perf_counter() - t0
+
+
+def loaded_parallel(model_id: str, base_url: str, api_key: str) -> int:
+    """Parallel slots the server currently runs this model with (1 if unknown)."""
+    live = loaded_plan(model_id, base_url, api_key) or {}
+    try:
+        return max(1, int(live.get("parallel") or 1))
+    except (TypeError, ValueError):
+        return 1
 
 
 def unload_all(base_url: str = DEFAULT_BASE_URL,

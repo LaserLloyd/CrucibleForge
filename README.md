@@ -108,7 +108,13 @@ models:
   measured load time, snapshot/restore of what was loaded before, and the
   **wrong-model guard** (LM Studio answers 200 from whatever is loaded, even
   for a bogus id — every reply is verified against the requested model).
-* `type: studioforge` — a llama.cpp multi-model server that JIT-loads.
+* `type: studioforge` — a llama.cpp multi-model server. Loads use the server's
+  **recommended placement profile** (`GET /api/models/<id>/profiles` → best
+  fitting `load_args`, e.g. dual-GPU with `parallel: 5` slots) and the run
+  then issues that many requests at once (`concurrency: auto`; set a number
+  to cap it, `recommended_load: false` for plain JIT). Measured: 70 → 217
+  tok/s aggregate on a 27B. Perf cases still run serially so single-stream
+  TTFT/tok/s stay honest.
 * `extra_body` (per model or provider) merges arbitrary request fields —
   e.g. `{reasoning_format: deepseek}` for llama.cpp thinking models so CoT
   stays out of `content`.

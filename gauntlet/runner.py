@@ -371,7 +371,7 @@ def _run_one_model(cfg, entry, cases, csvw: _Csv, smoke) -> dict:
 
     jobs = [(c, r) for c in other_cases
             for r in range(1, repeats_for(cfg, c["category"], smoke) + 1)]
-    workers = provider.concurrency if provider.type == "openai" else 1
+    workers = provider.workers(model_id)
     if workers <= 1:
         for case, repeat in jobs:
             run_case_repeat(case, repeat)

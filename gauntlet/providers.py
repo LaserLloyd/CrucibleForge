@@ -48,6 +48,8 @@ class Provider:
     headers: dict = field(default_factory=dict)
     timeout: float = 900.0
     extra_body: dict = field(default_factory=dict)
+    recommended_load: bool = True
+    concurrency_explicit: bool = False
     # remembers what /models returned (None = endpoint doesn't support listing)
     _models_cache: set | None = field(default=None, repr=False)
     _lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
@@ -114,14 +116,29 @@ class Provider:
     # ------------------------------------------------------ load control
     def switch_model(self, model_id: str, context_length: int | None = None) -> float:
         """Make ``model_id`` the served model. Returns load seconds (0 for
-        providers with no load step)."""
+        providers with no load step). StudioForge loads the server's
+        recommended placement profile (parallel slots) unless the provider
+        sets ``recommended_load: false``."""
         if self.type == "lmstudio":
             return lms.switch_model(model_id, context_length)
         if self.type == "studioforge":
             studioforge.unload_all(self.base_url, self.api_key)
             return studioforge.load_model(model_id, self.base_url, self.api_key,
-                                          context_length)
+                                          context_length,
+                                          recommended=self.recommended_load)
         return 0.0
+
+    def workers(self, model_id: str) -> int:
+        """How many requests to run at once for this model. openai: the
+        configured concurrency. studioforge: the loaded model's parallel slot
+        count, capped by the configured concurrency when one is set
+        (``concurrency: auto`` = follow the server). lmstudio: 1."""
+        if self.type == "openai":
+            return self.concurrency
+        if self.type == "studioforge":
+            slots = studioforge.loaded_parallel(model_id, self.base_url, self.api_key)
+            return min(slots, self.concurrency) if self.concurrency_explicit else slots
+        return 1
 
     def is_loaded(self, model_id: str) -> bool:
         if self.type == "lmstudio":
@@ -191,10 +208,14 @@ def get_provider(cfg: dict, name: str) -> Provider:
         return _CACHE[key]
     p = provider_of(cfg, name)
     ptype = p.get("type", "openai")
+    conc_raw = p.get("concurrency", 1 if ptype != "studioforge" else "auto")
+    conc_auto = str(conc_raw).lower() == "auto"
     prov = Provider(
         name=name, type=ptype, base_url=str(p["base_url"]).rstrip("/"),
         api_key=_resolve_key(p),
-        concurrency=max(1, int(p.get("concurrency", 1))),
+        concurrency=1 if conc_auto else max(1, int(conc_raw)),
+        concurrency_explicit=not conc_auto,
+        recommended_load=bool(p.get("recommended_load", True)),
         verify_model=bool(p.get("verify_model", ptype != "openai")),
         headers=dict(p.get("headers") or {}),
         timeout=float(p.get("timeout", 900)),
