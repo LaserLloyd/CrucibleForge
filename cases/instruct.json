@@ -641,5 +641,443 @@
     }
    ]
   }
+ },
+ {
+  "id": "IZ01-logistics-47-words",
+  "difficulty": "hard",
+  "prompt": "Write a status note about a warehouse move. Obey every rule: (1) exactly 47 words; (2) exactly four sentences; (3) every sentence ends with a full stop \u2014 no question or exclamation marks anywhere; (4) the first word must be 'Logistics'; (5) the note must end with the word 'confirmed.'; (6) use the word 'pallets' exactly twice; (7) include the year written in digits as 2026; (8) never use the words 'very', 'just' or 'really'. Output only the note.",
+  "temperature": 0.0,
+  "max_tokens": 768,
+  "grader": "checks",
+  "grader_config": {
+   "checks": [
+    {
+     "type": "min_words",
+     "n": 47
+    },
+    {
+     "type": "max_words",
+     "n": 47
+    },
+    {
+     "type": "sentence_count",
+     "n": 4
+    },
+    {
+     "type": "starts_with",
+     "value": "Logistics"
+    },
+    {
+     "type": "ends_with",
+     "value": "confirmed."
+    },
+    {
+     "type": "regex",
+     "pattern": "\\b2026\\b"
+    },
+    {
+     "type": "keyword_count",
+     "word": "pallets",
+     "n": 2
+    },
+    {
+     "type": "forbidden_words",
+     "words": [
+      "very",
+      "just",
+      "really"
+     ]
+    },
+    {
+     "type": "regex",
+     "pattern": "^[^!?]*$"
+    }
+   ]
+  }
+ },
+ {
+  "id": "IZ02-json-single-line-typed",
+  "difficulty": "hard",
+  "prompt": "Reply with a single line of raw JSON \u2014 no code fence, no newlines, nothing before or after it. The object must have exactly these four keys: \"title\" (a string), \"count\" (an integer, not a string), \"ready\" (a boolean true or false), \"tags\" (a list). The line must begin with the character '{' and end with '}'. Use 20 words or fewer in total. Do not use the words 'null', 'the' or 'todo' anywhere. The value of \"title\" must contain the word Harbor.",
+  "temperature": 0.0,
+  "max_tokens": 768,
+  "grader": "checks",
+  "grader_config": {
+   "checks": [
+    {
+     "type": "json_object",
+     "keys": {
+      "title": "str",
+      "count": "int",
+      "ready": "bool",
+      "tags": "list"
+     }
+    },
+    {
+     "type": "line_count_prefix",
+     "n": 1,
+     "prefix": "{"
+    },
+    {
+     "type": "ends_with",
+     "value": "}"
+    },
+    {
+     "type": "max_words",
+     "n": 20
+    },
+    {
+     "type": "forbidden_words",
+     "words": [
+      "null",
+      "the",
+      "todo"
+     ]
+    },
+    {
+     "type": "required_words",
+     "words": [
+      "harbor"
+     ]
+    },
+    {
+     "type": "starts_with",
+     "value": "{"
+    },
+    {
+     "type": "regex",
+     "pattern": "\"count\"\\s*:\\s*-?\\d+\\s*[,}]"
+    }
+   ]
+  }
+ },
+ {
+  "id": "IZ03-no-letter-e-three-lines",
+  "difficulty": "hard",
+  "prompt": "Write exactly three short tips about night sky watching. Rules: (1) exactly three lines; (2) every line starts with the two characters '* '; (3) the letter E must not appear anywhere, in upper or lower case; (4) between 12 and 24 words in total; (5) include the word 'moon'; (6) include the number 7 written as a digit; (7) do not use the words 'and' or 'with'; (8) the last line ends with a full stop. Output only the three lines.",
+  "temperature": 0.0,
+  "max_tokens": 768,
+  "grader": "checks",
+  "grader_config": {
+   "checks": [
+    {
+     "type": "line_count_prefix",
+     "n": 3,
+     "prefix": "* "
+    },
+    {
+     "type": "regex",
+     "pattern": "^[^eE]*$"
+    },
+    {
+     "type": "min_words",
+     "n": 12
+    },
+    {
+     "type": "max_words",
+     "n": 24
+    },
+    {
+     "type": "required_words",
+     "words": [
+      "moon"
+     ]
+    },
+    {
+     "type": "regex",
+     "pattern": "\\b7\\b"
+    },
+    {
+     "type": "forbidden_words",
+     "words": [
+      "and",
+      "with"
+     ]
+    },
+    {
+     "type": "ends_with",
+     "value": "."
+    }
+   ]
+  }
+ },
+ {
+  "id": "IZ04-lowercase-except-http",
+  "difficulty": "hard",
+  "prompt": "Write exactly two sentences of a debugging note. Rules: (1) everything is lower case EXCEPT the acronym HTTP, which appears exactly once in capitals; (2) exactly 28 words; (3) it must contain the number 200 written in digits; (4) it must contain the word 'request'; (5) it must not contain the words 'server', 'error' or 'client'; (6) it must end with a full stop; (7) no question marks or exclamation marks; (8) the first word is 'checked'. Output only the note.",
+  "temperature": 0.0,
+  "max_tokens": 768,
+  "grader": "checks",
+  "grader_config": {
+   "checks": [
+    {
+     "type": "regex",
+     "pattern": "^[^A-Z]*HTTP[^A-Z]*$"
+    },
+    {
+     "type": "keyword_count",
+     "word": "http",
+     "n": 1
+    },
+    {
+     "type": "sentence_count",
+     "n": 2
+    },
+    {
+     "type": "min_words",
+     "n": 28
+    },
+    {
+     "type": "max_words",
+     "n": 28
+    },
+    {
+     "type": "regex",
+     "pattern": "\\b200\\b"
+    },
+    {
+     "type": "required_words",
+     "words": [
+      "request"
+     ]
+    },
+    {
+     "type": "forbidden_words",
+     "words": [
+      "server",
+      "error",
+      "client"
+     ]
+    },
+    {
+     "type": "starts_with",
+     "value": "checked"
+    },
+    {
+     "type": "ends_with",
+     "value": "."
+    }
+   ]
+  }
+ },
+ {
+  "id": "IZ05-five-dash-lines-exact-26",
+  "difficulty": "hard",
+  "prompt": "Write exactly five lines of packing advice. Rules: (1) exactly five lines; (2) each line starts with the two characters '- '; (3) exactly 26 words of advice in total across the five lines, not counting the five leading dashes; (4) the word 'pack' appears exactly three times; (5) the word 'bag' appears exactly once; (6) never use the words 'you' or 'your'; (7) no digits anywhere; (8) the final line ends with an exclamation mark; (9) no full stops anywhere. Output only the five lines.",
+  "temperature": 0.0,
+  "max_tokens": 768,
+  "grader": "checks",
+  "grader_config": {
+   "checks": [
+    {
+     "type": "line_count_prefix",
+     "n": 5,
+     "prefix": "- "
+    },
+    {
+     "type": "min_words",
+     "n": 31
+    },
+    {
+     "type": "max_words",
+     "n": 31
+    },
+    {
+     "type": "keyword_count",
+     "word": "pack",
+     "n": 3
+    },
+    {
+     "type": "keyword_count",
+     "word": "bag",
+     "n": 1
+    },
+    {
+     "type": "forbidden_words",
+     "words": [
+      "you",
+      "your"
+     ]
+    },
+    {
+     "type": "regex",
+     "pattern": "^[^0-9.]*!$"
+    },
+    {
+     "type": "ends_with",
+     "value": "!"
+    }
+   ]
+  }
+ },
+ {
+  "id": "IZ06-allcaps-recall-notice",
+  "difficulty": "hard",
+  "prompt": "Write one single sentence recall notice, entirely in CAPITAL LETTERS. Rules: (1) exactly one sentence; (2) exactly 22 words; (3) it starts with the word RECALL; (4) the word BATTERY appears exactly twice; (5) it contains the model number written as 4400; (6) it must not contain the words 'fire', 'explode' or 'danger'; (7) it ends with the word 'immediately.'; (8) no commas anywhere. Output only that sentence.",
+  "temperature": 0.0,
+  "max_tokens": 768,
+  "grader": "checks",
+  "grader_config": {
+   "checks": [
+    {
+     "type": "all_caps"
+    },
+    {
+     "type": "sentence_count",
+     "n": 1
+    },
+    {
+     "type": "min_words",
+     "n": 22
+    },
+    {
+     "type": "max_words",
+     "n": 22
+    },
+    {
+     "type": "starts_with",
+     "value": "RECALL"
+    },
+    {
+     "type": "keyword_count",
+     "word": "battery",
+     "n": 2
+    },
+    {
+     "type": "regex",
+     "pattern": "\\b4400\\b"
+    },
+    {
+     "type": "forbidden_words",
+     "words": [
+      "fire",
+      "explode",
+      "danger"
+     ]
+    },
+    {
+     "type": "regex",
+     "pattern": "^[^,]*$"
+    },
+    {
+     "type": "ends_with",
+     "value": "IMMEDIATELY."
+    }
+   ]
+  }
+ },
+ {
+  "id": "IZ07-json-city-record",
+  "difficulty": "hard",
+  "prompt": "Reply with one raw JSON object only \u2014 no code fence, no prose. It must have exactly these five keys: \"city\" (string), \"population\" (integer), \"coastal\" (boolean), \"founded\" (integer), \"districts\" (list of strings). Rules: the reply starts with '{' and ends with '}'; use 30 words or fewer; the word 'city' appears exactly once in the whole reply; do not use the words 'unknown', 'approximately' or 'null'; \"city\" must be Bergen; \"founded\" must be the digits 1070; the list must hold exactly two entries.",
+  "temperature": 0.0,
+  "max_tokens": 768,
+  "grader": "checks",
+  "grader_config": {
+   "checks": [
+    {
+     "type": "json_object",
+     "keys": {
+      "city": "str",
+      "population": "int",
+      "coastal": "bool",
+      "founded": "int",
+      "districts": "list"
+     }
+    },
+    {
+     "type": "starts_with",
+     "value": "{"
+    },
+    {
+     "type": "ends_with",
+     "value": "}"
+    },
+    {
+     "type": "max_words",
+     "n": 30
+    },
+    {
+     "type": "keyword_count",
+     "word": "city",
+     "n": 1
+    },
+    {
+     "type": "forbidden_words",
+     "words": [
+      "unknown",
+      "approximately",
+      "null"
+     ]
+    },
+    {
+     "type": "required_words",
+     "words": [
+      "bergen"
+     ]
+    },
+    {
+     "type": "regex",
+     "pattern": "\"founded\"\\s*:\\s*1070\\b"
+    },
+    {
+     "type": "regex",
+     "pattern": "\"districts\"\\s*:\\s*\\[\\s*\"[^\"]+\"\\s*,\\s*\"[^\"]+\"\\s*\\]"
+    }
+   ]
+  }
+ },
+ {
+  "id": "IZ08-two-questions-only",
+  "difficulty": "hard",
+  "prompt": "Write exactly two questions for a customer interview. Rules: (1) exactly two sentences, each ending with a question mark; (2) no full stops or exclamation marks anywhere; (3) exactly 24 words in total; (4) the first word is 'Which'; (5) the word 'workflow' appears exactly twice; (6) never use the words 'feel', 'think' or 'maybe'; (7) include the number 3 written as a digit; (8) the reply ends with a question mark. Output only the two questions.",
+  "temperature": 0.0,
+  "max_tokens": 768,
+  "grader": "checks",
+  "grader_config": {
+   "checks": [
+    {
+     "type": "sentence_count",
+     "n": 2
+    },
+    {
+     "type": "regex",
+     "pattern": "^[^.!]*$"
+    },
+    {
+     "type": "min_words",
+     "n": 24
+    },
+    {
+     "type": "max_words",
+     "n": 24
+    },
+    {
+     "type": "starts_with",
+     "value": "Which"
+    },
+    {
+     "type": "keyword_count",
+     "word": "workflow",
+     "n": 2
+    },
+    {
+     "type": "forbidden_words",
+     "words": [
+      "feel",
+      "think",
+      "maybe"
+     ]
+    },
+    {
+     "type": "regex",
+     "pattern": "\\b3\\b"
+    },
+    {
+     "type": "ends_with",
+     "value": "?"
+    }
+   ]
+  }
  }
 ]

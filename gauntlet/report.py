@@ -102,8 +102,17 @@ def component_values(s: dict) -> dict:
         "coding": s["coding"].get("rate"),
         "tooluse": s["tooluse"].get("rate"),
         "instruct": s["instruct"].get("rate"),
-        "reasoning": s["reasoning"].get("rate"),
+        # Reason pools the reasoning and math categories (both are "get the
+        # one right answer" tasks; math is the harder end of the same axis)
+        "reasoning": _pooled_rate(s.get("reasoning"), s.get("math")),
     }
+
+
+def _pooled_rate(*cats) -> float | None:
+    n = sum((c or {}).get("n", 0) for c in cats)
+    if not n:
+        return None
+    return sum((c or {}).get("passed", 0) for c in cats) / n
 
 
 def scorecard(s: dict, sc: dict) -> dict:
@@ -457,7 +466,7 @@ def render_markdown(labels: list[str], stats: dict, cfg: dict | None) -> str:
     wtxt = ", ".join(f"{COMPONENT_LABELS[k]} {int(v) if float(v).is_integer() else v}"
                      for grp in ("chat", "code") for k, v in sc[grp].items())
     L.append(f"*All scores 0–100. **Chat** = weighted mean of RP, NSFW, Explicit peak, "
-             f"Willing, Steer; **Code** = weighted mean of Code, Tools, Instruct, Reason; "
+             f"Willing, Steer; **Code** = weighted mean of Code, Tools, Instruct, Reason (Reason pools the reasoning + math categories); "
              f"**Total** = both halves combined by their weights ({wtxt}). "
              f"**T/S** = median generation tok/s scaled so {sc['tok_per_s_full_marks']:g} tok/s = 100 "
              f"(speed is only comparable on the same provider/host, so it is reported "

@@ -315,12 +315,12 @@ def test_standard_profile_loads_and_applies():
     prof = profiles.load_profile("standard", cfg)
     cfg2, cases = profiles.apply_profile(prof, cfg)
     assert cfg2["_profile"] == "standard"
-    assert cfg2["defaults"]["thinking_max_tokens_cap"] == 12288
+    assert cfg2["defaults"]["thinking_max_tokens_cap"] == 16384
     assert cfg2["defaults"]["repeats"]["rp"] == 1
     ids = [c["id"] for c in cases]
     assert len(ids) == len(set(ids)) == sum(len(v) for v in prof["cases"].values())
     coding = [c for c in cases if c["category"] == "coding"]
-    assert coding and all(c["max_tokens"] == 3072 for c in coding)
+    assert coding and all(c["max_tokens"] == 4096 for c in coding)
     assert all(c["difficulty"] == "hard" for c in coding)
     # smoke narrows to smoke-tagged members only
     _, smoke = profiles.apply_profile(prof, cfg, smoke=True)
