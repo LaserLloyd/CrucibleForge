@@ -285,11 +285,19 @@ class JudgeClient:
 
 
 def select_judge(cfg: dict, benched_model_ids: set[str],
-                 override: str | None = None) -> dict:
+                 override: str | dict | None = None) -> dict:
     """First judge candidate available on its provider and not under test.
     ``override`` = "provider:model_id" (or a bare model_id matching one
-    candidate) forces a specific judge — used by the GUI / --judge flag."""
+    candidate), or a full candidate dict (provider, model_id, extra_body,
+    thinking, ...) — e.g. from a run profile — forces a specific judge."""
     cands = list(cfg["judge"].get("candidates", []))
+    if isinstance(override, dict):
+        forced = dict(override)
+        if forced.get("provider") not in cfg["providers"]:
+            raise JudgeError(f"judge provider {forced.get('provider')!r} is not configured")
+        if forced["model_id"] in benched_model_ids:
+            raise JudgeError(f"judge {forced['model_id']} is itself under test")
+        return forced
     if override:
         if ":" in override and override.split(":", 1)[0] in cfg["providers"]:
             pname, mid = override.split(":", 1)
@@ -648,7 +656,7 @@ def run_canary(jc: JudgeClient) -> None:
 
 
 def run_judge(cfg: dict, labels: list[str], force: bool = False,
-              samples: int | None = None, judge_override: str | None = None,
+              samples: int | None = None, judge_override: str | dict | None = None,
               stop=None) -> dict:
     """Judge all pending quality rows for the given labels.
 

@@ -1,0 +1,35 @@
+# "standard" — the 1-hour profile (target: a ~70 tok/s 27B, judged, < 60 min).
+#
+# Chat half (RP, NSFW, explicit peak, willingness, steer) + code half (coding,
+# tools, instruct, reasoning) + speed. Weighted scorecard in the report
+# (scoring: block in models.yaml overrides the default weights).
+#
+# Coding is deliberately brutal: 10 cases chosen so DeepSeek v4-flash scores
+# ~20% at this budget (it fails CZ01/02/03/05/08/09/10 + CY01 and passes
+# CZ04/CZ07 at a 16k thinking cap) — room for future models to climb.
+# Budgets are per-category max_tokens; thinking models get ×4 up to the cap.
+name: standard
+description: ~1 h on a 70 tok/s 27B incl. judging — chat half + hard code half, weighted scorecard
+judge:
+  provider: studioforge
+  model_id: HauhauCS/Gemma4-31B-QAT-Uncensored-HauhauCS-Balanced-MTP/Gemma4-31B-QAT-Uncensored-HauhauCS-Balanced-Q4_K_M
+  context_length: 16384
+  extra_body: {reasoning_format: deepseek, chat_template_kwargs: {enable_thinking: false}}
+thinking_max_tokens_factor: 4
+thinking_max_tokens_cap: 12288
+repeats: {perf: 2, rp: 1, nsfw: 1, steer: 1, coding: 1, tooluse: 1, instruct: 1, reasoning: 1}
+max_tokens: {rp: 1500, nsfw: 1500, steer: 768, coding: 3072, tooluse: 1024, instruct: 768, reasoning: 2048}
+cases:
+  perf: [P1-tiny, P2-short, P3-gen, P4-longctx]
+  rp: [RP1, RP2, RP3, RP4, RPM1, RPM2]
+  nsfw: [N1-suggestive, N2-explicit, N3-graphic, N4-kink, NM1-escalation]
+  steer: [S1-sfw-enforce, S2-stay-in-character, S3-sfw-pressure]
+  coding: [CZ01-prime-census, CZ02-segment-crossings, CZ03-lisp-machine, CZ04-dynamic-connectivity,
+           CZ05-optimal-bst-cost, CZ07-convolve-mod, CZ08-triple-substring, CZ09-range-kth,
+           CZ10-k-disjoint-subarrays, CY01-repeat-run]
+  tooluse: [TX01-decoy-user-lookup, TX02-large-toolset-one-fit, TX03-timezone-to-utc, TX05-missing-info-ask,
+            TX06-nested-order-items, TX07-flight-chain-3step, TX09-injection-delete-account,
+            TX10-parallel-selective-two-of-three, TX11-cents-and-date-precision, TX12-id-reuse-exact]
+  instruct: [IH1-json-object-strict, IH2-moon-three-sentences, IH3-allcaps-running-line, IH5-library-the-count,
+             IX01-json-strict-no-the, IX02-no-letter-e, IX03-four-s-bullets, IX05-deadline-three-sentences]
+  reasoning: [RX01-desk-grid, RX02-knights-knaves, RX04-card-shuffle, RX08-water-jugs, RX13-recurrence-term, RH5-weboflies]

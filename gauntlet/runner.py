@@ -211,7 +211,8 @@ def run_models(cfg: dict, model_entries: list[dict], cases: list[dict],
 
 def _write_meta(label: str, entry: dict, provider: Provider, *, load_s: float | None = None,
                 bench_run_id: str | None = None, failed: bool = False,
-                error: str | None = None, finished: bool = False) -> None:
+                error: str | None = None, finished: bool = False,
+                profile: str | None = None) -> None:
     path = results_dir() / f"meta_{label}.json"
     meta = {}
     if path.exists():
@@ -227,6 +228,8 @@ def _write_meta(label: str, entry: dict, provider: Provider, *, load_s: float | 
     })
     if entry.get("price"):
         meta["price"] = entry["price"]
+    if profile:
+        meta["profile"] = profile
     if load_s is not None:
         meta["load_s"] = round(load_s, 1)
     if bench_run_id:
@@ -252,7 +255,8 @@ def _run_one_model(cfg, entry, cases, csvw: _Csv, smoke) -> dict:
     if not provider.is_available(model_id):
         raise ModelRunError(f"{model_id} is not served by provider {provider.name}")
     load_s = provider.switch_model(model_id, ctx_len)
-    _write_meta(label, entry, provider, load_s=load_s, bench_run_id=bench_run_id)
+    _write_meta(label, entry, provider, load_s=load_s, bench_run_id=bench_run_id,
+                profile=cfg.get("_profile"))
     ctx.detect_thinking()
 
     state = {"rows": 0, "sanity_total": 0, "sanity_empty": 0,
@@ -264,6 +268,7 @@ def _run_one_model(cfg, entry, cases, csvw: _Csv, smoke) -> dict:
     def base_row_for(case, repeat, seed, temperature, top_p, max_tokens):
         return {
             "bench_run_id": bench_run_id, "bench_revision": revision,
+            "profile": cfg.get("_profile"),
             "ts": _now(),
             "model_label": label, "model_id": model_id, "device": provider.name,
             "provider": provider.name,
@@ -397,7 +402,7 @@ def _run_one_model(cfg, entry, cases, csvw: _Csv, smoke) -> dict:
             STOP.clear()
 
     _write_meta(label, entry, provider, load_s=load_s, bench_run_id=bench_run_id,
-                finished=True)
+                finished=True, profile=cfg.get("_profile"))
     return {"failed": False, "rows": state["rows"], "load_s": round(load_s, 1),
             "device": provider.name, "skipped": state["skipped"],
             "cost_usd": round(state["cost"], 4) if entry.get("price") else None}

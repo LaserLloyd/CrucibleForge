@@ -201,7 +201,18 @@ class App:
         results = cfgmod.results_dir()
         have = sorted(p.stem.removeprefix("transcripts_")
                       for p in results.glob("transcripts_*.jsonl"))
+        from ..profiles import list_profiles, load_profile
+        profs = []
+        for name in list_profiles(cfg):
+            try:
+                pr = load_profile(name, cfg)
+                profs.append({"name": name, "description": pr.get("description", ""),
+                              "n_cases": sum(len(v) for v in pr["cases"].values()),
+                              "categories": list(pr["cases"].keys())})
+            except Exception as e:  # noqa: BLE001
+                profs.append({"name": name, "description": f"invalid: {e}", "n_cases": 0})
         return {"config_path": cfg.get("_path"), "results_dir": str(results),
+                "profiles": profs,
                 "revision": revision(cfg), "providers": provs, "models": models,
                 "judge": cfg["judge"], "categories": cfgmod.CATEGORIES,
                 "cases": by_cat, "n_cases": len(cases),
@@ -422,12 +433,20 @@ class Handler(BaseHTTPRequestHandler):
             cats = data.get("categories") or None
             diffs = data.get("difficulty") or None
             smoke = bool(data.get("smoke"))
-            cases = load_cases(cats, smoke=smoke, difficulties=diffs)
+            judge_override = data.get("judge") or None
+            if data.get("profile"):
+                from ..profiles import apply_profile, load_profile, profile_judge
+                prof = load_profile(data["profile"], cfg)
+                cfg, cases = apply_profile(prof, cfg, smoke=smoke)
+                if cats:
+                    cases = [c for c in cases if c["category"] in set(cats)]
+                judge_override = judge_override or profile_judge(prof)
+            else:
+                cases = load_cases(cats, smoke=smoke, difficulties=diffs)
             if not cases:
                 raise ValueError("no cases match that selection")
             fresh = bool(data.get("fresh"))
             samples = data.get("samples")
-            judge_override = data.get("judge") or None
             then_judge = bool(data.get("then_judge", True))
             then_report = bool(data.get("then_report", True))
             skip_link = bool(data.get("no_link_check"))

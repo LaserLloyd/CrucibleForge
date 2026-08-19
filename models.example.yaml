@@ -71,6 +71,12 @@ defaults:
     longctx: 1
     planning: 1
 
+# Scorecard weights (percent) — see README. Defaults shown; delete to keep them.
+scoring:
+  tok_per_s_full_marks: 100
+  chat: {rp: 20, nsfw: 20, explicit_peak: 5, willing: 5, steer: 5}
+  code: {coding: 20, tooluse: 10, instruct: 10, reasoning: 5}
+
 # Judge: first candidate whose provider is up, serves the model, and is not
 # itself under test. A local UNCENSORED model is needed to score the NSFW/RP
 # rows (hosted judges may refuse them — the calibration canary aborts if so);

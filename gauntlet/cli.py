@@ -137,14 +137,39 @@ def cmd_status(args, cfg):
           "  ".join(f"{k}={v}" for k, v in by_cat.items()))
     smoke = sum(1 for c in cases if c.get("smoke"))
     print(f"smoke subset: {smoke} cases")
+    from .profiles import list_profiles
+    print(f"profiles: {', '.join(list_profiles(cfg)) or 'none'}")
     return 0
+
+
+def _apply_profile_arg(args, cfg):
+    """--profile: returns (cfg, cases, profile) or (cfg, None, None)."""
+    name = getattr(args, "profile", None)
+    if not name:
+        return cfg, None, None
+    from .profiles import apply_profile, load_profile, profile_judge
+    prof = load_profile(name, cfg)
+    cfg2, cases = apply_profile(prof, cfg, smoke=getattr(args, "smoke", False))
+    if not getattr(args, "judge", None):
+        args.judge = profile_judge(prof)
+    log.info("profile %s: %d cases, thinking cap %s, judge %s", name, len(cases),
+             cfg2["defaults"].get("thinking_max_tokens_cap"),
+             (args.judge.get("model_id") if isinstance(args.judge, dict) else args.judge) or "auto")
+    return cfg2, cases, prof
 
 
 def cmd_run(args, cfg):
     from .runner import run_models
+    cfg, prof_cases, prof = _apply_profile_arg(args, cfg)
     entries = resolve_models(cfg, args.models)
-    cases = load_cases(_parse_list(args.categories), smoke=args.smoke,
-                       difficulties=_parse_list(getattr(args, "difficulty", None)))
+    if prof_cases is not None:
+        cases = prof_cases
+        if args.categories:
+            want = set(_parse_list(args.categories))
+            cases = [c for c in cases if c["category"] in want]
+    else:
+        cases = load_cases(_parse_list(args.categories), smoke=args.smoke,
+                           difficulties=_parse_list(getattr(args, "difficulty", None)))
     only = _parse_list(getattr(args, "cases", None))
     if only:
         cases = [c for c in cases if c["id"] in only]
@@ -190,6 +215,7 @@ def cmd_run(args, cfg):
 
 def cmd_judge(args, cfg):
     from .judge import run_judge
+    cfg, _, _ = _apply_profile_arg(args, cfg)
     entries = resolve_models(cfg, args.models)
     labels = [e["name"] for e in entries]
     samples = getattr(args, "samples", None)
@@ -368,6 +394,8 @@ def main(argv=None):
                        help="comma-separated tiers to run: easy,medium,hard")
         p.add_argument("--cases", default=None,
                        help="comma-separated case ids to run (subset of the selection)")
+        p.add_argument("--profile", default=None,
+                       help="run profile (profiles/<name>.yaml): fixed case subset + budgets + judge")
         p.add_argument("--judge", default=None,
                        help="force a judge: provider:model_id (must not be under test)")
         p.add_argument("--no-link-check", action="store_true",
@@ -382,6 +410,7 @@ def main(argv=None):
                          help="re-judge rows that already have verdicts")
     p_judge.add_argument("--samples", type=int, default=None)
     p_judge.add_argument("--judge", default=None, help="provider:model_id")
+    p_judge.add_argument("--profile", default=None, help="use the profile's judge/budgets")
     p_report = sub.add_parser("report", help="generate comparison report")
     p_report.add_argument("--models", default=None)
     p_pw = sub.add_parser("pairwise", help="head-to-head A/B Elo on creative categories")

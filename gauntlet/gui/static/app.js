@@ -94,6 +94,13 @@
     const prevc = new Set($$("input", rc).filter(i => i.checked).map(i => i.value));
     rc.innerHTML = STATE.categories.map(c => `<label class="chk"><input type="checkbox" name="cat" value="${esc(c)}" ${prevc.size ? (prevc.has(c) ? "checked" : "") : "checked"}>
       ${esc(c)} <span class="sub">${STATE.cases[c]?.total ?? 0}</span></label>`).join("");
+    const ps = $("#profilesel"); const pcur = ps.value;
+    ps.innerHTML = `<option value="">none — pick categories/tiers below</option>` +
+      (STATE.profiles || []).map(p => `<option value="${esc(p.name)}">${esc(p.name)} — ${p.n_cases} cases</option>`).join("");
+    ps.value = pcur;
+    ps.onchange = () => { const p = (STATE.profiles || []).find(x => x.name === ps.value);
+      $("#profilehint").textContent = p ? p.description : "";
+      if (p) { $$("#runcats input").forEach(i => i.checked = p.categories.includes(i.value)); } };
     const js = $("#judgesel"); const cur = js.value;
     js.innerHTML = `<option value="">auto (first available candidate)</option>` +
       (STATE.judge.candidates || []).map(c => `<option value="${esc(c.provider + ":" + c.model_id)}">${esc(c.model_id)} @ ${esc(c.provider)}</option>`).join("");
@@ -111,6 +118,7 @@
       models: $$("#runmodels input:checked").map(i => i.value),
       categories: $$("#runcats input:checked").map(i => i.value),
       difficulty: $$("input[name=diff]:checked").map(i => i.value),
+      profile: $("#profilesel").value || null,
       smoke: $("#smoke").checked, fresh: $("#fresh").checked,
       then_judge: $("#thenjudge").checked, no_link_check: $("#nolink").checked,
       judge: $("#judgesel").value || null,

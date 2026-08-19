@@ -37,6 +37,30 @@ OpenRouter, OpenAI, Groq, Together, Mistral, Open WebUI …).
 * **Suite revision stamp** on every row (`3.0.0+<hash of cases+judge>`): the
   report warns when results from different test sets or judges are mixed.
 
+## The 1-hour `standard` profile and the scorecard
+
+`gauntlet all --profile standard --models <label> --yes` runs a fixed 52-case
+selection sized for **a ~70 tok/s 27B in under an hour including judging**:
+perf ×2, RP 6, NSFW ladder 5, steer 3, **10 brutal coding cases** (chosen so
+DeepSeek v4-flash scores ~20% — headroom for future models), 10 hard tool
+cases, 8 hard instruct, 6 hard reasoning; 1 repeat, per-category budgets with
+a 12k thinking cap, and a fast non-thinking judge (a 31B uncensored gemma with
+`enable_thinking: false`). `profiles/standard.yaml` is plain YAML — copy it to
+`<config dir>/profiles/mine.yaml` to make your own; profiles only *select*
+from the case files, so per-case results stay comparable.
+
+The report opens with a **Scorecard** — every model gets 0–100 scores:
+
+| | weights (default, `scoring:` in models.yaml overrides) |
+|---|---|
+| **Chat** | RP 20 · NSFW 20 · Explicit peak 5 · Willing 5 · Steer 5 |
+| **Code** | Code 20 · Tools 10 · Instruct 10 · Reason 5 |
+| **Total** | both halves combined by weight |
+| **T/S** | median gen tok/s scaled so `tok_per_s_full_marks` (100) = 100 — shown beside Total, never folded in (speed is host-specific) |
+
+Components a run did not measure are dropped and the remaining weights
+renormalised (the report says which).
+
 ## Quick start
 
 ```bash
@@ -47,6 +71,7 @@ export DEEPSEEK_API_KEY=...              # only if you use a hosted provider
 
 uv run gauntlet status                   # providers up? judge? case counts
 uv run gauntlet gui                      # http://127.0.0.1:8777
+uv run gauntlet all --profile standard --models local-gemma-e4b --yes   # the 1-hour scorecard run
 uv run gauntlet all --smoke --models local-gemma-e4b --yes     # ~10 min end-to-end
 uv run gauntlet run --models deepseek-flash --difficulty hard  # the hard tier only
 uv run gauntlet judge && uv run gauntlet report

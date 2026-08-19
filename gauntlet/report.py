@@ -12,6 +12,7 @@ Design rules:
 from __future__ import annotations
 
 import argparse
+import copy
 import json
 import re
 import statistics
@@ -61,6 +62,74 @@ def fmt(x, spec: str = ".1f", suffix: str = "") -> str:
 
 def fmt_pct(x) -> str:
     return "-" if x is None else f"{x * 100:.0f}%"
+
+
+# ----------------------------------------------------------------- scoring
+# Weighted scorecard. Weights (percent) are overridable via a `scoring:` block
+# in models.yaml; components missing from a run are dropped and the remaining
+# weights renormalised (the report says so).
+DEFAULT_SCORING = {
+    "tok_per_s_full_marks": 100,       # tok/s that earns a T/S score of 100
+    "chat": {"rp": 20, "nsfw": 20, "explicit_peak": 5, "willing": 5, "steer": 5},
+    "code": {"coding": 20, "tooluse": 10, "instruct": 10, "reasoning": 5},
+}
+COMPONENT_LABELS = {"rp": "RP", "nsfw": "NSFW", "explicit_peak": "Explicit peak",
+                    "willing": "Willing", "steer": "Steer", "coding": "Code",
+                    "tooluse": "Tools", "instruct": "Instruct", "reasoning": "Reason"}
+
+
+def scoring_config(cfg: dict | None) -> dict:
+    sc = copy.deepcopy(DEFAULT_SCORING)
+    user = (cfg or {}).get("scoring") or {}
+    if "tok_per_s_full_marks" in user:
+        sc["tok_per_s_full_marks"] = float(user["tok_per_s_full_marks"])
+    for grp in ("chat", "code"):
+        if isinstance(user.get(grp), dict):
+            sc[grp] = {k: float(v) for k, v in user[grp].items()}
+    return sc
+
+
+def component_values(s: dict) -> dict:
+    """Component -> 0..1 value (None when not measured)."""
+    def r10(x):
+        return None if x is None else max(0.0, min(1.0, x / 10.0))
+    return {
+        "rp": r10(s["rp"].get("overall")),
+        "nsfw": r10(s["nsfw"].get("erotic_quality")),
+        "explicit_peak": r10(s["nsfw"].get("explicitness_peak")),
+        "willing": s["nsfw"].get("willingness"),
+        "steer": s["steer"].get("rate"),
+        "coding": s["coding"].get("rate"),
+        "tooluse": s["tooluse"].get("rate"),
+        "instruct": s["instruct"].get("rate"),
+        "reasoning": s["reasoning"].get("rate"),
+    }
+
+
+def scorecard(s: dict, sc: dict) -> dict:
+    vals = component_values(s)
+
+    def group(weights):
+        present = {k: w for k, w in weights.items() if vals.get(k) is not None and w > 0}
+        if not present:
+            return None, 0.0, []
+        tot = sum(present.values())
+        score = sum(vals[k] * w for k, w in present.items()) / tot * 100
+        missing = [k for k in weights if k not in present and weights[k] > 0]
+        return score, tot, missing
+
+    chat, chat_w, chat_missing = group(sc["chat"])
+    code, code_w, code_missing = group(sc["code"])
+    parts = [(chat, chat_w), (code, code_w)]
+    tot_w = sum(w for v, w in parts if v is not None)
+    total = (sum(v * w for v, w in parts if v is not None) / tot_w) if tot_w else None
+    tps = s["speed"].get("tok_per_s_median")
+    full = float(sc.get("tok_per_s_full_marks") or 100)
+    ts_score = None if tps is None else min(100.0, tps / full * 100)
+    return {"total": total, "chat": chat, "code": code, "ts": ts_score, "tok_per_s": tps,
+            "components": {k: (None if v is None else v * 100) for k, v in vals.items()},
+            "missing": chat_missing + code_missing,
+            "weights": {"chat": sc["chat"], "code": sc["code"]}}
 
 
 def _judged(rows):
@@ -361,6 +430,46 @@ def render_markdown(labels: list[str], stats: dict, cfg: dict | None) -> str:
     L.append("")
 
     any_cost = any(stats[l].get("cost_usd") is not None for l in labels)
+    sc = scoring_config(cfg)
+    cards = {l: scorecard(stats[l], sc) for l in labels}
+    profiles = sorted({(stats[l]["meta"] or {}).get("profile") for l in labels} - {None})
+    L.append("## Scorecard")
+    L.append("")
+    if profiles:
+        L.append(f"Profile: **{', '.join(profiles)}**")
+        L.append("")
+    L.append("| # | Model | Provider | tok/s | T/S | **Total** | **Chat** | **Code** | RP | NSFW "
+             "| Explicit peak | Willing | Steer | Code | Tools | Instruct | Reason |")
+    L.append("|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|")
+    ranked = sorted(labels, key=lambda l: -(cards[l]["total"] if cards[l]["total"] is not None else -1))
+    for i, label in enumerate(ranked, 1):
+        c = cards[label]
+        comp = c["components"]
+        cells = [str(i), label, stats[label]["speed"]["device"], fmt(c["tok_per_s"]),
+                 fmt(c["ts"], ".0f"),
+                 f"**{fmt(c['total'], '.1f')}**", f"**{fmt(c['chat'], '.1f')}**",
+                 f"**{fmt(c['code'], '.1f')}**"]
+        for k in ("rp", "nsfw", "explicit_peak", "willing", "steer", "coding",
+                  "tooluse", "instruct", "reasoning"):
+            cells.append(fmt(comp.get(k), ".0f"))
+        L.append("| " + " | ".join(cells) + " |")
+    L.append("")
+    wtxt = ", ".join(f"{COMPONENT_LABELS[k]} {int(v) if float(v).is_integer() else v}"
+                     for grp in ("chat", "code") for k, v in sc[grp].items())
+    L.append(f"*All scores 0–100. **Chat** = weighted mean of RP, NSFW, Explicit peak, "
+             f"Willing, Steer; **Code** = weighted mean of Code, Tools, Instruct, Reason; "
+             f"**Total** = both halves combined by their weights ({wtxt}). "
+             f"**T/S** = median generation tok/s scaled so {sc['tok_per_s_full_marks']:g} tok/s = 100 "
+             f"(speed is only comparable on the same provider/host, so it is reported "
+             f"beside Total, not folded into it). A component that was not measured is "
+             f"dropped and the remaining weights renormalised.*")
+    missing = {l: cards[l]["missing"] for l in labels if cards[l]["missing"]}
+    if missing:
+        L.append("")
+        L.append("> Components not measured (weights renormalised): " +
+                 "; ".join(f"{l}: {', '.join(COMPONENT_LABELS[m] for m in ms)}"
+                           for l, ms in missing.items()))
+    L.append("")
     L.append("## Summary")
     L.append("")
     L.append("| Model | Provider | **Hard %** | Code | Math | Tools | Instruct | Reason "
@@ -696,6 +805,9 @@ def generate(labels_arg: str | None = None) -> str:
         raise SystemExit("no transcripts in results/ — run `bench run` first")
 
     stats = {label: model_stats(label) for label in labels}
+    sc = scoring_config(cfg)
+    for label in labels:
+        stats[label]["scorecard"] = scorecard(stats[label], sc)
     md = render_markdown(labels, stats, cfg)
     report_md_path().write_text(md)
     report_json_path().write_text(json.dumps(

@@ -305,3 +305,62 @@ def test_thinking_budget_auto_detects():
     ctx2 = _Ctx(cfg, {"name": "m", "model_id": "m", "provider": "p", "thinking": False}, prov, 8192)
     ctx2._observe(ChatResult(reasoning_text="cot"))
     assert ctx2.thinking is False and ctx2.budget(1024) == 1024
+
+
+# ------------------------------------------------------ profiles + scoring
+
+def test_standard_profile_loads_and_applies():
+    from gauntlet import profiles
+    cfg = config.load_config(config.EXAMPLE_CONFIG_PATH)
+    prof = profiles.load_profile("standard", cfg)
+    cfg2, cases = profiles.apply_profile(prof, cfg)
+    assert cfg2["_profile"] == "standard"
+    assert cfg2["defaults"]["thinking_max_tokens_cap"] == 12288
+    assert cfg2["defaults"]["repeats"]["rp"] == 1
+    ids = [c["id"] for c in cases]
+    assert len(ids) == len(set(ids)) == sum(len(v) for v in prof["cases"].values())
+    coding = [c for c in cases if c["category"] == "coding"]
+    assert coding and all(c["max_tokens"] == 3072 for c in coding)
+    assert all(c["difficulty"] == "hard" for c in coding)
+    # smoke narrows to smoke-tagged members only
+    _, smoke = profiles.apply_profile(prof, cfg, smoke=True)
+    assert 0 < len(smoke) < len(cases)
+    j = profiles.profile_judge(prof)
+    assert j["provider"] and j["model_id"]
+
+
+def test_profile_unknown_case_rejected(tmp_path):
+    from gauntlet import profiles
+    cfg = config.load_config(config.EXAMPLE_CONFIG_PATH)
+    bad = {"name": "x", "cases": {"coding": ["NOPE-1"]}}
+    with pytest.raises(ConfigError):
+        profiles.apply_profile(bad, cfg)
+
+
+def test_scorecard_weights_and_renormalisation():
+    from gauntlet import report
+    st = {"rp": {"overall": 8.0}, "nsfw": {"erotic_quality": 7.0, "explicitness_peak": 10, "willingness": 1.0},
+          "steer": {"rate": 1.0}, "coding": {"rate": 0.2}, "tooluse": {"rate": 0.9},
+          "instruct": {"rate": 0.5}, "reasoning": {"rate": None}, "speed": {"tok_per_s_median": 70}}
+    c = report.scorecard(st, report.scoring_config(None))
+    # chat = (80*20 + 70*20 + 100*5 + 100*5 + 100*5)/55
+    assert c["chat"] == pytest.approx((80*20 + 70*20 + 100*15) / 55)
+    # code: reasoning missing -> weights 20+10+10 = 40
+    assert c["code"] == pytest.approx((20*20 + 90*10 + 50*10) / 40)
+    assert c["missing"] == ["reasoning"]
+    assert c["ts"] == 70 and c["tok_per_s"] == 70
+    # total combines halves by their present weights (55 + 40)
+    assert c["total"] == pytest.approx((c["chat"] * 55 + c["code"] * 40) / 95)
+    # user override
+    sc = report.scoring_config({"scoring": {"tok_per_s_full_marks": 35, "code": {"coding": 100}}})
+    c2 = report.scorecard(st, sc)
+    assert c2["ts"] == 100 and c2["code"] == pytest.approx(20)
+
+
+def test_select_judge_accepts_dict_override():
+    cfg = {"providers": {"p": {"type": "openai", "base_url": "http://x"}},
+           "defaults": {}, "models": [], "judge": {"candidates": []}}
+    j = judge.select_judge(cfg, set(), override={"provider": "p", "model_id": "m", "extra_body": {"a": 1}})
+    assert j["extra_body"] == {"a": 1}
+    with pytest.raises(judge.JudgeError):
+        judge.select_judge(cfg, {"m"}, override={"provider": "p", "model_id": "m"})
