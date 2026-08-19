@@ -430,8 +430,10 @@ def _run_single(case, base_row, ctx: _Ctx, max_tokens, temperature, top_p, seed)
         if verdict["grade"] == "fail" and result.finish_reason == "length":
             # be honest about WHY: a truncated reply is a budget/verbosity
             # failure, not necessarily a wrong answer
-            detail = (f"TRUNCATED at {sent} tokens "
-                      f"({result.reasoning_tokens or 0} reasoning); {detail}")
+            reas = (f"{result.reasoning_tokens} reasoning tokens" if result.reasoning_tokens
+                    else f"~{len(result.reasoning_text) // 4} reasoning tokens (est.)"
+                    if result.reasoning_text else "no reasoning channel")
+            detail = f"TRUNCATED at {sent} tokens ({reas}); {detail}"
         row["grade_detail"] = detail
         if verdict.get("needs_judge"):
             # reference-answer grading: a (small) LLM judge compares the
