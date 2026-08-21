@@ -286,6 +286,32 @@ class JudgeClient:
             raise
 
 
+def _eligible_judge_candidates(cfg: dict, benched_model_ids: set[str]) -> list[dict]:
+    """Ordered judge candidates that are configured, not under test, and
+    served by a live provider. Availability is necessary but not sufficient —
+    a candidate can still fail to LOAD (e.g. StudioForge HTTP 507 out of
+    VRAM), which callers handle by falling through to the next one."""
+    out = []
+    for cand in cfg.get("judge", {}).get("candidates", []):
+        mid = cand["model_id"]
+        if mid in benched_model_ids:
+            log.info("judge candidate %s skipped: it is under test", mid)
+            continue
+        try:
+            prov = get_provider(cfg, cand["provider"])
+        except Exception as e:  # unknown provider — config error, keep going
+            log.warning("judge candidate %s skipped: %s", mid, e)
+            continue
+        if not prov.alive():
+            log.info("judge candidate %s skipped: provider %s down", mid, prov.name)
+            continue
+        if not prov.is_available(mid):
+            log.info("judge candidate %s skipped: not served by %s", mid, prov.name)
+            continue
+        out.append(cand)
+    return out
+
+
 def select_judge(cfg: dict, benched_model_ids: set[str],
                  override: str | dict | None = None) -> dict:
     """First judge candidate available on its provider and not under test.
@@ -313,27 +339,46 @@ def select_judge(cfg: dict, benched_model_ids: set[str],
         if forced["model_id"] in benched_model_ids:
             raise JudgeError(f"judge {forced['model_id']} is itself under test")
         return forced
-    for cand in cands:
-        mid = cand["model_id"]
-        if mid in benched_model_ids:
-            log.info("judge candidate %s skipped: it is under test", mid)
-            continue
+    eligible = _eligible_judge_candidates(cfg, benched_model_ids)
+    if not eligible:
+        raise JudgeError(
+            "no usable judge: every candidate is under test or unavailable. "
+            "Add a judge candidate to models.yaml that is not being benchmarked "
+            "(a local uncensored model, or a remote one such as deepseek-v4-flash).")
+    return eligible[0]
+
+
+def _load_judge(cfg: dict, benched_model_ids: set[str], rows: int, samples: int,
+                override: str | dict | None = None) -> JudgeClient:
+    """Pick a judge candidate and actually LOAD it, falling through to the
+    next candidate when a load fails (e.g. StudioForge HTTP 507 out of VRAM
+    or a remote provider error). A forced ``override`` is tried first. The
+    judge phase fails only when every candidate is exhausted."""
+    eligible = _eligible_judge_candidates(cfg, benched_model_ids)
+    if override:
+        forced = select_judge(cfg, benched_model_ids, override=override)
+        eligible = [forced] + [c for c in eligible if c["model_id"] != forced["model_id"]]
+    if not eligible:
+        raise JudgeError(
+            "no usable judge: every candidate is under test or unavailable. "
+            "Add a judge candidate to models.yaml that is not being benchmarked "
+            "(a local uncensored model, or a remote one such as deepseek-v4-flash).")
+    failures = []
+    for cand in eligible:
+        jc = JudgeClient(cfg, cand)
+        log.info("loading judge %s (%d rows, samples=%d, thinking=%s)",
+                 jc.label, rows, samples, jc.thinking)
         try:
-            prov = get_provider(cfg, cand["provider"])
-        except Exception as e:  # unknown provider — config error, keep going
-            log.warning("judge candidate %s skipped: %s", mid, e)
-            continue
-        if not prov.alive():
-            log.info("judge candidate %s skipped: provider %s down", mid, prov.name)
-            continue
-        if not prov.is_available(mid):
-            log.info("judge candidate %s skipped: not served by %s", mid, prov.name)
-            continue
-        return cand
+            jc.load()
+            return jc
+        except Exception as e:
+            failures.append(jc.label)
+            log.warning("judge %s failed to LOAD (%s: %s) — trying next candidate",
+                        jc.label, type(e).__name__, e)
     raise JudgeError(
-        "no usable judge: every candidate is under test or unavailable. "
-        "Add a judge candidate to models.yaml that is not being benchmarked "
-        "(a local uncensored model, or a remote one such as deepseek-v4-flash).")
+        "no usable judge: every candidate failed to load ("
+        + ", ".join(failures)
+        + "). Free VRAM on the judge server or fix the judge models in models.yaml.")
 
 
 def _render_conversation(messages: list[dict]) -> str:
@@ -669,6 +714,10 @@ def run_judge(cfg: dict, labels: list[str], force: bool = False,
     samples: self-consistency sample count (median/majority over N judge
     passes). Defaults to cfg.judge.samples. judge_override: "provider:model".
     stop: optional threading.Event checked between rows.
+
+    A judge candidate that fails to LOAD (e.g. StudioForge HTTP 507 out of
+    VRAM) is logged and skipped; the next candidate is tried, and the phase
+    fails only when every candidate is exhausted.
     """
     by_name = {m["name"]: m for m in cfg["models"]}
     benched_ids = {by_name[l]["model_id"] for l in labels if l in by_name}
@@ -691,14 +740,9 @@ def run_judge(cfg: dict, labels: list[str], force: bool = False,
     if only_reference and benched_ids:
         log.info("only reference-answer rows pending — the under-test exclusion "
                  "is relaxed (nothing subjective to bias)")
-    judge_entry = select_judge(cfg, set() if only_reference else benched_ids,
-                               override=judge_override)
-    jc = JudgeClient(cfg, judge_entry)
+    jc = _load_judge(cfg, set() if only_reference else benched_ids,
+                     rows=total, samples=samples, override=judge_override)
     judge_id = jc.model_id
-
-    log.info("loading judge %s (%d rows, samples=%d, thinking=%s)",
-             jc.label, total, samples, jc.thinking)
-    jc.load()
     # The reference-answer rubric doesn't need the creative-writing canary
     # (any small instruct model can compare two answers); the full canary only
     # runs when creative/safety rows are pending.

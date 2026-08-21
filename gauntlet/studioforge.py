@@ -210,6 +210,28 @@ def loaded_parallel(model_id: str, base_url: str, api_key: str) -> int:
 
 
 def unload_all(base_url: str = DEFAULT_BASE_URL,
-               api_key: str = DEFAULT_API_KEY) -> None:
-    """No-op: StudioForge self-manages VRAM and evicts idle models on its own."""
-    return None
+               api_key: str = DEFAULT_API_KEY) -> int:
+    """Unload every model currently resident in VRAM, so the next load (e.g.
+    the judge) gets a clean slate instead of an out-of-VRAM HTTP 507. Returns
+    the number of models unloaded (0 when nothing was loaded or the server is
+    unreachable)."""
+    headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
+    loaded = [m["identifier"] for m in loaded_models(base_url, api_key)
+              if m.get("identifier")]
+    if not loaded:
+        return 0
+    unloaded = 0
+    for model_id in loaded:
+        try:
+            with httpx.Client(timeout=WARMUP_TIMEOUT_S) as http:
+                resp = http.post(f"{_api(base_url)}/api/models/{_quote(model_id)}/unload",
+                                 headers=headers)
+            if resp.status_code < 400:
+                unloaded += 1
+            else:
+                log.warning("unload of %s rejected (HTTP %d: %s)",
+                            model_id, resp.status_code, resp.text[:200])
+        except httpx.HTTPError as e:
+            log.warning("unload of %s failed: %s", model_id, e)
+    log.info("unloaded %d/%d StudioForge model(s)", unloaded, len(loaded))
+    return unloaded
