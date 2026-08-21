@@ -159,6 +159,36 @@ def warm_model(model_id: str, base_url: str, api_key: str) -> float:
     return time.perf_counter() - t0
 
 
+def load_recommended(model_id: str, base_url: str, api_key: str,
+                     ctx_size: int, prefer_mode: str | None = None) -> dict | None:
+    """StudioForge 0.2 ``POST /api/models/<id>/load-recommended``: the server
+    picks placement, KV type and slot count for exactly ``ctx_size`` per slot
+    (quality-first). Returns the response dict on success, ``{"_status": 507,
+    ...}`` with the server's per-mode suggestions when the window doesn't fit,
+    or None when the endpoint doesn't exist (older server)."""
+    headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
+    body: dict = {"ctx_size": int(ctx_size)}
+    if prefer_mode:
+        body["prefer_mode"] = prefer_mode
+    try:
+        with httpx.Client(timeout=WARMUP_TIMEOUT_S) as http:
+            resp = http.post(f"{_api(base_url)}/api/models/{_quote(model_id)}/load-recommended",
+                             json=body, headers=headers)
+    except httpx.HTTPError as e:
+        log.warning("load-recommended failed (%s)", e)
+        return None
+    if resp.status_code in (404, 405):
+        return None
+    try:
+        data = resp.json() if resp.content else {}
+    except ValueError:
+        data = {"raw": resp.text[:300]}
+    if resp.status_code >= 400:
+        data = dict(data) if isinstance(data, dict) else {"raw": data}
+        data["_status"] = resp.status_code
+    return data
+
+
 def load_model(model_id: str, base_url: str, api_key: str,
                context_length: int | None = None,
                recommended: bool = True) -> float:
@@ -167,6 +197,30 @@ def load_model(model_id: str, base_url: str, api_key: str,
     warm-up when the management API is unavailable. Returns load seconds.
     A model already loaded with the recommended slot count is left alone."""
     t0 = time.perf_counter()
+    if recommended:
+        live = loaded_plan(model_id, base_url, api_key)
+        if live and live.get("state") == "ready" and int(live.get("parallel") or 1) > 1:
+            log.info("%s already loaded with parallel=%s ctx=%s", model_id,
+                     live.get("parallel"), live.get("ctx_size"))
+            return 0.0
+        ctx = int(context_length or 32768)
+        res = load_recommended(model_id, base_url, api_key, ctx)
+        if res is not None and not res.get("_status"):
+            plan = res.get("plan") or res
+            log.info("loaded %s via load-recommended: ctx=%s parallel=%s mode=%s",
+                     model_id, plan.get("ctx_size", ctx), plan.get("parallel"),
+                     plan.get("mode") or plan.get("devices"))
+            warm_model(model_id, base_url, api_key)
+            live = loaded_plan(model_id, base_url, api_key) or {}
+            log.info("%s serving: parallel=%s ctx=%s devices=%s", model_id,
+                     live.get("parallel"), live.get("ctx_size"), live.get("devices"))
+            return time.perf_counter() - t0
+        if res is not None:
+            # structured refusal (507 = window doesn't fit): say why, then let
+            # the profile picker choose a placement that fits
+            log.warning("load-recommended for %s at ctx=%d refused (HTTP %s): %s — "
+                        "falling back to best fitting profile", model_id, ctx,
+                        res.get("_status"), str(res.get("detail") or res)[:300])
     args = recommended_load(model_id, base_url, api_key, context_length) if recommended else None
     if args:
         prof = args.pop("_profile", {})

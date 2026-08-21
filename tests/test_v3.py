@@ -404,3 +404,29 @@ def test_studioforge_workers_follow_server(monkeypatch):
     monkeypatch.setattr(studioforge, "loaded_parallel", lambda *a: 5)
     assert providers.get_provider(cfg, "sf").workers("m") == 5       # auto = follow server
     assert providers.get_provider(cfg, "sf2").workers("m") == 2      # explicit cap wins
+
+
+def test_load_recommended_handles_507_and_404(monkeypatch):
+    from gauntlet import studioforge
+    import httpx
+
+    class R:
+        def __init__(self, code, d): self.status_code, self._d, self.content, self.text = code, d, b"x", "x"
+        def json(self): return self._d
+
+    def fake_client(code, d):
+        class C:
+            def __init__(self, *a, **k): pass
+            def __enter__(self): return self
+            def __exit__(self, *a): pass
+            def post(self, url, json=None, headers=None):
+                assert url.endswith("/api/models/m/load-recommended") and json["ctx_size"] == 16384
+                return R(code, d)
+        return C
+    monkeypatch.setattr(httpx, "Client", fake_client(200, {"plan": {"parallel": 5}}))
+    assert studioforge.load_recommended("m", "http://x/v1", "", 16384)["plan"]["parallel"] == 5
+    monkeypatch.setattr(httpx, "Client", fake_client(507, {"detail": "does not fit"}))
+    r = studioforge.load_recommended("m", "http://x/v1", "", 16384)
+    assert r["_status"] == 507 and "fit" in r["detail"]
+    monkeypatch.setattr(httpx, "Client", fake_client(404, {}))
+    assert studioforge.load_recommended("m", "http://x/v1", "", 16384) is None
