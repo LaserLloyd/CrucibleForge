@@ -610,8 +610,17 @@ def acquire_lease(base_url: str, api_key: str, headers: dict | None, devices: li
                      body["devices"], model_ids, holder)
             return out
         res = data if isinstance(data, dict) else {"_status": code}
-        wait = _retry_wait(res, waited, wait_busy_s) if code in (503, 507, 409) else None
         detail = str(res.get("detail") or res.get("error") or res)[:300]
+        if code == 409 and "pinned" in detail.lower() and not body["force"]:
+            # a PINNED idle resident is in the way. force=true evicts it and
+            # the server's pin reconciler brings it back when the lease ends
+            # (the server still refuses a resident that is mid-request, force
+            # or not) — exactly the "nothing else on the cards" the lease is for
+            log.warning("lease blocked by a pinned idle resident — retrying with force=true "
+                        "(the pin reconciler restores it after the lease): %s", detail)
+            body["force"] = True
+            continue
+        wait = _retry_wait(res, waited, wait_busy_s) if code in (503, 507, 409) else None
         if wait is not None:
             log.warning("lease refused (HTTP %d, a resident is busy) — retrying in %.0fs: %s",
                         code, wait, detail)

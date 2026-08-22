@@ -140,6 +140,21 @@ def test_acquire_lease_waits_on_503_then_returns_lease_id(monkeypatch):
     assert lease["_lease_id"] == "L1" and sleeps == [5.0]
 
 
+def test_acquire_lease_forces_only_for_a_pinned_idle_resident(monkeypatch):
+    bodies = []
+
+    def mgmt(method, b, k, h, path, json=None, timeout=30):
+        bodies.append(dict(json))
+        if not json.get("force"):
+            return 409, {"detail": "pinned model(s) X are resident on CUDA [0, 1]; pass force=true"}
+        return 200, {"lease_id": "L2"}
+
+    monkeypatch.setattr(studioforge, "_mgmt", mgmt)
+    lease = studioforge.acquire_lease("http://x/v1", "", {}, [0, 1], model_ids=["m"])
+    assert lease["_lease_id"] == "L2"
+    assert [b["force"] for b in bodies] == [False, True]
+
+
 def test_acquire_lease_403_is_final(monkeypatch):
     monkeypatch.setattr(studioforge, "_mgmt",
                         lambda *a, **k: (403, {"detail": "remote_admin_requires_credential"}))
