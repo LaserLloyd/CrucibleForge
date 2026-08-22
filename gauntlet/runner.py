@@ -32,7 +32,8 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 
 from . import lms, studioforge
-from .api import ChatResult, TransportError, WrongModelError
+from .api import (ChatResult, GenerationRejected, RequestRejected, TransportError,
+                  WrongModelError)
 from .config import CSV_COLUMNS, results_dir, append_transcript, repeats_for
 from .graders import (_extract_tool_calls_from_text, grade, grade_contains,
                       grade_tool_call, prose_metrics)
@@ -43,6 +44,28 @@ log = logging.getLogger(__name__)
 
 CREATIVE_SEEDS = [41, 42, 43, 44, 45]
 SANITY_CHECK_AFTER = 3
+
+# A run aborts (ModelRunError) after this many transport failures IN A ROW —
+# the server is gone, not one case. A single failure is recorded as an error
+# row for that case and the run continues (one bad case never kills a model).
+MAX_CONSECUTIVE_TRANSPORT_ERRORS = 3
+
+# Reasoning-overflow recovery. A thinking model that reaches max_tokens while
+# still inside its reasoning channel returns finish=length with EMPTY content:
+# nothing to grade, nothing to judge. Measured 2026-08-22 on 251-case runs:
+# 27-45 such rows per thinking model (coding/math/planning), i.e. 10-18% of a
+# model's score was a budget artifact, not the model's ability. Recovery asks
+# for the ANSWER on the case's own budget: first with thinking disabled via
+# the chat template (works for qwen3-family templates; a no-op for templates
+# that ignore the kwarg), then as a continuation of the truncated reasoning.
+# The first attempt's cost is kept on the row (recovery.first) so the
+# overflow is still visible in the report.
+RECOVERY_NO_THINK_KWARGS = {"chat_template_kwargs": {"enable_thinking": False}}
+RECOVERY_CONTINUE_PROMPT = (
+    "Your reasoning above was cut off by the length limit. Do not think "
+    "further. Reply now with ONLY your final answer to the original request.")
+# how much of the truncated reasoning to feed back on the continuation rung
+RECOVERY_REASONING_TAIL_CHARS = 6000
 
 # Cooperative stop: set() to finish the in-flight case(s) and stop cleanly.
 STOP = threading.Event()
@@ -124,6 +147,12 @@ class _Ctx:
         d = cfg.get("defaults", {})
         self.think_factor = float(d.get("thinking_max_tokens_factor", 4))
         self.think_cap = int(d.get("thinking_max_tokens_cap", 32768))
+        # defaults.reasoning_overflow_recovery (bool, default on); a model
+        # entry can opt out with recovery: false
+        self.recovery_enabled = (bool(d.get("reasoning_overflow_recovery", True))
+                                 and bool(entry.get("recovery", True)))
+        # flips to False the first time the provider rejects chat_template_kwargs
+        self.no_think_supported = True
 
     def budget(self, max_tokens: int) -> int:
         """max_tokens to actually send for this model."""
@@ -153,12 +182,8 @@ class _Ctx:
         if self.thinking is None:
             self.thinking = False  # probe showed no reasoning channel
 
-    def call(self, messages, *, budgeted: bool = False, **kw) -> ChatResult:
-        """One completion; on eviction/wrong-model, reload once and retry.
-        budgeted=True means max_tokens is already the value to send."""
-        kw.setdefault("extra_body", self.extra_body)
-        if "max_tokens" in kw and not budgeted:
-            kw["max_tokens"] = self.budget(kw["max_tokens"])
+    def _chat(self, messages, **kw) -> ChatResult:
+        """One completion; on eviction/wrong-model, reload once and retry."""
         try:
             r = self.provider.chat(self.model_id, messages, **kw)
         except WrongModelError as e:
@@ -169,9 +194,79 @@ class _Ctx:
         self._observe(r)
         return r
 
+    @staticmethod
+    def _overflowed(r: ChatResult) -> bool:
+        """finish=length with no content but a reasoning channel: the whole
+        budget went to thinking."""
+        return (r.finish_reason == "length" and not r.response_text.strip()
+                and bool(r.reasoning_text.strip()))
+
+    def call(self, messages, *, max_tokens: int, recover: bool = True, **kw) -> ChatResult:
+        """One completion on the CASE budget ``max_tokens`` (boosted for a
+        thinking model), with reasoning-overflow recovery. ``recover=False``
+        for timing rows (perf), whose metrics must stay single-shot."""
+        kw.setdefault("extra_body", self.extra_body)
+        first = self._chat(messages, max_tokens=self.budget(max_tokens), **kw)
+        if not (recover and self.recovery_enabled and self._overflowed(first)):
+            return first
+        first_info = {"finish_reason": first.finish_reason,
+                      "completion_tokens": first.completion_tokens,
+                      "reasoning_tokens": first.reasoning_tokens,
+                      "reasoning_chars": len(first.reasoning_text),
+                      "max_tokens_sent": self.budget(max_tokens)}
+        log.info("%s: reasoning overflow (%s reasoning tokens, no answer) — "
+                 "recovering the answer on a %d-token budget", self.model_id,
+                 first.reasoning_tokens or f"~{len(first.reasoning_text) // 4}", max_tokens)
+        attempts = 0
+        # rung 1: same conversation, thinking disabled via the chat template
+        no_think = dict(kw)
+        r = None
+        if self.no_think_supported:
+            no_think = {**kw, "extra_body": {**(kw.get("extra_body") or {}),
+                                             **RECOVERY_NO_THINK_KWARGS}}
+            attempts += 1
+            try:
+                r = self._chat(messages, max_tokens=max_tokens, **no_think)
+            except RequestRejected as e:
+                # hosted API that validates request fields — remember, and
+                # fall through to the continuation rung without the kwarg
+                log.warning("%s: provider rejects chat_template_kwargs (%s) — "
+                            "continuation-only recovery from now on", self.model_id,
+                            str(e)[:120])
+                self.no_think_supported = False
+                no_think = dict(kw)
+        mode = "no_think"
+        if r is None or (not r.response_text.strip() and r.finish_reason == "length"):
+            # rung 2: the template ignored the kwarg (or the model thinks
+            # anyway) — continue from the truncated reasoning and ask for
+            # the answer outright
+            tail = first.reasoning_text[-RECOVERY_REASONING_TAIL_CHARS:]
+            cont = list(messages) + [
+                {"role": "assistant", "content": tail},
+                {"role": "user", "content": RECOVERY_CONTINUE_PROMPT}]
+            attempts += 1
+            r = self._chat(cont, max_tokens=max_tokens, **no_think)
+            mode = "continue"
+        if not r.response_text.strip():
+            # unrecoverable: keep the honest first result, annotated
+            first.recovery = {"mode": None, "attempts": attempts, "first": first_info}
+            log.warning("%s: reasoning overflow NOT recovered after %d attempt(s)",
+                        self.model_id, attempts)
+            return first
+        r.recovery = {"mode": mode, "attempts": attempts, "first": first_info}
+        # the thinking cost is part of the model's behaviour — keep it visible
+        # in the metrics even though the answer came from the recovery pass
+        if first.reasoning_tokens and not r.reasoning_tokens:
+            r.reasoning_tokens = first.reasoning_tokens
+        return r
+
 
 def run_models(cfg: dict, model_entries: list[dict], cases: list[dict],
-               smoke: bool = False) -> dict:
+               smoke: bool = False, jobs_by_label: dict | None = None) -> dict:
+    """jobs_by_label: optional {label: {(bench_run_id, case_id, repeat), ...}}
+    restricting each model to exactly those (case, repeat) jobs, re-run under
+    their ORIGINAL bench_run_id so the new rows supersede the old ones (used
+    by ``gauntlet recover``)."""
     STOP.clear()
     # reachability per provider, once
     seen: set[str] = set()
@@ -192,7 +287,9 @@ def run_models(cfg: dict, model_entries: list[dict], cases: list[dict],
                 break
             label = entry["name"]
             try:
-                summary[label] = _run_one_model(cfg, entry, cases, csvw, smoke)
+                summary[label] = _run_one_model(
+                    cfg, entry, cases, csvw, smoke,
+                    only_jobs=(jobs_by_label or {}).get(label))
             except RunStopped:
                 summary[label] = {"failed": True, "error": "stopped by user"}
                 _write_meta(label, entry, provider_for(cfg, entry), failed=True,
@@ -242,13 +339,20 @@ def _write_meta(label: str, entry: dict, provider: Provider, *, load_s: float | 
     path.write_text(json.dumps(meta, indent=2))
 
 
-def _run_one_model(cfg, entry, cases, csvw: _Csv, smoke) -> dict:
+def _run_one_model(cfg, entry, cases, csvw: _Csv, smoke,
+                   only_jobs: set | None = None) -> dict:
     label = entry["name"]
     model_id = entry["model_id"]
     ctx_len = entry.get("context_length") or cfg["defaults"].get("context_length")
     provider = provider_for(cfg, entry)
     bench_run_id = str(uuid.uuid4())[:8]
     ctx = _Ctx(cfg, entry, provider, ctx_len)
+    # recover mode: (bench_run_id, case_id, repeat) triples to re-run; rows
+    # are written under the ORIGINAL run id so they supersede the old rows
+    run_id_for: dict[tuple, str] = {}
+    if only_jobs:
+        for rid, cid, rep_ in only_jobs:
+            run_id_for[(cid, rep_)] = rid
 
     log.info("=== %s (%s) via %s [%s], ctx=%s ===", label, model_id,
              provider.name, provider.type, ctx_len)
@@ -261,13 +365,14 @@ def _run_one_model(cfg, entry, cases, csvw: _Csv, smoke) -> dict:
 
     state = {"rows": 0, "sanity_total": 0, "sanity_empty": 0,
              "speed_samples": [], "speed_gated": False, "skipped": 0,
-             "cost": 0.0}
+             "cost": 0.0, "consecutive_errors": 0, "case_errors": 0}
     min_tps = float(cfg["defaults"].get("min_tok_per_s", 0) or 0)
     revision = _revision(cfg)
 
     def base_row_for(case, repeat, seed, temperature, top_p, max_tokens):
         return {
-            "bench_run_id": bench_run_id, "bench_revision": revision,
+            "bench_run_id": run_id_for.get((case["id"], repeat), bench_run_id),
+            "bench_revision": revision,
             "profile": cfg.get("_profile"),
             "ts": _now(),
             "model_label": label, "model_id": model_id, "device": provider.name,
@@ -295,8 +400,8 @@ def _run_one_model(cfg, entry, cases, csvw: _Csv, smoke) -> dict:
             # sanity: if the first N completions are all empty, the model is
             # misconfigured — stop burning hours on it
             for row in rows:
-                if row.get("skipped"):
-                    continue
+                if row.get("skipped") or row.get("error"):
+                    continue  # not a completion — counted by the transport guard
                 if row.get("turn") in (None, 1):
                     state["sanity_total"] += 1
                     if not (row.get("response") or row.get("reasoning") or row.get("tool_calls")):
@@ -350,27 +455,54 @@ def _run_one_model(cfg, entry, cases, csvw: _Csv, smoke) -> dict:
             with ctx.lock:
                 provider.switch_model(model_id, ctx_len)
 
-        if case.get("tool_script"):
-            rows = [_run_tool_loop(case, base_row, ctx, max_tokens, temperature, seed)]
-        elif case.get("turns"):
-            rows = _run_multiturn(case, base_row, ctx, max_tokens, temperature, top_p, seed)
-        else:
-            rows = [_run_single(case, base_row, ctx, max_tokens, temperature, top_p, seed)]
+        try:
+            if case.get("tool_script"):
+                rows = [_run_tool_loop(case, base_row, ctx, max_tokens, temperature, seed)]
+            elif case.get("turns"):
+                rows = _run_multiturn(case, base_row, ctx, max_tokens, temperature, top_p, seed)
+            else:
+                rows = [_run_single(case, base_row, ctx, max_tokens, temperature, top_p, seed)]
+        except GenerationRejected as e:
+            # the MODEL's output could not be delivered (malformed tool-call
+            # args etc.) — that is this case failing, not the run
+            log.warning("[%s] %s r%d: server rejected the model's generation: %s",
+                        label, case["id"], repeat, str(e)[:200])
+            persist([_error_row(base_row, case, f"server rejected the model's output: {e}")])
+            return
+        except (TransportError, WrongModelError) as e:
+            with ctx.lock:
+                state["consecutive_errors"] += 1
+                state["case_errors"] += 1
+                n = state["consecutive_errors"]
+            log.error("[%s] %s r%d transport failure (%d in a row): %s",
+                      label, case["id"], repeat, n, str(e)[:200])
+            persist([_error_row(base_row, case, f"transport failure: {e}")])
+            if n >= MAX_CONSECUTIVE_TRANSPORT_ERRORS:
+                raise ModelRunError(
+                    f"{n} consecutive transport failures for {label} — server "
+                    f"unreachable/unstable, aborting this model (last: {str(e)[:160]})")
+            return
+        with ctx.lock:
+            state["consecutive_errors"] = 0
         persist(rows)
         log.info("[%s] %s r%d done (%d rows)", label, case["id"], repeat, state["rows"])
 
     # perf first, serially, with a warmup so the first TTFT isn't cold-start
-    perf_cases = [c for c in cases if c["category"] == "perf"]
+    perf_cases = [c for c in cases if c["category"] == "perf"] if only_jobs is None else []
     other_cases = [c for c in cases if c["category"] != "perf"]
     if perf_cases:
         ctx.call([{"role": "user", "content": "Hi"}], max_tokens=8,
-                 temperature=0.0, seed=42)
+                 temperature=0.0, seed=42, recover=False)
         for case in perf_cases:
             for repeat in range(1, repeats_for(cfg, "perf", smoke) + 1):
                 run_case_repeat(case, repeat)
 
     jobs = [(c, r) for c in other_cases
             for r in range(1, repeats_for(cfg, c["category"], smoke) + 1)]
+    if only_jobs is not None:
+        wanted = {(cid, rep_) for _, cid, rep_ in only_jobs}
+        jobs = [(c, r) for c, r in jobs if (c["id"], r) in wanted]
+        log.info("recover mode: %d job(s) to re-run for %s", len(jobs), label)
     workers = provider.workers(model_id)
     if workers <= 1:
         for case, repeat in jobs:
@@ -386,9 +518,9 @@ def _run_one_model(cfg, entry, cases, csvw: _Csv, smoke) -> dict:
                 except (ModelRunError, RunStopped) as e:
                     first_err = first_err or e
                     STOP.set()  # drain remaining workers quickly
-                except (TransportError, WrongModelError) as e:
+                except (TransportError, WrongModelError) as e:  # defensive: handled per case
                     case, r = futs[fut]
-                    log.error("[%s] %s r%d transport failure: %s", label, case["id"], r, e)
+                    log.error("[%s] %s r%d unhandled transport failure: %s", label, case["id"], r, e)
                     first_err = first_err or e
         if isinstance(first_err, RunStopped):
             raise first_err
@@ -405,12 +537,74 @@ def _run_one_model(cfg, entry, cases, csvw: _Csv, smoke) -> dict:
                 finished=True, profile=cfg.get("_profile"))
     return {"failed": False, "rows": state["rows"], "load_s": round(load_s, 1),
             "device": provider.name, "skipped": state["skipped"],
+            "case_errors": state["case_errors"],
             "cost_usd": round(state["cost"], 4) if entry.get("price") else None}
+
+
+def _error_row(base_row: dict, case: dict, error: str) -> dict:
+    """A persisted FAILED row for a case whose generation never arrived, so
+    the case counts against the model instead of silently vanishing."""
+    first_user = (case.get("tool_script") or [{}])[0].get("user", "")
+    row = {**base_row, "run_id": str(uuid.uuid4())[:8], "turn": None,
+           "system": case.get("system"),
+           "prompt": case.get("prompt") or first_user,
+           "response": "", "reasoning": "", "tool_calls": [], "finish_reason": "error",
+           "truncated": False, "error": error[:500], "metrics": {}}
+    if case.get("grader") or case.get("tool_script"):
+        row["grade"] = "fail"
+        row["grade_detail"] = error[:300]
+    if case.get("rubric") or case.get("turns"):
+        # judged case: nothing to judge — recorded as an empty generation
+        row["needs_judge"] = True
+        row["rubric"] = case.get("rubric") or ("rp_multi" if case.get("turns") else None)
+    return row
+
+
+def overflow_jobs(rows: list[dict]) -> set[tuple]:
+    """(bench_run_id, case_id, repeat) of every job with a reasoning-overflow
+    row (finish=length, empty content, reasoning present) that has not been
+    through recovery yet. Perf rows are timing rows and are never re-run."""
+    out: set[tuple] = set()
+    for r in rows:
+        if r.get("category") == "perf" or r.get("skipped"):
+            continue
+        if r.get("recovery") is not None:
+            continue  # already went through the ladder (recovered or not)
+        if (r.get("finish_reason") == "length" and not (r.get("response") or "").strip()
+                and (r.get("reasoning") or "").strip()):
+            out.add((r.get("bench_run_id"), r.get("case_id"), r.get("repeat")))
+    return out
+
+
+def recover_models(cfg: dict, model_entries: list[dict], cases: list[dict]) -> dict:
+    """Re-run only the reasoning-overflow jobs of each model (same bench_run_id,
+    so the recovered rows supersede the empty ones); the fresh rows carry no
+    judge verdict, so ``gauntlet judge`` re-scores them."""
+    from .config import load_transcripts
+    jobs_by_label: dict[str, set] = {}
+    for e in model_entries:
+        found = overflow_jobs(load_transcripts(e["name"]))
+        if found:
+            jobs_by_label[e["name"]] = found
+        log.info("%s: %d reasoning-overflow job(s) to recover", e["name"], len(found))
+    entries = [e for e in model_entries if e["name"] in jobs_by_label]
+    if not entries:
+        return {}
+    return run_models(cfg, entries, cases, jobs_by_label=jobs_by_label)
+
+
+def _annotate_recovery(row: dict, result: ChatResult) -> None:
+    """Carry the reasoning-overflow record onto the transcript row."""
+    if result.recovery is None:
+        return
+    row["reasoning_overflow"] = True
+    row["recovery"] = result.recovery
 
 
 def _run_single(case, base_row, ctx: _Ctx, max_tokens, temperature, top_p, seed) -> dict:
     sent = ctx.budget(max_tokens)
-    result = ctx.call(_messages_for(case), max_tokens=sent, budgeted=True,
+    result = ctx.call(_messages_for(case), max_tokens=max_tokens,
+                      recover=case["category"] != "perf",
                       temperature=temperature, top_p=top_p, seed=seed,
                       tools=case.get("tools"))
     row = {**base_row, "run_id": str(uuid.uuid4())[:8], "turn": None,
@@ -423,6 +617,7 @@ def _run_single(case, base_row, ctx: _Ctx, max_tokens, temperature, top_p, seed)
            "answered_in_reasoning": (not result.response_text.strip()
                                      and bool(result.reasoning_text.strip())),
            "metrics": _metrics(result)}
+    _annotate_recovery(row, result)
     verdict = grade(result, case)
     if verdict:
         row["grade"] = verdict["grade"]
@@ -472,6 +667,7 @@ def _run_multiturn(case, base_row, ctx: _Ctx, max_tokens, temperature, top_p, se
                "finish_reason": result.finish_reason,
                "truncated": result.finish_reason == "length",
                "metrics": _metrics(result)}
+        _annotate_recovery(row, result)
         if i == n_turns:
             row["needs_judge"] = True
             row["rubric"] = case.get("rubric", "rp_multi")
@@ -545,7 +741,7 @@ def _run_tool_loop(case, base_row, ctx: _Ctx, max_tokens, temperature, seed) -> 
     passed = all(s["grade"] == "pass" for s in steps)
     detail = "; ".join(f"step{i+1}:{s['grade']}({s['detail']})"
                        for i, s in enumerate(steps))
-    return {**base_row, "run_id": str(uuid.uuid4())[:8], "turn": None,
+    row = {**base_row, "run_id": str(uuid.uuid4())[:8], "turn": None,
             "prompt": case["tool_script"][0].get("user", ""),
             "response": (last_result.response_text if last_result else ""),
             "reasoning": (last_result.reasoning_text if last_result else ""),
@@ -553,3 +749,6 @@ def _run_tool_loop(case, base_row, ctx: _Ctx, max_tokens, temperature, seed) -> 
             "truncated": False,
             "grade": "pass" if passed else "fail", "grade_detail": detail[:300],
             "metrics": _metrics(last_result) if last_result else {}}
+    if last_result is not None:
+        _annotate_recovery(row, last_result)
+    return row

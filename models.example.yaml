@@ -59,6 +59,10 @@ defaults:
   # multiplied by this factor (capped) so the answer is not cut off.
   thinking_max_tokens_factor: 4
   thinking_max_tokens_cap: 32768
+  # A thinking model that STILL hits the cap inside its reasoning (no content)
+  # gets its answer recovered on the case budget (thinking disabled, then a
+  # continuation). Off = score the empty reply. Per model: recovery: false
+  reasoning_overflow_recovery: true
   repeats:                # scored repeats per case, by category
     perf: 3
     rp: 2
@@ -88,6 +92,10 @@ judge:
   temperature: 0.1
   max_tokens: 4096
   samples: 1              # self-consistency passes per row (3 for a rigorous ranking)
+  # back-off (seconds) before re-trying a judge that failed to LOAD — a
+  # shared GPU box is often only transiently out of VRAM. A forced --judge
+  # fails after this schedule instead of switching judges (--judge-fallback).
+  load_retry_s: [15, 30, 60, 120, 180]
   candidates:
     - {provider: lmstudio, model_id: "your-local-uncensored-judge", context_length: 16384}
     - {provider: deepseek, model_id: "deepseek-v4-flash"}

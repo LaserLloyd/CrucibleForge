@@ -36,6 +36,36 @@ class StudioForgeError(RuntimeError):
     """StudioForge could not serve the requested model."""
 
 
+# Engine readiness polling after an explicit load: the management API can
+# answer before llama-server finishes loading (state "loading"), and a
+# warm-up completion sent in that window makes the server plan a SECOND load
+# for the same model — which then 507s because the first one holds the VRAM.
+READY_POLL_S = 2.0
+
+
+def wait_ready(model_id: str, base_url: str, api_key: str,
+               timeout_s: float = WARMUP_TIMEOUT_S, poll_s: float = READY_POLL_S) -> dict:
+    """Block until GET /api/status reports ``model_id`` as ready; return its
+    live plan. Raises StudioForgeError if the model disappears from the loaded
+    list (load failed / evicted) or the deadline passes."""
+    deadline = time.monotonic() + timeout_s
+    last = None
+    while True:
+        live = loaded_plan(model_id, base_url, api_key)
+        if live and live.get("state") == "ready":
+            return live
+        if live is None and last is not None:
+            raise StudioForgeError(
+                f"{model_id} vanished from the loaded list while waiting for ready "
+                f"(last state {last.get('state')!r}) — load failed or it was evicted")
+        last = live if live is not None else last
+        if time.monotonic() >= deadline:
+            raise StudioForgeError(
+                f"{model_id} not ready after {timeout_s:.0f}s (state "
+                f"{(live or {}).get('state')!r})")
+        time.sleep(poll_s)
+
+
 def _models_json(base_url: str, api_key: str) -> list[dict]:
     """Raw entries from GET /v1/models (id, size_bytes, state, kind, ...)."""
     headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
@@ -210,6 +240,7 @@ def load_model(model_id: str, base_url: str, api_key: str,
             log.info("loaded %s via load-recommended: ctx=%s parallel=%s mode=%s",
                      model_id, plan.get("ctx_size", ctx), plan.get("parallel"),
                      plan.get("mode") or plan.get("devices"))
+            wait_ready(model_id, base_url, api_key)
             warm_model(model_id, base_url, api_key)
             live = loaded_plan(model_id, base_url, api_key) or {}
             log.info("%s serving: parallel=%s ctx=%s devices=%s", model_id,
@@ -245,6 +276,8 @@ def load_model(model_id: str, base_url: str, api_key: str,
             if resp.status_code >= 400:
                 log.warning("recommended load rejected (HTTP %d: %s) — falling back to JIT",
                             resp.status_code, resp.text[:200])
+            else:
+                wait_ready(model_id, base_url, api_key)
         except httpx.HTTPError as e:
             log.warning("recommended load failed (%s) — falling back to JIT", e)
     warm_model(model_id, base_url, api_key)

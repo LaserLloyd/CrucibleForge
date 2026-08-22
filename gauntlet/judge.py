@@ -237,6 +237,15 @@ class JudgeError(RuntimeError):
     pass
 
 
+# Back-off schedule (seconds) for re-trying a judge that failed to LOAD. On a
+# shared rig the usual cause is transient VRAM contention — on 2026-08-22 the
+# hourly image job restarted ComfyUI on the judge's GPUs at 08:00 and the
+# 122B judge was evicted mid-load; the old code immediately switched to a
+# different (smaller, other-family) judge, silently breaking the single-judge
+# rule for that model. ~7 minutes covers an image generation + its self-heal.
+DEFAULT_LOAD_RETRY_S = [15, 30, 60, 120, 180]
+
+
 class JudgeClient:
     """The judge model bound to its provider + generation settings. Every
     judge/pairwise call goes through ``chat`` so provider details (keys,
@@ -349,32 +358,67 @@ def select_judge(cfg: dict, benched_model_ids: set[str],
 
 
 def _load_judge(cfg: dict, benched_model_ids: set[str], rows: int, samples: int,
-                override: str | dict | None = None) -> JudgeClient:
-    """Pick a judge candidate and actually LOAD it, falling through to the
-    next candidate when a load fails (e.g. StudioForge HTTP 507 out of VRAM
-    or a remote provider error). A forced ``override`` is tried first. The
-    judge phase fails only when every candidate is exhausted."""
+                override: str | dict | None = None,
+                allow_fallback: bool | None = None) -> JudgeClient:
+    """Pick a judge candidate and actually LOAD it.
+
+    Without ``override`` the candidate list is walked in order and a load
+    failure (StudioForge HTTP 507 out of VRAM, remote provider error) moves
+    on to the next candidate.
+
+    With a forced ``override`` the judge is STRICT by default: the forced
+    model is retried on the ``judge.load_retry_s`` back-off schedule (VRAM
+    contention is transient) and if it still cannot load the phase FAILS —
+    it never silently scores with a different judge, because scores from two
+    judges are not comparable. ``allow_fallback=True`` (CLI --judge-fallback)
+    restores the walk to the next candidate after the retries."""
+    retry_s = [float(x) for x in (cfg.get("judge") or {}).get("load_retry_s",
+                                                               DEFAULT_LOAD_RETRY_S)]
     eligible = _eligible_judge_candidates(cfg, benched_model_ids)
+    forced = None
     if override:
         forced = select_judge(cfg, benched_model_ids, override=override)
-        eligible = [forced] + [c for c in eligible if c["model_id"] != forced["model_id"]]
-    if not eligible:
+        others = [c for c in eligible if c["model_id"] != forced["model_id"]]
+        candidates = [forced] + (others if allow_fallback else [])
+    else:
+        candidates = eligible
+    if not candidates:
         raise JudgeError(
             "no usable judge: every candidate is under test or unavailable. "
             "Add a judge candidate to models.yaml that is not being benchmarked "
             "(a local uncensored model, or a remote one such as deepseek-v4-flash).")
     failures = []
-    for cand in eligible:
+    last_err: Exception | None = None
+    for cand in candidates:
         jc = JudgeClient(cfg, cand)
         log.info("loading judge %s (%d rows, samples=%d, thinking=%s)",
                  jc.label, rows, samples, jc.thinking)
-        try:
-            jc.load()
-            return jc
-        except Exception as e:
-            failures.append(jc.label)
-            log.warning("judge %s failed to LOAD (%s: %s) — trying next candidate",
-                        jc.label, type(e).__name__, e)
+        # the forced judge (or, with no override, the first-choice judge)
+        # is worth waiting for; later fallbacks get a single attempt
+        schedule = retry_s if cand is candidates[0] else []
+        for attempt in range(len(schedule) + 1):
+            try:
+                jc.load()
+                return jc
+            except Exception as e:
+                last_err = e
+                if attempt < len(schedule):
+                    log.warning("judge %s failed to LOAD (%s: %s) — retry %d/%d in %.0fs "
+                                "(transient VRAM contention?)", jc.label, type(e).__name__,
+                                str(e)[:200], attempt + 1, len(schedule), schedule[attempt])
+                    time.sleep(schedule[attempt])
+                    continue
+                failures.append(jc.label)
+                log.warning("judge %s failed to LOAD (%s: %s)%s", jc.label,
+                            type(e).__name__, str(e)[:200],
+                            " — trying next candidate" if cand is not candidates[-1] else "")
+    if forced is not None and not allow_fallback:
+        raise JudgeError(
+            f"forced judge {forced['model_id']} @ {forced['provider']} failed to load "
+            f"after {len(retry_s) + 1} attempts ({type(last_err).__name__}: "
+            f"{str(last_err)[:200]}). Not switching judges — scores from a different "
+            f"judge are not comparable. Free VRAM on the judge server and re-run "
+            f"`gauntlet judge`, or pass --judge-fallback to allow the next candidate.")
     raise JudgeError(
         "no usable judge: every candidate failed to load ("
         + ", ".join(failures)
@@ -704,7 +748,7 @@ def run_canary(jc: JudgeClient) -> None:
 
 def run_judge(cfg: dict, labels: list[str], force: bool = False,
               samples: int | None = None, judge_override: str | dict | None = None,
-              stop=None) -> dict:
+              stop=None, allow_fallback: bool | None = None) -> dict:
     """Judge all pending quality rows for the given labels.
 
     Judged rows are APPENDED to the same transcript file; the loader's
@@ -716,8 +760,13 @@ def run_judge(cfg: dict, labels: list[str], force: bool = False,
     stop: optional threading.Event checked between rows.
 
     A judge candidate that fails to LOAD (e.g. StudioForge HTTP 507 out of
-    VRAM) is logged and skipped; the next candidate is tried, and the phase
-    fails only when every candidate is exhausted.
+    VRAM) is retried on a back-off schedule. Without a forced judge the next
+    candidate is then tried; a forced ``judge_override`` is strict unless
+    ``allow_fallback`` (see _load_judge).
+
+    Returns counts: ``judged`` rows, ``failed`` = unparsable judge verdicts,
+    ``empty`` = rows the MODEL left without content (reasoning overflow) —
+    the two are different failures and are reported separately.
     """
     by_name = {m["name"]: m for m in cfg["models"]}
     benched_ids = {by_name[l]["model_id"] for l in labels if l in by_name}
@@ -730,7 +779,7 @@ def run_judge(cfg: dict, labels: list[str], force: bool = False,
     total = sum(len(v) for v in pending.values())
     if total == 0:
         log.info("nothing to judge")
-        return {"judged": 0, "failed": 0, "judge": None, "samples": samples}
+        return {"judged": 0, "failed": 0, "empty": 0, "judge": None, "samples": samples}
 
     # The under-test exclusion guards against self-preference on SUBJECTIVE
     # rubrics. Reference rows only ask "is this equal to the gold answer?", so
@@ -741,7 +790,8 @@ def run_judge(cfg: dict, labels: list[str], force: bool = False,
         log.info("only reference-answer rows pending — the under-test exclusion "
                  "is relaxed (nothing subjective to bias)")
     jc = _load_judge(cfg, set() if only_reference else benched_ids,
-                     rows=total, samples=samples, override=judge_override)
+                     rows=total, samples=samples, override=judge_override,
+                     allow_fallback=allow_fallback)
     judge_id = jc.model_id
     # The reference-answer rubric doesn't need the creative-writing canary
     # (any small instruct model can compare two answers); the full canary only
@@ -750,7 +800,7 @@ def run_judge(cfg: dict, labels: list[str], force: bool = False,
         run_canary(jc)
 
     lock = threading.Lock()
-    counts = {"judged": 0, "failed": 0}
+    counts = {"judged": 0, "failed": 0, "empty": 0}
 
     def _one(label, row):
         try:
@@ -766,7 +816,10 @@ def run_judge(cfg: dict, labels: list[str], force: bool = False,
         with lock:
             append_transcript(label, row)
             counts["judged"] += 1
-            counts["failed"] += verdict["judge_failed"]
+            if verdict.get("empty_generation"):
+                counts["empty"] += 1
+            elif verdict["judge_failed"]:
+                counts["failed"] += 1
             s = verdict.get("scores") or {}
             log.info("[%d/%d] %s %s refused=%s %s", counts["judged"], total, label,
                      row["case_id"], verdict["refused"],
@@ -787,9 +840,11 @@ def run_judge(cfg: dict, labels: list[str], force: bool = False,
                 if stop is not None and stop.is_set():
                     break
                 f.result()
-    log.info("judging done: %d rows, %d parse-failures", counts["judged"], counts["failed"])
+    log.info("judging done: %d rows, %d unparsable judge verdicts, %d empty generations "
+             "(model produced no content — not a judge failure)",
+             counts["judged"], counts["failed"], counts["empty"])
     return {"judged": counts["judged"], "failed": counts["failed"],
-            "judge": judge_id, "samples": samples}
+            "empty": counts["empty"], "judge": judge_id, "samples": samples}
 
 
 def _apply_reference_grade(row: dict, verdict: dict) -> None:

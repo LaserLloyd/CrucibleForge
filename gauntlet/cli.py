@@ -201,14 +201,57 @@ def cmd_run(args, cfg):
     finally:
         guard.restore()
     print("\nrun summary:")
+    _print_run_summary(summary)
+    failed = [l for l, s in summary.items() if s.get("failed")]
+    return 1 if failed and len(failed) == len(summary) else 0
+
+
+def _print_run_summary(summary: dict) -> None:
     for label, s in summary.items():
         if s.get("failed"):
             print(f"  {label}: FAILED — {s.get('error')}")
         else:
             extra = f", {s['skipped']} skipped (ctx)" if s.get("skipped") else ""
+            errs = f", {s['case_errors']} case error(s)" if s.get("case_errors") else ""
             cost = f", ${s['cost_usd']:.4f}" if s.get("cost_usd") is not None else ""
             print(f"  {label}: {s['rows']} rows, load {s['load_s']}s "
-                  f"({s['device']}){extra}{cost}")
+                  f"({s['device']}){extra}{errs}{cost}")
+
+
+def cmd_recover(args, cfg):
+    """Re-run only the reasoning-overflow rows (finish=length, no content) of
+    existing transcripts through the answer-recovery ladder, then re-judge
+    them with `gauntlet judge`. Rows are re-written under their original
+    bench_run_id so they supersede the empty ones; nothing is deleted."""
+    from .runner import recover_models, overflow_jobs
+    from .config import load_transcripts
+    cfg, prof_cases, _ = _apply_profile_arg(args, cfg)
+    entries = resolve_models(cfg, args.models)
+    cases = prof_cases if prof_cases is not None else load_cases()
+    if not entries:
+        raise SystemExit("no models selected (pass --models)")
+    todo = {e["name"]: len(overflow_jobs(load_transcripts(e["name"]))) for e in entries}
+    print("reasoning-overflow jobs to recover: " +
+          ", ".join(f"{k}={v}" for k, v in todo.items()))
+    if not any(todo.values()):
+        print("nothing to recover")
+        return 0
+    if not getattr(args, "no_link_check", False):
+        from .preflight import check_link_health
+        check_link_health(cfg, [e for e in entries if todo[e["name"]]])
+    guard = _LmStudioGuard(cfg, entries)
+    busy = guard.busy()
+    if busy and not args.yes:
+        print(f"LM Studio is currently serving {busy} — re-run with --yes to proceed.")
+        return 1
+    try:
+        summary = recover_models(cfg, entries, cases)
+    finally:
+        guard.restore()
+    print("\nrecover summary:")
+    _print_run_summary(summary)
+    print("recovered rows carry no judge verdict — run `gauntlet judge --models "
+          f"{args.models}` (same --judge) to score them, then `gauntlet report`.")
     failed = [l for l, s in summary.items() if s.get("failed")]
     return 1 if failed and len(failed) == len(summary) else 0
 
@@ -224,11 +267,13 @@ def cmd_judge(args, cfg):
     guard = _LmStudioGuard(cfg, [])
     try:
         result = run_judge(cfg, labels, force=args.force, samples=samples,
-                           judge_override=getattr(args, "judge", None))
+                           judge_override=getattr(args, "judge", None),
+                           allow_fallback=getattr(args, "judge_fallback", None))
     finally:
         guard.restore()
     print(f"judged {result['judged']} rows "
-          f"({result['failed']} parse-failures, samples={result.get('samples')}) "
+          f"({result['failed']} unparsable judge verdicts, "
+          f"{result.get('empty', 0)} empty generations, samples={result.get('samples')}) "
           f"with {result.get('judge')}")
     return 0
 
@@ -396,6 +441,9 @@ def main(argv=None):
                        help="comma-separated case ids to run (subset of the selection)")
         p.add_argument("--profile", default=None,
                        help="run profile (profiles/<name>.yaml): fixed case subset + budgets + judge")
+        p.add_argument("--judge-fallback", action="store_true",
+                       help="with --judge: allow the next judge candidate if the forced "
+                            "judge cannot be loaded (default: strict — the judge phase fails)")
         p.add_argument("--judge", default=None,
                        help="force a judge: provider:model_id (must not be under test)")
         p.add_argument("--no-link-check", action="store_true",
@@ -410,7 +458,17 @@ def main(argv=None):
                          help="re-judge rows that already have verdicts")
     p_judge.add_argument("--samples", type=int, default=None)
     p_judge.add_argument("--judge", default=None, help="provider:model_id")
+    p_judge.add_argument("--judge-fallback", action="store_true",
+                         help="allow the next candidate if the forced --judge cannot load "
+                              "(default: strict, the phase fails instead)")
     p_judge.add_argument("--profile", default=None, help="use the profile's judge/budgets")
+    p_recover = sub.add_parser(
+        "recover", help="re-run reasoning-overflow rows (empty answers) through recovery")
+    p_recover.add_argument("--models", default="all")
+    p_recover.add_argument("--yes", action="store_true")
+    p_recover.add_argument("--profile", default=None)
+    p_recover.add_argument("--judge", default=None, help=argparse.SUPPRESS)
+    p_recover.add_argument("--no-link-check", action="store_true")
     p_report = sub.add_parser("report", help="generate comparison report")
     p_report.add_argument("--models", default=None)
     p_pw = sub.add_parser("pairwise", help="head-to-head A/B Elo on creative categories")
@@ -486,7 +544,7 @@ def main(argv=None):
     setup_logging(results_dir() / "gauntlet.log")
 
     handler = {"status": cmd_status, "run": cmd_run, "judge": cmd_judge,
-               "report": cmd_report, "pairwise": cmd_pairwise, "all": cmd_all,
+               "recover": cmd_recover, "report": cmd_report, "pairwise": cmd_pairwise, "all": cmd_all,
                "gui": cmd_gui, "import-openclaw": cmd_import_openclaw,
                "models": cmd_models, "cases": cmd_cases}[args.cmd]
     try:

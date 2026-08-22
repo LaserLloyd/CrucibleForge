@@ -75,6 +75,7 @@ uv run gauntlet all --profile standard --models local-gemma-e4b --yes   # the 1-
 uv run gauntlet all --smoke --models local-gemma-e4b --yes     # ~10 min end-to-end
 uv run gauntlet run --models deepseek-flash --difficulty hard  # the hard tier only
 uv run gauntlet judge && uv run gauntlet report
+uv run gauntlet recover --models a,b --yes     # re-run reasoning-overflow rows, then judge again
 ```
 
 `gauntlet all` = `run` → `judge` → `report`. Results land in
@@ -167,9 +168,27 @@ run is a background thread; **Stop** finishes the in-flight case).
 ## Design notes worth knowing
 
 * **Thinking models** — graders and the judge read the *content* channel,
-  never the reasoning; creative budgets are large so reasoning models finish;
-  a row that produced only reasoning is an "empty generation" and excluded
-  from quality means; the report prints a truncation rate.
+  never the reasoning; a thinking model's budget is `max_tokens ×
+  thinking_max_tokens_factor` (capped). When a model still reaches the limit
+  inside its reasoning (finish=length, empty content — a **reasoning
+  overflow**) the runner recovers the answer on the case's own budget: first
+  with thinking disabled via `chat_template_kwargs: {enable_thinking: false}`
+  (qwen3-family templates), then by continuing from the truncated reasoning
+  with "answer now". The row keeps the first attempt's cost under
+  `recovery.first`, the report counts overflows + recoveries, and
+  `gauntlet recover` re-runs the overflow rows of existing transcripts
+  (`defaults.reasoning_overflow_recovery: false` or a model's
+  `recovery: false` turns it off). A row that still has no content is an
+  "empty generation", excluded from quality means.
+* **One bad case never kills a run** — a server error caused by the model's
+  own output (llama-server 500 "Failed to parse tool call arguments") is a
+  failed case; any other transport failure writes an error row and the run
+  aborts only after 3 in a row.
+* **Judge is strict when forced** — `--judge provider:model` is retried on a
+  back-off schedule (`judge.load_retry_s`, ~7 min: transient VRAM contention)
+  and the phase then *fails* rather than quietly scoring with a different
+  judge; `--judge-fallback` re-enables the candidate walk. The scorecard's
+  **Coverage** column ranks complete runs above partial/failed/stale ones.
 * **Judge** — must not be under test; structured output; raw reply persisted;
   a calibration canary (good vs bad scene, an obvious refusal, an explicit
   scene it must score, harm behind a disclaimer it must flag) runs before any

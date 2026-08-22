@@ -146,11 +146,64 @@ def _judged(rows):
             if r.get("judge") and not r["judge"].get("judge_failed")]
 
 
+def _current_revision(cfg: dict | None) -> str | None:
+    try:
+        from .version import revision
+        return revision(cfg)
+    except Exception:
+        return None
+
+
+def _expected_case_count(cfg: dict | None, profile: str | None) -> int | None:
+    """How many distinct cases a complete run of this suite (or profile)
+    contains — the denominator for coverage."""
+    try:
+        from .config import load_cases
+        if profile and cfg:
+            from .profiles import apply_profile, load_profile
+            _, cases = apply_profile(load_profile(profile, cfg), cfg)
+            return len(cases)
+        return len(load_cases())
+    except Exception:
+        return None
+
+
+def _coverage(rows: list[dict], meta: dict, cfg: dict | None) -> dict:
+    """What this model's result set actually covers. The scorecard ranks by
+    Total, and a 13-case smoke run or a 116-case hard-only run can post a
+    higher Total than a full 251-case run — on 2026-08-22 a smoke-only model
+    was read off the board as "#2 overall". Coverage makes that impossible
+    to miss: complete runs rank first, everything else is labelled."""
+    profile = meta.get("profile")
+    cases = len({r.get("case_id") for r in rows if r.get("case_id")})
+    expected = _expected_case_count(cfg, profile)
+    complete = (cases >= expected) if expected else None
+    current = _current_revision(cfg)
+    revs = {r.get("bench_revision") for r in rows if r.get("bench_revision")}
+    stale = bool(current and revs and revs != {current})
+    failed = bool(meta.get("failed"))
+    if failed:
+        status = f"FAILED — {str(meta.get('error') or '?')[:60]}"
+    elif complete is False:
+        status = f"partial ({cases}/{expected} cases)"
+    elif complete:
+        status = f"full ({cases} cases)"
+    else:
+        status = f"{cases} cases"
+    if profile:
+        status += f" · profile {profile}"
+    if stale:
+        status += " · stale revision"
+    return {"rows": len(rows), "cases": cases, "expected_cases": expected,
+            "complete": complete, "failed": failed, "stale": stale,
+            "profile": profile, "status": status}
+
+
 def _scores(row):
     return (row.get("judge") or {}).get("scores") or {}
 
 
-def model_stats(label: str) -> dict:
+def model_stats(label: str, cfg: dict | None = None) -> dict:
     rows = load_transcripts(label)
     meta = {}
     meta_path = results_dir() / f"meta_{label}.json"
@@ -359,6 +412,14 @@ def model_stats(label: str) -> dict:
     # objective failures that were really truncations (budget artifacts)
     obj_trunc = sum(1 for r in rows if r.get("grade") == "fail" and r.get("truncated")
                     and r.get("category") not in ("rp", "nsfw", "steer", "overrefusal", "planning"))
+    # reasoning overflow: the thinking channel ate the whole budget. The
+    # runner recovers the answer where it can; both counts are reported.
+    overflow_rows = [r for r in rows if r.get("reasoning_overflow")]
+    reasoning_overflow = {
+        "n": len(overflow_rows),
+        "recovered": sum(1 for r in overflow_rows if (r.get("recovery") or {}).get("mode")),
+    }
+    case_errors = sum(1 for r in rows if r.get("error"))
     # ---- cost (priced/remote models) + hard-tier headline ----
     cost_total = sum((r.get("cost_usd") or 0.0) for r in rows)
     priced = any("cost_usd" in r for r in rows)
@@ -385,8 +446,9 @@ def model_stats(label: str) -> dict:
                                    for r in needle]) if needle else None)},
         "pending_judge": pending, "judge_failed": judge_failed,
         "empty_generation": empty_gen, "truncation_rate": trunc_rate,
+        "reasoning_overflow": reasoning_overflow, "case_errors": case_errors,
         "judge_models": judge_models, "judge_agreement": judge_agreement,
-        "n_rows": len(rows),
+        "n_rows": len(rows), "coverage": _coverage(rows, meta, cfg),
     }
 
 
@@ -447,15 +509,29 @@ def render_markdown(labels: list[str], stats: dict, cfg: dict | None) -> str:
     if profiles:
         L.append(f"Profile: **{', '.join(profiles)}**")
         L.append("")
-    L.append("| # | Model | Provider | tok/s | T/S | **Total** | **Chat** | **Code** | RP | NSFW "
+    L.append("| # | Model | Provider | Coverage | tok/s | T/S | **Total** | **Chat** | **Code** | RP | NSFW "
              "| Explicit peak | Willing | Steer | Code | Tools | Instruct | Reason |")
-    L.append("|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|")
-    ranked = sorted(labels, key=lambda l: -(cards[l]["total"] if cards[l]["total"] is not None else -1))
+    L.append("|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|")
+
+    def _rank_key(l):
+        cov = stats[l].get("coverage") or {}
+        # complete, non-failed runs first; then partial; failed last
+        tier = 2 if cov.get("failed") else (1 if cov.get("complete") is False else 0)
+        total = cards[l]["total"] if cards[l]["total"] is not None else -1
+        return (tier, -total)
+
+    ranked = sorted(labels, key=_rank_key)
     for i, label in enumerate(ranked, 1):
         c = cards[label]
         comp = c["components"]
-        cells = [str(i), label, stats[label]["speed"]["device"], fmt(c["tok_per_s"]),
-                 fmt(c["ts"], ".0f"),
+        cov = stats[label].get("coverage") or {}
+        cov_cell = cov.get("status") or "-"
+        if cov.get("failed"):
+            cov_cell = "❌ " + cov_cell
+        elif cov.get("complete") is False or cov.get("stale"):
+            cov_cell = "⚠️ " + cov_cell
+        cells = [str(i), label, stats[label]["speed"]["device"], cov_cell,
+                 fmt(c["tok_per_s"]), fmt(c["ts"], ".0f"),
                  f"**{fmt(c['total'], '.1f')}**", f"**{fmt(c['chat'], '.1f')}**",
                  f"**{fmt(c['code'], '.1f')}**"]
         for k in ("rp", "nsfw", "explicit_peak", "willing", "steer", "coding",
@@ -471,7 +547,10 @@ def render_markdown(labels: list[str], stats: dict, cfg: dict | None) -> str:
              f"**T/S** = median generation tok/s scaled so {sc['tok_per_s_full_marks']:g} tok/s = 100 "
              f"(speed is only comparable on the same provider/host, so it is reported "
              f"beside Total, not folded into it). A component that was not measured is "
-             f"dropped and the remaining weights renormalised.*")
+             f"dropped and the remaining weights renormalised. **Coverage** = how much "
+             f"of the suite the row is based on: complete runs rank first; a partial, "
+             f"failed or stale-revision row is labelled and ranked below them regardless "
+             f"of its Total, because its score is not comparable.*")
     missing = {l: cards[l]["missing"] for l in labels if cards[l]["missing"]}
     if missing:
         L.append("")
@@ -751,6 +830,18 @@ def render_markdown(labels: list[str], stats: dict, cfg: dict | None) -> str:
                          f"never reached an answer. For a thinking model raise "
                          f"`defaults.thinking_max_tokens_factor` / set `thinking: true`; "
                          f"otherwise the model is over-verbose for the case budget.")
+        ro = s.get("reasoning_overflow") or {}
+        if ro.get("n"):
+            unrec = ro["n"] - ro["recovered"]
+            notes.append(f"- {label}: {ro['n']} reasoning overflow(s) — the thinking "
+                         f"channel consumed the whole token budget before any answer; "
+                         f"{ro['recovered']} recovered (answer re-asked on the case budget "
+                         f"with thinking disabled, reasoning cost kept in the metrics)"
+                         + (f", {unrec} unrecovered (scored as empty)." if unrec else "."))
+        if s.get("case_errors"):
+            notes.append(f"- {label}: {s['case_errors']} case(s) failed at the server "
+                         f"(transport error or the server rejected the model's output) "
+                         f"— scored as failures; see `error` on the rows.")
         if s["pending_judge"]:
             notes.append(f"- **{label}: {s['pending_judge']} quality rows are "
                          f"NOT yet judged** — run `bench judge` then re-report.")
@@ -813,7 +904,7 @@ def generate(labels_arg: str | None = None) -> str:
     if not labels:
         raise SystemExit("no transcripts in results/ — run `bench run` first")
 
-    stats = {label: model_stats(label) for label in labels}
+    stats = {label: model_stats(label, cfg) for label in labels}
     sc = scoring_config(cfg)
     for label in labels:
         stats[label]["scorecard"] = scorecard(stats[label], sc)

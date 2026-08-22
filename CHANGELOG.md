@@ -1,5 +1,36 @@
 # Changelog
 
+## 3.1.0 — 2026-08-22
+
+Root-cause fixes from the first full-board campaign (seven 251-case runs).
+
+- **Reasoning-overflow recovery**: a thinking model that spends its whole
+  budget in the reasoning channel (finish=length, empty content — 27–45 rows
+  per model, 10–18 % of a score) now gets its answer recovered on the case
+  budget: `chat_template_kwargs: {enable_thinking: false}`, then a
+  continuation of the truncated reasoning. Rows record `reasoning_overflow` +
+  `recovery` (mode, attempts, first-attempt cost); the report counts them.
+  New `gauntlet recover` re-runs only those rows of existing transcripts
+  (same `bench_run_id`, so they supersede) ready for `gauntlet judge`.
+- **Per-case failure isolation**: llama-server 500 "Failed to parse tool call
+  arguments" (the model's own malformed output) is `GenerationRejected` — not
+  retried, scored as that case failing; other transport errors write an error
+  row and abort the model only after 3 in a row. Previously one such 500
+  aborted the entire model run (joyfox-35b-rp, twice).
+- **Strict forced judge**: `--judge` is retried on `judge.load_retry_s`
+  (VRAM contention from a co-tenant on the rig is transient) and then fails
+  loudly; it no longer silently scores a model with the next candidate
+  (which broke the single-judge rule and mixed judge families on the board).
+  `--judge-fallback` opts back in.
+- **Judge counts**: "parse-failures" no longer includes empty generations;
+  the two are reported separately (`failed` vs `empty`).
+- **Coverage on the scorecard**: complete runs rank first; partial (smoke /
+  category-filtered / hard-only), FAILED and stale-revision rows are
+  labelled and ranked below, whatever their Total.
+- **StudioForge readiness**: after an explicit load the client waits for the
+  engine to report `ready` before the warm-up completion (a warm-up sent
+  during `loading` made the server plan a second load that then 507'd).
+
 ## 3.0.0 — 2026-08-18 (Gauntlet)
 
 Rebuilt from the v2.2 `bench` tool as a publishable, provider-agnostic module.

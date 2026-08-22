@@ -94,6 +94,34 @@ class RequestRejected(TransportError):
         self.body = body
 
 
+class GenerationRejected(TransportError):
+    """The server could not deliver what the model generated — e.g. llama-server
+    answers HTTP 500 "Failed to parse tool call arguments as JSON" when the
+    model emits malformed tool-call arguments. That is a property of the
+    model's OUTPUT, not of the transport: retrying the identical request
+    reproduces it (deterministic at temperature 0), and it must be scored as a
+    failed case rather than abort a whole model run (joyfox-35b-rp lost two
+    full runs to exactly this on 2026-08-19)."""
+
+
+# Server-side messages that mean "your model produced something I can't
+# deliver" rather than "I am broken". Matched case-insensitively on the body.
+_GENERATION_REJECT_MARKERS = (
+    "failed to parse tool call",
+    "failed to parse tool_call",
+    "invalid tool call",
+    "tool call arguments",
+)
+
+
+def classify_server_error(status: int | None, body: str) -> TransportError:
+    """Map a 5xx / SSE error payload to the right TransportError subclass."""
+    low = (body or "").lower()
+    if any(m in low for m in _GENERATION_REJECT_MARKERS):
+        return GenerationRejected(f"HTTP {status}: {body}" if status else body)
+    return TransportError(f"HTTP {status}: {body}" if status else body)
+
+
 class WrongModelError(RuntimeError):
     """The server answered with a different model than requested."""
 
@@ -113,6 +141,9 @@ class ChatResult:
     reasoning_tokens: int | None = None
     tok_per_s: float | None = None
     prompt_tok_per_s: float | None = None
+    # set by the runner when the answer came from a reasoning-overflow
+    # recovery pass (see runner._Ctx.call); None for a plain completion
+    recovery: dict | None = None
 
     def scoreable_text(self) -> str:
         """The model's effective answer. Thinking models sometimes emit the
@@ -197,7 +228,7 @@ def stream_chat(base_url: str, api_key: str, model: str, messages: list[dict], *
                     err = resp.read().decode(errors="replace")[:500]
                     if 400 <= resp.status_code < 500 and resp.status_code not in (408, 429):
                         raise RequestRejected(resp.status_code, err)
-                    raise TransportError(f"HTTP {resp.status_code}: {err}")
+                    raise classify_server_error(resp.status_code, err)
                 buffer = ""
                 saw_sse = False
                 for raw_chunk in resp.iter_text():
@@ -216,7 +247,8 @@ def stream_chat(base_url: str, api_key: str, model: str, messages: list[dict], *
                         except json.JSONDecodeError:
                             continue
                         if data.get("error"):
-                            raise TransportError(f"server error: {json.dumps(data['error'])[:300]}")
+                            raise classify_server_error(
+                                None, f"server error: {json.dumps(data['error'])[:300]}")
                         if data.get("model"):
                             r.served_model = data["model"]
                         if data.get("usage"):
@@ -302,8 +334,8 @@ def stream_chat_retried(base_url: str, api_key: str, model: str, messages: list[
     for attempt in range(1, MAX_TRANSPORT_RETRIES + 1):
         try:
             return stream_chat(base_url, api_key, model, messages, **kwargs)
-        except (WrongModelError, RequestRejected):
-            raise  # retrying an identical bad request cannot succeed
+        except (WrongModelError, RequestRejected, GenerationRejected):
+            raise  # retrying an identical bad request / bad generation cannot succeed
         except TransportError as e:
             last_err = e
             if attempt < MAX_TRANSPORT_RETRIES:
