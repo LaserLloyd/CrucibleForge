@@ -191,14 +191,16 @@ def test_switch_model_takes_a_lease_releases_it_and_never_unloads_all(monkeypatc
                         lambda *a, **k: events.append(("unload_all",)) or 0)
     monkeypatch.setattr(studioforge, "wait_ready",
                         lambda *a, **k: {"state": "ready", "ctx_size": 32768, "parallel": 2})
-    monkeypatch.setattr(studioforge, "warm_model", lambda *a, **k: events.append(("warm",)) or 0.1)
+    monkeypatch.setattr(studioforge, "load_model",
+                        lambda mid, *a, **k: events.append(("load_model", mid, k.get("context_length") or a[2])) or 1.0)
     monkeypatch.setattr(studioforge, "loaded_plan",
                         lambda *a, **k: {"state": "ready", "ctx_size": 32768, "parallel": 2,
                                          "devices": [0, 1]})
     monkeypatch.setattr(providers.atexit, "register", lambda f: None)
     p.switch_model("m1", 32768)
     assert ("acquire", ["m1"], "gauntlet benchmark: m1") in events
-    assert ("warm",) in events and ("unload_all",) not in events
+    # the lease names the model; the load itself goes through load-recommended
+    assert ("load_model", "m1", 32768) in events and ("unload_all",) not in events
     assert p.live_context("m1") == 32768 and p.loaded_plan_for("m1")["parallel"] == 2
     # switching to another model releases the old lease first
     p.switch_model("m2", 32768)
@@ -207,21 +209,24 @@ def test_switch_model_takes_a_lease_releases_it_and_never_unloads_all(monkeypatc
     assert p._lease is None
 
 
-def test_lease_loaded_below_registry_ctx_is_reloaded_at_registry_ctx(monkeypatch):
+def test_lease_that_never_loads_the_model_falls_through_to_load_recommended(monkeypatch):
+    """A lease can stand with nothing loaded (its load failed silently behind
+    a foreign VRAM holder) — the explicit load then gives a structured answer."""
     monkeypatch.setenv("GAUNTLET_TEST_PIN", "pin")
     p = providers.get_provider(_sf_cfg(lease=True, lease_devices=[0]), "sf")
     calls = []
     monkeypatch.setattr(studioforge, "acquire_lease", lambda *a, **k: {"_lease_id": "L"})
-    monkeypatch.setattr(studioforge, "wait_ready",
-                        lambda *a, **k: {"state": "ready", "ctx_size": 8192, "parallel": 8})
+
+    def never_ready(*a, **k):
+        raise studioforge.StudioForgeError("m never appeared in /api/status")
+    monkeypatch.setattr(studioforge, "wait_ready", never_ready)
     monkeypatch.setattr(studioforge, "load_model",
-                        lambda mid, *a, **k: calls.append(("load_model", a[2] if len(a) > 2 else k.get("context_length"))) or 1.0)
-    monkeypatch.setattr(studioforge, "warm_model", lambda *a, **k: calls.append(("warm",)) or 0.1)
+                        lambda mid, *a, **k: calls.append("load_model") or 1.0)
     monkeypatch.setattr(studioforge, "loaded_plan",
                         lambda *a, **k: {"state": "ready", "ctx_size": 32768, "parallel": 2})
     monkeypatch.setattr(providers.atexit, "register", lambda f: None)
     p.switch_model("m", 32768)
-    assert calls and calls[0][0] == "load_model"   # re-planned at the registry window
+    assert calls == ["load_model"]
 
 
 def test_is_loaded_detects_eviction_and_replanning(monkeypatch):

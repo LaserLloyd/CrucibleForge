@@ -213,34 +213,23 @@ class Provider:
             self._lease = lease
             atexit.register(self.release_lease)
             self._start_keepalive()
-        # the lease loaded the model; make sure it is ready and serves the
-        # context the registry wants (the lease body has no ctx_size)
-        live = studioforge.wait_ready(model_id, self.base_url, self.api_key, headers=hdrs)
-        wanted = int(context_length or 0)
-        # the lease body has no ctx_size and the lease sizes slots on its own
-        # (observed: a 1.5B on one card with parallel=1). Re-plan through
-        # load-recommended at the registry context so the run gets the
-        # recommended slot count; if the server will not re-plan a leased
-        # model, keep what the lease gave us and say so.
-        short_ctx = wanted and int(live.get("ctx_size") or 0) < wanted
-        single_slot = int(live.get("parallel") or 1) <= 1 and self.recommended_load
-        if short_ctx or single_slot:
-            log.info("lease loaded %s at ctx=%s parallel=%s — re-planning via load-recommended "
-                     "at ctx %s", model_id, live.get("ctx_size"), live.get("parallel"),
-                     wanted or live.get("ctx_size"))
-            try:
-                studioforge.load_model(model_id, self.base_url, self.api_key,
-                                       context_length or live.get("ctx_size"),
-                                       recommended=True, headers=hdrs,
-                                       wait_busy_s=self.wait_busy_s)
-            except studioforge.StudioForgeError as e:
-                if short_ctx:
-                    raise
-                log.warning("re-plan under lease refused (%s) — continuing with the lease's "
-                            "placement (parallel=%s)", e, live.get("parallel"))
-                studioforge.warm_model(model_id, self.base_url, self.api_key, headers=hdrs)
-        else:
-            studioforge.warm_model(model_id, self.base_url, self.api_key, headers=hdrs)
+        # A lease names the model but its load is the server's own business:
+        # it sizes slots itself (observed parallel=1) and a load that does not
+        # fit fails SILENTLY (the lease stands, loaded[] stays empty — seen
+        # with a foreign 20 GiB ComfyUI holder on one card). So load through
+        # load-recommended at the registry context ourselves: it short-circuits
+        # when the lease already produced a ready, multi-slot load at that
+        # context, and otherwise answers with a structured 507 (retry_after_s /
+        # per-mode suggestions) instead of silence.
+        try:
+            studioforge.wait_ready(model_id, self.base_url, self.api_key, headers=hdrs,
+                                   never_appeared_grace_s=20.0, timeout_s=600)
+        except studioforge.StudioForgeError as e:
+            log.info("lease did not produce a ready %s (%s) — loading it explicitly",
+                     model_id.rsplit("/", 1)[-1], str(e)[:120])
+        studioforge.load_model(model_id, self.base_url, self.api_key, context_length,
+                               recommended=self.recommended_load, headers=hdrs,
+                               wait_busy_s=self.wait_busy_s)
         self._remember_plan(model_id)
         plan = self._plans.get(model_id) or {}
         log.info("%s serving under lease %s: parallel=%s ctx=%s devices=%s", model_id,

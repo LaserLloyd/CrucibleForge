@@ -595,6 +595,14 @@ def main(argv=None):
         from .config import set_results_dir
         set_results_dir(Path(args.results))
     setup_logging(results_dir() / "gauntlet.log")
+    # a SIGTERM (queue script killed, `pkill`) must still release the GPU
+    # lease and restore residents: turn it into SystemExit so the `finally`
+    # blocks and atexit handlers run instead of the process just vanishing
+    import signal
+
+    def _term(signum, frame):
+        raise SystemExit(128 + signum)
+    signal.signal(signal.SIGTERM, _term)
 
     handler = {"status": cmd_status, "run": cmd_run, "judge": cmd_judge,
                "recover": cmd_recover, "report": cmd_report, "pairwise": cmd_pairwise, "all": cmd_all,
