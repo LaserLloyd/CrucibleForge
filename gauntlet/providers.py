@@ -380,7 +380,22 @@ class Provider:
             return
         if self.type == "studioforge":
             self.release_lease()
-            if not state or not self.restore_residents:
+            if not self.restore_residents:
+                return
+            before = {r["model_id"] for r in (state or [])}
+            # models WE loaded that were not resident before: unload them so
+            # the cards go back to whoever had them (a 97 GiB judge left
+            # resident blocks the pin reconciler until its TTL)
+            for mid in list(self._plans):
+                if mid not in before:
+                    try:
+                        studioforge.unload_all(self.base_url, self.api_key, self.mgmt_headers(),
+                                               wait_busy_s=60,
+                                               keep=tuple(r for r in before))
+                    except studioforge.StudioForgeError as e:
+                        log.warning("unload of our %s failed: %s", mid, e)
+                    break
+            if not state:
                 return
             try:
                 now = {r["model_id"] for r in studioforge.residents(
