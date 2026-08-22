@@ -217,11 +217,28 @@ class Provider:
         # context the registry wants (the lease body has no ctx_size)
         live = studioforge.wait_ready(model_id, self.base_url, self.api_key, headers=hdrs)
         wanted = int(context_length or 0)
-        if wanted and int(live.get("ctx_size") or 0) < wanted:
-            log.info("lease loaded %s at ctx=%s — reloading at the registry ctx %d",
-                     model_id, live.get("ctx_size"), wanted)
-            studioforge.load_model(model_id, self.base_url, self.api_key, context_length,
-                                   recommended=True, headers=hdrs, wait_busy_s=self.wait_busy_s)
+        # the lease body has no ctx_size and the lease sizes slots on its own
+        # (observed: a 1.5B on one card with parallel=1). Re-plan through
+        # load-recommended at the registry context so the run gets the
+        # recommended slot count; if the server will not re-plan a leased
+        # model, keep what the lease gave us and say so.
+        short_ctx = wanted and int(live.get("ctx_size") or 0) < wanted
+        single_slot = int(live.get("parallel") or 1) <= 1 and self.recommended_load
+        if short_ctx or single_slot:
+            log.info("lease loaded %s at ctx=%s parallel=%s — re-planning via load-recommended "
+                     "at ctx %s", model_id, live.get("ctx_size"), live.get("parallel"),
+                     wanted or live.get("ctx_size"))
+            try:
+                studioforge.load_model(model_id, self.base_url, self.api_key,
+                                       context_length or live.get("ctx_size"),
+                                       recommended=True, headers=hdrs,
+                                       wait_busy_s=self.wait_busy_s)
+            except studioforge.StudioForgeError as e:
+                if short_ctx:
+                    raise
+                log.warning("re-plan under lease refused (%s) — continuing with the lease's "
+                            "placement (parallel=%s)", e, live.get("parallel"))
+                studioforge.warm_model(model_id, self.base_url, self.api_key, headers=hdrs)
         else:
             studioforge.warm_model(model_id, self.base_url, self.api_key, headers=hdrs)
         self._remember_plan(model_id)
