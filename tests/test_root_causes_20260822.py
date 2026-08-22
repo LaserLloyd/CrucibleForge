@@ -447,3 +447,47 @@ def test_wait_ready_gives_up_when_model_vanishes(monkeypatch):
     monkeypatch.setattr(studioforge.time, "sleep", lambda s: None)
     with pytest.raises(studioforge.StudioForgeError):
         studioforge.wait_ready("m", "http://x/v1", "", timeout_s=5)
+
+
+# ------------------------------------------------ 1b. gauntlet recover path
+
+def test_recover_models_reruns_only_overflow_jobs_under_original_run_id(tmp_path, monkeypatch):
+    monkeypatch.setattr(config, "RESULTS_DIR", tmp_path)
+    cfg = {"defaults": {"context_length": 4096, "repeats": {},
+                        "thinking_max_tokens_factor": 8, "thinking_max_tokens_cap": 32768},
+           "providers": {"fake": {"type": "openai", "base_url": "http://127.0.0.1:9/v1"}},
+           "judge": {"candidates": []}, "models": []}
+    entry = {"name": "m", "model_id": "m", "provider": "fake", "thinking": True}
+    cases = [{"id": "M1", "category": "math", "prompt": "1+1?", "max_tokens": 64,
+              "grader": "contains", "grader_config": {"needles": ["2"]}},
+             {"id": "M2", "category": "math", "prompt": "2+2?", "max_tokens": 64,
+              "grader": "contains", "grader_config": {"needles": ["4"]}}]
+    # an existing transcript: M1 overflowed (empty), M2 passed
+    old = [{"bench_run_id": "orig", "case_id": "M1", "repeat": 1, "turn": None,
+            "category": "math", "finish_reason": "length", "response": "",
+            "reasoning": "thinking...", "grade": "fail", "metrics": {},
+            "judge": {"judge_failed": True, "empty_generation": True}},
+           {"bench_run_id": "orig", "case_id": "M2", "repeat": 1, "turn": None,
+            "category": "math", "finish_reason": "stop", "response": "4",
+            "reasoning": "", "grade": "pass", "metrics": {}}]
+    (tmp_path / "transcripts_m.jsonl").write_text("\n".join(json.dumps(r) for r in old) + "\n")
+
+    from gauntlet import providers
+    seen = []
+
+    def chat(self, model_id, messages, **kw):
+        seen.append(messages[-1]["content"])
+        return _answer("2")
+
+    monkeypatch.setattr(providers.Provider, "chat", chat)
+    monkeypatch.setattr(providers.Provider, "list_models", lambda self, refresh=False: {"m"})
+    monkeypatch.setattr(providers.Provider, "alive", lambda self: True)
+    summary = runner.recover_models(cfg, [entry], cases)
+    assert summary["m"]["rows"] == 1
+    assert seen == ["1+1?"]                      # M2 was not re-run
+    rows = {r["case_id"]: r for r in config.load_transcripts("m")}
+    assert rows["M1"]["bench_run_id"] == "orig"  # superseded in place
+    assert rows["M1"]["grade"] == "pass" and "judge" not in rows["M1"]
+    assert rows["M2"]["grade"] == "pass"
+    # nothing left to recover
+    assert runner.overflow_jobs(config.load_transcripts("m")) == set()
