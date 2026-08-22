@@ -68,21 +68,39 @@ def _archive_labels(labels: list[str]) -> None:
         log.info("archived %d prior result files to %s", moved, dest)
 
 
-class _LmStudioGuard:
-    """Snapshot/restore whatever LM Studio was serving, for every lmstudio
-    provider touched by this invocation."""
+class _ProviderGuard:
+    """Leave the rig as we found it. LM Studio: snapshot/restore the served
+    model. StudioForge: snapshot the residents, release our GPU lease at the
+    end and bring the evicted residents back (a family bot's model should
+    not stay cold because a benchmark ran)."""
 
-    def __init__(self, cfg, entries):
-        from .providers import provider_for
+    def __init__(self, cfg, entries, include_judge: bool = True):
+        from .providers import provider_for, get_provider
         self.provs = {}
         for e in entries:
             p = provider_for(cfg, e)
-            if p.type == "lmstudio":
+            if p.type in ("lmstudio", "studioforge"):
                 self.provs[p.name] = p
+        if include_judge:
+            for cand in (cfg.get("judge") or {}).get("candidates", []):
+                try:
+                    p = get_provider(cfg, cand["provider"])
+                except Exception:
+                    continue
+                if p.type in ("lmstudio", "studioforge") and p.name not in self.provs:
+                    self.provs[p.name] = p
         self.saved = {n: p.snapshot() for n, p in self.provs.items()}
 
     def busy(self) -> list[str]:
-        return [m for st in self.saved.values() for m in (st or [])]
+        """LM Studio models someone may be using (the --yes gate)."""
+        return [m for n, st in self.saved.items()
+                if self.provs[n].type == "lmstudio" for m in (st or [])]
+
+    def serving(self) -> list[str]:
+        """StudioForge residents that are mid-request right now."""
+        return [f"{r['model_id'].rsplit('/', 1)[-1]} ({r['active_requests']} active)"
+                for n, st in self.saved.items() if self.provs[n].type == "studioforge"
+                for r in (st or []) if r.get("active_requests")]
 
     def restore(self):
         for n, p in self.provs.items():
@@ -90,6 +108,9 @@ class _LmStudioGuard:
                 p.restore(self.saved.get(n))
             except Exception as e:
                 log.warning("restore of %s failed: %s", n, e)
+
+
+_LmStudioGuard = _ProviderGuard  # back-compat name (GUI imports it)
 
 
 # --------------------------------------------------------------- commands
@@ -116,6 +137,20 @@ def cmd_status(args, cfg):
         loaded = p.loaded_models()
         if loaded:
             print(f"    loaded now: {[m['identifier'] for m in loaded]}")
+        if p.type == "studioforge" and state == "UP":
+            from . import studioforge
+            try:
+                for r in studioforge.residents(p.base_url, p.api_key, p.mgmt_headers()):
+                    print(f"      {r['model_id'].rsplit('/', 1)[-1][:48]:48s} {r['state']:8s} "
+                          f"active={r['active_requests']} by={r.get('loaded_by')} "
+                          f"ctx={r['plan'].get('ctx_size')} slots={r['plan'].get('parallel')} "
+                          f"devices={r['plan'].get('devices')}")
+                leases = studioforge.list_leases(p.base_url, p.api_key, p.mgmt_headers())
+                print(f"    leases: {[(l.get('holder'), l.get('devices'), l.get('model_ids')) for l in leases] or 'none'}"
+                      f"   lease mode: {'ON' if p.lease else 'off'}"
+                      f"{' (no X-MCP-Pin header configured!)' if p.lease and not any(k.lower() == 'x-mcp-pin' for k in p.headers) else ''}")
+            except Exception as e:  # noqa: BLE001
+                print(f"    (management API: {e})")
     print("\nregistry (models):")
     for m in cfg["models"]:
         flag = "enabled " if m.get("enabled", True) else "disabled"
@@ -189,21 +224,34 @@ def cmd_run(args, cfg):
     if getattr(args, "fresh", False):
         _archive_labels([e["name"] for e in entries])
 
-    guard = _LmStudioGuard(cfg, entries)
+    guard = _ProviderGuard(cfg, entries)
     busy = guard.busy()
     if busy and not args.yes:
         print(f"LM Studio is currently serving {busy} — someone may be "
               f"using it.\nRe-run with --yes to proceed (the model will be "
               f"restored afterwards).")
         return 1
+    serving = guard.serving()
+    if serving:
+        log.warning("StudioForge residents mid-request right now: %s — the load will wait "
+                    "for them to go idle (never evicts a serving model)", serving)
     try:
         summary = run_models(cfg, entries, cases, smoke=args.smoke)
     finally:
         guard.restore()
     print("\nrun summary:")
     _print_run_summary(summary)
+    return _run_rc(summary, [e["name"] for e in entries])
+
+
+def _run_rc(summary: dict, wanted: list[str]) -> int:
+    """Non-zero when any requested model failed or never ran (a queue script
+    must not stamp DONE over a half-finished batch)."""
+    missing = [l for l in wanted if l not in summary]
     failed = [l for l, s in summary.items() if s.get("failed")]
-    return 1 if failed and len(failed) == len(summary) else 0
+    if missing:
+        print(f"  NOT RUN: {', '.join(missing)}")
+    return 1 if (missing or failed) else 0
 
 
 def _print_run_summary(summary: dict) -> None:
@@ -214,8 +262,11 @@ def _print_run_summary(summary: dict) -> None:
             extra = f", {s['skipped']} skipped (ctx)" if s.get("skipped") else ""
             errs = f", {s['case_errors']} case error(s)" if s.get("case_errors") else ""
             cost = f", ${s['cost_usd']:.4f}" if s.get("cost_usd") is not None else ""
+            plan = s.get("plan") or {}
+            placement = (f", slots={plan.get('parallel')} ctx={plan.get('ctx_size')} "
+                         f"devices={plan.get('devices')}" if plan else "")
             print(f"  {label}: {s['rows']} rows, load {s['load_s']}s "
-                  f"({s['device']}){extra}{errs}{cost}")
+                  f"({s['device']}{placement}){extra}{errs}{cost}")
 
 
 def cmd_recover(args, cfg):
@@ -225,9 +276,11 @@ def cmd_recover(args, cfg):
     bench_run_id so they supersede the empty ones; nothing is deleted."""
     from .runner import recover_models, overflow_jobs
     from .config import load_transcripts
-    cfg, prof_cases, _ = _apply_profile_arg(args, cfg)
+    cfg, _prof_cases, _ = _apply_profile_arg(args, cfg)
     entries = resolve_models(cfg, args.models)
-    cases = prof_cases if prof_cases is not None else load_cases()
+    # every overflow row is a candidate whatever profile/categories the run
+    # used — the job list is filtered to the rows that overflowed anyway
+    cases = load_cases()
     if not entries:
         raise SystemExit("no models selected (pass --models)")
     todo = {e["name"]: len(overflow_jobs(load_transcripts(e["name"]))) for e in entries}
@@ -239,7 +292,7 @@ def cmd_recover(args, cfg):
     if not getattr(args, "no_link_check", False):
         from .preflight import check_link_health
         check_link_health(cfg, [e for e in entries if todo[e["name"]]])
-    guard = _LmStudioGuard(cfg, entries)
+    guard = _ProviderGuard(cfg, entries)
     busy = guard.busy()
     if busy and not args.yes:
         print(f"LM Studio is currently serving {busy} — re-run with --yes to proceed.")
@@ -252,8 +305,7 @@ def cmd_recover(args, cfg):
     _print_run_summary(summary)
     print("recovered rows carry no judge verdict — run `gauntlet judge --models "
           f"{args.models}` (same --judge) to score them, then `gauntlet report`.")
-    failed = [l for l, s in summary.items() if s.get("failed")]
-    return 1 if failed and len(failed) == len(summary) else 0
+    return _run_rc(summary, [e["name"] for e in entries if todo.get(e["name"])])
 
 
 def cmd_judge(args, cfg):
@@ -264,7 +316,7 @@ def cmd_judge(args, cfg):
     samples = getattr(args, "samples", None)
     if getattr(args, "smoke", False):
         samples = 1  # keep smoke fast regardless of config
-    guard = _LmStudioGuard(cfg, [])
+    guard = _ProviderGuard(cfg, [])
     try:
         result = run_judge(cfg, labels, force=args.force, samples=samples,
                            judge_override=getattr(args, "judge", None),
@@ -273,9 +325,10 @@ def cmd_judge(args, cfg):
         guard.restore()
     print(f"judged {result['judged']} rows "
           f"({result['failed']} unparsable judge verdicts, "
-          f"{result.get('empty', 0)} empty generations, samples={result.get('samples')}) "
+          f"{result.get('empty', 0)} empty generations, "
+          f"{result.get('errored', 0)} errored, samples={result.get('samples')}) "
           f"with {result.get('judge')}")
-    return 0
+    return 1 if result.get("errored") else 0
 
 
 def cmd_report(args, cfg):

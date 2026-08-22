@@ -1,5 +1,62 @@
 # Changelog
 
+## 3.2.0 — 2026-08-22 (evening)
+
+Second revision from the campaign postmortem: a swarm review (5 lenses, every
+finding adversarially verified — 39 confirmed) plus the rig's own
+`BENCHMARKING.md` playbook, re-checked against the live StudioForge 0.2.0 API.
+
+- **Rig etiquette / GPU leases** (`studioforge.py`, `providers.py`): with
+  `lease: true` a run takes `POST /api/leases` on the configured cards (holder
+  `gauntlet`) for the benched model and again for the judge, keeps it alive,
+  releases it on exit; busy residents are *waited for* (`wait_busy_s`), never
+  evicted, never `force`d (the old client unloaded everything and sent
+  `force: true` — the one client on the box that could rip a family bot's
+  model out mid-reply); evicted residents are reloaded at the end
+  (`restore_residents`); the `X-MCP-Pin` header reaches every management call
+  (`${ENV}` in `headers`). `507`/`503` bodies are read: `retry_after_s` is
+  honoured (`api.VramContention`), per-mode `suggestions` are surfaced, and a
+  window that does not fit is an error — never a silent JIT load at planner
+  defaults. Placement profiles use the 0.2.0 nested `optimal` shape and keep
+  `devices`. Eviction detection: `is_loaded()` compares the live plan (slots,
+  ctx, devices) with the one the run loaded. `wait_ready()` tolerates
+  transient status errors and gives up after 60 s when the model never
+  appears. `gauntlet status` prints residents + leases.
+- **Runner**: a recovered TOOL CALL counts as recovered; a failed recovery
+  request keeps the honest first result and does not count toward the
+  transport-abort; every attempt is billed on the row (cost/tokens);
+  `chat_template_kwargs` merge one level deep; a negative thinking probe no
+  longer disarms auto-detect (gemma-e4b ran every case on the raw budget);
+  `reasoning_format` in `extra_body` means thinking. A model-local abort no
+  longer sets the global STOP (the rest of the batch used to be skipped
+  silently). **Graders never harvest an answer from truncated reasoning**
+  (finish=length): 9 of dark-scarlett's 51 coding "passes" were code dug out of
+  100k chars of cut-off chain-of-thought that no user ever received. The
+  registry/live context mismatch is detected and long-context cases skipped
+  honestly. `gauntlet recover` re-runs each (run, case, repeat) triple, logs
+  unselectable jobs, never rewrites the run's meta (appends `recovered`).
+- **Judge**: per-row isolation (`RequestRejected`/`GenerationRejected` → a
+  failed verdict without a reload; any other error → counted `errored`, row
+  left for a re-run; reload guarded by a lock and skipped when another worker
+  already restored the judge); a thinking judge that reasons its budget away
+  is re-asked with thinking off; failed verdicts keep `judge_finish_reason`/
+  tokens/reasoning tail; a judge failure on a reference row leaves the row
+  **pending** instead of failing the model.
+- **Revision/judge stamp**: `bench_revision` now hashes the test set only;
+  the primary judge's measurement settings are a separate
+  `judge_fingerprint`; rows stamped with the pre-3.2 combined hash stay
+  current while nothing changed (`legacy_revision`).
+- **Report**: Coverage ranks full-suite runs scored by the configured judge
+  first; partial / profile / stale / differently-judged / failed rows are
+  labelled (with `attempted`/`n/a` counts) and ranked below; new **Judge**
+  column (`self` for self-graded reference rows); Summary table carries
+  Coverage and the scorecard order; a one-half Total says "(Code only)";
+  Willing counts empty replies as unwritten and every rate cell shows
+  (scored/total); family-overlap note compares each model with *its* judge.
+- CLI exit codes: `run`/`recover` are non-zero when any requested model
+  failed or never ran; `judge` when rows errored. Queue scripts stamp DONE
+  only on clean exits and serialise on a lock.
+
 ## 3.1.0 — 2026-08-22
 
 Root-cause fixes from the first full-board campaign (seven 251-case runs).

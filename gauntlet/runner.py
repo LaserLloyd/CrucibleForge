@@ -32,13 +32,15 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 
 from . import lms, studioforge
+from dataclasses import replace as _dc_replace
+
 from .api import (ChatResult, GenerationRejected, RequestRejected, TransportError,
                   WrongModelError)
 from .config import CSV_COLUMNS, results_dir, append_transcript, repeats_for
 from .graders import (_extract_tool_calls_from_text, grade, grade_contains,
                       grade_tool_call, prose_metrics)
-from .providers import Provider, cost_usd, model_extra_body, provider_for
-from .version import revision as _revision
+from .providers import Provider, cost_usd, merge_extra_body, model_extra_body, provider_for
+from .version import judge_fingerprint as _judge_fp, revision as _revision
 
 log = logging.getLogger(__name__)
 
@@ -144,6 +146,10 @@ class _Ctx:
         # flips to true the first time a reply carries reasoning tokens).
         t = entry.get("thinking", "auto")
         self.thinking: bool | None = None if t == "auto" else bool(t)
+        # a registry entry that configures a reasoning channel IS a thinking
+        # model, whatever a trivial probe says
+        if self.thinking is None and self.extra_body.get("reasoning_format"):
+            self.thinking = True
         d = cfg.get("defaults", {})
         self.think_factor = float(d.get("thinking_max_tokens_factor", 4))
         self.think_cap = int(d.get("thinking_max_tokens_cap", 32768))
@@ -167,20 +173,28 @@ class _Ctx:
             self.thinking = True
 
     def detect_thinking(self) -> None:
-        """One tiny probe so ``thinking`` is settled before concurrent cases
-        start (otherwise the first few would run on the un-boosted budget)."""
+        """One probe so ``thinking`` is settled before concurrent cases start
+        (otherwise the first few would run on the un-boosted budget). The
+        probe asks for a little arithmetic so a reasoning channel, if the
+        model has one, actually shows up. A NEGATIVE probe does not settle
+        anything: auto-detect stays armed and flips on the first reply that
+        carries reasoning (gemma-e4b answered a trivial probe without
+        reasoning and then overflowed every hard case on the raw budget)."""
         if self.thinking is not None:
             return
         try:
-            r = self.provider.chat(self.model_id, [{"role": "user", "content": "Reply with OK."}],
-                                   max_tokens=64, temperature=0.0, seed=42,
-                                   extra_body=self.extra_body)
+            r = self.provider.chat(
+                self.model_id,
+                [{"role": "user", "content": "What is 17 * 23 + 4? Work it out, then "
+                                             "give the number."}],
+                max_tokens=256, temperature=0.0, seed=42, extra_body=self.extra_body)
         except (TransportError, WrongModelError) as e:
             log.warning("thinking probe failed (%s) — will auto-detect from replies", e)
             return
         self._observe(r)
         if self.thinking is None:
-            self.thinking = False  # probe showed no reasoning channel
+            log.info("%s: probe showed no reasoning channel — auto-detect stays armed",
+                     self.model_id)
 
     def _chat(self, messages, **kw) -> ChatResult:
         """One completion; on eviction/wrong-model, reload once and retry."""
@@ -195,10 +209,16 @@ class _Ctx:
         return r
 
     @staticmethod
-    def _overflowed(r: ChatResult) -> bool:
-        """finish=length with no content but a reasoning channel: the whole
+    def _answered(r: ChatResult) -> bool:
+        """Content OR a tool call is an answer (a tool-use reply legitimately
+        has empty content)."""
+        return bool(r.response_text.strip() or r.tool_calls)
+
+    @classmethod
+    def _overflowed(cls, r: ChatResult) -> bool:
+        """finish=length with no answer but a reasoning channel: the whole
         budget went to thinking."""
-        return (r.finish_reason == "length" and not r.response_text.strip()
+        return (r.finish_reason == "length" and not cls._answered(r)
                 and bool(r.reasoning_text.strip()))
 
     def call(self, messages, *, max_tokens: int, recover: bool = True, **kw) -> ChatResult:
@@ -218,15 +238,18 @@ class _Ctx:
                  "recovering the answer on a %d-token budget", self.model_id,
                  first.reasoning_tokens or f"~{len(first.reasoning_text) // 4}", max_tokens)
         attempts = 0
+        spent = [first]  # every attempt's tokens are billed on the row
         # rung 1: same conversation, thinking disabled via the chat template
         no_think = dict(kw)
         r = None
+        error = None
         if self.no_think_supported:
-            no_think = {**kw, "extra_body": {**(kw.get("extra_body") or {}),
-                                             **RECOVERY_NO_THINK_KWARGS}}
+            no_think = {**kw, "extra_body": merge_extra_body(kw.get("extra_body"),
+                                                             RECOVERY_NO_THINK_KWARGS)}
             attempts += 1
             try:
                 r = self._chat(messages, max_tokens=max_tokens, **no_think)
+                spent.append(r)
             except RequestRejected as e:
                 # hosted API that validates request fields — remember, and
                 # fall through to the continuation rung without the kwarg
@@ -235,8 +258,13 @@ class _Ctx:
                             str(e)[:120])
                 self.no_think_supported = False
                 no_think = dict(kw)
+            except (TransportError, WrongModelError) as e:
+                # a failed RECOVERY request must not throw away the honest
+                # first result nor count as a transport failure of the case
+                error = f"no_think: {str(e)[:160]}"
+                log.warning("%s: recovery request failed (%s)", self.model_id, error)
         mode = "no_think"
-        if r is None or (not r.response_text.strip() and r.finish_reason == "length"):
+        if error is None and (r is None or (not self._answered(r) and r.finish_reason == "length")):
             # rung 2: the template ignored the kwarg (or the model thinks
             # anyway) — continue from the truncated reasoning and ask for
             # the answer outright
@@ -245,20 +273,47 @@ class _Ctx:
                 {"role": "assistant", "content": tail},
                 {"role": "user", "content": RECOVERY_CONTINUE_PROMPT}]
             attempts += 1
-            r = self._chat(cont, max_tokens=max_tokens, **no_think)
-            mode = "continue"
-        if not r.response_text.strip():
+            try:
+                r = self._chat(cont, max_tokens=max_tokens, **no_think)
+                spent.append(r)
+                mode = "continue"
+            except (TransportError, WrongModelError) as e:
+                error = f"continue: {str(e)[:160]}"
+                log.warning("%s: recovery request failed (%s)", self.model_id, error)
+                r = None
+        if r is None or not self._answered(r):
             # unrecoverable: keep the honest first result, annotated
-            first.recovery = {"mode": None, "attempts": attempts, "first": first_info}
+            first.recovery = {"mode": None, "attempts": attempts, "first": first_info,
+                              "answer_max_tokens": max_tokens}
+            if error:
+                first.recovery["error"] = error
             log.warning("%s: reasoning overflow NOT recovered after %d attempt(s)",
                         self.model_id, attempts)
+            self._bill(first, spent)
             return first
-        r.recovery = {"mode": mode, "attempts": attempts, "first": first_info}
+        r.recovery = {"mode": mode, "attempts": attempts, "first": first_info,
+                      "answer_max_tokens": max_tokens}
         # the thinking cost is part of the model's behaviour — keep it visible
         # in the metrics even though the answer came from the recovery pass
         if first.reasoning_tokens and not r.reasoning_tokens:
             r.reasoning_tokens = first.reasoning_tokens
+        self._bill(r, spent)
         return r
+
+    @staticmethod
+    def _bill(final: ChatResult, attempts: list[ChatResult]) -> None:
+        """Token/time totals over every attempt (cost + budgets are honest);
+        ttft/gen/tok_per_s stay those of the pass that produced the answer."""
+        final.recovery["attempts_tokens"] = [
+            {"prompt_tokens": a.prompt_tokens, "completion_tokens": a.completion_tokens,
+             "finish_reason": a.finish_reason} for a in attempts]
+        ptoks = [a.prompt_tokens for a in attempts if a.prompt_tokens is not None]
+        ctoks = [a.completion_tokens for a in attempts if a.completion_tokens is not None]
+        if ptoks:
+            final.prompt_tokens = sum(ptoks)
+        if ctoks:
+            final.completion_tokens = sum(ctoks)
+        final.total_s = sum(a.total_s or 0.0 for a in attempts)
 
 
 def run_models(cfg: dict, model_entries: list[dict], cases: list[dict],
@@ -292,15 +347,21 @@ def run_models(cfg: dict, model_entries: list[dict], cases: list[dict],
                     only_jobs=(jobs_by_label or {}).get(label))
             except RunStopped:
                 summary[label] = {"failed": True, "error": "stopped by user"}
-                _write_meta(label, entry, provider_for(cfg, entry), failed=True,
-                            error="stopped by user")
+                if jobs_by_label and label in jobs_by_label:
+                    _write_recover_record(label, failed=True, error="stopped by user")
+                else:
+                    _write_meta(label, entry, provider_for(cfg, entry), failed=True,
+                                error="stopped by user")
                 break
             except (ModelRunError, TransportError, WrongModelError,
                     lms.LmsError, studioforge.StudioForgeError) as e:
                 log.error("model %s FAILED: %s — continuing with next model", label, e)
                 summary[label] = {"failed": True, "error": str(e)[:500]}
-                _write_meta(label, entry, provider_for(cfg, entry), failed=True,
-                            error=str(e)[:500])
+                if jobs_by_label and label in jobs_by_label:
+                    _write_recover_record(label, failed=True, error=str(e)[:500])
+                else:
+                    _write_meta(label, entry, provider_for(cfg, entry), failed=True,
+                                error=str(e)[:500])
     finally:
         csvw.close()
     return summary
@@ -309,7 +370,8 @@ def run_models(cfg: dict, model_entries: list[dict], cases: list[dict],
 def _write_meta(label: str, entry: dict, provider: Provider, *, load_s: float | None = None,
                 bench_run_id: str | None = None, failed: bool = False,
                 error: str | None = None, finished: bool = False,
-                profile: str | None = None) -> None:
+                profile: str | None = None, plan: dict | None = None,
+                ctx_len: int | None = None) -> None:
     path = results_dir() / f"meta_{label}.json"
     meta = {}
     if path.exists():
@@ -329,6 +391,10 @@ def _write_meta(label: str, entry: dict, provider: Provider, *, load_s: float | 
         meta["profile"] = profile
     if load_s is not None:
         meta["load_s"] = round(load_s, 1)
+    if plan:
+        meta["plan"] = plan  # the placement the numbers were measured under
+    if ctx_len:
+        meta["context_length"] = int(ctx_len)
     if bench_run_id:
         meta["bench_run_id"] = bench_run_id
     if error:
@@ -347,20 +413,27 @@ def _run_one_model(cfg, entry, cases, csvw: _Csv, smoke,
     provider = provider_for(cfg, entry)
     bench_run_id = str(uuid.uuid4())[:8]
     ctx = _Ctx(cfg, entry, provider, ctx_len)
-    # recover mode: (bench_run_id, case_id, repeat) triples to re-run; rows
-    # are written under the ORIGINAL run id so they supersede the old rows
-    run_id_for: dict[tuple, str] = {}
-    if only_jobs:
-        for rid, cid, rep_ in only_jobs:
-            run_id_for[(cid, rep_)] = rid
+    recover_mode = only_jobs is not None
+    # a model-local abort (sanity / speed floor / transport storm) must not
+    # touch the global STOP, or every later model in the batch is skipped
+    abort = threading.Event()
 
     log.info("=== %s (%s) via %s [%s], ctx=%s ===", label, model_id,
              provider.name, provider.type, ctx_len)
     if not provider.is_available(model_id):
         raise ModelRunError(f"{model_id} is not served by provider {provider.name}")
     load_s = provider.switch_model(model_id, ctx_len)
-    _write_meta(label, entry, provider, load_s=load_s, bench_run_id=bench_run_id,
-                profile=cfg.get("_profile"))
+    live_ctx = provider.live_context(model_id)
+    if live_ctx and ctx_len and live_ctx < int(ctx_len):
+        log.warning("%s is serving ctx=%d, below the registry context %s — long-context "
+                    "cases beyond %d are skipped (n/a), not failed", label, live_ctx, ctx_len,
+                    live_ctx)
+        ctx_len = live_ctx
+        ctx.ctx_len = live_ctx
+    plan = provider.loaded_plan_for(model_id) if hasattr(provider, "loaded_plan_for") else {}
+    if not recover_mode:
+        _write_meta(label, entry, provider, load_s=load_s, bench_run_id=bench_run_id,
+                    profile=cfg.get("_profile"), plan=plan or None, ctx_len=ctx_len)
     ctx.detect_thinking()
 
     state = {"rows": 0, "sanity_total": 0, "sanity_empty": 0,
@@ -368,11 +441,12 @@ def _run_one_model(cfg, entry, cases, csvw: _Csv, smoke,
              "cost": 0.0, "consecutive_errors": 0, "case_errors": 0}
     min_tps = float(cfg["defaults"].get("min_tok_per_s", 0) or 0)
     revision = _revision(cfg)
+    judge_fp = _judge_fp(cfg)
 
-    def base_row_for(case, repeat, seed, temperature, top_p, max_tokens):
+    def base_row_for(case, repeat, seed, temperature, top_p, max_tokens, rid=None):
         return {
-            "bench_run_id": run_id_for.get((case["id"], repeat), bench_run_id),
-            "bench_revision": revision,
+            "bench_run_id": rid or bench_run_id,
+            "bench_revision": revision, "judge_fingerprint": judge_fp,
             "profile": cfg.get("_profile"),
             "ts": _now(),
             "model_label": label, "model_id": model_id, "device": provider.name,
@@ -426,15 +500,17 @@ def _run_one_model(cfg, entry, cases, csvw: _Csv, smoke,
                             f"too slow: {med:.2f} tok/s < {min_tps} floor "
                             f"(n={len(ss)}) — model not viable, aborting")
 
-    def run_case_repeat(case, repeat):
+    def run_case_repeat(case, repeat, rid=None):
         if STOP.is_set():
             raise RunStopped()
+        if abort.is_set():
+            return
         cat = case["category"]
         temperature = case.get("temperature", 0.0)
         top_p = case.get("top_p", 1.0)
         max_tokens = case["max_tokens"]
         seed = CREATIVE_SEEDS[(repeat - 1) % len(CREATIVE_SEEDS)] if temperature > 0 else 42
-        base_row = base_row_for(case, repeat, seed, temperature, top_p, max_tokens)
+        base_row = base_row_for(case, repeat, seed, temperature, top_p, max_tokens, rid)
 
         need_ctx = int(case.get("min_context") or 0)
         if need_ctx and ctx_len and need_ctx > int(ctx_len):
@@ -478,6 +554,7 @@ def _run_one_model(cfg, entry, cases, csvw: _Csv, smoke,
                       label, case["id"], repeat, n, str(e)[:200])
             persist([_error_row(base_row, case, f"transport failure: {e}")])
             if n >= MAX_CONSECUTIVE_TRANSPORT_ERRORS:
+                abort.set()
                 raise ModelRunError(
                     f"{n} consecutive transport failures for {label} — server "
                     f"unreachable/unstable, aborting this model (last: {str(e)[:160]})")
@@ -488,7 +565,7 @@ def _run_one_model(cfg, entry, cases, csvw: _Csv, smoke,
         log.info("[%s] %s r%d done (%d rows)", label, case["id"], repeat, state["rows"])
 
     # perf first, serially, with a warmup so the first TTFT isn't cold-start
-    perf_cases = [c for c in cases if c["category"] == "perf"] if only_jobs is None else []
+    perf_cases = [c for c in cases if c["category"] == "perf"] if not recover_mode else []
     other_cases = [c for c in cases if c["category"] != "perf"]
     if perf_cases:
         ctx.call([{"role": "user", "content": "Hi"}], max_tokens=8,
@@ -497,48 +574,74 @@ def _run_one_model(cfg, entry, cases, csvw: _Csv, smoke,
             for repeat in range(1, repeats_for(cfg, "perf", smoke) + 1):
                 run_case_repeat(case, repeat)
 
-    jobs = [(c, r) for c in other_cases
-            for r in range(1, repeats_for(cfg, c["category"], smoke) + 1)]
-    if only_jobs is not None:
-        wanted = {(cid, rep_) for _, cid, rep_ in only_jobs}
-        jobs = [(c, r) for c, r in jobs if (c["id"], r) in wanted]
-        log.info("recover mode: %d job(s) to re-run for %s", len(jobs), label)
+    if recover_mode:
+        # job unit = the exact (run id, case, repeat) triple, so the same case
+        # overflowing in two accumulated runs is re-run for each of them
+        by_id = {c["id"]: c for c in other_cases}
+        jobs = [(by_id[cid], rep_, rid) for rid, cid, rep_ in sorted(only_jobs) if cid in by_id]
+        missing = sorted(j for j in only_jobs if j[1] not in by_id)
+        for j in missing:
+            log.warning("recover: %s r%s (run %s) is not in the selected case set — skipped",
+                        j[1], j[2], j[0])
+        log.info("recover mode: %d job(s) to re-run for %s (%d not selectable)",
+                 len(jobs), label, len(missing))
+    else:
+        jobs = [(c, r, None) for c in other_cases
+                for r in range(1, repeats_for(cfg, c["category"], smoke) + 1)]
     workers = provider.workers(model_id)
     if workers <= 1:
-        for case, repeat in jobs:
-            run_case_repeat(case, repeat)
+        for case, repeat, rid in jobs:
+            run_case_repeat(case, repeat, rid)
     else:
         log.info("running %d jobs with concurrency=%d", len(jobs), workers)
         first_err = None
         with ThreadPoolExecutor(max_workers=workers) as pool:
-            futs = {pool.submit(run_case_repeat, c, r): (c, r) for c, r in jobs}
+            futs = {pool.submit(run_case_repeat, c, r, rid): (c, r) for c, r, rid in jobs}
             for fut in as_completed(futs):
                 try:
                     fut.result()
-                except (ModelRunError, RunStopped) as e:
+                except RunStopped as e:
+                    first_err = first_err or e  # STOP is already set by the user
+                except ModelRunError as e:
                     first_err = first_err or e
-                    STOP.set()  # drain remaining workers quickly
+                    abort.set()  # drain THIS model's workers; the batch goes on
                 except (TransportError, WrongModelError) as e:  # defensive: handled per case
                     case, r = futs[fut]
                     log.error("[%s] %s r%d unhandled transport failure: %s", label, case["id"], r, e)
                     first_err = first_err or e
-        if isinstance(first_err, RunStopped):
-            raise first_err
-        if isinstance(first_err, ModelRunError):
+        if isinstance(first_err, (RunStopped, ModelRunError)):
             raise first_err
         if first_err and state["rows"] == 0:
             raise first_err
-        # a partial concurrent run: clear STOP only if we set it ourselves for a
-        # ModelRunError — for a user stop, leave it so remaining models are skipped
-        if first_err and not isinstance(first_err, RunStopped):
-            STOP.clear()
 
-    _write_meta(label, entry, provider, load_s=load_s, bench_run_id=bench_run_id,
-                finished=True, profile=cfg.get("_profile"))
+    if recover_mode:
+        _write_recover_record(label, jobs=len(jobs), rows=state["rows"], failed=False)
+    else:
+        _write_meta(label, entry, provider, load_s=load_s, bench_run_id=bench_run_id,
+                    finished=True, profile=cfg.get("_profile"), plan=plan or None,
+                    ctx_len=ctx_len)
     return {"failed": False, "rows": state["rows"], "load_s": round(load_s, 1),
             "device": provider.name, "skipped": state["skipped"],
-            "case_errors": state["case_errors"],
+            "case_errors": state["case_errors"], "jobs": len(jobs),
+            "plan": plan or None,
             "cost_usd": round(state["cost"], 4) if entry.get("price") else None}
+
+
+def _write_recover_record(label: str, **fields) -> None:
+    """``gauntlet recover`` never rewrites a run's meta (failed/error/
+    bench_run_id/profile belong to the ORIGINAL run); it appends its own
+    record under ``recovered`` instead."""
+    path = results_dir() / f"meta_{label}.json"
+    meta = {}
+    if path.exists():
+        try:
+            meta = json.loads(path.read_text())
+        except json.JSONDecodeError:
+            meta = {}
+    rec = {"ts": _now(), **fields}
+    meta.setdefault("recovered", []).append(rec)
+    results_dir().mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(meta, indent=2))
 
 
 def _error_row(base_row: dict, case: dict, error: str) -> dict:
@@ -593,6 +696,19 @@ def recover_models(cfg: dict, model_entries: list[dict], cases: list[dict]) -> d
     return run_models(cfg, entries, cases, jobs_by_label=jobs_by_label)
 
 
+def _answer_view(result: ChatResult) -> ChatResult:
+    """What the graders may read. ``scoreable_text`` falls back to the
+    reasoning channel when content is empty — right for a server that
+    misrouted a FINISHED answer (finish=stop), wrong for a reasoning overflow
+    (finish=length): code dug out of 100k chars of cut-off chain-of-thought
+    was never delivered to anyone (9 of dark-scarlett's 51 coding 'passes'
+    on 2026-08-22 were exactly that). Overflows are recovered upstream; an
+    unrecovered one is graded on its (empty) content."""
+    if result.finish_reason == "length" and not result.response_text.strip():
+        return _dc_replace(result, reasoning_text="")
+    return result
+
+
 def _annotate_recovery(row: dict, result: ChatResult) -> None:
     """Carry the reasoning-overflow record onto the transcript row."""
     if result.recovery is None:
@@ -618,7 +734,7 @@ def _run_single(case, base_row, ctx: _Ctx, max_tokens, temperature, top_p, seed)
                                      and bool(result.reasoning_text.strip())),
            "metrics": _metrics(result)}
     _annotate_recovery(row, result)
-    verdict = grade(result, case)
+    verdict = grade(_answer_view(result), case)
     if verdict:
         row["grade"] = verdict["grade"]
         detail = verdict["detail"]
@@ -697,7 +813,7 @@ def _run_tool_loop(case, base_row, ctx: _Ctx, max_tokens, temperature, seed) -> 
                           temperature=temperature, seed=seed, tools=tools)
         last_result = result
         if step.get("expect_tool"):
-            verdict = grade_tool_call(result.tool_calls, result.scoreable_text(),
+            verdict = grade_tool_call(result.tool_calls, _answer_view(result).scoreable_text(),
                                       {"expect_tool": step["expect_tool"],
                                        "required_args": step.get("required_args", {}),
                                        "max_calls": step.get("max_calls", 1)})
@@ -706,7 +822,7 @@ def _run_tool_loop(case, base_row, ctx: _Ctx, max_tokens, temperature, seed) -> 
             # fall back to a text-emitted call so a thinking model's call that
             # failed the wire grammar still survives the loop
             calls = result.tool_calls or _extract_tool_calls_from_text(
-                result.scoreable_text())
+                _answer_view(result).scoreable_text())
             call = calls[0] if calls else None
             call_id = (call or {}).get("id") or "call_0"
             messages.append({"role": "assistant", "content": "",
@@ -716,7 +832,7 @@ def _run_tool_loop(case, base_row, ctx: _Ctx, max_tokens, temperature, seed) -> 
             messages.append({"role": "tool", "tool_call_id": call_id,
                              "content": step["tool_result"]})
         else:
-            text = result.scoreable_text()
+            text = _answer_view(result).scoreable_text()
             needles = step.get("answer_contains", [])
             if step.get("expect_no_tool") and (result.tool_calls or
                                                _extract_tool_calls_from_text(text)):

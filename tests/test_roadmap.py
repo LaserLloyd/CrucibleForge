@@ -359,18 +359,23 @@ def test_revision_changes_with_cases():
     assert version.content_hash() == version.content_hash()
 
 
-def test_revision_includes_judge(monkeypatch):
-    # Changing the judge config must change the revision (judged scores from
-    # different judges are not comparable) — and changing back restores it.
+def test_revision_tracks_cases_and_judge_separately():
+    # The revision stamps the TEST SET; the judge is fingerprinted on its own
+    # (a fallback candidate's context window must not relabel every result
+    # stale, and the judge that scored a row is compared per row instead).
     from gauntlet import version
-    base = version.content_hash()
-    monkeypatch.setattr(version, "_judge_fingerprint", lambda cfg=None: b"judge=modelA")
-    h_a = version.content_hash()
-    monkeypatch.setattr(version, "_judge_fingerprint", lambda cfg=None: b"judge=modelB")
-    h_b = version.content_hash()
-    assert h_a != h_b                 # different judge -> different revision
-    monkeypatch.setattr(version, "_judge_fingerprint", lambda cfg=None: b"judge=modelA")
-    assert version.content_hash() == h_a   # changing back restores it
+    rev = version.revision({"judge": {"candidates": [{"provider": "a", "model_id": "A"}]}})
+    assert rev == version.revision({"judge": {"candidates": [{"provider": "b", "model_id": "B"}]}})
+    fa = version.judge_fingerprint({"judge": {"candidates": [{"provider": "a", "model_id": "A"}]}})
+    fb = version.judge_fingerprint({"judge": {"candidates": [{"provider": "a", "model_id": "B"}]}})
+    assert fa != fb                 # different judge -> different fingerprint
+    # deployment knobs do not change the fingerprint
+    fa2 = version.judge_fingerprint({"judge": {"candidates": [
+        {"provider": "a", "model_id": "A", "context_length": 8192}], "load_retry_s": [1]}})
+    assert fa2 == fa
+    # rows stamped with the pre-3.2 combined hash stay current while nothing changed
+    cfg = {"judge": {"candidates": [{"provider": "a", "model_id": "A"}]}}
+    assert version.legacy_revision(cfg) in version.current_revisions(cfg)
 
 
 def test_report_mixed_revision_warning(tmp_path, monkeypatch):

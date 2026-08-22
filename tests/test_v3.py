@@ -134,7 +134,12 @@ def test_reference_rubric_parses_and_applies():
     judge._apply_reference_grade(row, {"judge_failed": False,
                                        "scores": {"correct": False, "note": "different set"}})
     assert row["grade"] == "fail" and "different set" in row["grade_detail"]
-    judge._apply_reference_grade(row, {"judge_failed": True})
+    # a JUDGE failure leaves the row pending for a re-judge (not a model fail)
+    row["judge"] = {"judge_failed": True}
+    judge._apply_reference_grade(row, {"judge_failed": True, "judge_raw": "garbage"})
+    assert row["grade"] == "pending" and "judge" not in row
+    # an EMPTY model answer is the model's fail
+    judge._apply_reference_grade(row, {"judge_failed": True, "empty_generation": True})
     assert row["grade"] == "fail"
 
 
@@ -374,6 +379,8 @@ def test_recommended_load_picks_best_fitting_profile(monkeypatch):
 
     class FakeResp:
         status_code = 200
+        content = b"x"
+        headers = {}
         def __init__(self, d): self._d = d
         def json(self): return self._d
     profiles = {"profiles": [
@@ -389,6 +396,7 @@ def test_recommended_load_picks_best_fitting_profile(monkeypatch):
         def __enter__(self): return self
         def __exit__(self, *a): pass
         def get(self, url, headers=None): return FakeResp(profiles)
+        def request(self, method, url, json=None, headers=None): return FakeResp(profiles)
     monkeypatch.setattr(httpx, "Client", FakeClient)
     args = studioforge.recommended_load("m", "http://x/v1", "", context_length=16384)
     assert args["parallel"] == 5 and args["_profile"]["mode"] == "fast"
@@ -411,6 +419,7 @@ def test_load_recommended_handles_507_and_404(monkeypatch):
     import httpx
 
     class R:
+        headers = {}
         def __init__(self, code, d): self.status_code, self._d, self.content, self.text = code, d, b"x", "x"
         def json(self): return self._d
 
@@ -419,7 +428,8 @@ def test_load_recommended_handles_507_and_404(monkeypatch):
             def __init__(self, *a, **k): pass
             def __enter__(self): return self
             def __exit__(self, *a): pass
-            def post(self, url, json=None, headers=None):
+            def request(self, method, url, json=None, headers=None):
+                assert method == "POST"
                 assert url.endswith("/api/models/m/load-recommended") and json["ctx_size"] == 16384
                 return R(code, d)
         return C

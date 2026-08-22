@@ -76,6 +76,7 @@ uv run gauntlet all --smoke --models local-gemma-e4b --yes     # ~10 min end-to-
 uv run gauntlet run --models deepseek-flash --difficulty hard  # the hard tier only
 uv run gauntlet judge && uv run gauntlet report
 uv run gauntlet recover --models a,b --yes     # re-run reasoning-overflow rows, then judge again
+uv run gauntlet status                         # providers, residents + leases on the rig, judge, cases
 ```
 
 `gauntlet all` = `run` → `judge` → `report`. Results land in
@@ -188,7 +189,19 @@ run is a background thread; **Stop** finishes the in-flight case).
   back-off schedule (`judge.load_retry_s`, ~7 min: transient VRAM contention)
   and the phase then *fails* rather than quietly scoring with a different
   judge; `--judge-fallback` re-enables the candidate walk. The scorecard's
-  **Coverage** column ranks complete runs above partial/failed/stale ones.
+  **Coverage** and **Judge** columns rank complete full-suite runs scored by
+  the configured judge above partial / profile / stale / differently-judged /
+  failed ones.
+* **Rig etiquette (StudioForge)** — with `lease: true` a run holds a GPU lease
+  (`POST /api/leases`) on its cards for the benched model and the judge, so
+  no co-tenant can be planned there or evict them; a resident mid-request is
+  waited for (never evicted, never `force`d); `retry_after_s` on 503/507 is
+  honoured; a window that does not fit is an error, never a silent JIT load
+  at planner defaults; evicted residents are reloaded when the run ends. The
+  management PIN travels in `providers.<name>.headers` (`${ENV}` expanded).
+* **Graders read delivered answers only** — an answer is the content channel
+  (or a tool call); the reasoning channel is consulted only for a *finished*
+  reply whose content is empty (server misrouting), never for a truncated one.
 * **Judge** — must not be under test; structured output; raw reply persisted;
   a calibration canary (good vs bad scene, an obvious refusal, an explicit
   scene it must score, harm behind a disclaimer it must flag) runs before any

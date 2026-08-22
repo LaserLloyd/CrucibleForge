@@ -246,7 +246,7 @@ def run_pairwise(cfg: dict, labels: list[str], categories: list[str],
     results["n_pairings"] = total_pairs
     results["position_bias_ties"] = position_bias
     results["detail"] = detail
-    jc.provider.unload_all()
+    jc.provider.release_lease()  # the CLI guard restores residents
 
     (results_dir() / "pairwise.json").write_text(json.dumps(results, indent=2))
     return results

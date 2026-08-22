@@ -15,8 +15,20 @@
 #   concurrency: N     parallel requests for remote APIs (local servers: 1)
 #   verify_model:      fail if the server answers from a different model id
 #                      (default true for lmstudio/studioforge, false for openai)
-#   headers: {...}     extra HTTP headers (e.g. OpenRouter's HTTP-Referer)
+#   headers: {...}     extra HTTP headers (e.g. OpenRouter's HTTP-Referer); ${ENV}
+#                      placeholders are expanded (StudioForge: X-MCP-Pin for
+#                      management calls from another machine)
 #   extra_body: {...}  extra request fields for every model on this provider
+#   StudioForge rig etiquette (type: studioforge):
+#   lease: true        take a GPU lease for the whole run: the benched model and
+#                      the judge are loaded onto lease_devices (default: every
+#                      GPU) and nothing else can be planned there until the run
+#                      ends; needs the X-MCP-Pin header
+#   lease_devices:     [0, 1, 2, 3]   cards to lease
+#   lease_idle_ttl_s:  7200           safety TTL (a keepalive touches the lease)
+#   wait_busy_s:       600            how long to wait for a resident that is
+#                      mid-request before giving up (it is never evicted/forced)
+#   restore_residents: true           reload residents the run evicted, at the end
 providers:
   lmstudio:
     type: lmstudio

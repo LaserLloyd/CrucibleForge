@@ -114,12 +114,74 @@ _GENERATION_REJECT_MARKERS = (
 )
 
 
-def classify_server_error(status: int | None, body: str) -> TransportError:
+class VramContention(TransportError):
+    """The server could not place the model right now (StudioForge 507
+    ``insufficient_vram`` / 503 with ``retry_after_s``): a resident is busy or
+    the window does not fit. Carries the server's own wait hint and per-mode
+    suggestions so callers wait the right amount instead of a blind backoff."""
+
+    def __init__(self, msg: str, *, status: int | None = None,
+                 retry_after_s: float | None = None, suggestions=None, body: str = ""):
+        super().__init__(msg)
+        self.status = status
+        self.retry_after_s = retry_after_s
+        self.suggestions = suggestions
+        self.body = body
+
+
+def _parse_error_hints(body: str) -> tuple[float | None, object]:
+    """(retry_after_s, suggestions) from a JSON error body, if any."""
+    try:
+        data = json.loads(body)
+    except (TypeError, ValueError):
+        # the SSE path wraps the error object: "server error: {...}"
+        i = (body or "").find("{")
+        if i < 0:
+            return None, None
+        try:
+            data = json.loads(body[i:])
+        except ValueError:
+            return None, None
+    holders = [data]
+    if isinstance(data, dict):
+        err = data.get("error")
+        if isinstance(err, dict):
+            holders.append(err)
+            if isinstance(err.get("studioforge"), dict):
+                holders.append(err["studioforge"])
+    ra = None
+    sugg = None
+    for h in holders:
+        if isinstance(h, dict):
+            if ra is None and h.get("retry_after_s") is not None:
+                try:
+                    ra = float(h["retry_after_s"])
+                except (TypeError, ValueError):
+                    pass
+            if sugg is None and h.get("suggestions") is not None:
+                sugg = h["suggestions"]
+    return ra, sugg
+
+
+_VRAM_MARKERS = ("insufficient_vram", "cannot load", "entirely in vram", "not enough free vram")
+
+
+def classify_server_error(status: int | None, body: str,
+                          retry_after_header: str | None = None) -> TransportError:
     """Map a 5xx / SSE error payload to the right TransportError subclass."""
     low = (body or "").lower()
+    msg = f"HTTP {status}: {body[:500]}" if status else body[:500]
     if any(m in low for m in _GENERATION_REJECT_MARKERS):
-        return GenerationRejected(f"HTTP {status}: {body}" if status else body)
-    return TransportError(f"HTTP {status}: {body}" if status else body)
+        return GenerationRejected(msg)
+    ra, sugg = _parse_error_hints(body)
+    if ra is None and retry_after_header:
+        try:
+            ra = float(retry_after_header)
+        except ValueError:
+            pass
+    if status in (503, 507) or any(m in low for m in _VRAM_MARKERS):
+        return VramContention(msg, status=status, retry_after_s=ra, suggestions=sugg, body=body)
+    return TransportError(msg)
 
 
 class WrongModelError(RuntimeError):
@@ -225,10 +287,11 @@ def stream_chat(base_url: str, api_key: str, model: str, messages: list[dict], *
                 headers=hdrs,
             ) as resp:
                 if resp.status_code >= 400:
-                    err = resp.read().decode(errors="replace")[:500]
+                    err = resp.read().decode(errors="replace")[:4000]
                     if 400 <= resp.status_code < 500 and resp.status_code not in (408, 429):
-                        raise RequestRejected(resp.status_code, err)
-                    raise classify_server_error(resp.status_code, err)
+                        raise RequestRejected(resp.status_code, err[:500])
+                    raise classify_server_error(resp.status_code, err,
+                                                resp.headers.get("Retry-After"))
                 buffer = ""
                 saw_sse = False
                 for raw_chunk in resp.iter_text():
@@ -248,7 +311,7 @@ def stream_chat(base_url: str, api_key: str, model: str, messages: list[dict], *
                             continue
                         if data.get("error"):
                             raise classify_server_error(
-                                None, f"server error: {json.dumps(data['error'])[:300]}")
+                                None, f"server error: {json.dumps(data['error'])[:2000]}")
                         if data.get("model"):
                             r.served_model = data["model"]
                         if data.get("usage"):
@@ -340,8 +403,11 @@ def stream_chat_retried(base_url: str, api_key: str, model: str, messages: list[
             last_err = e
             if attempt < MAX_TRANSPORT_RETRIES:
                 wait = RETRY_BACKOFF_S * (2 ** (attempt - 1))
+                if isinstance(e, VramContention) and e.retry_after_s:
+                    # the server said how long the busy resident needs
+                    wait = max(wait, min(float(e.retry_after_s), 120.0))
                 log.warning("transport retry %d/%d in %.1fs: %s",
-                            attempt, MAX_TRANSPORT_RETRIES, wait, e)
+                            attempt, MAX_TRANSPORT_RETRIES, wait, str(e)[:300])
                 time.sleep(wait)
     assert last_err is not None
     raise last_err

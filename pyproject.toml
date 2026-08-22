@@ -1,6 +1,6 @@
 [project]
 name = "gauntlet-bench"
-version = "3.1.0"
+version = "3.2.0"
 description = "Gauntlet — an LLM capability benchmark with a hard tier, deterministic graders, an LLM judge (local or remote), and a web GUI. Works with LM Studio, llama.cpp/StudioForge, Ollama, vLLM, DeepSeek, OpenRouter, OpenAI, Open WebUI — anything OpenAI-compatible."
 readme = "README.md"
 license = "MIT"

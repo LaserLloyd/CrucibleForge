@@ -21,10 +21,15 @@ import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 
-from .api import RequestRejected, TransportError, WrongModelError
+from . import studioforge
+from .api import GenerationRejected, RequestRejected, TransportError, WrongModelError
 from .config import load_transcripts, append_transcript
 from .graders import refusal_heuristic
-from .providers import Provider, get_provider, model_extra_body
+from .providers import Provider, get_provider, merge_extra_body, model_extra_body
+
+# a thinking judge whose reply never reached the JSON gets one retry with
+# thinking disabled (the same template flag the runner's recovery uses)
+_NO_THINK = {"chat_template_kwargs": {"enable_thinking": False}}
 
 log = logging.getLogger(__name__)
 
@@ -637,7 +642,9 @@ def judge_row(jc: JudgeClient, row: dict, samples: int = 1) -> dict:
     spec = RUBRICS[rubric]
     thinking = jc.thinking
 
-    def _call(seed: int, extra: str | None = None):
+    last_result = {}
+
+    def _call(seed: int, extra: str | None = None, no_think: bool = False):
         messages = [{"role": "system", "content": JUDGE_SYSTEM},
                     {"role": "user", "content": user_prompt}]
         if extra:
@@ -649,7 +656,13 @@ def judge_row(jc: JudgeClient, row: dict, samples: int = 1) -> dict:
             # dies. Free-text JSON from a <think>-delimited reply parses fine
             # via parse_verdict, so drop response_format for thinking judges.
             kwargs["response_format"] = spec["schema"]
+        if no_think:
+            kwargs["extra_body"] = merge_extra_body(jc.extra_body, _NO_THINK)
         result = jc.chat(messages, **kwargs)
+        last_result["finish_reason"] = result.finish_reason
+        last_result["completion_tokens"] = result.completion_tokens
+        last_result["reasoning_tokens"] = result.reasoning_tokens
+        last_result["reasoning_tail"] = (result.reasoning_text or "")[-500:]
         return result.scoreable_text()
 
     verdicts: list[dict] = []
@@ -659,17 +672,26 @@ def judge_row(jc: JudgeClient, row: dict, samples: int = 1) -> dict:
         if i == 0:
             first_raw = raw
         v = parse_verdict(raw, rubric)
+        if v is None and thinking and (not raw.strip() or last_result.get("finish_reason") == "length"):
+            # the judge thought its budget away: ask again without thinking
+            raw = _call(seed=42 + i, no_think=True)
+            v = parse_verdict(raw, rubric)
         if v is None:
             raw = _call(seed=42 + i, extra="Your previous reply was not valid "
-                        "JSON for the schema. Respond again with ONLY the JSON object.")
+                        "JSON for the schema. Respond again with ONLY the JSON object.",
+                        no_think=thinking)
             v = parse_verdict(raw, rubric)
         if v is not None:
             verdicts.append(v)
 
     if not verdicts:
-        log.warning("judge parse failed for %s/%s after retries",
-                    row.get("model_label"), row.get("case_id"))
+        log.warning("judge parse failed for %s/%s after retries (finish=%s)",
+                    row.get("model_label"), row.get("case_id"), last_result.get("finish_reason"))
         return {"judge_failed": True, "judge_raw": first_raw[:2000],
+                "judge_finish_reason": last_result.get("finish_reason"),
+                "judge_completion_tokens": last_result.get("completion_tokens"),
+                "judge_reasoning_tokens": last_result.get("reasoning_tokens"),
+                "judge_reasoning_tail": last_result.get("reasoning_tail"),
                 "refused": refusal_heuristic(row.get("response", "")),
                 "scores": None}
 
@@ -800,16 +822,44 @@ def run_judge(cfg: dict, labels: list[str], force: bool = False,
         run_canary(jc)
 
     lock = threading.Lock()
-    counts = {"judged": 0, "failed": 0, "empty": 0}
+    reload_lock = threading.Lock()
+    counts = {"judged": 0, "failed": 0, "empty": 0, "errored": 0}
+
+    def _judge_still_ready() -> bool:
+        """Another worker may already have restored the judge — do not stack
+        a second unload/load on top of it."""
+        if jc.provider.type != "studioforge":
+            return False
+        try:
+            live = studioforge.loaded_plan(jc.model_id, jc.provider.base_url,
+                                           jc.provider.api_key, jc.provider.mgmt_headers())
+        except studioforge.StudioForgeError:
+            return False
+        return bool(live and live.get("state") == "ready")
 
     def _one(label, row):
         try:
-            verdict = judge_row(jc, row, samples=samples)
-        except (TransportError, WrongModelError) as e:
-            log.error("judge call failed on %s/%s: %s — reloading judge",
-                      label, row["case_id"], e)
-            jc.load()
-            verdict = judge_row(jc, row, samples=samples)
+            try:
+                verdict = judge_row(jc, row, samples=samples)
+            except (RequestRejected, GenerationRejected) as e:
+                # a per-request problem (context overflow on a huge row, a
+                # malformed reply) — a reload cannot help; record it
+                log.error("judge rejected %s/%s: %s", label, row["case_id"], str(e)[:200])
+                verdict = {"judge_failed": True, "judge_error": str(e)[:300],
+                           "judge_raw": "", "refused": False, "scores": None}
+            except (TransportError, WrongModelError) as e:
+                log.error("judge call failed on %s/%s: %s — reloading judge",
+                          label, row["case_id"], str(e)[:200])
+                with reload_lock:
+                    if not _judge_still_ready():
+                        jc.load()
+                verdict = judge_row(jc, row, samples=samples)
+        except Exception as e:  # noqa: BLE001 — one row must not abort the phase
+            log.error("judge errored on %s/%s: %s: %s", label, row["case_id"],
+                      type(e).__name__, str(e)[:300])
+            with lock:
+                counts["errored"] += 1
+            return
         row["judge"] = verdict
         row["judge_model"] = judge_id
         _apply_reference_grade(row, verdict)
@@ -841,20 +891,30 @@ def run_judge(cfg: dict, labels: list[str], force: bool = False,
                     break
                 f.result()
     log.info("judging done: %d rows, %d unparsable judge verdicts, %d empty generations "
-             "(model produced no content — not a judge failure)",
-             counts["judged"], counts["failed"], counts["empty"])
+             "(model produced no content — not a judge failure), %d errored (not written)",
+             counts["judged"], counts["failed"], counts["empty"], counts["errored"])
     return {"judged": counts["judged"], "failed": counts["failed"],
-            "empty": counts["empty"], "judge": judge_id, "samples": samples}
+            "empty": counts["empty"], "errored": counts["errored"],
+            "judge": judge_id, "samples": samples}
 
 
 def _apply_reference_grade(row: dict, verdict: dict) -> None:
     """A reference-graded row's objective grade is decided by the judge's
-    ``correct`` flag: pass/fail (judge_failed → fail, noted)."""
+    ``correct`` flag: pass/fail. An EMPTY model answer is a fail; a judge
+    that could not produce a verdict leaves the row PENDING (grade
+    'pending', no ``judge`` key) so the next ``gauntlet judge`` retries it —
+    a judge hiccup must not lower the model's Hard %."""
     if row.get("rubric") != "reference":
         return
     if verdict.get("judge_failed"):
-        row["grade"] = "fail"
-        row["grade_detail"] = "reference judge failed (empty/unparsable)"
+        if verdict.get("empty_generation"):
+            row["grade"] = "fail"
+            row["grade_detail"] = "empty answer (reasoning overflow / no content)"
+            return
+        row["grade"] = "pending"
+        row["grade_detail"] = "reference judge failed (unparsable) — pending re-judge"
+        row["judge_error"] = verdict.get("judge_error") or verdict.get("judge_raw", "")[:300]
+        row.pop("judge", None)
         return
     scores = verdict.get("scores") or {}
     ok = bool(scores.get("correct"))
