@@ -730,7 +730,9 @@ def _run_single(case, base_row, ctx: _Ctx, max_tokens, temperature, top_p, seed)
            "finish_reason": result.finish_reason,
            "truncated": result.finish_reason == "length",
            "max_tokens_sent": sent,
+           # a tool call with empty content is a normal answer, not a misroute
            "answered_in_reasoning": (not result.response_text.strip()
+                                     and not result.tool_calls
                                      and bool(result.reasoning_text.strip())),
            "metrics": _metrics(result)}
     _annotate_recovery(row, result)

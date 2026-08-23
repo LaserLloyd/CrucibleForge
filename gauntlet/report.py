@@ -482,7 +482,8 @@ def model_stats(label: str, cfg: dict | None = None) -> dict:
     # objective passes whose answer was read from the reasoning channel
     # (finish=stop, empty content — server/template misrouting)
     reasoning_passes = sum(1 for r in rows if r.get("grade") == "pass"
-                           and r.get("answered_in_reasoning") and r.get("finish_reason") != "length")
+                           and r.get("answered_in_reasoning") and not r.get("tool_calls")
+                           and r.get("finish_reason") != "length")
     # ---- cost (priced/remote models) + hard-tier headline ----
     cost_total = sum((r.get("cost_usd") or 0.0) for r in rows)
     priced = any("cost_usd" in r for r in rows)
