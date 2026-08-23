@@ -98,6 +98,25 @@ def test_load_model_waits_on_507_retry_after_then_loads(monkeypatch):
     assert ("sleep", 10.0) in seen and seen[-1] == "warm"
 
 
+def test_degenerate_resident_is_unloaded_so_load_recommended_replans(monkeypatch):
+    """Resident at 1 slot on the wrong cards: load-recommended alone is a
+    no-op ("already loaded at that ctx"), so the client unloads first."""
+    events = []
+    monkeypatch.setattr(studioforge, "loaded_plan",
+                        lambda *a, **k: {"state": "ready", "parallel": 1, "ctx_size": 32768,
+                                         "devices": [2, 3]})
+    monkeypatch.setattr(studioforge, "_mgmt",
+                        lambda method, b, k, h, path, **kw: events.append((method, path)) or (200, {}))
+    monkeypatch.setattr(studioforge, "load_recommended",
+                        lambda *a, **k: events.append(("load-recommended",))
+                        or {"plan": {"ctx_size": 32768, "parallel": 8}})
+    monkeypatch.setattr(studioforge, "wait_ready", lambda *a, **k: {"state": "ready"})
+    monkeypatch.setattr(studioforge, "warm_model", lambda *a, **k: 0.1)
+    studioforge.load_model("m", "http://x/v1", "", 32768)
+    unload = ("POST", "/api/models/m/unload")
+    assert unload in events and events.index(unload) < events.index(("load-recommended",))
+
+
 def test_load_model_refuses_jit_fallback_when_window_does_not_fit(monkeypatch):
     monkeypatch.setattr(studioforge, "loaded_plan", lambda *a, **k: None)
     monkeypatch.setattr(studioforge, "load_recommended",

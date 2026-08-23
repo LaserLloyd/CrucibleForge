@@ -446,6 +446,22 @@ def load_model(model_id: str, base_url: str, api_key: str,
             log.info("%s already loaded with parallel=%s ctx=%s", model_id,
                      live.get("parallel"), live.get("ctx_size"))
             return 0.0
+        if live is not None:
+            # Resident but on a DEGENERATE placement (1 slot / short ctx —
+            # e.g. a leftover JIT load on the slow cards). load-recommended
+            # treats "already loaded at that ctx" as satisfied and returns
+            # the existing plan unchanged, so the model must be unloaded
+            # first for the server to re-plan it properly (2026-08-24: a
+            # full run started serial on the 3090s exactly this way).
+            log.info("%s resident on a degenerate placement (parallel=%s ctx=%s "
+                     "devices=%s) — unloading so load-recommended re-plans it",
+                     model_id, live.get("parallel"), live.get("ctx_size"),
+                     live.get("devices"))
+            try:
+                _mgmt("POST", base_url, api_key, headers,
+                      f"/api/models/{_quote(model_id)}/unload", timeout=WARMUP_TIMEOUT_S)
+            except StatusUnavailable as e:
+                log.warning("pre-replan unload failed (%s) — continuing", e)
         waited = 0.0
         while True:
             res = load_recommended(model_id, base_url, api_key, wanted, headers=headers)
