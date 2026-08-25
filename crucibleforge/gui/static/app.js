@@ -1,4 +1,4 @@
-/* Gauntlet GUI — vanilla JS, no dependencies. */
+/* CrucibleForge GUI — vanilla JS, no dependencies. */
 (() => {
   "use strict";
   const $ = (s, r = document) => r.querySelector(s);
@@ -44,7 +44,7 @@
     STATE = await api("/api/state");
     $("#revision").textContent = STATE.revision;
     $("#paths").textContent = `config: ${STATE.config_path} · results: ${STATE.results_dir}` +
-      (STATE.legacy ? " · (v2 registry auto-upgraded — run `gauntlet config --upgrade`)" : "");
+      (STATE.legacy ? " · (v2 registry auto-upgraded — run `crucibleforge config --upgrade`)" : "");
     renderDash(); renderRunForm(); renderModelsTab();
     updateJob(STATE.job);
   }

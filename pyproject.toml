@@ -1,7 +1,7 @@
 [project]
-name = "gauntlet-bench"
+name = "crucibleforge-bench"
 version = "3.2.0"
-description = "Gauntlet — an LLM capability benchmark with a hard tier, deterministic graders, an LLM judge (local or remote), and a web GUI. Works with LM Studio, llama.cpp/StudioForge, Ollama, vLLM, DeepSeek, OpenRouter, OpenAI, Open WebUI — anything OpenAI-compatible."
+description = "CrucibleForge — an LLM capability benchmark with a hard tier, deterministic graders, an LLM judge (local or remote), and a web GUI. Works with LM Studio, llama.cpp/StudioForge, Ollama, vLLM, DeepSeek, OpenRouter, OpenAI, Open WebUI — anything OpenAI-compatible."
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.12"
@@ -11,7 +11,7 @@ dependencies = [
 ]
 
 [project.scripts]
-gauntlet = "gauntlet.cli:main"
+crucibleforge = "crucibleforge.cli:main"
 
 [dependency-groups]
 dev = ["pytest>=8"]
@@ -21,7 +21,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["gauntlet"]
+packages = ["crucibleforge"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

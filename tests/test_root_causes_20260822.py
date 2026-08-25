@@ -19,8 +19,8 @@ import json
 
 import pytest
 
-from gauntlet import api, config, judge, report, runner, studioforge
-from gauntlet.api import ChatResult, GenerationRejected, TransportError
+from crucibleforge import api, config, judge, report, runner, studioforge
+from crucibleforge.api import ChatResult, GenerationRejected, TransportError
 
 
 # ------------------------------------------------------------ 2. api errors
@@ -147,7 +147,7 @@ def test_recovery_can_be_disabled_in_config():
 
 
 def test_recovery_survives_provider_rejecting_template_kwargs():
-    from gauntlet.api import RequestRejected
+    from crucibleforge.api import RequestRejected
 
     class Rejecting(_FakeProvider):
         def chat(self, model_id, messages, **kw):
@@ -212,7 +212,7 @@ def test_generation_rejected_scores_case_fail_and_run_continues(tmp_path, monkey
            "judge": {"candidates": []}, "models": []}
     entry = {"name": "m", "model_id": "m", "provider": "fake", "thinking": False}
 
-    from gauntlet import providers
+    from crucibleforge import providers
 
     def chat(self, model_id, messages, **kw):
         if "call it" in messages[-1]["content"]:
@@ -239,7 +239,7 @@ def test_consecutive_transport_errors_abort_model(tmp_path, monkeypatch):
            "providers": {"fake": {"type": "openai", "base_url": "http://127.0.0.1:9/v1"}},
            "judge": {"candidates": []}, "models": []}
     entry = {"name": "m", "model_id": "m", "provider": "fake", "thinking": False}
-    from gauntlet import providers
+    from crucibleforge import providers
 
     def chat(self, model_id, messages, **kw):
         raise TransportError("connection refused")
@@ -449,7 +449,7 @@ def test_wait_ready_gives_up_when_model_vanishes(monkeypatch):
         studioforge.wait_ready("m", "http://x/v1", "", timeout_s=5)
 
 
-# ------------------------------------------------ 1b. gauntlet recover path
+# ------------------------------------------------ 1b. crucibleforge recover path
 
 def test_recover_models_reruns_only_overflow_jobs_under_original_run_id(tmp_path, monkeypatch):
     monkeypatch.setattr(config, "RESULTS_DIR", tmp_path)
@@ -472,7 +472,7 @@ def test_recover_models_reruns_only_overflow_jobs_under_original_run_id(tmp_path
             "reasoning": "", "grade": "pass", "metrics": {}}]
     (tmp_path / "transcripts_m.jsonl").write_text("\n".join(json.dumps(r) for r in old) + "\n")
 
-    from gauntlet import providers
+    from crucibleforge import providers
     seen = []
 
     def chat(self, model_id, messages, **kw):

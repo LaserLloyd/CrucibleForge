@@ -1,6 +1,6 @@
-# Gauntlet model registry — copy to ./models.yaml (or ~/.config/gauntlet/models.yaml)
+# CrucibleForge model registry — copy to ./models.yaml (or ~/.config/crucibleforge/models.yaml)
 # and edit. API keys NEVER go in this file: name an environment variable with
-# api_key_env. `gauntlet status` shows what resolves.
+# api_key_env. `crucibleforge status` shows what resolves.
 #
 # providers:  where models are served.
 #   type: openai       any OpenAI-compatible /chat/completions server, no load
@@ -51,7 +51,7 @@ providers:
     base_url: https://openrouter.ai/api/v1
     api_key_env: OPENROUTER_API_KEY
     concurrency: 4
-    headers: {HTTP-Referer: "https://github.com/your/gauntlet", X-Title: "gauntlet"}
+    headers: {HTTP-Referer: "https://github.com/your/crucibleforge", X-Title: "crucibleforge"}
   openai:
     type: openai
     base_url: https://api.openai.com/v1

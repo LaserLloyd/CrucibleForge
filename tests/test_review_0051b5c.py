@@ -5,8 +5,8 @@ import json
 
 import pytest
 
-from gauntlet import config, runner, studioforge
-from gauntlet.api import ChatResult, TransportError
+from crucibleforge import config, runner, studioforge
+from crucibleforge.api import ChatResult, TransportError
 
 from tests.test_root_causes_20260822 import _FakeProvider, _answer, _ctx, _overflow
 
@@ -79,7 +79,7 @@ def test_wait_ready_does_not_wait_the_full_deadline_for_a_model_that_never_appea
 
 
 def test_failed_recover_does_not_relabel_a_complete_run_as_failed(tmp_path, monkeypatch):
-    """runner.py:302 + 362 — `gauntlet recover` reuses _run_one_model, which
+    """runner.py:302 + 362 — `crucibleforge recover` reuses _run_one_model, which
     rewrites meta_<label>.json (new bench_run_id, failed/error). A recover
     that aborts (3 transport failures) stamps failed=True onto the meta of a
     COMPLETE run, and report._coverage then ranks that model last as FAILED."""
@@ -98,7 +98,7 @@ def test_failed_recover_does_not_relabel_a_complete_run_as_failed(tmp_path, monk
     (tmp_path / "meta_m.json").write_text(json.dumps(
         {"model_label": "m", "bench_run_id": "orig", "failed": False, "finished": "x"}))
 
-    from gauntlet import providers
+    from crucibleforge import providers
 
     def chat(self, model_id, messages, **kw):
         raise TransportError("boom")

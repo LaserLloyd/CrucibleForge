@@ -321,7 +321,7 @@ def run_models(cfg: dict, model_entries: list[dict], cases: list[dict],
     """jobs_by_label: optional {label: {(bench_run_id, case_id, repeat), ...}}
     restricting each model to exactly those (case, repeat) jobs, re-run under
     their ORIGINAL bench_run_id so the new rows supersede the old ones (used
-    by ``gauntlet recover``)."""
+    by ``crucibleforge recover``)."""
     STOP.clear()
     # reachability per provider, once
     seen: set[str] = set()
@@ -628,7 +628,7 @@ def _run_one_model(cfg, entry, cases, csvw: _Csv, smoke,
 
 
 def _write_recover_record(label: str, **fields) -> None:
-    """``gauntlet recover`` never rewrites a run's meta (failed/error/
+    """``crucibleforge recover`` never rewrites a run's meta (failed/error/
     bench_run_id/profile belong to the ORIGINAL run); it appends its own
     record under ``recovered`` instead."""
     path = results_dir() / f"meta_{label}.json"
@@ -682,7 +682,7 @@ def overflow_jobs(rows: list[dict]) -> set[tuple]:
 def recover_models(cfg: dict, model_entries: list[dict], cases: list[dict]) -> dict:
     """Re-run only the reasoning-overflow jobs of each model (same bench_run_id,
     so the recovered rows supersede the empty ones); the fresh rows carry no
-    judge verdict, so ``gauntlet judge`` re-scores them."""
+    judge verdict, so ``crucibleforge judge`` re-scores them."""
     from .config import load_transcripts
     jobs_by_label: dict[str, set] = {}
     for e in model_entries:

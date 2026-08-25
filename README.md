@@ -1,6 +1,6 @@
-# Gauntlet — an LLM capability benchmark with a real hard tier
+# CrucibleForge — an LLM capability benchmark with a real hard tier
 
-Gauntlet ranks language models on the things that decide whether a model can
+CrucibleForge ranks language models on the things that decide whether a model can
 actually do a job: **hard reasoning and math with verifiable answers, coding
 graded by execution, tool use, instruction following, long-context retrieval,
 system-prompt steerability, safety calibration, roleplay / creative quality,
@@ -9,7 +9,7 @@ Ollama, llama.cpp / llama-server, vLLM, StudioForge) or hosted (DeepSeek,
 OpenRouter, OpenAI, Groq, Together, Mistral, Open WebUI …).
 
 * **Hard tier that doesn't ceiling.** 251 cases, **158 of them hard**
-  (`gauntlet cases list` counts them): competition-style math
+  (`crucibleforge cases list` counts them): competition-style math
   (integer answers, every one re-derived by a brute-force `verify` expression),
   logic/state-tracking puzzles with unique solutions, coding problems whose
   tests **enforce the right complexity** (an O(n²) inversion count times out;
@@ -31,7 +31,7 @@ OpenRouter, OpenAI, Groq, Together, Mistral, Open WebUI …).
   (`openai` / `lmstudio` / `studioforge`) and models that reference them.
   Remote APIs run cases **concurrently**; token **cost** is reported for
   priced models. API keys live in environment variables only.
-* **Web GUI** (`gauntlet gui`): pick models/categories/tiers, watch the log,
+* **Web GUI** (`crucibleforge gui`): pick models/categories/tiers, watch the log,
   read the report, drill into every failed row (prompt, response, reasoning,
   judge note), manage providers/models/judge, discover model ids, test
   connections. Stdlib server + vanilla JS, no CDN, no build step.
@@ -40,7 +40,7 @@ OpenRouter, OpenAI, Groq, Together, Mistral, Open WebUI …).
 
 ## The 1-hour `standard` profile and the scorecard
 
-`gauntlet all --profile standard --models <label> --yes` runs a fixed 56-case
+`crucibleforge all --profile standard --models <label> --yes` runs a fixed 56-case
 selection sized for **a ~70 tok/s 27B in under an hour including judging**:
 perf ×2, RP 6, NSFW ladder 5, steer 3, **10 brutal coding cases** (chosen so
 DeepSeek v4-flash scores ~20% — headroom for future models), 10 hard tool
@@ -65,22 +65,22 @@ renormalised (the report says which).
 ## Quick start
 
 ```bash
-git clone <this repo> gauntlet && cd gauntlet
+git clone <this repo> crucibleforge && cd crucibleforge
 uv sync                                  # or: pip install -e .
 cp models.example.yaml models.yaml       # edit providers + models
 export DEEPSEEK_API_KEY=...              # only if you use a hosted provider
 
-uv run gauntlet status                   # providers up? judge? case counts
-uv run gauntlet gui                      # http://127.0.0.1:8777
-uv run gauntlet all --profile standard --models local-gemma-e4b --yes   # the 1-hour scorecard run
-uv run gauntlet all --smoke --models local-gemma-e4b --yes     # ~10 min end-to-end
-uv run gauntlet run --models deepseek-flash --difficulty hard  # the hard tier only
-uv run gauntlet judge && uv run gauntlet report
-uv run gauntlet recover --models a,b --yes     # re-run reasoning-overflow rows, then judge again
-uv run gauntlet status                         # providers, residents + leases on the rig, judge, cases
+uv run crucibleforge status                   # providers up? judge? case counts
+uv run crucibleforge gui                      # http://127.0.0.1:8777
+uv run crucibleforge all --profile standard --models local-gemma-e4b --yes   # the 1-hour scorecard run
+uv run crucibleforge all --smoke --models local-gemma-e4b --yes     # ~10 min end-to-end
+uv run crucibleforge run --models deepseek-flash --difficulty hard  # the hard tier only
+uv run crucibleforge judge && uv run crucibleforge report
+uv run crucibleforge recover --models a,b --yes     # re-run reasoning-overflow rows, then judge again
+uv run crucibleforge status                         # providers, residents + leases on the rig, judge, cases
 ```
 
-`gauntlet all` = `run` → `judge` → `report`. Results land in
+`crucibleforge all` = `run` → `judge` → `report`. Results land in
 `results/` next to your `models.yaml`: `report.md` / `report.json`, append-only
 `runs.csv`, and per-model `transcripts_<label>.jsonl` (every prompt, response,
 reasoning, metric and judge verdict). Runs **accumulate** by default; `--fresh`
@@ -122,11 +122,11 @@ models:
 * `extra_body` (per model or provider) merges arbitrary request fields —
   e.g. `{reasoning_format: deepseek}` for llama.cpp thinking models so CoT
   stays out of `content`.
-* Config search order: `--config`, `$GAUNTLET_CONFIG`, `./models.yaml`,
-  `<repo>/models.yaml`, `~/.config/gauntlet/models.yaml`. A v2 registry
-  (`endpoint:`/`rig:`) is upgraded in memory; `gauntlet config --upgrade`
+* Config search order: `--config`, `$CRUCIBLEFORGE_CONFIG`, `./models.yaml`,
+  `<repo>/models.yaml`, `~/.config/crucibleforge/models.yaml`. A v2 registry
+  (`endpoint:`/`rig:`) is upgraded in memory; `crucibleforge config --upgrade`
   rewrites it.
-* **OpenClaw users:** `gauntlet import-openclaw --write` pulls providers,
+* **OpenClaw users:** `crucibleforge import-openclaw --write` pulls providers,
   models, prices and `${ENV}` key references straight from
   `~/.openclaw/openclaw.json` (remote providers by default,
   `--include-local` for loopback ones). Literal keys are never copied.
@@ -151,7 +151,7 @@ The report's **Hard %** column (pass rate over every hard objective case) is
 the headline; the difficulty breakdown table shows where models actually
 separate. Speed is only comparable between models on the same provider/host.
 
-`gauntlet cases verify` re-checks the whole case set offline: every coding
+`crucibleforge cases verify` re-checks the whole case set offline: every coding
 `reference` solution is executed against its own tests in the real sandbox,
 every math/reasoning gold answer is recomputed from its `verify` expression,
 generated haystacks are rebuilt and checked for their needle. It runs in the
@@ -159,7 +159,7 @@ test-suite too, so a broken test can't silently fail every model.
 
 ## GUI
 
-`gauntlet gui [--host 127.0.0.1] [--port 8777] [--token …]`
+`crucibleforge gui [--host 127.0.0.1] [--port 8777] [--token …]`
 
 Loopback needs no token. Binding another host (e.g. to reach it over a
 tailnet) **requires** a token — one is generated and printed if you don't
@@ -178,7 +178,7 @@ run is a background thread; **Stop** finishes the in-flight case).
   (qwen3-family templates), then by continuing from the truncated reasoning
   with "answer now". The row keeps the first attempt's cost under
   `recovery.first`, the report counts overflows + recoveries, and
-  `gauntlet recover` re-runs the overflow rows of existing transcripts
+  `crucibleforge recover` re-runs the overflow rows of existing transcripts
   (`defaults.reasoning_overflow_recovery: false` or a model's
   `recovery: false` turns it off). A row that still has no content is an
   "empty generation", excluded from quality means.
@@ -227,7 +227,7 @@ run is a background thread; **Stop** finishes the in-flight case).
 ## Layout
 
 ```
-gauntlet/            package: cli, config, providers, api, runner, graders,
+crucibleforge/            package: cli, config, providers, api, runner, graders,
                      judge, pairwise, report, preflight, version,
                      longctx_gen, verify_cases, openclaw_import, gui/
 cases/*.json         the suite (perf rp nsfw coding tooluse instruct
@@ -240,7 +240,7 @@ scripts/             queue-overnight.sh (reference campaign wrapper),
                      clawforge_comfy.py (free rig VRAM before a phase)
 ```
 
-`uv run pytest` — no network needed. `uv run gauntlet cases list|verify`.
+`uv run pytest` — no network needed. `uv run crucibleforge cases list|verify`.
 
 ## Adding cases
 
@@ -251,7 +251,7 @@ Append to the category file (ids unique; `difficulty` easy/medium/hard;
 `tool_parallel`, `tool_loop` (script), `reference` (gold answer + judge).
 Add `verify: {python: "<expr>"}` for any answer that can be recomputed. Long
 context: a `generator` block instead of a literal prompt. Then
-`uv run gauntlet cases verify` — the suite revision bumps automatically.
+`uv run crucibleforge cases verify` — the suite revision bumps automatically.
 
 ## Content warning
 

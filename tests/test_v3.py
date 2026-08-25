@@ -8,9 +8,9 @@ from pathlib import Path
 import pytest
 import yaml
 
-from gauntlet import config, graders, judge, longctx_gen, providers, verify_cases
-from gauntlet.api import ChatResult
-from gauntlet.config import ConfigError
+from crucibleforge import config, graders, judge, longctx_gen, providers, verify_cases
+from crucibleforge.api import ChatResult
+from crucibleforge.config import ConfigError
 
 
 @pytest.fixture(autouse=True)
@@ -71,9 +71,9 @@ def test_unknown_provider_on_model_rejected():
 
 
 def test_provider_resolves_env_key(monkeypatch):
-    monkeypatch.setenv("TEST_GAUNTLET_KEY", "abc123")
+    monkeypatch.setenv("TEST_CRUCIBLEFORGE_KEY", "abc123")
     cfg = {"providers": {"r": {"type": "openai", "base_url": "http://x/v1/",
-                               "api_key_env": "TEST_GAUNTLET_KEY", "concurrency": 3}},
+                               "api_key_env": "TEST_CRUCIBLEFORGE_KEY", "concurrency": 3}},
            "defaults": {}, "judge": {"candidates": []}, "models": []}
     p = providers.get_provider(cfg, "r")
     assert p.api_key == "abc123" and p.concurrency == 3
@@ -91,7 +91,7 @@ def test_cost_from_price():
 
 
 def test_results_dir_follows_config(tmp_path, monkeypatch):
-    monkeypatch.delenv("GAUNTLET_RESULTS", raising=False)
+    monkeypatch.delenv("CRUCIBLEFORGE_RESULTS", raising=False)
     dst = tmp_path / "models.yaml"
     dst.write_text(config.EXAMPLE_CONFIG_PATH.read_text())
     config.load_config(dst)
@@ -224,7 +224,7 @@ def test_hard_tier_is_substantial():
 # --------------------------------------------------------- openclaw import
 
 def test_openclaw_import_maps_env_keys_and_prices(tmp_path):
-    from gauntlet.openclaw_import import import_openclaw
+    from crucibleforge.openclaw_import import import_openclaw
     oc = {"models": {"providers": {
         "deepseek": {"baseUrl": "https://api.deepseek.com/v1", "api": "openai-completions",
                      "apiKey": "${DEEPSEEK_API_KEY}",
@@ -255,14 +255,14 @@ def test_openclaw_import_maps_env_keys_and_prices(tmp_path):
 # ----------------------------------------------------------------- GUI
 
 def test_markdown_renders_table_and_escapes():
-    from gauntlet.gui.markdown import md_to_html
+    from crucibleforge.gui.markdown import md_to_html
     html = md_to_html("# T\n\n| a | b |\n|---|---|\n| 1 | <script> |\n\n**bold** and `x`")
     assert "<table>" in html and "&lt;script&gt;" in html
     assert "<strong>bold</strong>" in html and "<code>x</code>" in html
 
 
 def test_gui_auth_and_csrf(monkeypatch):
-    from gauntlet.gui import server as srv
+    from crucibleforge.gui import server as srv
     from http.server import BaseHTTPRequestHandler
 
     class Fake(srv.Handler):
@@ -285,11 +285,11 @@ def test_gui_auth_and_csrf(monkeypatch):
     h.do_GET()
     assert h.sent == [401]
     # POST with token header but cross-site origin -> 403
-    h = Fake({"X-Gauntlet-Token": "sekrit", "Sec-Fetch-Site": "cross-site"}, "/api/stop")
+    h = Fake({"X-CrucibleForge-Token": "sekrit", "Sec-Fetch-Site": "cross-site"}, "/api/stop")
     h.do_POST()
     assert h.sent == [403]
     # wrong token -> 401
-    h = Fake({"X-Gauntlet-Token": "nope"}, "/api/stop")
+    h = Fake({"X-CrucibleForge-Token": "nope"}, "/api/stop")
     h.do_POST()
     assert h.sent == [401]
 
@@ -297,7 +297,7 @@ def test_gui_auth_and_csrf(monkeypatch):
 # ------------------------------------------------------- thinking budget
 
 def test_thinking_budget_auto_detects():
-    from gauntlet.runner import _Ctx
+    from crucibleforge.runner import _Ctx
     cfg = {"providers": {"p": {"type": "openai", "base_url": "http://x"}},
            "defaults": {"thinking_max_tokens_factor": 4, "thinking_max_tokens_cap": 10000},
            "judge": {"candidates": []}, "models": []}
@@ -315,7 +315,7 @@ def test_thinking_budget_auto_detects():
 # ------------------------------------------------------ profiles + scoring
 
 def test_standard_profile_loads_and_applies():
-    from gauntlet import profiles
+    from crucibleforge import profiles
     cfg = config.load_config(config.EXAMPLE_CONFIG_PATH)
     prof = profiles.load_profile("standard", cfg)
     cfg2, cases = profiles.apply_profile(prof, cfg)
@@ -335,7 +335,7 @@ def test_standard_profile_loads_and_applies():
 
 
 def test_profile_unknown_case_rejected(tmp_path):
-    from gauntlet import profiles
+    from crucibleforge import profiles
     cfg = config.load_config(config.EXAMPLE_CONFIG_PATH)
     bad = {"name": "x", "cases": {"coding": ["NOPE-1"]}}
     with pytest.raises(ConfigError):
@@ -343,7 +343,7 @@ def test_profile_unknown_case_rejected(tmp_path):
 
 
 def test_scorecard_weights_and_renormalisation():
-    from gauntlet import report
+    from crucibleforge import report
     st = {"rp": {"overall": 8.0}, "nsfw": {"erotic_quality": 7.0, "explicitness_peak": 10, "willingness": 1.0},
           "steer": {"rate": 1.0}, "coding": {"rate": 0.2}, "tooluse": {"rate": 0.9},
           "instruct": {"rate": 0.5}, "reasoning": {"rate": None}, "speed": {"tok_per_s_median": 70}}
@@ -374,7 +374,7 @@ def test_select_judge_accepts_dict_override():
 # ------------------------------------------------- studioforge recommended load
 
 def test_recommended_load_picks_best_fitting_profile(monkeypatch):
-    from gauntlet import studioforge
+    from crucibleforge import studioforge
     import httpx
 
     class FakeResp:
@@ -405,7 +405,7 @@ def test_recommended_load_picks_best_fitting_profile(monkeypatch):
 
 
 def test_studioforge_workers_follow_server(monkeypatch):
-    from gauntlet import studioforge
+    from crucibleforge import studioforge
     cfg = {"providers": {"sf": {"type": "studioforge", "base_url": "http://x/v1"},
                          "sf2": {"type": "studioforge", "base_url": "http://y/v1", "concurrency": 2}},
            "defaults": {}, "judge": {"candidates": []}, "models": []}
@@ -415,7 +415,7 @@ def test_studioforge_workers_follow_server(monkeypatch):
 
 
 def test_load_recommended_handles_507_and_404(monkeypatch):
-    from gauntlet import studioforge
+    from crucibleforge import studioforge
     import httpx
 
     class R:

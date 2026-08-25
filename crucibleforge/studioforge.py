@@ -59,7 +59,7 @@ STATUS_ERROR_TOLERANCE = 3
 DEFAULT_WAIT_BUSY_S = 600.0
 # Lease defaults: holder name the rig shows, and a safety TTL so a crashed
 # client cannot hold the cards forever (the keepalive touches it meanwhile).
-LEASE_HOLDER = "gauntlet"
+LEASE_HOLDER = "crucibleforge"
 LEASE_IDLE_TTL_S = 7200.0
 
 

@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased — renamed to CrucibleForge
+
+The project is now **CrucibleForge** (was Gauntlet), matching the StudioForge /
+ClawForge naming on this fleet. Package `crucibleforge`, CLI verb
+`crucibleforge`, env vars `CRUCIBLEFORGE_CONFIG` / `CRUCIBLEFORGE_RESULTS` /
+`CRUCIBLEFORGE_ENV_FILE`, GUI token header `X-CrucibleForge-Token`, and the
+StudioForge GPU **lease holder string is now `crucibleforge`**. Out-of-repo
+co-tenants that yield to the lease (`an hourly image job`) recognise both the new and the
+old holder so an in-flight lease is never left unrecognised. Historical run
+logs and `results/` rows keep their original wording.
+
 ## Unreleased — lease hardening from the 2026-08-23/24 campaigns
 
 Field fixes on top of 3.2.0, all found by running real campaigns against the
@@ -41,7 +52,7 @@ finding adversarially verified — 39 confirmed) plus the rig's own
 
 - **Rig etiquette / GPU leases** (`studioforge.py`, `providers.py`): with
   `lease: true` a run takes `POST /api/leases` on the configured cards (holder
-  `gauntlet`) for the benched model and again for the judge, keeps it alive,
+  `crucibleforge`) for the benched model and again for the judge, keeps it alive,
   releases it on exit; busy residents are *waited for* (`wait_busy_s`), never
   evicted, never `force`d (the old client unloaded everything and sent
   `force: true` — the one client on the box that could rip a family bot's
@@ -54,7 +65,7 @@ finding adversarially verified — 39 confirmed) plus the rig's own
   `devices`. Eviction detection: `is_loaded()` compares the live plan (slots,
   ctx, devices) with the one the run loaded. `wait_ready()` tolerates
   transient status errors and gives up after 60 s when the model never
-  appears. `gauntlet status` prints residents + leases.
+  appears. `crucibleforge status` prints residents + leases.
 - **Runner**: a recovered TOOL CALL counts as recovered; a failed recovery
   request keeps the honest first result and does not count toward the
   transport-abort; every attempt is billed on the row (cost/tokens);
@@ -66,7 +77,7 @@ finding adversarially verified — 39 confirmed) plus the rig's own
   (finish=length): 9 of dark-scarlett's 51 coding "passes" were code dug out of
   100k chars of cut-off chain-of-thought that no user ever received. The
   registry/live context mismatch is detected and long-context cases skipped
-  honestly. `gauntlet recover` re-runs each (run, case, repeat) triple, logs
+  honestly. `crucibleforge recover` re-runs each (run, case, repeat) triple, logs
   unselectable jobs, never rewrites the run's meta (appends `recovered`).
 - **Judge**: per-row isolation (`RequestRejected`/`GenerationRejected` → a
   failed verdict without a reload; any other error → counted `errored`, row
@@ -100,8 +111,8 @@ Root-cause fixes from the first full-board campaign (seven 251-case runs).
   budget: `chat_template_kwargs: {enable_thinking: false}`, then a
   continuation of the truncated reasoning. Rows record `reasoning_overflow` +
   `recovery` (mode, attempts, first-attempt cost); the report counts them.
-  New `gauntlet recover` re-runs only those rows of existing transcripts
-  (same `bench_run_id`, so they supersede) ready for `gauntlet judge`.
+  New `crucibleforge recover` re-runs only those rows of existing transcripts
+  (same `bench_run_id`, so they supersede) ready for `crucibleforge judge`.
 - **Per-case failure isolation**: llama-server 500 "Failed to parse tool call
   arguments" (the model's own malformed output) is `GenerationRejected` — not
   retried, scored as that case failing; other transport errors write an error
@@ -144,10 +155,10 @@ Rebuilt from the v2.2 `bench` tool as a publishable, provider-agnostic module.
   cents/date precision, id reuse), 5 multi-constraint instruct cases, and a
   generated 12k–24k-token long-context tier (NIAH grid, multi-key, multi-hop,
   aggregation, counting, needle-absent) with `min_context` skipping.
-- **Case verifier** (`gauntlet cases verify`, also in tests): reference
+- **Case verifier** (`crucibleforge cases verify`, also in tests): reference
   solutions executed in the sandbox, gold answers re-derived from `verify`
   expressions, generated haystacks checked.
-- **Web GUI** (`gauntlet gui`): dashboard, run control with live log and
+- **Web GUI** (`crucibleforge gui`): dashboard, run control with live log and
   stop, report view, per-row drill-down, provider/model/judge management,
   model discovery, connection tests. Stdlib server, vanilla JS, no CDN;
   token auth required off-loopback, same-origin POSTs.

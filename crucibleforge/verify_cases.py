@@ -1,6 +1,6 @@
 """Static verification of the case set — runs offline, no model needed.
 
-`gauntlet cases verify` (also run by the test-suite) checks every case for:
+`crucibleforge cases verify` (also run by the test-suite) checks every case for:
 - required fields per grader / rubric, valid difficulty, unique ids;
 - ``python_exec`` cases: the bundled ``reference`` solution (when present)
   passes the case's own tests inside the real sandbox — so a typo in a test

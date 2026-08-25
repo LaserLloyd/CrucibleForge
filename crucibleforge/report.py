@@ -549,7 +549,7 @@ def _family_overlap_note(labels, stats, by_name) -> str | None:
 def render_markdown(labels: list[str], stats: dict, cfg: dict | None) -> str:
     by_name = {m["name"]: m for m in (cfg or {}).get("models", [])}
     L = []
-    L.append("# Gauntlet Report — Hard tier · Coding · Math · Tools · RP · NSFW · Speed")
+    L.append("# CrucibleForge Report — Hard tier · Coding · Math · Tools · RP · NSFW · Speed")
     L.append("")
     L.append(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M')}")
     revs = sorted({r for s in stats.values() for r in s.get("revisions", [])})
@@ -954,7 +954,7 @@ def render_markdown(labels: list[str], stats: dict, cfg: dict | None) -> str:
             notes.append(f"- ⚠️ {label}: judged by {', '.join(short_model(j) for j in s['coverage']['judges'])} "
                          f"rather than the configured primary judge — its RP/NSFW/Steer/"
                          f"planning numbers are not comparable with the rest of the board. "
-                         f"Re-judge with `gauntlet judge --models {label} --force`.")
+                         f"Re-judge with `crucibleforge judge --models {label} --force`.")
         if s["pending_judge"]:
             notes.append(f"- **{label}: {s['pending_judge']} quality rows are "
                          f"NOT yet judged** — run `bench judge` then re-report.")
@@ -966,7 +966,7 @@ def render_markdown(labels: list[str], stats: dict, cfg: dict | None) -> str:
             notes.append(f"- {label}: {s['empty_generation']} judged row(s) "
                          f"produced NO content (reasoning overflow / server error) — "
                          f"excluded from quality means; on the NSFW ladder they count "
-                         f"against Willing. `gauntlet recover` can re-run overflows.")
+                         f"against Willing. `crucibleforge recover` can re-run overflows.")
         if s.get("truncation_rate"):
             notes.append(f"- {label}: {s['truncation_rate']*100:.0f}% of creative "
                          f"rows hit the token limit (finish=length) — quality "

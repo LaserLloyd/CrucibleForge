@@ -1,12 +1,12 @@
-"""Gauntlet 3.2.0 — rig etiquette, leases, honest reporting (swarm review
+"""CrucibleForge 3.2.0 — rig etiquette, leases, honest reporting (swarm review
 2026-08-22, 39 verified findings). No network: every StudioForge call is
 stubbed at the module boundary."""
 import json
 
 import pytest
 
-from gauntlet import api, config, judge, providers, report, runner, studioforge
-from gauntlet.api import ChatResult, RequestRejected, TransportError, VramContention
+from crucibleforge import api, config, judge, providers, report, runner, studioforge
+from crucibleforge.api import ChatResult, RequestRejected, TransportError, VramContention
 
 
 # ------------------------------------------------------------------ api
@@ -186,19 +186,19 @@ def test_acquire_lease_403_is_final(monkeypatch):
 
 def _sf_cfg(**extra):
     return {"providers": {"sf": {"type": "studioforge", "base_url": "http://x/v1",
-                                 "headers": {"X-MCP-Pin": "${GAUNTLET_TEST_PIN}"}, **extra}},
+                                 "headers": {"X-MCP-Pin": "${CRUCIBLEFORGE_TEST_PIN}"}, **extra}},
             "defaults": {}, "judge": {"candidates": []}, "models": []}
 
 
 def test_provider_expands_env_in_headers(monkeypatch):
-    monkeypatch.setenv("GAUNTLET_TEST_PIN", "secret-pin")
+    monkeypatch.setenv("CRUCIBLEFORGE_TEST_PIN", "secret-pin")
     p = providers.get_provider(_sf_cfg(), "sf")
     assert p.headers["X-MCP-Pin"] == "secret-pin"
     assert p.mgmt_headers() == {"X-MCP-Pin": "secret-pin"}
 
 
 def test_switch_model_takes_a_lease_releases_it_and_never_unloads_all(monkeypatch):
-    monkeypatch.setenv("GAUNTLET_TEST_PIN", "pin")
+    monkeypatch.setenv("CRUCIBLEFORGE_TEST_PIN", "pin")
     p = providers.get_provider(_sf_cfg(lease=True, lease_devices=[0, 1]), "sf")
     events = []
     monkeypatch.setattr(studioforge, "acquire_lease",
@@ -217,7 +217,7 @@ def test_switch_model_takes_a_lease_releases_it_and_never_unloads_all(monkeypatc
                                          "devices": [0, 1]})
     monkeypatch.setattr(providers.atexit, "register", lambda f: None)
     p.switch_model("m1", 32768)
-    assert ("acquire", ["m1"], "gauntlet benchmark: m1") in events
+    assert ("acquire", ["m1"], "crucibleforge benchmark: m1") in events
     # the lease names the model; the load itself goes through load-recommended
     assert ("load_model", "m1", 32768) in events and ("unload_all",) not in events
     assert p.live_context("m1") == 32768 and p.loaded_plan_for("m1")["parallel"] == 2
@@ -231,7 +231,7 @@ def test_switch_model_takes_a_lease_releases_it_and_never_unloads_all(monkeypatc
 def test_lease_that_never_loads_the_model_falls_through_to_load_recommended(monkeypatch):
     """A lease can stand with nothing loaded (its load failed silently behind
     a foreign VRAM holder) — the explicit load then gives a structured answer."""
-    monkeypatch.setenv("GAUNTLET_TEST_PIN", "pin")
+    monkeypatch.setenv("CRUCIBLEFORGE_TEST_PIN", "pin")
     p = providers.get_provider(_sf_cfg(lease=True, lease_devices=[0]), "sf")
     calls = []
     monkeypatch.setattr(studioforge, "acquire_lease", lambda *a, **k: {"_lease_id": "L"})

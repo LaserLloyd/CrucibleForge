@@ -1,8 +1,8 @@
 """Pre-flight (provider data-channel probe) — no network."""
 import pytest
 
-from gauntlet import preflight, providers
-from gauntlet.api import TransportError
+from crucibleforge import preflight, providers
+from crucibleforge.api import TransportError
 
 
 def _cfg():
@@ -73,7 +73,7 @@ def test_probe_passes_on_second_try(monkeypatch):
 
 
 def test_studioforge_probes_smallest(monkeypatch):
-    from gauntlet import studioforge
+    from crucibleforge import studioforge
     monkeypatch.setattr(providers.Provider, "alive", lambda self: True)
     monkeypatch.setattr(studioforge, "list_models_full", lambda b, k: [
         {"id": "big", "studioforge": {"size_bytes": 30, "kind": "llm"}},

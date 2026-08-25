@@ -2,7 +2,7 @@
 """clawforge_comfy.py <free_vram|stop|start|restart|status> [--url URL]
 
 Drive ClawForge's ComfyUI (a FOREIGN VRAM holder a StudioForge lease cannot
-evict) before/after a Gauntlet phase. `free_vram` unloads its models but
+evict) before/after a CrucibleForge phase. `free_vram` unloads its models but
 leaves it running — ClawForge's own recommendation "before running another
 GPU job". Exit 0 on success, 2 on a tool error, 3 when the MCP endpoint is
 unreachable (not fatal for a benchmark: the lease path reports the real
@@ -39,7 +39,7 @@ def main(argv):
     try:
         _, sid = _post(url, {"jsonrpc": "2.0", "id": 1, "method": "initialize",
                              "params": {"protocolVersion": "2025-03-26", "capabilities": {},
-                                        "clientInfo": {"name": "gauntlet", "version": "3.2"}}})
+                                        "clientInfo": {"name": "crucibleforge", "version": "3.2"}}})
         tool = "comfy_status" if action == "status" else "comfy_control"
         args = {} if action == "status" else {"action": action}
         res, _ = _post(url, {"jsonrpc": "2.0", "id": 2, "method": "tools/call",

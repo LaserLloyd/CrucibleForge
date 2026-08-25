@@ -1,12 +1,12 @@
-"""gauntlet CLI — status / run / judge / report / pairwise / all / gui / config
+"""crucibleforge CLI — status / run / judge / report / pairwise / all / gui / config
 / import-openclaw / models / cases.
 
-    gauntlet status
-    gauntlet all --smoke --models a,b --yes            # quick end-to-end
-    gauntlet run --models deepseek-flash --categories math,coding --difficulty hard
-    gauntlet judge --judge deepseek:deepseek-v4-flash   # judge on a remote model
-    gauntlet report
-    gauntlet gui                                       # http://127.0.0.1:8777
+    crucibleforge status
+    crucibleforge all --smoke --models a,b --yes            # quick end-to-end
+    crucibleforge run --models deepseek-flash --categories math,coding --difficulty hard
+    crucibleforge judge --judge deepseek:deepseek-v4-flash   # judge on a remote model
+    crucibleforge report
+    crucibleforge gui                                       # http://127.0.0.1:8777
 
 Shared-server etiquette (LM Studio): the bench unloads whatever the local
 server is serving. It snapshots the loaded model at start and restores it at
@@ -26,7 +26,7 @@ from .config import (CATEGORIES, ConfigError, EXAMPLE_CONFIG_PATH,
                      USER_CONFIG_PATH, load_cases, load_config, resolve_models,
                      results_dir)
 
-log = logging.getLogger("gauntlet")
+log = logging.getLogger("crucibleforge")
 
 
 def setup_logging(log_path: Path | None = None):
@@ -121,7 +121,7 @@ def cmd_status(args, cfg):
     from .version import revision
     print(f"config: {cfg.get('_path')}   results: {results_dir()}")
     if cfg.get("_upgraded_from_v2"):
-        print("  (v2 registry auto-upgraded in memory — run `gauntlet config --upgrade` to rewrite it)")
+        print("  (v2 registry auto-upgraded in memory — run `crucibleforge config --upgrade` to rewrite it)")
     print(f"suite revision: {revision(cfg)}")
     floor = cfg["defaults"].get("min_tok_per_s", 0)
     print(f"viability floor: {floor} tok/s (abort a model slower than this)"
@@ -272,7 +272,7 @@ def _print_run_summary(summary: dict) -> None:
 def cmd_recover(args, cfg):
     """Re-run only the reasoning-overflow rows (finish=length, no content) of
     existing transcripts through the answer-recovery ladder, then re-judge
-    them with `gauntlet judge`. Rows are re-written under their original
+    them with `crucibleforge judge`. Rows are re-written under their original
     bench_run_id so they supersede the empty ones; nothing is deleted."""
     from .runner import recover_models, overflow_jobs
     from .config import load_transcripts
@@ -303,8 +303,8 @@ def cmd_recover(args, cfg):
         guard.restore()
     print("\nrecover summary:")
     _print_run_summary(summary)
-    print("recovered rows carry no judge verdict — run `gauntlet judge --models "
-          f"{args.models}` (same --judge) to score them, then `gauntlet report`.")
+    print("recovered rows carry no judge verdict — run `crucibleforge judge --models "
+          f"{args.models}` (same --judge) to score them, then `crucibleforge report`.")
     return _run_rc(summary, [e["name"] for e in entries if todo.get(e["name"])])
 
 
@@ -379,7 +379,7 @@ def cmd_config(args, cfg_or_none):
             raise SystemExit(f"{dest} already exists — refusing to overwrite")
         dest.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy(EXAMPLE_CONFIG_PATH, dest)
-        print(f"wrote {dest} — edit providers/models, then `gauntlet status`")
+        print(f"wrote {dest} — edit providers/models, then `crucibleforge status`")
         return 0
     if args.upgrade:
         cfg = load_config(args.config)
@@ -466,8 +466,8 @@ def cmd_cases(args, cfg):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(
-        prog="gauntlet",
-        description="Gauntlet — LLM capability benchmark (hard tier, deterministic "
+        prog="crucibleforge",
+        description="CrucibleForge — LLM capability benchmark (hard tier, deterministic "
                     "graders, local or remote judge, web GUI)")
     parser.add_argument("--config", default=None, help="path to models.yaml")
     parser.add_argument("--results", default=None,
@@ -582,7 +582,7 @@ def main(argv=None):
         sys.exit(cmd_config(args, None) or 0)
 
     if args.results:
-        os.environ["GAUNTLET_RESULTS"] = args.results
+        os.environ["CRUCIBLEFORGE_RESULTS"] = args.results
         from .config import set_results_dir
         set_results_dir(Path(args.results))
     try:
@@ -594,7 +594,7 @@ def main(argv=None):
     if args.results:
         from .config import set_results_dir
         set_results_dir(Path(args.results))
-    setup_logging(results_dir() / "gauntlet.log")
+    setup_logging(results_dir() / "crucibleforge.log")
     # a SIGTERM (queue script killed, `pkill`) must still release the GPU
     # lease and restore residents: turn it into SystemExit so the `finally`
     # blocks and atexit handlers run instead of the process just vanishing

@@ -6,7 +6,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from gauntlet import graders, judge, pairwise, config, report
+from crucibleforge import graders, judge, pairwise, config, report
 
 
 # ------------------------------------------------------- pairwise Bradley-Terry
@@ -352,7 +352,7 @@ def test_report_planning_table(tmp_path, monkeypatch):
 
 
 def test_revision_changes_with_cases():
-    from gauntlet import version
+    from crucibleforge import version
     r1 = version.revision()
     assert version.SUITE_VERSION in r1 and "+" in r1
     # hash is stable across calls
@@ -363,7 +363,7 @@ def test_revision_tracks_cases_and_judge_separately():
     # The revision stamps the TEST SET; the judge is fingerprinted on its own
     # (a fallback candidate's context window must not relabel every result
     # stale, and the judge that scored a row is compared per row instead).
-    from gauntlet import version
+    from crucibleforge import version
     rev = version.revision({"judge": {"candidates": [{"provider": "a", "model_id": "A"}]}})
     assert rev == version.revision({"judge": {"candidates": [{"provider": "b", "model_id": "B"}]}})
     fa = version.judge_fingerprint({"judge": {"candidates": [{"provider": "a", "model_id": "A"}]}})

@@ -3,10 +3,10 @@ files, result paths.
 
 Config search order (first hit wins):
   1. ``--config PATH`` on the CLI / ``config_path`` argument
-  2. ``$GAUNTLET_CONFIG``
+  2. ``$CRUCIBLEFORGE_CONFIG``
   3. ``./models.yaml`` (current working directory)
   4. ``<repo>/models.yaml`` (next to this package — the dev checkout)
-  5. ``~/.config/gauntlet/models.yaml``
+  5. ``~/.config/crucibleforge/models.yaml``
 
 Schema (v3):
 
@@ -29,7 +29,7 @@ servers that want a placeholder token (LM Studio's ``lm-studio``).
 
 The v2 shape (``endpoint:`` + ``endpoint.rig`` + per-model ``studioforge:``
 blocks) is upgraded in memory by ``upgrade_legacy`` so old registries keep
-working; ``gauntlet config --upgrade`` writes the new shape out.
+working; ``crucibleforge config --upgrade`` writes the new shape out.
 """
 from __future__ import annotations
 
@@ -45,11 +45,11 @@ CASES_DIR = ROOT_DIR / "cases"
 DEFAULT_CONFIG_PATH = ROOT_DIR / "models.yaml"
 EXAMPLE_CONFIG_PATH = ROOT_DIR / "models.example.yaml"
 USER_CONFIG_PATH = Path(os.environ.get("XDG_CONFIG_HOME",
-                                        Path.home() / ".config")) / "gauntlet" / "models.yaml"
+                                        Path.home() / ".config")) / "crucibleforge" / "models.yaml"
 
 # Results dir: next to the config file by default (``<config dir>/results``),
-# overridable with $GAUNTLET_RESULTS. Set once per process by ``load_config``.
-RESULTS_DIR = Path(os.environ.get("GAUNTLET_RESULTS", ROOT_DIR / "results"))
+# overridable with $CRUCIBLEFORGE_RESULTS. Set once per process by ``load_config``.
+RESULTS_DIR = Path(os.environ.get("CRUCIBLEFORGE_RESULTS", ROOT_DIR / "results"))
 
 CATEGORIES = ["perf", "rp", "nsfw", "coding", "tooluse", "instruct",
               "reasoning", "math", "steer", "overrefusal", "longctx", "planning"]
@@ -82,18 +82,18 @@ def find_config_path(explicit: str | os.PathLike | None = None) -> Path:
         if not p.exists():
             raise ConfigError(f"config not found: {p}")
         return p
-    env = os.environ.get("GAUNTLET_CONFIG")
+    env = os.environ.get("CRUCIBLEFORGE_CONFIG")
     if env:
         p = Path(env).expanduser()
         if not p.exists():
-            raise ConfigError(f"$GAUNTLET_CONFIG points at a missing file: {p}")
+            raise ConfigError(f"$CRUCIBLEFORGE_CONFIG points at a missing file: {p}")
         return p
     for cand in (Path.cwd() / "models.yaml", DEFAULT_CONFIG_PATH, USER_CONFIG_PATH):
         if cand.exists():
             return cand
     raise ConfigError(
         "no models.yaml found. Copy models.example.yaml to ./models.yaml (or "
-        f"{USER_CONFIG_PATH}), or run `gauntlet config --init`.")
+        f"{USER_CONFIG_PATH}), or run `crucibleforge config --init`.")
 
 
 def set_results_dir(path: Path) -> None:
@@ -198,7 +198,7 @@ def load_config(path: str | os.PathLike | None = None) -> dict:
     validate_config(cfg)
     cfg["_path"] = str(p)
     # results live next to the config unless overridden
-    if not os.environ.get("GAUNTLET_RESULTS"):
+    if not os.environ.get("CRUCIBLEFORGE_RESULTS"):
         set_results_dir(p.parent / "results")
     return cfg
 

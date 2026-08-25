@@ -4,8 +4,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from gauntlet import graders
-from gauntlet.api import ChatResult
+from crucibleforge import graders
+from crucibleforge.api import ChatResult
 
 
 # ---------------------------------------------------------- code extraction

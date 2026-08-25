@@ -423,7 +423,7 @@ def _load_judge(cfg: dict, benched_model_ids: set[str], rows: int, samples: int,
             f"after {len(retry_s) + 1} attempts ({type(last_err).__name__}: "
             f"{str(last_err)[:200]}). Not switching judges — scores from a different "
             f"judge are not comparable. Free VRAM on the judge server and re-run "
-            f"`gauntlet judge`, or pass --judge-fallback to allow the next candidate.")
+            f"`crucibleforge judge`, or pass --judge-fallback to allow the next candidate.")
     raise JudgeError(
         "no usable judge: every candidate failed to load ("
         + ", ".join(failures)
@@ -902,7 +902,7 @@ def _apply_reference_grade(row: dict, verdict: dict) -> None:
     """A reference-graded row's objective grade is decided by the judge's
     ``correct`` flag: pass/fail. An EMPTY model answer is a fail; a judge
     that could not produce a verdict leaves the row PENDING (grade
-    'pending', no ``judge`` key) so the next ``gauntlet judge`` retries it —
+    'pending', no ``judge`` key) so the next ``crucibleforge judge`` retries it —
     a judge hiccup must not lower the model's Hard %."""
     if row.get("rubric") != "reference":
         return

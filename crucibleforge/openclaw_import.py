@@ -2,7 +2,7 @@
 
 OpenClaw's ``models.providers`` are OpenAI-compatible endpoints with
 ``${ENV_VAR}`` API-key references and per-model cost metadata — exactly the
-shape Gauntlet's registry wants. This maps:
+shape CrucibleForge's registry wants. This maps:
 
     providers.<name>.baseUrl            -> providers.<name>.base_url
     providers.<name>.apiKey "${X}"      -> providers.<name>.api_key_env: X
@@ -12,7 +12,7 @@ shape Gauntlet's registry wants. This maps:
 
 Only ``api: openai-completions`` providers are imported. Literal API keys are
 never copied (the value stays in OpenClaw's env; you export the same variable
-for Gauntlet). Nothing is written unless the caller saves the config.
+for CrucibleForge). Nothing is written unless the caller saves the config.
 """
 from __future__ import annotations
 

@@ -1,6 +1,6 @@
 """Provider abstraction: where a model is served and how it is managed.
 
-Three provider types cover every backend Gauntlet talks to:
+Three provider types cover every backend CrucibleForge talks to:
 
 - ``openai`` — any OpenAI-compatible ``/chat/completions`` server that needs no
   load management: DeepSeek, OpenRouter, OpenAI, Groq, Together, Mistral,
@@ -200,7 +200,7 @@ class Provider:
             try:
                 lease = studioforge.acquire_lease(
                     self.base_url, self.api_key, hdrs, devices, model_ids=[model_id],
-                    reason=f"gauntlet benchmark: {model_id.rsplit('/', 1)[-1]}",
+                    reason=f"crucibleforge benchmark: {model_id.rsplit('/', 1)[-1]}",
                     idle_ttl_s=self.lease_idle_ttl_s, wait_busy_s=self.wait_busy_s)
             except studioforge.StudioForgeError as e:
                 if e.status in (401, 403, 404, 405):
@@ -251,7 +251,7 @@ class Provider:
                 studioforge.touch_lease(self.base_url, self.api_key, self.mgmt_headers(),
                                         lease["_lease_id"])
 
-        self._keepalive = threading.Thread(target=_loop, name="gauntlet-lease-keepalive",
+        self._keepalive = threading.Thread(target=_loop, name="crucibleforge-lease-keepalive",
                                            daemon=True)
         self._keepalive.start()
 

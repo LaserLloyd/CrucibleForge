@@ -1,4 +1,4 @@
-"""HTTP server for the Gauntlet GUI (stdlib only).
+"""HTTP server for the CrucibleForge GUI (stdlib only).
 
 Endpoints (JSON unless noted):
   GET  /                      index.html
@@ -26,7 +26,7 @@ Endpoints (JSON unless noted):
 Security: loopback binding needs no token unless --token is given; any other
 host REQUIRES a token (auto-generated when omitted). The token is presented
 once as ?token= (sets an HttpOnly SameSite=Strict cookie) or as the
-X-Gauntlet-Token header. State-changing POSTs additionally require a
+X-CrucibleForge-Token header. State-changing POSTs additionally require a
 same-origin request (Sec-Fetch-Site / Origin) — fail closed.
 """
 from __future__ import annotations
@@ -51,7 +51,7 @@ from .. import config as cfgmod
 from ..config import ConfigError, load_cases, load_config, resolve_models, save_config
 from .markdown import md_to_html
 
-log = logging.getLogger("gauntlet.gui")
+log = logging.getLogger("crucibleforge.gui")
 STATIC_DIR = Path(__file__).parent / "static"
 
 
@@ -127,7 +127,7 @@ class Job:
                 finally:
                     self.finished = time.time()
 
-            self.thread = threading.Thread(target=_wrap, name=f"gauntlet-{kind}", daemon=True)
+            self.thread = threading.Thread(target=_wrap, name=f"crucibleforge-{kind}", daemon=True)
             self.thread.start()
 
 
@@ -230,7 +230,7 @@ def _json_bytes(obj) -> bytes:
 
 class Handler(BaseHTTPRequestHandler):
     app: App = None  # set by serve()
-    server_version = "gauntlet-gui/3"
+    server_version = "crucibleforge-gui/3"
 
     def log_message(self, fmt, *args):  # quiet access log → debug
         log.debug("http " + fmt, *args)
@@ -259,7 +259,7 @@ class Handler(BaseHTTPRequestHandler):
         raw = self.headers.get("Cookie", "")
         for part in raw.split(";"):
             k, _, v = part.strip().partition("=")
-            if k == "gauntlet_token":
+            if k == "crucibleforge_token":
                 return v
         return None
 
@@ -267,7 +267,7 @@ class Handler(BaseHTTPRequestHandler):
         tok = self.app.token
         if not tok:
             return True
-        cand = (self.headers.get("X-Gauntlet-Token") or self._cookie_token()
+        cand = (self.headers.get("X-CrucibleForge-Token") or self._cookie_token()
                 or (query.get("token") or [None])[0])
         return bool(cand) and hmac.compare_digest(str(cand), tok)
 
@@ -281,7 +281,7 @@ class Handler(BaseHTTPRequestHandler):
         if origin:
             return urlparse(origin).netloc == host
         # non-browser client with the token header: allow
-        return bool(self.headers.get("X-Gauntlet-Token"))
+        return bool(self.headers.get("X-CrucibleForge-Token"))
 
     def _read_json(self) -> dict:
         n = int(self.headers.get("Content-Length") or 0)
@@ -300,11 +300,11 @@ class Handler(BaseHTTPRequestHandler):
         path = u.path
         if path == "/" or path == "/index.html":
             if not self._authed(q):
-                return self._send(401, b"<h1>401</h1><p>Open the URL printed by <code>gauntlet gui</code> (it carries the access token).</p>",
+                return self._send(401, b"<h1>401</h1><p>Open the URL printed by <code>crucibleforge gui</code> (it carries the access token).</p>",
                                   "text/html; charset=utf-8")
             extra = {}
             if self.app.token and q.get("token"):
-                extra["Set-Cookie"] = ("gauntlet_token=" + self.app.token +
+                extra["Set-Cookie"] = ("crucibleforge_token=" + self.app.token +
                                        "; HttpOnly; SameSite=Strict; Path=/")
             body = (STATIC_DIR / "index.html").read_bytes()
             return self._send(200, body, "text/html; charset=utf-8", extra)
@@ -669,7 +669,7 @@ def serve(cfg_path: str | None, host: str = "127.0.0.1", port: int = 8777,
     url = f"http://{host if host != '0.0.0.0' else '127.0.0.1'}:{port}/"
     if token:
         url += f"?token={token}"
-    print(f"Gauntlet GUI: {url}")
+    print(f"CrucibleForge GUI: {url}")
     print(f"config: {app.cfg.get('_path')}   results: {cfgmod.results_dir()}")
     if open_browser and loopback:
         try:

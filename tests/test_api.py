@@ -11,7 +11,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import json
 import pytest
 
-from gauntlet import api
+from crucibleforge import api
 
 
 class _FakeResponse:
