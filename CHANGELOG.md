@@ -1,5 +1,38 @@
 # Changelog
 
+## Unreleased — lease hardening from the 2026-08-23/24 campaigns
+
+Field fixes on top of 3.2.0, all found by running real campaigns against the
+rig while other tenants were on it. Version string stays 3.2.0 (no release).
+
+- **Lease takes the placement, not just the cards** (`studioforge.py`): the
+  lease itself sizes a model at `parallel=1`, so after acquiring it the run
+  re-plans through `POST /api/models/<id>/load-recommended` — otherwise every
+  leased run benchmarked a 1-slot serial placement and the concurrency the
+  provider advertises never happened. Lease loads are silent (no duplicate
+  progress lines).
+- **`load-recommended` is satisfied by a bad resident.** It treats "already
+  loaded at that context" as done and returns the *existing* plan, so a
+  leftover JIT load (serial, on the slow cards) survived into a full
+  benchmark run on 2026-08-24. A degenerate resident (1 slot / short context)
+  is now unloaded first so the server re-plans it.
+- **A pinned idle resident blocks the lease**: retried with `force: true`
+  only in that case — the rig's pin reconciler restores the pinned model
+  after the lease is released. Busy residents are still never forced.
+- **Restore** unloads what the run loaded before reloading the prior
+  residents, instead of asking the rig to hold both at once.
+- **SIGTERM releases the lease.** A killed queue used to leave the cards held
+  until the TTL expired.
+- **`answered_in_reasoning`**: a tool call with empty `content` is an answer,
+  not a misrouted reply — this was stamping false "read from reasoning" notes
+  on perfectly good tool-use rows.
+- `scripts/clawforge_comfy.py`: free rig VRAM (ComfyUI) before a phase.
+- `scripts/queue-overnight.sh`: the reference campaign wrapper (flock on
+  `results/.rig.lock`, env sourced in-shell for the lease PIN, run→judge per
+  model, one report, rc checked per phase).
+- Docs: README case counts corrected to the real 251 / 158 hard and the
+  56-case `standard` profile.
+
 ## 3.2.0 — 2026-08-22 (evening)
 
 Second revision from the campaign postmortem: a swarm review (5 lenses, every
