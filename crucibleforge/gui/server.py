@@ -370,7 +370,7 @@ class Handler(BaseHTTPRequestHandler):
             p = cfgmod.results_dir() / "report.md"
             if not p.exists():
                 return self._json({"md": "", "html": "<p class='muted'>No report yet — run a benchmark.</p>"})
-            md = p.read_text()
+            md = p.read_text(encoding="utf-8")
             return self._json({"md": md, "html": md_to_html(md),
                                "mtime": p.stat().st_mtime})
         if path == "/api/report.json":
@@ -378,7 +378,7 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(200, p.read_bytes() if p.exists() else b"{}")
         if path == "/api/pairwise":
             p = cfgmod.results_dir() / "pairwise.md"
-            md = p.read_text() if p.exists() else ""
+            md = p.read_text(encoding="utf-8") if p.exists() else ""
             return self._json({"md": md, "html": md_to_html(md) if md else ""})
         if path == "/api/rows":
             from ..config import load_transcripts
@@ -521,7 +521,8 @@ class Handler(BaseHTTPRequestHandler):
                 from ..pairwise import run_pairwise, render_pairwise_md
                 res = run_pairwise(cfg, models, cats, judge_override=data.get("judge") or None,
                                    stop=JOB.stop_event)
-                (cfgmod.results_dir() / "pairwise.md").write_text(render_pairwise_md(res))
+                (cfgmod.results_dir() / "pairwise.md").write_text(render_pairwise_md(res),
+                                                                  encoding="utf-8")
                 return {"pairwise": {"n_pairings": res.get("n_pairings")}}
             JOB.start("pairwise", _do)
             return self._json({"ok": True, "job": JOB.status()})

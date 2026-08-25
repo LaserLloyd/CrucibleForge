@@ -55,7 +55,7 @@ def load_profile(name: str, cfg: dict | None = None) -> dict:
     for d in _dirs(cfg):
         p = d / f"{name}.yaml"
         if p.exists():
-            prof = yaml.safe_load(p.read_text()) or {}
+            prof = yaml.safe_load(p.read_text(encoding="utf-8")) or {}
             prof.setdefault("name", name)
             prof["_path"] = str(p)
             if not isinstance(prof.get("cases"), dict) or not prof["cases"]:

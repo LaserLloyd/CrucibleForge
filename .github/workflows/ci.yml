@@ -31,12 +31,21 @@ jobs:
       # fetch-depth: 0 because the commit-range step below needs the PR's base
       # commit, and the default shallow clone does not contain it — the scan
       # then fails with "unknown revision" on every pull request.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
       - name: Scan the tree
         run: python3 scripts/scrub_check.py
-      - name: Scan the commits being pushed
+      - name: Scan the TREE of every commit in the pull request
+        if: github.event_name == 'pull_request'
+        # Not just the head: a secret added in one commit and removed in the
+        # next still publishes, and a head-only scan calls that clean.
+        run: |
+          for sha in $(git rev-list --reverse \
+              "${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}"); do
+            python3 scripts/scrub_check.py --rev "$sha"
+          done
+      - name: Scan the commit messages being pushed
         if: github.event_name == 'pull_request'
         run: |
           python3 scripts/scrub_check.py --commit-range \
@@ -56,13 +65,20 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Install uv
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@v10
         with:
           enable-cache: true
       - name: Sync
         run: uv sync --all-extras --dev
+      # Linux gets a REAL sandbox rather than an opt-out. The runner image does
+      # not ship bubblewrap, and without it the coding graders refuse to run —
+      # which is the correct behaviour, and not something to paper over with
+      # the escape hatch when a two-second install gives real isolation.
+      - name: Install bubblewrap (the sandbox the graders require)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq bubblewrap
       - name: Tests
         run: uv run pytest -q
       # The gold answers are not taken on trust: every math/reasoning answer is
@@ -70,4 +86,15 @@ jobs:
       # solution is executed against its own tests. A case file edited by hand
       # fails here rather than silently mis-scoring a model.
       - name: Verify every case's gold answer
-        run: uv run crucibleforge cases verify
+        # macOS has no bwrap and never will, so this step executes the repo's
+        # OWN reference solutions unsandboxed — on a disposable runner, with
+        # code that is in this repository and reviewable, not a model's. That
+        # is exactly the deliberate choice --allow-unsandboxed exists for, and
+        # naming it here keeps it visible in the log instead of hidden in a
+        # default. On Linux the flag is absent and the real sandbox is used.
+        run: |
+          if [ "${{ runner.os }}" = "macOS" ]; then
+            uv run crucibleforge --allow-unsandboxed cases verify
+          else
+            uv run crucibleforge cases verify
+          fi

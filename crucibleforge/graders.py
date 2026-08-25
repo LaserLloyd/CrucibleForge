@@ -7,6 +7,7 @@ through here except for the refusal heuristic + prose metrics.
 from __future__ import annotations
 
 import json
+import logging
 import os
 import re
 import shutil
@@ -17,8 +18,59 @@ from pathlib import Path
 
 from .api import strip_thinking_tags
 
+log = logging.getLogger(__name__)
+
 CODE_TIMEOUT_S = 15
 _BWRAP = shutil.which("bwrap")
+
+#: Opt-in, off by default: run model-authored code with NO isolation.
+#: Set by ``--allow-unsandboxed`` (or CRUCIBLEFORGE_ALLOW_UNSANDBOXED=1 for the
+#: GUI and any subprocess). See ``require_sandbox`` for why the default is no.
+ALLOW_UNSANDBOXED = os.environ.get("CRUCIBLEFORGE_ALLOW_UNSANDBOXED", "") == "1"
+#: One warning per process when the opt-in is in force.
+_warned_no_sandbox = False
+
+#: The flag that turns the refusal into a run. Named in every refusal message
+#: so a macOS user is told the way forward rather than just being stopped.
+ALLOW_FLAG = "--allow-unsandboxed"
+
+
+class SandboxUnavailable(RuntimeError):
+    """No bwrap, and the operator has not opted in to running without it."""
+
+
+def sandbox_available() -> bool:
+    return _BWRAP is not None
+
+
+def require_sandbox() -> None:
+    """Refuse to execute model-authored code with no isolation.
+
+    Grading a coding case means running source a language model wrote, on this
+    machine. Under bwrap that is contained: read-only system, private tmpfs
+    home and cwd, no network, no access to the real home directory.
+
+    Without bwrap it is not contained at all — the code can read every file the
+    user can read (SSH keys, browser profiles, ~/.config/secrets) and can reach
+    the network. bwrap is Linux-only, so that is the situation on macOS always,
+    on Windows always, and on any Linux box without bubblewrap installed.
+
+    A warning does not change what runs; it only means the operator finds out
+    afterwards. So the default is to stop, and the escape hatch is explicit:
+    the person who types --allow-unsandboxed has said they are willing to run
+    this model's code as themselves.
+    """
+    if sandbox_available() or ALLOW_UNSANDBOXED:
+        return
+    raise SandboxUnavailable(
+        f"refusing to execute model-authored code without a sandbox.\n"
+        f"  bubblewrap (bwrap) was not found on PATH ({sys.platform}).\n"
+        f"  Graded code would run as you: network reachable, home directory\n"
+        f"  readable. On Linux: install bubblewrap (dnf/apt install bubblewrap).\n"
+        f"  On macOS or Windows there is no sandbox available at all — pass\n"
+        f"  {ALLOW_FLAG} to run anyway, only for models you are\n"
+        f"  willing to execute unsandboxed."
+    )
 # Resolve the venv symlink to the real interpreter + its install root so we can
 # bind them into the sandbox (a uv venv python is a symlink outside /usr).
 _REAL_PY = os.path.realpath(sys.executable)
@@ -160,8 +212,18 @@ def extract_python(text: str) -> str:
 def _sandbox_cmd(script_path: str, workdir: str) -> list[str]:
     """Build the command to run the harness. Under bwrap: read-only system,
     private tmpfs home/cwd, NO network, no access to the real home dir — so a
-    hostile community-model solution can't read secrets or phone home. Falls
-    back to `python -I` if bwrap is unavailable (logged by caller)."""
+    hostile community-model solution can't read secrets or phone home.
+
+    bwrap is Linux-only: on macOS (and any Linux box without bubblewrap
+    installed) there is no bwrap. There used to be a silent fall back to a bare
+    `python -I`, which still executes the model's code — with network access
+    and the real home directory readable — and said nothing in the log. The
+    macOS CI leg and every bwrap-less clone ran untrusted answers that way.
+
+    Now the fallback is refused unless the operator opts in; see
+    ``require_sandbox``. Raises ``SandboxUnavailable`` when it is not allowed,
+    so no code path can reach the unsandboxed interpreter by accident."""
+    global _warned_no_sandbox
     if _BWRAP:
         return [
             _BWRAP, "--unshare-all", "--die-with-parent", "--new-session",
@@ -178,6 +240,13 @@ def _sandbox_cmd(script_path: str, workdir: str) -> list[str]:
             "--setenv", "PATH", "/usr/bin:/bin",
             _REAL_PY, "-I", "/tmp/harness.py",
         ]
+    require_sandbox()
+    if not _warned_no_sandbox:
+        _warned_no_sandbox = True
+        log.warning(
+            "%s is in force: executing model-authored code WITHOUT a sandbox "
+            "on %s. It can reach the network and read your home directory.",
+            ALLOW_FLAG, sys.platform)
     return [sys.executable, "-I", script_path]
 
 
@@ -186,13 +255,17 @@ def grade_python_exec(response_text: str, cfg: dict) -> dict:
     if not code:
         return {"grade": "fail", "detail": "no code in response"}
     harness = _HARNESS.format(solution=code, tests=cfg["tests"])
+    # Before anything is written to disk: a refusal must not look like a
+    # grading result, so it propagates rather than becoming {"grade": "fail"}.
+    require_sandbox()
     with tempfile.TemporaryDirectory(prefix="bench-code-") as td:
         path = Path(td) / "harness.py"
-        path.write_text(harness)
+        path.write_text(harness, encoding="utf-8")
         try:
             proc = subprocess.run(
                 _sandbox_cmd(str(path), td),
-                capture_output=True, text=True, timeout=CODE_TIMEOUT_S, cwd=td)
+                capture_output=True, text=True, encoding="utf-8",
+                errors="replace", timeout=CODE_TIMEOUT_S, cwd=td)
         except subprocess.TimeoutExpired:
             return {"grade": "fail", "detail": f"timeout >{CODE_TIMEOUT_S}s"}
     out = proc.stdout + proc.stderr

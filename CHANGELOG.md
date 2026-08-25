@@ -6,6 +6,28 @@ was ever published as Gauntlet, so there is no migration to do — the entries
 below are kept because the engineering they record is real, not to narrate a
 rename.
 
+## Unreleased — cross-platform correctness and the sandbox default
+
+- **BREAKING (macOS/Windows): grading refuses to run without a sandbox.**
+  `bwrap` is Linux-only, so on macOS — a leg of this project's own CI matrix —
+  and on any Linux box without bubblewrap, every coding case and
+  `cases verify` used to execute model-authored Python with no isolation:
+  network reachable, home directory readable, and nothing in the log to say
+  so. A warning would not have changed what ran, only when you found out. The
+  default is now to stop, before a run starts rather than at the first coding
+  case. `--allow-unsandboxed` (or `CRUCIBLEFORGE_ALLOW_UNSANDBOXED=1`) opts in
+  deliberately, and warns once when it does.
+- **Case-insensitive filesystems.** A model's name IS a filename
+  (`transcripts_<name>.jsonl`), so two names differing only in case resolve to
+  one file on APFS/NTFS and two models' rows merge into a chimera the report
+  then scores. Rejected in `validate_config`, where Linux can catch it.
+- **Explicit UTF-8** on every text read/write and subprocess pipe that carries
+  model output: transcripts are written `ensure_ascii=False`, so the platform
+  default was a guaranteed `UnicodeEncodeError` on a cp1252 Windows box and
+  mojibake on read-back.
+- **pre-push scans the tree of every outgoing commit**, not only the tip. A
+  secret added in commit N and removed in N+1 published unnoticed.
+
 ## Unreleased — lease hardening from the 2026-08-23/24 campaigns
 
 Field fixes on top of 3.2.0, all found by running real campaigns against the

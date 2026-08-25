@@ -347,7 +347,7 @@ def cmd_pairwise(args, cfg):
     cats = _parse_list(args.categories) or ["rp", "nsfw"]
     results = run_pairwise(cfg, labels, cats, judge_override=getattr(args, "judge", None))
     md = render_pairwise_md(results)
-    (results_dir() / "pairwise.md").write_text(md)
+    (results_dir() / "pairwise.md").write_text(md, encoding="utf-8")
     print(md)
     print(f"\nwrote {results_dir() / 'pairwise.md'}")
     return 0
@@ -470,6 +470,12 @@ def main(argv=None):
         description="CrucibleForge — LLM capability benchmark (hard tier, deterministic "
                     "graders, local or remote judge, web GUI)")
     parser.add_argument("--config", default=None, help="path to models.yaml")
+    parser.add_argument(
+        "--allow-unsandboxed", action="store_true",
+        help="execute model-authored code with NO isolation when bubblewrap "
+             "is unavailable (always the case on macOS and Windows). Off by "
+             "default: graded code would run as you, with the network "
+             "reachable and your home directory readable.")
     parser.add_argument("--results", default=None,
                         help="results directory (default: <config dir>/results)")
     sub = parser.add_subparsers(dest="cmd", required=True)
@@ -577,6 +583,12 @@ def main(argv=None):
 
     args = parser.parse_args(argv)
 
+    if args.allow_unsandboxed:
+        from . import graders
+        graders.ALLOW_UNSANDBOXED = True
+        # Anything we spawn (the GUI's own runs) inherits the decision.
+        os.environ["CRUCIBLEFORGE_ALLOW_UNSANDBOXED"] = "1"
+
     if args.cmd == "config":
         setup_logging()
         sys.exit(cmd_config(args, None) or 0)
@@ -603,6 +615,19 @@ def main(argv=None):
     def _term(signum, frame):
         raise SystemExit(128 + signum)
     signal.signal(signal.SIGTERM, _term)
+
+    # Fail fast: refuse before a multi-hour run rather than at the first
+    # coding case. "cases list" and the read-only commands never execute
+    # anything, so they are not gated.
+    from . import graders
+    executes_code = args.cmd in {"run", "all", "recover", "gui"} or (
+        args.cmd == "cases" and getattr(args, "action", None) == "verify")
+    if executes_code:
+        try:
+            graders.require_sandbox()
+        except graders.SandboxUnavailable as e:
+            print(f"sandbox: {e}", file=sys.stderr)
+            sys.exit(3)
 
     handler = {"status": cmd_status, "run": cmd_run, "judge": cmd_judge,
                "recover": cmd_recover, "report": cmd_report, "pairwise": cmd_pairwise, "all": cmd_all,

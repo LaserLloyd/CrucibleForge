@@ -261,7 +261,7 @@ def model_stats(label: str, cfg: dict | None = None) -> dict:
     meta_path = results_dir() / f"meta_{label}.json"
     if meta_path.exists():
         try:
-            meta = json.loads(meta_path.read_text())
+            meta = json.loads(meta_path.read_text(encoding="utf-8"))
         except json.JSONDecodeError:
             pass
 
@@ -1022,10 +1022,10 @@ def generate(labels_arg: str | None = None) -> str:
     for label in labels:
         stats[label]["scorecard"] = scorecard(stats[label], sc)
     md = render_markdown(labels, stats, cfg)
-    report_md_path().write_text(md)
+    report_md_path().write_text(md, encoding="utf-8")
     report_json_path().write_text(json.dumps(
         {"generated": datetime.now().isoformat(), "models": stats},
-        indent=2, default=str))
+        indent=2, default=str), encoding="utf-8")
     return md
 
 

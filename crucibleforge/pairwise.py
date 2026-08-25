@@ -248,7 +248,8 @@ def run_pairwise(cfg: dict, labels: list[str], categories: list[str],
     results["detail"] = detail
     jc.provider.release_lease()  # the CLI guard restores residents
 
-    (results_dir() / "pairwise.json").write_text(json.dumps(results, indent=2))
+    (results_dir() / "pairwise.json").write_text(json.dumps(results, indent=2),
+                                                  encoding="utf-8")
     return results
 
 

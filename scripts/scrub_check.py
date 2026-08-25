@@ -273,7 +273,8 @@ def _skipped(rel: str) -> bool:
 def _git(root: Path, *args: str) -> subprocess.CompletedProcess:
     """Run git with a FIXED argv (never a shell string) in `root`."""
     return subprocess.run(["git", *args], cwd=root,
-                          capture_output=True, text=True, check=False)
+                          capture_output=True, text=True,
+                          encoding="utf-8", errors="replace", check=False)
 
 
 def git_root(start: Path) -> Path | None:

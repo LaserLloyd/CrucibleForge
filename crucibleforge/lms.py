@@ -44,7 +44,7 @@ def _run(*args: str, timeout: int = CMD_TIMEOUT_S, check: bool = True) -> subpro
     log.debug("lms %s", " ".join(args))
     try:
         proc = subprocess.run([LMS_BIN, *args], capture_output=True, text=True,
-                              timeout=timeout)
+                              encoding="utf-8", errors="replace", timeout=timeout)
     except subprocess.TimeoutExpired as exc:
         raise LmsError(f"`lms {' '.join(args)}` timed out after {timeout}s") from exc
     if check and proc.returncode != 0:

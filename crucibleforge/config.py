@@ -178,6 +178,21 @@ def validate_config(cfg: dict) -> None:
     names = [m["name"] for m in cfg["models"]]
     if len(names) != len(set(names)):
         raise ConfigError("duplicate model names in models.yaml")
+    # A model's name is not just a label — it IS a filename
+    # (``results/transcripts_<name>.jsonl`` and ``meta_<name>.json``). macOS
+    # (APFS) and Windows (NTFS) are case-insensitive, so two entries differing
+    # only in case resolve to ONE file there: two models' rows silently merge
+    # into one transcript and the report scores a chimera. Linux would keep
+    # them apart, so this can't be left to the filesystem to catch.
+    folded: dict[str, str] = {}
+    for n in names:
+        prev = folded.setdefault(n.casefold(), n)
+        if prev != n:
+            raise ConfigError(
+                f"model names {prev!r} and {n!r} differ only in case. They map "
+                f"to the same results file on a case-insensitive filesystem "
+                f"(macOS/Windows), which would merge their transcripts — "
+                f"rename one.")
     for m in cfg["models"]:
         for req in ("name", "model_id", "provider"):
             if not m.get(req):
@@ -192,7 +207,7 @@ def validate_config(cfg: dict) -> None:
 
 def load_config(path: str | os.PathLike | None = None) -> dict:
     p = find_config_path(path)
-    with open(p) as f:
+    with open(p, encoding="utf-8") as f:
         cfg = yaml.safe_load(f) or {}
     cfg = upgrade_legacy(cfg)
     validate_config(cfg)
@@ -207,7 +222,8 @@ def save_config(cfg: dict, path: str | os.PathLike) -> None:
     """Write the registry back out (v3 shape). Internal keys are dropped."""
     out = {k: v for k, v in cfg.items() if not k.startswith("_")}
     tmp = Path(path).with_suffix(".yaml.tmp")
-    tmp.write_text(yaml.safe_dump(out, sort_keys=False, allow_unicode=True))
+    tmp.write_text(yaml.safe_dump(out, sort_keys=False, allow_unicode=True),
+                   encoding="utf-8")
     tmp.replace(path)
 
 
@@ -260,7 +276,7 @@ def load_cases(categories: list[str] | None = None, smoke: bool = False,
         path = cases_dir / f"{cat}.json"
         if not path.exists():
             raise ConfigError(f"missing case file: {path}")
-        for case in json.loads(path.read_text()):
+        for case in json.loads(path.read_text(encoding="utf-8")):
             case["category"] = cat
             if case["id"] in seen_ids:
                 raise ConfigError(f"duplicate case id: {case['id']}")
@@ -297,7 +313,7 @@ def load_transcripts(label: str) -> list[dict]:
     if not path.exists():
         return []
     rows: dict[tuple, dict] = {}
-    for line in path.read_text().splitlines():
+    for line in path.read_text(encoding="utf-8").splitlines():
         line = line.strip()
         if not line:
             continue
@@ -322,7 +338,7 @@ def append_transcript(label: str, row: dict) -> None:
             needs_nl = f.read(1) != b"\n"
     else:
         needs_nl = False
-    with open(path, "a") as f:
+    with open(path, "a", encoding="utf-8") as f:
         if needs_nl:
             f.write("\n")
         f.write(json.dumps(row, ensure_ascii=False) + "\n")

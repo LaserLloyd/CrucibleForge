@@ -44,7 +44,7 @@ def _load_cfg(cfg: dict | None) -> dict:
     try:
         import yaml
         from .config import find_config_path
-        return yaml.safe_load(find_config_path().read_text()) or {}
+        return yaml.safe_load(find_config_path().read_text(encoding="utf-8")) or {}
     except Exception:
         return {}
 

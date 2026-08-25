@@ -217,8 +217,11 @@ run is a background thread; **Stop** finishes the in-flight case).
 * **Prompt injection** — judged text is fenced with a content-derived nonce;
   a tool-use probe checks the model doesn't obey instructions in tool results.
 * **Sandbox** — `bwrap --unshare-all`, no network, read-only system, 15 s cap;
-  a pass requires a stdout sentinel so `sys.exit(0)` can't fake it. Falls back
-  to `python -I` with a warning if bwrap is absent.
+  a pass requires a stdout sentinel so `sys.exit(0)` can't fake it. If bwrap is
+  absent (**always on macOS and Windows**) grading **refuses to run** rather
+  than executing model-authored code as you, with your network and your home
+  directory. Install `bubblewrap` on Linux, or pass `--allow-unsandboxed` to
+  accept that risk deliberately.
 * **Pre-flight** — before a run every remote provider gets a real streamed
   completion, not just `GET /models` (a control channel that says "up" while
   the data channel drops streams once burned a night of runs).

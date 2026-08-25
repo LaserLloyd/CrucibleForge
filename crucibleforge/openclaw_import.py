@@ -34,7 +34,7 @@ def _is_local(url: str) -> bool:
 
 
 def import_openclaw(cfg: dict, path: Path, include_local: bool = False) -> dict:
-    data = json.loads(Path(path).read_text())
+    data = json.loads(Path(path).read_text(encoding="utf-8"))
     providers = ((data.get("models") or {}).get("providers")) or {}
     added = {"providers": [], "models": []}
     existing_models = {(m["provider"], m["model_id"]) for m in cfg["models"]}

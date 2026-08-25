@@ -103,7 +103,7 @@ class _Csv:
         results_dir().mkdir(parents=True, exist_ok=True)
         path = results_dir() / "runs.csv"
         exists = path.exists() and path.stat().st_size > 0
-        self.f = open(path, "a", newline="")
+        self.f = open(path, "a", newline="", encoding="utf-8")
         self.w = csv.DictWriter(self.f, fieldnames=CSV_COLUMNS, extrasaction="ignore")
         self.lock = threading.Lock()
         if not exists:
@@ -376,7 +376,7 @@ def _write_meta(label: str, entry: dict, provider: Provider, *, load_s: float | 
     meta = {}
     if path.exists():
         try:
-            meta = json.loads(path.read_text())
+            meta = json.loads(path.read_text(encoding="utf-8"))
         except json.JSONDecodeError:
             meta = {}
     meta.update({
@@ -402,7 +402,7 @@ def _write_meta(label: str, entry: dict, provider: Provider, *, load_s: float | 
     if finished:
         meta["finished"] = _now()
     results_dir().mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(meta, indent=2))
+    path.write_text(json.dumps(meta, indent=2), encoding="utf-8")
 
 
 def _run_one_model(cfg, entry, cases, csvw: _Csv, smoke,
@@ -635,13 +635,13 @@ def _write_recover_record(label: str, **fields) -> None:
     meta = {}
     if path.exists():
         try:
-            meta = json.loads(path.read_text())
+            meta = json.loads(path.read_text(encoding="utf-8"))
         except json.JSONDecodeError:
             meta = {}
     rec = {"ts": _now(), **fields}
     meta.setdefault("recovered", []).append(rec)
     results_dir().mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(meta, indent=2))
+    path.write_text(json.dumps(meta, indent=2), encoding="utf-8")
 
 
 def _error_row(base_row: dict, case: dict, error: str) -> dict:
