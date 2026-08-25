@@ -8,12 +8,15 @@ GPU job". Exit 0 on success, 2 on a tool error, 3 when the MCP endpoint is
 unreachable (not fatal for a benchmark: the lease path reports the real
 shortfall). Stdlib only; MCP streamable-http, no auth (ClawForge default)."""
 import json
+import os
 import re
 import sys
 import urllib.error
 import urllib.request
 
-DEFAULT_URL = "http://localhost:8700/mcp"
+# The rig that serves ClawForge is site-specific: set CLAWFORGE_MCP_URL (or
+# pass --url). The default assumes it is on this machine.
+DEFAULT_URL = os.environ.get("CLAWFORGE_MCP_URL", "http://localhost:8700/mcp")
 
 
 def _post(url, body, sid=None):

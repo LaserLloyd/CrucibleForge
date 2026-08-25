@@ -27,7 +27,7 @@ API keys are NEVER stored in the yaml for remote providers: ``api_key_env``
 names an environment variable. A literal ``api_key`` is only meant for local
 servers that want a placeholder token (LM Studio's ``lm-studio``).
 
-The v2 shape (``endpoint:`` + ``endpoint.rig`` + per-model ``studioforge:``
+The v2 shape (``endpoint:`` + ``endpoint.rig`` + per-model ``studioforge:``  # scrub-ok: legacy v2 schema key name, not a host
 blocks) is upgraded in memory by ``upgrade_legacy`` so old registries keep
 working; ``crucibleforge config --upgrade`` writes the new shape out.
 """
@@ -110,7 +110,7 @@ def results_dir() -> Path:
 # ------------------------------------------------------------ legacy shape
 
 def upgrade_legacy(cfg: dict) -> dict:
-    """Translate a v2 registry (endpoint/rig/studioforge blocks) into the
+    """Translate a v2 registry (endpoint/rig/studioforge blocks) into the  # scrub-ok: legacy v2 schema key name, not a host
     v3 providers shape. Idempotent: a v3 config is returned unchanged."""
     if "providers" in cfg:
         return cfg
@@ -123,7 +123,7 @@ def upgrade_legacy(cfg: dict) -> dict:
             "base_url": ep.get("base_url", "http://localhost:1234/v1"),
             "api_key": ep.get("api_key", "lm-studio"),
         }
-        b4 = ep.get("rig")
+        b4 = ep.get("rig")   # scrub-ok: legacy v2 schema key name, not a host
         if b4:
             providers["studioforge"] = {
                 "type": "studioforge",
@@ -136,7 +136,7 @@ def upgrade_legacy(cfg: dict) -> dict:
         if sf:
             m.setdefault("extra_body", {}).update(sf)
         # v2 resolved the device by membership at runtime; a full StudioForge id
-        # (publisher/repo/file) is the tell for rig, anything else is local.
+        # (publisher/repo/file) is the tell for the remote rig, anything else is local.
         if "provider" not in m:
             m["provider"] = ("studioforge" if "studioforge" in providers
                              and m.get("model_id", "").count("/") >= 2

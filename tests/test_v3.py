@@ -245,7 +245,11 @@ def test_openclaw_import_maps_env_keys_and_prices(tmp_path):
     assert m["model_id"] == "deepseek-v4-flash" and m["price"] == {"input": 0.14, "output": 0.28}
     assert m["context_length"] == 131072  # capped
     # a literal secret is never copied
-    assert "sk-" not in json.dumps(cfg)
+    # Keyed on the literal the fixture actually carries, not on an "sk-"
+    # prefix: the fixture stopped impersonating a real vendor key (those
+    # must stay scannable everywhere, tests included) and a prefix check
+    # would then have passed no matter what the importer copied.
+    assert "a-literal-secret-value-not-an-env-ref" not in json.dumps(cfg)
     assert cfg["providers"]["leaky"]["api_key_env"] == "LEAKY_API_KEY"
     # include_local brings the loopback provider in
     added2 = import_openclaw(cfg, p, include_local=True)
