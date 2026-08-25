@@ -1,0 +1,73 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  privacy:
+    # This repo's working tree is, by design, full of things that must never be
+    # published: `results/` rows, run logs and `models.yaml` are transcripts of
+    # a real rig — its endpoints, its LAN addresses, the models it serves. They
+    # are git-ignored, and this job is what turns "git-ignored" from an
+    # assumption into a check. It runs first and on its own runner: it takes
+    # seconds, needs no toolchain, and a leak should fail the build before
+    # anything else spends time on it.
+    #
+    # Read the note this prints. scripts/scrub-rules.local.txt is git-ignored on
+    # purpose — publishing the list of words that must never be published is
+    # its own leak — so in CI the personal-identifier rules are NOT loaded and
+    # this job verifies the generic patterns only (keys, tokens, private keys,
+    # JWTs, home paths, private/tailnet IPs, emails). The maintainer's clone is
+    # where the name and hostname rules actually run, via the git hooks.
+    name: no private data
+    runs-on: ubuntu-latest
+    steps:
+      # fetch-depth: 0 because the commit-range step below needs the PR's base
+      # commit, and the default shallow clone does not contain it — the scan
+      # then fails with "unknown revision" on every pull request.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Scan the tree
+        run: python3 scripts/scrub_check.py
+      - name: Scan the commits being pushed
+        if: github.event_name == 'pull_request'
+        run: |
+          python3 scripts/scrub_check.py --commit-range \
+            "${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}"
+      - name: Prove the scanner still works
+        run: python3 scripts/scrub_check.py --selftest
+
+  unit:
+    # The suite is fully offline: every provider call is faked, and the sandbox
+    # that executes coding answers is the same one the benchmark uses. Nothing
+    # here contacts a model server, so it is safe to run on a public runner.
+    name: tests (${{ matrix.os }})
+    needs: privacy
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - name: Sync
+        run: uv sync --all-extras --dev
+      - name: Tests
+        run: uv run pytest -q
+      # The gold answers are not taken on trust: every math/reasoning answer is
+      # recomputed from its `verify` expression and every coding `reference`
+      # solution is executed against its own tests. A case file edited by hand
+      # fails here rather than silently mis-scoring a model.
+      - name: Verify every case's gold answer
+        run: uv run crucibleforge cases verify

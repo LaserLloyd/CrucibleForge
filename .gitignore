@@ -14,5 +14,8 @@ build/
 # editors
 .idea/
 .vscode/
+# the private-identifier list for scripts/scrub_check.py: it necessarily
+# CONTAINS the words that must never be published, so it never ships
+scripts/scrub-rules.local.txt
 run_*.sh
 models.yaml.bak*
