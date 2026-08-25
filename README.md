@@ -232,7 +232,7 @@ gauntlet/            package: cli, config, providers, api, runner, graders,
                      longctx_gen, verify_cases, openclaw_import, gui/
 cases/*.json         the suite (perf rp nsfw coding tooluse instruct
                      reasoning math steer overrefusal longctx planning)
-tests/               pytest, offline (~180 tests incl. full case verification)
+tests/               pytest, offline (239 tests incl. full case verification)
 models.example.yaml  registry template (copy to models.yaml — git-ignored)
 results/             outputs (git-ignored)
 profiles/            case selections (standard.yaml = the ~1 h scorecard run)
