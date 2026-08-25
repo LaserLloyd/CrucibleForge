@@ -25,7 +25,7 @@ CrucibleForge is a plain CLI, so any agent that can run shell commands can drive
    - `uv run crucibleforge run --models <a>,<b> --difficulty hard --yes`
    - `uv run crucibleforge all --smoke --models <a> --yes`
    - `uv run crucibleforge report` → read results/report.md (Hard % column)
-   Rules: remote runs cost money (say so); a run unloads what LM Studio is serving.
+   Rules: remote runs cost money (say so); a run may unload what your local server is serving (LM Studio / StudioForge).
    ```
 
 3. **Judge on a remote model** when no local uncensored judge is loaded:

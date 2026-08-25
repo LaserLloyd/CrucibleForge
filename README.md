@@ -35,8 +35,10 @@ OpenRouter, OpenAI, Groq, Together, Mistral, Open WebUI …).
   read the report, drill into every failed row (prompt, response, reasoning,
   judge note), manage providers/models/judge, discover model ids, test
   connections. Stdlib server + vanilla JS, no CDN, no build step.
-* **Suite revision stamp** on every row (`3.0.0+<hash of cases+judge>`): the
-  report warns when results from different test sets or judges are mixed.
+* **Suite revision stamp** on every row (`3.0.0+<hash of the case files>`),
+  plus a separate **judge fingerprint** and the identity of the judge that
+  actually scored each row: the report flags results from a different test set
+  or a different judge instead of quietly ranking them side by side.
 
 ## The 1-hour `standard` profile and the scorecard
 
@@ -44,8 +46,8 @@ OpenRouter, OpenAI, Groq, Together, Mistral, Open WebUI …).
 selection sized for **a ~70 tok/s 27B in under an hour including judging**:
 perf ×2, RP 6, NSFW ladder 5, steer 3, **10 brutal coding cases** (chosen so
 DeepSeek v4-flash scores ~20% — headroom for future models), 10 hard tool
-cases, 8 hard instruct, 6 hard reasoning; 1 repeat, per-category budgets with
-a 12k thinking cap, and a fast non-thinking judge (a 31B uncensored gemma with
+cases, 8 hard instruct, 4 hard reasoning + 6 hard math (pooled as "Reason" in
+the scorecard); 1 repeat, per-category budgets with a 16k thinking cap, and a fast non-thinking judge (a 31B uncensored gemma with
 `enable_thinking: false`). `profiles/standard.yaml` is plain YAML — copy it to
 `<config dir>/profiles/mine.yaml` to make your own; profiles only *select*
 from the case files, so per-case results stay comparable.
@@ -67,7 +69,7 @@ renormalised (the report says which).
 ```bash
 git clone <this repo> crucibleforge && cd crucibleforge
 uv sync                                  # or: pip install -e .
-cp models.example.yaml models.yaml       # edit providers + models
+uv run crucibleforge config --init       # writes models.yaml (git-ignored); then edit it
 export DEEPSEEK_API_KEY=...              # only if you use a hosted provider
 
 uv run crucibleforge status                   # providers up? judge? case counts
@@ -77,6 +79,9 @@ uv run crucibleforge all --smoke --models local-gemma-e4b --yes     # ~10 min en
 uv run crucibleforge run --models deepseek-flash --difficulty hard  # the hard tier only
 uv run crucibleforge judge && uv run crucibleforge report
 uv run crucibleforge recover --models a,b --yes     # re-run reasoning-overflow rows, then judge again
+uv run crucibleforge pairwise --models a,b --categories rp,nsfw --yes  # position-swapped head-to-head
+uv run crucibleforge models discover <provider>     # list what a server is serving
+uv run crucibleforge cases verify                   # re-derive every gold answer offline
 uv run crucibleforge status                         # providers, residents + leases on the rig, judge, cases
 ```
 
@@ -227,9 +232,10 @@ run is a background thread; **Stop** finishes the in-flight case).
 ## Layout
 
 ```
-crucibleforge/            package: cli, config, providers, api, runner, graders,
-                     judge, pairwise, report, preflight, version,
-                     longctx_gen, verify_cases, openclaw_import, gui/
+crucibleforge/       package: cli, config, providers, api, runner, graders,
+                     judge, pairwise, report, preflight, version, longctx_gen,
+                     verify_cases, openclaw_import, lms, studioforge,
+                     profiles, gui/
 cases/*.json         the suite (perf rp nsfw coding tooluse instruct
                      reasoning math steer overrefusal longctx planning)
 tests/               pytest, offline (239 tests incl. full case verification)
@@ -237,10 +243,36 @@ models.example.yaml  registry template (copy to models.yaml — git-ignored)
 results/             outputs (git-ignored)
 profiles/            case selections (standard.yaml = the ~1 h scorecard run)
 scripts/             queue-overnight.sh (reference campaign wrapper),
-                     clawforge_comfy.py (free rig VRAM before a phase)
+                     clawforge_comfy.py (free rig VRAM before a phase),
+                     scrub_check.py + hooks/ (see Publishing, below)
+docs/OPENCLAW.md     driving CrucibleForge from an agent framework
+CHANGELOG.md         what changed in 3.0 → 3.2
 ```
 
 `uv run pytest` — no network needed. `uv run crucibleforge cases list|verify`.
+
+## Publishing
+
+A benchmark working tree is a bad thing to push by accident. `results/`, the
+run logs and `models.yaml` are transcripts of a real rig — its endpoints, its
+LAN addresses, the models it serves — and they live in the tree by design.
+They are git-ignored; `scripts/scrub_check.py` is what makes that a check
+rather than an assumption.
+
+```bash
+sh scripts/install-hooks.sh                  # pre-commit, commit-msg, pre-push
+python3 scripts/scrub_check.py               # what git would publish
+python3 scripts/scrub_check.py --all-files   # audit: what an ignore rule is holding back
+python3 scripts/scrub_check.py --selftest    # prove the scanner still works
+```
+
+The scan is fail-closed and covers file contents, staged content, the tree of
+each outgoing commit, and commit messages. A genuine false positive takes an
+inline `scrub-ok: <reason>` comment; credential, private-key and JWT patterns
+are never exempt, including in tests. Personal identifiers (your name, your
+hostnames) go one-regex-per-line in `scripts/scrub-rules.local.txt`, which is
+git-ignored — so CI runs the generic rules only, and says so rather than
+printing a "clean" that overstates what it checked.
 
 ## Adding cases
 

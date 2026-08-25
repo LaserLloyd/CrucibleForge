@@ -1,15 +1,10 @@
 # Changelog
 
-## Unreleased — renamed to CrucibleForge
-
-The project is now **CrucibleForge** (was Gauntlet), matching the StudioForge /
-ClawForge naming on this fleet. Package `crucibleforge`, CLI verb
-`crucibleforge`, env vars `CRUCIBLEFORGE_CONFIG` / `CRUCIBLEFORGE_RESULTS` /
-`CRUCIBLEFORGE_ENV_FILE`, GUI token header `X-CrucibleForge-Token`, and the
-StudioForge GPU **lease holder string is now `crucibleforge`**. Out-of-repo
-co-tenants that yield to the lease (`an hourly image job`) recognise both the new and the
-old holder so an in-flight lease is never left unrecognised. Historical run
-logs and `results/` rows keep their original wording.
+Versions 3.0.0–3.2.0 were developed privately under the name **Gauntlet**; the
+project was renamed to CrucibleForge before its first public release. Nothing
+was ever published as Gauntlet, so there is no migration to do — the entries
+below are kept because the engineering they record is real, not to narrate a
+rename.
 
 ## Unreleased — lease hardening from the 2026-08-23/24 campaigns
 
@@ -132,7 +127,7 @@ Root-cause fixes from the first full-board campaign (seven 251-case runs).
   engine to report `ready` before the warm-up completion (a warm-up sent
   during `loading` made the server plan a second load that then 507'd).
 
-## 3.0.0 — 2026-08-18 (Gauntlet)
+## 3.0.0 — 2026-08-18
 
 Rebuilt from the v2.2 `bench` tool as a publishable, provider-agnostic module.
 
