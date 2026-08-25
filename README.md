@@ -8,7 +8,8 @@ and speed** — against **any OpenAI-compatible endpoint**: local (LM Studio,
 Ollama, llama.cpp / llama-server, vLLM, StudioForge) or hosted (DeepSeek,
 OpenRouter, OpenAI, Groq, Together, Mistral, Open WebUI …).
 
-* **Hard tier that doesn't ceiling.** 140+ hard cases: competition-style math
+* **Hard tier that doesn't ceiling.** 251 cases, **158 of them hard**
+  (`gauntlet cases list` counts them): competition-style math
   (integer answers, every one re-derived by a brute-force `verify` expression),
   logic/state-tracking puzzles with unique solutions, coding problems whose
   tests **enforce the right complexity** (an O(n²) inversion count times out;
@@ -39,7 +40,7 @@ OpenRouter, OpenAI, Groq, Together, Mistral, Open WebUI …).
 
 ## The 1-hour `standard` profile and the scorecard
 
-`gauntlet all --profile standard --models <label> --yes` runs a fixed 52-case
+`gauntlet all --profile standard --models <label> --yes` runs a fixed 56-case
 selection sized for **a ~70 tok/s 27B in under an hour including judging**:
 perf ×2, RP 6, NSFW ladder 5, steer 3, **10 brutal coding cases** (chosen so
 DeepSeek v4-flash scores ~20% — headroom for future models), 10 hard tool
@@ -234,6 +235,9 @@ cases/*.json         the suite (perf rp nsfw coding tooluse instruct
 tests/               pytest, offline (~180 tests incl. full case verification)
 models.example.yaml  registry template (copy to models.yaml — git-ignored)
 results/             outputs (git-ignored)
+profiles/            case selections (standard.yaml = the ~1 h scorecard run)
+scripts/             queue-overnight.sh (reference campaign wrapper),
+                     clawforge_comfy.py (free rig VRAM before a phase)
 ```
 
 `uv run pytest` — no network needed. `uv run gauntlet cases list|verify`.
