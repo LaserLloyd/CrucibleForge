@@ -277,6 +277,13 @@ hostnames) go one-regex-per-line in `scripts/scrub-rules.local.txt`, which is
 git-ignored — so CI runs the generic rules only, and says so rather than
 printing a "clean" that overstates what it checked.
 
+Every verdict — the clean line and the selftest's `OK` — now ends with the
+number of private-identifier rules that were actually loaded, because the
+whole trap is that a fresh clone passes without them. Add
+`--require-local-rules` to make that a gate rather than a caption: it exits 2
+when zero were loaded. It belongs in a maintainer's release check, not in CI,
+where the file never exists by design.
+
 ## Adding cases
 
 Append to the category file (ids unique; `difficulty` easy/medium/hard;
