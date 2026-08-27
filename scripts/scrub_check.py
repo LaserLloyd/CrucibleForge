@@ -835,7 +835,7 @@ def main() -> int:
                          "publish gate")
     ap.add_argument("--selftest", action="store_true",
                     help="verify --staged really reads the index, then exit")
-    # siftforge's copy spells it --self-test; accept both so a runbook written
+    # mailforge's copy spells it --self-test; accept both so a runbook written
     # against either repo works here rather than dying on an unknown flag.
     ap.add_argument("--self-test", dest="selftest", action="store_true",
                     help=argparse.SUPPRESS)
