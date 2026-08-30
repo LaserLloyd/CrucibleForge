@@ -38,6 +38,60 @@ def test_507_with_retry_after_is_vram_contention_and_retry_waits_for_it(monkeypa
     assert sleeps == [15.0, 15.0]   # the server's hint, not the 2 s / 4 s backoff
 
 
+def test_priority_hold_503_is_waited_out_without_spending_a_transport_retry(monkeypatch):
+    """StudioForge D48: while a chat/agent-tier model loads, our background
+    traffic is refused with 503 ``priority_hold``. That is a wait, never a
+    failed case and never a run abort."""
+    body = json.dumps({"error": {
+        "message": "a priority 1 model ('chat/m') is loading",
+        "type": "server_error", "code": "priority_hold",
+        "studioforge": {"retry_after_s": 15,
+                        "priority_hold": {"model_id": "chat/m", "priority": 1}}}})
+    err = api.classify_server_error(503, body, "15")
+    assert isinstance(err, api.PriorityHold) and isinstance(err, VramContention)
+    assert err.model_id == "chat/m" and err.priority == 1 and err.retry_after_s == 15
+    assert "chat/m" in err.holder()
+
+    calls = []
+    sleeps = []
+
+    def chat(*a, **k):
+        calls.append(1)
+        # more holds in a row than the transport-retry budget would survive
+        if len(calls) <= api.MAX_TRANSPORT_RETRIES + 2:
+            raise err
+        return ChatResult(response_text="ok", served_model="m")
+
+    monkeypatch.setattr(api, "stream_chat", chat)
+    monkeypatch.setattr(api.time, "sleep", lambda s: sleeps.append(s))
+    r = api.stream_chat_retried("http://x", "", "m", [], max_tokens=4)
+    assert r.response_text == "ok"
+    assert sleeps == [15.0] * (api.MAX_TRANSPORT_RETRIES + 2)  # the server's hint each time
+
+
+def test_priority_hold_longer_than_the_budget_finally_raises(monkeypatch):
+    body = json.dumps({"error": {"message": "held", "code": "priority_hold",
+                                 "studioforge": {"retry_after_s": 60}}})
+    err = api.classify_server_error(503, body)
+
+    def chat(*a, **k):
+        raise err
+
+    sleeps = []
+    monkeypatch.setattr(api, "stream_chat", chat)
+    monkeypatch.setattr(api.time, "sleep", lambda s: sleeps.append(s))
+    with pytest.raises(api.PriorityHold):
+        api.stream_chat_retried("http://x", "", "m", [], max_tokens=4)
+    assert sum(sleeps) == api.PRIORITY_HOLD_WAIT_S  # waited the whole budget, no more
+
+
+def test_priority_hold_is_named_in_the_management_retry_log():
+    res = {"_status": 503, "error": {"code": "priority_hold", "studioforge": {
+        "busy": {"priority_hold": {"model_id": "chat/m", "priority": 2}}}}}
+    assert studioforge._refusal_reason(res) == "priority hold by chat/m (tier 2)"
+    assert studioforge._refusal_reason({"_status": 503}) == "a resident is busy"
+
+
 # ----------------------------------------------------------- studioforge
 
 def _status_with(loaded):

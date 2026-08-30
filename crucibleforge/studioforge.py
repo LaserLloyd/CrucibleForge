@@ -409,6 +409,22 @@ def load_recommended(model_id: str, base_url: str, api_key: str,
     return data
 
 
+def _refusal_reason(res: dict) -> str:
+    """Why a structured refusal wants us to wait, for the log line. A
+    ``priority_hold`` (StudioForge D46/D48) means a chat- or agent-tier model
+    is LOADING and worse-tier loads and inference are held off until it serves
+    — a different wait from the usual "a resident is mid-request", and worth
+    saying out loud so a run that pauses for minutes is explicable."""
+    err = res.get("error") if isinstance(res.get("error"), dict) else {}
+    sf = err.get("studioforge") if isinstance(err.get("studioforge"), dict) else {}
+    if "priority_hold" in (err.get("code"), res.get("code")):
+        hold = sf.get("priority_hold") or (sf.get("busy") or {}).get("priority_hold") or {}
+        who = hold.get("model_id") or "a better-tier model"
+        tier = hold.get("priority")
+        return f"priority hold by {who}" + (f" (tier {tier})" if tier else "")
+    return "a resident is busy"
+
+
 def _retry_wait(res: dict, waited: float, wait_busy_s: float) -> float | None:
     """Seconds to sleep before re-trying a structured refusal, or None when
     the refusal is final (no hint, or the wait budget is spent)."""
@@ -482,9 +498,9 @@ def load_model(model_id: str, base_url: str, api_key: str,
             detail = str(res.get("detail") or (res.get("error") or {}).get("message")
                          if isinstance(res.get("error"), dict) else res.get("error") or res)[:300]
             if wait is not None:
-                log.warning("load-recommended for %s at ctx=%d refused (HTTP %s, a resident is "
-                            "busy) — retrying in %.0fs (%s)", model_id, wanted,
-                            res.get("_status"), wait, detail)
+                log.warning("load-recommended for %s at ctx=%d refused (HTTP %s, %s) — "
+                            "retrying in %.0fs (%s)", model_id, wanted,
+                            res.get("_status"), _refusal_reason(res), wait, detail)
                 time.sleep(wait)
                 waited += wait
                 continue
@@ -638,8 +654,8 @@ def acquire_lease(base_url: str, api_key: str, headers: dict | None, devices: li
             continue
         wait = _retry_wait(res, waited, wait_busy_s) if code in (503, 507, 409) else None
         if wait is not None:
-            log.warning("lease refused (HTTP %d, a resident is busy) — retrying in %.0fs: %s",
-                        code, wait, detail)
+            log.warning("lease refused (HTTP %d, %s) — retrying in %.0fs: %s",
+                        code, _refusal_reason(res), wait, detail)
             time.sleep(wait)
             waited += wait
             continue

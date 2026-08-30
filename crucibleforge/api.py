@@ -23,6 +23,16 @@ log = logging.getLogger(__name__)
 
 MAX_TRANSPORT_RETRIES = 3
 RETRY_BACKOFF_S = 2.0
+# A StudioForge priority hold (a chat/agent-tier model is LOADING, so our
+# background traffic is refused) is a wait, not a failure: the load takes as
+# long as a big model takes to come up, which is minutes, not the ~30 s the
+# three transport retries above buy. Held requests therefore wait on their own
+# budget and do not spend a retry — otherwise a family bot warming its model
+# would score a run's worth of cases as transport failures and, three in a row,
+# abort the model run outright.
+PRIORITY_HOLD_WAIT_S = 600.0
+# Fallback pause when a hold arrives with no hint (the server sends 15 s).
+PRIORITY_HOLD_POLL_S = 15.0
 
 # Thinking models (gemma `(think)`, deepseek/qwen `<think>`, qwen3
 # `<|thinking|>`) emit CoT wrapped in these delimiters. When the server fails
@@ -129,19 +139,40 @@ class VramContention(TransportError):
         self.body = body
 
 
-def _parse_error_hints(body: str) -> tuple[float | None, object]:
-    """(retry_after_s, suggestions) from a JSON error body, if any."""
+class PriorityHold(VramContention):
+    """StudioForge 503 ``priority_hold``: a chat- (tier 1) or agent-tier (2)
+    model is loading, and loads plus inference for worse-tier models are held
+    off until it is serving (StudioForge D46/D48). Purely transient — the
+    holder is named in ``model_id``/``priority`` — so it is waited out rather
+    than counted as a case failure. Before the code existed this arrived as a
+    generic ``model_busy`` 503, which is why it stays a VramContention: older
+    rigs give us the same retry hint under a different name."""
+
+    def __init__(self, msg: str, *, model_id: str | None = None,
+                 priority: int | None = None, **kw):
+        super().__init__(msg, **kw)
+        self.model_id = model_id
+        self.priority = priority
+
+    def holder(self) -> str:
+        who = self.model_id or "an unnamed model"
+        return f"{who} (tier {self.priority})" if self.priority else who
+
+
+def _error_holders(body: str) -> list[dict]:
+    """The dicts a structured error body may hang its detail off: the envelope,
+    ``error`` inside it, and StudioForge's additive ``error.studioforge``."""
     try:
         data = json.loads(body)
     except (TypeError, ValueError):
         # the SSE path wraps the error object: "server error: {...}"
         i = (body or "").find("{")
         if i < 0:
-            return None, None
+            return []
         try:
             data = json.loads(body[i:])
         except ValueError:
-            return None, None
+            return []
     holders = [data]
     if isinstance(data, dict):
         err = data.get("error")
@@ -149,6 +180,12 @@ def _parse_error_hints(body: str) -> tuple[float | None, object]:
             holders.append(err)
             if isinstance(err.get("studioforge"), dict):
                 holders.append(err["studioforge"])
+    return [h for h in holders if isinstance(h, dict)]
+
+
+def _parse_error_hints(body: str) -> tuple[float | None, object]:
+    """(retry_after_s, suggestions) from a JSON error body, if any."""
+    holders = _error_holders(body)
     ra = None
     sugg = None
     for h in holders:
@@ -166,6 +203,23 @@ def _parse_error_hints(body: str) -> tuple[float | None, object]:
 _VRAM_MARKERS = ("insufficient_vram", "cannot load", "entirely in vram", "not enough free vram")
 
 
+def _parse_priority_hold(body: str) -> dict | None:
+    """``{model_id, priority}`` when the body is a StudioForge ``priority_hold``
+    refusal, else None. The code is authoritative (it is stable); the holder
+    details are best-effort, since only the message is guaranteed prose."""
+    holders = _error_holders(body)
+    if not any(h.get("code") == "priority_hold" for h in holders):
+        return None
+    for h in holders:
+        hold = h.get("priority_hold")
+        if isinstance(hold, dict):
+            return hold
+        busy = h.get("busy")
+        if isinstance(busy, dict) and isinstance(busy.get("priority_hold"), dict):
+            return busy["priority_hold"]
+    return {}
+
+
 def classify_server_error(status: int | None, body: str,
                           retry_after_header: str | None = None) -> TransportError:
     """Map a 5xx / SSE error payload to the right TransportError subclass."""
@@ -179,6 +233,10 @@ def classify_server_error(status: int | None, body: str,
             ra = float(retry_after_header)
         except ValueError:
             pass
+    hold = _parse_priority_hold(body)
+    if hold is not None:
+        return PriorityHold(msg, status=status, retry_after_s=ra, suggestions=sugg, body=body,
+                            model_id=hold.get("model_id"), priority=hold.get("priority"))
     if status in (503, 507) or any(m in low for m in _VRAM_MARKERS):
         return VramContention(msg, status=status, retry_after_s=ra, suggestions=sugg, body=body)
     return TransportError(msg)
@@ -392,13 +450,37 @@ def stream_chat(base_url: str, api_key: str, model: str, messages: list[dict], *
 def stream_chat_retried(base_url: str, api_key: str, model: str, messages: list[dict],
                         **kwargs) -> ChatResult:
     """Retry transport failures with backoff. WrongModelError is NOT retried
-    here — the caller must fix server state (reload the model) first."""
+    here — the caller must fix server state (reload the model) first. A
+    StudioForge ``priority_hold`` 503 is not a failure at all: it is waited out
+    on its own budget (``PRIORITY_HOLD_WAIT_S``), and only a hold outlasting
+    that budget is handed on as an error."""
     last_err: Exception | None = None
-    for attempt in range(1, MAX_TRANSPORT_RETRIES + 1):
+    held_s = 0.0
+    attempt = 0
+    while attempt < MAX_TRANSPORT_RETRIES:
+        attempt += 1
         try:
             return stream_chat(base_url, api_key, model, messages, **kwargs)
         except (WrongModelError, RequestRejected, GenerationRejected):
             raise  # retrying an identical bad request / bad generation cannot succeed
+        except PriorityHold as e:
+            # Somebody's chat/agent model is loading. Wait it out on the hold
+            # budget WITHOUT spending a transport retry: this is the server
+            # working as designed, not an error, and the run continues once the
+            # load finishes. Only an implausibly long hold falls through to the
+            # ordinary handling below.
+            last_err = e
+            hint = max(float(e.retry_after_s or PRIORITY_HOLD_POLL_S), 1.0)
+            wait = min(hint, PRIORITY_HOLD_WAIT_S - held_s)
+            if held_s >= PRIORITY_HOLD_WAIT_S or wait <= 0:
+                log.error("priority hold by %s still standing after %.0fs — giving up",
+                          e.holder(), held_s)
+                raise
+            log.info("priority hold by %s, waiting %.0fs (%.0fs of %.0fs budget spent)",
+                     e.holder(), wait, held_s, PRIORITY_HOLD_WAIT_S)
+            time.sleep(wait)
+            held_s += wait
+            attempt -= 1
         except TransportError as e:
             last_err = e
             if attempt < MAX_TRANSPORT_RETRIES:
