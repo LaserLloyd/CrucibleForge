@@ -377,6 +377,13 @@ def cmd_config(args, cfg_or_none):
         dest = Path(args.init if isinstance(args.init, str) else "models.yaml")
         if dest.exists():
             raise SystemExit(f"{dest} already exists — refusing to overwrite")
+        if not EXAMPLE_CONFIG_PATH.exists():
+            # Only a clone carries models.example.yaml; a wheel/site-packages
+            # install does not. Say so instead of raising FileNotFoundError.
+            print(f"no template to copy: {EXAMPLE_CONFIG_PATH} is missing — "
+                  "run this from a CrucibleForge checkout (git clone + uv sync)",
+                  file=sys.stderr)
+            return 2
         dest.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy(EXAMPLE_CONFIG_PATH, dest)
         print(f"wrote {dest} — edit providers/models, then `crucibleforge status`")
@@ -597,16 +604,22 @@ def main(argv=None):
         os.environ["CRUCIBLEFORGE_RESULTS"] = args.results
         from .config import set_results_dir
         set_results_dir(Path(args.results))
+    # `cases` reads only the case files that ship with the repo — no provider,
+    # no models, no results. A clean checkout (CI) has no models.yaml, so
+    # requiring one here would fail `cases verify` on every fresh runner.
+    config_optional = args.cmd == "cases"
     try:
         cfg = load_config(args.config)
     except ConfigError as e:
-        setup_logging()
-        print(f"config error: {e}", file=sys.stderr)
-        sys.exit(2)
+        if not config_optional:
+            setup_logging()
+            print(f"config error: {e}", file=sys.stderr)
+            sys.exit(2)
+        cfg = {}
     if args.results:
         from .config import set_results_dir
         set_results_dir(Path(args.results))
-    setup_logging(results_dir() / "crucibleforge.log")
+    setup_logging((results_dir() / "crucibleforge.log") if cfg else None)
     # a SIGTERM (queue script killed, `pkill`) must still release the GPU
     # lease and restore residents: turn it into SystemExit so the `finally`
     # blocks and atexit handlers run instead of the process just vanishing
