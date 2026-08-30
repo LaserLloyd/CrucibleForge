@@ -64,6 +64,16 @@ The report opens with a **Scorecard** — every model gets 0–100 scores:
 Components a run did not measure are dropped and the remaining weights
 renormalised (the report says which).
 
+## Installing
+
+**The supported install is a clone plus `uv sync`** — run CrucibleForge from
+the checkout. A wheel/PyPI install is *not* supported yet: the case set
+(`cases/`), the profiles (`profiles/`) and `models.example.yaml` live outside
+the Python package and are not packaged into a distribution, and the default
+results directory is resolved relative to the checkout. Building and installing
+a wheel therefore gives you a CLI with no cases to run; `config --init` says so
+rather than raising. Packaging those data files properly is a planned change.
+
 ## Quick start
 
 ```bash
