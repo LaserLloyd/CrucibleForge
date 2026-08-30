@@ -19,19 +19,31 @@
 #      a wrapper like this can stamp DONE only on a clean exit -- never grep
 #      the log for success.
 #
+# CRUCIBLEFORGE_ENV_FILE is REQUIRED — it names the file this sources for the
+# lease PIN and provider API keys. There is deliberately no default: guessing a
+# path off $HOME reads a file the script has no business knowing about.
+#
 # Override the defaults from the environment:
-#   MODELS="a b c" JUDGE="provider:model_id" scripts/queue-overnight.sh
+#   CRUCIBLEFORGE_ENV_FILE=/path/to/env MODELS="a b c" JUDGE="provider:model_id" \
+#     scripts/queue-overnight.sh
 set -u
 cd "$(dirname "$0")/.." || exit 1
 
-# 1. lease PIN + API keys (adjust to wherever your env file lives)
-ENV_FILE="${CRUCIBLEFORGE_ENV_FILE:-$HOME/.openclaw/gateway.systemd.env}"
-if [ -f "$ENV_FILE" ]; then
-  set -a
-  # shellcheck disable=SC1090
-  source "$ENV_FILE"
-  set +a
+# 1. lease PIN + API keys
+ENV_FILE="${CRUCIBLEFORGE_ENV_FILE:-}"
+if [ -z "$ENV_FILE" ]; then
+  echo "set CRUCIBLEFORGE_ENV_FILE=/path/to/env — the file holding STUDIOFORGE_MCP_PIN" \
+       "and any provider API keys this campaign needs" >&2
+  exit 2
 fi
+if [ ! -f "$ENV_FILE" ]; then
+  echo "CRUCIBLEFORGE_ENV_FILE=$ENV_FILE does not exist" >&2
+  exit 2
+fi
+set -a
+# shellcheck disable=SC1090
+source "$ENV_FILE"
+set +a
 
 JUDGE="${JUDGE:-studioforge:mradermacher/Qwen3.5-122B-A10B-heretic-v2-i1-GGUF/Qwen3.5-122B-A10B-heretic-v2.i1-Q5_K_M}"
 MODELS="${MODELS:-dark-scarlett-31b dark-scarlett-27b-v2}"
