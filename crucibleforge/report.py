@@ -17,7 +17,6 @@ import json
 import re
 import statistics
 from datetime import datetime
-from pathlib import Path
 
 from .config import results_dir, load_config, load_transcripts
 from .graders import refusal_heuristic

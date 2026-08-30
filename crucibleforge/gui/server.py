@@ -42,7 +42,6 @@ import threading
 import time
 import traceback
 import webbrowser
-from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
@@ -661,7 +660,7 @@ def serve(cfg_path: str | None, host: str = "127.0.0.1", port: int = 8777,
     loopback = host in ("127.0.0.1", "localhost", "::1")
     if not loopback and not token:
         token = secrets.token_urlsafe(24)
-        print(f"non-loopback bind: generated access token (pass it as ?token=…)")
+        print("non-loopback bind: generated access token (pass it as ?token=…)")
     app = App(cfg_path, token, require_token=bool(token))
     Handler.app = app
     logging.getLogger().addHandler(RING)

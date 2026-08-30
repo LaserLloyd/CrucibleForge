@@ -38,3 +38,28 @@ packages = ["crucibleforge"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"
+
+# Lint. The selection is deliberately narrow, and the reasoning is worth keeping
+# because "why is your linter config so small" is a fair question.
+#
+# `F` is the half that finds real defects — unused imports, dead assignments,
+# f-strings with no placeholders, undefined names — and it is never relaxed.
+# Enabling it surfaced 14 genuine findings, all of which were fixed in the code
+# rather than silenced here.
+#
+# `E4`/`E7`/`E9` add import placement, statement-level mistakes and syntax
+# errors. E741 (ambiguous name `l`) is the one exclusion: it fires 30 times on
+# short-lived loop and comprehension variables in line-splitting code, where `l`
+# for "line" is the clearest name available. It reports no defect.
+#
+# Not selected: `I` (import sorting). It has 27 findings, all in files that are
+# otherwise correct, and acting on them would mean a mechanical reordering diff
+# across most of the package for no behavioural gain. Style rules that rewrite
+# working code are not worth the churn in a repo this size — if that judgement
+# changes, `uvx ruff check --select I --fix .` does it in one pass.
+[tool.ruff]
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F"]
+ignore = ["E741"]

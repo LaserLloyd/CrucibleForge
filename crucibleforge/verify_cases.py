@@ -13,9 +13,6 @@
 """
 from __future__ import annotations
 
-import json
-import sys
-
 from .api import ChatResult
 from .graders import grade
 
@@ -28,7 +25,6 @@ _REQ = {
 
 def _check(case: dict) -> list[str]:
     errs: list[str] = []
-    cid = case.get("id", "?")
     if case.get("difficulty", "medium") not in ("easy", "medium", "hard"):
         errs.append("bad difficulty")
     if "max_tokens" not in case:

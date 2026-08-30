@@ -26,7 +26,6 @@ import csv
 import json
 import logging
 import threading
-import time
 import uuid
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
@@ -505,7 +504,6 @@ def _run_one_model(cfg, entry, cases, csvw: _Csv, smoke,
             raise RunStopped()
         if abort.is_set():
             return
-        cat = case["category"]
         temperature = case.get("temperature", 0.0)
         top_p = case.get("top_p", 1.0)
         max_tokens = case["max_tokens"]

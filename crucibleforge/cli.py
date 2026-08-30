@@ -391,7 +391,7 @@ def cmd_config(args, cfg_or_none):
     if args.upgrade:
         cfg = load_config(args.config)
         path = Path(cfg["_path"])
-        backup = path.with_suffix(f".yaml.bak-v2")
+        backup = path.with_suffix(".yaml.bak-v2")
         shutil.copy(path, backup)
         save_config(cfg, path)
         print(f"rewrote {path} in v3 providers shape (backup: {backup})")

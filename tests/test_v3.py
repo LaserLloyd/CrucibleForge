@@ -2,11 +2,8 @@
 reference judge rubric, long-context generator, case verifier, OpenClaw
 import, GUI markdown + auth. No network."""
 import json
-import threading
-from pathlib import Path
 
 import pytest
-import yaml
 
 from crucibleforge import config, graders, judge, longctx_gen, providers, verify_cases
 from crucibleforge.api import ChatResult
@@ -267,7 +264,6 @@ def test_markdown_renders_table_and_escapes():
 
 def test_gui_auth_and_csrf(monkeypatch):
     from crucibleforge.gui import server as srv
-    from http.server import BaseHTTPRequestHandler
 
     class Fake(srv.Handler):
         def __init__(self, headers, path="/api/state"):
