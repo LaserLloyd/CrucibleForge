@@ -67,7 +67,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - name: Install uv
-        uses: astral-sh/setup-uv@v10
+        uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
       - name: Sync
@@ -79,6 +79,15 @@ jobs:
       - name: Install bubblewrap (the sandbox the graders require)
         if: runner.os == 'Linux'
         run: sudo apt-get update -qq && sudo apt-get install -y -qq bubblewrap
+      # Ruff is version-pinned on purpose. `uvx ruff` resolves to whatever is
+      # newest at run time, so an unpinned lint step turns every upstream
+      # release into a build that breaks without anyone touching this repo.
+      # The rule selection lives in pyproject.toml, next to its reasoning.
+      # Linux only: lint results cannot differ by OS, so running it on both
+      # legs would only duplicate the failure.
+      - name: Lint
+        if: runner.os == 'Linux'
+        run: uvx ruff@0.16.5 check .
       - name: Tests
         run: uv run pytest -q
       # The gold answers are not taken on trust: every math/reasoning answer is

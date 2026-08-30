@@ -17,7 +17,6 @@ Two hazards are covered:
 from __future__ import annotations
 
 import builtins
-import io
 import json
 import logging
 import subprocess
@@ -334,16 +333,31 @@ def test_ci_actions_are_not_end_of_life():
     root = Path(__file__).resolve().parent.parent
     ci = yaml_mod.safe_load((root / ".github" / "workflows" / "ci.yml").read_text(
         encoding="utf-8"))
-    floors = {"actions/checkout": 6, "astral-sh/setup-uv": 10}
-    stale = []
+    # (oldest major still supported, newest major that actually EXISTS upstream).
+    # The ceiling is the half that matters most: a floor alone once pushed this
+    # workflow to `astral-sh/setup-uv@v10`, a tag that has never been published,
+    # and every run failed with "Unable to resolve action". A pin is only valid
+    # if someone can `git ls-remote --tags` it and see it. Verified 2026-08-30:
+    # actions/checkout tops out at v7, astral-sh/setup-uv at v7. Raise a ceiling
+    # only after checking the tag is really there.
+    windows = {"actions/checkout": (6, 7), "astral-sh/setup-uv": (6, 7)}
+    stale, unresolvable = [], []
     for job in ci["jobs"].values():
         for step in job.get("steps", []):
             uses = str(step.get("uses", ""))
             action, _, ref = uses.partition("@")
-            floor = floors.get(action)
-            if floor and int(ref.lstrip("v").split(".")[0]) < floor:
+            window = windows.get(action)
+            if not window:
+                continue
+            floor, ceiling = window
+            major = int(ref.lstrip("v").split(".")[0])
+            if major < floor:
                 stale.append(uses)
-    assert stale == [], stale
+            elif major > ceiling:
+                unresolvable.append(uses)
+    assert stale == [], f"end-of-life action pins: {stale}"
+    assert unresolvable == [], (
+        f"action pinned to a tag that does not exist upstream: {unresolvable}")
 
 
 def test_ci_privacy_job_scans_every_commit_tree():
