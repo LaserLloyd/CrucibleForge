@@ -20,14 +20,21 @@
 #                      management calls from another machine)
 #   extra_body: {...}  extra request fields for every model on this provider
 #   StudioForge rig etiquette (type: studioforge):
+#   use_resident: true  (default) if the target model is ALREADY resident, ready,
+#                      multi-slot and wide enough, use it as-is: no lease, no
+#                      unload, no X-MCP-Pin needed at all (a plain GET /api/status).
+#                      Set false to always take the lease/unload path below.
 #   lease: true        take a GPU lease for the whole run: the benched model and
 #                      the judge are loaded onto lease_devices (default: every
 #                      GPU) and nothing else can be planned there until the run
 #                      ends; needs the X-MCP-Pin header
 #   lease_devices:     [0, 1, 2, 3]   cards to lease
 #   lease_idle_ttl_s:  7200           safety TTL (a keepalive touches the lease)
-#   wait_busy_s:       600            how long to wait for a resident that is
-#                      mid-request before giving up (it is never evicted/forced)
+#   wait_busy_s:       600            how long to wait for a resident that is mid-request,
+#                      or a same-or-higher priority tier refusing the lease outright
+#                      (it is never evicted or forced on this client's own initiative
+#                      for either dialect — only the CLI's --force-evict, from the
+#                      first attempt, ever sends force=true)
 #   restore_residents: true           reload residents the run evicted, at the end
 providers:
   lmstudio:

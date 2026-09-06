@@ -242,6 +242,20 @@ class JudgeError(RuntimeError):
     pass
 
 
+class JudgeLeaseUnavailable(RuntimeError):
+    """The judge could not acquire the all-GPU lease at startup. Carries the
+    StudioForge error/status so the caller can name the conflict in its log
+    line and exit non-zero (Lloyd 2026-08-31: "block out all the GPUs when
+    running the judge; as otherwise it doesn't seem to work")."""
+
+    def __init__(self, msg: str, *, holder: str | None = None,
+                 detail: str | None = None, status: int | None = None):
+        super().__init__(msg)
+        self.holder = holder
+        self.detail = detail
+        self.status = status
+
+
 # Back-off schedule (seconds) for re-trying a judge that failed to LOAD. On a
 # shared rig the usual cause is transient VRAM contention — on 2026-08-22 the
 # hourly image job restarted ComfyUI on the judge's GPUs at 08:00 and the
@@ -249,6 +263,127 @@ class JudgeError(RuntimeError):
 # different (smaller, other-family) judge, silently breaking the single-judge
 # rule for that model. ~7 minutes covers an image generation + its self-heal.
 DEFAULT_LOAD_RETRY_S = [15, 30, 60, 120, 180]
+
+
+# Holder name used by the START-of-judge lease, distinct from the lease the
+# per-model _lease_load acquires later, so a StudioForge ``GET /api/leases``
+# during a judge run shows two records and the operator can tell which is
+# the "we own the rig for this run" hold vs the named-model hold.
+JUDGE_LEASE_HOLDER = "crucibleforge-judge"
+# All four cards by default; provider config (``lease_devices``) overrides.
+JUDGE_LEASE_DEFAULT_DEVICES = [0, 1, 2, 3]
+# WP-BENCH FIX-3 (wp-bench-audit.md RC-2): the judge lease waits exactly as
+# long as the provider's own configured ``wait_busy_s`` (models.yaml
+# providers.studioforge.wait_busy_s, default 600s) — the SAME budget every
+# other lease in this tool honours, and the tool's own documented rule
+# ("503 priority_hold is transient — wait, don't fail the run", SKILL.md). An
+# earlier uncommitted patch hardcoded this to 0.0 ("fail fast": "a busy
+# resident on the same GPUs is unlikely to yield mid-judge") on the theory
+# that a clean error beats a 10-minute wait. It cost 22 aborted judge runs in
+# a single day (2026-09-04), 8 of them 45s apart, every one a TRANSIENT
+# co-tenant (ClawForge's captioner) that released the cards on its own within
+# the window this patch refused to wait for — the work was never impossible,
+# the client just would not wait 7 minutes. Removed; use
+# ``provider.wait_busy_s`` at the call site below instead of a judge-specific
+# constant.
+
+
+def acquire_judge_lease(cfg: dict, force_evict: bool = False) -> dict | None:
+    """Reserve every StudioForge GPU for the judge run BEFORE any model load.
+
+    The ``provider.lease: true`` path inside ``_lease_load`` already takes a
+    lease, but only when the model is about to load — by then the planner has
+    already burned half a 122B download and the user sees a 507 with no
+    context. Acquiring the lease up-front, naming the actual judge model so
+    StudioForge plans around it, lets the rig either grant the lease (the
+    server's headroom policy can be relaxed for a leaseholder) or answer with
+    a structured refusal that names the conflicting process.
+
+    Returns the lease record (with ``_lease_id``, ``_model_id`` and
+    ``_provider`` set) for the caller to keep, or ``None`` when no lease is
+    needed: no judge candidate at all (the downstream ``run_judge`` will
+    raise its own error) or the chosen judge is a remote API (DeepSeek /
+    OpenRouter) that does not use the StudioForge lease system.
+
+    Raises ``JudgeLeaseUnavailable`` on every lease failure. The message
+    names the holder/model from the server's reply when one is present, so
+    the operator can read the run log and know who else is on the cards.
+
+    ``force_evict`` is never set on this function's own initiative (WP-BENCH
+    FIX-2) — pass ``True`` only when the caller (the CLI's ``--force-evict``
+    flag) was itself given only on an explicit Jake go-ahead. It starts the
+    lease request already asking to evict a PINNED idle resident; it does
+    nothing for a D46 tier refusal against a mid-request or otherwise
+    protected resident (see ``studioforge.acquire_lease``).
+    """
+    try:
+        cand = select_judge(cfg, set(), override=None)
+    except JudgeError:
+        # No judge candidate configured / available. Let run_judge raise its
+        # own message — a missing judge is not a lease problem.
+        return None
+    provider = get_provider(cfg, cand["provider"])
+    if provider.type != "studioforge":
+        # Remote API or LM Studio — no lease system to talk to.
+        return None
+    if provider._lease is not None:
+        # Something earlier in the process already took the lease
+        # (a `crucibleforge all` would have its own provider; this guard
+        # matters when a future caller runs us in-process).
+        return provider._lease
+    try:
+        devices = list(provider.lease_devices or JUDGE_LEASE_DEFAULT_DEVICES)
+        hdrs = provider.mgmt_headers()
+        lease = studioforge.acquire_lease(
+            provider.base_url, provider.api_key, hdrs, devices,
+            model_ids=[cand["model_id"]],
+            holder=JUDGE_LEASE_HOLDER,
+            reason=f"CrucibleForge judge run: {cand['model_id'].rsplit('/', 1)[-1]}",
+            idle_ttl_s=provider.lease_idle_ttl_s or studioforge.LEASE_IDLE_TTL_S,
+            wait_busy_s=provider.wait_busy_s,
+            force=force_evict,
+        )
+    except studioforge.StudioForgeError as e:
+        # Surface the holder/conflict info the server already gave us so the
+        # operator does not have to query StudioForge to find out who is on
+        # the cards. _refusal_reason unpacks a priority_hold record into
+        # "priority hold by <model> (tier N)"; a 409 pinned-resident reply
+        # carries the model id in ``detail``; a 507 names the foreign VRAM
+        # holder. Fall through to ``str(e)`` when nothing structured was
+        # returned (older server).
+        holder = None
+        detail = None
+        try:
+            detail = (e.args[0] if e.args else None) or None
+        except Exception:
+            pass
+        msg = (f"could not reserve GPUs {devices} for the judge "
+               f"({cand['model_id']}): {e}")
+        # Try harder than str(e) for the holder name — StudioForge replies
+        # often include "by chat/m" or "pinned model(s) X are resident" in
+        # the detail string that str(StudioForgeError) embeds.
+        text = str(e)
+        for prefix in ("pinned model(s) ", "priority hold by ", "lease refused"):
+            i = text.lower().find(prefix)
+            if i >= 0:
+                tail = text[i + len(prefix):].split(":", 1)[0].split("(", 1)[0].strip()
+                if tail and len(tail) < 80:
+                    holder = tail
+                break
+        raise JudgeLeaseUnavailable(msg, holder=holder, detail=detail,
+                                    status=e.status) from e
+    lease["_model_id"] = cand["model_id"]
+    lease["_provider"] = provider
+    provider._lease = lease
+    # Same safety net the per-model _lease_load uses — a process killed by
+    # SIGTERM (queue script timed out, pkill -f) still releases the cards.
+    import atexit
+    atexit.register(provider.release_lease)
+    log.info("judge lease %s acquired: devices=%s model=%s holder=%s "
+             "(StudioForge plans around the named judge so a 122B fits even "
+             "with the rig's 10%% headroom policy)",
+             lease.get("_lease_id"), devices, cand["model_id"], JUDGE_LEASE_HOLDER)
+    return lease
 
 
 class JudgeClient:

@@ -94,6 +94,21 @@ class Provider:
     lease_idle_ttl_s: float = studioforge.LEASE_IDLE_TTL_S
     wait_busy_s: float = studioforge.DEFAULT_WAIT_BUSY_S
     restore_residents: bool = True
+    # Resident fast path (WP-BENCH FIX-1): if the target model is ALREADY
+    # resident, ready, and wide/multi-slot enough, switch_model() uses it
+    # as-is — no lease, no unload_all, no PIN needed at all (loaded_plan is a
+    # plain GET /api/status). Sizeable win for benching a pinned,
+    # priority-tiered family-bot model (e.g. a chat model pinned to specific
+    # devices), which a lease can no longer touch anyway since D46 (see
+    # wp-bench-audit.md RC-1/RC-7). Default on; set ``use_resident: false``
+    # in models.yaml to always take the lease/unload path instead.
+    use_resident: bool = True
+    # WP-BENCH FIX-2: force=true is never sent on this provider's own
+    # initiative (see studioforge.acquire_lease) — only when a caller has
+    # explicitly set this, itself only ever flipped by the CLI's
+    # ``--force-evict`` flag, itself only ever meant to be passed on Jake's
+    # explicit go-ahead (see the crucibleforge skill). Off by default.
+    force_evict: bool = False
     # remembers what /models returned (None = endpoint doesn't support listing)
     _models_cache: set | None = field(default=None, repr=False)
     _lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
@@ -168,9 +183,17 @@ class Provider:
 
     def switch_model(self, model_id: str, context_length: int | None = None) -> float:
         """Make ``model_id`` the served model. Returns load seconds (0 for
-        providers with no load step).
+        providers with no load step, and for the resident fast path below).
 
-        StudioForge with ``lease: true``: take a GPU lease that loads the
+        StudioForge, resident fast path (``use_resident``, default on):
+        if ``model_id`` is already resident, ``ready``, multi-slot, and at
+        least as wide as ``context_length``, use it as-is — no lease taken,
+        nothing unloaded, no PIN required (this is a plain GET /api/status).
+        This is what lets a bench run against a pinned, priority-tiered
+        family-bot model (e.g. a chat-tier model such as Dark-Scarlett-27B)
+        without touching the pin at all — see wp-bench-audit.md RC-1/RC-7.
+
+        Otherwise, with ``lease: true``: take a GPU lease that loads the
         model onto the leased cards (evicting idle residents, waiting for busy
         ones), then make sure it serves the registry context. Without a
         lease: unload idle residents (never a serving one) and load at the
@@ -178,6 +201,12 @@ class Provider:
         if self.type == "lmstudio":
             return lms.switch_model(model_id, context_length)
         if self.type == "studioforge":
+            if self.use_resident and self._resident_ready(model_id, context_length):
+                live = self._plans.get(model_id) or {}
+                log.info("%s already resident, ready, parallel=%s ctx=%s — using it as-is "
+                        "(no lease, no unload; WP-BENCH FIX-1 resident fast path)",
+                        model_id, live.get("parallel"), live.get("ctx_size"))
+                return 0.0
             if self.lease:
                 return self._lease_load(model_id, context_length)
             studioforge.unload_all(self.base_url, self.api_key, self.mgmt_headers(),
@@ -188,6 +217,28 @@ class Provider:
             self._remember_plan(model_id)
             return t
         return 0.0
+
+    def _resident_ready(self, model_id: str, context_length: int | None) -> bool:
+        """True when ``model_id`` is already resident, ``ready``, multi-slot,
+        and wide enough that ``switch_model`` has nothing to do. Mirrors the
+        identical check already inside ``studioforge.load_model`` one layer
+        down (it short-circuits the same way once a lease/unload already got
+        it there) — this just makes the same fact usable BEFORE a lease or
+        unload is even attempted. Recorded into ``self._plans`` on a hit so
+        eviction detection (``is_loaded``) and ``meta.plan`` work exactly as
+        if this provider had loaded it itself."""
+        wanted = int(context_length or 32768)
+        try:
+            live = studioforge.loaded_plan(model_id, self.base_url, self.api_key,
+                                           self.mgmt_headers())
+        except studioforge.StatusUnavailable:
+            return False
+        ready = bool(live and live.get("state") == "ready"
+                    and int(live.get("parallel") or 1) > 1
+                    and int(live.get("ctx_size") or 0) >= wanted)
+        if ready:
+            self._remember_plan(model_id)
+        return ready
 
     # ------------------------------------------------------------ leases
     def _lease_load(self, model_id: str, context_length: int | None) -> float:
@@ -201,7 +252,8 @@ class Provider:
                 lease = studioforge.acquire_lease(
                     self.base_url, self.api_key, hdrs, devices, model_ids=[model_id],
                     reason=f"crucibleforge benchmark: {model_id.rsplit('/', 1)[-1]}",
-                    idle_ttl_s=self.lease_idle_ttl_s, wait_busy_s=self.wait_busy_s)
+                    idle_ttl_s=self.lease_idle_ttl_s, wait_busy_s=self.wait_busy_s,
+                    force=self.force_evict)
             except studioforge.StudioForgeError as e:
                 if e.status in (401, 403, 404, 405):
                     log.warning("GPU lease unavailable (%s) — running WITHOUT a lease; "
@@ -478,6 +530,7 @@ def get_provider(cfg: dict, name: str) -> Provider:
         or None,
         wait_busy_s=float(p.get("wait_busy_s", studioforge.DEFAULT_WAIT_BUSY_S)),
         restore_residents=bool(p.get("restore_residents", True)),
+        use_resident=bool(p.get("use_resident", True)),
     )
     _CACHE[key] = prov
     return prov

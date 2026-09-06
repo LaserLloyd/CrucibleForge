@@ -213,19 +213,44 @@ def test_acquire_lease_waits_on_503_then_returns_lease_id(monkeypatch):
     assert lease["_lease_id"] == "L1" and sleeps == [5.0]
 
 
-def test_acquire_lease_forces_only_for_a_pinned_idle_resident(monkeypatch):
+def test_acquire_lease_never_auto_forces_a_pinned_resident(monkeypatch):
+    """WP-BENCH FIX-2 (wp-bench-audit.md RC-1): a 'pinned model(s) ... pass
+    force=true' 409 used to make this function silently flip force=true and
+    retry — exactly how a family bot's pinned model got evicted out from
+    under it, contradicting the tool's own "never evicted or forced" promise.
+    It must now raise as a FINAL error, unmodified, leaving force=False."""
     bodies = []
 
     def mgmt(method, b, k, h, path, json=None, timeout=30):
         bodies.append(dict(json))
-        if not json.get("force"):
-            return 409, {"detail": "pinned model(s) X are resident on CUDA [0, 1]; pass force=true"}
+        return 409, {"detail": "pinned model(s) X are resident on CUDA [0, 1]; pass force=true"}
+
+    monkeypatch.setattr(studioforge, "_mgmt", mgmt)
+    with pytest.raises(studioforge.StudioForgeError) as ei:
+        studioforge.acquire_lease("http://x/v1", "", {}, [0, 1], model_ids=["m"])
+    assert ei.value.status == 409
+    assert "pinned model(s) X" in str(ei.value)
+    # never escalated — exactly one attempt, force stayed False throughout
+    assert bodies == [{"devices": [0, 1], "model_ids": ["m"], "holder": studioforge.LEASE_HOLDER,
+                       "reason": "", "idle_ttl_s": studioforge.LEASE_IDLE_TTL_S, "force": False}]
+
+
+def test_acquire_lease_force_true_from_caller_is_never_escalated_further(monkeypatch):
+    """The ONLY way a pinned resident gets evicted post-FIX-2: the CALLER
+    passes force=True from the very first attempt (the CLI's --force-evict,
+    itself gated on Jake's go-ahead) — acquire_lease itself never decides
+    this on a refusal message."""
+    bodies = []
+
+    def mgmt(method, b, k, h, path, json=None, timeout=30):
+        bodies.append(dict(json))
+        assert json.get("force") is True  # caller's choice, present from the start
         return 200, {"lease_id": "L2"}
 
     monkeypatch.setattr(studioforge, "_mgmt", mgmt)
-    lease = studioforge.acquire_lease("http://x/v1", "", {}, [0, 1], model_ids=["m"])
+    lease = studioforge.acquire_lease("http://x/v1", "", {}, [0, 1], model_ids=["m"], force=True)
     assert lease["_lease_id"] == "L2"
-    assert [b["force"] for b in bodies] == [False, True]
+    assert len(bodies) == 1 and bodies[0]["force"] is True
 
 
 def test_acquire_lease_403_is_final(monkeypatch):
@@ -252,9 +277,16 @@ def test_provider_expands_env_in_headers(monkeypatch):
 
 
 def test_switch_model_takes_a_lease_releases_it_and_never_unloads_all(monkeypatch):
+    """WP-BENCH FIX-1 note: ``loaded_plan`` here tracks what the mocked
+    ``load_model`` actually "loaded" (starts at nothing resident), instead of
+    unconditionally answering "ready" for any model id — otherwise the new
+    resident fast path in ``switch_model`` would short-circuit before the
+    lease/load path this test exists to exercise ever runs (a model this
+    provider has never loaded is never resident by definition)."""
     monkeypatch.setenv("CRUCIBLEFORGE_TEST_PIN", "pin")
     p = providers.get_provider(_sf_cfg(lease=True, lease_devices=[0, 1]), "sf")
     events = []
+    resident = {"model_id": None}
     monkeypatch.setattr(studioforge, "acquire_lease",
                         lambda *a, **k: events.append(("acquire", k["model_ids"], k["reason"]))
                         or {"_lease_id": "L9"})
@@ -264,39 +296,139 @@ def test_switch_model_takes_a_lease_releases_it_and_never_unloads_all(monkeypatc
                         lambda *a, **k: events.append(("unload_all",)) or 0)
     monkeypatch.setattr(studioforge, "wait_ready",
                         lambda *a, **k: {"state": "ready", "ctx_size": 32768, "parallel": 2})
-    monkeypatch.setattr(studioforge, "load_model",
-                        lambda mid, *a, **k: events.append(("load_model", mid, k.get("context_length") or a[2])) or 1.0)
-    monkeypatch.setattr(studioforge, "loaded_plan",
-                        lambda *a, **k: {"state": "ready", "ctx_size": 32768, "parallel": 2,
-                                         "devices": [0, 1]})
+
+    def fake_load_model(mid, *a, **k):
+        events.append(("load_model", mid, k.get("context_length") or a[2]))
+        resident["model_id"] = mid
+        return 1.0
+    monkeypatch.setattr(studioforge, "load_model", fake_load_model)
+
+    def fake_loaded_plan(mid, *a, **k):
+        if resident["model_id"] != mid:
+            return None  # not resident yet — the fast path must fall through
+        return {"state": "ready", "ctx_size": 32768, "parallel": 2, "devices": [0, 1]}
+    monkeypatch.setattr(studioforge, "loaded_plan", fake_loaded_plan)
     monkeypatch.setattr(providers.atexit, "register", lambda f: None)
     p.switch_model("m1", 32768)
     assert ("acquire", ["m1"], "crucibleforge benchmark: m1") in events
     # the lease names the model; the load itself goes through load-recommended
     assert ("load_model", "m1", 32768) in events and ("unload_all",) not in events
     assert p.live_context("m1") == 32768 and p.loaded_plan_for("m1")["parallel"] == 2
-    # switching to another model releases the old lease first
+    # switching to another model releases the old lease first — m2 is not yet
+    # resident (only m1 is), so the fast path correctly does not fire for it
     p.switch_model("m2", 32768)
     assert events.index(("release", "L9")) < len(events) - 1
+    assert ("acquire", ["m2"], "crucibleforge benchmark: m2") in events
     p.restore([])
     assert p._lease is None
 
 
+def test_switch_model_resident_fast_path_skips_lease_and_unload(monkeypatch):
+    """WP-BENCH FIX-1: a model that is ALREADY resident, ready, multi-slot,
+    and at least as wide as requested is used as-is — no lease, no unload,
+    no PIN traffic at all beyond the plain GET /api/status loaded_plan()
+    already does. This is what lets a bench run against a pinned,
+    priority-1 family-bot model such as Dark-Scarlett-27B (wp-bench-audit.md
+    RC-1/RC-7)."""
+    monkeypatch.setenv("CRUCIBLEFORGE_TEST_PIN", "pin")
+    p = providers.get_provider(_sf_cfg(lease=True, lease_devices=[0, 1]), "sf")
+    calls = []
+    monkeypatch.setattr(studioforge, "loaded_plan",
+                        lambda *a, **k: {"state": "ready", "ctx_size": 262144, "parallel": 2,
+                                         "devices": [0, 1]})
+    monkeypatch.setattr(studioforge, "acquire_lease",
+                        lambda *a, **k: calls.append("acquire_lease") or {"_lease_id": "SHOULD_NOT"})
+    monkeypatch.setattr(studioforge, "unload_all",
+                        lambda *a, **k: calls.append("unload_all") or 0)
+    monkeypatch.setattr(studioforge, "load_model",
+                        lambda *a, **k: calls.append("load_model") or 1.0)
+    t = p.switch_model("dark-scarlett", 32768)
+    assert t == 0.0
+    assert calls == []  # no lease, no unload, no load — nothing but the GET
+    assert p.loaded_plan_for("dark-scarlett") == {
+        "state": "ready", "parallel": 2, "ctx_size": 262144, "devices": [0, 1],
+        "kv_cache_type": None, "loaded_by": None, "mode": None,
+    }
+
+
+def test_switch_model_resident_fast_path_needs_no_pin(monkeypatch):
+    """The fast path is a plain GET /api/status — no X-MCP-Pin required at
+    all, unlike a lease or an unload/load (wp-bench-audit.md §2.2/RECIPE 1:
+    "the resident-only run needs no secret at all")."""
+    p = providers.get_provider(_sf_cfg(lease=True, lease_devices=[0, 1]), "sf")  # no PIN env set
+    assert p.mgmt_headers().get("X-MCP-Pin", "") == ""
+    monkeypatch.setattr(studioforge, "loaded_plan",
+                        lambda *a, **k: {"state": "ready", "ctx_size": 32768, "parallel": 2})
+    called = []
+    monkeypatch.setattr(studioforge, "acquire_lease", lambda *a, **k: called.append(1))
+    assert p.switch_model("m", 32768) == 0.0 and called == []
+
+
+def test_switch_model_resident_fast_path_off_by_flag(monkeypatch):
+    """``use_resident: false`` must restore the old always-lease behaviour."""
+    monkeypatch.setenv("CRUCIBLEFORGE_TEST_PIN", "pin")
+    p = providers.get_provider(_sf_cfg(lease=True, lease_devices=[0, 1],
+                                       use_resident=False), "sf")
+    monkeypatch.setattr(studioforge, "loaded_plan",
+                        lambda *a, **k: {"state": "ready", "ctx_size": 32768, "parallel": 2})
+    monkeypatch.setattr(studioforge, "acquire_lease",
+                        lambda *a, **k: {"_lease_id": "L1"})
+    monkeypatch.setattr(studioforge, "wait_ready",
+                        lambda *a, **k: {"state": "ready", "ctx_size": 32768, "parallel": 2})
+    monkeypatch.setattr(studioforge, "load_model", lambda *a, **k: 1.0)
+    monkeypatch.setattr(providers.atexit, "register", lambda f: None)
+    p.switch_model("m", 32768)
+    assert p._lease is not None and p._lease["_lease_id"] == "L1"
+
+
+@pytest.mark.parametrize("live_plan", [
+    {"state": "ready", "ctx_size": 8192, "parallel": 2},     # too narrow
+    {"state": "ready", "ctx_size": 32768, "parallel": 1},    # single slot only
+    {"state": "loading", "ctx_size": 32768, "parallel": 2},  # not ready yet
+    None,                                                     # not resident
+])
+def test_switch_model_resident_fast_path_does_not_fire_when_unsuitable(monkeypatch, live_plan):
+    monkeypatch.setenv("CRUCIBLEFORGE_TEST_PIN", "pin")
+    p = providers.get_provider(_sf_cfg(lease=True, lease_devices=[0, 1]), "sf")
+    lease_calls = []
+    monkeypatch.setattr(studioforge, "loaded_plan", lambda *a, **k: live_plan)
+    monkeypatch.setattr(studioforge, "acquire_lease",
+                        lambda *a, **k: lease_calls.append(1) or {"_lease_id": "L1"})
+    monkeypatch.setattr(studioforge, "wait_ready",
+                        lambda *a, **k: {"state": "ready", "ctx_size": 32768, "parallel": 2})
+    monkeypatch.setattr(studioforge, "load_model", lambda *a, **k: 1.0)
+    monkeypatch.setattr(providers.atexit, "register", lambda f: None)
+    p.switch_model("m", 32768)
+    assert lease_calls == [1]  # the lease path ran — the fast path did NOT fire
+    assert p._lease is not None and p._lease["_lease_id"] == "L1"
+
+
 def test_lease_that_never_loads_the_model_falls_through_to_load_recommended(monkeypatch):
     """A lease can stand with nothing loaded (its load failed silently behind
-    a foreign VRAM holder) — the explicit load then gives a structured answer."""
+    a foreign VRAM holder) — the explicit load then gives a structured answer.
+
+    WP-BENCH FIX-1 note: as above, ``loaded_plan`` must say "not resident"
+    until the mocked ``load_model`` has actually "loaded" it, or the new
+    resident fast path would short-circuit before this test's lease/load
+    path (the one under test) ever runs."""
     monkeypatch.setenv("CRUCIBLEFORGE_TEST_PIN", "pin")
     p = providers.get_provider(_sf_cfg(lease=True, lease_devices=[0]), "sf")
     calls = []
+    resident = {"loaded": False}
     monkeypatch.setattr(studioforge, "acquire_lease", lambda *a, **k: {"_lease_id": "L"})
 
     def never_ready(*a, **k):
         raise studioforge.StudioForgeError("m never appeared in /api/status")
     monkeypatch.setattr(studioforge, "wait_ready", never_ready)
-    monkeypatch.setattr(studioforge, "load_model",
-                        lambda mid, *a, **k: calls.append("load_model") or 1.0)
+
+    def fake_load_model(mid, *a, **k):
+        calls.append("load_model")
+        resident["loaded"] = True
+        return 1.0
+    monkeypatch.setattr(studioforge, "load_model", fake_load_model)
     monkeypatch.setattr(studioforge, "loaded_plan",
-                        lambda *a, **k: {"state": "ready", "ctx_size": 32768, "parallel": 2})
+                        lambda *a, **k: ({"state": "ready", "ctx_size": 32768, "parallel": 2}
+                                        if resident["loaded"] else None))
     monkeypatch.setattr(providers.atexit, "register", lambda f: None)
     p.switch_model("m", 32768)
     assert calls == ["load_model"]
@@ -578,3 +710,243 @@ def test_half_only_total_is_labelled(tmp_path, monkeypatch):
     assert card["half_only"] == "Code" and set(card["missing"]) >= {"rp", "nsfw", "steer"}
     md = report.render_markdown(["m"], stats, None)
     assert "(Code only)" in md and "Components not measured" in md
+
+
+# ------------------------------ judge all-GPU lease at startup (2026-08-31)
+
+def _judge_cfg(*, provider="sf", model_id="m/judge-122b-heretic",
+               extra_provider=None):
+    """A minimal models.yaml with one studioforge provider and one judge
+    candidate whose provider matches — enough for ``acquire_judge_lease`` to
+    pick the right candidate without going through the full registry."""
+    p = {"type": "studioforge", "base_url": "http://x/v1",
+         "headers": {"X-MCP-Pin": "${CRUCIBLEFORGE_TEST_PIN}"},
+         "lease": True, "lease_devices": [0, 1, 2, 3],
+         "lease_idle_ttl_s": 7200}
+    if extra_provider:
+        p.update(extra_provider)
+    return {"providers": {provider: p},
+            "defaults": {}, "judge": {"candidates": [
+                {"provider": provider, "model_id": model_id,
+                 "context_length": 16384}]}, "models": []}
+
+
+def _stub_provider_alive(monkeypatch):
+    """``_eligible_judge_candidates`` calls ``prov.alive()`` and
+    ``prov.is_available`` to filter out down providers; both hit the network
+    normally. Stub them on the Provider class so the fake ``http://x`` URL is
+    accepted and the lease path is exercised."""
+    monkeypatch.setattr(providers.Provider, "alive", lambda self: True)
+    monkeypatch.setattr(providers.Provider, "is_available", lambda self, mid: True)
+
+
+def test_acquire_judge_lease_takes_all_devices_names_judge_model(monkeypatch):
+    """The judge command must reserve the whole rig BEFORE any model load,
+    naming the actual judge so StudioForge plans around it (Lloyd 2026-08-31
+    directive: "block out all the gpus when running the judge").
+
+    WP-BENCH FIX-3 (wp-bench-audit.md RC-2): ``wait_busy_s`` must be the
+    PROVIDER's own configured value (here the dataclass default, 600s), not
+    a judge-specific ``0.0`` "fail fast" — that hardcoded value is what cost
+    22 aborted judge runs in one day to transient rig contention that would
+    have cleared inside the wait."""
+    monkeypatch.setenv("CRUCIBLEFORGE_TEST_PIN", "pin")
+    cfg = _judge_cfg()
+    _stub_provider_alive(monkeypatch)
+    captured = {}
+
+    def fake_acquire(base_url, api_key, headers, devices, model_ids=None,
+                     holder="", reason="", idle_ttl_s=None, force=False,
+                     wait_busy_s=0.0):
+        captured.update(base_url=base_url, api_key=api_key, headers=headers,
+                        devices=list(devices), model_ids=list(model_ids or []),
+                        holder=holder, reason=reason, force=force,
+                        wait_busy_s=wait_busy_s)
+        return {"_lease_id": "JL1"}
+
+    monkeypatch.setattr(studioforge, "acquire_lease", fake_acquire)
+    monkeypatch.setattr(providers.atexit, "register", lambda f: None)
+    lease = judge.acquire_judge_lease(cfg)
+    assert lease["_lease_id"] == "JL1"
+    assert captured["devices"] == [0, 1, 2, 3]
+    assert captured["model_ids"] == ["m/judge-122b-heretic"]
+    assert captured["holder"] == "crucibleforge-judge"
+    assert captured["reason"].startswith("CrucibleForge judge run: ")
+    assert captured["force"] is False  # a refused lease is fatal here, not forced
+    # inherits the provider's own wait_busy_s (no explicit config -> the
+    # studioforge.DEFAULT_WAIT_BUSY_S dataclass default, 600s) — NOT the old
+    # hardcoded 0.0 fail-fast.
+    assert captured["wait_busy_s"] == studioforge.DEFAULT_WAIT_BUSY_S
+    # The X-MCP-Pin must be on the management call (mutating /api/* needs it)
+    assert captured["headers"]["X-MCP-Pin"] == "pin"
+    # The lease is registered on the provider so a later _lease_load skips
+    # re-acquisition (the per-model load still runs wait_ready + load_model).
+    prov = providers.get_provider(cfg, "sf")
+    assert prov._lease is lease and prov._lease["_model_id"] == "m/judge-122b-heretic"
+
+
+def test_acquire_judge_lease_returns_none_when_no_judge_candidate(monkeypatch):
+    """A run with no judge candidates configured is not a lease failure —
+    let the downstream ``run_judge`` raise its own clean error."""
+    monkeypatch.setenv("CRUCIBLEFORGE_TEST_PIN", "pin")
+    cfg = _judge_cfg()
+    cfg["judge"]["candidates"] = []  # none
+    called = []
+    monkeypatch.setattr(studioforge, "acquire_lease",
+                        lambda *a, **k: called.append(a) or {"_lease_id": "X"})
+    out = judge.acquire_judge_lease(cfg)
+    assert out is None and called == []
+
+
+def test_acquire_judge_lease_skips_for_remote_api_judge(monkeypatch):
+    """DeepSeek / OpenRouter / etc. — no StudioForge lease system to talk to."""
+    monkeypatch.setenv("CRUCIBLEFORGE_TEST_PIN", "pin")
+    cfg = {"providers": {
+                "ds": {"type": "openai", "base_url": "https://api.deepseek.com/v1",
+                       "api_key": "k"},
+                "sf": {"type": "studioforge", "base_url": "http://x/v1",
+                       "headers": {"X-MCP-Pin": "pin"}}},
+            "defaults": {},
+            "judge": {"candidates": [
+                {"provider": "ds", "model_id": "deepseek-v4-flash"}]},
+            "models": []}
+    called = []
+    monkeypatch.setattr(studioforge, "acquire_lease",
+                        lambda *a, **k: called.append(a) or {"_lease_id": "X"})
+    out = judge.acquire_judge_lease(cfg)
+    assert out is None and called == []
+
+
+def test_acquire_judge_lease_raises_with_holder_when_priority_hold_blocks(monkeypatch):
+    """A priority_hold refusal (the chat/m agent is loading its model) must
+    surface as ``JudgeLeaseUnavailable`` naming the holder so the operator
+    can read the run log and know who to wait out — not a silent 507 ten
+    minutes later."""
+    monkeypatch.setenv("CRUCIBLEFORGE_TEST_PIN", "pin")
+    cfg = _judge_cfg()
+    _stub_provider_alive(monkeypatch)
+
+    def refusal(*a, **k):
+        raise studioforge.StudioForgeError(
+            "lease refused (HTTP 503): priority hold by chat/m (tier 2)",
+            status=503, retry_after_s=120.0)
+
+    monkeypatch.setattr(studioforge, "acquire_lease", refusal)
+    monkeypatch.setattr(providers.atexit, "register", lambda f: None)
+    with pytest.raises(judge.JudgeLeaseUnavailable) as ei:
+        judge.acquire_judge_lease(cfg)
+    assert ei.value.status == 503
+    assert "chat/m" in (ei.value.holder or "")
+    assert "could not reserve GPUs" in str(ei.value)
+    assert "m/judge-122b-heretic" in str(ei.value)
+    # The provider must not have a lease recorded — nothing to release later.
+    assert providers.get_provider(cfg, "sf")._lease is None
+
+
+def test_acquire_judge_lease_raises_with_holder_when_pinned_resident_blocks(monkeypatch):
+    """A pinned idle resident blocking the lease surfaces the model id from
+    the 409 detail so the operator sees who to evict."""
+    monkeypatch.setenv("CRUCIBLEFORGE_TEST_PIN", "pin")
+    cfg = _judge_cfg()
+    _stub_provider_alive(monkeypatch)
+
+    def refusal(*a, **k):
+        raise studioforge.StudioForgeError(
+            "lease refused (HTTP 409): pinned model(s) family-bot-30b are "
+            "resident on CUDA [0, 1, 2, 3]; pass force=true", status=409)
+
+    monkeypatch.setattr(studioforge, "acquire_lease", refusal)
+    monkeypatch.setattr(providers.atexit, "register", lambda f: None)
+    with pytest.raises(judge.JudgeLeaseUnavailable) as ei:
+        judge.acquire_judge_lease(cfg)
+    assert ei.value.status == 409
+    assert "family-bot-30b" in (ei.value.holder or "")
+
+
+def test_acquire_judge_lease_propagates_unparseable_holder_as_unknown(monkeypatch):
+    """An older server or a transport-style failure that mentions none of
+    the recognised prefixes must still raise — never silently fall through
+    to a 507 ten minutes later."""
+    monkeypatch.setenv("CRUCIBLEFORGE_TEST_PIN", "pin")
+    cfg = _judge_cfg()
+    _stub_provider_alive(monkeypatch)
+
+    def refusal(*a, **k):
+        raise studioforge.StudioForgeError("lease refused (HTTP 507): out of VRAM",
+                                           status=507)
+
+    monkeypatch.setattr(studioforge, "acquire_lease", refusal)
+    monkeypatch.setattr(providers.atexit, "register", lambda f: None)
+    with pytest.raises(judge.JudgeLeaseUnavailable) as ei:
+        judge.acquire_judge_lease(cfg)
+    assert ei.value.status == 507
+    # the holder field stays None — nothing structured to surface
+    assert ei.value.holder is None
+    assert "out of VRAM" in str(ei.value)
+
+
+def test_acquire_judge_lease_idempotent_when_provider_already_holds(monkeypatch):
+    """If a caller (future in-process use) already set ``provider._lease``,
+    the function must not re-acquire — a second lease on the same cards
+    would 409 against itself."""
+    monkeypatch.setenv("CRUCIBLEFORGE_TEST_PIN", "pin")
+    cfg = _judge_cfg()
+    _stub_provider_alive(monkeypatch)
+    existing = {"_lease_id": "ALREADY", "_model_id": "other"}
+    prov = providers.get_provider(cfg, "sf")
+    prov._lease = existing
+    called = []
+    monkeypatch.setattr(studioforge, "acquire_lease",
+                        lambda *a, **k: called.append(a) or {"_lease_id": "NEW"})
+    out = judge.acquire_judge_lease(cfg)
+    assert out is existing and called == []
+
+
+def test_acquire_judge_lease_releases_on_provider_atexit(monkeypatch):
+    """The same SIGTERM / pkill safety net ``_lease_load`` registers: when
+    the process exits, the lease is released, even on a normal exit."""
+    monkeypatch.setenv("CRUCIBLEFORGE_TEST_PIN", "pin")
+    cfg = _judge_cfg()
+    _stub_provider_alive(monkeypatch)
+    monkeypatch.setattr(studioforge, "acquire_lease",
+                        lambda *a, **k: {"_lease_id": "JLX"})
+    registered = []
+    monkeypatch.setattr(providers.atexit, "register",
+                        lambda f: registered.append(f))
+    judge.acquire_judge_lease(cfg)
+    assert registered and registered[0] == providers.get_provider(cfg, "sf").release_lease
+
+
+def test_acquire_judge_lease_honours_a_custom_provider_wait_busy_s(monkeypatch):
+    """WP-BENCH FIX-3: not just "not 0.0" — the ACTUAL configured value on
+    the provider, proving real inheritance rather than a different hardcoded
+    number. models.yaml's providers.studioforge.wait_busy_s flows straight
+    through to the judge's start-of-run lease."""
+    monkeypatch.setenv("CRUCIBLEFORGE_TEST_PIN", "pin")
+    cfg = _judge_cfg(extra_provider={"wait_busy_s": 120})
+    _stub_provider_alive(monkeypatch)
+    captured = {}
+    monkeypatch.setattr(studioforge, "acquire_lease",
+                        lambda *a, **k: captured.update(k) or {"_lease_id": "JL2"})
+    monkeypatch.setattr(providers.atexit, "register", lambda f: None)
+    judge.acquire_judge_lease(cfg)
+    assert captured["wait_busy_s"] == 120.0
+
+
+def test_acquire_judge_lease_force_evict_only_when_caller_asks(monkeypatch):
+    """WP-BENCH FIX-2: acquire_judge_lease never forces on its own — the
+    ``force_evict`` argument (wired to the CLI's ``--force-evict``, never a
+    default) is the only way ``force=True`` ever reaches the lease call."""
+    monkeypatch.setenv("CRUCIBLEFORGE_TEST_PIN", "pin")
+    cfg = _judge_cfg()
+    _stub_provider_alive(monkeypatch)
+    captured = {}
+    monkeypatch.setattr(studioforge, "acquire_lease",
+                        lambda *a, **k: captured.update(k) or {"_lease_id": "JL3"})
+    monkeypatch.setattr(providers.atexit, "register", lambda f: None)
+    judge.acquire_judge_lease(cfg)
+    assert captured["force"] is False
+    captured.clear()
+    cfg2 = _judge_cfg()  # a fresh cfg object -> a fresh, unleased provider
+    judge.acquire_judge_lease(cfg2, force_evict=True)
+    assert captured["force"] is True

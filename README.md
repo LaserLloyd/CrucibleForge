@@ -208,13 +208,28 @@ run is a background thread; **Stop** finishes the in-flight case).
   **Coverage** and **Judge** columns rank complete full-suite runs scored by
   the configured judge above partial / profile / stale / differently-judged /
   failed ones.
+* **Resident fast path (`use_resident`, default on)** — if the target model
+  is already resident, `ready`, multi-slot, and at least as wide as the
+  registry context, a run/judge uses it as-is: no lease, no unload, no
+  management PIN needed at all (this is a plain `GET /api/status`). Lets a
+  bench run against a pinned, priority-tiered model that a lease can no
+  longer touch anyway (see the rig etiquette note below). Set
+  `use_resident: false` to always take the lease/unload path.
 * **Rig etiquette (StudioForge)** — with `lease: true` a run holds a GPU lease
   (`POST /api/leases`) on its cards for the benched model and the judge, so
   no co-tenant can be planned there or evict them; a resident mid-request is
-  waited for (never evicted, never `force`d); `retry_after_s` on 503/507 is
-  honoured; a window that does not fit is an error, never a silent JIT load
-  at planner defaults; evicted residents are reloaded when the run ends. The
-  management PIN travels in `providers.<name>.headers` (`${ENV}` expanded).
+  waited for (never evicted); a resident of an equal-or-higher priority tier
+  (a chat/dispatched-agent-tier model on this rig, not just an old-style
+  "pinned" flag) refuses the lease outright and is retried on a bounded
+  cadence, not forced. **`force`d eviction never happens on this client's own
+  initiative, on either refusal dialect** — only an explicit, caller-supplied
+  `force=True` (the CLI's `--force-evict`, meant to be used only on an
+  explicit human go-ahead) ever sets it, and only from the very first
+  attempt, never as an automatic escalation partway through a retry.
+  `retry_after_s` on 503/507 is honoured; a window that does not fit is an
+  error, never a silent JIT load at planner defaults; evicted residents are
+  reloaded when the run ends. The management PIN travels in
+  `providers.<name>.headers` (`${ENV}` expanded).
 * **Graders read delivered answers only** — an answer is the content channel
   (or a tool call); the reasoning channel is consulted only for a *finished*
   reply whose content is empty (server misrouting), never for a truncated one.

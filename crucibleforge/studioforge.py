@@ -1,6 +1,8 @@
 """StudioForge model backend — a llama.cpp-based multi-model OpenAI-compatible HTTP server.
 
-Facts encoded here (verified against StudioForge 0.2.0, 2026-08-22):
+Facts encoded here (verified against StudioForge 0.2.0, 2026-08-22; re-verified
+against ``1.26-09-04-3`` on 2026-09-06 during the WP-BENCH refactor — see
+``~/.openclaw/workspace/fleet-review/plan-v2/reports/wp-bench-audit.md``):
 - Endpoint = ``providers.<name>.base_url`` (``.../v1``); the management API
   lives beside it at ``.../api/*``. Mutating management routes (load, unload,
   leases, settings) require ``X-MCP-Pin`` from a remote caller — pass it via
@@ -19,18 +21,45 @@ Facts encoded here (verified against StudioForge 0.2.0, 2026-08-22):
 - POST /api/leases gives CUDA devices to a holder: the named models are
   loaded onto exactly those cards, nothing else is planned there until the
   lease is released (DELETE) or idles out (``idle_ttl_s``; ``touch`` resets
-  it). A resident mid-request makes the call a 503 + ``retry_after_s``;
-  ``force`` only overrides a PINNED idle resident. Leases do not govern
-  foreign VRAM holders (ComfyUI) — see GET /api/vram/holders.
+  it). A resident mid-request makes the call a 503 + ``retry_after_s``.
+  ``force=true`` can evict an IDLE resident regardless of dialect (a plain
+  pin, or a D46 priority tier) — the server's own D46 refusal literally says
+  "Pass force=true to evict them anyway". Because of that, this client never
+  sets it on its own initiative on any dialect; see ``acquire_lease``. Leases
+  do not govern foreign VRAM holders (ComfyUI) — see GET /api/vram/holders.
 - The served model id is echoed back in every completion, so the
   api.WrongModelError guard still applies unchanged.
+- **D46 (priority tiers on a lease claim, live since ~2026-08):** 1 = chat,
+  2 = dispatched agent, 3 = background — this client's own leases are class 3
+  unless ``lease_priority`` overrides it (unset today: see wp-bench-audit.md
+  FIX-4, not yet implemented). A lease claim against a resident of a
+  stronger-or-equal class is refused outright with a ``409`` (message
+  containing ``higher-priority model`` / ``does not outrank`` / ``already
+  leased``, or a structured ``lease_conflict`` code) — it is a **refusal**,
+  not a queue position, and it carries no ``retry_after_s`` (a countdown makes
+  no sense for "someone else currently outranks you"). ``acquire_lease``
+  polls for this dialect on a fixed cadence instead of dying on the first
+  attempt (WP-BENCH FIX-2). This module does not yet send ``priority`` or
+  honour a ``vacate_url`` (D56, a polite ask a leaseholder can be told to
+  stand down for) — those remain FIX-4, deliberately out of scope here.
+- **D48 (``priority_hold``):** a ``503`` — distinct from the D46 ``409`` above
+  — while a chat/agent-tier model is *loading* (not yet resident). Always
+  transient, always carries ``retry_after_s``; see ``_refusal_reason``.
+- **D55:** the server also guards a leased card against an unload issued by a
+  caller that does not hold that lease. This client's own ``unload_all`` only
+  ever targets IDLE residents visible via ``/api/status`` and has not needed
+  changes for this; noted here so a future ``403``/``409`` on an unload is not
+  mistaken for a regression in this file.
 
-Rig etiquette baked in (2026-08-22 postmortem): never evict a model that is
-serving a request — wait for it (bounded) instead; never send ``force``;
-never fall back to a JIT load at planner defaults when the server said the
-requested window does not fit; wait for ``state == ready`` before the first
-completion (a warm-up sent during ``loading`` makes the server plan a
-second load that then 507s).
+Rig etiquette baked in (2026-08-22 postmortem, extended 2026-09-06): never
+evict a model that is serving a request — wait for it (bounded) instead;
+never send ``force`` on our own initiative, on ANY refusal dialect — pinned
+or D46-tiered — force eviction is a caller decision (WP-BENCH FIX-2, the
+``--force-evict`` CLI flag), never an automatic escalation; never fall back
+to a JIT load at planner defaults when the server said the requested window
+does not fit; wait for ``state == ready`` before the first completion (a
+warm-up sent during ``loading`` makes the server plan a second load that
+then 507s).
 """
 from __future__ import annotations
 
@@ -434,6 +463,32 @@ def _retry_wait(res: dict, waited: float, wait_busy_s: float) -> float | None:
     return max(2.0, min(float(ra), 60.0, wait_busy_s - waited))
 
 
+# D46 tier-refusal dialect (wp-bench-audit.md RC-1): a lease claim against a
+# resident of a stronger-or-equal priority class is refused with a 409 that
+# carries none of these markers as a code, or the message itself: it is a
+# "you do not outrank this" refusal, not "wait N seconds" — so it never
+# carries retry_after_s and _retry_wait alone always says "final". Poll for
+# it on a fixed cadence instead, bounded by the same wait_busy_s budget as
+# every other lease wait.
+_TIER_REFUSAL_CODE = "lease_conflict"
+_TIER_REFUSAL_MARKERS = ("higher-priority model", "does not outrank", "already leased")
+_TIER_REFUSAL_POLL_S = 60.0
+
+
+def _is_tier_refusal(code: int, res: dict, detail: str) -> bool:
+    """True for the D46 dialect (or a plain ``lease_conflict`` that happens to
+    omit ``retry_after_s``) — never for the sibling "pinned model(s) … pass
+    force=true" dialect, which names a resident this client may not evict on
+    its own (see ``acquire_lease``)."""
+    if code != 409:
+        return False
+    err = res.get("error") if isinstance(res.get("error"), dict) else {}
+    if str(res.get("code") or err.get("code") or "").lower() == _TIER_REFUSAL_CODE:
+        return True
+    low = detail.lower()
+    return any(marker in low for marker in _TIER_REFUSAL_MARKERS)
+
+
 def load_model(model_id: str, base_url: str, api_key: str,
                context_length: int | None = None,
                recommended: bool = True, headers: dict | None = None,
@@ -623,11 +678,35 @@ def acquire_lease(base_url: str, api_key: str, headers: dict | None, devices: li
                   reason: str = "", idle_ttl_s: float | None = LEASE_IDLE_TTL_S,
                   force: bool = False, wait_busy_s: float = DEFAULT_WAIT_BUSY_S) -> dict:
     """POST /api/leases — give ``devices`` to ``holder`` and load ``model_ids``
-    onto exactly them. A resident mid-request answers 503 + retry_after_s:
-    that is waited out (bounded by ``wait_busy_s``), never forced. Returns the
-    server's lease record with ``_lease_id`` filled in."""
+    onto exactly them.
+
+    Two refusal dialects are recognised and both are WAITED OUT, never
+    escalated:
+
+    - A resident mid-request, or the D46 "you do not outrank this" tier
+      refusal: retried on ``retry_after_s`` when the server gives one, else
+      (D46 gives none) on a fixed ``_TIER_REFUSAL_POLL_S`` cadence — both
+      bounded by the same ``wait_busy_s`` budget. See ``_is_tier_refusal`` /
+      wp-bench-audit.md RC-1.
+    - A PINNED idle resident ("pinned model(s) … pass force=true"): this
+      function never sets ``force=true`` on its own initiative for this or
+      any other refusal — an earlier version did exactly that (RC-1) and it
+      is precisely how a family bot's pinned model got silently evicted. If
+      the *caller* passed ``force=True`` from the start, that stands for the
+      whole retry loop and a pinned refusal is granted immediately; if not,
+      a pinned (or any other unrecognised) 409 is raised as a **final**
+      error naming the resident — evicting it is a decision one layer up
+      (the ``--force-evict`` CLI flag, itself gated on Jake's ``--go``), not
+      something this function decides for you.
+
+    Returns the server's lease record with ``_lease_id`` filled in."""
     body = {"devices": [int(d) for d in devices], "model_ids": model_ids,
             "holder": holder, "reason": reason, "idle_ttl_s": idle_ttl_s, "force": force}
+    if force:
+        log.warning("GPU lease request for %s starts with force=true (caller-authorised "
+                    "eviction) — a pinned or tiered idle resident WILL be evicted if one is "
+                    "in the way: holder=%s devices=%s reason=%r",
+                    model_ids, holder, body["devices"], reason)
     waited = 0.0
     while True:
         code, data = _mgmt("POST", base_url, api_key, headers, "/api/leases",
@@ -643,19 +722,15 @@ def acquire_lease(base_url: str, api_key: str, headers: dict | None, devices: li
             return out
         res = data if isinstance(data, dict) else {"_status": code}
         detail = str(res.get("detail") or res.get("error") or res)[:300]
-        if code == 409 and "pinned" in detail.lower() and not body["force"]:
-            # a PINNED idle resident is in the way. force=true evicts it and
-            # the server's pin reconciler brings it back when the lease ends
-            # (the server still refuses a resident that is mid-request, force
-            # or not) — exactly the "nothing else on the cards" the lease is for
-            log.warning("lease blocked by a pinned idle resident — retrying with force=true "
-                        "(the pin reconciler restores it after the lease): %s", detail)
-            body["force"] = True
-            continue
         wait = _retry_wait(res, waited, wait_busy_s) if code in (503, 507, 409) else None
+        tier_refusal = wait is None and waited < wait_busy_s and _is_tier_refusal(code, res, detail)
+        if tier_refusal:
+            wait = min(_TIER_REFUSAL_POLL_S, wait_busy_s - waited)
         if wait is not None:
+            reason_txt = ("a higher/equal-priority resident holds these cards (D46) — "
+                          "not a countdown, polling" if tier_refusal else _refusal_reason(res))
             log.warning("lease refused (HTTP %d, %s) — retrying in %.0fs: %s",
-                        code, _refusal_reason(res), wait, detail)
+                        code, reason_txt, wait, detail)
             time.sleep(wait)
             waited += wait
             continue
