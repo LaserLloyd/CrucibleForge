@@ -475,18 +475,30 @@ _TIER_REFUSAL_MARKERS = ("higher-priority model", "does not outrank", "already l
 _TIER_REFUSAL_POLL_S = 60.0
 
 
-def _is_tier_refusal(code: int, res: dict, detail: str) -> bool:
-    """True for the D46 dialect (or a plain ``lease_conflict`` that happens to
-    omit ``retry_after_s``) — never for the sibling "pinned model(s) … pass
-    force=true" dialect, which names a resident this client may not evict on
-    its own (see ``acquire_lease``)."""
+def _tier_refusal_reason(code: int, res: dict, detail: str) -> str | None:
+    """The specific reason text for a D46/lease_conflict retry, or ``None``
+    when this 409 is neither — never for the sibling "pinned model(s) …
+    pass force=true" dialect, which names a resident this client may not
+    evict on its own (see ``acquire_lease``).
+
+    Distinguishes (WP-BENCH review M3) a genuine D46 priority-tier refusal
+    (the message markers below) from a plain structured ``lease_conflict``
+    — observed in practice as another StudioForge CLIENT already holding
+    one of these cards (e.g. ``lease 9f5... (clawforge2) holds CUDA [1]``),
+    which is a co-tenant lease, not a priority tier. Checking the message
+    markers FIRST matters: a future server could plausibly send
+    ``code: lease_conflict`` on a genuine tier refusal too, and the message
+    is the more specific signal when both are present. The audit's own
+    failure-triage table depends on telling these apart from the log."""
     if code != 409:
-        return False
+        return None
+    low = detail.lower()
+    if any(marker in low for marker in _TIER_REFUSAL_MARKERS):
+        return "a higher/equal-priority resident holds these cards (D46) — not a countdown, polling"
     err = res.get("error") if isinstance(res.get("error"), dict) else {}
     if str(res.get("code") or err.get("code") or "").lower() == _TIER_REFUSAL_CODE:
-        return True
-    low = detail.lower()
-    return any(marker in low for marker in _TIER_REFUSAL_MARKERS)
+        return "another holder already leases one or more of these cards (lease_conflict) — polling"
+    return None
 
 
 def load_model(model_id: str, base_url: str, api_key: str,
@@ -686,7 +698,7 @@ def acquire_lease(base_url: str, api_key: str, headers: dict | None, devices: li
     - A resident mid-request, or the D46 "you do not outrank this" tier
       refusal: retried on ``retry_after_s`` when the server gives one, else
       (D46 gives none) on a fixed ``_TIER_REFUSAL_POLL_S`` cadence — both
-      bounded by the same ``wait_busy_s`` budget. See ``_is_tier_refusal`` /
+      bounded by the same ``wait_busy_s`` budget. See ``_tier_refusal_reason`` /
       wp-bench-audit.md RC-1.
     - A PINNED idle resident ("pinned model(s) … pass force=true"): this
       function never sets ``force=true`` on its own initiative for this or
@@ -723,12 +735,12 @@ def acquire_lease(base_url: str, api_key: str, headers: dict | None, devices: li
         res = data if isinstance(data, dict) else {"_status": code}
         detail = str(res.get("detail") or res.get("error") or res)[:300]
         wait = _retry_wait(res, waited, wait_busy_s) if code in (503, 507, 409) else None
-        tier_refusal = wait is None and waited < wait_busy_s and _is_tier_refusal(code, res, detail)
-        if tier_refusal:
+        tier_reason = (_tier_refusal_reason(code, res, detail)
+                      if wait is None and waited < wait_busy_s else None)
+        if tier_reason:
             wait = min(_TIER_REFUSAL_POLL_S, wait_busy_s - waited)
         if wait is not None:
-            reason_txt = ("a higher/equal-priority resident holds these cards (D46) — "
-                          "not a countdown, polling" if tier_refusal else _refusal_reason(res))
+            reason_txt = tier_reason or _refusal_reason(res)
             log.warning("lease refused (HTTP %d, %s) — retrying in %.0fs: %s",
                         code, reason_txt, wait, detail)
             time.sleep(wait)

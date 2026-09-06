@@ -120,13 +120,29 @@ def _mint_run_id() -> str:
     return f"w-{ts}-{secrets.token_hex(2)}"
 
 
+_RUN_ID_RE = re.compile(r"^[A-Za-z0-9._-]{1,80}$")
+
+
 def _resolve_run_id(args) -> str:
     """RUN_DIR:/RUN_ID: equivalent for a CLI caller: --run-id, else
     $CRUCIBLEFORGE_RUN_ID, else self-mint. A worker dispatched with a brief
     that names a run id never needs to invent one; an ad-hoc human/cron
-    invocation gets one anyway, so the write contract is unconditional."""
-    return (getattr(args, "run_id", None) or os.environ.get("CRUCIBLEFORGE_RUN_ID")
-           or _mint_run_id())
+    invocation gets one anyway, so the write contract is unconditional.
+
+    Validated against r1-meta-schema.md's own rule ("id — must equal the
+    directory name"): an unchecked id containing e.g. `/` or `..` writes
+    outside V2_RUNS_ROOT with a directory name that does not match the `id`
+    field it records — and puts the report where runs-deliver's
+    `runs/*/meta.json` glob can never see it, so the run reports success and
+    is never delivered (WP-BENCH review M1). An invalid candidate is logged
+    and replaced with a self-minted id, never used as given."""
+    candidate = getattr(args, "run_id", None) or os.environ.get("CRUCIBLEFORGE_RUN_ID")
+    if candidate:
+        if _RUN_ID_RE.match(candidate):
+            return candidate
+        log.warning("--run-id/CRUCIBLEFORGE_RUN_ID %r is not a bare id matching "
+                    "[A-Za-z0-9._-]{1,80} (no '/') — self-minting one instead", candidate)
+    return _mint_run_id()
 
 
 def _v2_run_dir(run_id: str) -> Path:
@@ -134,9 +150,13 @@ def _v2_run_dir(run_id: str) -> Path:
 
 
 def _atomic_write_json(path: Path, obj: dict) -> None:
-    """tmp + fsync + os.replace — meta.json is the commit marker the standing
-    `runs-deliver` scanner keys on; a half-written file must never be visible
-    at the final name."""
+    """tmp + fsync(file) + os.replace + fsync(dir) — meta.json is the commit
+    marker the standing `runs-deliver` scanner keys on; a half-written file
+    must never be visible at the final name. The directory fsync (WP-BENCH
+    review M2, matching r1-meta-schema.md's own write order and the
+    reference implementation in ~/.local/bin/runs-deliver's
+    write_meta_atomic) makes the RENAME itself durable across a power loss,
+    not just the tmp file's bytes — best-effort, never fails the write."""
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_name(f"{path.name}.tmp.{os.getpid()}")
     with open(tmp, "w", encoding="utf-8") as f:
@@ -145,6 +165,14 @@ def _atomic_write_json(path: Path, obj: dict) -> None:
         f.flush()
         os.fsync(f.fileno())
     os.replace(tmp, path)
+    try:
+        dir_fd = os.open(str(path.parent), os.O_RDONLY)
+        try:
+            os.fsync(dir_fd)
+        finally:
+            os.close(dir_fd)
+    except OSError:
+        pass  # best-effort durability nicety; never fail the write over this
 
 
 def _v2_meta(run_id: str, *, status: str, created: str, finished: str | None, title: str,
@@ -211,7 +239,14 @@ def _v2_report_body(cmd: str, args, cfg: dict, rc: int, state: dict) -> str:
     scorecard_err = None
     if labels:
         try:
-            scorecard = report_generate(",".join(labels))
+            # write=False (WP-BENCH review I1): report.generate() also
+            # (re)writes the SHARED results/report.md + report.json when
+            # asked to write at all — restricted to exactly the labels
+            # given. Every plain `run --models <label>` was silently
+            # collapsing that shared board down to one row as a side effect
+            # of building this V2-only body. The scorecard text below still
+            # covers just this run's labels; the shared files are untouched.
+            scorecard = report_generate(",".join(labels), write=False)
         except Exception as e:  # noqa: BLE001 — never let a report bug eat the real rc
             scorecard_err = str(e)
             log.warning("V2 report: report.generate failed: %s", e)
@@ -263,6 +298,27 @@ def _v2_report_body(cmd: str, args, cfg: dict, rc: int, state: dict) -> str:
     if scorecard:
         lines += ["", "---", "", scorecard]
     return "\n".join(lines) + "\n"
+
+
+def _exit_code_from_exception(e: BaseException) -> int:
+    """Best-effort real exit code for the V2 report's meta.json/report.md
+    (WP-BENCH review M5): every abnormal exit used to be recorded as a flat
+    "exit code: 1", so a `SystemExit(2)` (bad `--cases` id) or a SIGTERM's
+    `SystemExit(143)` was misreported in the one file a human reads as
+    evidence. A SystemExit's own ``.code`` wins when it is an int
+    (``True``/``False`` count as 1/0, matching Python's own ``sys.exit()``
+    semantics; ``None`` means a plain ``sys.exit()``, i.e. 0). A string
+    message (``raise SystemExit("oops")``) or any other exception type has
+    no numeric code, so this falls back to 1 — the same convention Python's
+    own interpreter uses for an uncaught exception reaching the top."""
+    if isinstance(e, SystemExit):
+        code = e.code
+        if code is None:
+            return 0
+        if isinstance(code, int):
+            return code
+        return 1
+    return 1
 
 
 def _v2_finish(cmd: str, args, cfg: dict, rc: int, state: dict) -> None:
@@ -384,9 +440,17 @@ def cmd_status(args, cfg):
                           f"devices={r['plan'].get('devices')}")
                 leases = studioforge.list_leases(p.base_url, p.api_key, p.mgmt_headers())
                 pin_missing = p.lease and not live_pin
+                # WP-BENCH review M6: name the ACTUAL ${VAR} behind this
+                # provider's X-MCP-Pin (pin_env, already resolved above) —
+                # a hardcoded "STUDIOFORGE_MCP_PIN" here was wrong for any
+                # models.yaml that references a different env var name.
+                pin_warn = ""
+                if pin_missing:
+                    pin_warn = (f" (X-MCP-Pin is EMPTY — ${pin_env} not set in this shell!)"
+                               if pin_env else " (X-MCP-Pin is EMPTY!)")
                 print(f"    leases: {[(l.get('holder'), l.get('devices'), l.get('model_ids')) for l in leases] or 'none'}"
                       f"   lease mode: {'ON' if p.lease else 'off'}"
-                      f"{' (X-MCP-Pin is EMPTY — STUDIOFORGE_MCP_PIN not set in this shell!)' if pin_missing else ''}")
+                      f"{pin_warn}")
             except Exception as e:  # noqa: BLE001
                 print(f"    (management API: {e})")
     print("\nregistry (models):")
@@ -615,12 +679,21 @@ def cmd_all(args, cfg):
     rc = cmd_run(args, cfg)
     if rc:
         return rc
+    # WP-BENCH review fix: cmd_judge signals failure by RETURNING non-zero in
+    # two cases (4 = start-of-judge lease unavailable, 1 = rows errored) —
+    # neither raises, so the bare `cmd_judge(args, cfg)` this used to be
+    # silently discarded both and `all` could exit 0 with the judge phase
+    # never having scored a single row (a delivered, confidently-worded V2
+    # "succeeded" report for a run that did not succeed). Capture it.
     try:
-        cmd_judge(args, cfg)
+        rc_j = cmd_judge(args, cfg)
     except Exception as e:  # noqa: BLE001 — objective results are still worth a report
         log.error("judge phase failed: %s — rendering the report without judged rows", e)
-        rc = 1
-    return cmd_report(args, cfg) or rc
+        rc_j = 1
+    else:
+        if rc_j:
+            log.error("judge phase exited %d — rendering the report without judged rows", rc_j)
+    return cmd_report(args, cfg) or rc_j
 
 
 def cmd_gui(args, cfg):
@@ -748,10 +821,13 @@ def main(argv=None):
     def add_force_evict_arg(p):
         p.add_argument(
             "--force-evict", action="store_true",
-            help="WP-BENCH FIX-2: allow evicting a PINNED idle resident to get the GPU "
-                 "lease (never a resident mid-request, and never a D46 priority-tier "
-                 "resident by itself). This tool never sets it on its own — pass it only "
-                 "on Jake's explicit go-ahead for THIS run.")
+            help="WP-BENCH FIX-2: send force=true on the FIRST lease attempt. The rig "
+                 "honours this for an IDLE resident of EITHER refusal dialect — a plain "
+                 "'pinned' resident OR a D46 priority-tier one (e.g. a pinned, priority-1 "
+                 "family-bot model) — it can and will evict either; it never overrides a "
+                 "resident mid-request. This tool never sets it on its own — pass it only "
+                 "on Jake's explicit go-ahead for THIS run, exactly because it CAN reach a "
+                 "priority-tier resident, not because it can't.")
 
     def add_run_args(p):
         add_force_evict_arg(p)
@@ -942,9 +1018,9 @@ def main(argv=None):
     except ConfigError as e:
         print(f"config error: {e}", file=sys.stderr)
         rc = 2
-    except BaseException:
+    except BaseException as e:
         if v2_tracked:
-            _v2_finish(args.cmd, args, cfg, 1, v2_state)
+            _v2_finish(args.cmd, args, cfg, _exit_code_from_exception(e), v2_state)
         raise
     if v2_tracked:
         _v2_finish(args.cmd, args, cfg, rc or 0, v2_state)

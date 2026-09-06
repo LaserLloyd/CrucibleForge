@@ -15,10 +15,12 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 
 import pytest
 
 from crucibleforge import cli, config as cfgmod, providers, studioforge
+from crucibleforge import report as report_mod
 
 
 @pytest.fixture(autouse=True)
@@ -212,7 +214,14 @@ def test_cli_main_run_writes_v2_contract_end_to_end(tmp_path, monkeypatch):
 def test_cli_main_all_writes_v2_contract_exactly_once_not_from_inner_run(tmp_path, monkeypatch):
     """`all` calls cmd_run() internally — the write contract must fire ONCE,
     for the whole run+judge+report unit dispatched at the top level, not a
-    premature "done" the instant the inner run() phase alone finishes."""
+    premature "done" the instant the inner run() phase alone finishes.
+
+    Also covers the review-round fix to the flagged `cmd_all` bug: a
+    judge-lease-unavailable rc (4) from `cmd_judge` must propagate as `all`'s
+    own exit code and as `status: "failed"` in the V2 report — before the
+    fix, `cmd_all` discarded `cmd_judge`'s return value entirely and this
+    same scenario exited 0 with a "done"/"succeeded" V2 report for a judge
+    phase that never scored a row."""
     v2_root = tmp_path / "v2-runs"
     results_root = tmp_path / "results"
     monkeypatch.setattr(cli, "V2_RUNS_ROOT", v2_root)
@@ -244,13 +253,147 @@ def test_cli_main_all_writes_v2_contract_exactly_once_not_from_inner_run(tmp_pat
     with pytest.raises(SystemExit) as ei:
         cli.main(["all", "--models", "m1", "--yes", "--run-id", "w-e2e-2"])
     # cmd_judge CATCHES JudgeLeaseUnavailable itself and returns 4 — it does
-    # not raise — and cmd_all's call site (`cmd_judge(args, cfg)` on its own
-    # line) discards that return value, so a judge-lease refusal does not
-    # move `rc` off whatever cmd_run returned (0 here); cmd_report then also
-    # returns 0. That end-to-end exit-code quirk of cmd_all is pre-existing
-    # and out of WP-BENCH's fix list — not asserted as correct here, just
-    # observed so this test reflects real behaviour. What FIX-6 actually
-    # promises is asserted below: the write contract fires exactly once, for
-    # the WHOLE all=run+judge+report unit, not once per inner phase.
+    # not raise. cmd_all now captures that return value (the review-round
+    # fix) instead of discarding it, so it propagates as both the process
+    # exit code and the V2 report's status. cmd_report still runs (an
+    # objective-only report is still worth having).
+    assert ei.value.code == 4
+    run_dir = v2_root / "w-e2e-2"
+    meta = json.loads((run_dir / "meta.json").read_text())
+    assert meta["status"] == "failed"
+    assert len(write_events) == 1 and write_events[0] == ("all", 4)
+
+
+# ---------------------------------------------- review round 1: I1, M1, M2, M5, M6
+
+def _seed_two_label_board():
+    """Two labels with empty (but present) transcript files — enough for
+    report.generate() to list both without needing real case rows (a
+    missing/empty transcript renders as an all-dashes row, not a crash)."""
+    results_dir = cfgmod.RESULTS_DIR
+    results_dir.mkdir(parents=True, exist_ok=True)
+    (results_dir / "transcripts_one.jsonl").write_text("", encoding="utf-8")
+    (results_dir / "transcripts_two.jsonl").write_text("", encoding="utf-8")
+    report_mod.generate(None)  # no labels_arg -> every transcript present -> seeds the board
+    board = report_mod.report_md_path()
+    return board, board.read_text(), board.stat().st_size
+
+
+def test_report_generate_write_false_preserves_shared_board():
+    """WP-BENCH review I1 (regression from FIX-6): report.generate(labels,
+    write=False) must render without touching results/report.md /
+    report.json — the shared, tool-owned, all-models board. Before this fix
+    the V2 report body's own internal generate(labels) call ALSO (re)wrote
+    those two files restricted to just the run's own labels, so every plain
+    `run --models <label>` silently collapsed the shared board to one row."""
+    board, before_text, before_size = _seed_two_label_board()
+    assert "one" in before_text and "two" in before_text
+
+    md = report_mod.generate("one", write=False)
+
+    assert "one" in md and "two" not in md  # the returned text IS scoped to the request
+    assert board.read_text() == before_text  # but the shared file is untouched
+    assert board.stat().st_size == before_size
+
+
+def test_cli_main_run_preserves_shared_board_when_given_one_label(monkeypatch, tmp_path):
+    """Same regression, through the real `cli.main(["run", ...])` path (cmd_run
+    stubbed — no benchmark, no network): `run --models one` must not reduce
+    the shared board that `two` is also on down to one row."""
+    board, before_text, before_size = _seed_two_label_board()
+    fake_cfg = {"models": [{"name": "one", "provider": "p", "model_id": "x",
+                            "context_length": 8192, "enabled": True},
+                           {"name": "two", "provider": "p", "model_id": "y",
+                            "context_length": 8192, "enabled": True}],
+               "providers": {"p": {"type": "openai", "base_url": "http://x", "api_key": "k"}},
+               "defaults": {}, "judge": {"candidates": []}}
+    monkeypatch.setattr(cli, "load_config", lambda *a, **kw: fake_cfg)
+    monkeypatch.setattr(cli, "V2_RUNS_ROOT", tmp_path / "v2-runs")
+    monkeypatch.setattr(cli, "cmd_run", lambda args, cfg: 0)
+
+    with pytest.raises(SystemExit) as ei:
+        cli.main(["run", "--models", "one", "--yes"])
     assert ei.value.code == 0
-    assert len(write_events) == 1 and write_events[0] == ("all", 0)
+    assert board.read_text() == before_text
+    assert board.stat().st_size == before_size
+
+
+def test_resolve_run_id_rejects_a_traversal_id_and_self_mints(monkeypatch):
+    """WP-BENCH review M1: an id containing '/' (or anything outside
+    [A-Za-z0-9._-]) must never be used as given — it would write outside
+    V2_RUNS_ROOT with a directory name that does not match the recorded
+    `id` field, and runs-deliver's `runs/*/meta.json` glob would never find
+    it (a run that reports success and is never delivered)."""
+    monkeypatch.delenv("CRUCIBLEFORGE_RUN_ID", raising=False)
+    rid = cli._resolve_run_id(argparse.Namespace(run_id="../escaped"))
+    assert rid != "../escaped"
+    assert cli._RUN_ID_RE.match(rid)
+    assert rid.startswith("w-")  # fell back to self-minting, not a mangled version of the input
+
+
+def test_resolve_run_id_accepts_a_conforming_id():
+    rid = cli._resolve_run_id(argparse.Namespace(run_id="my-run.01_ok"))
+    assert rid == "my-run.01_ok"
+
+
+def test_resolve_run_id_rejects_an_oversized_id(monkeypatch):
+    monkeypatch.delenv("CRUCIBLEFORGE_RUN_ID", raising=False)
+    rid = cli._resolve_run_id(argparse.Namespace(run_id="x" * 81))
+    assert rid.startswith("w-")
+
+
+def test_atomic_write_json_fsyncs_the_containing_directory(tmp_path, monkeypatch):
+    """WP-BENCH review M2: r1-meta-schema.md's write order is "fsync the
+    file AND THEN the containing directory, then os.replace()" — matching
+    the reference implementation in ~/.local/bin/runs-deliver's
+    write_meta_atomic. A pure file fsync alone does not make the RENAME
+    itself durable across a power loss."""
+    real_fsync = os.fsync
+    fsynced = []
+
+    def spy_fsync(fd):
+        fsynced.append(fd)
+        return real_fsync(fd)
+    monkeypatch.setattr(os, "fsync", spy_fsync)
+    target = tmp_path / "sub" / "meta.json"
+    cli._atomic_write_json(target, {"a": 1})
+    assert target.exists()
+    # one fsync for the tmp file's contents, one for the directory after the
+    # rename -- not just the first.
+    assert len(fsynced) == 2
+
+
+def test_exit_code_from_exception_maps_systemexit_int_code():
+    """WP-BENCH review M5: main()'s V2 report used to record a flat "exit
+    code: 1" for every abnormal exit, so a SystemExit(2) (bad --cases id) or
+    a SIGTERM's SystemExit(143) was misreported in the one file a human
+    reads as evidence."""
+    assert cli._exit_code_from_exception(SystemExit(2)) == 2
+    assert cli._exit_code_from_exception(SystemExit(143)) == 143
+    assert cli._exit_code_from_exception(SystemExit()) == 0
+    assert cli._exit_code_from_exception(SystemExit(None)) == 0
+    assert cli._exit_code_from_exception(SystemExit(True)) == 1
+    assert cli._exit_code_from_exception(SystemExit(False)) == 0
+    assert cli._exit_code_from_exception(SystemExit("bad --cases id")) == 1
+    assert cli._exit_code_from_exception(ValueError("boom")) == 1
+
+
+def test_status_leases_warning_names_the_actual_env_var(monkeypatch, capsys):
+    """WP-BENCH review M6: a models.yaml that names a DIFFERENT env var for
+    the PIN must see THAT name in the leases-line warning — the line used
+    to hardcode the literal string "STUDIOFORGE_MCP_PIN" regardless of what
+    the header actually referenced."""
+    monkeypatch.delenv("MY_CUSTOM_PIN", raising=False)
+    cfg = {
+        "_path": "models.yaml", "defaults": {},
+        "providers": {"sf": {"type": "studioforge", "base_url": "http://x/v1",
+                             "headers": {"X-MCP-Pin": "${MY_CUSTOM_PIN}"},
+                             "lease": True}},
+        "models": [], "judge": {"candidates": []},
+    }
+    _stub_status_reads(monkeypatch)
+    cli.cmd_status(argparse.Namespace(), cfg)
+    out = capsys.readouterr().out
+    assert "pin: $MY_CUSTOM_PIN (NOT SET)" in out
+    assert "MY_CUSTOM_PIN not set in this shell" in out
+    assert "STUDIOFORGE_MCP_PIN" not in out

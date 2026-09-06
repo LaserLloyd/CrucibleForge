@@ -237,7 +237,7 @@ class Provider:
                     and int(live.get("parallel") or 1) > 1
                     and int(live.get("ctx_size") or 0) >= wanted)
         if ready:
-            self._remember_plan(model_id)
+            self._remember_plan(model_id, live=live)
         return ready
 
     # ------------------------------------------------------------ leases
@@ -316,12 +316,18 @@ class Provider:
         studioforge.release_lease(self.base_url, self.api_key, self.mgmt_headers(),
                                   lease["_lease_id"])
 
-    def _remember_plan(self, model_id: str) -> None:
-        try:
-            live = studioforge.loaded_plan(model_id, self.base_url, self.api_key,
-                                           self.mgmt_headers()) or {}
-        except studioforge.StudioForgeError:
-            live = {}
+    def _remember_plan(self, model_id: str, live: dict | None = None) -> None:
+        """Record the live plan for ``model_id``. Pass ``live`` when the
+        caller already has a fresh one (WP-BENCH review M4 — the resident
+        fast path used to fetch it once for its own ready-check and again
+        here, two ``GET /api/status`` round trips for one ``switch_model``
+        call); omitted, this fetches it itself as before."""
+        if live is None:
+            try:
+                live = studioforge.loaded_plan(model_id, self.base_url, self.api_key,
+                                               self.mgmt_headers()) or {}
+            except studioforge.StudioForgeError:
+                live = {}
         self._plans[model_id] = {k: live.get(k) for k in
                                  ("state", "parallel", "ctx_size", "devices", "kv_cache_type",
                                   "loaded_by", "mode")}

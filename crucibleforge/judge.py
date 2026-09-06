@@ -312,9 +312,13 @@ def acquire_judge_lease(cfg: dict, force_evict: bool = False) -> dict | None:
     ``force_evict`` is never set on this function's own initiative (WP-BENCH
     FIX-2) — pass ``True`` only when the caller (the CLI's ``--force-evict``
     flag) was itself given only on an explicit Jake go-ahead. It starts the
-    lease request already asking to evict a PINNED idle resident; it does
-    nothing for a D46 tier refusal against a mid-request or otherwise
-    protected resident (see ``studioforge.acquire_lease``).
+    lease request already asking to evict an IDLE resident of EITHER
+    refusal dialect — the rig's own D46 message literally says "pass
+    force=true to evict them anyway", so this CAN and will evict a pinned,
+    priority-tiered resident (e.g. a family bot's model), not just a
+    plain-pinned one. It never overrides a resident that is mid-request
+    (see ``studioforge.acquire_lease`` / ``studioforge.py``'s module
+    docstring).
     """
     try:
         cand = select_judge(cfg, set(), override=None)

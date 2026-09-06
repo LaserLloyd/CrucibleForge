@@ -1003,7 +1003,18 @@ def render_markdown(labels: list[str], stats: dict, cfg: dict | None) -> str:
     return "\n".join(L)
 
 
-def generate(labels_arg: str | None = None) -> str:
+def generate(labels_arg: str | None = None, write: bool = True) -> str:
+    """Render the scorecard for ``labels_arg`` (or every transcript present).
+
+    ``write=True`` (the CLI default) also (re)writes the shared
+    ``report.md``/``report.json`` — which is why passing an explicit
+    ``labels_arg`` here has always restricted THOSE FILES to just those
+    labels, same as `crucibleforge report --models X`. ``write=False`` skips
+    both writes and only returns the rendered markdown: for a caller that
+    wants a scorecard for a specific subset without touching the shared
+    board (WP-BENCH review I1 — the V2 run-report body used to call this
+    with the run's own labels and, as an unintended side effect, truncate
+    the shared board down to just those rows on every plain `run`)."""
     try:
         cfg = load_config()
     except Exception:
@@ -1021,10 +1032,11 @@ def generate(labels_arg: str | None = None) -> str:
     for label in labels:
         stats[label]["scorecard"] = scorecard(stats[label], sc)
     md = render_markdown(labels, stats, cfg)
-    report_md_path().write_text(md, encoding="utf-8")
-    report_json_path().write_text(json.dumps(
-        {"generated": datetime.now().isoformat(), "models": stats},
-        indent=2, default=str), encoding="utf-8")
+    if write:
+        report_md_path().write_text(md, encoding="utf-8")
+        report_json_path().write_text(json.dumps(
+            {"generated": datetime.now().isoformat(), "models": stats},
+            indent=2, default=str), encoding="utf-8")
     return md
 
 
