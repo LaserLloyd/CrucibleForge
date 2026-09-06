@@ -16,10 +16,14 @@ prefer running overnight or with other consumers stopped.
 from __future__ import annotations
 
 import argparse
+import json
 import logging
 import os
+import re
+import secrets
 import shutil
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 from .config import (CATEGORIES, ConfigError, EXAMPLE_CONFIG_PATH,
@@ -27,6 +31,19 @@ from .config import (CATEGORIES, ConfigError, EXAMPLE_CONFIG_PATH,
                      results_dir)
 
 log = logging.getLogger("crucibleforge")
+
+# WP-BENCH FIX-6 (r1-meta-schema.md, schema v1): the fleet-wide runs/<id>/
+# {report.md,meta.json} write contract — deliberately NOT under this
+# project's own `results/`, which is a different, tool-owned directory (see
+# `results_dir()`). Fixed per-machine and absolute on purpose: every producer
+# on the box writes here so ONE standing scanner (`runs-deliver`) can deliver
+# all of them, independent of cwd/--results. Resolved via ``Path.home()``
+# (never a literal username in the source — this is a public repo) with an
+# env override for anyone whose fleet convention differs.
+V2_RUNS_ROOT = Path(os.environ.get("CRUCIBLEFORGE_V2_RUNS_ROOT")
+                    or (Path.home() / ".openclaw" / "workspace" / "runs"))
+V2_PRODUCER = "crucibleforge"
+V2_KIND = "cron-worker"
 
 
 def setup_logging(log_path: Path | None = None):
@@ -51,6 +68,24 @@ def _parse_list(arg: str | None) -> list[str] | None:
     return [s.strip() for s in arg.split(",") if s.strip()]
 
 
+_PIN_ENV_REF = re.compile(r"^\$\{([A-Za-z_][A-Za-z0-9_]*)\}$")
+
+
+def _pin_env_name(raw_headers: dict | None) -> str | None:
+    """The ``${ENV_VAR}`` name behind a provider's RAW (pre-expansion)
+    X-MCP-Pin header, so status can print ``pin: $NAME (set/NOT SET)`` in the
+    same style as an API key's ``key: $NAME`` — providers.Provider only keeps
+    the EXPANDED value, which has already lost the variable's name (WP-BENCH
+    FIX-5). Returns None when the header isn't set up as an env reference at
+    all (no X-MCP-Pin header, or a literal value)."""
+    raw = next((v for k, v in (raw_headers or {}).items() if k.lower() == "x-mcp-pin"), None)
+    if isinstance(raw, str):
+        m = _PIN_ENV_REF.match(raw.strip())
+        if m:
+            return m.group(1)
+    return None
+
+
 def _archive_labels(labels: list[str]) -> None:
     """Move existing transcript+meta for these labels into a timestamped
     archive so a --fresh run starts clean instead of accumulating."""
@@ -68,13 +103,199 @@ def _archive_labels(labels: list[str]) -> None:
         log.info("archived %d prior result files to %s", moved, dest)
 
 
+# --------------------------------------------------------- WP-BENCH FIX-6
+# runs/<id>/{report.md,meta.json} write contract (r1-meta-schema.md schema
+# v1). Tracked for `run` and `all` only (see `main()`) — a whole CLI process
+# is the "unit of work"; `cmd_all` calling `cmd_run` internally must not
+# trip this twice, which is why it lives at the top-level dispatch and not
+# inside cmd_run itself.
+
+def _utcnow_iso() -> str:
+    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def _mint_run_id() -> str:
+    """Self-minted id per r1-meta-schema.md: w-<UTC stamp>-<4 hex>."""
+    ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    return f"w-{ts}-{secrets.token_hex(2)}"
+
+
+def _resolve_run_id(args) -> str:
+    """RUN_DIR:/RUN_ID: equivalent for a CLI caller: --run-id, else
+    $CRUCIBLEFORGE_RUN_ID, else self-mint. A worker dispatched with a brief
+    that names a run id never needs to invent one; an ad-hoc human/cron
+    invocation gets one anyway, so the write contract is unconditional."""
+    return (getattr(args, "run_id", None) or os.environ.get("CRUCIBLEFORGE_RUN_ID")
+           or _mint_run_id())
+
+
+def _v2_run_dir(run_id: str) -> Path:
+    return V2_RUNS_ROOT / run_id
+
+
+def _atomic_write_json(path: Path, obj: dict) -> None:
+    """tmp + fsync + os.replace — meta.json is the commit marker the standing
+    `runs-deliver` scanner keys on; a half-written file must never be visible
+    at the final name."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_name(f"{path.name}.tmp.{os.getpid()}")
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(obj, f, indent=2)
+        f.write("\n")
+        f.flush()
+        os.fsync(f.fileno())
+    os.replace(tmp, path)
+
+
+def _v2_meta(run_id: str, *, status: str, created: str, finished: str | None, title: str,
+            requester_session: str | None, thread_id: str | None,
+            task_run_id: str | None) -> dict:
+    """The 15-field schema v1 object, field order matching
+    r1-meta-schema.md's own example verbatim. producer/kind are constants —
+    crucibleforge is always the producer of its own runs, always dispatched
+    as a cron-style worker (see V2_KIND)."""
+    return {
+        "schema": 1, "id": run_id, "producer": V2_PRODUCER, "kind": V2_KIND,
+        "title": title[:80], "requester_session": requester_session,
+        "thread_id": thread_id, "task_run_id": task_run_id, "status": status,
+        "created": created, "finished": finished,
+        "delivered": False, "delivered_at": None, "delivered_to": None, "delivery_mode": None,
+    }
+
+
+def _v2_start(args) -> dict:
+    """FIRST act for a V2-tracked command, before any benchmark work at all:
+    mint/resolve the run id and write meta.json with status "running". This
+    is what lets the fleet-wide standing scanner flag a worker that dies
+    mid-run as stale instead of it leaving no trace (r1-meta-schema.md
+    "running-first" convention, matching workspace-ds-flash/AGENTS.md).
+
+    Never raises — a filesystem problem here is logged and the run proceeds;
+    the V2 write contract must never be why a benchmark did not run."""
+    run_id = _resolve_run_id(args)
+    requester = getattr(args, "requester", None) or os.environ.get("CRUCIBLEFORGE_REQUESTER")
+    deliver_to = getattr(args, "deliver_to", None) or os.environ.get("CRUCIBLEFORGE_DELIVER_TO")
+    task_run_id = (getattr(args, "task_run_id", None)
+                  or os.environ.get("CRUCIBLEFORGE_TASK_RUN_ID"))
+    title = f"CrucibleForge {args.cmd}: {args.models}"
+    created = _utcnow_iso()
+    state = {"run_id": run_id, "requester_session": requester, "thread_id": deliver_to,
+             "task_run_id": task_run_id, "title": title, "created": created}
+    try:
+        meta = _v2_meta(run_id, status="running", created=created, finished=None, title=title,
+                        requester_session=requester, thread_id=deliver_to,
+                        task_run_id=task_run_id)
+        _atomic_write_json(_v2_run_dir(run_id) / "meta.json", meta)
+        log.info("V2 run-report: %s/meta.json written (status=running)", _v2_run_dir(run_id))
+    except OSError as e:
+        log.error("V2 run-report FIRST write failed for %s: %s — proceeding anyway", run_id, e)
+    return state
+
+
+def _v2_report_body(cmd: str, args, cfg: dict, rc: int, state: dict) -> str:
+    """runs/<id>/report.md: the standard 5-heading contract (Result /
+    Evidence / Files / Failed / Next — r1-meta-schema.md quotes this as
+    "the same text as the worker's final message") wrapped around this
+    tool's own scorecard, so `runs-deliver`'s "## Result" extraction gives a
+    short, sane summary while the full scorecard still ships in the body."""
+    from .report import generate as report_generate
+    from .version import revision
+    models_arg = getattr(args, "models", None)
+    labels: list[str] = []
+    try:
+        entries = resolve_models(cfg, models_arg)
+        labels = [e["name"] for e in entries]
+    except Exception as e:  # noqa: BLE001 — a bad --models must not blank the report
+        log.warning("V2 report: could not resolve --models %r: %s", models_arg, e)
+    scorecard = None
+    scorecard_err = None
+    if labels:
+        try:
+            scorecard = report_generate(",".join(labels))
+        except Exception as e:  # noqa: BLE001 — never let a report bug eat the real rc
+            scorecard_err = str(e)
+            log.warning("V2 report: report.generate failed: %s", e)
+    try:
+        rev = revision(cfg)
+    except Exception:
+        rev = None
+    ok = rc == 0
+    argv_bits = [f"crucibleforge {cmd} --models {models_arg}"]
+    for flag in ("profile", "judge", "categories", "difficulty", "cases"):
+        val = getattr(args, flag, None)
+        if val:
+            argv_bits.append(f"--{flag} {val}")
+    result_line = (
+        f"{', '.join(labels) or '(no models resolved)'}: "
+        f"{'succeeded' if ok else 'FAILED'} (exit {rc})."
+    )
+    lines = [
+        f"# CrucibleForge {cmd} — {', '.join(labels) or '(none)'}",
+        "",
+        "## Result",
+        result_line,
+        "",
+        "## Evidence",
+        f"- run id: `{state['run_id']}`",
+        f"- command: `{' '.join(argv_bits)}`",
+        f"- suite revision: `{rev}`" if rev else "- suite revision: unknown",
+        f"- started: {state['created']}  finished: {_utcnow_iso()}",
+        f"- exit code: {rc}",
+    ]
+    if scorecard_err:
+        lines.append(f"- scorecard render error: {scorecard_err}")
+    lines += ["", "## Files",
+             f"- `{results_dir() / 'report.md'}`",
+             f"- `{results_dir() / 'report.json'}`"]
+    lines += [f"- `{results_dir() / f'transcripts_{label}.jsonl'}`" for label in labels]
+    lines += [
+        "",
+        "## Failed",
+        ("None." if ok else
+         f"`crucibleforge {cmd}` exited {rc} — see `{results_dir() / 'crucibleforge.log'}` "
+         "and the scorecard below for which model/phase."),
+        "",
+        "## Next",
+        ("None." if ok else
+         "Re-run once the rig is free (a lease/priority refusal is transient), or read "
+         "Evidence above for the holder named in the log."),
+    ]
+    if scorecard:
+        lines += ["", "---", "", scorecard]
+    return "\n".join(lines) + "\n"
+
+
+def _v2_finish(cmd: str, args, cfg: dict, rc: int, state: dict) -> None:
+    """LAST act for a V2-tracked command: write report.md, then rewrite
+    meta.json atomically with the terminal status. Best-effort throughout —
+    a bug in this delivery-plumbing code must never change the `rc` the
+    process actually exits with (see the try/except around every step)."""
+    run_id = state["run_id"]
+    run_dir = _v2_run_dir(run_id)
+    try:
+        body = _v2_report_body(cmd, args, cfg, rc, state)
+        run_dir.mkdir(parents=True, exist_ok=True)
+        (run_dir / "report.md").write_text(body, encoding="utf-8")
+    except Exception as e:  # noqa: BLE001
+        log.error("V2 run-report report.md write failed for %s: %s", run_id, e)
+    status = "done" if rc == 0 else "failed"
+    try:
+        meta = _v2_meta(run_id, status=status, created=state["created"], finished=_utcnow_iso(),
+                        title=state["title"], requester_session=state["requester_session"],
+                        thread_id=state["thread_id"], task_run_id=state["task_run_id"])
+        _atomic_write_json(run_dir / "meta.json", meta)
+        log.info("V2 run-report: %s/{report.md,meta.json} written (status=%s)", run_dir, status)
+    except OSError as e:
+        log.error("V2 run-report LAST write failed for %s: %s", run_id, e)
+
+
 class _ProviderGuard:
     """Leave the rig as we found it. LM Studio: snapshot/restore the served
     model. StudioForge: snapshot the residents, release our GPU lease at the
     end and bring the evicted residents back (a family bot's model should
     not stay cold because a benchmark ran)."""
 
-    def __init__(self, cfg, entries, include_judge: bool = True):
+    def __init__(self, cfg, entries, include_judge: bool = True, force_evict: bool = False):
         from .providers import provider_for, get_provider
         self.provs = {}
         for e in entries:
@@ -89,6 +310,12 @@ class _ProviderGuard:
                     continue
                 if p.type in ("lmstudio", "studioforge") and p.name not in self.provs:
                     self.provs[p.name] = p
+        # WP-BENCH FIX-2: the only place `force=true` ever gets authorised for
+        # this run. Never set from a refusal message — only from the CLI's
+        # explicit `--force-evict` flag, which the skill says a worker may
+        # pass only on Jake's explicit go-ahead.
+        for p in self.provs.values():
+            p.force_evict = force_evict
         self.saved = {n: p.snapshot() for n, p in self.provs.items()}
 
     def busy(self) -> list[str]:
@@ -132,8 +359,18 @@ def cmd_status(args, cfg):
         key = ("key: $" + (cfg["providers"][p.name].get("api_key_env") or "")
                if cfg["providers"][p.name].get("api_key_env") else "")
         keyset = ("" if not key else (" (set)" if p.api_key else " (NOT SET)"))
+        # WP-BENCH FIX-5: show the management PIN in the same style as an API
+        # key, and base it on the LIVE (expanded) header value, not just
+        # whether the header key exists — an unset ${STUDIOFORGE_MCP_PIN}
+        # still leaves the key present with an empty value (providers._expand_env
+        # returns "" for an unset var), so a key-presence check alone always
+        # said "fine" (RC-6: a worker that forgot to source the env file got a
+        # green status here and a 403 twenty minutes later).
+        pin_env = _pin_env_name(cfg["providers"][p.name].get("headers")) if p.type == "studioforge" else None
+        live_pin = next((v for k, v in p.headers.items() if k.lower() == "x-mcp-pin"), None)
+        pin = f" pin: ${pin_env} ({'set' if live_pin else 'NOT SET'})" if pin_env else ""
         print(f"  {p.name:14s} {p.type:11s} {p.base_url:45s} {state:4s} "
-              f"conc={p.concurrency} {key}{keyset}")
+              f"conc={p.concurrency} {key}{keyset}{pin}")
         loaded = p.loaded_models()
         if loaded:
             print(f"    loaded now: {[m['identifier'] for m in loaded]}")
@@ -146,9 +383,10 @@ def cmd_status(args, cfg):
                           f"ctx={r['plan'].get('ctx_size')} slots={r['plan'].get('parallel')} "
                           f"devices={r['plan'].get('devices')}")
                 leases = studioforge.list_leases(p.base_url, p.api_key, p.mgmt_headers())
+                pin_missing = p.lease and not live_pin
                 print(f"    leases: {[(l.get('holder'), l.get('devices'), l.get('model_ids')) for l in leases] or 'none'}"
                       f"   lease mode: {'ON' if p.lease else 'off'}"
-                      f"{' (no X-MCP-Pin header configured!)' if p.lease and not any(k.lower() == 'x-mcp-pin' for k in p.headers) else ''}")
+                      f"{' (X-MCP-Pin is EMPTY — STUDIOFORGE_MCP_PIN not set in this shell!)' if pin_missing else ''}")
             except Exception as e:  # noqa: BLE001
                 print(f"    (management API: {e})")
     print("\nregistry (models):")
@@ -224,7 +462,7 @@ def cmd_run(args, cfg):
     if getattr(args, "fresh", False):
         _archive_labels([e["name"] for e in entries])
 
-    guard = _ProviderGuard(cfg, entries)
+    guard = _ProviderGuard(cfg, entries, force_evict=getattr(args, "force_evict", False))
     busy = guard.busy()
     if busy and not args.yes:
         print(f"LM Studio is currently serving {busy} — someone may be "
@@ -292,7 +530,7 @@ def cmd_recover(args, cfg):
     if not getattr(args, "no_link_check", False):
         from .preflight import check_link_health
         check_link_health(cfg, [e for e in entries if todo[e["name"]]])
-    guard = _ProviderGuard(cfg, entries)
+    guard = _ProviderGuard(cfg, entries, force_evict=getattr(args, "force_evict", False))
     busy = guard.busy()
     if busy and not args.yes:
         print(f"LM Studio is currently serving {busy} — re-run with --yes to proceed.")
@@ -309,14 +547,34 @@ def cmd_recover(args, cfg):
 
 
 def cmd_judge(args, cfg):
-    from .judge import run_judge
+    from .judge import JudgeLeaseUnavailable, acquire_judge_lease, run_judge
     cfg, _, _ = _apply_profile_arg(args, cfg)
     entries = resolve_models(cfg, args.models)
     labels = [e["name"] for e in entries]
     samples = getattr(args, "samples", None)
     if getattr(args, "smoke", False):
         samples = 1  # keep smoke fast regardless of config
-    guard = _ProviderGuard(cfg, [])
+    # Reserve every StudioForge GPU for the judge BEFORE the per-model load
+    # happens. The provider's ``lease: true`` path would do this inside
+    # ``_lease_load`` — but only after the runner is partway through a
+    # multi-minute 122B download, when a 507 has no context to act on.
+    # Acquiring the lease up-front (Lloyd 2026-08-31: "block out all the gpus
+    # when running the judge") lets the rig either grant the lease and plan
+    # around the named model, or refuse fast with a message naming the
+    # holder, instead of timing out 178 rows in.
+    force_evict = getattr(args, "force_evict", False)
+    try:
+        acquire_judge_lease(cfg, force_evict=force_evict)
+    except JudgeLeaseUnavailable as e:
+        holder = f" (current holder: {e.holder})" if e.holder else ""
+        print(f"judge lease: {e}{holder}", file=sys.stderr)
+        log.error("judge aborted — could not reserve all GPUs: %s", e)
+        # We never touched the rig (the lease was refused before any load),
+        # so the resident-snapshot guard has nothing to do. Returning
+        # non-zero keeps the queue script from stamping DONE over a batch
+        # that did not run.
+        return 4
+    guard = _ProviderGuard(cfg, [], force_evict=force_evict)
     try:
         result = run_judge(cfg, labels, force=args.force, samples=samples,
                            judge_override=getattr(args, "judge", None),
@@ -487,7 +745,16 @@ def main(argv=None):
                         help="results directory (default: <config dir>/results)")
     sub = parser.add_subparsers(dest="cmd", required=True)
 
+    def add_force_evict_arg(p):
+        p.add_argument(
+            "--force-evict", action="store_true",
+            help="WP-BENCH FIX-2: allow evicting a PINNED idle resident to get the GPU "
+                 "lease (never a resident mid-request, and never a D46 priority-tier "
+                 "resident by itself). This tool never sets it on its own — pass it only "
+                 "on Jake's explicit go-ahead for THIS run.")
+
     def add_run_args(p):
+        add_force_evict_arg(p)
         p.add_argument("--models", default="all",
                        help="comma-separated labels, or 'all' (= enabled)")
         p.add_argument("--categories", default=None,
@@ -514,11 +781,26 @@ def main(argv=None):
                        help="force a judge: provider:model_id (must not be under test)")
         p.add_argument("--no-link-check", action="store_true",
                        help="skip the pre-flight provider data-channel probe")
+        p.add_argument("--run-id", default=None,
+                       help="WP-BENCH FIX-6: id for this run's "
+                            f"{V2_RUNS_ROOT}/<id>/{{report.md,meta.json}} (else "
+                            "$CRUCIBLEFORGE_RUN_ID, else self-minted)")
+        p.add_argument("--deliver-to", default=None,
+                       help="DisPatch thread id to route the V2 run report to "
+                            "(else $CRUCIBLEFORGE_DELIVER_TO, else the standing scanner "
+                            "falls back to the daily thread)")
+        p.add_argument("--requester", default=None,
+                       help="gateway session key that dispatched this run, e.g. "
+                            "agent:main:daily-main-... (else $CRUCIBLEFORGE_REQUESTER)")
+        p.add_argument("--task-run-id", default=None,
+                       help="gateway runId for this unit of work, for blocked-task "
+                            "reconciliation (else $CRUCIBLEFORGE_TASK_RUN_ID)")
 
     sub.add_parser("status", help="providers, registry, judge, cases")
     p_run = sub.add_parser("run", help="benchmark models")
     add_run_args(p_run)
     p_judge = sub.add_parser("judge", help="judge pending quality rows")
+    add_force_evict_arg(p_judge)
     p_judge.add_argument("--models", default="all")
     p_judge.add_argument("--force", action="store_true",
                          help="re-judge rows that already have verdicts")
@@ -530,6 +812,7 @@ def main(argv=None):
     p_judge.add_argument("--profile", default=None, help="use the profile's judge/budgets")
     p_recover = sub.add_parser(
         "recover", help="re-run reasoning-overflow rows (empty answers) through recovery")
+    add_force_evict_arg(p_recover)
     p_recover.add_argument("--models", default="all")
     p_recover.add_argument("--yes", action="store_true")
     p_recover.add_argument("--profile", default=None)
@@ -646,11 +929,25 @@ def main(argv=None):
                "recover": cmd_recover, "report": cmd_report, "pairwise": cmd_pairwise, "all": cmd_all,
                "gui": cmd_gui, "import-openclaw": cmd_import_openclaw,
                "models": cmd_models, "cases": cmd_cases}[args.cmd]
+    # WP-BENCH FIX-6: `run`/`all` are the two commands that do real benched
+    # work end to end, so they are the ones tracked by the fleet-wide
+    # runs/<id>/{report.md,meta.json} contract. This wraps the dispatch
+    # itself (not cmd_run's body) so `cmd_all` calling `cmd_run` internally
+    # writes the contract exactly once, for the WHOLE all=run+judge+report
+    # unit of work, not a premature "done" the moment run() alone finishes.
+    v2_tracked = args.cmd in ("run", "all")
+    v2_state = _v2_start(args) if v2_tracked else None
     try:
         rc = handler(args, cfg)
     except ConfigError as e:
         print(f"config error: {e}", file=sys.stderr)
         rc = 2
+    except BaseException:
+        if v2_tracked:
+            _v2_finish(args.cmd, args, cfg, 1, v2_state)
+        raise
+    if v2_tracked:
+        _v2_finish(args.cmd, args, cfg, rc or 0, v2_state)
     sys.exit(rc or 0)
 
 
