@@ -345,6 +345,27 @@ def _v2_finish(cmd: str, args, cfg: dict, rc: int, state: dict) -> None:
         log.error("V2 run-report LAST write failed for %s: %s", run_id, e)
 
 
+def _policy_force(p) -> bool:
+    if getattr(p, "force_evict_policy", False):
+        log.warning("%s: bench-first policy — lease claims start with force=true "
+                    "(idle residents are evicted and restored at the end)", p.name)
+        return True
+    return False
+
+
+def _judge_policy_force(cfg: dict) -> bool:
+    """The judge's own provider, same standing policy."""
+    from .providers import get_provider
+    for cand in (cfg.get("judge") or {}).get("candidates", []):
+        try:
+            p = get_provider(cfg, cand["provider"])
+        except Exception:
+            continue
+        if p.type == "studioforge" and _policy_force(p):
+            return True
+    return False
+
+
 class _ProviderGuard:
     """Leave the rig as we found it. LM Studio: snapshot/restore the served
     model. StudioForge: snapshot the residents, release our GPU lease at the
@@ -370,8 +391,11 @@ class _ProviderGuard:
         # this run. Never set from a refusal message — only from the CLI's
         # explicit `--force-evict` flag, which the skill says a worker may
         # pass only on Jake's explicit go-ahead.
+        # …or by the provider's STANDING bench-first policy
+        # (``force_evict: true`` in models.yaml, Jake 2026-09-08: the bench
+        # outranks everything on the rig). Logged as loudly as the flag.
         for p in self.provs.values():
-            p.force_evict = force_evict
+            p.force_evict = force_evict or _policy_force(p)
         self.saved = {n: p.snapshot() for n, p in self.provs.items()}
 
     def busy(self) -> list[str]:
@@ -451,6 +475,10 @@ def cmd_status(args, cfg):
                 print(f"    leases: {[(l.get('holder'), l.get('devices'), l.get('model_ids')) for l in leases] or 'none'}"
                       f"   lease mode: {'ON' if p.lease else 'off'}"
                       f"{pin_warn}")
+                if p.force_evict_policy or p.lease_devices_preferred or p.clawforge_mcp:
+                    print(f"    bench-first: force_evict={'ON' if p.force_evict_policy else 'off'}"
+                          f"  preferred cards={p.lease_devices_preferred or '-'} (else {p.lease_devices or 'all'})"
+                          f"  vacate render lease via ClawForge={'yes' if p.clawforge_mcp else 'no'}")
             except Exception as e:  # noqa: BLE001
                 print(f"    (management API: {e})")
     print("\nregistry (models):")
@@ -626,7 +654,7 @@ def cmd_judge(args, cfg):
     # when running the judge") lets the rig either grant the lease and plan
     # around the named model, or refuse fast with a message naming the
     # holder, instead of timing out 178 rows in.
-    force_evict = getattr(args, "force_evict", False)
+    force_evict = getattr(args, "force_evict", False) or _judge_policy_force(cfg)
     try:
         acquire_judge_lease(cfg, force_evict=force_evict)
     except JudgeLeaseUnavailable as e:

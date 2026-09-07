@@ -314,18 +314,28 @@ def test_thinking_budget_auto_detects():
 
 # ------------------------------------------------------ profiles + scoring
 
+def j_model_is_122b(j):
+    # the only judge the board is comparable on (Gemma4-31B is gone from the rig)
+    return "Qwen3.5-122B" in j["model_id"] and j.get("thinking") is True
+
+
 def test_standard_profile_loads_and_applies():
     from crucibleforge import profiles
     cfg = config.load_config(config.EXAMPLE_CONFIG_PATH)
     prof = profiles.load_profile("standard", cfg)
     cfg2, cases = profiles.apply_profile(prof, cfg)
     assert cfg2["_profile"] == "standard"
-    assert cfg2["defaults"]["thinking_max_tokens_cap"] == 16384
+    # 2026-09-08: budgets raised for full output (Jake) — cap must stay
+    # under the 32768 context the profile's models are loaded at.
+    assert cfg2["defaults"]["thinking_max_tokens_cap"] == 24576
     assert cfg2["defaults"]["repeats"]["rp"] == 1
     ids = [c["id"] for c in cases]
     assert len(ids) == len(set(ids)) == sum(len(v) for v in prof["cases"].values())
     coding = [c for c in cases if c["category"] == "coding"]
-    assert coding and all(c["max_tokens"] == 4096 for c in coding)
+    assert coding and all(c["max_tokens"] == 6144 for c in coding)
+    math_ = [c for c in cases if c["category"] == "math"]
+    assert math_ and all(c["max_tokens"] == 4096 for c in math_)
+    assert j_model_is_122b(profiles.profile_judge(prof))
     assert all(c["difficulty"] == "hard" for c in coding)
     # smoke narrows to smoke-tagged members only
     _, smoke = profiles.apply_profile(prof, cfg, smoke=True)

@@ -109,6 +109,16 @@ class Provider:
     # ``--force-evict`` flag, itself only ever meant to be passed on Jake's
     # explicit go-ahead (see the crucibleforge skill). Off by default.
     force_evict: bool = False
+    # Bench-first policy (models.yaml, 2026-09-08 — see studioforge.py
+    # "bench-first"): ``force_evict: true`` is the STANDING authorisation
+    # (every run behaves as if --force-evict were passed);
+    # ``lease_devices_preferred`` is tried first when the rig's planner says
+    # the model fits there empty; ``clawforge_mcp`` lets a foreign render
+    # lease on the wanted cards be vacated (and resumed afterwards).
+    force_evict_policy: bool = False
+    lease_devices_preferred: list | None = None
+    clawforge_mcp: str | None = None
+    _vacated_render: bool = field(default=False, repr=False)
     # remembers what /models returned (None = endpoint doesn't support listing)
     _models_cache: set | None = field(default=None, repr=False)
     _lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
@@ -244,10 +254,10 @@ class Provider:
     def _lease_load(self, model_id: str, context_length: int | None) -> float:
         t0 = time.perf_counter()
         hdrs = self.mgmt_headers()
-        devices = list(self.lease_devices or studioforge.gpu_indices(self.base_url, self.api_key, hdrs))
         if self._lease and self._lease.get("_model_id") != model_id:
             self.release_lease()
         if self._lease is None:
+            devices = self.claim_devices(model_id)
             try:
                 lease = studioforge.acquire_lease(
                     self.base_url, self.api_key, hdrs, devices, model_ids=[model_id],
@@ -307,14 +317,37 @@ class Provider:
                                            daemon=True)
         self._keepalive.start()
 
+    def claim_devices(self, model_id: str) -> list[int]:
+        """The cards a lease for ``model_id`` should name, bench-first style:
+        ``lease_devices_preferred`` when the planner says the model fits
+        there empty, else ``lease_devices`` (or every card). Then, if a
+        foreign RENDER lease stands on those cards, vacate it through
+        ClawForge and remember to resume it on release."""
+        hdrs = self.mgmt_headers()
+        fallback = list(self.lease_devices or studioforge.gpu_indices(self.base_url, self.api_key, hdrs))
+        devices = studioforge.choose_lease_devices(self.base_url, self.api_key, hdrs, model_id,
+                                                   self.lease_devices_preferred, fallback)
+        if studioforge.vacate_render_leases(self.base_url, self.api_key, hdrs, devices,
+                                            self.clawforge_mcp):
+            self._vacated_render = True
+        return devices
+
     def release_lease(self) -> None:
-        """Release the standing GPU lease (idempotent; safe at exit)."""
+        """Release the standing GPU lease (idempotent; safe at exit), then
+        hand the render tenant its card back if we vacated it."""
         lease = self._lease
-        if lease is None:
-            return
-        self._lease = None
-        studioforge.release_lease(self.base_url, self.api_key, self.mgmt_headers(),
-                                  lease["_lease_id"])
+        if lease is not None:
+            self._lease = None
+            studioforge.release_lease(self.base_url, self.api_key, self.mgmt_headers(),
+                                      lease["_lease_id"])
+        if self._vacated_render:
+            self._vacated_render = False
+            try:
+                studioforge.clawforge_control(self.clawforge_mcp, "resume", timeout=60)
+                log.info("ClawForge resumed (render lease handed back)")
+            except studioforge.StudioForgeError as e:
+                log.warning("ClawForge resume failed — image generation stays vacated "
+                            "until someone runs comfy_control(resume): %s", e)
 
     def _remember_plan(self, model_id: str, live: dict | None = None) -> None:
         """Record the live plan for ``model_id``. Pass ``live`` when the
@@ -492,7 +525,12 @@ class Provider:
 
 # ------------------------------------------------------------- registry
 
-_CACHE: dict[tuple[int, str], Provider] = {}
+# Keyed by id(cfg). The cache also pins the cfg dict itself: CPython reuses
+# a freed dict's id, so a cfg built and dropped in one caller could otherwise
+# hand the NEXT caller a provider built from a different config (seen as an
+# order-dependent test failure, 2026-09-08 — harmless in the CLI, where one
+# cfg lives for the whole process, but a real aliasing bug).
+_CACHE: dict[tuple[int, str], tuple[dict, Provider]] = {}
 
 
 def _resolve_key(p: dict) -> str:
@@ -515,7 +553,7 @@ def _resolve_key(p: dict) -> str:
 def get_provider(cfg: dict, name: str) -> Provider:
     key = (id(cfg), name)
     if key in _CACHE:
-        return _CACHE[key]
+        return _CACHE[key][1]
     p = provider_of(cfg, name)
     ptype = p.get("type", "openai")
     conc_raw = p.get("concurrency", 1 if ptype != "studioforge" else "auto")
@@ -537,8 +575,12 @@ def get_provider(cfg: dict, name: str) -> Provider:
         wait_busy_s=float(p.get("wait_busy_s", studioforge.DEFAULT_WAIT_BUSY_S)),
         restore_residents=bool(p.get("restore_residents", True)),
         use_resident=bool(p.get("use_resident", True)),
+        force_evict_policy=bool(p.get("force_evict", False)) and ptype == "studioforge",
+        lease_devices_preferred=(list(p["lease_devices_preferred"])
+                                 if p.get("lease_devices_preferred") else None),
+        clawforge_mcp=(str(p["clawforge_mcp"]).strip() or None) if p.get("clawforge_mcp") else None,
     )
-    _CACHE[key] = prov
+    _CACHE[key] = (cfg, prov)
     return prov
 
 

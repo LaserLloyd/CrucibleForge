@@ -65,6 +65,7 @@ from __future__ import annotations
 
 import logging
 import time
+from json import loads as json_loads
 
 import httpx
 
@@ -669,6 +670,165 @@ def list_leases(base_url: str, api_key: str, headers: dict | None = None) -> lis
     if code != 200 or not isinstance(data, dict):
         raise StatusUnavailable(f"GET /api/leases HTTP {code}", status=code)
     return list(data.get("leases") or [])
+
+
+# ------------------------------------------------- bench-first (2026-09-08)
+# Jake 2026-09-08: "The benchmark should take priority over everything, and
+# basically shut down all other processes when running. It needs to evict all
+# running models, including the image generation. If the benchmark can be
+# accomplished on only the 5090s, do that and leave the 3090s free, otherwise
+# reserve the entire rig for the benchmarks until complete."
+#
+# Three pieces implement that, all opt-in per provider in models.yaml:
+#   force_evict: true            — every lease claim starts with force=true
+#                                  (the standing authorisation FIX-2 wanted).
+#   lease_devices_preferred: [0,1] — ask the rig's own planner whether the
+#                                  model fits those cards empty; lease only
+#                                  them if so, else ``lease_devices`` (all).
+#   clawforge_mcp: <url>         — a foreign RENDER lease (ClawForge/ComfyUI)
+#                                  on the wanted cards is vacated through
+#                                  ClawForge's own ``comfy_control("vacate")``
+#                                  (drain, free VRAM, release its lease) and
+#                                  resumed when ours is released.
+# force=true never breaks a foreign LEASE (the rig treats leases as
+# first-class), so without the vacate step the judge phase would still be
+# refused by the render lease — that was the 2026-08-22 outage class.
+
+def placement_fits(base_url: str, api_key: str, headers: dict | None,
+                   model_id: str, devices: list[int]) -> bool | None:
+    """Does ``model_id`` fit on exactly ``devices`` with those cards EMPTY,
+    per ``GET /api/models/{id}/options`` → ``placements[]``? ``None`` = the
+    server has no placement for that device set (or did not answer), which
+    callers treat as "no"."""
+    from urllib.parse import quote
+    try:
+        code, data = _mgmt("GET", base_url, api_key, headers,
+                           f"/api/models/{quote(model_id, safe='')}/options", timeout=60)
+    except StatusUnavailable as e:
+        log.warning("placement check for %s unavailable: %s", model_id, e)
+        return None
+    if code != 200 or not isinstance(data, dict):
+        return None
+    model = data.get("model") if isinstance(data.get("model"), dict) else data
+    for pl in model.get("placements") or []:
+        if sorted(int(d) for d in (pl.get("devices") or [])) == sorted(devices):
+            opt = pl.get("optimal")
+            return bool(isinstance(opt, dict) and opt.get("fits"))
+    return None
+
+
+def choose_lease_devices(base_url: str, api_key: str, headers: dict | None, model_id: str,
+                         preferred: list[int] | None, fallback: list[int]) -> list[int]:
+    """``preferred`` when the planner says the model fits there empty,
+    otherwise ``fallback``. Logged either way so the run's device choice is
+    never a mystery."""
+    if not preferred or sorted(preferred) == sorted(fallback):
+        return list(fallback)
+    fits = placement_fits(base_url, api_key, headers, model_id, list(preferred))
+    short = model_id.rsplit("/", 1)[-1]
+    if fits:
+        log.info("%s fits on preferred cards %s — leasing only those (the rest stay free)",
+                 short, preferred)
+        return list(preferred)
+    log.info("%s does not fit on preferred cards %s (planner: %s) — leasing the whole set %s",
+             short, preferred, "no placement" if fits is None else "does not fit", fallback)
+    return list(fallback)
+
+
+def foreign_render_leases(leases: list[dict], devices: list[int],
+                          our_families=("crucibleforge",)) -> list[dict]:
+    """Standing leases held by someone else's RENDER tenant (ClawForge's
+    ComfyUI) that touch ``devices``. Family/kind match, never the exact
+    holder string (the judge-phase outage was an exact-string match)."""
+    want = set(int(d) for d in devices)
+    out = []
+    for l in leases or []:
+        fam = str(l.get("holder_family") or "")
+        holder = str(l.get("holder") or "")
+        if fam in our_families or holder.startswith("crucibleforge"):
+            continue
+        render = l.get("kind") == "render" or fam == "clawforge" or holder.startswith("clawforge")
+        if not render:
+            continue
+        if want & set(int(d) for d in (l.get("devices") or [])):
+            out.append(l)
+    return out
+
+
+def clawforge_control(mcp_url: str, action: str, timeout: float = 180.0) -> dict:
+    """``comfy_control(action)`` over ClawForge's streamable-http MCP
+    endpoint (minimal streamable-http client). Raises
+    StudioForgeError on any refusal so callers never mistake a failed vacate
+    for a free card."""
+    hdr = {"content-type": "application/json", "accept": "application/json, text/event-stream"}
+
+    def _body(resp):
+        txt = resp.text
+        for line in txt.splitlines():
+            if line.startswith("data:"):
+                return json_loads(line[5:])
+        return json_loads(txt) if txt.strip().startswith("{") else {}
+
+    try:
+        with httpx.Client(timeout=timeout) as http:
+            init = {"jsonrpc": "2.0", "id": 1, "method": "initialize",
+                    "params": {"protocolVersion": "2024-11-05", "capabilities": {},
+                               "clientInfo": {"name": "crucibleforge", "version": "1"}}}
+            r = http.post(mcp_url, json=init, headers=hdr)
+            sid = r.headers.get("mcp-session-id")
+            body = _body(r)
+            if not sid or "error" in body:
+                raise StudioForgeError(f"ClawForge MCP init failed: {body.get('error') or 'no session id'}")
+            hdr["mcp-session-id"] = sid
+            http.post(mcp_url, json={"jsonrpc": "2.0", "method": "notifications/initialized"}, headers=hdr)
+            call = {"jsonrpc": "2.0", "id": 2, "method": "tools/call",
+                    "params": {"name": "comfy_control", "arguments": {"action": action}}}
+            r = http.post(mcp_url, json=call, headers=hdr)
+            body = _body(r)
+    except httpx.HTTPError as e:
+        raise StudioForgeError(f"ClawForge MCP {action}: {e}") from e
+    if "error" in body:
+        raise StudioForgeError(f"ClawForge comfy_control({action}) refused: {str(body['error'])[:300]}")
+    res = body.get("result") or {}
+    if res.get("isError"):
+        raise StudioForgeError(f"ClawForge comfy_control({action}) failed: {str(res)[:300]}")
+    return res
+
+
+def vacate_render_leases(base_url: str, api_key: str, headers: dict | None, devices: list[int],
+                         clawforge_mcp: str | None, wait_s: float = 240.0) -> bool:
+    """If a foreign render lease stands on ``devices``, ask ClawForge to
+    vacate (drain + free VRAM + release its lease) and wait for the lease to
+    disappear. Returns True when WE vacated it (so the caller resumes it
+    later). Raises StudioForgeError if the lease is still there after
+    ``wait_s`` — a lease that cannot be vacated is a real refusal, not a
+    reason to run anyway."""
+    try:
+        leases = list_leases(base_url, api_key, headers)
+    except StatusUnavailable as e:
+        log.warning("cannot list leases before claiming %s: %s", devices, e)
+        return False
+    foreign = foreign_render_leases(leases, devices)
+    if not foreign:
+        return False
+    names = [(l.get("holder"), l.get("devices")) for l in foreign]
+    if not clawforge_mcp:
+        raise StudioForgeError(
+            f"render lease(s) {names} hold cards {devices} and no clawforge_mcp is configured "
+            f"to vacate them (providers.<name>.clawforge_mcp in models.yaml)")
+    log.warning("bench-first: render lease(s) %s hold %s — asking ClawForge to vacate", names, devices)
+    clawforge_control(clawforge_mcp, "vacate")
+    t0 = time.monotonic()
+    while time.monotonic() - t0 < wait_s:
+        time.sleep(5)
+        try:
+            still = foreign_render_leases(list_leases(base_url, api_key, headers), devices)
+        except StatusUnavailable:
+            continue
+        if not still:
+            log.info("render lease released after %.0fs", time.monotonic() - t0)
+            return True
+    raise StudioForgeError(f"render lease(s) {names} still stand on {devices} after {wait_s:.0f}s vacate wait")
 
 
 def _lease_id(data) -> str | None:

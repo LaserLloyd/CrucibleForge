@@ -336,8 +336,11 @@ def acquire_judge_lease(cfg: dict, force_evict: bool = False) -> dict | None:
         # matters when a future caller runs us in-process).
         return provider._lease
     try:
-        devices = list(provider.lease_devices or JUDGE_LEASE_DEFAULT_DEVICES)
         hdrs = provider.mgmt_headers()
+        if provider.lease_devices_preferred or provider.clawforge_mcp:
+            devices = provider.claim_devices(cand["model_id"])
+        else:
+            devices = list(provider.lease_devices or JUDGE_LEASE_DEFAULT_DEVICES)
         lease = studioforge.acquire_lease(
             provider.base_url, provider.api_key, hdrs, devices,
             model_ids=[cand["model_id"]],
