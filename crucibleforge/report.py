@@ -209,6 +209,9 @@ def _coverage(rows: list[dict], meta: dict, cfg: dict | None) -> dict:
     was read off the board as "#2 overall". Coverage makes that impossible
     to miss: complete runs rank first, everything else is labelled."""
     profile = meta.get("profile")
+    profiles = sorted(set(meta.get("profiles") or ([profile] if profile else [])))
+    if profiles:
+        profile = "+".join(profiles)
     cases = len({r.get("case_id") for r in rows if r.get("case_id")})
     attempted = len({r.get("case_id") for r in rows if r.get("case_id")
                      and r.get("grade") != "skipped"})
@@ -567,7 +570,9 @@ def render_markdown(labels: list[str], stats: dict, cfg: dict | None) -> str:
     any_cost = any(stats[l].get("cost_usd") is not None for l in labels)
     sc = scoring_config(cfg)
     cards = {l: scorecard(stats[l], sc) for l in labels}
-    profiles = sorted({(stats[l]["meta"] or {}).get("profile") for l in labels} - {None})
+    profiles = sorted({p for l in labels
+                       for p in ((stats[l]["meta"] or {}).get("profiles")
+                                 or [(stats[l]["meta"] or {}).get("profile")]) if p})
     L.append("## Scorecard")
     L.append("")
     if profiles:

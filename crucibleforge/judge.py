@@ -910,6 +910,15 @@ def run_canary(jc: JudgeClient) -> None:
              "judge %s is sane and discriminating", dt, judge_id)
 
 
+def pending_judge_rows(labels: list[str], force: bool = False) -> int:
+    """How many transcript rows still need a judge verdict — computed from
+    the files alone, so `judge`/`all` can skip the rig entirely (no lease,
+    no eviction, no ComfyUI vacate) when a judge-free profile like `coding`
+    has nothing to score."""
+    return sum(1 for label in labels for r in load_transcripts(label)
+               if r.get("needs_judge") and (force or "judge" not in r))
+
+
 def run_judge(cfg: dict, labels: list[str], force: bool = False,
               samples: int | None = None, judge_override: str | dict | None = None,
               stop=None, allow_fallback: bool | None = None) -> dict:

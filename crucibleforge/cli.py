@@ -654,6 +654,14 @@ def cmd_judge(args, cfg):
     # when running the judge") lets the rig either grant the lease and plan
     # around the named model, or refuse fast with a message naming the
     # holder, instead of timing out 178 rows in.
+    from .judge import pending_judge_rows
+    if pending_judge_rows(labels, force=bool(getattr(args, "force", False))) == 0:
+        # Judge-free profile (e.g. `coding`) or already judged: do not touch
+        # the rig at all — a lease here would evict residents and vacate
+        # ComfyUI for a phase that has nothing to do.
+        log.info("nothing to judge for %s — rig untouched", labels)
+        print("nothing to judge")
+        return 0
     force_evict = getattr(args, "force_evict", False) or _judge_policy_force(cfg)
     try:
         acquire_judge_lease(cfg, force_evict=force_evict)

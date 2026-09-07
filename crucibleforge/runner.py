@@ -388,6 +388,10 @@ def _write_meta(label: str, entry: dict, provider: Provider, *, load_s: float | 
         meta["price"] = entry["price"]
     if profile:
         meta["profile"] = profile
+        # Split profiles (`coding` + `chat`, 2026-09-08) land on the SAME
+        # label; keep every profile that contributed rows so the report can
+        # say "profile coding+chat" instead of just the last one.
+        meta["profiles"] = sorted(set(meta.get("profiles") or []) | {profile})
     if load_s is not None:
         meta["load_s"] = round(load_s, 1)
     if plan:

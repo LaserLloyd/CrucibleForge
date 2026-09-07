@@ -244,6 +244,9 @@ def test_cli_main_all_writes_v2_contract_exactly_once_not_from_inner_run(tmp_pat
 
     class _FakeJudgeUnavailable(Exception):
         holder = "some-model"
+    # 2026-09-08: cmd_judge no longer touches the rig when nothing is
+    # pending — pretend one row is, so the lease path (and its rc 4) runs.
+    monkeypatch.setattr("crucibleforge.judge.pending_judge_rows", lambda *a, **k: 1)
     monkeypatch.setattr("crucibleforge.judge.acquire_judge_lease",
                         lambda *a, **k: (_ for _ in ()).throw(_FakeJudgeUnavailable("no judge")))
     # cmd_judge only catches JudgeLeaseUnavailable specifically; make our

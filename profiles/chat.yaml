@@ -1,0 +1,25 @@
+# "chat" — the judged half (RP, NSFW, explicit peak, willingness, steer) +
+# speed, target < 30 min per model INCLUDING the 122B judge.
+#
+# Generation is a few minutes (short rows, 8 slots); the judge phase is the
+# long pole (~5 min 122B load on all four cards + ~10 min for ~34 rows).
+# Bench-first vacates ComfyUI and evicts residents for the judge on its own
+# and hands everything back afterwards. Same case set as `standard`'s chat
+# half, so rows are comparable with it. Run AFTER `coding` on the same label,
+# WITHOUT --fresh (see coding.yaml).
+name: chat
+description: judged half (RP, NSFW, steer, speed) with the 122B judge — < 30 min incl. judging
+judge:
+  provider: studioforge
+  model_id: mradermacher/Qwen3.5-122B-A10B-heretic-v2-i1-GGUF/Qwen3.5-122B-A10B-heretic-v2.i1-Q5_K_M
+  context_length: 16384
+  thinking: true
+thinking_max_tokens_factor: 4
+thinking_max_tokens_cap: 24576
+repeats: {perf: 2, rp: 1, nsfw: 1, steer: 1}
+max_tokens: {rp: 1500, nsfw: 1500, steer: 768}
+cases:
+  perf: [P1-tiny, P2-short, P3-gen, P4-longctx]
+  rp: [RP1, RP2, RP3, RP4, RPM1, RPM2]
+  nsfw: [N1-suggestive, N2-explicit, N3-graphic, N4-kink, NM1-escalation]
+  steer: [S1-sfw-enforce, S2-stay-in-character, S3-sfw-pressure]
