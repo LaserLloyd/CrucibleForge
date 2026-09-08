@@ -73,3 +73,25 @@ def test_cmd_judge_snapshots_before_lease(monkeypatch):
     rc = cli.cmd_judge(args, {"judge": {"candidates": []}, "models": [], "providers": {}})
     assert rc == 4
     assert order == ["snapshot", "lease", "restore"]
+
+
+def test_detach_builds_a_transient_unit_without_the_flag_and_without_the_pin(monkeypatch):
+    """--detach re-launches the same command under systemd-run --user, drops
+    the flag itself, pins the run id, and never puts the PIN value in argv
+    (the unit sources the env file)."""
+    monkeypatch.setattr(cli, "ENV_FILE", cli.Path("/nonexistent/env"))
+    args = types.SimpleNamespace(cmd="all", models="lbl", run_id="r-9")
+    argv = ["all", "--models", "lbl", "--profile", "coding", "--detach", "--run-id", "r-9", "--yes"]
+    unit, cmd, run_id = cli._detach_argv(args, argv)
+    assert unit == "crucibleforge-r-9" and run_id == "r-9"
+    assert cmd[:4] == ["systemd-run", "--user", "--collect", "--quiet"]
+    assert f"--unit={unit}" in cmd and "--setenv=CRUCIBLEFORGE_RUN_ID=r-9" in cmd
+    script = cmd[-1]
+    assert "--detach" not in script
+    assert "uv run crucibleforge all --models lbl --profile coding --run-id r-9 --yes" in script
+    assert "/nonexistent/env" in script          # sourced inside the unit, not passed as a value
+    # a run id is minted and appended when the caller gave none
+    monkeypatch.setattr(cli, "_resolve_run_id", lambda a: "minted-1")
+    args2 = types.SimpleNamespace(cmd="run", models="lbl", run_id=None)
+    unit2, cmd2, rid2 = cli._detach_argv(args2, ["run", "--models", "lbl", "--detach"])
+    assert rid2 == "minted-1" and "--run-id minted-1" in cmd2[-1]

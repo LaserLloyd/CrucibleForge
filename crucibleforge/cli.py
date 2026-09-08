@@ -21,6 +21,7 @@ import logging
 import os
 import re
 import secrets
+import shlex
 import shutil
 import sys
 from datetime import datetime, timezone
@@ -884,6 +885,59 @@ def cmd_cases(args, cfg):
 
 # ------------------------------------------------------------------- main
 
+# ------------------------------------------------------------ --detach
+# 2026-09-08: a worker's `exec` tool kills whatever it started after
+# `tools.exec.timeoutSec` (default 1800 s) — the retry of run 2 died at
+# exactly 30 min with one case left, no report, and its GPU lease orphaned.
+# A bench must not live inside an agent's tool call at all: `--detach`
+# re-launches this exact command as a transient systemd --user unit and
+# returns at once, printing the unit and run id. The unit sources the
+# gateway env file itself (the PIN never appears in argv), writes the same
+# runs/<id>/{report.md,meta.json} contract, and survives the agent, the
+# gateway, and any exec timeout. Poll: `systemctl --user is-active <unit>`
+# and runs/<id>/meta.json `status`.
+ENV_FILE = Path(os.environ.get("CRUCIBLEFORGE_ENV_FILE",
+                               str(Path.home() / ".openclaw" / "gateway.systemd.env")))
+
+
+def _detach_argv(args, argv: list[str] | None) -> tuple[str, list[str], str]:
+    """(unit name, systemd-run argv, run id) for a detached re-launch."""
+    run_id = _resolve_run_id(args)
+    raw = list(argv if argv is not None else sys.argv[1:])
+    inner = [a for a in raw if a != "--detach"]
+    if not any(a == "--run-id" or a.startswith("--run-id=") for a in inner):
+        inner += ["--run-id", run_id]
+    unit = "crucibleforge-" + re.sub(r"[^A-Za-z0-9_.-]+", "-", run_id)[:120]
+    cwd = str(Path(__file__).resolve().parents[1])
+    inner_cmd = " ".join(shlex.quote(a) for a in inner)
+    script = (f"set -a; [ -r {shlex.quote(str(ENV_FILE))} ] && . {shlex.quote(str(ENV_FILE))}; set +a; "
+              f"cd {shlex.quote(cwd)} && exec uv run crucibleforge {inner_cmd}")
+    cmd = ["systemd-run", "--user", "--collect", "--quiet", f"--unit={unit}",
+           f"--description=CrucibleForge {args.cmd}: {args.models} (run {run_id})",
+           f"--setenv=CRUCIBLEFORGE_RUN_ID={run_id}",
+           f"--working-directory={cwd}", "/bin/bash", "-c", script]
+    return unit, cmd, run_id
+
+
+def _detach(args, argv: list[str] | None) -> int:
+    import subprocess
+    unit, cmd, run_id = _detach_argv(args, argv)
+    if shutil.which("systemd-run") is None:
+        print("--detach needs systemd-run (systemd --user); run without --detach", file=sys.stderr)
+        return 2
+    r = subprocess.run(cmd, capture_output=True, text=True)
+    if r.returncode != 0:
+        print(f"detach failed (systemd-run rc={r.returncode}): {(r.stderr or r.stdout).strip()[:400]}",
+              file=sys.stderr)
+        return r.returncode or 1
+    run_dir = _v2_run_dir(run_id)
+    print(f"detached: unit={unit} run_id={run_id}")
+    print(f"  status: systemctl --user is-active {unit}   (active = running, inactive = finished)")
+    print(f"  result: {run_dir}/meta.json (status done|failed) and report.md")
+    print(f"  log:    journalctl --user -u {unit} -n 50")
+    return 0
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(
         prog="crucibleforge",
@@ -913,6 +967,10 @@ def main(argv=None):
 
     def add_run_args(p):
         add_force_evict_arg(p)
+        p.add_argument("--detach", action="store_true",
+                       help="re-launch this exact command as a transient systemd --user unit and "
+                            "return immediately (prints the unit + run id). Use from any agent "
+                            "tool call — the bench then outlives the call's timeout.")
         p.add_argument("--models", default="all",
                        help="comma-separated labels, or 'all' (= enabled)")
         p.add_argument("--categories", default=None,
@@ -1094,6 +1152,8 @@ def main(argv=None):
     # writes the contract exactly once, for the WHOLE all=run+judge+report
     # unit of work, not a premature "done" the moment run() alone finishes.
     v2_tracked = args.cmd in ("run", "all")
+    if v2_tracked and getattr(args, "detach", False):
+        sys.exit(_detach(args, argv))
     v2_state = _v2_start(args) if v2_tracked else None
     try:
         rc = handler(args, cfg)
