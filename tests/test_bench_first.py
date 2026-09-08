@@ -112,3 +112,58 @@ def test_release_resumes_clawforge_only_if_we_vacated(monkeypatch):
     p.release_lease()
     assert calls == ["resume"]
     assert p._vacated_render is False
+
+
+def test_busy_refusal_unloads_after_grace(monkeypatch):
+    """A model_busy refusal that persists past busy_unload_after_s makes the
+    client unload the busy resident once and keep claiming; without the
+    option it just waits."""
+    calls = {"post": 0, "unload": []}
+    busy = (503, {"error": {"message": "x/y/z (1 in flight) is serving on CUDA [0, 1]; a lease never interrupts a stream (D36). Retry when it is idle.",
+                            "code": "model_busy",
+                            "studioforge": {"retry_after_s": 15.0, "busy_models": [{"model_id": "x/y/z", "active_requests": 1}]}},
+                  "_retry_after_s": 15.0})
+
+    def fake_mgmt(method, base, key, hdrs, path, json=None, timeout=None):
+        if path == "/api/leases":
+            calls["post"] += 1
+            if calls["unload"]:
+                return 200, {"lease_id": "L1"}
+            return busy
+        if path.endswith("/unload"):
+            calls["unload"].append(path)
+            return 200, {}
+        raise AssertionError(path)
+    monkeypatch.setattr(studioforge, "_mgmt", fake_mgmt)
+    monkeypatch.setattr(studioforge.time, "sleep", lambda s: None)
+    out = studioforge.acquire_lease("u", "", None, [0, 1], model_ids=["m"], force=True,
+                                    wait_busy_s=600, busy_unload_after_s=60)
+    assert out["_lease_id"] == "L1"
+    assert len(calls["unload"]) == 1 and calls["unload"][0].endswith("x%2Fy%2Fz/unload")
+    assert calls["post"] >= 5          # waited the grace (4×15s) before cutting
+    # without the option: never unloads, waits out the budget, then fails
+    calls["post"] = 0; calls["unload"].clear()
+    with pytest.raises(studioforge.StudioForgeError):
+        studioforge.acquire_lease("u", "", None, [0, 1], model_ids=["m"], force=True,
+                                  wait_busy_s=45, busy_unload_after_s=None)
+    assert calls["unload"] == []
+
+
+def test_busy_models_parses_both_shapes():
+    assert studioforge._busy_models({"error": {"studioforge": {"busy_models": [{"model_id": "a/b"}]}}}) == ["a/b"]
+    assert studioforge._busy_models({"error": {"message": "a/b (2 in flight) is serving on CUDA [0]"}}) == ["a/b"]
+    assert studioforge._busy_models({"error": {"message": "pinned model(s) …"}}) == []
+
+
+def test_link_check_canary_never_jit_loads_in_lease_mode(monkeypatch):
+    from crucibleforge import preflight
+    p = get_provider(_cfg(), "studioforge")           # lease: True
+    monkeypatch.setattr(studioforge, "list_models_full",
+                        lambda *a, **k: pytest.fail("must not consult the catalog in lease mode"))
+    monkeypatch.setattr(studioforge, "residents",
+                        lambda *a, **k: [{"model_id": "r/esident", "state": "ready"}])
+    assert preflight._pick_studioforge_canary({}, p, ["x/y/benched"]) == "r/esident"
+    monkeypatch.setattr(studioforge, "residents", lambda *a, **k: [])
+    assert preflight._pick_studioforge_canary({}, p, ["x/y/benched"]) is None
+    # an explicit override still wins
+    assert preflight._pick_studioforge_canary({"link_check": {"canary_model_id": "o/v"}}, p, ["x"]) == "o/v"

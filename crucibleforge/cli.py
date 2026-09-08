@@ -518,7 +518,8 @@ def cmd_status(args, cfg):
                 if p.force_evict_policy or p.lease_devices_preferred or p.clawforge_mcp:
                     print(f"    bench-first: force_evict={'ON' if p.force_evict_policy else 'off'}"
                           f"  preferred cards={p.lease_devices_preferred or '-'} (else {p.lease_devices or 'all'})"
-                          f"  vacate render lease via ClawForge={'yes' if p.clawforge_mcp else 'no'}")
+                          f"  vacate render lease via ClawForge={'yes' if p.clawforge_mcp else 'no'}"
+                          f"  cut a mid-request resident after={('%.0fs' % p.busy_unload_after_s) if p.busy_unload_after_s else 'never'}")
             except Exception as e:  # noqa: BLE001
                 print(f"    (management API: {e})")
     print("\nregistry (models):")

@@ -64,6 +64,7 @@ then 507s).
 from __future__ import annotations
 
 import logging
+import re
 import time
 from json import loads as json_loads
 
@@ -845,10 +846,41 @@ def _lease_id(data) -> str | None:
     return None
 
 
+def _busy_models(res: dict) -> list[str]:
+    """Model ids the rig names in a ``model_busy`` refusal (``error.studioforge
+    .busy_models[].model_id``), else the one in the message text."""
+    out = []
+    err = res.get("error") if isinstance(res.get("error"), dict) else {}
+    sf = err.get("studioforge") or res.get("studioforge") or {}
+    for b in sf.get("busy_models") or []:
+        if isinstance(b, dict) and b.get("model_id"):
+            out.append(str(b["model_id"]))
+    if not out:
+        msg = str(err.get("message") or res.get("message") or "")
+        m = re.match(r"\s*(\S+) \(\d+ in flight\) is serving", msg)
+        if m:
+            out.append(m.group(1))
+    return out
+
+
+def unload_model(base_url: str, api_key: str, headers: dict | None, model_id: str) -> bool:
+    """``POST /api/models/{id}/unload`` — stops the child serving the model,
+    mid-request included. Open on the rig except against a GPU lease."""
+    from urllib.parse import quote
+    code, data = _mgmt("POST", base_url, api_key, headers,
+                       f"/api/models/{quote(model_id, safe='')}/unload", timeout=120)
+    if code >= 400:
+        log.warning("unload of %s refused (HTTP %d): %s", model_id.rsplit("/", 1)[-1], code,
+                    str(data)[:200])
+        return False
+    return True
+
+
 def acquire_lease(base_url: str, api_key: str, headers: dict | None, devices: list[int],
                   model_ids: list[str] | None = None, holder: str = LEASE_HOLDER,
                   reason: str = "", idle_ttl_s: float | None = LEASE_IDLE_TTL_S,
-                  force: bool = False, wait_busy_s: float = DEFAULT_WAIT_BUSY_S) -> dict:
+                  force: bool = False, wait_busy_s: float = DEFAULT_WAIT_BUSY_S,
+                  busy_unload_after_s: float | None = None) -> dict:
     """POST /api/leases — give ``devices`` to ``holder`` and load ``model_ids``
     onto exactly them.
 
@@ -871,9 +903,21 @@ def acquire_lease(base_url: str, api_key: str, headers: dict | None, devices: li
       (the ``--force-evict`` CLI flag, itself gated on Jake's ``--go``), not
       something this function decides for you.
 
+    ``busy_unload_after_s`` (bench-first, Jake 2026-09-08: "evict all
+    running models") — when set, a ``model_busy`` refusal that persists past
+    that many seconds is answered by UNLOADING the busy resident
+    (``POST /api/models/{id}/unload``, which the rig allows and which does cut
+    its in-flight request) and re-claiming. ``None`` = the pre-2026-09-08
+    behaviour: wait the whole ``wait_busy_s`` and then fail. Only ever set
+    from the provider's standing policy; a foreign client that streams
+    back-to-back never leaves a 15 s poll a gap to win (run 2, 09:07-09:17,
+    56 requests in 15 min, always one in flight).
+
     Returns the server's lease record with ``_lease_id`` filled in."""
     body = {"devices": [int(d) for d in devices], "model_ids": model_ids,
             "holder": holder, "reason": reason, "idle_ttl_s": idle_ttl_s, "force": force}
+    busy_since: float | None = None
+    unloaded: set[str] = set()
     if force:
         log.warning("GPU lease request for %s starts with force=true (caller-authorised "
                     "eviction) — a pinned or tiered idle resident WILL be evicted if one is "
@@ -901,6 +945,22 @@ def acquire_lease(base_url: str, api_key: str, headers: dict | None, devices: li
             wait = min(_TIER_REFUSAL_POLL_S, wait_busy_s - waited)
         if wait is not None:
             reason_txt = tier_reason or _refusal_reason(res)
+            busy = _busy_models(res) if code == 503 else []
+            if busy and busy_unload_after_s is not None:
+                busy_since = waited if busy_since is None else busy_since
+                if waited - busy_since >= busy_unload_after_s:
+                    for mid in busy:
+                        if mid in unloaded:
+                            continue
+                        log.warning("bench-first: %s has been mid-request for %.0fs — unloading "
+                                    "it (its in-flight request is cut; it is reloaded when the "
+                                    "run ends if it was resident before)",
+                                    mid.rsplit("/", 1)[-1], waited - busy_since)
+                        unload_model(base_url, api_key, headers, mid)
+                        unloaded.add(mid)
+                    wait = min(wait, 5.0)
+            elif not busy:
+                busy_since = None
             log.warning("lease refused (HTTP %d, %s) — retrying in %.0fs: %s",
                         code, reason_txt, wait, detail)
             time.sleep(wait)

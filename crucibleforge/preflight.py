@@ -29,6 +29,25 @@ def _pick_studioforge_canary(cfg: dict, prov: Provider, selected_ids: list[str])
     override = (cfg.get("link_check") or {}).get("canary_model_id")
     if override:
         return override
+    if getattr(prov, "lease", False):
+        # Lease mode (2026-09-08): a chat probe against a NOT-resident model
+        # makes the rig JIT-load it onto whatever cards are free right now —
+        # a 1-slot "degenerate placement" the lease then has to unload and
+        # re-plan (run 1), or a 507 while a foreign client sits on the cards
+        # (run 2). Probe a model that is already resident instead; with none
+        # resident, skip the data-channel probe — the lease load that follows
+        # answers with structured errors of its own.
+        try:
+            resident = [r["model_id"] for r in studioforge.residents(prov.base_url, prov.api_key,
+                                                                    prov.mgmt_headers())
+                        if r.get("model_id") and r.get("state") == "ready"]
+        except studioforge.StudioForgeError:
+            resident = []
+        if resident:
+            return resident[0]
+        log.info("link check: lease mode and nothing resident — skipping the chat probe "
+                 "(it would JIT-load the benched model off-lease)")
+        return None
     records = {m["id"]: m for m in studioforge.list_models_full(prov.base_url, prov.api_key)}
     candidates: list[tuple[int, str]] = []
     for sid in selected_ids:

@@ -757,7 +757,7 @@ def test_acquire_judge_lease_takes_all_devices_names_judge_model(monkeypatch):
 
     def fake_acquire(base_url, api_key, headers, devices, model_ids=None,
                      holder="", reason="", idle_ttl_s=None, force=False,
-                     wait_busy_s=0.0):
+                     wait_busy_s=0.0, **_kw):
         captured.update(base_url=base_url, api_key=api_key, headers=headers,
                         devices=list(devices), model_ids=list(model_ids or []),
                         holder=holder, reason=reason, force=force,

@@ -349,6 +349,7 @@ def acquire_judge_lease(cfg: dict, force_evict: bool = False) -> dict | None:
             idle_ttl_s=provider.lease_idle_ttl_s or studioforge.LEASE_IDLE_TTL_S,
             wait_busy_s=provider.wait_busy_s,
             force=force_evict,
+            busy_unload_after_s=provider.busy_unload_after_s if force_evict else None,
         )
     except studioforge.StudioForgeError as e:
         # Surface the holder/conflict info the server already gave us so the

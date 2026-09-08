@@ -118,6 +118,10 @@ class Provider:
     force_evict_policy: bool = False
     lease_devices_preferred: list | None = None
     clawforge_mcp: str | None = None
+    # Bench-first: a resident that stays mid-request on the wanted cards for
+    # longer than this is unloaded (its stream cut) — see
+    # studioforge.acquire_lease(busy_unload_after_s). None = wait, then fail.
+    busy_unload_after_s: float | None = None
     _vacated_render: bool = field(default=False, repr=False)
     # remembers what /models returned (None = endpoint doesn't support listing)
     _models_cache: set | None = field(default=None, repr=False)
@@ -263,7 +267,8 @@ class Provider:
                     self.base_url, self.api_key, hdrs, devices, model_ids=[model_id],
                     reason=f"crucibleforge benchmark: {model_id.rsplit('/', 1)[-1]}",
                     idle_ttl_s=self.lease_idle_ttl_s, wait_busy_s=self.wait_busy_s,
-                    force=self.force_evict)
+                    force=self.force_evict,
+                    busy_unload_after_s=self.busy_unload_after_s if self.force_evict else None)
             except studioforge.StudioForgeError as e:
                 if e.status in (401, 403, 404, 405):
                     log.warning("GPU lease unavailable (%s) — running WITHOUT a lease; "
@@ -579,6 +584,8 @@ def get_provider(cfg: dict, name: str) -> Provider:
         lease_devices_preferred=(list(p["lease_devices_preferred"])
                                  if p.get("lease_devices_preferred") else None),
         clawforge_mcp=(str(p["clawforge_mcp"]).strip() or None) if p.get("clawforge_mcp") else None,
+        busy_unload_after_s=(float(p["busy_unload_after_s"])
+                             if p.get("busy_unload_after_s") not in (None, False, "") else None),
     )
     _CACHE[key] = (cfg, prov)
     return prov
