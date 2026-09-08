@@ -177,18 +177,45 @@ def _atomic_write_json(path: Path, obj: dict) -> None:
 
 def _v2_meta(run_id: str, *, status: str, created: str, finished: str | None, title: str,
             requester_session: str | None, thread_id: str | None,
-            task_run_id: str | None) -> dict:
+            task_run_id: str | None, extra: dict | None = None) -> dict:
     """The 15-field schema v1 object, field order matching
     r1-meta-schema.md's own example verbatim. producer/kind are constants —
     crucibleforge is always the producer of its own runs, always dispatched
     as a cron-style worker (see V2_KIND)."""
-    return {
+    meta = {
         "schema": 1, "id": run_id, "producer": V2_PRODUCER, "kind": V2_KIND,
         "title": title[:80], "requester_session": requester_session,
         "thread_id": thread_id, "task_run_id": task_run_id, "status": status,
         "created": created, "finished": finished,
         "delivered": False, "delivered_at": None, "delivered_to": None, "delivery_mode": None,
     }
+    # Fields a dispatching worker wrote into the run dir before we started
+    # (e.g. child_session) ride along untouched — never our 15, never
+    # delivery state.
+    for k, v in (extra or {}).items():
+        if k not in meta:
+            meta[k] = v
+    return meta
+
+
+_V2_INHERIT = ("requester_session", "thread_id", "task_run_id")
+
+
+def _v2_existing(run_id: str) -> dict:
+    """The meta.json a worker may have pre-written into OUR run dir when it
+    spawned us with a chosen --run-id (Flash does: producer ds_flash, kind
+    spawn, requester_session = the asking session). 2026-09-08: we used to
+    overwrite it wholesale, so the run's routing was lost and the standing
+    scanner delivered the report to the bot's daily thread instead of the
+    thread that asked for the bench. Returns {} when there is none."""
+    try:
+        p = _v2_run_dir(run_id) / "meta.json"
+        if p.exists():
+            d = json.loads(p.read_text(encoding="utf-8"))
+            return d if isinstance(d, dict) else {}
+    except (OSError, ValueError) as e:
+        log.warning("V2 run-report: could not read existing meta.json for %s: %s", run_id, e)
+    return {}
 
 
 def _v2_start(args) -> dict:
@@ -205,14 +232,26 @@ def _v2_start(args) -> dict:
     deliver_to = getattr(args, "deliver_to", None) or os.environ.get("CRUCIBLEFORGE_DELIVER_TO")
     task_run_id = (getattr(args, "task_run_id", None)
                   or os.environ.get("CRUCIBLEFORGE_TASK_RUN_ID"))
+    existing = _v2_existing(run_id)
+    requester = requester or existing.get("requester_session")
+    deliver_to = deliver_to or existing.get("thread_id")
+    task_run_id = task_run_id or existing.get("task_run_id")
+    extra = {k: v for k, v in existing.items()
+             if k not in _V2_INHERIT and k not in ("schema", "id", "producer", "kind", "title",
+                                                   "status", "created", "finished", "delivered",
+                                                   "delivered_at", "delivered_to", "delivery_mode")}
+    if existing:
+        log.info("V2 run-report: inheriting routing from the pre-existing meta.json "
+                 "(requester=%s thread=%s task_run=%s extra=%s)",
+                 requester, deliver_to, task_run_id, sorted(extra))
     title = f"CrucibleForge {args.cmd}: {args.models}"
     created = _utcnow_iso()
     state = {"run_id": run_id, "requester_session": requester, "thread_id": deliver_to,
-             "task_run_id": task_run_id, "title": title, "created": created}
+             "task_run_id": task_run_id, "title": title, "created": created, "extra": extra}
     try:
         meta = _v2_meta(run_id, status="running", created=created, finished=None, title=title,
                         requester_session=requester, thread_id=deliver_to,
-                        task_run_id=task_run_id)
+                        task_run_id=task_run_id, extra=extra)
         _atomic_write_json(_v2_run_dir(run_id) / "meta.json", meta)
         log.info("V2 run-report: %s/meta.json written (status=running)", _v2_run_dir(run_id))
     except OSError as e:
@@ -338,7 +377,8 @@ def _v2_finish(cmd: str, args, cfg: dict, rc: int, state: dict) -> None:
     try:
         meta = _v2_meta(run_id, status=status, created=state["created"], finished=_utcnow_iso(),
                         title=state["title"], requester_session=state["requester_session"],
-                        thread_id=state["thread_id"], task_run_id=state["task_run_id"])
+                        thread_id=state["thread_id"], task_run_id=state["task_run_id"],
+                        extra=state.get("extra"))
         _atomic_write_json(run_dir / "meta.json", meta)
         log.info("V2 run-report: %s/{report.md,meta.json} written (status=%s)", run_dir, status)
     except OSError as e:
@@ -663,18 +703,23 @@ def cmd_judge(args, cfg):
         print("nothing to judge")
         return 0
     force_evict = getattr(args, "force_evict", False) or _judge_policy_force(cfg)
+    # The guard's resident snapshot MUST be taken before the judge lease:
+    # with bench-first the lease itself evicts the family bot's model, and a
+    # snapshot taken afterwards is empty — so nothing was restored and the
+    # rig sat empty after the judge phase (run 1, 2026-09-08 08:59).
+    guard = _ProviderGuard(cfg, [], force_evict=force_evict)
     try:
         acquire_judge_lease(cfg, force_evict=force_evict)
     except JudgeLeaseUnavailable as e:
         holder = f" (current holder: {e.holder})" if e.holder else ""
         print(f"judge lease: {e}{holder}", file=sys.stderr)
         log.error("judge aborted — could not reserve all GPUs: %s", e)
-        # We never touched the rig (the lease was refused before any load),
-        # so the resident-snapshot guard has nothing to do. Returning
-        # non-zero keeps the queue script from stamping DONE over a batch
-        # that did not run.
+        # The lease was refused before any load, so restore is a no-op on
+        # the residents; it still releases anything half-taken. Non-zero
+        # keeps the queue script from stamping DONE over a batch that did
+        # not run.
+        guard.restore()
         return 4
-    guard = _ProviderGuard(cfg, [], force_evict=force_evict)
     try:
         result = run_judge(cfg, labels, force=args.force, samples=samples,
                            judge_override=getattr(args, "judge", None),
