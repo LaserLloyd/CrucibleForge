@@ -25,3 +25,5 @@ build/
 scripts/scrub-rules.local.txt
 run_*.sh
 models.yaml.bak*
+# local scheduled-bench scratch (holds rig addresses + home paths)
+.scheduled/

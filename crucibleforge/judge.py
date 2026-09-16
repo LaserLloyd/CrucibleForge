@@ -311,7 +311,7 @@ def acquire_judge_lease(cfg: dict, force_evict: bool = False) -> dict | None:
 
     ``force_evict`` is never set on this function's own initiative (WP-BENCH
     FIX-2) — pass ``True`` only when the caller (the CLI's ``--force-evict``
-    flag) was itself given only on an explicit Jake go-ahead. It starts the
+    flag) was itself given only on an explicit maintainer go-ahead. It starts the
     lease request already asking to evict an IDLE resident of EITHER
     refusal dialect — the rig's own D46 message literally says "pass
     force=true to evict them anyway", so this CAN and will evict a pinned,

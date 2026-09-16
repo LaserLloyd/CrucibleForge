@@ -30,7 +30,7 @@ against ``1.26-09-04-3`` on 2026-09-06 during the WP-BENCH refactor — see
 - The served model id is echoed back in every completion, so the
   api.WrongModelError guard still applies unchanged.
 - **D46 (priority tiers on a lease claim, live since ~2026-08):** 1 = chat,
-  2 = dispatched agent, 3 = background — this client's own leases are class 3
+  2 = agent, 3 = background — this client's own leases are class 3
   unless ``lease_priority`` overrides it (unset today: see wp-bench-audit.md
   FIX-4, not yet implemented). A lease claim against a resident of a
   stronger-or-equal class is refused outright with a ``409`` (message
@@ -674,7 +674,7 @@ def list_leases(base_url: str, api_key: str, headers: dict | None = None) -> lis
 
 
 # ------------------------------------------------- bench-first (2026-09-08)
-# Jake 2026-09-08: "The benchmark should take priority over everything, and
+# maintainer 2026-09-08: "The benchmark should take priority over everything, and
 # basically shut down all other processes when running. It needs to evict all
 # running models, including the image generation. If the benchmark can be
 # accomplished on only the 5090s, do that and leave the 3090s free, otherwise
@@ -900,10 +900,10 @@ def acquire_lease(base_url: str, api_key: str, headers: dict | None, devices: li
       whole retry loop and a pinned refusal is granted immediately; if not,
       a pinned (or any other unrecognised) 409 is raised as a **final**
       error naming the resident — evicting it is a decision one layer up
-      (the ``--force-evict`` CLI flag, itself gated on Jake's ``--go``), not
+      (the ``--force-evict`` CLI flag, itself gated on the maintainer's ``--go``), not
       something this function decides for you.
 
-    ``busy_unload_after_s`` (bench-first, Jake 2026-09-08: "evict all
+    ``busy_unload_after_s`` (bench-first, maintainer 2026-09-08: "evict all
     running models") — when set, a ``model_busy`` refusal that persists past
     that many seconds is answered by UNLOADING the busy resident
     (``POST /api/models/{id}/unload``, which the rig allows and which does cut

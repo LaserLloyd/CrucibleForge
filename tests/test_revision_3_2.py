@@ -238,7 +238,7 @@ def test_acquire_lease_never_auto_forces_a_pinned_resident(monkeypatch):
 def test_acquire_lease_force_true_from_caller_is_never_escalated_further(monkeypatch):
     """The ONLY way a pinned resident gets evicted post-FIX-2: the CALLER
     passes force=True from the very first attempt (the CLI's --force-evict,
-    itself gated on Jake's go-ahead) — acquire_lease itself never decides
+    itself gated on the maintainer's go-ahead) — acquire_lease itself never decides
     this on a refusal message."""
     bodies = []
 

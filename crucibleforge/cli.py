@@ -431,9 +431,9 @@ class _ProviderGuard:
         # WP-BENCH FIX-2: the only place `force=true` ever gets authorised for
         # this run. Never set from a refusal message — only from the CLI's
         # explicit `--force-evict` flag, which the skill says a worker may
-        # pass only on Jake's explicit go-ahead.
+        # pass only on the maintainer's explicit go-ahead.
         # …or by the provider's STANDING bench-first policy
-        # (``force_evict: true`` in models.yaml, Jake 2026-09-08: the bench
+        # (``force_evict: true`` in models.yaml, maintainer 2026-09-08: the bench
         # outranks everything on the rig). Logged as loudly as the flag.
         for p in self.provs.values():
             p.force_evict = force_evict or _policy_force(p)
@@ -962,7 +962,7 @@ def main(argv=None):
                  "'pinned' resident OR a D46 priority-tier one (e.g. a pinned, priority-1 "
                  "family-bot model) — it can and will evict either; it never overrides a "
                  "resident mid-request. This tool never sets it on its own — pass it only "
-                 "on Jake's explicit go-ahead for THIS run, exactly because it CAN reach a "
+                 "on the maintainer's explicit go-ahead for THIS run, exactly because it CAN reach a "
                  "priority-tier resident, not because it can't.")
 
     def add_run_args(p):

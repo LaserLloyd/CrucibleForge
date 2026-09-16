@@ -106,7 +106,7 @@ class Provider:
     # WP-BENCH FIX-2: force=true is never sent on this provider's own
     # initiative (see studioforge.acquire_lease) — only when a caller has
     # explicitly set this, itself only ever flipped by the CLI's
-    # ``--force-evict`` flag, itself only ever meant to be passed on Jake's
+    # ``--force-evict`` flag, itself only ever meant to be passed on the maintainer's
     # explicit go-ahead (see the crucibleforge skill). Off by default.
     force_evict: bool = False
     # Bench-first policy (models.yaml, 2026-09-08 — see studioforge.py

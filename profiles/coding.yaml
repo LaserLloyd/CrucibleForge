@@ -8,7 +8,7 @@
 # "profile chat+coding". Run coding FIRST with --fresh, then chat WITHOUT
 # --fresh (--fresh archives the whole transcript, both halves).
 #
-# Budgets (Jake 2026-09-08: full output over speed): thinking models get
+# Budgets (maintainer 2026-09-08: full output over speed): thinking models get
 # coding 6144→24576, math/reasoning 4096→16384. On a ~35 tok/s 27B with 8
 # slots the long pole is one 24k-token coding case (~12 min); the whole
 # profile is ~25 min. A model that only gets 1-2 slots will overrun — the

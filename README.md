@@ -219,7 +219,7 @@ run is a background thread; **Stop** finishes the in-flight case).
   (`POST /api/leases`) on its cards for the benched model and the judge, so
   no co-tenant can be planned there or evict them; a resident mid-request is
   waited for (never evicted); a resident of an equal-or-higher priority tier
-  (a chat/dispatched-agent-tier model on this rig, not just an old-style
+  (a chat/agent-tier model on this rig, not just an old-style
   "pinned" flag) refuses the lease outright and is retried on a bounded
   cadence, not forced. **`force`d eviction never happens on this client's own
   initiative, on either refusal dialect** — only an explicit, caller-supplied

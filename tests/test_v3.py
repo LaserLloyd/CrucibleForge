@@ -325,7 +325,7 @@ def test_standard_profile_loads_and_applies():
     prof = profiles.load_profile("standard", cfg)
     cfg2, cases = profiles.apply_profile(prof, cfg)
     assert cfg2["_profile"] == "standard"
-    # 2026-09-08: budgets raised for full output (Jake) — cap must stay
+    # 2026-09-08: budgets raised for full output (maintainer) — cap must stay
     # under the 32768 context the profile's models are loaded at.
     assert cfg2["defaults"]["thinking_max_tokens_cap"] == 24576
     assert cfg2["defaults"]["repeats"]["rp"] == 1
