@@ -48,7 +48,8 @@ def test_meta_accumulates_profiles_and_report_labels_both(tmp_path, monkeypatch)
     monkeypatch.setattr(report, "results_dir", lambda: tmp_path)
 
     class P:
-        name = "studioforge"; type = "studioforge"
+        name = "studioforge"
+        type = "studioforge"
     entry = {"model_id": "x/y", "name": "lbl"}
     runner._write_meta("lbl", entry, P(), failed=False, profile="coding")
     runner._write_meta("lbl", entry, P(), failed=False, profile="chat")
@@ -60,7 +61,7 @@ def test_meta_accumulates_profiles_and_report_labels_both(tmp_path, monkeypatch)
 
 
 def test_judge_skips_rig_when_nothing_pending(tmp_path, monkeypatch):
-    from crucibleforge import judge, cli
+    from crucibleforge import judge
     monkeypatch.setattr(config, "results_dir", lambda: tmp_path)
     (tmp_path / "transcripts_lbl.jsonl").write_text(
         json.dumps({"bench_run_id": "b", "case_id": "CZ01", "repeat": 1, "turn": None,

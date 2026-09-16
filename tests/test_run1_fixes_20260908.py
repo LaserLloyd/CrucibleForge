@@ -4,7 +4,6 @@
 import json
 import types
 
-import pytest
 
 from crucibleforge import cli
 

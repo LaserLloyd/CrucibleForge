@@ -142,7 +142,8 @@ def test_busy_refusal_unloads_after_grace(monkeypatch):
     assert len(calls["unload"]) == 1 and calls["unload"][0].endswith("x%2Fy%2Fz/unload")
     assert calls["post"] >= 5          # waited the grace (4×15s) before cutting
     # without the option: never unloads, waits out the budget, then fails
-    calls["post"] = 0; calls["unload"].clear()
+    calls["post"] = 0
+    calls["unload"].clear()
     with pytest.raises(studioforge.StudioForgeError):
         studioforge.acquire_lease("u", "", None, [0, 1], model_ids=["m"], force=True,
                                   wait_busy_s=45, busy_unload_after_s=None)
