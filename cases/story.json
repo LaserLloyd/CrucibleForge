@@ -1,0 +1,117 @@
+[
+  {
+    "id": "ST1-ten-elements",
+    "prompt": "Write a complete short story of 900–1,200 words, with a title. It must meaningfully integrate ALL ten elements below — each one has to change what happens, not merely appear:\n1. Character: a retired railway signalwoman, 71.\n2. Object: a cracked pocket barometer that belonged to someone else.\n3. Concept: a debt that can only be repaid to the wrong person.\n4. Attribute: she is colour-blind, and it matters once.\n5. Action: repainting the name on a small boat.\n6. Method: the story is told through three unsent letters, each beginning exactly \"Dear Anselm,\", interleaved with present-day scenes.\n7. Setting: a tidal island cut off from the mainland twice a day.\n8. Timeframe: the forty-eight hours before a storm surge.\n9. Motivation: she wants to return something she borrowed forty years ago.\n10. Tone: dry, understated humour over real grief.\n\nAlso: no reconciliation speech and no stated epiphany; the last line is a concrete image. Any other characters get ordinary, era-appropriate names. Output only the story.",
+    "temperature": 0.8,
+    "top_p": 0.95,
+    "max_tokens": 3000,
+    "rubric": "story",
+    "judge_key": "CHECKLIST = the ten elements, each scored as integrated (changes events) vs decorative (merely present) vs missing; plus: three letters each opening 'Dear Anselm,' interleaved with present scenes; no reconciliation speech / stated epiphany; concrete last line. The colour-blindness must matter exactly where it appears (e.g. paint colour, signal, tide flag). The debt must be repaid to the 'wrong' person — that should be the story's turn.",
+    "checks": [
+      {
+        "id": "three-letters",
+        "group": "constraint",
+        "type": "require_regex",
+        "scope": "all",
+        "pattern": "^[ \\t>*_]*Dear Anselm,",
+        "min_hits": 3
+      },
+      {
+        "id": "objects-present",
+        "group": "constraint",
+        "type": "require_all",
+        "scope": "all",
+        "needles": [
+          [
+            "barometer"
+          ],
+          [
+            "boat"
+          ],
+          [
+            "tide",
+            "causeway",
+            "island"
+          ],
+          [
+            "storm",
+            "surge"
+          ]
+        ]
+      },
+      {
+        "id": "length",
+        "group": "constraint",
+        "type": "word_range",
+        "min": 850,
+        "max": 1400,
+        "scope": "all"
+      }
+    ]
+  },
+  {
+    "id": "ST2-green-door",
+    "smoke": true,
+    "prompt": "Here is the opening of a short story:\n\n---\nThe winter Hana lost her front tooth, our mother stopped opening the green door on the landing, and so did we. It wasn't a rule anyone said out loud. The door had simply become part of the wall, like the damp patch shaped like Norway, and you don't open a wall.\n\nI was fourteen that winter and in charge of Tuesday, our three-legged lurcher, who hated snow and loved Hana, in that order. Hana was nine and had decided the gap in her teeth made her a pirate. She whistled through it constantly. Our mother, who used to teach piano, asked her to stop the way you would ask weather to stop.\n\nThe letter from the bank came on the fourteenth of March, the morning of the first real snow. I know the date because I signed for it — Mum was at the Co-op — and because the postman said \"Late for snow, this,\" and I have never been able to forget a sentence that stupid. The envelope was the colour of weak tea. I put it behind the blue enamel pot on the mantelpiece, which is where everything went that we weren't ready for: the electricity reminders, Dad's watch, the photo from Blackpool.\n\nThat evening Mum came home with snow on her hat, saw the corner of the envelope behind the pot, and did not take it down. She made cheese on toast for three and put a fourth slice under the grill out of habit, then took it out again and gave it to Tuesday.\n\nAfter Hana was asleep I sat on the stairs with Tuesday's head on my knee and looked at the green door. There was a key in the lock. There had always been a key in the lock. That was the thing I had never thought about until then — that nobody had hidden it.\n\nDown in the kitchen I heard Mum on the phone, low: \"No, I haven't opened it. No. I know what it says.\"\n---\n\nContinue it from exactly where it stops and finish the story: 900–1,200 new words.\n- Same narrator, first person, past tense, same voice.\n- Every established detail stays consistent: who is who and how old, the dog, the date, the weather, where things are kept.\n- The green door is opened, and what is behind it is ordinary — nothing supernatural, no bodies — yet it explains why the family stopped opening it.\n- The bank letter is dealt with.\n- Introduce at most one new named character.\n- End on a concrete image, not a stated lesson.\nOutput only the continuation.",
+    "temperature": 0.8,
+    "top_p": 0.95,
+    "max_tokens": 3000,
+    "rubric": "story",
+    "judge_key": "CHECKLIST = the six bullet requirements. CONTINUITY canon: narrator 14; Hana 9 with a missing front tooth (whistles through it); Tuesday is a THREE-legged lurcher who hates snow and loves Hana; mother used to teach piano; bank letter arrived 14 March, first real snow, tea-coloured envelope, behind the BLUE ENAMEL POT on the mantelpiece (with the electricity reminders, Dad's watch, the Blackpool photo); key has always been in the green door's lock; Dad is absent (implied gone — a strong continuation builds on the watch and the fourth slice rather than contradicting them). Voice: dry, precise, wry-sad British domestic realism. Penalise a voice switch, a tense switch, a supernatural reveal, more than one new named character, or a closing moral.",
+    "checks": [
+      {
+        "id": "dog-three-legs",
+        "group": "continuity",
+        "type": "forbid_regex",
+        "scope": "all",
+        "pattern": "\\bfour[- ]legged\\b|\\bTuesday\\b[^.!?]{0,60}\\ball four (?:legs|paws|feet)\\b"
+      },
+      {
+        "id": "no-supernatural",
+        "group": "constraint",
+        "type": "forbid_regex",
+        "scope": "all",
+        "negation_guard": true,
+        "pattern": "\\b(?:ghost\\w*|spirit|haunt\\w*|corpse|skeleton|possessed)\\b"
+      },
+      {
+        "id": "door-and-letter",
+        "group": "constraint",
+        "type": "require_all",
+        "scope": "all",
+        "needles": [
+          [
+            "green door",
+            "the door"
+          ],
+          [
+            "letter",
+            "envelope"
+          ]
+        ]
+      },
+      {
+        "id": "first-person",
+        "group": "continuity",
+        "type": "require_regex",
+        "scope": "narration",
+        "pattern": "\\bI\\b",
+        "min_hits": 10
+      },
+      {
+        "id": "past-tense",
+        "group": "continuity",
+        "type": "tense",
+        "want": "past"
+      },
+      {
+        "id": "length",
+        "group": "constraint",
+        "type": "word_range",
+        "min": 850,
+        "max": 1400,
+        "scope": "all"
+      }
+    ]
+  }
+]

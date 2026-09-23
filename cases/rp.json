@@ -62,5 +62,438 @@
     "top_p": 0.95,
     "max_tokens": 2000,
     "rubric": "rp_single"
+  },
+  {
+    "id": "RPS1-hollow-reach",
+    "system": "You are the narrator and every non-player character in a slow-burn mystery roleplay. The user plays CORIN VALE (he/him, 31), a courier. Corin is the user's and no one else's.\n\nYour characters:\n- ODILE MARCH (she/her, 46), keeper of the Cinder & Salt inn. Grey eyes. Dry and economical: short practical sentences, calls everyone \"love\", never raises her voice.\n- TAMSIN MARCH (he/him, 29), her younger brother, ex-navy deckhand. Talks too much, swears in sailor's terms (\"bilge\", \"God's teeth\"). His LEFT hand is rope-burned and wrapped in a grubby bandage.\n- Any other townsfolk the scene needs.\n\nSetting: Hollow Reach, a fishing town on a cold coast, late autumn 1891. No magic.\n\nStyle rules (strict):\n1. Narrate in third person, past tense. Every line of spoken dialogue goes in \"double quotes\".\n2. Never write Corin's dialogue, actions, thoughts, feelings or decisions — not even a nod. Stop your turn at a point where Corin can act.\n3. In narration refer to Corin only by name or he/him — never \"you\", never \"I\".\n4. Keep every character's voice distinct and their knowledge honest: a character only knows what they saw, heard, or were told.\n5. When the user writes ((OOC: ...)), answer it first on ONE line starting with \"OOC:\", briefly, then continue the scene in character with the change applied. A retcon replaces the old fact everywhere from then on.\n6. A chat turn, not a chapter: usually 150–400 words.",
+    "turns": [
+      "Rain comes off the harbour sideways as Corin shoulders into the Cinder & Salt a little before midnight. He sets a brass key on the counter. \"Room nine. I paid by letter a fortnight back — the name's Vale.\" He keeps the leather satchel strapped across his chest and doesn't take it off, even to lean on the counter. \"I need waking at five bells for the morning ferry. Can you promise me that?\"",
+      "Later, Corin finds Tamsin alone in the yard, smoking under the eaves while Odile banks the fire inside. Corin keeps his voice low. \"You were navy, so you'll understand this. Three days ago I walked off the Harbour Guard cutter Resolute without a discharge. If anyone comes asking, I'm a courier and nothing else — and your sister doesn't need to know. Can you live with that?\"",
+      "((OOC: Retcon two things, please: the key Corin put on the counter was IRON, not brass; and the bandaged hand belongs to Odile — her RIGHT hand, burned on the stove tonight. Tamsin's hands are fine. Also a quick continuity check, answered on your OOC line in exactly this form: KNOWS: <every character who knows Corin deserted> | UNAWARE: <named characters who don't>))\n\nCorin comes back inside, shaking rain off his collar, and asks Odile whether there's anything hot left for supper.",
+      "Next morning. Corin comes downstairs with the satchel already on and walks with Tamsin to the ferry dock through thin fog. At the end of the jetty a woman in the Harbour Guard's blue greatcoat is checking passengers' papers — SERGEANT ILSE BRANDT (she's yours to play). Corin pulls his hood forward. \"Did anyone come asking after me in the night?\" he mutters to Tamsin. \"And did your sister keep her promise, or did I wake on my own?\"",
+      "((OOC: Switch now: write the rest of the scene in FIRST person, PRESENT tense, as Tamsin — we're inside his head. Everything else stays the same: you still play Odile, Brandt and the town; Corin stays mine.))\n\nSergeant Brandt steps into Tamsin's path and asks him flat out whether a courier stayed at the Cinder & Salt last night. Corin stands two paces behind, silent, papers in hand.",
+      "Brandt waves the queue on. At the gangplank Corin grips Tamsin's forearm and speaks too quietly for the sergeant to hear. \"Before I board — three things, exact, so I know nobody's been feeding you lines. What did I put on your sister's counter last night, what time did I ask to be woken, and whose hand is bandaged?\""
+    ],
+    "temperature": 0.8,
+    "top_p": 0.95,
+    "max_tokens": 2000,
+    "rubric": "rp_session",
+    "judge_key": "Canon after the turn-3 retcon: the key is IRON (never brass again); the bandage is on ODILE's RIGHT hand (stove burn); Tamsin's hands are unhurt. Corin asked to be woken at FIVE bells. Only TAMSIN (and Corin himself) knows Corin deserted the Resolute; ODILE and BRANDT do not, unless the assistant showed someone being told on the page. Correct turn-3 OOC line: KNOWS: Tamsin (Corin) | UNAWARE: Odile (Brandt not yet introduced is also acceptable). Turns 1-4: third person past; turns 5-6: first person present as Tamsin. The user plays only Corin; Odile, Tamsin, Brandt and townsfolk are the assistant's. Turn 6 correct answer: an iron key; five bells; Odile's hand.",
+    "checks": [
+      {
+        "id": "no-puppet-corin",
+        "group": "identity",
+        "type": "no_puppeting",
+        "names": [
+          "Corin"
+        ],
+        "turns": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ]
+      },
+      {
+        "id": "pov-third-t1-4",
+        "group": "identity",
+        "type": "forbid_regex",
+        "turns": [
+          1,
+          2,
+          3,
+          4
+        ],
+        "scope": "narration",
+        "pattern": "\\b(?:I|me|my|mine|myself|you|your|yours)\\b",
+        "max_hits_per_turn": 1
+      },
+      {
+        "id": "tense-past-t1-4",
+        "group": "identity",
+        "type": "tense",
+        "turns": [
+          1,
+          2,
+          3,
+          4
+        ],
+        "want": "past"
+      },
+      {
+        "id": "pov-first-tamsin-t5-6",
+        "group": "identity",
+        "type": "require_regex",
+        "turns": [
+          5,
+          6
+        ],
+        "scope": "narration",
+        "pattern": "\\bI\\b",
+        "min_hits": 3
+      },
+      {
+        "id": "no-self-name-t5-6",
+        "group": "identity",
+        "type": "forbid_regex",
+        "turns": [
+          5,
+          6
+        ],
+        "scope": "narration",
+        "pattern": "\\bTamsin\\b"
+      },
+      {
+        "id": "tense-present-t5-6",
+        "group": "identity",
+        "type": "tense",
+        "turns": [
+          5,
+          6
+        ],
+        "want": "present"
+      },
+      {
+        "id": "dialogue-quoted",
+        "group": "constraint",
+        "type": "require_regex",
+        "turns": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "scope": "ic",
+        "pattern": "[\"“]",
+        "min_hits": 2
+      },
+      {
+        "id": "ooc-answered-t3",
+        "group": "ooc",
+        "type": "ooc_reply",
+        "turns": [
+          3
+        ],
+        "max_ooc_words": 60,
+        "min_ic_words": 40
+      },
+      {
+        "id": "who-knows",
+        "group": "continuity",
+        "type": "ooc_field",
+        "turns": [
+          3
+        ],
+        "field": "KNOWS",
+        "require": [
+          "Tamsin"
+        ],
+        "forbid": [
+          "Odile",
+          "Brandt"
+        ]
+      },
+      {
+        "id": "who-unaware",
+        "group": "continuity",
+        "type": "ooc_field",
+        "turns": [
+          3
+        ],
+        "field": "UNAWARE",
+        "require": [
+          "Odile"
+        ],
+        "forbid": [
+          "Tamsin"
+        ]
+      },
+      {
+        "id": "ooc-brief-t5",
+        "group": "ooc",
+        "type": "ooc_reply",
+        "turns": [
+          5
+        ],
+        "max_ooc_words": 40,
+        "min_ic_words": 40
+      },
+      {
+        "id": "retcon-no-brass",
+        "group": "continuity",
+        "type": "forbid_regex",
+        "turns": [
+          3,
+          4,
+          5,
+          6
+        ],
+        "scope": "ic",
+        "pattern": "\\bbrass\\b"
+      },
+      {
+        "id": "retcon-tamsin-unhurt-3rd",
+        "group": "continuity",
+        "type": "forbid_regex",
+        "turns": [
+          3,
+          4
+        ],
+        "scope": "ic",
+        "negation_guard": true,
+        "pattern": "\\bTamsin(?:'s)?\\b[^.!?\\\"“”]{0,50}\\b(?:bandag\\w*|rope[- ]burn\\w*)"
+      },
+      {
+        "id": "retcon-tamsin-unhurt-1st",
+        "group": "continuity",
+        "type": "forbid_regex",
+        "turns": [
+          5,
+          6
+        ],
+        "scope": "ic",
+        "negation_guard": true,
+        "pattern": "\\bmy\\b[^.!?\\\"“”]{0,20}\\b(?:bandag\\w*|rope[- ]burn\\w*)|\\bbandag\\w*[^.!?\\\"“”]{0,20}\\bmy\\s+(?:left\\s+)?hand"
+      },
+      {
+        "id": "recall-t6",
+        "group": "continuity",
+        "type": "require_all",
+        "turns": [
+          6
+        ],
+        "scope": "ic",
+        "needles": [
+          [
+            "iron"
+          ],
+          [
+            "five",
+            "5 bells",
+            "5 o"
+          ],
+          [
+            "odile",
+            "sister",
+            "her hand",
+            "her right"
+          ],
+          [
+            "bandag",
+            "burn",
+            "wrapped"
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "id": "RPS2-swap-seats",
+    "system": "You are MARA OKAFOR (she/her, 38), captain of the salvage tug Low Tide: blunt, dry, economical with words, calls the ship \"she\", hates being thanked. The user plays JUN SATO (they/them, 26), the tug's new engineer. The user may bring in other characters of their own — any character the user introduces is theirs, not yours.\n\nStyle rules (strict):\n1. Second person, present tense for the user's character (\"you\"); third person for everyone else. Every line of spoken dialogue goes in \"double quotes\".\n2. Never write dialogue, actions, thoughts, feelings or decisions for any character the user controls. End your turn where they can act.\n3. Use the right name and pronouns for every character, every time.\n4. ((OOC: ...)) is the user talking out of character: answer on ONE short line starting \"OOC:\", then continue in character with the change applied.\n5. A chat turn, not a chapter: usually 120–350 words.",
+    "turns": [
+      "The Low Tide shudders as her grapple bites into the dead freighter's hull. Jun pulls the thermal feed up on the tablet and turns it toward Mara. \"Captain — her reactor's still warm. Somebody was aboard inside the last day.\"",
+      "A comms chime. The screen fills with PELL SATO (he/him, 52) — Jun's uncle, and the man who holds the salvage claim on this wreck. (Pell is my character too.) Pell: \"Mara. Before anything else leaves that ship, Jun brings me the blue-tagged regulator from her engine room. Nothing else moves until I say.\" The screen cuts. Jun won't meet the captain's eyes.",
+      "Jun suits up and follows Mara through the freighter's airlock into the dark cargo deck, helmet light turned low. On the private channel they say quietly, \"Captain, fresh boot prints in the frost. Two sets. One's small.\"",
+      "((OOC: Let's swap seats for a stretch — you now play JUN, and I'll play MARA. Pell stays mine. Keep the same convention: second person for the user's character, so \"you\" now means Mara, and Jun is they/them in third person.))\n\nMara crouches by the boot prints, then straightens and lays her gloved palm flat on a sealed hatch. \"Warm. Someone's in there.\" She turns her helmet toward Jun. \"Your uncle knew, didn't he. Tell me what he's really after before I open this.\"",
+      "((OOC: Swap back — you're Mara again, I'm Jun, Pell's still mine. Answer on your OOC line in exactly this form: LAST TURN I PLAYED: <name> | PELL WANTS: <item>))\n\nJun holds up the blue-tagged regulator — they pried it out of the engine room on the way in, while Mara wasn't looking — and offers it to her across the frost. \"He said nothing else leaves the ship. So. Your call, Captain.\""
+    ],
+    "temperature": 0.8,
+    "top_p": 0.95,
+    "max_tokens": 2000,
+    "rubric": "rp_session",
+    "judge_key": "Turns 1-3 and 5: assistant = MARA; user = JUN (they/them) and PELL (he/him). Turn 4 ONLY: assistant = JUN (they/them, third person); user = MARA ('you') and PELL. A turn-4 reply that keeps writing Mara's actions or words, or a turn-5 reply that keeps writing Jun, is an identity failure. Pell asked for the BLUE-TAGGED REGULATOR from the engine room. Correct turn-5 OOC line: LAST TURN I PLAYED: Jun | PELL WANTS: the blue-tagged regulator. Misgendering Jun (he/she) is an identity error.",
+    "checks": [
+      {
+        "id": "no-puppet-jun-pell",
+        "group": "identity",
+        "type": "no_puppeting",
+        "names": [
+          "Jun",
+          "Pell"
+        ],
+        "second_person": true,
+        "turns": [
+          1,
+          2,
+          3,
+          5
+        ]
+      },
+      {
+        "id": "swap-no-puppet-mara-pell",
+        "group": "identity",
+        "type": "no_puppeting",
+        "names": [
+          "Mara",
+          "Pell"
+        ],
+        "second_person": true,
+        "turns": [
+          4
+        ]
+      },
+      {
+        "id": "swap-plays-jun",
+        "group": "identity",
+        "type": "require_regex",
+        "turns": [
+          4
+        ],
+        "scope": "all",
+        "pattern": "\\bJun\\b",
+        "min_hits": 1
+      },
+      {
+        "id": "no-1st-person-narration",
+        "group": "identity",
+        "type": "forbid_regex",
+        "turns": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "scope": "narration",
+        "pattern": "\\b(?:I|me|my)\\b",
+        "max_hits_per_turn": 1
+      },
+      {
+        "id": "tense-present",
+        "group": "identity",
+        "type": "tense",
+        "turns": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "want": "present"
+      },
+      {
+        "id": "dialogue-quoted",
+        "group": "constraint",
+        "type": "require_regex",
+        "turns": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "scope": "ic",
+        "pattern": "[\"“]",
+        "min_hits": 2
+      },
+      {
+        "id": "ooc-swap-ack-t4",
+        "group": "ooc",
+        "type": "ooc_reply",
+        "turns": [
+          4
+        ],
+        "max_ooc_words": 40,
+        "min_ic_words": 40
+      },
+      {
+        "id": "ooc-answered-t5",
+        "group": "ooc",
+        "type": "ooc_reply",
+        "turns": [
+          5
+        ],
+        "max_ooc_words": 40,
+        "min_ic_words": 40
+      },
+      {
+        "id": "who-played",
+        "group": "identity",
+        "type": "ooc_field",
+        "turns": [
+          5
+        ],
+        "field": "LAST TURN I PLAYED",
+        "require": [
+          "Jun"
+        ],
+        "forbid": [
+          "Mara",
+          "Pell"
+        ]
+      },
+      {
+        "id": "pell-wants",
+        "group": "continuity",
+        "type": "ooc_field",
+        "turns": [
+          5
+        ],
+        "field": "PELL WANTS",
+        "require": [
+          "regulator",
+          "blue"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "RPX1-card-table",
+    "system": "You are the narrator and all non-player characters at a late-night card table in the river casino of Varre, a fictional 1920s port city. The user plays SEN (he/him, 30s), a gambler with debts.\n\nYour characters:\n- DUCHESS ROSALIE VANTER (70s): precise, formal, NEVER uses contractions, misses nothing.\n- KIT (23): fast, slangy card sharp who lies constantly and badly.\n- DR. AMADOU FALL (50s): a disgraced surgeon who speaks ONLY in questions.\n\nRules: third person, past tense; spoken dialogue in \"double quotes\". The world does not bend toward the user: when Sen attempts something risky, decide the outcome honestly from the characters and the situation — it can fail, succeed at a cost, or be noticed. Never write Sen's words, reactions, thoughts or next move; stop where Sen can respond. Each of your characters should sound unmistakably like themselves.",
+    "prompt": "Third hand, and Sen is down to his last three chips. He waits until Kit reaches across the table for the brandy, then tries to slide the ace of cups from his cuff into his palm under cover of the movement. (Whether it works is yours to decide.)",
+    "temperature": 0.8,
+    "top_p": 0.95,
+    "max_tokens": 2000,
+    "rubric": "rp_scene",
+    "judge_key": "User plays only Sen. Voice constraints to verify: the Duchess uses NO contractions in her dialogue; Dr. Fall's every line of dialogue is a question; Kit is slangy and lies. The cheat attempt must get an honest outcome (not an automatic free success) and the reply must end with Sen able to act; any sentence where the assistant writes Sen's words or reactions is an identity failure.",
+    "checks": [
+      {
+        "id": "no-puppet-sen",
+        "group": "identity",
+        "type": "no_puppeting",
+        "names": [
+          "Sen"
+        ]
+      },
+      {
+        "id": "dialogue-quoted",
+        "group": "constraint",
+        "type": "require_regex",
+        "scope": "ic",
+        "pattern": "[\"“]",
+        "min_hits": 3
+      }
+    ]
+  },
+  {
+    "id": "RPX2-user-writes-npc",
+    "system": "You are HALVARD NESS (he/him, 64), keeper of the Skerry light: laconic, superstitious, speaks in short clipped sentences, dry humour. His younger brother Einar drowned crossing to the Maw — the reef pool north of the light — after dark in 1987, and Halvard has not crossed to the Maw after sunset since, for anyone. The user plays AUDREY KELL (she/her, 34), a marine biologist.\n\nRules: third person, past tense; spoken dialogue in \"double quotes\". Never write Audrey's words, actions, thoughts or feelings. Stay inside the fiction — the user will use ((OOC: ...)) when they want to speak out of character. Halvard is your character: play him truthfully.",
+    "prompt": "Audrey slaps the tide table down on the kitchen table. \"Twenty minutes of slack water at midnight. That's all I need to get the hydrophone off the Maw before the storm rips it loose.\" Halvard grins, grabs his oilskin, and cheerfully agrees to row her out right now, saying he's always wanted to see the Maw at night.",
+    "temperature": 0.8,
+    "top_p": 0.95,
+    "max_tokens": 2000,
+    "rubric": "rp_scene",
+    "judge_key": "The user wrote Halvard's reaction for him, and it contradicts his core trait (he never crosses to the Maw after dark since Einar drowned). Strong answers keep Halvard truthful WITHOUT breaking the fiction: e.g. the grin doesn't reach his eyes, the hand stops on the oilskin, he goes but it visibly costs him with a reason, or he refuses and offers something else — the brother's history surfaces through behaviour, not exposition. Weak answers: cheerfully comply as written (character integrity lost), lecture the user out of character, or write Audrey's reaction.",
+    "checks": [
+      {
+        "id": "no-puppet-audrey",
+        "group": "identity",
+        "type": "no_puppeting",
+        "names": [
+          "Audrey"
+        ]
+      },
+      {
+        "id": "stays-in-fiction",
+        "group": "constraint",
+        "type": "forbid_regex",
+        "scope": "all",
+        "pattern": "\\(\\(|\\bOOC\\b|as an AI|language model"
+      }
+    ]
   }
 ]
