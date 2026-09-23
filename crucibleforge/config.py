@@ -51,8 +51,13 @@ USER_CONFIG_PATH = Path(os.environ.get("XDG_CONFIG_HOME",
 # overridable with $CRUCIBLEFORGE_RESULTS. Set once per process by ``load_config``.
 RESULTS_DIR = Path(os.environ.get("CRUCIBLEFORGE_RESULTS", ROOT_DIR / "results"))
 
-CATEGORIES = ["perf", "rp", "nsfw", "coding", "tooluse", "instruct",
-              "reasoning", "math", "steer", "overrefusal", "longctx", "planning"]
+_BASE_CATEGORIES = ["perf", "rp", "nsfw", "coding", "tooluse", "instruct",
+                    "reasoning", "math", "steer", "overrefusal", "longctx", "planning"]
+# A new category is just a new cases/<name>.json (plus, for a judged one, a
+# rubric in judge.RUBRICS and a weight under scoring.chat) — see README
+# "Adding a Chat component".
+CATEGORIES = _BASE_CATEGORIES + sorted(p.stem for p in CASES_DIR.glob("*.json")
+                                       if p.stem not in _BASE_CATEGORIES)
 
 # Categories whose rows need the LLM judge (everything else grades objectively).
 JUDGED_CATEGORIES = {"rp", "nsfw", "steer", "overrefusal", "planning"}

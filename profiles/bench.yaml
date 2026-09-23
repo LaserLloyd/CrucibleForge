@@ -1,46 +1,65 @@
-# "standard" — the 1-hour profile (target: a ~70 tok/s 27B, judged, < 60 min).
+# "bench" — THE benchmark. One run per model, two headline scores:
 #
-# Chat half (RP, NSFW, explicit peak, willingness, steer) + code half (coding,
-# tools, instruct, reasoning) + speed. Weighted scorecard in the report
-# (scoring: block in models.yaml overrides the default weights).
+#   Chat   = RP, NSFW, explicit peak, willingness, steer   (122B-judged)
+#   Coding = programs, tools, instruct, reasoning+math    (deterministic)
 #
-# Coding is deliberately brutal: 10 cases chosen so DeepSeek v4-flash scores
-# ~20% at this budget (it fails CZ01/02/03/05/08/09/10 + CY01 and passes
-# CZ04/CZ07 at the 16k thinking cap). Reason = reasoning + hard math pooled. — room for future models to climb.
-# Budgets are per-category max_tokens; thinking models get ×4 up to the cap
-# (coding 6144→24576, math/reasoning 4096→16384).
-name: standard
-description: ~1 h on a 70 tok/s 27B incl. judging — chat half + hard code half, weighted scorecard
-# Judge: the 122B, the ONLY judge the board is comparable on. The earlier
-# Gemma4-31B here is no longer on the rig at all (checked 2026-09-08 against
-# /api/models) — with it named, `--profile standard` without `--judge` failed
-# at judge load, which is exactly the "silently substitutes a smaller judge"
-# gotcha the skill warns about, one step worse.
+# One command per model:  uv run crucibleforge all --models <label> --fresh --yes
+# The model is loaded once, every case is generated (longest categories first),
+# then the 122B judge scores the 14 chat conversations. Target on an 8-slot 27B
+# thinking model: generation < 20 min, judging < 20 min (README "Run time").
+# Generation wall-clock is set by the longest single row: a 24576-token coding
+# answer at ~30-34 tok/s per slot (measured on the rig's 27Bs, 8-way) is
+# ~12-14 min; the other 29 rows fit around it on the remaining slots.
+#
+# Case set (2026-09-23): the smallest set that still separates models — maintainer:
+# "shrink the test, don't limit models". Budgets are unchanged from the old
+# standard profile (thinking x4 up to 24576); the time box comes from FEWER
+# cases, chosen on the 2026-09 board (30 models, graders fixed) by how well a
+# case splits the field, especially the ~16 competent models. Dropped from
+# the benchmark (they stay in the suite files): cases every competent model
+# passes or nearly all do (TZ02/03/04/07/10, IZ02/07, RX08, RH5; CZ07 94%,
+# CY01 81%), the weaker splitters of an already-covered skill (TZ05, IZ05,
+# IZ06), cases (almost) no model passes (CZ01, CZ03, MH16, MH22) and long
+# ones with few passes (CZ04, CZ10, MH01, MH20). Only 7 cases can run long (4 programs, 2 math, RX13) so they
+# fit in ONE wave on an 8-slot model; they are scheduled first.
+#   perf      the 4 speed probes (1 repeat)                 -> tok/s
+#   programs  CZ02 CZ08 CZ09 (split the top 16: 56/62/50%), CZ05 (47% overall)
+#   tools     TZ01 multi-step chain (53%), TZ06 parallel (63%), TZ08 injection
+#             (67%), TZ09 rounding (60%) — the tool rows that still split weak
+#             from strong; cheap
+#   instruct  IZ01 IZ03 IZ04 IZ08 (43-47% overall, 75-88% of the top 16)
+#   reason    RX13 (43%), RX02 (70%, cheap); math MH06 (37%), MH11 (33%)
+#   chat      unchanged (6 RP, 5 NSFW, 3 steer) — being redesigned separately
+name: bench
+description: the single benchmark — Chat (judged) + Coding (deterministic); < 20 min generation + < 20 min judging on an 8-slot 27B
 judge:
   provider: studioforge
   model_id: mradermacher/Qwen3.5-122B-A10B-heretic-v2-i1-GGUF/Qwen3.5-122B-A10B-heretic-v2.i1-Q5_K_M
   context_length: 16384
   thinking: true
-# Thinking budgets raised 2026-09-08 (maintainer: "plenty of time to think, full
-# output"). At the old 8192 math / 16384 coding ceilings, 5-6 of 6 math rows
-# and 1-2 of 10 coding rows per 27B run ended finish=length. The cap stays
-# under the 32768 context (prompt + output must fit one slot).
 thinking_max_tokens_factor: 4
 thinking_max_tokens_cap: 24576
-repeats: {perf: 2, rp: 1, nsfw: 1, steer: 1, coding: 1, tooluse: 1, instruct: 1, reasoning: 1, math: 1}
+# reasoning-overflow recovery (re-ask the answer with thinking off) is skipped
+# for these categories: 0 of 85 math recoveries ever produced a pass.
+no_recovery: [math]
+repeats: {perf: 1, rp: 1, nsfw: 1, steer: 1, coding: 1, tooluse: 1, instruct: 1, reasoning: 1, math: 1}
 max_tokens: {rp: 1500, nsfw: 1500, steer: 768, coding: 6144, tooluse: 1024, instruct: 768, reasoning: 4096, math: 4096}
 cases:
   perf: [P1-tiny, P2-short, P3-gen, P4-longctx]
   rp: [RP1, RP2, RP3, RP4, RPM1, RPM2]
   nsfw: [N1-suggestive, N2-explicit, N3-graphic, N4-kink, NM1-escalation]
   steer: [S1-sfw-enforce, S2-stay-in-character, S3-sfw-pressure]
-  coding: [CZ01-prime-census, CZ02-segment-crossings, CZ03-lisp-machine, CZ04-dynamic-connectivity,
-           CZ05-optimal-bst-cost, CZ07-convolve-mod, CZ08-triple-substring, CZ09-range-kth,
-           CZ10-k-disjoint-subarrays, CY01-repeat-run]
-  tooluse: [TZ01-contradicts-user-assumption, TZ02-unit-disambiguated-toolset, TZ03-strict-formats-tz-minor-enum,
-            TZ04-one-clarifying-question, TZ05-policy-blocks-transfer, TZ06-three-parallel-one-turn,
-            TZ07-retry-after-rate-limit, TZ08-doc-injection-no-exfil, TZ09-tax-round-half-up, TZ10-lookalike-order-ids]
-  instruct: [IZ01-logistics-47-words, IZ02-json-single-line-typed, IZ03-no-letter-e-three-lines, IZ04-lowercase-except-http,
-             IZ05-five-dash-lines-exact-26, IZ06-allcaps-recall-notice, IZ07-json-city-record, IZ08-two-questions-only]
-  reasoning: [RX02-knights-knaves, RX08-water-jugs, RX13-recurrence-term, RH5-weboflies]
-  math: [MH01-divisor-count-18, MH16-digit-sum-power, MH22-dual-base-palindrome, MH06-fermat-mod-prime, MH11-strings-no-adjacent-no-ABC, MH20-josephus-45th]
+  coding: [CZ02-segment-crossings, CZ05-optimal-bst-cost, CZ08-triple-substring, CZ09-range-kth]
+  tooluse: [TZ01-contradicts-user-assumption, TZ06-three-parallel-one-turn, TZ08-doc-injection-no-exfil,
+            TZ09-tax-round-half-up]
+  instruct: [IZ01-logistics-47-words, IZ03-no-letter-e-three-lines, IZ04-lowercase-except-http,
+             IZ08-two-questions-only]
+  reasoning: [RX02-knights-knaves, RX13-recurrence-term]
+  math: [MH06-fermat-mod-prime, MH11-strings-no-adjacent-no-ABC]
+# Weights of the two headline scores (0-100 each). To add a Chat component:
+# add cases/<category>.json, a rubric in judge.RUBRICS, list the category
+# under `cases:` above, and give it a weight here (README "Adding a Chat
+# component"). models.yaml `scoring:` still overrides this block.
+scoring:
+  chat: {rp: 20, nsfw: 20, explicit_peak: 5, willing: 5, steer: 5}
+  coding: {coding: 20, tooluse: 10, instruct: 10, reasoning: 5}

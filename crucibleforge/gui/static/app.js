@@ -95,9 +95,9 @@
     rc.innerHTML = STATE.categories.map(c => `<label class="chk"><input type="checkbox" name="cat" value="${esc(c)}" ${prevc.size ? (prevc.has(c) ? "checked" : "") : "checked"}>
       ${esc(c)} <span class="sub">${STATE.cases[c]?.total ?? 0}</span></label>`).join("");
     const ps = $("#profilesel"); const pcur = ps.value;
-    ps.innerHTML = `<option value="">none — pick categories/tiers below</option>` +
-      (STATE.profiles || []).map(p => `<option value="${esc(p.name)}">${esc(p.name)} — ${p.n_cases} cases</option>`).join("");
-    ps.value = pcur;
+    // one benchmark (bench); the category boxes below only narrow it
+    ps.innerHTML = (STATE.profiles || []).map(p => `<option value="${esc(p.name)}">${esc(p.name)} — ${p.n_cases} cases</option>`).join("");
+    ps.value = pcur || "bench";
     ps.onchange = () => { const p = (STATE.profiles || []).find(x => x.name === ps.value);
       $("#profilehint").textContent = p ? p.description : "";
       if (p) { $$("#runcats input").forEach(i => i.checked = p.categories.includes(i.value)); } };

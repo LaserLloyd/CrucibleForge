@@ -1,12 +1,13 @@
 """crucibleforge CLI — status / run / judge / report / pairwise / all / gui / config
 / import-openclaw / models / cases.
 
+There is ONE benchmark (profiles/bench.yaml). Benchmark a model with ONE command:
+
+    crucibleforge all --models <label> --fresh --yes   # generate + 122B judge + board
+
     crucibleforge status
-    crucibleforge all --smoke --models a,b --yes            # quick end-to-end
-    crucibleforge run --models deepseek-flash --categories math,coding --difficulty hard
-    crucibleforge judge --judge deepseek:deepseek-v4-flash   # judge on a remote model
-    crucibleforge report
-    crucibleforge gui                                       # http://127.0.0.1:8777
+    crucibleforge report                               # rebuild the board (Chat / Coding)
+    crucibleforge gui                                  # http://127.0.0.1:8777
 
 Shared-server etiquette (LM Studio): the bench unloads whatever the local
 server is serving. It snapshots the loaded model at start and restores it at
@@ -260,13 +261,38 @@ def _v2_start(args) -> dict:
     return state
 
 
+def _next_hint(error: str) -> str:
+    """What to do about a failed model, chosen by the kind of error."""
+    e = (error or "").lower()
+    if "not served" in e or "not a gguf" in e or "not a chat model" in e:
+        return ("pick a GGUF chat model the provider actually serves "
+                "(`crucibleforge models discover <provider>`), fix models.yaml, re-run")
+    if "unable to generate parser" in e or "template" in e:
+        return ("llama-server cannot build a parser for this model's chat template — try "
+                "another quant/upload of the model, not a re-run")
+    if ("exited with code" in e or "model_load_failed" in e or "load-recommended" in e
+            or "failed to load" in e or "architecture" in e):
+        return ("the engine could not load this model (not transient) — check the GGUF / "
+                "`sfctl logs` before re-running")
+    if ("lease" in e or "priority" in e or "held by another" in e or "409" in e
+            or "503" in e or "busy" in e):
+        return "the rig was busy (lease / priority hold) — retry later"
+    if "judge" in e:
+        return "judge phase failed — `crucibleforge judge --models <label>` once the rig is free"
+    if "too slow" in e:
+        return "the model is below the viability floor on this host — not worth a re-run"
+    if "consecutive transport failures" in e or "unreachable" in e:
+        return "the server dropped out mid-run — check the provider, then re-run"
+    return "see results/crucibleforge.log for the phase that failed"
+
+
 def _v2_report_body(cmd: str, args, cfg: dict, rc: int, state: dict) -> str:
-    """runs/<id>/report.md: the standard 5-heading contract (Result /
-    Evidence / Files / Failed / Next — r1-meta-schema.md quotes this as
-    "the same text as the worker's final message") wrapped around this
-    tool's own scorecard, so `runs-deliver`'s "## Result" extraction gives a
-    short, sane summary while the full scorecard still ships in the body."""
-    from .report import generate as report_generate
+    """runs/<id>/report.md: the 5-heading contract (Result / Evidence /
+    Files / Failed / Next) + the scorecard. runs-deliver posts only the
+    ``## Result`` section when the report is long, so Result carries one
+    self-contained line per model: ``label: Chat 88.7 · Coding 69.4 · 41 min``
+    or ``label: FAILED — <the full error>``."""
+    from .report import board_stats, run_minutes, scorecard_section, generate
     from .version import revision
     models_arg = getattr(args, "models", None)
     labels: list[str] = []
@@ -275,68 +301,84 @@ def _v2_report_body(cmd: str, args, cfg: dict, rc: int, state: dict) -> str:
         labels = [e["name"] for e in entries]
     except Exception as e:  # noqa: BLE001 — a bad --models must not blank the report
         log.warning("V2 report: could not resolve --models %r: %s", models_arg, e)
+    stats: dict = {}
     scorecard = None
-    scorecard_err = None
+    render_err = None
     if labels:
         try:
-            # write=False (WP-BENCH review I1): report.generate() also
-            # (re)writes the SHARED results/report.md + report.json when
-            # asked to write at all — restricted to exactly the labels
-            # given. Every plain `run --models <label>` was silently
-            # collapsing that shared board down to one row as a side effect
-            # of building this V2-only body. The scorecard text below still
-            # covers just this run's labels; the shared files are untouched.
-            scorecard = report_generate(",".join(labels), write=False)
+            _, stats, _ = board_stats(",".join(labels), cfg)
+            # write=False (WP-BENCH review I1): never rewrite the SHARED
+            # board as a side effect of building this run's report
+            scorecard = scorecard_section(generate(",".join(labels), write=False))
         except Exception as e:  # noqa: BLE001 — never let a report bug eat the real rc
-            scorecard_err = str(e)
-            log.warning("V2 report: report.generate failed: %s", e)
+            render_err = str(e)
+            log.warning("V2 report: scorecard failed: %s", e)
     try:
         rev = revision(cfg)
     except Exception:
         rev = None
-    ok = rc == 0
+    result_lines, failed, warnings = [], [], []
+    for label in labels:
+        s = stats.get(label) or {}
+        meta = s.get("meta") or {}
+        if not meta:
+            try:
+                meta = json.loads((results_dir() / f"meta_{label}.json").read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                meta = {}
+        if meta.get("failed"):
+            err = " ".join(str(meta.get("error") or "unknown error").split())
+            result_lines.append(f"{label}: FAILED — {err}")
+            failed.append((label, err))
+            continue
+        card = s.get("scorecard") or {}
+        mins = run_minutes(meta)
+        bits = [f"Chat {card['chat']:.1f}" if card.get("chat") is not None else "Chat -",
+                f"Coding {card['coding']:.1f}" if card.get("coding") is not None else "Coding -"]
+        if mins is not None:
+            bits.append(f"{mins:.0f} min")
+        line = f"{label}: " + " · ".join(bits)
+        notes = [n for n in ((s.get("coverage") or {}).get("notes") or [])]
+        if notes:
+            line += " — " + "; ".join(notes)
+        result_lines.append(line)
+        warnings += [f"{label}: {w}" for w in meta.get("warnings") or []]
+    if not labels:
+        result_lines.append("(no models resolved)")
+    if rc and not failed:
+        result_lines.append(f"run FAILED — exit {rc}")
+        failed.append(("run", f"`crucibleforge {cmd}` exited {rc}"
+                              + (f" — {render_err}" if render_err else "")))
+    lines = [f"# CrucibleForge {cmd} — {', '.join(labels) or '(none)'}", "", "## Result"]
+    lines += result_lines
+    lines += [f"⚠️ {w}" for w in warnings]
     argv_bits = [f"crucibleforge {cmd} --models {models_arg}"]
-    for flag in ("profile", "judge", "categories", "difficulty", "cases"):
+    for flag in ("profile", "categories", "difficulty", "cases"):
         val = getattr(args, flag, None)
         if val:
             argv_bits.append(f"--{flag} {val}")
-    result_line = (
-        f"{', '.join(labels) or '(no models resolved)'}: "
-        f"{'succeeded' if ok else 'FAILED'} (exit {rc})."
-    )
-    lines = [
-        f"# CrucibleForge {cmd} — {', '.join(labels) or '(none)'}",
-        "",
-        "## Result",
-        result_line,
-        "",
-        "## Evidence",
-        f"- run id: `{state['run_id']}`",
-        f"- command: `{' '.join(argv_bits)}`",
-        f"- suite revision: `{rev}`" if rev else "- suite revision: unknown",
-        f"- started: {state['created']}  finished: {_utcnow_iso()}",
-        f"- exit code: {rc}",
-    ]
-    if scorecard_err:
-        lines.append(f"- scorecard render error: {scorecard_err}")
-    lines += ["", "## Files",
-             f"- `{results_dir() / 'report.md'}`",
-             f"- `{results_dir() / 'report.json'}`"]
-    lines += [f"- `{results_dir() / f'transcripts_{label}.jsonl'}`" for label in labels]
-    lines += [
-        "",
-        "## Failed",
-        ("None." if ok else
-         f"`crucibleforge {cmd}` exited {rc} — see `{results_dir() / 'crucibleforge.log'}` "
-         "and the scorecard below for which model/phase."),
-        "",
-        "## Next",
-        ("None." if ok else
-         "Re-run once the rig is free (a lease/priority refusal is transient), or read "
-         "Evidence above for the holder named in the log."),
-    ]
+    lines += ["", "## Evidence",
+              f"- run id: `{state['run_id']}`",
+              f"- command: `{' '.join(argv_bits)}`",
+              f"- suite revision: `{rev}`" if rev else "- suite revision: unknown",
+              f"- started: {state['created']}  finished: {_utcnow_iso()}",
+              f"- exit code: {rc}"]
+    files = [results_dir() / n for n in ("report.md", "failures.md", "report.html")]
+    files += [results_dir() / f"transcripts_{label}.jsonl" for label in labels]
+    files.append(results_dir() / "crucibleforge.log")
+    present = [f for f in files if f.exists()]
+    lines += ["", "## Files"] + ([f"- `{f}`" for f in present] or ["None."])
+    lines += ["", "## Failed"]
+    lines += [f"- {who}: {err}" for who, err in failed] or ["None."]
+    lines += ["", "## Next"]
+    if failed:
+        lines += [f"- {who}: {_next_hint(err)}" for who, err in failed]
+    elif rc:
+        lines.append("- " + _next_hint(""))
+    else:
+        lines.append("None.")
     if scorecard:
-        lines += ["", "---", "", scorecard]
+        lines += ["", scorecard.rstrip()]
     return "\n".join(lines) + "\n"
 
 
@@ -492,7 +534,11 @@ def cmd_status(args, cfg):
         pin = f" pin: ${pin_env} ({'set' if live_pin else 'NOT SET'})" if pin_env else ""
         print(f"  {p.name:14s} {p.type:11s} {p.base_url:45s} {state:4s} "
               f"conc={p.concurrency} {key}{keyset}{pin}")
-        loaded = p.loaded_models()
+        try:
+            loaded = p.loaded_models()
+        except Exception as e:  # noqa: BLE001 — a missing lms CLI must not kill status
+            loaded = []
+            print(f"    (loaded models unavailable: {e})")
         if loaded:
             print(f"    loaded now: {[m['identifier'] for m in loaded]}")
         if p.type == "studioforge" and state == "UP":
@@ -544,17 +590,22 @@ def cmd_status(args, cfg):
           "  ".join(f"{k}={v}" for k, v in by_cat.items()))
     smoke = sum(1 for c in cases if c.get("smoke"))
     print(f"smoke subset: {smoke} cases")
-    from .profiles import list_profiles
+    from .profiles import DEFAULT_PROFILE, apply_profile, list_profiles, load_profile
     print(f"profiles: {', '.join(list_profiles(cfg)) or 'none'}")
+    try:
+        _, bench = apply_profile(load_profile(DEFAULT_PROFILE, cfg), cfg)
+        print(f"benchmark ({DEFAULT_PROFILE}): {len(bench)} cases — "
+              f"`crucibleforge all --models <label> --fresh --yes`")
+    except ConfigError as e:
+        print(f"benchmark ({DEFAULT_PROFILE}): INVALID — {e}")
     return 0
 
 
 def _apply_profile_arg(args, cfg):
-    """--profile: returns (cfg, cases, profile) or (cfg, None, None)."""
-    name = getattr(args, "profile", None)
-    if not name:
-        return cfg, None, None
-    from .profiles import apply_profile, load_profile, profile_judge
+    """The benchmark definition: --profile, else the one benchmark
+    (``bench``). Returns (cfg with its budgets applied, its cases, profile)."""
+    from .profiles import DEFAULT_PROFILE, apply_profile, load_profile, profile_judge
+    name = getattr(args, "profile", None) or DEFAULT_PROFILE
     prof = load_profile(name, cfg)
     cfg2, cases = apply_profile(prof, cfg, smoke=getattr(args, "smoke", False))
     if not getattr(args, "judge", None):
@@ -565,18 +616,47 @@ def _apply_profile_arg(args, cfg):
     return cfg2, cases, prof
 
 
+def _fail_fast(cfg, entries, *, check_judge: bool, judge) -> tuple[list[dict], dict]:
+    """R5: refuse in seconds what would otherwise fail minutes in (a model
+    the provider does not serve / a non-GGUF id on StudioForge, a judge that
+    cannot fit). Returns (runnable entries, {label: error}); a failed model
+    gets its meta written as FAILED with the reason so the board and the V2
+    run-report say why. A judge that cannot run fails the whole command."""
+    from .preflight import judge_unrunnable_reason, unrunnable_reason
+    from .providers import provider_for
+    from .runner import _write_meta
+    from .version import revision
+    if check_judge:
+        why = judge_unrunnable_reason(cfg, judge)
+        if why:
+            raise SystemExit(f"judge check: {why}")
+    ok, bad = [], {}
+    for e in entries:
+        try:
+            why = unrunnable_reason(cfg, e)
+        except Exception as ex:  # noqa: BLE001 — a flaky listing must not block the run
+            log.warning("runnability check for %s skipped: %s", e["name"], ex)
+            why = None
+        if why:
+            log.error("model %s cannot run: %s", e["name"], why)
+            bad[e["name"]] = why
+            _write_meta(e["name"], e, provider_for(cfg, e), failed=True, error=why,
+                        profile=cfg.get("_profile"), revision=revision(cfg), reset=True)
+        else:
+            ok.append(e)
+    return ok, bad
+
+
 def cmd_run(args, cfg):
     from .runner import run_models
-    cfg, prof_cases, prof = _apply_profile_arg(args, cfg)
+    cfg, cases, prof = _apply_profile_arg(args, cfg)
     entries = resolve_models(cfg, args.models)
-    if prof_cases is not None:
-        cases = prof_cases
-        if args.categories:
-            want = set(_parse_list(args.categories))
-            cases = [c for c in cases if c["category"] in want]
-    else:
-        cases = load_cases(_parse_list(args.categories), smoke=args.smoke,
-                           difficulties=_parse_list(getattr(args, "difficulty", None)))
+    if args.categories:
+        want = set(_parse_list(args.categories))
+        cases = [c for c in cases if c["category"] in want]
+    diffs = _parse_list(getattr(args, "difficulty", None))
+    if diffs:
+        cases = [c for c in cases if c.get("difficulty", "medium") in diffs]
     only = _parse_list(getattr(args, "cases", None))
     if only:
         cases = [c for c in cases if c["id"] in only]
@@ -587,14 +667,22 @@ def cmd_run(args, cfg):
         raise SystemExit("no models selected (all disabled? pass --models)")
     if not cases:
         raise SystemExit("no cases selected")
+    if getattr(args, "fresh", False):
+        _archive_labels([e["name"] for e in entries])
+    needs_judge = any(c.get("rubric") or c.get("turns") for c in cases)
+    entries, unrunnable = _fail_fast(cfg, entries, judge=getattr(args, "judge", None),
+                                     check_judge=args.cmd == "all" and needs_judge)
+    if not entries:
+        print("\nrun summary:")
+        for label, why in unrunnable.items():
+            print(f"  {label}: FAILED — {why}")
+        return 1
     if not getattr(args, "no_link_check", False):
         from .preflight import check_link_health
         check_link_health(cfg, entries)
     log.info("run: models=%s cases=%d smoke=%s fresh=%s",
              [e["name"] for e in entries], len(cases), args.smoke,
              getattr(args, "fresh", False))
-    if getattr(args, "fresh", False):
-        _archive_labels([e["name"] for e in entries])
 
     guard = _ProviderGuard(cfg, entries, force_evict=getattr(args, "force_evict", False))
     busy = guard.busy()
@@ -611,9 +699,11 @@ def cmd_run(args, cfg):
         summary = run_models(cfg, entries, cases, smoke=args.smoke)
     finally:
         guard.restore()
+    for label, why in unrunnable.items():
+        summary[label] = {"failed": True, "error": why}
     print("\nrun summary:")
     _print_run_summary(summary)
-    return _run_rc(summary, [e["name"] for e in entries])
+    return _run_rc(summary, [e["name"] for e in entries] + list(unrunnable))
 
 
 def _run_rc(summary: dict, wanted: list[str]) -> int:
@@ -639,6 +729,8 @@ def _print_run_summary(summary: dict) -> None:
                          f"devices={plan.get('devices')}" if plan else "")
             print(f"  {label}: {s['rows']} rows, load {s['load_s']}s "
                   f"({s['device']}{placement}){extra}{errs}{cost}")
+            for w in s.get("warnings") or []:
+                print(f"    WARNING: {w}")
 
 
 def cmd_recover(args, cfg):
@@ -728,6 +820,7 @@ def cmd_judge(args, cfg):
                            allow_fallback=getattr(args, "judge_fallback", None))
     finally:
         guard.restore()
+    _stamp_judged(labels)
     print(f"judged {result['judged']} rows "
           f"({result['failed']} unparsable judge verdicts, "
           f"{result.get('empty', 0)} empty generations, "
@@ -736,30 +829,30 @@ def cmd_judge(args, cfg):
     return 1 if result.get("errored") else 0
 
 
-def cmd_report(args, cfg):
-    from .report import generate, report_md_path, report_html_path, render_report_html
-    html_only = bool(getattr(args, "html_only", False))
-    no_html = bool(getattr(args, "no_html", False))
-    if html_only and report_md_path().exists():
-        # Re-render HTML from the existing markdown — no transcripts needed.
-        html_doc = render_report_html(write=True)
-        print(f"wrote {report_html_path()} ({len(html_doc)} bytes)")
-        return 0
-    if html_only:
-        # No markdown yet — generate it (with HTML suppressed) so we have
-        # something to render.
-        log.info("--html-only but no report.md yet — generating markdown first")
-        generate(args.models, write=True)
-    md = generate(args.models, write=not html_only)
-    if not html_only:
-        print(md)
-        print(f"\nwrote {report_md_path()}")
-    if not no_html:
+def _stamp_judged(labels: list[str]) -> None:
+    """meta ``judged`` = when the judge phase for these models ended (the
+    run-report's per-model minutes run from ``started`` to here)."""
+    from .runner import _now
+    for label in labels:
+        p = results_dir() / f"meta_{label}.json"
         try:
-            html_doc = render_report_html(write=True)
-            print(f"wrote {report_html_path()} ({len(html_doc)} bytes)")
-        except Exception as e:  # noqa: BLE001
-            log.warning("HTML render failed: %s", e)
+            meta = json.loads(p.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        meta["judged"] = _now()
+        p.write_text(json.dumps(meta, indent=2), encoding="utf-8")
+
+
+def cmd_report(args, cfg):
+    """Rebuild the board. Prints only the scorecard and where the files are
+    (the full report is in report.md / failures.md / report.html)."""
+    from .report import (failures_md_path, generate, report_html_path, report_md_path,
+                         scorecard_section)
+    md = generate(args.models, write=True)
+    print(scorecard_section(md))
+    print(f"wrote {report_md_path()}")
+    print(f"      {failures_md_path()}")
+    print(f"      {report_html_path()}")
     return 0
 
 
@@ -920,6 +1013,76 @@ ENV_FILE = Path(os.environ.get("CRUCIBLEFORGE_ENV_FILE",
                                str(Path.home() / ".openclaw" / "gateway.systemd.env")))
 
 
+# ------------------------------------------------------------- rig lock
+# R4 (2026-09-23): one benchmark at a time, enforced by the tool itself.
+# Two runs on one rig share the lease holder name and the GPUs; queue
+# scripts used to take this flock by hand, and anyone who forgot got two
+# runs corrupting each other's timings. The CLI now takes it for every
+# command that touches the rig (run / all / judge / recover), BLOCKING with a
+# log line. A parent that already holds it (a queue script's `flock
+# results/.rig.lock …`) is detected by walking the process ancestry for an
+# open fd on the lock file, so the child does not deadlock on its own parent.
+RIG_LOCK_CMDS = ("run", "all", "judge", "recover")
+
+
+def _rig_lock_path() -> Path:
+    return results_dir() / ".rig.lock"
+
+
+def _ancestor_holds(path: Path) -> bool:
+    """True when this process (an inherited fd) or one of its ancestors has
+    ``path`` open (Linux /proc)."""
+    try:
+        target = os.path.realpath(path)
+        pid = os.getpid()
+        for _ in range(64):
+            if pid <= 1:
+                return False
+            fd_dir = Path(f"/proc/{pid}/fd")
+            try:
+                for fd in fd_dir.iterdir():
+                    try:
+                        if os.path.realpath(os.readlink(fd)) == target:
+                            return True
+                    except OSError:
+                        continue
+            except OSError:
+                pass
+            stat = Path(f"/proc/{pid}/stat").read_text()
+            pid = int(stat.rsplit(")", 1)[1].split()[1])
+    except (OSError, ValueError, IndexError):
+        return False
+    return False
+
+
+def acquire_rig_lock():
+    """Take results/.rig.lock (blocking). Returns the open file (keep it
+    alive for the process lifetime) or None when not applicable."""
+    try:
+        import fcntl
+    except ImportError:  # Windows: no flock — one-at-a-time is on the operator
+        return None
+    path = _rig_lock_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    if _ancestor_holds(path):
+        log.info("rig lock %s is held by a parent process — running under it", path)
+        return None
+    f = open(path, "a+")
+    try:
+        fcntl.flock(f.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError:
+        f.seek(0)
+        holder = f.read().strip()[:200]
+        log.warning("another CrucibleForge benchmark holds %s (%s) — waiting for it to "
+                    "finish (one benchmark at a time)", path, holder or "holder unknown")
+        fcntl.flock(f.fileno(), fcntl.LOCK_EX)
+    f.seek(0)
+    f.truncate()
+    f.write(f"pid {os.getpid()} since {_utcnow_iso()}: crucibleforge {' '.join(sys.argv[1:])[:160]}\n")
+    f.flush()
+    return f
+
+
 def _detach_argv(args, argv: list[str] | None) -> tuple[str, list[str], str]:
     """(unit name, systemd-run argv, run id) for a detached re-launch."""
     run_id = _resolve_run_id(args)
@@ -1010,7 +1173,7 @@ def main(argv=None):
         p.add_argument("--cases", default=None,
                        help="comma-separated case ids to run (subset of the selection)")
         p.add_argument("--profile", default=None,
-                       help="run profile (profiles/<name>.yaml): fixed case subset + budgets + judge")
+                       help="benchmark definition (default: bench — the only one on the board)")
         p.add_argument("--judge-fallback", action="store_true",
                        help="with --judge: allow the next judge candidate if the forced "
                             "judge cannot be loaded (default: strict — the judge phase fails)")
@@ -1046,7 +1209,7 @@ def main(argv=None):
     p_judge.add_argument("--judge-fallback", action="store_true",
                          help="allow the next candidate if the forced --judge cannot load "
                               "(default: strict, the phase fails instead)")
-    p_judge.add_argument("--profile", default=None, help="use the profile's judge/budgets")
+    p_judge.add_argument("--profile", default=None, help="default: bench (its 122B judge)")
     p_recover = sub.add_parser(
         "recover", help="re-run reasoning-overflow rows (empty answers) through recovery")
     add_force_evict_arg(p_recover)
@@ -1057,10 +1220,6 @@ def main(argv=None):
     p_recover.add_argument("--no-link-check", action="store_true")
     p_report = sub.add_parser("report", help="generate comparison report")
     p_report.add_argument("--models", default=None)
-    p_report.add_argument("--html-only", action="store_true",
-                          help="write only the HTML board (skip report.md/json)")
-    p_report.add_argument("--no-html", action="store_true",
-                          help="write only report.md/json (skip the HTML board)")
     p_pw = sub.add_parser("pairwise", help="head-to-head A/B Elo on creative categories")
     p_pw.add_argument("--models", default="all")
     p_pw.add_argument("--categories", default="rp,nsfw")
@@ -1180,7 +1339,10 @@ def main(argv=None):
     if v2_tracked and getattr(args, "detach", False):
         sys.exit(_detach(args, argv))
     v2_state = _v2_start(args) if v2_tracked else None
+    rig_lock = None
     try:
+        if args.cmd in RIG_LOCK_CMDS:
+            rig_lock = acquire_rig_lock()  # noqa: F841 — held until exit
         rc = handler(args, cfg)
     except ConfigError as e:
         print(f"config error: {e}", file=sys.stderr)

@@ -433,15 +433,15 @@ class Handler(BaseHTTPRequestHandler):
             diffs = data.get("difficulty") or None
             smoke = bool(data.get("smoke"))
             judge_override = data.get("judge") or None
-            if data.get("profile"):
-                from ..profiles import apply_profile, load_profile, profile_judge
-                prof = load_profile(data["profile"], cfg)
-                cfg, cases = apply_profile(prof, cfg, smoke=smoke)
-                if cats:
-                    cases = [c for c in cases if c["category"] in set(cats)]
-                judge_override = judge_override or profile_judge(prof)
-            else:
-                cases = load_cases(cats, smoke=smoke, difficulties=diffs)
+            # one benchmark: the bench profile unless another is named
+            from ..profiles import DEFAULT_PROFILE, apply_profile, load_profile, profile_judge
+            prof = load_profile(data.get("profile") or DEFAULT_PROFILE, cfg)
+            cfg, cases = apply_profile(prof, cfg, smoke=smoke)
+            if cats:
+                cases = [c for c in cases if c["category"] in set(cats)]
+            if diffs:
+                cases = [c for c in cases if c.get("difficulty", "medium") in set(diffs)]
+            judge_override = judge_override or profile_judge(prof)
             if not cases:
                 raise ValueError("no cases match that selection")
             fresh = bool(data.get("fresh"))
