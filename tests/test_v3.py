@@ -355,14 +355,15 @@ def test_scorecard_weights_and_renormalisation():
           "steer": {"rate": 1.0}, "coding": {"rate": 0.2}, "tooluse": {"rate": 0.9},
           "instruct": {"rate": 0.5}, "reasoning": {"rate": None}, "speed": {"tok_per_s_median": 70}}
     c = report.scorecard(st, report.scoring_config(None))
-    # chat = (80*20 + 70*20 + 100*5 + 100*5 + 100*5)/55
-    assert c["chat"] == pytest.approx((80*20 + 70*20 + 100*15) / 55)
+    # story missing (stats from before 3.4.0) -> chat renormalised over
+    # rp 20 + nsfw 15 + explicit 5 + willing 5 + steer 5 = 50
+    assert c["chat"] == pytest.approx((80*20 + 70*15 + 100*15) / 50)
     # coding: reasoning missing -> weights 20+10+10 = 40
     assert c["coding"] == pytest.approx((20*20 + 90*10 + 50*10) / 40)
-    assert c["missing"] == ["reasoning"]
+    assert c["missing"] == ["story", "reasoning"]
     assert c["tok_per_s"] == 70 and "ts" not in c  # the capped T/S score is gone
-    # overall combines halves by their present weights (55 + 40)
-    assert c["total"] == pytest.approx((c["chat"] * 55 + c["coding"] * 40) / 95)
+    # overall combines halves by their present weights (50 + 40)
+    assert c["total"] == pytest.approx((c["chat"] * 50 + c["coding"] * 40) / 90)
     # user override (the pre-3.3 "code" key is still accepted)
     for key in ("coding", "code"):
         c2 = report.scorecard(st, report.scoring_config({"scoring": {key: {"coding": 100}}}))

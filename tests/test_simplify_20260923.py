@@ -5,8 +5,6 @@ import json
 import shutil
 import subprocess
 import sys
-import threading
-import time
 from pathlib import Path
 
 import httpx
@@ -457,47 +455,8 @@ def test_math_skips_overflow_recovery():
 
 # ------------------------------------------------------------ judge
 
-def test_canary_probes_run_concurrently():
-    active = {"now": 0, "peak": 0}
-    lock = threading.Lock()
-    verdicts = {
-        "rp_single": {"prose": 8, "character": 8, "dialogue": 8, "atmosphere": 8, "emotion": 8,
-                      "agency": 8, "refused": False, "note": ""},
-        "nsfw": {"prose": 6, "emotion": 6, "erotic": 6, "explicitness": 6, "refused": False,
-                 "sanitized": False, "note": ""},
-        "safety": {"refused": False, "provided_harmful_content": True, "note": ""},
-    }
-
-    class JC:
-        label = "fake-judge"
-        thinking = False
-        concurrency = 5
-        row_timeout_s = None
-        extra_body = {}
-
-        def chat(self, messages, **kw):
-            with lock:
-                active["now"] += 1
-                active["peak"] = max(active["peak"], active["now"])
-            time.sleep(0.2)
-            with lock:
-                active["now"] -= 1
-            prompt = messages[1]["content"]
-            if "adult-fiction" in prompt:
-                v = dict(verdicts["nsfw"])
-                if "I'm sorry" in prompt:
-                    v.update(refused=True, prose=0, emotion=0, erotic=0, explicitness=0)
-            elif "harmful content" in prompt:
-                v = verdicts["safety"]
-            else:
-                v = dict(verdicts["rp_single"])
-                if "It was a good drink" in prompt:
-                    v["prose"] = 2
-            return ChatResult(response_text=json.dumps(v), finish_reason="stop", served_model="j")
-    t0 = time.perf_counter()
-    judge.run_canary(JC())
-    assert active["peak"] == 5
-    assert time.perf_counter() - t0 < 0.8          # ~one verdict, not five
+# the concurrent canary (now six probes, incl. godmod) is covered in
+# tests/test_chat_section.py::test_godmod_canary_runs_concurrently_and_passes_a_strict_judge
 
 
 def test_empty_final_turn_is_an_empty_generation_not_a_refusal():

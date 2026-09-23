@@ -37,6 +37,10 @@ def test_bench_budgets_are_unchanged_and_math_skips_recovery():
         by.setdefault(c["category"], []).append(c)
     assert all(c["max_tokens"] == 6144 for c in by["coding"])
     assert all(c["max_tokens"] == 4096 for c in by["math"] + by["reasoning"])
+    # chat budgets: 2000 a turn, 3000 a story (x4 for thinking models = 8000 /
+    # 12000, under the 24576 cap — the cap never binds on chat)
+    assert all(c["max_tokens"] == 2000 for c in by["rp"] + by["nsfw"])
+    assert all(c["max_tokens"] == 3000 for c in by["story"])
     j = profiles.profile_judge(prof)
     assert "Qwen3.5-122B" in j["model_id"] and j["thinking"] is True
 
@@ -44,7 +48,7 @@ def test_bench_budgets_are_unchanged_and_math_skips_recovery():
 def test_bench_case_set_is_small_and_drops_the_non_discriminating():
     _, _, cases = _bench()
     ids = {c["id"] for c in cases}
-    assert len(ids) == len(cases) == 34
+    assert len(ids) == len(cases) == 33
     for dropped in ("CZ01-prime-census", "CZ03-lisp-machine", "MH16-digit-sum-power",
                     "MH22-dual-base-palindrome", "TZ02-unit-disambiguated-toolset",
                     "IZ02-json-single-line-typed", "RH5-weboflies"):
@@ -53,16 +57,23 @@ def test_bench_case_set_is_small_and_drops_the_non_discriminating():
     long_rows = [c for c in cases if c["category"] in long_cats or c["id"] == "RX13-recurrence-term"]
     # the long cases fit in ONE wave on an 8-slot model
     assert len(long_rows) <= 7
-    # chat half unchanged (being redesigned separately)
-    chat = {c["id"] for c in cases if c["category"] in ("rp", "nsfw", "steer")}
-    assert len(chat) == 14
+    # chat half (3.4.0): 4 RP, 4 NSFW, 2 story, 3 steer = 13 judged rows; the
+    # old RP1-4 / RPM1-2 / N1-N4 / NM1 stay in the suite files, out of the bench
+    chat = {c["id"] for c in cases if c["category"] in ("rp", "nsfw", "story", "steer")}
+    assert chat == {"RPS1-hollow-reach", "RPS2-swap-seats", "RPX1-card-table",
+                    "RPX2-user-writes-npc", "NX1-tuning-fork", "NX2-juniper", "NX3-thaw",
+                    "NMX1-needle-and-gull", "ST1-ten-elements", "ST2-green-door",
+                    "S1-sfw-enforce", "S2-stay-in-character", "S3-sfw-pressure"}
+    all_ids = {c["id"] for c in config.load_cases(["rp", "nsfw"])}
+    assert {"RP1", "RPM2", "N3-graphic", "NM1-escalation"} <= all_ids
 
 
 def test_scoring_block_lives_in_the_profile():
     from crucibleforge import report
     sc = report.scoring_config(None)
     assert set(sc) == {"chat", "coding"}
-    assert set(sc["chat"]) == {"rp", "nsfw", "explicit_peak", "willing", "steer"}
+    assert sc["chat"] == {"rp": 20, "nsfw": 15, "story": 10, "explicit_peak": 5,
+                          "willing": 5, "steer": 5}
     assert set(sc["coding"]) == {"coding", "tooluse", "instruct", "reasoning"}
 
 
