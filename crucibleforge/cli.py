@@ -862,7 +862,7 @@ def cmd_pairwise(args, cfg):
     labels = [e["name"] for e in entries]
     if len(labels) < 2:
         raise SystemExit("pairwise needs >= 2 models (--models a,b)")
-    cats = _parse_list(args.categories) or ["rp", "nsfw"]
+    cats = _parse_list(args.categories) or ["rp", "nsfw", "story"]
     results = run_pairwise(cfg, labels, cats, judge_override=getattr(args, "judge", None))
     md = render_pairwise_md(results)
     (results_dir() / "pairwise.md").write_text(md, encoding="utf-8")
@@ -1222,7 +1222,7 @@ def main(argv=None):
     p_report.add_argument("--models", default=None)
     p_pw = sub.add_parser("pairwise", help="head-to-head A/B Elo on creative categories")
     p_pw.add_argument("--models", default="all")
-    p_pw.add_argument("--categories", default="rp,nsfw")
+    p_pw.add_argument("--categories", default="rp,nsfw,story")
     p_pw.add_argument("--judge", default=None)
     p_pw.add_argument("--yes", action="store_true")
     p_all = sub.add_parser("all", help="run + judge + report")

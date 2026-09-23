@@ -60,7 +60,7 @@ CATEGORIES = _BASE_CATEGORIES + sorted(p.stem for p in CASES_DIR.glob("*.json")
                                        if p.stem not in _BASE_CATEGORIES)
 
 # Categories whose rows need the LLM judge (everything else grades objectively).
-JUDGED_CATEGORIES = {"rp", "nsfw", "steer", "overrefusal", "planning"}
+JUDGED_CATEGORIES = {"rp", "nsfw", "story", "steer", "overrefusal", "planning"}
 
 DIFFICULTIES = ["easy", "medium", "hard"]
 

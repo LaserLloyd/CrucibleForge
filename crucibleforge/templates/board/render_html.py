@@ -67,10 +67,10 @@ def example(path: str | None = None) -> str:
             ("example-27b-a", 86.5, 88.9, 34.2, "", 0),
             ("example-27b-b", 88.1, 77.8, 31.0, "", 0),
             ("example-api", 83.5, 80.6, 140.0, "", 0),
-            ("example-8b", 72.0, 25.0, 120.5, "partial (30/34 cases)", 1),
+            ("example-8b", 72.0, 25.0, 120.5, "partial (30/33 cases)", 1),
             ("example-bad-id", None, None, None, "FAILED: example/X-NVFP4 is not served…", 2)], 1):
         comps = {} if chat is None else {
-            "RP": 88, "NSFW": 74, "Explicit peak": 100, "Willing": 100, "Steer": 100,
+            "RP": 88, "NSFW": 74, "Story": 68, "Explicit peak": 100, "Willing": 100, "Steer": 100,
             "Programs": coding, "Tools": 100, "Instruct": 75, "Reason": 50}
         overall = None if chat is None else round((chat * 55 + coding * 45) / 100, 1)
         rows.append({"rank": i, "label": label, "model_id": f"publisher/{label}-GGUF/{label}-Q5_K_M",

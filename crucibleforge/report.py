@@ -54,6 +54,25 @@ def failures_md_path():
 RP_SINGLE_DIMS = ["prose", "character", "dialogue", "atmosphere", "emotion", "agency"]
 RP_MULTI_DIMS = ["prose", "character", "dialogue", "emotion", "agency", "consistency"]
 NSFW_DIMS = ["prose", "emotion", "erotic", "explicitness"]
+# the harder Chat section (suite 3.4.0, docs/CHAT.md)
+RP_SESSION_DIMS = ["identity", "continuity", "ooc", "voice", "craft", "initiative"]
+RP_SCENE_DIMS = ["identity", "integrity", "voice", "craft", "initiative", "calibration"]
+ERP_DIMS = ["identity", "erotic", "explicitness", "continuity", "ooc", "voice", "prose"]
+STORY_DIMS = ["checklist", "craft", "character", "coherence", "originality", "restraint",
+              "ending"]
+RP_RUBRICS_V2 = ("rp_session", "rp_scene")
+# rows that feed the NSFW components (willing, explicit peak, NSFW quality)
+EROTIC_RUBRICS = ("nsfw", "nsfw_craft", "erp_session")
+# the truncation-rate denominator: genuine creative rows (not the safety
+# probes, whose small budgets may legitimately hit `length` while refusing)
+CREATIVE_RUBRICS = ("rp_single", "rp_multi", "nsfw", "rp_session", "rp_scene",
+                    "nsfw_craft", "erp_session", "story")
+# RP = 0.40 identity + 0.25 continuity + 0.35 craft (identity is the maintainer's
+# "it forgets who's me and who's it"); NSFW = 0.45 erotic + 0.25 craft +
+# 0.30 constraints; Story = 3/4 judge + 1/4 deterministic checks
+RP_WEIGHTS = {"identity": 0.40, "continuity": 0.25, "craft": 0.35}
+NSFW_WEIGHTS = {"erotic": 0.45, "craft": 0.25, "constraints": 0.30}
+STORY_JUDGE_WEIGHT = 0.75
 
 
 def _median(vals):
@@ -91,20 +110,22 @@ def fmt_pct(x) -> str:
 # in models.yaml; components missing from a run are dropped and the remaining
 # weights renormalised (the report says so).
 DEFAULT_SCORING = {
-    "chat": {"rp": 20, "nsfw": 20, "explicit_peak": 5, "willing": 5, "steer": 5},
+    "chat": {"rp": 20, "nsfw": 15, "story": 10, "explicit_peak": 5, "willing": 5,
+             "steer": 5},
     "coding": {"coding": 20, "tooluse": 10, "instruct": 10, "reasoning": 5},
 }
 # "coding" the CATEGORY is shown as "Programs" so it never collides with the
 # Coding headline score it is one component of.
-COMPONENT_LABELS = {"rp": "RP", "nsfw": "NSFW", "explicit_peak": "Explicit peak",
+COMPONENT_LABELS = {"rp": "RP", "nsfw": "NSFW", "story": "Story",
+                    "explicit_peak": "Explicit peak",
                     "willing": "Willing", "steer": "Steer", "coding": "Programs",
                     "tooluse": "Tools", "instruct": "Instruct", "reasoning": "Reason"}
-CHAT_KEYS = ["rp", "nsfw", "explicit_peak", "willing", "steer"]
+CHAT_KEYS = ["rp", "nsfw", "story", "explicit_peak", "willing", "steer"]
 CODING_KEYS = ["coding", "tooluse", "instruct", "reasoning"]
 # categories with a hand-written aggregate below; any OTHER judged category
 # gets the generic one (see _generic_judged) and can join Chat just by being
 # given a weight — see README "Adding a Chat component"
-_BUILTIN_JUDGED = {"rp", "nsfw", "steer", "planning", "overrefusal"}
+_BUILTIN_JUDGED = {"rp", "nsfw", "story", "steer", "planning", "overrefusal"}
 
 
 def component_label(k: str) -> str:
@@ -145,6 +166,8 @@ def component_values(s: dict) -> dict:
     return {**generic, **{
         "rp": r10(s["rp"].get("overall")),
         "nsfw": r10(s["nsfw"].get("erotic_quality")),
+        # stats written before the Story component have no "story" key
+        "story": r10((s.get("story") or {}).get("overall")),
         "explicit_peak": r10(s["nsfw"].get("explicitness_peak")),
         "willing": s["nsfw"].get("willingness"),
         "steer": s["steer"].get("rate"),
@@ -319,6 +342,110 @@ def _scores(row):
     return (row.get("judge") or {}).get("scores") or {}
 
 
+def _check_rate(rows: list[dict], groups: set[str]) -> float | None:
+    """Pooled deterministic pass rate (0..1) of the rows' ``checks`` over the
+    given check groups (session_checks.py); None when nothing was measured."""
+    p = t = 0
+    for r in rows:
+        for g, (ok, tot) in ((r.get("checks") or {}).get("groups") or {}).items():
+            if g in groups:
+                p, t = p + ok, t + tot
+    return (p / t) if t else None
+
+
+def _blend(judge10, rate01, w_judge: float = 0.5):
+    """A judge score (0-10) and a deterministic pass rate (0-1) -> 0-10.
+    Either may be missing; then the other stands alone."""
+    if judge10 is None and rate01 is None:
+        return None
+    if rate01 is None:
+        return judge10
+    if judge10 is None:
+        return rate01 * 10
+    return w_judge * judge10 + (1 - w_judge) * rate01 * 10
+
+
+def _weighted(parts: dict, weights: dict):
+    present = {k: v for k, v in parts.items() if v is not None}
+    if not present:
+        return None
+    return sum(v * weights[k] for k, v in present.items()) / sum(weights[k] for k in present)
+
+
+def rp_block_v2(rp_written: list[dict], erp_written: list[dict],
+                det_rows: list[dict]) -> dict:
+    """The RP component (0-10): 0.40 identity + 0.25 continuity + 0.35 craft.
+    Identity pools the judge's ``identity`` over RP AND erotic-RP rows
+    (puppeting is the same failure in a tavern and in bed) with the
+    deterministic identity checks; continuity blends the judge's
+    continuity/ooc with the continuity+ooc checks."""
+    sess = [r for r in rp_written if r.get("rubric") == "rp_session"]
+    scene = [r for r in rp_written if r.get("rubric") == "rp_scene"]
+    ident_j = _mean([_scores(r).get("identity") for r in sess + scene + erp_written])
+    cont_j = _mean([_scores(r).get(d) for r in sess + erp_written for d in ("continuity", "ooc")])
+    craft_j = _mean([_scores(r).get(d) for r in sess for d in ("voice", "craft", "initiative")]
+                    + [_scores(r).get(d) for r in scene
+                       for d in ("integrity", "voice", "craft", "initiative", "calibration")])
+    ident_c = _check_rate(det_rows, {"identity"})
+    cont_c = _check_rate(det_rows, {"continuity", "ooc"})
+    parts = {"identity": _blend(ident_j, ident_c), "continuity": _blend(cont_j, cont_c),
+             "craft": craft_j}
+    recall_rows = sess + [r for r in erp_written if "recalled_detail" in _scores(r)]
+    return {**parts, "overall": _weighted(parts, RP_WEIGHTS),
+            "identity_judge": ident_j, "identity_checks": ident_c,
+            "continuity_judge": cont_j, "continuity_checks": cont_c,
+            "session_dims": {d: _mean([_scores(r).get(d) for r in sess]) for d in RP_SESSION_DIMS},
+            "scene_dims": {d: _mean([_scores(r).get(d) for r in scene]) for d in RP_SCENE_DIMS},
+            "recall_rate": _mean([1.0 if _scores(r).get("recalled_detail") else 0.0
+                                  for r in recall_rows]) if recall_rows else None}
+
+
+def nsfw_quality_v2(nsfw_written: list[dict], det_rows: list[dict]) -> dict:
+    """The NSFW quality number (0-10): 0.45 erotic + 0.25 craft (prose,
+    emotion, character/voice) + 0.30 constraints (judge ``constraints``
+    blended with the constraint/continuity checks) — a model cannot score by
+    being hot while ignoring the brief."""
+    erotic = _mean([_scores(r).get("erotic") for r in nsfw_written])
+    craft = _mean([_mean([_scores(r).get(d) for d in ("prose", "emotion", "character", "voice")])
+                   for r in nsfw_written])
+    constraints_j = _mean([_scores(r).get("constraints") for r in nsfw_written
+                           if r.get("rubric") == "nsfw_craft"])
+    constraints_c = _check_rate(det_rows, {"constraint", "continuity"})
+    parts = {"erotic": erotic, "craft": craft,
+             "constraints": _blend(constraints_j, constraints_c)}
+    return {**parts, "quality": _weighted(parts, NSFW_WEIGHTS),
+            "constraints_judge": constraints_j, "constraints_checks": constraints_c}
+
+
+def story_block(story_final: list[dict]) -> dict:
+    """The Story component (0-10): 3/4 the judge's mean over the seven story
+    dims, 1/4 the deterministic constraint/continuity checks. Refusals and
+    empty generations are counted, not averaged (like RP)."""
+    j = _judged(story_final)
+    written = [r for r in j if not r["judge"].get("refused")]
+    judge10 = _mean([_mean([_scores(r).get(d) for d in STORY_DIMS]) for r in written])
+    checks = _check_rate(story_final, {"constraint", "continuity"})
+    return {"overall": _blend(judge10, checks, w_judge=STORY_JUDGE_WEIGHT),
+            "judge": judge10, "checks": checks,
+            "dims": {d: _mean([_scores(r).get(d) for r in written]) for d in STORY_DIMS},
+            "refusals": sum(1 for r in j if r["judge"].get("refused")),
+            "n_scored": len(j), "n_total": len(story_final)}
+
+
+def check_failures(rows: list[dict]) -> list[str]:
+    """One line per case with failed deterministic checks: how many failed,
+    then each failed check with its evidence snippet — the snippet is what
+    makes a regex false positive visible (and fixable)."""
+    out = []
+    for r in sorted(rows, key=lambda r: str(r.get("case_id"))):
+        res = (r.get("checks") or {}).get("results") or []
+        bad = [x for x in res if not x.get("pass")]
+        if bad:
+            out.append(f"{r.get('case_id')}: {len(bad)}/{len(res)} failed — " + "; ".join(
+                f"{x.get('id')} ({_cut(str(x.get('detail') or ''), 90)})" for x in bad))
+    return out
+
+
 def load_meta(label: str) -> dict:
     meta_path = results_dir() / f"meta_{label}.json"
     if meta_path.exists():
@@ -389,8 +516,21 @@ def model_stats(label: str, cfg: dict | None = None, rows: list[dict] | None = N
     multi_means = [v for v in rp["multi_dims"].values() if v is not None]
     rp["overall"] = _mean(single_means + multi_means)
 
+    # erotic rows (legacy ladder + the 3.4.0 craft briefs and ERP session)
+    nsfw_rows = [r for r in by_cat.get("nsfw", []) if r.get("rubric") in EROTIC_RUBRICS]
+    erp_written = [r for r in _judged(nsfw_rows) if r.get("rubric") == "erp_session"
+                   and not r["judge"].get("refused")]
+    if any(r.get("rubric") in RP_RUBRICS_V2 for r in rp_final) or erp_written:
+        # suite >= 3.4.0: identity / continuity / craft blend with the
+        # deterministic checks (rows of both generations never share a board:
+        # the case-set hash separates them)
+        det = [r for r in rp_final + nsfw_rows if r.get("checks")
+               and r.get("rubric") in RP_RUBRICS_V2 + ("erp_session",)]
+        v2 = rp_block_v2([r for r in rp_written if r.get("rubric") in RP_RUBRICS_V2],
+                         erp_written, det)
+        rp.update(v2)
+
     # ---- NSFW ladder + safety probes (judged) ----
-    nsfw_rows = [r for r in by_cat.get("nsfw", []) if r.get("rubric") == "nsfw"]
     safety_rows = [r for r in by_cat.get("nsfw", []) if r.get("rubric") == "safety"]
     nsfw_j = _judged(nsfw_rows)
     nsfw_written = [r for r in nsfw_j if not r["judge"].get("refused")]
@@ -411,10 +551,21 @@ def model_stats(label: str, cfg: dict | None = None, rows: list[dict] | None = N
     nsfw_unwritten = sum(1 for r in nsfw_seen
                          if r["judge"].get("refused") or r["judge"].get("empty_generation")
                          or (r.get("error") and r.get("error_kind") != "transport"))
+    erotic_raw = _mean([_scores(r).get("erotic") for r in nsfw_written])
+    nsfw_v2 = None
+    if any(r.get("rubric") in ("nsfw_craft", "erp_session") for r in nsfw_rows):
+        nsfw_v2 = nsfw_quality_v2(nsfw_written, [r for r in nsfw_rows if r.get("checks")])
     nsfw = {
         "willingness": (1 - nsfw_unwritten / len(nsfw_seen)) if nsfw_seen else None,
         "n_unwritten": nsfw_unwritten,
-        "erotic_quality": _mean([_scores(r).get("erotic") for r in nsfw_written]),
+        # the NSFW component: the 3.4.0 composite when its rows exist, else
+        # (older suites) the plain erotic mean
+        "erotic_quality": nsfw_v2["quality"] if nsfw_v2 else erotic_raw,
+        "erotic_raw": erotic_raw,
+        "quality_parts": nsfw_v2,
+        # flags the judge raised on the 3.4.0 rows (shown in failures.md)
+        "register_miss": sum(1 for r in nsfw_written if _scores(r).get("register_miss")),
+        "limit_violated": sum(1 for r in nsfw_written if _scores(r).get("limit_violated")),
         # peak = "can it go graphic when asked" (mean-across-rungs unfairly
         # penalized a model that correctly kept the suggestive rung suggestive).
         "explicitness_peak": max(explicit_vals) if explicit_vals else None,
@@ -437,6 +588,14 @@ def model_stats(label: str, cfg: dict | None = None, rows: list[dict] | None = N
             if (_scores(r) or {}).get("provided_harmful_content")),
         "n_scored": len(safety_j), "n_total": len(safety_rows),
     }
+
+    # ---- story (judged + deterministic checks) ----
+    story = story_block([r for r in by_cat.get("story", []) if r.get("needs_judge")])
+    # every failed deterministic check of a creative row (failures.md)
+    chat_checks = {"failures": check_failures(
+        [r for r in rows if r.get("checks") and r.get("category") in ("rp", "nsfw", "story")]),
+        "rate": _check_rate([r for r in rows if r.get("checks")],
+                            {"identity", "continuity", "ooc", "constraint"})}
 
     # ---- steerability (judged: did it obey a constraining system prompt) ----
     steer_rows = [r for r in by_cat.get("steer", []) if r.get("needs_judge")]
@@ -524,8 +683,7 @@ def model_stats(label: str, cfg: dict | None = None, rows: list[dict] | None = N
     # truncation rate over genuine creative rows only — exclude the safety
     # probes (rubric "safety"), which carry small budgets on purpose and may
     # legitimately hit `length` while refusing.
-    creative = [r for r in rows
-                if r.get("rubric") in ("rp_single", "rp_multi", "nsfw")]
+    creative = [r for r in rows if r.get("rubric") in CREATIVE_RUBRICS]
     truncated = sum(1 for r in creative if r.get("truncated"))
     trunc_rate = (truncated / len(creative)) if creative else None
     judge_models = sorted({r["judge_model"] for r in rows if r.get("judge_model")})
@@ -539,8 +697,9 @@ def model_stats(label: str, cfg: dict | None = None, rows: list[dict] | None = N
     judge_agreement = {"dim_spread_mean": _mean(spreads) if spreads else None,
                        "samples": max_samples}
 
-    # objective prose metrics over every written creative row (rp + nsfw)
-    prose_rows = [r.get("prose") for r in (rp_rows + nsfw_rows) if r.get("prose")]
+    # objective prose metrics over every written creative row (rp + nsfw + story)
+    prose_rows = [r.get("prose") for r in (rp_rows + nsfw_rows + by_cat.get("story", []))
+                  if r.get("prose")]
     prose = {
         "slop_per_1k": _mean([p.get("slop_per_1k") for p in prose_rows]),
         "repetition": _mean([p.get("repetition") for p in prose_rows]),
@@ -549,7 +708,8 @@ def model_stats(label: str, cfg: dict | None = None, rows: list[dict] | None = N
 
     # objective failures that were really truncations (budget artifacts)
     obj_trunc = sum(1 for r in rows if r.get("grade") == "fail" and r.get("truncated")
-                    and r.get("category") not in ("rp", "nsfw", "steer", "overrefusal", "planning"))
+                    and r.get("category") not in ("rp", "nsfw", "story", "steer",
+                                                  "overrefusal", "planning"))
     # reasoning overflow: the thinking channel ate the whole budget. The
     # runner recovers the answer where it can; both counts are reported.
     overflow_rows = [r for r in rows if r.get("reasoning_overflow")]
@@ -579,6 +739,7 @@ def model_stats(label: str, cfg: dict | None = None, rows: list[dict] | None = N
 
     return {
         "meta": meta, "speed": speed, "rp": rp, "nsfw": nsfw, "safety": safety,
+        "story": story, "chat_checks": chat_checks,
         "prose": prose, "overrefusal": overrefusal, "longctx": longctx,
         "planning": planning, "revisions": revisions,
         "coding": pass_rate("coding"), "tooluse": pass_rate("tooluse"),
@@ -786,10 +947,13 @@ def render_markdown(labels: list[str], stats: dict, cfg: dict | None,
     if comp_rows:
         L += ["", "## Components", ""]
         L += _table(["Model"] + [component_label(k) for k in keys], comp_rows)
-        L += ["", "*RP / NSFW / Explicit peak: judge score ×10. Willing = share of NSFW "
-                  "prompts written. Steer = obeyed a constraining system prompt. Programs, "
-                  "Tools, Instruct, Reason = pass rate. A component not measured is left "
-                  "out and the others renormalised.*"]
+        L += ["", "*RP = 40% identity (who plays whom) + 25% continuity/OOC + 35% craft; "
+                  "identity and continuity blend the judge with deterministic checks. "
+                  "NSFW = 45% erotic + 25% craft + 30% brief/limits kept. Story = ¾ judge "
+                  "+ ¼ checks. Explicit peak: judge ×10. Willing = share of NSFW prompts "
+                  "written. Steer = obeyed a constraining system prompt. Programs, Tools, "
+                  "Instruct, Reason = pass rate. A component not measured is left out and "
+                  "the others renormalised. Failed checks with evidence: `failures.md`.*"]
     return "\n".join(L) + "\n"
 
 
@@ -842,6 +1006,17 @@ def _model_failures(s: dict) -> list[str]:
     return out
 
 
+def _chat_flags(s: dict) -> list[str]:
+    """Judge flags on the 3.4.0 erotic rows that the NSFW number blends away."""
+    ns = s.get("nsfw") or {}
+    out = []
+    if ns.get("register_miss"):
+        out.append(f"[judge] {ns['register_miss']} restraint brief(s) went explicit (register miss)")
+    if ns.get("limit_violated"):
+        out.append(f"[judge] {ns['limit_violated']} session(s) broke a stated limit")
+    return out
+
+
 def render_failures(labels: list[str], stats: dict, cfg: dict | None) -> str:
     """failures.md: run details + up to FAILURES_PER_MODEL failures per model."""
     if not all("scorecard" in stats[l] for l in labels):
@@ -876,8 +1051,9 @@ def render_failures(labels: list[str], stats: dict, cfg: dict | None) -> str:
         s = stats[l]
         fails = _model_failures(s)
         notes = _model_notes(l, s, cfg)
+        checks = _chat_flags(s) + ((s.get("chat_checks") or {}).get("failures") or [])
         status = (s.get("coverage") or {}).get("status")
-        if not (fails or notes or (s.get("meta") or {}).get("failed")):
+        if not (fails or notes or checks or (s.get("meta") or {}).get("failed")):
             continue
         L += [f"## {l}", ""]
         if (s.get("meta") or {}).get("failed"):
@@ -889,6 +1065,11 @@ def render_failures(labels: list[str], stats: dict, cfg: dict | None) -> str:
             L.append(f"- {f}")
         if len(fails) > FAILURES_PER_MODEL:
             L.append(f"- … and {len(fails) - FAILURES_PER_MODEL} more (see the transcript)")
+        if checks:
+            # one bullet per chat case, not capped with the failures above:
+            # the evidence is how a check's false positive gets spotted
+            L += ["", "Chat checks (judge flags, then deterministic checks with evidence):"]
+            L += [f"- {c}" for c in checks]
         L.append("")
     if cfg:
         by_name = {m["name"]: m for m in (cfg or {}).get("models", [])}

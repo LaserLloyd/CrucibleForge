@@ -514,7 +514,7 @@ class Handler(BaseHTTPRequestHandler):
             models = data.get("models") or []
             if len(models) < 2:
                 raise ValueError("pairwise needs at least 2 models")
-            cats = data.get("categories") or ["rp", "nsfw"]
+            cats = data.get("categories") or ["rp", "nsfw", "story"]
 
             def _do():
                 from ..pairwise import run_pairwise, render_pairwise_md

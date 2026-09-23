@@ -31,7 +31,7 @@ import uuid
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 
-from . import lms, studioforge
+from . import lms, session_checks, studioforge
 from dataclasses import replace as _dc_replace
 
 from .api import (ChatResult, GenerationRejected, RequestRejected, TransportError,
@@ -72,11 +72,16 @@ RECOVERY_REASONING_TAIL_CHARS = 6000
 # Cooperative stop: set() to finish the in-flight case(s) and stop cleanly.
 STOP = threading.Event()
 
-# Job scheduling order (2026-09-23): the categories with the longest
-# generations go first so the pool's slots are never left idle waiting on
-# one straggling 16k-token coding case at the end of the run. Anything not
-# named here runs last, in profile order.
-CATEGORY_ORDER = ["coding", "math", "reasoning", "rp", "nsfw", "tooluse", "steer", "instruct"]
+# Job scheduling order (2026-09-23): multi-turn sessions go first — a 6-turn
+# chat session is 6 DEPENDENT generations, the serial long pole of the chat
+# half, so it must overlap the long coding rows instead of trailing them —
+# then the categories with the longest single generations, so the pool's
+# slots are never left idle waiting on one straggling 24k-token coding case
+# at the end of the run. Anything not named here runs last, in profile order.
+CATEGORY_ORDER = ["coding", "math", "reasoning", "rp", "nsfw", "story", "tooluse", "steer",
+                  "instruct"]
+# categories whose written replies get objective prose metrics
+CREATIVE_CATEGORIES = ("rp", "nsfw", "story")
 
 # Safety net for a STUCK connection: no bytes at all from the server for this
 # long ends the row (errored, not failed). It never cuts a model that is still
@@ -758,10 +763,12 @@ def _run_one_model(cfg, entry, cases, csvw: _Csv, smoke,
 
 
 def schedule_jobs(jobs: list[tuple]) -> list[tuple]:
-    """Longest categories first (``CATEGORY_ORDER``), profile order within a
-    category — a stable sort, so ids and repeats keep their relative order."""
+    """Multi-turn sessions first, then longest categories (``CATEGORY_ORDER``),
+    profile order within a category — a stable sort, so ids and repeats keep
+    their relative order."""
     rank = {c: i for i, c in enumerate(CATEGORY_ORDER)}
-    return sorted(jobs, key=lambda j: rank.get(j[0]["category"], len(rank)))
+    return sorted(jobs, key=lambda j: (0 if j[0].get("turns") else 1,
+                                       rank.get(j[0]["category"], len(rank))))
 
 
 def _write_recover_record(label: str, **fields) -> None:
@@ -904,8 +911,14 @@ def _run_single(case, base_row, ctx: _Ctx, max_tokens, temperature, top_p, seed)
     if case.get("rubric"):
         row["needs_judge"] = True
         row["rubric"] = case["rubric"]
+    if case.get("judge_key"):
+        row["judge_key"] = case["judge_key"]
+    # deterministic identity / continuity / constraint checks (session_checks)
+    chk = session_checks.run_checks(case, [_answer_view(result).response_text])
+    if chk:
+        row["checks"] = chk
     # objective prose metrics for creative writing (de-loads the judge)
-    if case["category"] in ("rp", "nsfw") and result.response_text.strip():
+    if case["category"] in CREATIVE_CATEGORIES and result.response_text.strip():
         row["prose"] = prose_metrics(result.response_text)
     return row
 
@@ -940,6 +953,15 @@ def _run_multiturn(case, base_row, ctx: _Ctx, max_tokens, temperature, top_p, se
             row["conversation"] = (
                 ([{"role": "system", "content": case["system"]}]
                  if case.get("system") else []) + history)
+            if case.get("judge_key"):
+                row["judge_key"] = case["judge_key"]
+            replies = [m["content"] for m in history if m["role"] == "assistant"]
+            chk = session_checks.run_checks(case, replies)
+            if chk:
+                row["checks"] = chk
+            written = "\n\n".join(r for r in replies if r.strip())
+            if case["category"] in CREATIVE_CATEGORIES and written:
+                row["prose"] = prose_metrics(written)
         rows.append(row)
     return rows
 

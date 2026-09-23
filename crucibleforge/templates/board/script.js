@@ -27,7 +27,7 @@ function detail(r) {
     '<div class="comp"><div class="lbl">' + esc(k) + '</div><div class="val">' + num(v, 0) + '</div></div>').join('');
   return '<div class="detail"><div class="group"><h4>Model id</h4><div class="meta-line">' + esc(r.model_id || '–') +
     '</div></div><div class="group"><h4>Provider</h4><div class="meta-line">' + esc(r.provider || '–') +
-    '</div></div><div class="group wide"><h4>Components (Chat: RP · NSFW · Explicit peak · Willing · Steer — ' +
+    '</div></div><div class="group wide"><h4>Components (Chat: RP · NSFW · Story · Explicit peak · Willing · Steer — ' +
     'Coding: Programs · Tools · Instruct · Reason)</h4><div class="comp-grid">' + comps + '</div></div></div>';
 }
 function render() {

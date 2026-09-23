@@ -169,7 +169,7 @@ def _written_rows(label: str, category: str) -> dict[str, dict]:
     for r in load_transcripts(label):
         if r.get("category") != category or r.get("turn") is not None:
             continue
-        if r.get("rubric") not in ("rp_single", "nsfw"):
+        if r.get("rubric") not in ("rp_single", "nsfw", "rp_scene", "nsfw_craft", "story"):
             continue
         resp = (r.get("response") or "").strip()
         if not resp:

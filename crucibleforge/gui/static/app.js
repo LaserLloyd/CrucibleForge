@@ -146,7 +146,7 @@
     const sel = runSelection();
     if (sel.models.length < 2) throw new Error("pairwise needs 2+ models selected");
     const cats = sel.categories.filter(c => c === "rp" || c === "nsfw");
-    const r = await api("/api/pairwise", { body: { models: sel.models, categories: cats.length ? cats : ["rp", "nsfw"], judge: sel.judge } });
+    const r = await api("/api/pairwise", { body: { models: sel.models, categories: cats.length ? cats : ["rp", "nsfw", "story"], judge: sel.judge } });
     toast("pairwise started"); updateJob(r.job);
   }));
   $("#stopbtn").addEventListener("click", guarded(async () => { await api("/api/stop", { body: {} }); toast("stop requested — finishing in-flight case"); }));
