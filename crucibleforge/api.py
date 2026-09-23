@@ -93,6 +93,19 @@ class TransportError(RuntimeError):
     """Server unreachable / HTTP error / stream died."""
 
 
+class StreamStalled(TransportError):
+    """No bytes at all from the server for ``stall_s`` seconds mid-request: a
+    stuck connection or a wedged slot, not a slow model (a model that is
+    still generating streams tokens continuously). Not retried — the case is
+    recorded as errored and the run moves on."""
+
+
+class RowTimeout(TransportError):
+    """The request passed its total wall-clock ceiling (``max_wall_s``) —
+    used for judge calls, whose per-row budget keeps one looping verdict from
+    holding the judge phase. Not retried."""
+
+
 class RequestRejected(TransportError):
     """HTTP 4xx other than 408/429: the request itself is wrong (bad model id,
     unsupported parameter, auth). Retrying verbatim cannot help — callers
@@ -121,6 +134,11 @@ _GENERATION_REJECT_MARKERS = (
     "failed to parse tool_call",
     "invalid tool call",
     "tool call arguments",
+    # llama-server cannot build a tool/reasoning parser for the model's chat
+    # template (HTTP 400, sometimes relayed inside a 5xx/SSE error): a
+    # property of the MODEL's template — that case fails, the run goes on
+    # (precog-123b aborted a whole run on three of these in a row)
+    "unable to generate parser",
 )
 
 
@@ -352,7 +370,9 @@ def stream_chat(base_url: str, api_key: str, model: str, messages: list[dict], *
                 headers: dict | None = None,
                 priority: int | None = None,
                 verify_model: bool = True,
-                timeout: float = 900.0) -> ChatResult:
+                timeout: float = 900.0,
+                stall_s: float | None = None,
+                max_wall_s: float | None = None) -> ChatResult:
     """One streaming chat completion with timing + real token usage.
 
     reasoning_format (llama.cpp server param, e.g. "deepseek") forces CoT
@@ -367,6 +387,9 @@ def stream_chat(base_url: str, api_key: str, model: str, messages: list[dict], *
     triggers, upwards only — the rig-integration contract
     says send it in every StudioForge body; None omits the key (other
     OpenAI-compatible backends don't know it).
+    stall_s: raise StreamStalled when the server sends nothing for this long
+    (a generous safety net for stuck connections — it never cuts a model
+    that is still producing). max_wall_s: raise RowTimeout past this total.
     """
     body: dict = {
         "model": model,
@@ -398,8 +421,9 @@ def stream_chat(base_url: str, api_key: str, model: str, messages: list[dict], *
     first_tok_t = last_tok_t = None
     t0 = time.perf_counter()
 
+    read_timeout = min(x for x in (timeout, stall_s, max_wall_s) if x)
     try:
-        with httpx.Client(timeout=httpx.Timeout(timeout, connect=15)) as http:
+        with httpx.Client(timeout=httpx.Timeout(read_timeout, connect=15)) as http:
             hdrs = {"Content-Type": "application/json", **(headers or {})}
             if api_key:
                 hdrs["Authorization"] = f"Bearer {api_key}"
@@ -410,12 +434,16 @@ def stream_chat(base_url: str, api_key: str, model: str, messages: list[dict], *
                 if resp.status_code >= 400:
                     err = resp.read().decode(errors="replace")[:4000]
                     if 400 <= resp.status_code < 500 and resp.status_code not in (408, 429):
+                        if any(m in err.lower() for m in _GENERATION_REJECT_MARKERS):
+                            raise GenerationRejected(f"HTTP {resp.status_code}: {err[:500]}")
                         raise RequestRejected(resp.status_code, err[:500])
                     raise classify_server_error(resp.status_code, err,
                                                 resp.headers.get("Retry-After"))
                 buffer = ""
                 saw_sse = False
                 for raw_chunk in resp.iter_text():
+                    if max_wall_s and time.perf_counter() - t0 > max_wall_s:
+                        raise RowTimeout(f"request exceeded its {max_wall_s:.0f}s wall-clock ceiling")
                     buffer += raw_chunk
                     while "\n" in buffer:
                         line, buffer = buffer.split("\n", 1)
@@ -464,6 +492,14 @@ def stream_chat(base_url: str, api_key: str, model: str, messages: list[dict], *
                     raise TransportError("no SSE data in 200 response")
     except (WrongModelError, TransportError):
         raise  # RequestRejected is a TransportError
+    except httpx.ReadTimeout as e:
+        waited = time.perf_counter() - t0
+        if max_wall_s and waited >= max_wall_s * 0.99:
+            raise RowTimeout(f"request exceeded its {max_wall_s:.0f}s wall-clock ceiling") from e
+        if stall_s:
+            raise StreamStalled(f"no data from the server for {read_timeout:.0f}s "
+                                f"(stalled after {waited:.0f}s)") from e
+        raise TransportError(str(e) or "read timeout") from e
     except Exception as e:
         raise TransportError(str(e)) from e
 
@@ -527,8 +563,12 @@ def stream_chat_retried(base_url: str, api_key: str, model: str, messages: list[
         attempt += 1
         try:
             return stream_chat(base_url, api_key, model, messages, **kwargs)
-        except (WrongModelError, RequestRejected, GenerationRejected, VramExhausted):
-            raise  # retrying an identical bad request / bad generation / full VRAM cannot succeed
+        except (WrongModelError, RequestRejected, GenerationRejected, VramExhausted,
+                StreamStalled, RowTimeout):
+            # retrying an identical bad request / bad generation / full VRAM
+            # cannot succeed, and a stalled or over-budget row must not cost
+            # the run its ceiling three times over
+            raise
         except PriorityHold as e:
             # Somebody's chat/agent model is loading. Wait it out on the hold
             # budget WITHOUT spending a transport retry: this is the server

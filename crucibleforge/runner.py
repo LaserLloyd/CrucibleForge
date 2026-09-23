@@ -72,6 +72,26 @@ RECOVERY_REASONING_TAIL_CHARS = 6000
 # Cooperative stop: set() to finish the in-flight case(s) and stop cleanly.
 STOP = threading.Event()
 
+# Job scheduling order (2026-09-23): the categories with the longest
+# generations go first so the pool's slots are never left idle waiting on
+# one straggling 16k-token coding case at the end of the run. Anything not
+# named here runs last, in profile order.
+CATEGORY_ORDER = ["coding", "math", "reasoning", "rp", "nsfw", "tooluse", "steer", "instruct"]
+
+# Safety net for a STUCK connection: no bytes at all from the server for this
+# long ends the row (errored, not failed). It never cuts a model that is still
+# producing — a generating model streams continuously. defaults.stall_timeout_s
+# overrides; 0 disables.
+DEFAULT_STALL_S = 300.0
+
+# A thinking model on this few parallel slots will overrun the time box: the
+# long pole is several max-budget cases queued behind each other.
+FEW_SLOTS_WARN = 2
+
+# HTTP 4xx that mean "this request is wrong", not "the server is gone": they
+# fail the one case and do not count towards the transport-storm abort.
+_CASE_LOCAL_REJECT_STATUSES = (400, 413, 422)
+
 
 class ModelRunError(RuntimeError):
     pass
@@ -157,8 +177,16 @@ class _Ctx:
         # entry can opt out with recovery: false
         self.recovery_enabled = (bool(d.get("reasoning_overflow_recovery", True))
                                  and bool(entry.get("recovery", True)))
+        # per-category opt-out (profile ``no_recovery``): math recoveries have
+        # never produced a pass (0/85), they only cost time
+        self.no_recovery = set(d.get("no_recovery") or [])
         # flips to False the first time the provider rejects chat_template_kwargs
         self.no_think_supported = True
+        self.stall_s = float(d.get("stall_timeout_s", DEFAULT_STALL_S) or 0) or None
+
+    def recover_for(self, case: dict) -> bool:
+        """Whether reasoning-overflow recovery applies to this case."""
+        return case["category"] != "perf" and case["category"] not in self.no_recovery
 
     def budget(self, max_tokens: int) -> int:
         """max_tokens to actually send for this model."""
@@ -198,6 +226,8 @@ class _Ctx:
 
     def _chat(self, messages, **kw) -> ChatResult:
         """One completion; on eviction/wrong-model, reload once and retry."""
+        if self.stall_s:
+            kw.setdefault("stall_s", self.stall_s)
         try:
             r = self.provider.chat(self.model_id, messages, **kw)
         except WrongModelError as e:
@@ -351,17 +381,19 @@ def run_models(cfg: dict, model_entries: list[dict], cases: list[dict],
                     _write_recover_record(label, failed=True, error="stopped by user")
                 else:
                     _write_meta(label, entry, provider_for(cfg, entry), failed=True,
-                                error="stopped by user")
+                                error="stopped by user", profile=cfg.get("_profile"),
+                                revision=_revision(cfg))
                 break
             except (ModelRunError, TransportError, WrongModelError,
                     lms.LmsError, studioforge.StudioForgeError) as e:
                 log.error("model %s FAILED: %s — continuing with next model", label, e)
-                summary[label] = {"failed": True, "error": str(e)[:500]}
+                summary[label] = {"failed": True, "error": str(e)[:2000]}
                 if jobs_by_label and label in jobs_by_label:
                     _write_recover_record(label, failed=True, error=str(e)[:500])
                 else:
                     _write_meta(label, entry, provider_for(cfg, entry), failed=True,
-                                error=str(e)[:500])
+                                error=str(e)[:2000], profile=cfg.get("_profile"),
+                                revision=_revision(cfg))
     finally:
         csvw.close()
     return summary
@@ -377,17 +409,22 @@ def _vendor_stamp_path() -> Path:
     return results_dir() / "_stamp.json"
 
 
-def _read_vendor_stamp() -> dict:
-    """Merge the sidecar's three fields onto the meta, preserving them across
-    the multiple writes a single bench makes (start / finished=True / etc.).
-    Missing or unparseable sidecar → empty stamp; the meta still gets
-    written, just without those fields."""
+def _read_vendor_stamp(model_id: str | None = None) -> dict:
+    """The sidecar's three fields, ONLY when the sidecar names the model it
+    probed (``model_id``) and that is the model being written. The sidecar is
+    one global file: before 2026-09-23 it carried no model id, so a single
+    DeepSeek probe from 2026-09-09 was copied into every model's meta and the
+    whole board read "vdeepseek-v4-flash on 2026-09-09". A stamp without a
+    model id, or for another model, is ignored. Missing or unparseable
+    sidecar → empty stamp."""
     p = _vendor_stamp_path()
     if not p.exists():
         return {}
     try:
         d = json.loads(p.read_text(encoding="utf-8"))
     except json.JSONDecodeError:
+        return {}
+    if not isinstance(d, dict) or not d.get("model_id") or d.get("model_id") != model_id:
         return {}
     out = {}
     for k in ("model_version_resolved", "test_date_utc", "vendor_probe_source"):
@@ -401,14 +438,20 @@ def _write_meta(label: str, entry: dict, provider: Provider, *, load_s: float | 
                 bench_run_id: str | None = None, failed: bool = False,
                 error: str | None = None, finished: bool = False,
                 profile: str | None = None, plan: dict | None = None,
-                ctx_len: int | None = None) -> None:
+                ctx_len: int | None = None, warnings: list[str] | None = None,
+                revision: str | None = None, reset: bool = False,
+                started: str | None = None) -> None:
+    """``reset=True`` (the first write of a new run) starts from an empty
+    meta, so a previous run's ``finished``/``error``/``warnings`` never leak
+    onto this one."""
     path = results_dir() / f"meta_{label}.json"
     meta = {}
-    if path.exists():
+    if path.exists() and not reset:
         try:
             meta = json.loads(path.read_text(encoding="utf-8"))
         except json.JSONDecodeError:
             meta = {}
+    prev_model_id = meta.get("model_id")
     meta.update({
         "model_label": label, "model_id": entry["model_id"],
         "device": provider.name, "provider": provider.name,
@@ -424,15 +467,14 @@ def _write_meta(label: str, entry: dict, provider: Provider, *, load_s: float | 
     # the sidecar is absent (older orchestrator path; a hand-backfilled
     # meta), preserve whatever was already on the file: an old stamp is a
     # better answer than no stamp at all.
-    stamp = _read_vendor_stamp()
+    stamp = _read_vendor_stamp(entry["model_id"])
     if stamp:
         meta.update(stamp)
-    # else: leave any pre-existing model_version_resolved / test_date_utc /
-    # vendor_probe_source on the meta as-is.
-    # If the meta file was created without the stamp (older rows), pick up
-    # from the sidecar only if it is FRESHER than the meta's `updated`
-    # timestamp — the probe and the run are the "same session" (PROTOCOLS.md
-    # §1 corollary, 2026-09-09) so the sidecar must pre-date every `updated`.
+    elif prev_model_id and prev_model_id != entry["model_id"]:
+        # a meta left over from a different model id under this label must
+        # not keep that model's version stamp
+        for k in ("model_version_resolved", "test_date_utc", "vendor_probe_source"):
+            meta.pop(k, None)
     if entry.get("price"):
         meta["price"] = entry["price"]
     if profile:
@@ -449,8 +491,16 @@ def _write_meta(label: str, entry: dict, provider: Provider, *, load_s: float | 
         meta["context_length"] = int(ctx_len)
     if bench_run_id:
         meta["bench_run_id"] = bench_run_id
+    if reset:
+        meta["started"] = started or meta["updated"]
+    if revision:
+        meta["bench_revision"] = revision
+    if warnings:
+        meta["warnings"] = list(warnings)
     if error:
         meta["error"] = error
+    if failed:
+        meta.pop("finished", None)
     if finished:
         meta["finished"] = _now()
     results_dir().mkdir(parents=True, exist_ok=True)
@@ -470,6 +520,7 @@ def _run_one_model(cfg, entry, cases, csvw: _Csv, smoke,
     # touch the global STOP, or every later model in the batch is skipped
     abort = threading.Event()
 
+    t_start = _now()
     log.info("=== %s (%s) via %s [%s], ctx=%s ===", label, model_id,
              provider.name, provider.type, ctx_len)
     if not provider.is_available(model_id):
@@ -485,7 +536,8 @@ def _run_one_model(cfg, entry, cases, csvw: _Csv, smoke,
     plan = provider.loaded_plan_for(model_id) if hasattr(provider, "loaded_plan_for") else {}
     if not recover_mode:
         _write_meta(label, entry, provider, load_s=load_s, bench_run_id=bench_run_id,
-                    profile=cfg.get("_profile"), plan=plan or None, ctx_len=ctx_len)
+                    profile=cfg.get("_profile"), plan=plan or None, ctx_len=ctx_len,
+                    revision=_revision(cfg), reset=True, started=t_start)
     ctx.detect_thinking()
 
     state = {"rows": 0, "sanity_total": 0, "sanity_empty": 0,
@@ -591,19 +643,35 @@ def _run_one_model(cfg, entry, cases, csvw: _Csv, smoke,
                 rows = [_run_single(case, base_row, ctx, max_tokens, temperature, top_p, seed)]
         except GenerationRejected as e:
             # the MODEL's output could not be delivered (malformed tool-call
-            # args etc.) — that is this case failing, not the run
+            # args, a chat template llama-server cannot build a parser for) —
+            # that is this case failing, not the run
             log.warning("[%s] %s r%d: server rejected the model's generation: %s",
                         label, case["id"], repeat, str(e)[:200])
-            persist([_error_row(base_row, case, f"server rejected the model's output: {e}")])
+            with ctx.lock:
+                state["case_errors"] += 1
+            persist([_error_row(base_row, case, f"server rejected the model's output: {e}",
+                                kind="generation")])
             return
         except (TransportError, WrongModelError) as e:
+            if isinstance(e, RequestRejected) and e.status in _CASE_LOCAL_REJECT_STATUSES:
+                # a request the server refuses as malformed (HTTP 400/422 —
+                # e.g. DeepSeek's thinking mode demanding reasoning_content
+                # back) is this case erroring, not the server going away
+                log.error("[%s] %s r%d request rejected: %s", label, case["id"], repeat,
+                          str(e)[:200])
+                with ctx.lock:
+                    state["case_errors"] += 1
+                persist([_error_row(base_row, case, f"request rejected: {e}", kind="transport")])
+                return
             with ctx.lock:
                 state["consecutive_errors"] += 1
                 state["case_errors"] += 1
                 n = state["consecutive_errors"]
             log.error("[%s] %s r%d transport failure (%d in a row): %s",
                       label, case["id"], repeat, n, str(e)[:200])
-            persist([_error_row(base_row, case, f"transport failure: {e}")])
+            # recorded as an ERRORED row (grade "error"): excluded from the
+            # score and listed in failures.md — the server failed, not the model
+            persist([_error_row(base_row, case, f"transport failure: {e}", kind="transport")])
             if n >= MAX_CONSECUTIVE_TRANSPORT_ERRORS:
                 abort.set()
                 raise ModelRunError(
@@ -639,7 +707,18 @@ def _run_one_model(cfg, entry, cases, csvw: _Csv, smoke,
     else:
         jobs = [(c, r, None) for c in other_cases
                 for r in range(1, repeats_for(cfg, c["category"], smoke) + 1)]
+    jobs = schedule_jobs(jobs)
     workers = provider.workers(model_id)
+    warnings: list[str] = []
+    if ctx.thinking and workers <= FEW_SLOTS_WARN and len(jobs) > workers:
+        msg = (f"thinking model on only {workers} parallel slot(s) — {len(jobs)} jobs with "
+               f"up to {ctx.budget(6144)}-token budgets will queue behind each other; "
+               f"expect the run to overrun its time box")
+        log.warning("!!! %s: %s", label, msg)
+        warnings.append(msg)
+        if not recover_mode:
+            _write_meta(label, entry, provider, profile=cfg.get("_profile"),
+                        warnings=warnings, revision=_revision(cfg))
     if workers <= 1:
         for case, repeat, rid in jobs:
             run_case_repeat(case, repeat, rid)
@@ -670,12 +749,19 @@ def _run_one_model(cfg, entry, cases, csvw: _Csv, smoke,
     else:
         _write_meta(label, entry, provider, load_s=load_s, bench_run_id=bench_run_id,
                     finished=True, profile=cfg.get("_profile"), plan=plan or None,
-                    ctx_len=ctx_len)
+                    ctx_len=ctx_len, warnings=warnings or None, revision=_revision(cfg))
     return {"failed": False, "rows": state["rows"], "load_s": round(load_s, 1),
             "device": provider.name, "skipped": state["skipped"],
             "case_errors": state["case_errors"], "jobs": len(jobs),
-            "plan": plan or None,
+            "plan": plan or None, "workers": workers, "warnings": warnings,
             "cost_usd": round(state["cost"], 4) if entry.get("price") else None}
+
+
+def schedule_jobs(jobs: list[tuple]) -> list[tuple]:
+    """Longest categories first (``CATEGORY_ORDER``), profile order within a
+    category — a stable sort, so ids and repeats keep their relative order."""
+    rank = {c: i for i, c in enumerate(CATEGORY_ORDER)}
+    return sorted(jobs, key=lambda j: rank.get(j[0]["category"], len(rank)))
 
 
 def _write_recover_record(label: str, **fields) -> None:
@@ -695,15 +781,25 @@ def _write_recover_record(label: str, **fields) -> None:
     path.write_text(json.dumps(meta, indent=2), encoding="utf-8")
 
 
-def _error_row(base_row: dict, case: dict, error: str) -> dict:
-    """A persisted FAILED row for a case whose generation never arrived, so
-    the case counts against the model instead of silently vanishing."""
+def _error_row(base_row: dict, case: dict, error: str, kind: str = "generation") -> dict:
+    """A persisted row for a case whose generation never arrived.
+
+    ``kind="generation"``: the server could not deliver what the MODEL
+    produced (malformed tool-call JSON, an unbuildable template parser) — the
+    case FAILS and counts against the model. ``kind="transport"``: the server
+    or the request failed (connection, 5xx, a rejected request) — the row is
+    ERRORED (grade ``error``): excluded from the score, listed in
+    failures.md, never judged."""
     first_user = (case.get("tool_script") or [{}])[0].get("user", "")
     row = {**base_row, "run_id": str(uuid.uuid4())[:8], "turn": None,
            "system": case.get("system"),
            "prompt": case.get("prompt") or first_user,
            "response": "", "reasoning": "", "tool_calls": [], "finish_reason": "error",
-           "truncated": False, "error": error[:500], "metrics": {}}
+           "truncated": False, "error": error[:2000], "error_kind": kind, "metrics": {}}
+    if kind == "transport":
+        row["grade"] = "error"
+        row["grade_detail"] = error[:300]
+        return row
     if case.get("grader") or case.get("tool_script"):
         row["grade"] = "fail"
         row["grade_detail"] = error[:300]
@@ -771,7 +867,7 @@ def _annotate_recovery(row: dict, result: ChatResult) -> None:
 def _run_single(case, base_row, ctx: _Ctx, max_tokens, temperature, top_p, seed) -> dict:
     sent = ctx.budget(max_tokens)
     result = ctx.call(_messages_for(case), max_tokens=max_tokens,
-                      recover=case["category"] != "perf",
+                      recover=ctx.recover_for(case),
                       temperature=temperature, top_p=top_p, seed=seed,
                       tools=case.get("tools"))
     row = {**base_row, "run_id": str(uuid.uuid4())[:8], "turn": None,
@@ -823,6 +919,7 @@ def _run_multiturn(case, base_row, ctx: _Ctx, max_tokens, temperature, top_p, se
     for i, user_turn in enumerate(case["turns"], start=1):
         history.append({"role": "user", "content": user_turn})
         result = ctx.call(_messages_for(case, history), max_tokens=max_tokens,
+                          recover=ctx.recover_for(case),
                           temperature=temperature, top_p=top_p, seed=seed)
         # Feed back the CONTENT channel only — never the reasoning/CoT. A
         # thinking model that emptied its budget on reasoning produces an
@@ -847,43 +944,109 @@ def _run_multiturn(case, base_row, ctx: _Ctx, max_tokens, temperature, top_p, se
     return rows
 
 
+def _assistant_tool_turn(result: ChatResult, calls: list[dict]) -> tuple[dict, list[str]]:
+    """The assistant message that carries ``calls`` back into the context,
+    and the call ids used. The reasoning channel rides along as
+    ``reasoning_content``: DeepSeek's thinking mode REJECTS (HTTP 400 "The
+    reasoning_content in the thinking mode must be passed back") a tool-call
+    turn without it, and llama.cpp templates that interleave thinking with
+    tool calls render it the same way."""
+    ids = [(c or {}).get("id") or f"call_{i}" for i, c in enumerate(calls or [{}])]
+    msg = {"role": "assistant", "content": result.response_text or "",
+           "tool_calls": [{"id": cid, "type": "function",
+                           "function": {"name": (c or {}).get("name", ""),
+                                        "arguments": (c or {}).get("arguments") or "{}"}}
+                          for cid, c in zip(ids, calls or [{}])]}
+    if result.reasoning_text:
+        msg["reasoning_content"] = result.reasoning_text
+    return msg, ids
+
+
+def _parallel_block(script: list[dict], i: int, calls: list[dict]) -> list[int] | None:
+    """Step indices answered by ``calls`` emitted in ONE turn at step ``i``, or
+    None when the calls are not a legitimate parallel batch.
+
+    Legitimate = more than one call, distinct tool names, and exactly the
+    names of the next ``len(calls)`` consecutive tool steps starting at ``i``
+    (no user turn in between). TZ01 step 3: 14 models called get_run_target
+    and get_run_duration together — independent lookups on the same run id —
+    and gave the exact right final line, yet failed "2 tool calls, expected
+    1". Duplicate names are never a batch (TZ07's retry must come AFTER the
+    rate-limit result)."""
+    n = len(calls)
+    if n < 2 or i + n > len(script):
+        return None
+    names = [c.get("name") for c in calls]
+    if len(set(names)) != n:
+        return None
+    block = list(range(i, i + n))
+    for k in block:
+        st = script[k]
+        if not st.get("expect_tool") or (k > i and st.get("user") is not None):
+            return None
+    if sorted(script[k]["expect_tool"] for k in block) != sorted(names):
+        return None
+    return block
+
+
 def _run_tool_loop(case, base_row, ctx: _Ctx, max_tokens, temperature, seed) -> dict:
     """Agent tool loop: model calls a tool, we inject a canned tool result,
-    the model must incorporate it into a final answer. Grades both steps
-    (right call, then answer uses the returned data)."""
+    the model must incorporate it into a final answer. Grades every step
+    (right call, then answer uses the returned data). Independent calls the
+    model issues together in one turn are answered together (see
+    ``_parallel_block``)."""
     script = case["tool_script"]
     tools = case.get("tools")
     messages: list[dict] = []
     if case.get("system"):
         messages.append({"role": "system", "content": case["system"]})
 
-    steps: list[dict] = []
+    steps: list[dict | None] = [None] * len(script)
     last_result = None
-    for step in script:
+    i = 0
+    while i < len(script):
+        step = script[i]
         if step.get("user") is not None:
             messages.append({"role": "user", "content": step["user"]})
         result = ctx.call(list(messages), max_tokens=max_tokens,
+                          recover=ctx.recover_for(case),
                           temperature=temperature, seed=seed, tools=tools)
         last_result = result
         if step.get("expect_tool"):
-            verdict = grade_tool_call(result.tool_calls, _answer_view(result).scoreable_text(),
-                                      {"expect_tool": step["expect_tool"],
-                                       "required_args": step.get("required_args", {}),
-                                       "max_calls": step.get("max_calls", 1)})
-            steps.append(verdict)
-            # feed the model's tool call + our canned result back into context;
             # fall back to a text-emitted call so a thinking model's call that
             # failed the wire grammar still survives the loop
             calls = result.tool_calls or _extract_tool_calls_from_text(
                 _answer_view(result).scoreable_text())
-            call = calls[0] if calls else None
-            call_id = (call or {}).get("id") or "call_0"
-            messages.append({"role": "assistant", "content": "",
-                             "tool_calls": [{"id": call_id, "type": "function",
-                                             "function": {"name": (call or {}).get("name", ""),
-                                                          "arguments": (call or {}).get("arguments", "{}")}}]})
-            messages.append({"role": "tool", "tool_call_id": call_id,
-                             "content": step["tool_result"]})
+            block = _parallel_block(script, i, calls)
+            if block:
+                by_name = {c.get("name"): c for c in calls}
+                ordered = [by_name[script[k]["expect_tool"]] for k in block]
+                for k, call in zip(block, ordered):
+                    steps[k] = grade_tool_call(
+                        [call], "", {"expect_tool": script[k]["expect_tool"],
+                                     "required_args": script[k].get("required_args", {}),
+                                     "max_calls": 1})
+                msg, ids = _assistant_tool_turn(result, ordered)
+                messages.append(msg)
+                for k, cid in zip(block, ids):
+                    messages.append({"role": "tool", "tool_call_id": cid,
+                                     "content": script[k]["tool_result"]})
+                i += len(block)
+                continue
+            steps[i] = grade_tool_call(result.tool_calls, _answer_view(result).scoreable_text(),
+                                       {"expect_tool": step["expect_tool"],
+                                        "required_args": step.get("required_args", {}),
+                                        "max_calls": step.get("max_calls", 1)})
+            # feed the model's call(s) + our canned result back into context.
+            # Every call needs an answer or the next request is malformed: the
+            # step's result goes to the first, an explicit "not executed" to
+            # any extra (the step already failed on the extra call).
+            msg, ids = _assistant_tool_turn(result, calls)
+            messages.append(msg)
+            for j, cid in enumerate(ids):
+                messages.append({"role": "tool", "tool_call_id": cid,
+                                 "content": step["tool_result"] if j == 0 else
+                                 '{"error": "not executed: one call per step"}'})
         else:
             text = _answer_view(result).scoreable_text()
             needles = step.get("answer_contains", [])
@@ -904,12 +1067,14 @@ def _run_tool_loop(case, base_row, ctx: _Ctx, max_tokens, temperature, seed) -> 
                 if hit:
                     verdict = {"grade": "fail",
                                "detail": f"answer contains forbidden content ({hit})"}
-            steps.append(verdict)
+            steps[i] = verdict
             messages.append({"role": "assistant", "content": result.response_text})
+        i += 1
 
-    passed = all(s["grade"] == "pass" for s in steps)
-    detail = "; ".join(f"step{i+1}:{s['grade']}({s['detail']})"
-                       for i, s in enumerate(steps))
+    graded = [s for s in steps if s is not None]
+    passed = bool(graded) and all(s["grade"] == "pass" for s in graded)
+    detail = "; ".join(f"step{k+1}:{s['grade']}({s['detail']})"
+                       for k, s in enumerate(steps) if s is not None)
     row = {**base_row, "run_id": str(uuid.uuid4())[:8], "turn": None,
             "prompt": case["tool_script"][0].get("user", ""),
             "response": (last_result.response_text if last_result else ""),

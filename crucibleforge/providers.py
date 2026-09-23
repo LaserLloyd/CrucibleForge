@@ -263,8 +263,33 @@ class Provider:
                     and int(live.get("parallel") or 1) > 1
                     and int(live.get("ctx_size") or 0) >= wanted)
         if ready:
+            self._refuse_other_bench_lease(model_id, live)
             self._remember_plan(model_id, live=live)
         return ready
+
+    def _refuse_other_bench_lease(self, model_id: str, live: dict | None) -> None:
+        """One benchmark at a time: a resident that ANOTHER CrucibleForge run
+        leased (holder ``crucibleforge*``, not our own lease) is that run's
+        model under measurement — benching on it would share its slots and
+        corrupt both runs' timings. Raise instead of using it."""
+        try:
+            leases = studioforge.list_leases(self.base_url, self.api_key, self.mgmt_headers())
+        except studioforge.StudioForgeError:
+            return  # no lease API (older rig / no PIN): nothing to check against
+        ours = (self._lease or {}).get("_lease_id")
+        devices = set(int(d) for d in ((live or {}).get("devices") or []))
+        for lease in leases:
+            holder = str(lease.get("holder") or "")
+            lid = str(lease.get("id") or lease.get("lease_id") or "")
+            if not holder.startswith(studioforge.LEASE_HOLDER) or (ours and lid == ours):
+                continue
+            names_it = model_id in (lease.get("model_ids") or [])
+            overlaps = bool(devices & set(int(d) for d in (lease.get("devices") or [])))
+            if names_it or overlaps:
+                raise studioforge.StudioForgeError(
+                    f"{model_id.rsplit('/', 1)[-1]} is held by another CrucibleForge run "
+                    f"(lease {lid or '?'} holder {holder!r} on devices {lease.get('devices')}) "
+                    f"— one benchmark at a time; retry when it finishes", status=409)
 
     # ------------------------------------------------------------ leases
     def _lease_load(self, model_id: str, context_length: int | None) -> float:
@@ -301,8 +326,12 @@ class Provider:
         # context, and otherwise answers with a structured 507 (retry_after_s /
         # per-mode suggestions) instead of silence.
         try:
+            # poll (every READY_POLL_S = 2 s): a lease that is loading the
+            # model is waited for; one that did not start a load is detected
+            # on the first poll instead of after a fixed 20 s
             studioforge.wait_ready(model_id, self.base_url, self.api_key, headers=hdrs,
-                                   never_appeared_grace_s=20.0, timeout_s=600)
+                                   never_appeared_grace_s=studioforge.READY_POLL_S,
+                                   timeout_s=600)
         except studioforge.StudioForgeError as e:
             log.info("lease did not produce a ready %s (%s) — loading it explicitly",
                      model_id.rsplit("/", 1)[-1], str(e)[:120])

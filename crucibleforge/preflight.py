@@ -16,6 +16,7 @@ with a real streamed completion, not just poll the model list.
 from __future__ import annotations
 
 import logging
+import re
 
 from . import studioforge
 from .api import TransportError, WrongModelError
@@ -110,3 +111,73 @@ def check_link_health(cfg: dict, entries: list[dict]) -> None:
                         f"unusable — {str(e2)[:200]}. Fix the server / model id / "
                         "API key, then re-run (or --no-link-check).")
         log.info("link check passed: %s reachable, data channel OK", pname)
+
+
+# ------------------------------------------------ fail-fast runnability
+# 2026-09-23: three of the last board's failures took minutes (a lease, a
+# load attempt) to say something knowable in one GET: the model id is not
+# served at all (a safetensors/NVFP4 HF repo registered on StudioForge,
+# which only serves GGUF files), or the 122B judge cannot fit on the rig.
+
+_GGUF_HINT = re.compile(r"gguf|guff|(?:^|[-_.])(?:i?q\d|bf16|f16|f32)", re.IGNORECASE)
+
+
+def _is_gguf_id(model_id: str) -> bool:
+    """A GGUF repo name, or a llama.cpp quant tag (Q4_K_M, IQ4_XS, Q8_0,
+    BF16…) in the file stem. An HF safetensors id (…-NVFP4, …-AWQ) has
+    neither."""
+    return bool(_GGUF_HINT.search(model_id))
+
+
+def unrunnable_reason(cfg: dict, entry: dict) -> str | None:
+    """Why ``entry`` cannot be benched at all, or None. Seconds, no load."""
+    prov = get_provider(cfg, entry["provider"])
+    mid = entry["model_id"]
+    if prov.type == "studioforge":
+        records = {m.get("id"): m for m in studioforge.list_models_full(prov.base_url, prov.api_key)}
+        if not records:
+            return None  # listing unavailable — the run's own load answers
+        rec = records.get(mid)
+        if rec is None:
+            if not _is_gguf_id(mid):
+                return (f"{mid} is not served by provider {prov.name}: it is not a GGUF id and "
+                        f"StudioForge only serves GGUF files — pick a GGUF quant the rig has")
+            return f"{mid} is not served by provider {prov.name} — pick a model the rig serves"
+        sf = rec.get("studioforge") or {}
+        if sf.get("kind") and sf.get("kind") != "chat":
+            return f"{mid} is a {sf.get('kind')} model on {prov.name}, not a chat model"
+        if sf.get("arch_supported") is False:
+            return f"{mid}: {prov.name} reports its architecture as unsupported by the engine"
+        return None
+    if prov.type == "lmstudio":
+        return None  # the runner's explicit load-and-verify is the check
+    ids = prov.list_models()
+    if ids and mid not in ids:
+        return f"{mid} is not served by provider {prov.name}"
+    return None
+
+
+def judge_unrunnable_reason(cfg: dict, judge: dict | str | None) -> str | None:
+    """Why the benchmark's judge cannot run, or None. For a StudioForge
+    judge: it must be served, and the rig's own planner must say it fits on
+    every card (bench-first leases the whole rig for it)."""
+    if not isinstance(judge, dict) or judge.get("provider") not in (cfg.get("providers") or {}):
+        return None
+    prov = get_provider(cfg, judge["provider"])
+    mid = judge["model_id"]
+    if prov.type != "studioforge":
+        return None
+    records = {m.get("id") for m in studioforge.list_models_full(prov.base_url, prov.api_key)}
+    if records and mid not in records:
+        return f"judge {mid} is not served by {prov.name}"
+    try:
+        devices = list(prov.lease_devices or studioforge.gpu_indices(
+            prov.base_url, prov.api_key, prov.mgmt_headers()))
+    except studioforge.StudioForgeError:
+        return None
+    fits = studioforge.placement_fits(prov.base_url, prov.api_key, prov.mgmt_headers(),
+                                      mid, devices)
+    if fits is False:
+        return (f"judge {mid.rsplit('/', 1)[-1]} does not fit on {prov.name} cards {devices} "
+                f"even empty (planner) — the judge phase would fail after generation")
+    return None

@@ -47,6 +47,8 @@ def _run(*args: str, timeout: int = CMD_TIMEOUT_S, check: bool = True) -> subpro
                               encoding="utf-8", errors="replace", timeout=timeout)
     except subprocess.TimeoutExpired as exc:
         raise LmsError(f"`lms {' '.join(args)}` timed out after {timeout}s") from exc
+    except FileNotFoundError as exc:
+        raise LmsError(f"LM Studio CLI not found at {LMS_BIN}") from exc
     if check and proc.returncode != 0:
         raise LmsError(f"`lms {' '.join(args)}` rc={proc.returncode}: "
                        f"{proc.stderr.strip() or proc.stdout.strip()}")
