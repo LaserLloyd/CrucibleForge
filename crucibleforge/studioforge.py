@@ -126,6 +126,11 @@ def _hdrs(api_key: str, headers: dict | None = None) -> dict:
     h = dict(headers or {})
     if api_key:
         h["Authorization"] = f"Bearer {api_key}"
+    # Rig-integration contract: an unnamed caller is
+    # indistinguishable from an intruder in the rig's own rollup. Callers
+    # normally already pass X-SF-Client via providers.Provider.mgmt_headers();
+    # this is a fallback for any direct caller of this module.
+    h.setdefault("X-SF-Client", LEASE_HOLDER)
     return h
 
 

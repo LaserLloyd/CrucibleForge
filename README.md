@@ -1,5 +1,7 @@
 # CrucibleForge — an LLM capability benchmark with a real hard tier
 
+LLM benchmark suite with verifiable grading. 251 cases across math, reasoning, coding, tool-use and long-context, 158 of them hard-tier; brute-force verifiers and executed reference solutions instead of vibes; GPU leasing so a benchmark run can't be evicted mid-flight.
+
 CrucibleForge ranks language models on the things that decide whether a model can
 actually do a job: **hard reasoning and math with verifiable answers, coding
 graded by execution, tool use, instruction following, long-context retrieval,
@@ -40,17 +42,33 @@ OpenRouter, OpenAI, Groq, Together, Mistral, Open WebUI …).
   actually scored each row: the report flags results from a different test set
   or a different judge instead of quietly ranking them side by side.
 
-## The 1-hour `standard` profile and the scorecard
+## Profiles and the scorecard
 
 `crucibleforge all --profile standard --models <label> --yes` runs a fixed 56-case
 selection sized for **a ~70 tok/s 27B in under an hour including judging**:
-perf ×2, RP 6, NSFW ladder 5, steer 3, **10 brutal coding cases** (chosen so
+perf 4 (×2), RP 6, NSFW ladder 5, steer 3, **10 brutal coding cases** (chosen so
 DeepSeek v4-flash scores ~20% — headroom for future models), 10 hard tool
 cases, 8 hard instruct, 4 hard reasoning + 6 hard math (pooled as "Reason" in
-the scorecard); 1 repeat, per-category budgets with a 16k thinking cap, and a fast non-thinking judge (a 31B uncensored gemma with
-`enable_thinking: false`). `profiles/standard.yaml` is plain YAML — copy it to
-`<config dir>/profiles/mine.yaml` to make your own; profiles only *select*
-from the case files, so per-case results stay comparable.
+the scorecard); 1 repeat, per-category `max_tokens` budgets, and thinking
+models get ×4 of each budget, capped at 24k so prompt and answer still fit a
+32k slot.
+
+The same selection also ships split in two, each half under 30 minutes:
+
+* `coding` — the objective half (perf, coding, tools, instruct, reasoning,
+  math). Every case grades deterministically, so no judge is loaded.
+* `chat` — the judged half (perf, RP, NSFW, steer).
+
+Run `coding` first with `--fresh`, then `chat` without it, on the same label:
+both land in one transcript and the report row reads `profile chat+coding`.
+
+A profile can name its judge. The shipped `standard` and `chat` profiles name
+a 122B thinking judge on a StudioForge provider (the maintainer's board is
+only comparable on that judge), so point `judge:` at your own model or pass
+`--judge provider:model_id`, which overrides the profile. Profiles are plain
+YAML — copy one to `<config dir>/profiles/mine.yaml` to make your own;
+profiles only *select* from the case files, so per-case results stay
+comparable.
 
 The report opens with a **Scorecard** — every model gets 0–100 scores:
 
@@ -77,12 +95,12 @@ rather than raising. Packaging those data files properly is a planned change.
 ## Quick start
 
 ```bash
-git clone <this repo> crucibleforge && cd crucibleforge
+git clone https://github.com/LaserLloyd/CrucibleForge.git crucibleforge && cd crucibleforge  # scrub-ok: the public repo URL
 uv sync                                  # or: pip install -e .
 uv run crucibleforge config --init       # writes models.yaml (git-ignored); then edit it
 export DEEPSEEK_API_KEY=...              # only if you use a hosted provider
 
-uv run crucibleforge status                   # providers up? judge? case counts
+uv run crucibleforge status                   # providers up? judge? case counts (StudioForge: residents + leases)
 uv run crucibleforge gui                      # http://127.0.0.1:8777
 uv run crucibleforge all --profile standard --models local-gemma-e4b --yes   # the 1-hour scorecard run
 uv run crucibleforge all --smoke --models local-gemma-e4b --yes     # ~10 min end-to-end
@@ -92,7 +110,6 @@ uv run crucibleforge recover --models a,b --yes     # re-run reasoning-overflow 
 uv run crucibleforge pairwise --models a,b --categories rp,nsfw --yes  # position-swapped head-to-head
 uv run crucibleforge models discover <provider>     # list what a server is serving
 uv run crucibleforge cases verify                   # re-derive every gold answer offline
-uv run crucibleforge status                         # providers, residents + leases on the rig, judge, cases
 ```
 
 `crucibleforge all` = `run` → `judge` → `report`. Results land in
@@ -221,15 +238,26 @@ run is a background thread; **Stop** finishes the in-flight case).
   waited for (never evicted); a resident of an equal-or-higher priority tier
   (a chat/agent-tier model on this rig, not just an old-style
   "pinned" flag) refuses the lease outright and is retried on a bounded
-  cadence, not forced. **`force`d eviction never happens on this client's own
-  initiative, on either refusal dialect** — only an explicit, caller-supplied
-  `force=True` (the CLI's `--force-evict`, meant to be used only on an
-  explicit human go-ahead) ever sets it, and only from the very first
-  attempt, never as an automatic escalation partway through a retry.
+  cadence, not forced. **A refusal never makes this client escalate to a
+  `force`d eviction, on either refusal dialect.** `force=true` is sent only
+  from the very first attempt, and only when someone asked for it: the CLI's
+  `--force-evict` (one run, on an explicit go-ahead from whoever owns the
+  rig) or a provider's standing bench-first policy (next bullet).
   `retry_after_s` on 503/507 is honoured; a window that does not fit is an
   error, never a silent JIT load at planner defaults; evicted residents are
   reloaded when the run ends. The management PIN travels in
   `providers.<name>.headers` (`${ENV}` expanded).
+* **Bench-first (opt-in, per StudioForge provider)** — for a rig where the
+  benchmark should outrank everything else. `force_evict: true` starts every
+  lease claim with `force=true` (idle residents are evicted, reloaded when the
+  run ends, and the policy is logged). `lease_devices_preferred: [0, 1]`
+  leases only those cards when the rig's planner says the model fits there,
+  else `lease_devices`. `clawforge_mcp: <url>` asks a ClawForge image server
+  holding a render lease on those cards to vacate and resumes it afterwards;
+  a refused vacate is an error, never a reason to run anyway.
+  `busy_unload_after_s: N` (only with `force_evict`) unloads a resident still
+  mid-request after N seconds, which cuts its stream. `crucibleforge status`
+  prints a `bench-first:` line for any provider that sets one of these.
 * **Graders read delivered answers only** — an answer is the content channel
   (or a tool call); the reasoning channel is consulted only for a *finished*
   reply whose content is empty (server misrouting), never for a truncated one.
@@ -266,10 +294,11 @@ crucibleforge/       package: cli, config, providers, api, runner, graders,
                      profiles, gui/
 cases/*.json         the suite (perf rp nsfw coding tooluse instruct
                      reasoning math steer overrefusal longctx planning)
-tests/               pytest, offline (239 tests incl. full case verification)
+tests/               pytest, offline (330+ tests incl. full case verification)
 models.example.yaml  registry template (copy to models.yaml — git-ignored)
 results/             outputs (git-ignored)
-profiles/            case selections (standard.yaml = the ~1 h scorecard run)
+profiles/            case selections (standard.yaml = the ~1 h scorecard run;
+                     coding.yaml + chat.yaml = its two halves)
 scripts/             queue-overnight.sh (reference campaign wrapper),
                      clawforge_comfy.py (free rig VRAM before a phase),
                      scrub_check.py + hooks/ (see Publishing, below)
@@ -329,4 +358,4 @@ Skip them with `--categories`.
 
 ## License
 
-MIT.
+MIT — see [LICENSE](LICENSE).

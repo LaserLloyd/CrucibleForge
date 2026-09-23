@@ -200,9 +200,6 @@ def _parse_error_hints(body: str) -> tuple[float | None, object]:
     return ra, sugg
 
 
-_VRAM_MARKERS = ("insufficient_vram", "cannot load", "entirely in vram", "not enough free vram")
-
-
 def _parse_priority_hold(body: str) -> dict | None:
     """``{model_id, priority}`` when the body is a StudioForge ``priority_hold``
     refusal, else None. The code is authoritative (it is stable); the holder
@@ -220,9 +217,53 @@ def _parse_priority_hold(body: str) -> dict | None:
     return {}
 
 
+def _error_code(body: str) -> str | None:
+    """The stable ``error.code`` from a structured error body, or None. This
+    is what the rig-integration contract says to branch on —
+    never on prose — and it is the only signal available on the SSE-embedded
+    error path, where the transport status code itself is None."""
+    for h in _error_holders(body):
+        if h.get("code"):
+            return h["code"]
+    return None
+
+
+def _busy_models(body: str) -> list | None:
+    """The ``busy_models`` hint on a 507: models that WOULD free the VRAM but
+    are mid-request elsewhere. Its presence is what turns a 507 from "the box
+    is full" into "the box is busy, not full"."""
+    for h in _error_holders(body):
+        bm = h.get("busy_models")
+        if isinstance(bm, list):
+            return bm
+    return None
+
+
+class VramExhausted(TransportError):
+    """StudioForge 507 that is genuinely full, not merely busy: no
+    ``busy_models`` hint and no retry hint. Per the rig-integration contract,
+    retrying unchanged cannot succeed — this is terminal,
+    never retried by ``stream_chat_retried``. Carries ``suggestions`` /
+    ``max_ctx_that_fits`` for the caller to act on (shorten the request,
+    reload narrower, or stand down)."""
+
+    def __init__(self, msg: str, *, status: int | None = None, suggestions=None, body: str = ""):
+        super().__init__(msg)
+        self.status = status
+        self.suggestions = suggestions
+        self.body = body
+
+
 def classify_server_error(status: int | None, body: str,
                           retry_after_header: str | None = None) -> TransportError:
-    """Map a 5xx / SSE error payload to the right TransportError subclass."""
+    """Map a 5xx / SSE error payload to the right TransportError subclass.
+
+    Branches on the structured ``error.code`` only — never on prose (the
+    rig-integration contract). A 507 ``insufficient_vram`` is
+    genuinely full and terminal UNLESS it also carries ``busy_models``
+    (residents that would free the VRAM but are mid-request — the box is
+    busy, not full) or a retry hint (``retry_after_s`` / ``Retry-After``), in
+    which case waiting is correct and it is treated the same as a 503."""
     low = (body or "").lower()
     msg = f"HTTP {status}: {body[:500]}" if status else body[:500]
     if any(m in low for m in _GENERATION_REJECT_MARKERS):
@@ -237,7 +278,21 @@ def classify_server_error(status: int | None, body: str,
     if hold is not None:
         return PriorityHold(msg, status=status, retry_after_s=ra, suggestions=sugg, body=body,
                             model_id=hold.get("model_id"), priority=hold.get("priority"))
-    if status in (503, 507) or any(m in low for m in _VRAM_MARKERS):
+    code = _error_code(body)
+    if code == "insufficient_vram" or status == 507:
+        # Structured fields decide this, never prose. The
+        # SSE-embedded error path never carries a transport status (status is
+        # None there), so ``code`` alone must be enough to recognise it.
+        # busy_models non-empty means the box is busy, not full: the models
+        # that would free the VRAM are mid-request elsewhere, so waiting is
+        # correct. A retry hint (server-computed) means the same. Neither one
+        # present means genuinely full (or a lease refusal, e.g. gpu_leased,
+        # that never got as far as arithmetic) — retrying unchanged cannot
+        # succeed.
+        if _busy_models(body) or ra is not None:
+            return VramContention(msg, status=status, retry_after_s=ra, suggestions=sugg, body=body)
+        return VramExhausted(msg, status=status, suggestions=sugg, body=body)
+    if status == 503:
         return VramContention(msg, status=status, retry_after_s=ra, suggestions=sugg, body=body)
     return TransportError(msg)
 
@@ -295,6 +350,7 @@ def stream_chat(base_url: str, api_key: str, model: str, messages: list[dict], *
                 reasoning_format: str | None = None,
                 extra_body: dict | None = None,
                 headers: dict | None = None,
+                priority: int | None = None,
                 verify_model: bool = True,
                 timeout: float = 900.0) -> ChatResult:
     """One streaming chat completion with timing + real token usage.
@@ -306,6 +362,11 @@ def stream_chat(base_url: str, api_key: str, model: str, messages: list[dict], *
     (e.g. {"reasoning_format": "deepseek"} or OpenRouter routing hints).
     verify_model=False relaxes the served-model check for hosted APIs that
     answer with a canonical/aliased model name (mismatch is logged, not fatal).
+    priority (StudioForge D48: 1 chat / 2 agent / 3 background;
+    anything else is a 400) tiers THIS request's admission and the JIT load it
+    triggers, upwards only — the rig-integration contract
+    says send it in every StudioForge body; None omits the key (other
+    OpenAI-compatible backends don't know it).
     """
     body: dict = {
         "model": model,
@@ -317,6 +378,8 @@ def stream_chat(base_url: str, api_key: str, model: str, messages: list[dict], *
         "stream": True,
         "stream_options": {"include_usage": True},
     }
+    if priority is not None:
+        body["priority"] = int(priority)
     if tools:
         body["tools"] = tools
     if response_format:
@@ -453,7 +516,10 @@ def stream_chat_retried(base_url: str, api_key: str, model: str, messages: list[
     here — the caller must fix server state (reload the model) first. A
     StudioForge ``priority_hold`` 503 is not a failure at all: it is waited out
     on its own budget (``PRIORITY_HOLD_WAIT_S``), and only a hold outlasting
-    that budget is handed on as an error."""
+    that budget is handed on as an error. ``VramExhausted`` (a genuinely full
+    507 — no ``busy_models``, no retry hint) is likewise NOT retried: per the
+    rig-integration contract, retrying unchanged cannot
+    succeed — the caller must shorten the request or stand down."""
     last_err: Exception | None = None
     held_s = 0.0
     attempt = 0
@@ -461,8 +527,8 @@ def stream_chat_retried(base_url: str, api_key: str, model: str, messages: list[
         attempt += 1
         try:
             return stream_chat(base_url, api_key, model, messages, **kwargs)
-        except (WrongModelError, RequestRejected, GenerationRejected):
-            raise  # retrying an identical bad request / bad generation cannot succeed
+        except (WrongModelError, RequestRejected, GenerationRejected, VramExhausted):
+            raise  # retrying an identical bad request / bad generation / full VRAM cannot succeed
         except PriorityHold as e:
             # Somebody's chat/agent model is loading. Wait it out on the hold
             # budget WITHOUT spending a transport retry: this is the server

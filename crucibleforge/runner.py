@@ -23,6 +23,7 @@ v3 additions:
 from __future__ import annotations
 
 import csv
+from pathlib import Path
 import json
 import logging
 import threading
@@ -366,6 +367,36 @@ def run_models(cfg: dict, model_entries: list[dict], cases: list[dict],
     return summary
 
 
+def _vendor_stamp_path() -> Path:
+    """Sidecar with the per-run model-version + date stamp the runner stamps
+    into every meta_<label>.json it writes. The orchestrator writes this ONCE
+    before launching the bench (probe first → stamp → bench); the runner
+    reads it on every _write_meta() so back-to-back profiles (coding → chat)
+    land on the same stamp without re-probing. See SKILL.md "Model version +
+    date annotation" (maintainer, 2026-09-09)."""
+    return results_dir() / "_stamp.json"
+
+
+def _read_vendor_stamp() -> dict:
+    """Merge the sidecar's three fields onto the meta, preserving them across
+    the multiple writes a single bench makes (start / finished=True / etc.).
+    Missing or unparseable sidecar → empty stamp; the meta still gets
+    written, just without those fields."""
+    p = _vendor_stamp_path()
+    if not p.exists():
+        return {}
+    try:
+        d = json.loads(p.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return {}
+    out = {}
+    for k in ("model_version_resolved", "test_date_utc", "vendor_probe_source"):
+        v = d.get(k)
+        if v:
+            out[k] = v
+    return out
+
+
 def _write_meta(label: str, entry: dict, provider: Provider, *, load_s: float | None = None,
                 bench_run_id: str | None = None, failed: bool = False,
                 error: str | None = None, finished: bool = False,
@@ -384,6 +415,24 @@ def _write_meta(label: str, entry: dict, provider: Provider, *, load_s: float | 
         "provider_type": provider.type,
         "updated": _now(), "failed": failed,
     })
+    # Stamp the vendor version + date on every write so back-to-back profiles
+    # (coding → chat, 2026-09-08 split) and a mid-run failure both carry the
+    # same probe snapshot.
+    #
+    # If the orchestrator wrote `results/_stamp.json`, it is the source of
+    # truth for THIS run — overwrite any pre-existing stamp on the meta. If
+    # the sidecar is absent (older orchestrator path; a hand-backfilled
+    # meta), preserve whatever was already on the file: an old stamp is a
+    # better answer than no stamp at all.
+    stamp = _read_vendor_stamp()
+    if stamp:
+        meta.update(stamp)
+    # else: leave any pre-existing model_version_resolved / test_date_utc /
+    # vendor_probe_source on the meta as-is.
+    # If the meta file was created without the stamp (older rows), pick up
+    # from the sidecar only if it is FRESHER than the meta's `updated`
+    # timestamp — the probe and the run are the "same session" (PROTOCOLS.md
+    # §1 corollary, 2026-09-09) so the sidecar must pre-date every `updated`.
     if entry.get("price"):
         meta["price"] = entry["price"]
     if profile:

@@ -273,7 +273,12 @@ def test_provider_expands_env_in_headers(monkeypatch):
     monkeypatch.setenv("CRUCIBLEFORGE_TEST_PIN", "secret-pin")
     p = providers.get_provider(_sf_cfg(), "sf")
     assert p.headers["X-MCP-Pin"] == "secret-pin"
-    assert p.mgmt_headers() == {"X-MCP-Pin": "secret-pin"}
+    # mgmt_headers() also declares our identity to the rig —
+    # "crucibleforge" for a plain run, overridable per call (e.g. the judge
+    # phase passes "crucibleforge-judge" to match its own lease holder).
+    assert p.mgmt_headers() == {"X-MCP-Pin": "secret-pin", "X-SF-Client": "crucibleforge"}
+    assert p.mgmt_headers(client_name="crucibleforge-judge") == {
+        "X-MCP-Pin": "secret-pin", "X-SF-Client": "crucibleforge-judge"}
 
 
 def test_switch_model_takes_a_lease_releases_it_and_never_unloads_all(monkeypatch):
@@ -699,6 +704,53 @@ def test_willingness_counts_empty_rows_as_unwritten(tmp_path, monkeypatch):
     (tmp_path / "transcripts_m.jsonl").write_text("\n".join(json.dumps(r) for r in rows) + "\n")
     stats = report.model_stats("m")
     assert stats["nsfw"]["willingness"] == 0.5
+
+
+def test_model_version_stamp_renders_on_scorecard_and_summary(tmp_path, monkeypatch):
+    """SKILL.md 'Model version + date annotation' (maintainer, 2026-09-09): every
+    row in the scorecard + summary tables carries a `v<ver> on <date>` suffix
+    when the meta has model_version_resolved + test_date_utc, `v?` when only
+    a date exists, and the bare label when neither field is set (older rows)."""
+    from crucibleforge import report as _report
+    monkeypatch.setattr(config, "RESULTS_DIR", tmp_path)
+    monkeypatch.setattr(_report, "_expected_case_count", lambda cfg, profile: 1)
+    monkeypatch.setattr(_report, "_current_revisions", lambda cfg: {"3.0.0+abc"})
+    monkeypatch.setattr(_report, "_primary_judge", lambda cfg: None)
+    # model a: dated variant exposed by /v1/models
+    rows = [_row("C1", cat="instruct", grade="pass")]
+    (tmp_path / "transcripts_a.jsonl").write_text("\n".join(json.dumps(r) for r in rows) + "\n")
+    (tmp_path / "meta_a.json").write_text(json.dumps(
+        {"device": "deepseek", "model_id": "deepseek-v4-flash",
+         "model_version_resolved": "deepseek-v4-flash-0731",
+         "test_date_utc": "2026-09-09",
+         "vendor_probe_source": "GET https://api.deepseek.com/v1/models"}))
+    # model b: opaque version (v?) — DeepSeek on 2026-09-09 returned only the bare alias
+    (tmp_path / "transcripts_b.jsonl").write_text("\n".join(json.dumps(r) for r in rows) + "\n")
+    (tmp_path / "meta_b.json").write_text(json.dumps(
+        {"device": "deepseek", "model_id": "deepseek-v4-flash",
+         "model_version_resolved": "deepseek-v4-flash",
+         "test_date_utc": "2026-09-09",
+         "vendor_probe_source": "GET https://api.deepseek.com/v1/models"}))
+    # model c: legacy row — no stamp, bare label preserved
+    (tmp_path / "transcripts_c.jsonl").write_text("\n".join(json.dumps(r) for r in rows) + "\n")
+    (tmp_path / "meta_c.json").write_text(json.dumps({"device": "lmstudio", "model_id": "old"}))
+    stats = {l: _report.model_stats(l) for l in "abc"}
+    # meta is loaded into stats as-is
+    assert stats["a"]["meta"]["model_version_resolved"] == "deepseek-v4-flash-0731"
+    assert stats["a"]["meta"]["test_date_utc"] == "2026-09-09"
+    assert stats["c"]["meta"].get("model_version_resolved") is None
+    md = _report.render_markdown(["a", "b", "c"], stats, None)
+    sc = md.split("## Scorecard")[1].split("## Summary")[0]
+    summary = md.split("## Summary")[1].split("## Speed")[0]
+    # dated variant renders with v<ver> on <date>
+    assert "a vdeepseek-v4-flash-0731 on 2026-09-09" in sc
+    assert "a vdeepseek-v4-flash-0731 on 2026-09-09" in summary
+    # opaque version (DeepSeek bare alias, no dated variant) renders `v?`
+    # with the date carrying the load (brief rule 4)
+    assert "b v? on 2026-09-09" in sc
+    assert "b v? on 2026-09-09" in summary
+    # legacy rows keep the bare label (back-compat)
+    assert "| c |" in sc and "c v" not in sc.split("| c ")[1].split("\n")[0]
 
 
 def test_half_only_total_is_labelled(tmp_path, monkeypatch):

@@ -14,6 +14,7 @@ from __future__ import annotations
 import argparse
 import copy
 import json
+import logging
 import re
 import statistics
 from datetime import datetime
@@ -21,12 +22,18 @@ from datetime import datetime
 from .config import results_dir, load_config, load_transcripts
 from .graders import refusal_heuristic
 
+log = logging.getLogger(__name__)
+
 def report_md_path():
     return results_dir() / "report.md"
 
 
 def report_json_path():
     return results_dir() / "report.json"
+
+
+def report_html_path():
+    return results_dir() / "report.html"
 
 RP_SINGLE_DIMS = ["prose", "character", "dialogue", "atmosphere", "emotion", "agency"]
 RP_MULTI_DIMS = ["prose", "character", "dialogue", "emotion", "agency", "consistency"]
@@ -186,6 +193,33 @@ def short_model(mid: str | None) -> str:
         return "-"
     tail = str(mid).rsplit("/", 1)[-1]
     return tail if len(tail) <= 28 else tail[:25] + "…"
+
+
+def _version_label(label: str, stats_for_label: dict | None) -> str:
+    """Per-row version + date suffix on the Model cell. SKILL.md "Model
+    version + date annotation" (maintainer, 2026-09-09): a row's `v<N>` part
+    becomes ``v?`` when the vendor's ``/v1/models`` returns only the bare
+    alias (the resolved = model_id, with no dated or qualified variant) —
+    the rule's corollary is that **date carries the build-tracking load**.
+    We spot opaque by `resolved == <last path segment of model_id>`; a
+    distinct resolved id (e.g. ``deepseek-v4-flash-0731``, ``-latest``,
+    a different GGUF filename) renders literally. Returns the bare
+    ``label`` when no fields are set (back-compat for older rows)."""
+    meta = (stats_for_label or {}).get("meta") or {}
+    ver = meta.get("model_version_resolved")
+    date = meta.get("test_date_utc")
+    model_id = meta.get("model_id") or ""
+    bare = model_id.rsplit("/", 1)[-1] if model_id else ""
+    if ver and bare and ver == bare:
+        # vendor exposed no more than the alias itself — opaque
+        ver = "?"
+    if ver and date:
+        return f"{label} v{ver} on {date}"
+    if ver:
+        return f"{label} v{ver}"
+    if date:
+        return f"{label} (tested {date})"
+    return label
 
 
 def _expected_case_count(cfg: dict | None, profile: str | None) -> int | None:
@@ -619,7 +653,10 @@ def render_markdown(labels: list[str], stats: dict, cfg: dict | None) -> str:
         c = cards[label]
         comp = c["components"]
         cov_cell = cov_cell_for(label)
-        cells = [str(i), label, stats[label]["speed"]["device"], cov_cell, judge_cell_for(label),
+        # Model cell carries the version+date stamp (SKILL.md "Model version
+        # + date annotation"); bare `label` is preserved for older rows that
+        # don't have the stamp yet.
+        cells = [str(i), _version_label(label, stats.get(label)), stats[label]["speed"]["device"], cov_cell, judge_cell_for(label),
                  fmt(c["tok_per_s"]), fmt(c["ts"], ".0f"),
                  total_cell_for(label), f"**{fmt(c['chat'], '.1f')}**",
                  f"**{fmt(c['code'], '.1f')}**"]
@@ -665,8 +702,10 @@ def render_markdown(labels: list[str], stats: dict, cfg: dict | None) -> str:
         h = s.get("hard") or {}
         hard_cell = (f"**{fmt_pct(h['rate'])}** ({h['passed']}/{h['n']})"
                      if h.get("n") else "-")
+        # Model cell carries the version+date stamp (SKILL.md "Model version
+        # + date annotation"); bare `label` is preserved for older rows.
         cells = [
-            str(i), label, sp["device"], cov_cell_for(label), hard_cell,
+            str(i), _version_label(label, stats.get(label)), sp["device"], cov_cell_for(label), hard_cell,
             fmt_pct(s["coding"]["rate"]), fmt_pct(s.get("math", {}).get("rate")),
             fmt_pct(s["tooluse"]["rate"]), fmt_pct(s["instruct"]["rate"]),
             fmt_pct(s["reasoning"]["rate"]),
@@ -1006,6 +1045,34 @@ def render_markdown(labels: list[str], stats: dict, cfg: dict | None) -> str:
         L.extend(notes)
         L.append("")
     return "\n".join(L)
+
+
+def render_report_html(write: bool = True) -> str | None:
+    """Render the HTML bench board next to ``report.md``.
+
+    Reads the just-written ``report.md`` and ``models.yaml``, builds the row
+    payload, and writes ``results/report.html``. Returns the rendered HTML
+    when ``write=True``, else ``None`` — callers that want a string without a
+    write (e.g. GUI ``GET /api/report``) can use ``build_rows``/``render_html``
+    from ``crucibleforge.templates.board`` directly.
+
+    The HTML board is the user-facing scorecard and is written by default
+    whenever ``report.md`` is written — keep them in sync.
+    """
+    from .templates.board import build_rows, render_html
+
+    md_path = report_md_path()
+    if not md_path.exists():
+        log.warning("render_report_html: %s missing — run `report` first", md_path)
+        return None
+    cfg = load_config()
+    registry_text = open(cfg["_path"], encoding="utf-8").read()
+    report_text = md_path.read_text(encoding="utf-8")
+    rows = build_rows(report_text, registry_text, "")
+    html_doc = render_html(rows)
+    if write:
+        report_html_path().write_text(html_doc, encoding="utf-8")
+    return html_doc
 
 
 def generate(labels_arg: str | None = None, write: bool = True) -> str:

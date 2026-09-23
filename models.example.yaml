@@ -32,10 +32,19 @@
 #   lease_idle_ttl_s:  7200           safety TTL (a keepalive touches the lease)
 #   wait_busy_s:       600            how long to wait for a resident that is mid-request,
 #                      or a same-or-higher priority tier refusing the lease outright
-#                      (it is never evicted or forced on this client's own initiative
-#                      for either dialect — only the CLI's --force-evict, from the
-#                      first attempt, ever sends force=true)
+#                      (a refusal never makes this client escalate to force=true for
+#                      either dialect — only the CLI's --force-evict or the
+#                      force_evict policy below send it, from the first attempt)
 #   restore_residents: true           reload residents the run evicted, at the end
+#   Bench-first (opt-in; for a rig where the benchmark outranks everything):
+#   force_evict: true                 every lease claim starts with force=true
+#                      (idle residents are evicted, then reloaded at the end)
+#   lease_devices_preferred: [0, 1]   lease only these cards when the rig's
+#                      planner says the model fits there, else lease_devices
+#   clawforge_mcp: http://localhost:8700/mcp   ClawForge endpoint asked to vacate
+#                      a render lease on the wanted cards (resumed afterwards)
+#   busy_unload_after_s: 60           with force_evict: unload a resident still
+#                      mid-request after this long (cuts its stream)
 providers:
   lmstudio:
     type: lmstudio

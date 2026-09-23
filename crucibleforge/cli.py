@@ -431,9 +431,9 @@ class _ProviderGuard:
         # WP-BENCH FIX-2: the only place `force=true` ever gets authorised for
         # this run. Never set from a refusal message — only from the CLI's
         # explicit `--force-evict` flag, which the skill says a worker may
-        # pass only on the maintainer's explicit go-ahead.
+        # pass only on the rig owner's explicit go-ahead.
         # …or by the provider's STANDING bench-first policy
-        # (``force_evict: true`` in models.yaml, maintainer 2026-09-08: the bench
+        # (``force_evict: true`` in models.yaml, the rig owner's call: the bench
         # outranks everything on the rig). Logged as loudly as the flag.
         for p in self.provs.values():
             p.force_evict = force_evict or _policy_force(p)
@@ -737,9 +737,29 @@ def cmd_judge(args, cfg):
 
 
 def cmd_report(args, cfg):
-    from .report import generate, report_md_path
-    print(generate(args.models))
-    print(f"\nwrote {report_md_path()}")
+    from .report import generate, report_md_path, report_html_path, render_report_html
+    html_only = bool(getattr(args, "html_only", False))
+    no_html = bool(getattr(args, "no_html", False))
+    if html_only and report_md_path().exists():
+        # Re-render HTML from the existing markdown — no transcripts needed.
+        html_doc = render_report_html(write=True)
+        print(f"wrote {report_html_path()} ({len(html_doc)} bytes)")
+        return 0
+    if html_only:
+        # No markdown yet — generate it (with HTML suppressed) so we have
+        # something to render.
+        log.info("--html-only but no report.md yet — generating markdown first")
+        generate(args.models, write=True)
+    md = generate(args.models, write=not html_only)
+    if not html_only:
+        print(md)
+        print(f"\nwrote {report_md_path()}")
+    if not no_html:
+        try:
+            html_doc = render_report_html(write=True)
+            print(f"wrote {report_html_path()} ({len(html_doc)} bytes)")
+        except Exception as e:  # noqa: BLE001
+            log.warning("HTML render failed: %s", e)
     return 0
 
 
@@ -957,13 +977,14 @@ def main(argv=None):
     def add_force_evict_arg(p):
         p.add_argument(
             "--force-evict", action="store_true",
-            help="WP-BENCH FIX-2: send force=true on the FIRST lease attempt. The rig "
-                 "honours this for an IDLE resident of EITHER refusal dialect — a plain "
-                 "'pinned' resident OR a D46 priority-tier one (e.g. a pinned, priority-1 "
-                 "family-bot model) — it can and will evict either; it never overrides a "
-                 "resident mid-request. This tool never sets it on its own — pass it only "
-                 "on the maintainer's explicit go-ahead for THIS run, exactly because it CAN reach a "
-                 "priority-tier resident, not because it can't.")
+            help="send force=true on the FIRST lease attempt. The rig honours this for "
+                 "an IDLE resident of EITHER refusal dialect — a plain 'pinned' resident "
+                 "OR a priority-tier one (e.g. a pinned, priority-1 chat model) — it can "
+                 "and will evict either; it never overrides a resident mid-request. This "
+                 "tool never sets it in response to a refusal — pass it only with an "
+                 "explicit go-ahead from whoever owns the rig, exactly because it CAN reach "
+                 "a priority-tier resident (a provider's standing `force_evict: true` "
+                 "policy in models.yaml does the same for every run).")
 
     def add_run_args(p):
         add_force_evict_arg(p)
@@ -998,7 +1019,7 @@ def main(argv=None):
         p.add_argument("--no-link-check", action="store_true",
                        help="skip the pre-flight provider data-channel probe")
         p.add_argument("--run-id", default=None,
-                       help="WP-BENCH FIX-6: id for this run's "
+                       help="id for this run's "
                             f"{V2_RUNS_ROOT}/<id>/{{report.md,meta.json}} (else "
                             "$CRUCIBLEFORGE_RUN_ID, else self-minted)")
         p.add_argument("--deliver-to", default=None,
@@ -1036,6 +1057,10 @@ def main(argv=None):
     p_recover.add_argument("--no-link-check", action="store_true")
     p_report = sub.add_parser("report", help="generate comparison report")
     p_report.add_argument("--models", default=None)
+    p_report.add_argument("--html-only", action="store_true",
+                          help="write only the HTML board (skip report.md/json)")
+    p_report.add_argument("--no-html", action="store_true",
+                          help="write only report.md/json (skip the HTML board)")
     p_pw = sub.add_parser("pairwise", help="head-to-head A/B Elo on creative categories")
     p_pw.add_argument("--models", default="all")
     p_pw.add_argument("--categories", default="rp,nsfw")

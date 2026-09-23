@@ -2,11 +2,8 @@
 models.yaml
 # outputs
 results/
-# this project's OWN scratch run scorecards (a hand-written pre-2026-09-06
-# convention, distinct from the fleet-wide V2 write contract this project
-# now also produces at ~/.openclaw/workspace/runs/ — see WP-BENCH FIX-6 /
-# the crucibleforge skill's "Where results go"). Never tracked, same as
-# results/; decided 2026-09-06 rather than left as accidental untracked cruft.
+# hand-written scratch run scorecards (distinct from the run-report
+# directory set by $CRUCIBLEFORGE_V2_RUNS_ROOT). Never tracked, same as results/.
 runs/
 *.log
 # python

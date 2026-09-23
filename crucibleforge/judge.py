@@ -336,7 +336,7 @@ def acquire_judge_lease(cfg: dict, force_evict: bool = False) -> dict | None:
         # matters when a future caller runs us in-process).
         return provider._lease
     try:
-        hdrs = provider.mgmt_headers()
+        hdrs = provider.mgmt_headers(client_name=JUDGE_LEASE_HOLDER)
         if provider.lease_devices_preferred or provider.clawforge_mcp:
             devices = provider.claim_devices(cand["model_id"])
         else:
@@ -430,7 +430,7 @@ class JudgeClient:
         if self.no_schema:
             kw.pop("response_format", None)
         try:
-            return self.provider.chat(self.model_id, messages, **kw)
+            return self.provider.chat(self.model_id, messages, client_name=JUDGE_LEASE_HOLDER, **kw)
         except RequestRejected as e:
             # Hosted APIs (e.g. DeepSeek) reject json_schema response_format.
             # parse_verdict handles free-text JSON, so drop it and remember.
@@ -439,7 +439,7 @@ class JudgeClient:
                             "back to free-text JSON for this session", self.label)
                 self.no_schema = True
                 kw.pop("response_format", None)
-                return self.provider.chat(self.model_id, messages, **kw)
+                return self.provider.chat(self.model_id, messages, client_name=JUDGE_LEASE_HOLDER, **kw)
             raise
 
 
@@ -984,7 +984,8 @@ def run_judge(cfg: dict, labels: list[str], force: bool = False,
             return False
         try:
             live = studioforge.loaded_plan(jc.model_id, jc.provider.base_url,
-                                           jc.provider.api_key, jc.provider.mgmt_headers())
+                                           jc.provider.api_key,
+                                           jc.provider.mgmt_headers(client_name=JUDGE_LEASE_HOLDER))
         except studioforge.StudioForgeError:
             return False
         return bool(live and live.get("state") == "ready")

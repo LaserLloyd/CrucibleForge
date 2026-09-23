@@ -145,10 +145,16 @@ class Provider:
         except Exception:
             return False
 
-    def _headers(self) -> dict:
+    def _headers(self, client_name: str | None = None) -> dict:
         h = {"Content-Type": "application/json", **self.headers}
         if self.api_key:
             h["Authorization"] = f"Bearer {self.api_key}"
+        if self.type == "studioforge":
+            # Rig-integration contract: every StudioForge
+            # call names itself, using the same string a GPU lease would use
+            # as its holder — "crucibleforge" for a run, "crucibleforge-judge"
+            # for the judge phase (passed in by the caller).
+            h.setdefault("X-SF-Client", client_name or studioforge.LEASE_HOLDER)
         return h
 
     def list_models(self, refresh: bool = False) -> set[str]:
@@ -191,9 +197,15 @@ class Provider:
         return model_id in ids
 
     # ------------------------------------------------------ load control
-    def mgmt_headers(self) -> dict:
-        """Headers for StudioForge management calls (the X-MCP-Pin lives here)."""
-        return {k: v for k, v in self.headers.items() if k.lower() != "content-type"}
+    def mgmt_headers(self, client_name: str | None = None) -> dict:
+        """Headers for StudioForge management calls (the X-MCP-Pin lives
+        here). ``client_name`` lets a caller (e.g. the judge phase) declare
+        itself under a different identity than the run's own — see
+        ``_headers`` and the rig-integration contract."""
+        h = {k: v for k, v in self.headers.items() if k.lower() != "content-type"}
+        if self.type == "studioforge":
+            h.setdefault("X-SF-Client", client_name or studioforge.LEASE_HOLDER)
+        return h
 
     def switch_model(self, model_id: str, context_length: int | None = None) -> float:
         """Make ``model_id`` the served model. Returns load seconds (0 for
@@ -518,13 +530,26 @@ class Provider:
                     log.warning("restore of %s failed: %s", mid, e)
 
     # ------------------------------------------------------------ chat
-    def chat(self, model_id: str, messages: list[dict], **kw):
-        """One streamed completion with retries (see api.stream_chat_retried)."""
+    def chat(self, model_id: str, messages: list[dict], *,
+             client_name: str | None = None, **kw):
+        """One streamed completion with retries (see api.stream_chat_retried).
+
+        ``client_name`` overrides the identity a StudioForge caller declares
+        itself under (default ``studioforge.LEASE_HOLDER`` = "crucibleforge")
+        — the judge phase passes "crucibleforge-judge" so its X-SF-Client
+        agrees with its own lease holder (rig-integration contract
+        §12.1). Per §12.2, a StudioForge request also carries an explicit
+        ``priority`` (default 2 — agent tier); the caller may
+        override or, non-studioforge providers, it is simply omitted."""
         from .api import stream_chat_retried
         body_extra = merge_extra_body(self.extra_body, kw.pop("extra_body", None))
         kw.setdefault("timeout", self.timeout)
+        headers = dict(self.headers)
+        if self.type == "studioforge":
+            headers.setdefault("X-SF-Client", client_name or studioforge.LEASE_HOLDER)
+            kw.setdefault("priority", 2)
         return stream_chat_retried(self.base_url, self.api_key, model_id, messages,
-                                   headers=self.headers, verify_model=self.verify_model,
+                                   headers=headers, verify_model=self.verify_model,
                                    extra_body=body_extra, **kw)
 
 
