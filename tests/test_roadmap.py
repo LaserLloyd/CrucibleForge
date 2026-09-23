@@ -155,9 +155,8 @@ def test_report_overrefusal_rate(tmp_path, monkeypatch):
                                         orow("OR3", False), orow("OR4", False)],
            meta={"device": "local"})
     stats = report.model_stats("m")
+    # still aggregated (report.json), no longer a board section (one benchmark)
     assert stats["overrefusal"]["rate"] == 0.25
-    md = report.render_markdown(["m"], {"m": stats}, None)
-    assert "Over-refusal" in md
 
 
 def test_report_niah_grid(tmp_path, monkeypatch):
@@ -172,8 +171,6 @@ def test_report_niah_grid(tmp_path, monkeypatch):
     assert stats["longctx"]["rate"] == 0.5
     assert stats["longctx"]["grid"]["2k@10%"]["pass"] == 1
     assert stats["longctx"]["grid"]["6k@50%"]["pass"] == 0
-    md = report.render_markdown(["m"], {"m": stats}, None)
-    assert "Long-context needle" in md
     # report.json must be JSON-serializable (grid keys are strings)
     json.dumps({"m": stats}, default=str)
 
@@ -189,8 +186,8 @@ def test_report_judge_agreement_note(tmp_path, monkeypatch):
     _write(tmp_path, monkeypatch, "m", [row], meta={"device": "local"})
     stats = report.model_stats("m")
     assert stats["judge_agreement"]["samples"] == 3
-    md = report.render_markdown(["m"], {"m": stats}, None)
-    assert "self-consistency" in md
+    # run-quality notes live in failures.md, not on the board
+    assert "self-consistency" in report.render_failures(["m"], {"m": stats}, None)
 
 
 # ------------------------------------------------- accumulate-across-runs dedup
@@ -334,8 +331,6 @@ def test_report_difficulty_breakdown(tmp_path, monkeypatch):
     bd = stats["coding"]["by_difficulty"]
     assert bd["easy"]["rate"] == 1.0
     assert bd["hard"]["rate"] == 0.5 and bd["hard"]["n"] == 2
-    md = report.render_markdown(["m"], {"m": stats}, None)
-    assert "by difficulty" in md and "Hard" in md
 
 
 def test_report_planning_table(tmp_path, monkeypatch):
@@ -347,8 +342,6 @@ def test_report_planning_table(tmp_path, monkeypatch):
     _write(tmp_path, monkeypatch, "m", [row], meta={"device": "local"})
     stats = report.model_stats("m")
     assert stats["planning"]["overall"] == 7.0  # mean(8,7,6,9,5)
-    md = report.render_markdown(["m"], {"m": stats}, None)
-    assert "Planning / intent" in md
 
 
 def test_revision_changes_with_cases():
@@ -388,8 +381,12 @@ def test_report_mixed_revision_warning(tmp_path, monkeypatch):
     _write(tmp_path, monkeypatch, "m", rows, meta={"device": "local"})
     stats = report.model_stats("m")
     assert len(stats["revisions"]) == 2
+    # the board itself only admits the current revision (see board_filter);
+    # a model whose rows are stale is labelled in Notes
+    monkeypatch.setattr(report, "_current_revisions", lambda cfg: {"2.2.0+bbbb2222"})
+    stats = report.model_stats("m")
     md = report.render_markdown(["m"], {"m": stats}, None)
-    assert "span multiple suite revisions" in md
+    assert "stale revision" in md
 
 
 # ------------------------------------ speed viability floor (v2.2)
@@ -400,10 +397,8 @@ def test_report_flags_slow_model(tmp_path, monkeypatch):
     _write(tmp_path, monkeypatch, "slowmodel", rows, meta={"device": "local", "failed": False})
     stats = {"slowmodel": report.model_stats("slowmodel")}
     cfg = {"defaults": {"min_tok_per_s": 1.0}, "models": [{"name": "slowmodel"}]}
-    md = report.render_markdown(["slowmodel"], stats, cfg)
-    assert "viability floor" in md
-    assert "below the 1 tok/s viability floor" in md
-    assert "⚠️" in md
+    fails = report.render_failures(["slowmodel"], stats, cfg)
+    assert "below the 1 tok/s viability floor" in fails and "⚠️" in fails
 
 
 def test_report_viable_ok(tmp_path, monkeypatch):
@@ -414,5 +409,6 @@ def test_report_viable_ok(tmp_path, monkeypatch):
     stats = {"fast": report.model_stats("fast")}
     cfg = {"defaults": {"min_tok_per_s": 1.0}, "models": [{"name": "fast"}]}
     md = report.render_markdown(["fast"], stats, cfg)
-    assert "below the 1 tok/s viability floor" not in md  # not flagged as slow
-    assert "| ✓ |" in md  # marked viable in the Speed table
+    fails = report.render_failures(["fast"], stats, cfg)
+    assert "viability floor" not in md + fails  # not flagged as slow
+    assert "| 42.0 |" in md                      # tok/s on the scorecard

@@ -270,13 +270,19 @@ def test_cli_main_all_writes_v2_contract_exactly_once_not_from_inner_run(tmp_pat
 # ---------------------------------------------- review round 1: I1, M1, M2, M5, M6
 
 def _seed_two_label_board():
-    """Two labels with empty (but present) transcript files — enough for
-    report.generate() to list both without needing real case rows (a
-    missing/empty transcript renders as an all-dashes row, not a crash)."""
+    """Two labels with one current benchmark row each — enough for
+    report.generate() to list both on the board."""
+    from crucibleforge.version import revision
     results_dir = cfgmod.RESULTS_DIR
     results_dir.mkdir(parents=True, exist_ok=True)
-    (results_dir / "transcripts_one.jsonl").write_text("", encoding="utf-8")
-    (results_dir / "transcripts_two.jsonl").write_text("", encoding="utf-8")
+    # 2026-09-23: only benchmark rows at the current revision reach the board
+    for label in ("one", "two"):
+        row = {"bench_run_id": "r", "bench_revision": revision(), "profile": "bench",
+               "case_id": "IZ01-logistics-47-words", "repeat": 1, "turn": None,
+               "category": "instruct", "grade": "pass", "ts": "2026-09-23T00:00:00+00:00",
+               "metrics": {}}
+        (results_dir / f"transcripts_{label}.jsonl").write_text(json.dumps(row) + "\n",
+                                                                encoding="utf-8")
     report_mod.generate(None)  # no labels_arg -> every transcript present -> seeds the board
     board = report_mod.report_md_path()
     return board, board.read_text(), board.stat().st_size

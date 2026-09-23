@@ -319,14 +319,13 @@ def j_model_is_122b(j):
     return "Qwen3.5-122B" in j["model_id"] and j.get("thinking") is True
 
 
-def test_standard_profile_loads_and_applies():
+def test_bench_profile_loads_and_applies():
     from crucibleforge import profiles
     cfg = config.load_config(config.EXAMPLE_CONFIG_PATH)
-    prof = profiles.load_profile("standard", cfg)
+    prof = profiles.load_profile("bench", cfg)
     cfg2, cases = profiles.apply_profile(prof, cfg)
-    assert cfg2["_profile"] == "standard"
-    # 2026-09-08: budgets raised for full output (maintainer) — cap must stay
-    # under the 32768 context the profile's models are loaded at.
+    assert cfg2["_profile"] == "bench"
+    # budgets stay under the 32768 context the models are loaded at
     assert cfg2["defaults"]["thinking_max_tokens_cap"] == 24576
     assert cfg2["defaults"]["repeats"]["rp"] == 1
     ids = [c["id"] for c in cases]
@@ -340,8 +339,6 @@ def test_standard_profile_loads_and_applies():
     # smoke narrows to smoke-tagged members only
     _, smoke = profiles.apply_profile(prof, cfg, smoke=True)
     assert 0 < len(smoke) < len(cases)
-    j = profiles.profile_judge(prof)
-    assert j["provider"] and j["model_id"]
 
 
 def test_profile_unknown_case_rejected(tmp_path):
@@ -360,16 +357,16 @@ def test_scorecard_weights_and_renormalisation():
     c = report.scorecard(st, report.scoring_config(None))
     # chat = (80*20 + 70*20 + 100*5 + 100*5 + 100*5)/55
     assert c["chat"] == pytest.approx((80*20 + 70*20 + 100*15) / 55)
-    # code: reasoning missing -> weights 20+10+10 = 40
-    assert c["code"] == pytest.approx((20*20 + 90*10 + 50*10) / 40)
+    # coding: reasoning missing -> weights 20+10+10 = 40
+    assert c["coding"] == pytest.approx((20*20 + 90*10 + 50*10) / 40)
     assert c["missing"] == ["reasoning"]
-    assert c["ts"] == 70 and c["tok_per_s"] == 70
-    # total combines halves by their present weights (55 + 40)
-    assert c["total"] == pytest.approx((c["chat"] * 55 + c["code"] * 40) / 95)
-    # user override
-    sc = report.scoring_config({"scoring": {"tok_per_s_full_marks": 35, "code": {"coding": 100}}})
-    c2 = report.scorecard(st, sc)
-    assert c2["ts"] == 100 and c2["code"] == pytest.approx(20)
+    assert c["tok_per_s"] == 70 and "ts" not in c  # the capped T/S score is gone
+    # overall combines halves by their present weights (55 + 40)
+    assert c["total"] == pytest.approx((c["chat"] * 55 + c["coding"] * 40) / 95)
+    # user override (the pre-3.3 "code" key is still accepted)
+    for key in ("coding", "code"):
+        c2 = report.scorecard(st, report.scoring_config({"scoring": {key: {"coding": 100}}}))
+        assert c2["coding"] == pytest.approx(20)
 
 
 def test_select_judge_accepts_dict_override():

@@ -663,7 +663,7 @@ def _nsfw(cid, **judge_fields):
                                  "refused": False, "sanitized": False}, **judge_fields}}
 
 
-def test_coverage_flags_judge_mismatch_profile_and_attempted(tmp_path, monkeypatch):
+def test_coverage_flags_judge_mismatch_and_attempted(tmp_path, monkeypatch):
     monkeypatch.setattr(config, "RESULTS_DIR", tmp_path)
     monkeypatch.setattr(report, "_expected_case_count", lambda cfg, profile: 3)
     monkeypatch.setattr(report, "_current_revisions", lambda cfg: {"3.0.0+abc"})
@@ -676,23 +676,18 @@ def test_coverage_flags_judge_mismatch_profile_and_attempted(tmp_path, monkeypat
     # model b: full, primary judge
     b = [_nsfw("N1"), _row("C1"), _row("C2")]
     (tmp_path / "transcripts_b.jsonl").write_text("\n".join(json.dumps(r) for r in b) + "\n")
-    (tmp_path / "meta_b.json").write_text(json.dumps({"device": "sf", "model_id": "b"}))
-    # model c: a profile run
-    (tmp_path / "transcripts_c.jsonl").write_text("\n".join(json.dumps(r) for r in b) + "\n")
-    (tmp_path / "meta_c.json").write_text(json.dumps({"device": "sf", "model_id": "c",
-                                                      "profile": "standard"}))
-    stats = {l: report.model_stats(l) for l in "abc"}
+    (tmp_path / "meta_b.json").write_text(json.dumps({"device": "sf", "model_id": "b",
+                                                      "profile": "bench"}))
+    stats = {l: report.model_stats(l) for l in "ab"}
     assert stats["a"]["coverage"]["judge_mismatch"] is True
     assert stats["a"]["coverage"]["tier"] == 1 and "judged by K" in stats["a"]["coverage"]["status"]
-    assert stats["a"]["coverage"]["skipped"] == 1 and "n/a" in stats["a"]["coverage"]["status"]
-    assert stats["b"]["coverage"]["tier"] == 0
-    assert stats["c"]["coverage"]["tier"] == 1 and "profile" in stats["c"]["coverage"]["status"]
-    md = report.render_markdown(["a", "b", "c"], stats, None)
-    sc = md.split("## Scorecard")[1].split("## Summary")[0]
+    assert stats["a"]["coverage"]["skipped"] == 1
+    # the bench profile is the norm now — it never demotes a row
+    assert stats["b"]["coverage"]["tier"] == 0 and stats["b"]["coverage"]["notes"] == []
+    md = report.render_markdown(["a", "b"], stats, None)
+    sc = md.split("## Scorecard")[1].split("## Components")[0]
     assert sc.index("| b |") < sc.index("| a |")
-    assert "| Judge |" in sc and "K" in sc
-    summary = md.split("## Summary")[1].split("## Speed")[0]
-    assert "Coverage" in summary and "⚠️" in summary
+    assert "judged by K" in sc.split("| a |")[1].split("\n")[0]
 
 
 def test_willingness_counts_empty_rows_as_unwritten(tmp_path, monkeypatch):
@@ -706,51 +701,35 @@ def test_willingness_counts_empty_rows_as_unwritten(tmp_path, monkeypatch):
     assert stats["nsfw"]["willingness"] == 0.5
 
 
-def test_model_version_stamp_renders_on_scorecard_and_summary(tmp_path, monkeypatch):
-    """SKILL.md 'Model version + date annotation' (maintainer, 2026-09-09): every
-    row in the scorecard + summary tables carries a `v<ver> on <date>` suffix
-    when the meta has model_version_resolved + test_date_utc, `v?` when only
-    a date exists, and the bare label when neither field is set (older rows)."""
+def test_model_version_stamp_only_in_notes_and_only_when_real(tmp_path, monkeypatch):
+    """2026-09-23: the version never rides on the Model cell any more. A real
+    vendor version (a dated/qualified id that says more than the bare id)
+    goes into Notes; an opaque one (resolved == the bare id) or none at all
+    adds nothing."""
     from crucibleforge import report as _report
     monkeypatch.setattr(config, "RESULTS_DIR", tmp_path)
     monkeypatch.setattr(_report, "_expected_case_count", lambda cfg, profile: 1)
     monkeypatch.setattr(_report, "_current_revisions", lambda cfg: {"3.0.0+abc"})
     monkeypatch.setattr(_report, "_primary_judge", lambda cfg: None)
-    # model a: dated variant exposed by /v1/models
     rows = [_row("C1", cat="instruct", grade="pass")]
-    (tmp_path / "transcripts_a.jsonl").write_text("\n".join(json.dumps(r) for r in rows) + "\n")
-    (tmp_path / "meta_a.json").write_text(json.dumps(
-        {"device": "deepseek", "model_id": "deepseek-v4-flash",
-         "model_version_resolved": "deepseek-v4-flash-0731",
-         "test_date_utc": "2026-09-09",
-         "vendor_probe_source": "GET https://api.deepseek.com/v1/models"}))
-    # model b: opaque version (v?) — DeepSeek on 2026-09-09 returned only the bare alias
-    (tmp_path / "transcripts_b.jsonl").write_text("\n".join(json.dumps(r) for r in rows) + "\n")
-    (tmp_path / "meta_b.json").write_text(json.dumps(
-        {"device": "deepseek", "model_id": "deepseek-v4-flash",
-         "model_version_resolved": "deepseek-v4-flash",
-         "test_date_utc": "2026-09-09",
-         "vendor_probe_source": "GET https://api.deepseek.com/v1/models"}))
-    # model c: legacy row — no stamp, bare label preserved
-    (tmp_path / "transcripts_c.jsonl").write_text("\n".join(json.dumps(r) for r in rows) + "\n")
-    (tmp_path / "meta_c.json").write_text(json.dumps({"device": "lmstudio", "model_id": "old"}))
+    metas = {
+        "a": {"device": "deepseek", "model_id": "deepseek-v4-flash",
+              "model_version_resolved": "deepseek-v4-flash-0731", "test_date_utc": "2026-09-09"},
+        "b": {"device": "deepseek", "model_id": "deepseek-v4-flash",
+              "model_version_resolved": "deepseek-v4-flash", "test_date_utc": "2026-09-09"},
+        "c": {"device": "lmstudio", "model_id": "old"},
+    }
+    for l, m in metas.items():
+        (tmp_path / f"transcripts_{l}.jsonl").write_text(json.dumps(rows[0]) + "\n")
+        (tmp_path / f"meta_{l}.json").write_text(json.dumps(m))
     stats = {l: _report.model_stats(l) for l in "abc"}
-    # meta is loaded into stats as-is
-    assert stats["a"]["meta"]["model_version_resolved"] == "deepseek-v4-flash-0731"
-    assert stats["a"]["meta"]["test_date_utc"] == "2026-09-09"
-    assert stats["c"]["meta"].get("model_version_resolved") is None
     md = _report.render_markdown(["a", "b", "c"], stats, None)
-    sc = md.split("## Scorecard")[1].split("## Summary")[0]
-    summary = md.split("## Summary")[1].split("## Speed")[0]
-    # dated variant renders with v<ver> on <date>
-    assert "a vdeepseek-v4-flash-0731 on 2026-09-09" in sc
-    assert "a vdeepseek-v4-flash-0731 on 2026-09-09" in summary
-    # opaque version (DeepSeek bare alias, no dated variant) renders `v?`
-    # with the date carrying the load (brief rule 4)
-    assert "b v? on 2026-09-09" in sc
-    assert "b v? on 2026-09-09" in summary
-    # legacy rows keep the bare label (back-compat)
-    assert "| c |" in sc and "c v" not in sc.split("| c ")[1].split("\n")[0]
+    sc = md.split("## Scorecard")[1].split("## Components")[0]
+    line = {l: next(x for x in sc.splitlines() if f"| {l} |" in x) for l in "abc"}
+    assert "vdeepseek-v4-flash-0731 (probed 2026-09-09)" in line["a"]
+    assert "| a vdeepseek" not in sc                # never on the Model cell
+    assert " v" not in line["b"].split("|")[-2]   # opaque stamp adds nothing
+    assert line["c"].split("|")[-2].strip() == "Coding only"  # no stamp -> nothing added
 
 
 def test_half_only_total_is_labelled(tmp_path, monkeypatch):
@@ -759,9 +738,9 @@ def test_half_only_total_is_labelled(tmp_path, monkeypatch):
     (tmp_path / "transcripts_m.jsonl").write_text("\n".join(json.dumps(r) for r in rows) + "\n")
     stats = {"m": report.model_stats("m")}
     card = report.scorecard(stats["m"], report.scoring_config(None))
-    assert card["half_only"] == "Code" and set(card["missing"]) >= {"rp", "nsfw", "steer"}
+    assert card["half_only"] == "Coding" and set(card["missing"]) >= {"rp", "nsfw", "steer"}
     md = report.render_markdown(["m"], stats, None)
-    assert "(Code only)" in md and "Components not measured" in md
+    assert "Coding only" in md.split("## Scorecard")[1].split("\n\n")[1]
 
 
 # ------------------------------ judge all-GPU lease at startup (2026-08-31)

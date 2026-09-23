@@ -111,7 +111,8 @@ def test_report_pending_judge_flagged(tmp_path, monkeypatch):
     stats = report.model_stats("m")
     assert stats["pending_judge"] == 1
     md = report.render_markdown(["m"], {"m": stats}, None)
-    assert "NOT yet judged" in md
+    assert "1 rows unjudged" in md                      # scorecard Notes
+    assert "NOT yet judged" in report.render_failures(["m"], {"m": stats}, None)
 
 
 def test_report_computes_pass_rate(tmp_path, monkeypatch):
@@ -210,8 +211,7 @@ def test_report_empty_generation_excluded(tmp_path, monkeypatch):
     stats = report.model_stats("m")
     assert stats["empty_generation"] == 1
     assert stats["judge_failed"] == 0  # empty-gen not counted as a judge parse failure
-    md = report.render_markdown(["m"], {"m": stats}, None)
-    assert "produced NO content" in md
+    assert "produced NO content" in report.render_failures(["m"], {"m": stats}, None)
 
 
 def test_report_family_overlap_note(tmp_path, monkeypatch):
@@ -225,5 +225,4 @@ def test_report_family_overlap_note(tmp_path, monkeypatch):
     _write(tmp_path, monkeypatch, "gemma-model", [row], meta={"device": "local"})
     cfg = {"models": [{"name": "gemma-model", "model_id": "some-gemma-4-finetune"}]}
     stats = {"gemma-model": report.model_stats("gemma-model")}
-    md = report.render_markdown(["gemma-model"], stats, cfg)
-    assert "family overlap" in md
+    assert "family overlap" in report.render_failures(["gemma-model"], stats, cfg)

@@ -389,8 +389,7 @@ def test_report_coverage_marks_partial_runs(tmp_path, monkeypatch):
     assert stats["smoke"]["coverage"]["cases"] == 13
     assert stats["dead"]["coverage"]["status"].startswith("FAILED")
     md = report.render_markdown(["full", "smoke", "dead"], stats, None)
-    assert "Coverage" in md
-    scorecard = md.split("## Scorecard")[1].split("## Summary")[0]
+    scorecard = md.split("## Scorecard")[1].split("## Components")[0]
     # complete runs rank above partial/failed ones regardless of score
     assert scorecard.index("| full |") < scorecard.index("| smoke |") < scorecard.index("| dead |")
     assert "13/200" in scorecard and "FAILED" in scorecard
@@ -418,8 +417,7 @@ def test_report_notes_reasoning_overflow_recoveries(tmp_path, monkeypatch):
     (tmp_path / "transcripts_m.jsonl").write_text("\n".join(json.dumps(r) for r in rows) + "\n")
     stats = report.model_stats("m")
     assert stats["reasoning_overflow"] == {"n": 2, "recovered": 1}
-    md = report.render_markdown(["m"], {"m": stats}, None)
-    assert "reasoning overflow" in md.lower()
+    assert "reasoning overflow" in report.render_failures(["m"], {"m": stats}, None).lower()
 
 
 # ------------------------------------------------ 6. studioforge readiness
