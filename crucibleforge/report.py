@@ -1,4 +1,16 @@
-"""Aggregate transcripts into the comparison report (markdown + JSON).
+"""Aggregate transcripts into the board: report.md (Chat + Coding scorecard
+and one component table), failures.md (per-model failures, capped), report.json
+and report.html.
+
+ONE benchmark (profiles/bench.yaml), TWO headline scores:
+- **Chat**   = RP, NSFW, explicit peak, willingness, steer (122B-judged)
+- **Coding** = programs, tools, instruct, reasoning+math pooled (deterministic)
+Overall (their weighted mean) is only the sort key.
+
+Board hygiene: only rows of the ``bench`` profile, at the current suite
+revision, count; per (case, repeat) only the LATEST run is used, so a re-run
+never inflates a denominator. Everything else is "older" and stays off the
+board (results/archive-*/ keeps it).
 
 Design rules:
 - Single source of truth: results/transcripts_<label>.jsonl (judge verdicts
@@ -19,7 +31,7 @@ import re
 import statistics
 from datetime import datetime
 
-from .config import results_dir, load_config, load_transcripts
+from .config import results_dir, load_config, load_transcripts, set_results_dir
 from .graders import refusal_heuristic
 
 log = logging.getLogger(__name__)
@@ -34,6 +46,10 @@ def report_json_path():
 
 def report_html_path():
     return results_dir() / "report.html"
+
+
+def failures_md_path():
+    return results_dir() / "failures.md"
 
 RP_SINGLE_DIMS = ["prose", "character", "dialogue", "atmosphere", "emotion", "agency"]
 RP_MULTI_DIMS = ["prose", "character", "dialogue", "emotion", "agency", "consistency"]
@@ -75,31 +91,58 @@ def fmt_pct(x) -> str:
 # in models.yaml; components missing from a run are dropped and the remaining
 # weights renormalised (the report says so).
 DEFAULT_SCORING = {
-    "tok_per_s_full_marks": 100,       # tok/s that earns a T/S score of 100
     "chat": {"rp": 20, "nsfw": 20, "explicit_peak": 5, "willing": 5, "steer": 5},
-    "code": {"coding": 20, "tooluse": 10, "instruct": 10, "reasoning": 5},
+    "coding": {"coding": 20, "tooluse": 10, "instruct": 10, "reasoning": 5},
 }
+# "coding" the CATEGORY is shown as "Programs" so it never collides with the
+# Coding headline score it is one component of.
 COMPONENT_LABELS = {"rp": "RP", "nsfw": "NSFW", "explicit_peak": "Explicit peak",
-                    "willing": "Willing", "steer": "Steer", "coding": "Code",
+                    "willing": "Willing", "steer": "Steer", "coding": "Programs",
                     "tooluse": "Tools", "instruct": "Instruct", "reasoning": "Reason"}
+CHAT_KEYS = ["rp", "nsfw", "explicit_peak", "willing", "steer"]
+CODING_KEYS = ["coding", "tooluse", "instruct", "reasoning"]
+# categories with a hand-written aggregate below; any OTHER judged category
+# gets the generic one (see _generic_judged) and can join Chat just by being
+# given a weight — see README "Adding a Chat component"
+_BUILTIN_JUDGED = {"rp", "nsfw", "steer", "planning", "overrefusal"}
+
+
+def component_label(k: str) -> str:
+    return COMPONENT_LABELS.get(k) or k.replace("_", " ").title()
+# failures.md shows at most this many failure bullets per model
+FAILURES_PER_MODEL = 5
 
 
 def scoring_config(cfg: dict | None) -> dict:
+    """Component weights: built-in defaults < the benchmark profile's
+    ``scoring:`` block (where a new Chat category gets its weight, next to
+    its cases) < models.yaml ``scoring:``."""
     sc = copy.deepcopy(DEFAULT_SCORING)
-    user = (cfg or {}).get("scoring") or {}
-    if "tok_per_s_full_marks" in user:
-        sc["tok_per_s_full_marks"] = float(user["tok_per_s_full_marks"])
-    for grp in ("chat", "code"):
-        if isinstance(user.get(grp), dict):
-            sc[grp] = {k: float(v) for k, v in user[grp].items()}
+    layers = []
+    try:
+        from .profiles import DEFAULT_PROFILE, load_profile
+        layers.append(load_profile(DEFAULT_PROFILE, cfg).get("scoring") or {})
+    except Exception:
+        pass
+    layers.append((cfg or {}).get("scoring") or {})
+    for user in layers:
+        # "code" is the pre-2026-09-23 name of the coding group
+        for grp, keys in (("chat", ("chat",)), ("coding", ("coding", "code"))):
+            for k in keys:
+                if isinstance(user.get(k), dict):
+                    sc[grp] = {kk: float(v) for kk, v in user[k].items()}
+                    break
     return sc
 
 
 def component_values(s: dict) -> dict:
-    """Component -> 0..1 value (None when not measured)."""
+    """Component -> 0..1 value (None when not measured). Built-in components
+    first; every judged category without a built-in aggregate contributes
+    its generic score under its own name."""
     def r10(x):
         return None if x is None else max(0.0, min(1.0, x / 10.0))
-    return {
+    generic = {k: v.get("score") for k, v in (s.get("judged_generic") or {}).items()}
+    return {**generic, **{
         "rp": r10(s["rp"].get("overall")),
         "nsfw": r10(s["nsfw"].get("erotic_quality")),
         "explicit_peak": r10(s["nsfw"].get("explicitness_peak")),
@@ -111,7 +154,7 @@ def component_values(s: dict) -> dict:
         # Reason pools the reasoning and math categories (both are "get the
         # one right answer" tasks; math is the harder end of the same axis)
         "reasoning": _pooled_rate(s.get("reasoning"), s.get("math")),
-    }
+    }}
 
 
 def _pooled_rate(*cats) -> float | None:
@@ -134,22 +177,20 @@ def scorecard(s: dict, sc: dict) -> dict:
         return score, tot, missing
 
     chat, chat_w, chat_missing = group(sc["chat"])
-    code, code_w, code_missing = group(sc["code"])
-    parts = [(chat, chat_w), (code, code_w)]
+    coding, coding_w, coding_missing = group(sc["coding"])
+    parts = [(chat, chat_w), (coding, coding_w)]
     tot_w = sum(w for v, w in parts if v is not None)
     total = (sum(v * w for v, w in parts if v is not None) / tot_w) if tot_w else None
     tps = s["speed"].get("tok_per_s_median")
-    full = float(sc.get("tok_per_s_full_marks") or 100)
-    ts_score = None if tps is None else min(100.0, tps / full * 100)
     half_only = None
-    if chat is None and code is not None:
-        half_only = "Code"
-    elif code is None and chat is not None:
+    if chat is None and coding is not None:
+        half_only = "Coding"
+    elif coding is None and chat is not None:
         half_only = "Chat"
-    return {"total": total, "chat": chat, "code": code, "ts": ts_score, "tok_per_s": tps,
+    return {"total": total, "chat": chat, "coding": coding, "tok_per_s": tps,
             "components": {k: (None if v is None else v * 100) for k, v in vals.items()},
-            "missing": chat_missing + code_missing, "half_only": half_only,
-            "weights": {"chat": sc["chat"], "code": sc["code"]}}
+            "missing": chat_missing + coding_missing, "half_only": half_only,
+            "weights": {"chat": sc["chat"], "coding": sc["coding"]}}
 
 
 def _judged(rows):
@@ -180,6 +221,15 @@ def _current_revisions(cfg: dict | None) -> set[str]:
 
 
 def _primary_judge(cfg: dict | None) -> str | None:
+    """The judge whose verdicts count: the benchmark profile's (the 122B),
+    else the registry's first judge candidate."""
+    try:
+        from .profiles import default_judge_id
+        j = default_judge_id(cfg)
+        if j:
+            return j
+    except Exception:
+        pass
     try:
         from .version import primary_judge_id
         return primary_judge_id(cfg)
@@ -195,111 +245,96 @@ def short_model(mid: str | None) -> str:
     return tail if len(tail) <= 28 else tail[:25] + "…"
 
 
-def _version_label(label: str, stats_for_label: dict | None) -> str:
-    """Per-row version + date suffix on the Model cell. SKILL.md "Model
-    version + date annotation" (maintainer, 2026-09-09): a row's `v<N>` part
-    becomes ``v?`` when the vendor's ``/v1/models`` returns only the bare
-    alias (the resolved = model_id, with no dated or qualified variant) —
-    the rule's corollary is that **date carries the build-tracking load**.
-    We spot opaque by `resolved == <last path segment of model_id>`; a
-    distinct resolved id (e.g. ``deepseek-v4-flash-0731``, ``-latest``,
-    a different GGUF filename) renders literally. Returns the bare
-    ``label`` when no fields are set (back-compat for older rows)."""
+def version_note(stats_for_label: dict | None) -> str | None:
+    """"v<resolved> (probed <date>)" when the run's meta carries a vendor
+    version stamp for THIS model that says more than the bare id, else None.
+    (The runner only stamps a meta from results/_stamp.json when the stamp
+    names the same model_id — see runner._read_vendor_stamp.)"""
     meta = (stats_for_label or {}).get("meta") or {}
     ver = meta.get("model_version_resolved")
-    date = meta.get("test_date_utc")
     model_id = meta.get("model_id") or ""
     bare = model_id.rsplit("/", 1)[-1] if model_id else ""
-    if ver and bare and ver == bare:
-        # vendor exposed no more than the alias itself — opaque
-        ver = "?"
-    if ver and date:
-        return f"{label} v{ver} on {date}"
-    if ver:
-        return f"{label} v{ver}"
-    if date:
-        return f"{label} (tested {date})"
-    return label
+    if not ver or ver in (model_id, bare):
+        return None
+    date = meta.get("test_date_utc")
+    return f"v{ver}" + (f" (probed {date})" if date else "")
 
 
 def _expected_case_count(cfg: dict | None, profile: str | None) -> int | None:
-    """How many distinct cases a complete run of this suite (or profile)
-    contains — the denominator for coverage."""
+    """How many distinct cases a complete run of the benchmark contains — the
+    denominator for coverage."""
     try:
-        from .config import load_cases
-        if profile and cfg:
-            from .profiles import apply_profile, load_profile
-            _, cases = apply_profile(load_profile(profile, cfg), cfg)
-            return len(cases)
-        return len(load_cases())
+        from .profiles import DEFAULT_PROFILE, apply_profile, load_profile
+        _, cases = apply_profile(load_profile(profile or DEFAULT_PROFILE, cfg), cfg or {})
+        return len(cases)
     except Exception:
         return None
 
 
 def _coverage(rows: list[dict], meta: dict, cfg: dict | None) -> dict:
-    """What this model's result set actually covers. The scorecard ranks by
-    Total, and a 13-case smoke run or a 116-case hard-only run can post a
-    higher Total than a full 251-case run — on 2026-08-22 a smoke-only model
-    was read off the board as "#2 overall". Coverage makes that impossible
-    to miss: complete runs rank first, everything else is labelled."""
+    """What this model's result set covers, and whether it is comparable.
+    tier 0 = comparable; 1 = partial / stale / judged by another judge /
+    unjudged rows; 2 = the run failed. The scorecard ranks by tier first."""
     profile = meta.get("profile")
-    profiles = sorted(set(meta.get("profiles") or ([profile] if profile else [])))
-    if profiles:
-        profile = "+".join(profiles)
     cases = len({r.get("case_id") for r in rows if r.get("case_id")})
     attempted = len({r.get("case_id") for r in rows if r.get("case_id")
                      and r.get("grade") != "skipped"})
     skipped = cases - attempted
-    expected = _expected_case_count(cfg, None)  # the FULL suite is the yardstick
+    expected = _expected_case_count(cfg, None)
     complete = (cases >= expected) if expected else None
     current = _current_revisions(cfg)
     revs = {r.get("bench_revision") for r in rows if r.get("bench_revision")}
     stale = bool(current and revs and not revs <= current)
     failed = bool(meta.get("failed"))
-    # which judge scored this model's judged rows vs the configured primary
+    # which judge scored this model's judged rows vs the benchmark's judge
     judges = sorted({r["judge_model"] for r in rows if r.get("judge_model")
                      and (r.get("rubric") or "") != "reference"})
     primary = _primary_judge(cfg)
     judge_mismatch = bool(judges and primary and judges != [primary])
     self_judged = sorted({r["case_id"] for r in rows if r.get("judge_model")
                           and r["judge_model"] == meta.get("model_id")})
+    pending = sum(1 for r in rows if r.get("needs_judge") and "judge" not in r)
+    notes: list[str] = []
     if failed:
-        status = f"FAILED — {str(meta.get('error') or '?')[:60]}"
-    elif profile:
-        status = f"profile {profile} ({cases} cases; {expected}-case suite)"
-    elif complete is False:
-        status = f"partial ({cases}/{expected} cases)"
-    elif complete:
-        status = f"full ({attempted}/{cases} attempted, {skipped} n/a)" if skipped \
-            else f"full ({cases} cases)"
-    else:
-        status = f"{cases} cases"
+        notes.append("FAILED: " + _cut(str(meta.get("error") or "?"), 70))
+    if complete is False and cases:
+        notes.append(f"partial ({cases}/{expected} cases)")
+    if pending:
+        notes.append(f"{pending} rows unjudged")
     if stale:
-        status += " · stale revision"
+        notes.append("stale revision")
     if judge_mismatch:
-        status += " · judged by " + ", ".join(short_model(j) for j in judges)
-    # tier 0 = comparable; 1 = labelled; 2 = failed
-    tier = 2 if failed else (1 if (complete is False or profile or stale or judge_mismatch) else 0)
+        notes.append("judged by " + ", ".join(short_model(j) for j in judges))
+    status = "; ".join(notes) if notes else (
+        f"full ({attempted}/{cases} attempted, {skipped} n/a)" if skipped else f"full ({cases} cases)")
+    tier = 2 if failed else (1 if (complete is False or stale or judge_mismatch or pending) else 0)
     return {"rows": len(rows), "cases": cases, "attempted": attempted, "skipped": skipped,
             "expected_cases": expected, "complete": complete, "failed": failed,
             "stale": stale, "profile": profile, "judges": judges,
             "judge_mismatch": judge_mismatch, "self_judged": self_judged,
-            "tier": tier, "status": status}
+            "pending": pending, "notes": notes, "tier": tier, "status": status}
 
 
 def _scores(row):
     return (row.get("judge") or {}).get("scores") or {}
 
 
-def model_stats(label: str, cfg: dict | None = None) -> dict:
-    rows = load_transcripts(label)
-    meta = {}
+def load_meta(label: str) -> dict:
     meta_path = results_dir() / f"meta_{label}.json"
     if meta_path.exists():
         try:
-            meta = json.loads(meta_path.read_text(encoding="utf-8"))
+            return json.loads(meta_path.read_text(encoding="utf-8"))
         except json.JSONDecodeError:
             pass
+    return {}
+
+
+def model_stats(label: str, cfg: dict | None = None, rows: list[dict] | None = None) -> dict:
+    """Aggregate one model. ``rows`` = the (board-filtered) rows to use;
+    default: every transcript row of the label."""
+    if rows is None:
+        rows = load_transcripts(label)
+    meta = load_meta(label)
 
     by_cat: dict[str, list[dict]] = {}
     for r in rows:
@@ -318,9 +353,11 @@ def model_stats(label: str, cfg: dict | None = None) -> dict:
         "tok_per_s_spread": _spread([x.get("tok_per_s") for x in m]),
         "prompt_tok_per_s_median": _median(
             [x.get("prompt_tok_per_s") for x in long_prompt]),
-        "reasoning_tokens_total": sum(
-            x.get("reasoning_tokens") or 0
-            for r in rows for x in [r.get("metrics", {})]),
+        # None (shown "-") when the provider never reported reasoning tokens,
+        # instead of a misleading 0
+        "reasoning_tokens_total": (lambda v: sum(v) if v else None)(
+            [x["reasoning_tokens"] for r in rows for x in [r.get("metrics") or {}]
+             if x.get("reasoning_tokens") is not None]),
         "n": len(perf),
     }
 
@@ -328,6 +365,10 @@ def model_stats(label: str, cfg: dict | None = None) -> dict:
     # Refused rows carry all-zero dims; exclude them from quality means (they
     # are counted separately as refusals) so one refusal doesn't halve a
     # model's prose score — matching the NSFW policy.
+    judged_generic = {cat: _generic_judged(cat_rows) for cat, cat_rows in by_cat.items()
+                      if cat not in _BUILTIN_JUDGED
+                      and any(r.get("needs_judge") and r.get("rubric") != "reference"
+                              for r in cat_rows)}
     rp_rows = by_cat.get("rp", [])
     rp_final = [r for r in rp_rows if r.get("needs_judge")]
     rp_j = _judged(rp_final)
@@ -369,7 +410,7 @@ def model_stats(label: str, cfg: dict | None = None) -> dict:
     nsfw_seen = [r for r in nsfw_rows if r.get("judge")]
     nsfw_unwritten = sum(1 for r in nsfw_seen
                          if r["judge"].get("refused") or r["judge"].get("empty_generation")
-                         or r.get("error"))
+                         or (r.get("error") and r.get("error_kind") != "transport"))
     nsfw = {
         "willingness": (1 - nsfw_unwritten / len(nsfw_seen)) if nsfw_seen else None,
         "n_unwritten": nsfw_unwritten,
@@ -431,14 +472,16 @@ def model_stats(label: str, cfg: dict | None = None) -> dict:
     def pass_rate(cat):
         # 'skipped' (needs more context than the model has) and 'pending'
         # (awaiting the reference judge) are not attempts — excluded from n.
+        # 'error' rows (the server/request failed, not the model) are
+        # excluded too — they are listed in failures.md instead
         graded = [r for r in by_cat.get(cat, [])
-                  if r.get("grade") and r["grade"] not in ("skipped", "pending")]
+                  if r.get("grade") and r["grade"] not in ("skipped", "pending", "error")]
         skipped = sum(1 for r in by_cat.get(cat, []) if r.get("grade") == "skipped")
         if not graded:
             return {"rate": None, "passed": 0, "n": 0, "failures": [],
                     "by_difficulty": {}, "skipped": skipped}
         passed = [r for r in graded if r["grade"] == "pass"]
-        failures = [f"{r['case_id']}: {r.get('grade_detail', '')[:80]}"
+        failures = [f"{r['case_id']}: {_cut(str(r.get('grade_detail') or ''), 90)}"
                     for r in graded if r["grade"] != "pass"]
         by_diff = {}
         for diff in ("easy", "medium", "hard"):
@@ -515,6 +558,8 @@ def model_stats(label: str, cfg: dict | None = None) -> dict:
         "recovered": sum(1 for r in overflow_rows if (r.get("recovery") or {}).get("mode")),
     }
     case_errors = sum(1 for r in rows if r.get("error"))
+    errored = [f"{r.get('case_id')}: {_cut(str(r.get('error') or ''), 90)}"
+               for r in rows if r.get("grade") == "error"]
     # objective passes whose answer was read from the reasoning channel
     # (finish=stop, empty content — server/template misrouting)
     reasoning_passes = sum(1 for r in rows if r.get("grade") == "pass"
@@ -547,10 +592,42 @@ def model_stats(label: str, cfg: dict | None = None) -> dict:
         "pending_judge": pending, "judge_failed": judge_failed,
         "empty_generation": empty_gen, "truncation_rate": trunc_rate,
         "reasoning_overflow": reasoning_overflow, "case_errors": case_errors,
+        "errored": errored,
         "reasoning_passes": reasoning_passes,
         "judge_models": judge_models, "judge_agreement": judge_agreement,
+        "judged_generic": judged_generic,
         "n_rows": len(rows), "coverage": _coverage(rows, meta, cfg),
     }
+
+
+def _generic_judged(rows: list[dict]) -> dict:
+    """Aggregate for a judged category with no hand-written one: each judged
+    final row scores mean(its rubric's dims)/10 — or, for a flags-only rubric,
+    1/0 on the rubric's first flag — and the category score is the mean.
+    Refusals and empty generations score 0 (the model did not do the task)."""
+    try:
+        from .judge import RUBRICS
+    except Exception:  # pragma: no cover
+        RUBRICS = {}
+    final = [r for r in rows if r.get("needs_judge") and r.get("rubric") != "reference"]
+    seen = [r for r in final if r.get("judge")]
+    vals = []
+    for r in seen:
+        j = r["judge"]
+        spec = RUBRICS.get(r.get("rubric") or "") or {}
+        if j.get("empty_generation") or j.get("refused"):
+            vals.append(0.0)
+            continue
+        if j.get("judge_failed"):
+            continue
+        sc = j.get("scores") or {}
+        dims = [sc.get(d) for d in spec.get("dims", []) if sc.get(d) is not None]
+        if dims:
+            vals.append(sum(dims) / len(dims) / 10.0)
+        elif spec.get("flags"):
+            vals.append(1.0 if sc.get(spec["flags"][0]) else 0.0)
+    return {"score": (sum(vals) / len(vals)) if vals else None,
+            "n_scored": len(vals), "n_total": len(final)}
 
 
 def _family_arch(name: str) -> str | None:
@@ -582,542 +659,417 @@ def _family_overlap_note(labels, stats, by_name) -> str | None:
             f"numbers with care, or re-judge with a different-family judge.")
 
 
-def render_markdown(labels: list[str], stats: dict, cfg: dict | None) -> str:
-    by_name = {m["name"]: m for m in (cfg or {}).get("models", [])}
-    L = []
-    L.append("# CrucibleForge Report — Hard tier · Coding · Math · Tools · RP · NSFW · Speed")
-    L.append("")
-    L.append(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M')}")
-    revs = sorted({r for s in stats.values() for r in s.get("revisions", [])})
-    if revs:
-        L.append(f"Suite revision: {', '.join(revs)}")
-        if len(revs) > 1:
-            L.append("")
-            L.append("> ⚠️ **Transcripts span multiple suite revisions** — the "
-                     "test set changed between runs, so these results are NOT "
-                     "directly comparable. Re-run with `--fresh` for a clean set.")
-    judges = sorted({j for s in stats.values() for j in s.get("judge_models", [])})
-    if judges:
-        L.append(f"Quality judge: {', '.join(judges)} (structured output)")
-    L.append("")
+# ----------------------------------------------------------- formatting
 
-    any_cost = any(stats[l].get("cost_usd") is not None for l in labels)
-    sc = scoring_config(cfg)
-    cards = {l: scorecard(stats[l], sc) for l in labels}
-    profiles = sorted({p for l in labels
-                       for p in ((stats[l]["meta"] or {}).get("profiles")
-                                 or [(stats[l]["meta"] or {}).get("profile")]) if p})
-    L.append("## Scorecard")
-    L.append("")
-    if profiles:
-        L.append(f"Profile: **{', '.join(profiles)}**")
-        L.append("")
-    L.append("| # | Model | Provider | Coverage | Judge | tok/s | T/S | **Total** | **Chat** | **Code** | RP | NSFW "
-             "| Explicit peak | Willing | Steer | Code | Tools | Instruct | Reason |")
-    L.append("|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|")
+def _cut(text: str, n: int) -> str:
+    """Shorten to at most ``n`` chars at a word boundary, marking the cut
+    with "…" (never a mid-word [:n] slice)."""
+    text = " ".join(str(text).split())
+    if len(text) <= n:
+        return text
+    head = text[:n - 1]
+    sp = head.rfind(" ")
+    if sp >= n // 2:
+        head = head[:sp]
+    return head.rstrip(" ,;:.-—") + "…"
 
-    def _rank_key(l):
+
+def _cell(x) -> str:
+    """One markdown table cell: pipes escaped, newlines flattened, "-" for
+    None/empty. Every table in the report goes through this."""
+    if x is None:
+        return "-"
+    t = " ".join(str(x).split())
+    return t.replace("|", "\\|") if t else "-"
+
+
+def _row(cells) -> str:
+    return "| " + " | ".join(_cell(c) for c in cells) + " |"
+
+
+def _table(header: list[str], rows: list[list]) -> list[str]:
+    return [_row(header), "|" + "---|" * len(header)] + [_row(r) for r in rows]
+
+
+def run_date(s: dict) -> str | None:
+    """YYYY-MM-DD the model's latest counted run finished (meta), else the
+    newest row timestamp."""
+    meta = s.get("meta") or {}
+    ts = meta.get("finished") or meta.get("updated") or s.get("latest_ts")
+    return str(ts)[:10] if ts else None
+
+
+def run_minutes(meta: dict) -> float | None:
+    """Wall-clock minutes from the run's start to its last recorded phase
+    (judge, else generation)."""
+    try:
+        t0 = datetime.fromisoformat(str(meta["started"]))
+        t1 = datetime.fromisoformat(str(meta.get("judged") or meta.get("finished")))
+    except (KeyError, TypeError, ValueError):
+        return None
+    return max(0.0, (t1 - t0).total_seconds() / 60)
+
+
+def rank_labels(labels: list[str], stats: dict) -> list[str]:
+    """Scorecard order (used by EVERY table): comparable runs first, then by
+    Overall, then by label."""
+    def key(l):
         cov = stats[l].get("coverage") or {}
         tier = cov.get("tier")
         if tier is None:
             tier = 2 if cov.get("failed") else (1 if cov.get("complete") is False else 0)
-        total = cards[l]["total"] if cards[l]["total"] is not None else -1
-        return (tier, -total)
+        total = (stats[l].get("scorecard") or {}).get("total")
+        return (tier, -(total if total is not None else -1), l)
+    return sorted(labels, key=key)
 
-    def cov_cell_for(l):
-        cov = stats[l].get("coverage") or {}
-        cell = cov.get("status") or "-"
-        if cov.get("failed"):
-            return "❌ " + cell
-        if cov.get("tier", 0) >= 1 or cov.get("complete") is False or cov.get("stale"):
-            return "⚠️ " + cell
-        return cell
 
-    def judge_cell_for(l):
-        cov = stats[l].get("coverage") or {}
-        judges = cov.get("judges") or stats[l].get("judge_models") or []
-        mid = (stats[l].get("meta") or {}).get("model_id")
-        names = ["self" if j == mid else short_model(j) for j in judges]
-        return ", ".join(names) if names else "-"
+def notes_cell(s: dict) -> str:
+    """Scorecard Notes: only what makes a row NOT comparable (failed,
+    partial, unjudged, stale, other judge), plus a real vendor version."""
+    notes = list((s.get("coverage") or {}).get("notes") or [])
+    half = (s.get("scorecard") or {}).get("half_only")
+    if half:
+        notes.append(f"{half} only")
+    v = version_note(s)
+    if v:
+        notes.append(v)
+    return "; ".join(notes)
 
-    def total_cell_for(l):
-        c = cards[l]
-        if c["total"] is None:
-            return "**-**"
-        if c.get("half_only"):
-            return f"**{fmt(c['total'], '.1f')}** ({c['half_only']} only)"
-        return f"**{fmt(c['total'], '.1f')}**"
 
-    ranked = sorted(labels, key=_rank_key)
-    for i, label in enumerate(ranked, 1):
-        c = cards[label]
-        comp = c["components"]
-        cov_cell = cov_cell_for(label)
-        # Model cell carries the version+date stamp (SKILL.md "Model version
-        # + date annotation"); bare `label` is preserved for older rows that
-        # don't have the stamp yet.
-        cells = [str(i), _version_label(label, stats.get(label)), stats[label]["speed"]["device"], cov_cell, judge_cell_for(label),
-                 fmt(c["tok_per_s"]), fmt(c["ts"], ".0f"),
-                 total_cell_for(label), f"**{fmt(c['chat'], '.1f')}**",
-                 f"**{fmt(c['code'], '.1f')}**"]
-        for k in ("rp", "nsfw", "explicit_peak", "willing", "steer", "coding",
-                  "tooluse", "instruct", "reasoning"):
-            cells.append(fmt(comp.get(k), ".0f"))
-        L.append("| " + " | ".join(cells) + " |")
-    L.append("")
-    wtxt = ", ".join(f"{COMPONENT_LABELS[k]} {int(v) if float(v).is_integer() else v}"
-                     for grp in ("chat", "code") for k, v in sc[grp].items())
-    L.append(f"*All scores 0–100. **Chat** = weighted mean of RP, NSFW, Explicit peak, "
-             f"Willing, Steer; **Code** = weighted mean of Code, Tools, Instruct, Reason (Reason pools the reasoning + math categories); "
-             f"**Total** = both halves combined by their weights ({wtxt}). "
-             f"**T/S** = median generation tok/s scaled so {sc['tok_per_s_full_marks']:g} tok/s = 100 "
-             f"(speed is only comparable on the same provider/host, so it is reported "
-             f"beside Total, not folded into it). A component that was not measured is "
-             f"dropped and the remaining weights renormalised (a Total built from one "
-             f"half only says so). **Coverage** = how much of the suite the row is based "
-             f"on: complete full-suite runs scored by the configured judge rank first; a "
-             f"partial, profile, stale-revision, differently-judged or failed row is "
-             f"labelled and ranked below them regardless of its Total, because its score "
-             f"is not comparable. **Judge** = the model that scored the judged "
-             f"components (RP, NSFW, Steer, planning); 'self' = the benched model graded "
-             f"its own reference-answer rows (gold-answer comparison only).*")
-    missing = {l: cards[l]["missing"] for l in labels if cards[l]["missing"]}
-    if missing:
-        L.append("")
-        L.append("> Components not measured (weights renormalised): " +
-                 "; ".join(f"{l}: {', '.join(COMPONENT_LABELS[m] for m in ms)}"
-                           for l, ms in missing.items()))
-    L.append("")
-    L.append("## Summary")
-    L.append("")
-    L.append("| # | Model | Provider | Coverage | **Hard %** | Code | Math | Tools | Instruct | Reason "
-             "| Long-ctx | Gen tok/s" + (" | Cost $" if any_cost else "") +
-             " | RP /10 | NSFW erotic /10 | Explicit peak /10 | Willing "
-             "| Harm-refuse | Over-refuse | Steer |")
-    L.append("|---|---|---|---|---|---|---|---|---|---|---|---" + ("|---" if any_cost else "") +
-             "|---|---|---|---|---|---|---|")
-    for i, label in enumerate(ranked, 1):
-        s = stats[label]
-        sp, rp, nf, sf = s["speed"], s["rp"], s["nsfw"], s["safety"]
-        h = s.get("hard") or {}
-        hard_cell = (f"**{fmt_pct(h['rate'])}** ({h['passed']}/{h['n']})"
-                     if h.get("n") else "-")
-        # Model cell carries the version+date stamp (SKILL.md "Model version
-        # + date annotation"); bare `label` is preserved for older rows.
-        cells = [
-            str(i), _version_label(label, stats.get(label)), sp["device"], cov_cell_for(label), hard_cell,
-            fmt_pct(s["coding"]["rate"]), fmt_pct(s.get("math", {}).get("rate")),
-            fmt_pct(s["tooluse"]["rate"]), fmt_pct(s["instruct"]["rate"]),
-            fmt_pct(s["reasoning"]["rate"]),
-            fmt_pct((s.get("longctx_obj") or {}).get("rate")),
-            fmt(sp["tok_per_s_median"]),
-        ]
-        if any_cost:
-            c = s.get("cost_usd")
-            cells.append("-" if c is None else f"{c:.3f}")
-        ov = s["overrefusal"]
-        cells += [
-            fmt(rp["overall"]), fmt(nf["erotic_quality"]),
-            fmt(nf["explicitness_peak"]),
-            f"{fmt_pct(nf['willingness'])} ({nf['n_scored']}/{nf['n_total']})"
-            if nf["n_total"] else "-",
-            f"{fmt_pct(sf['refusal_rate'])} ({sf['n_scored']}/{sf['n_total']})"
-            if sf["n_total"] else "-",
-            f"{fmt_pct(ov['rate'])} ({ov['n_scored']}/{ov['n_total']})"
-            if ov["n_total"] else "-",
-            fmt_pct(s["steer"]["rate"]),
-        ]
-        L.append("| " + " | ".join(cells) + " |")
-    L.append("")
-    L.append("***Hard %** = pass rate over every hard-tier objective case "
-             "(coding, math, tools, instruct, reasoning, long-context) — the "
-             "de-ceiling headline; easy/medium sweeps are expected of any capable "
-             "model. Speed is only comparable between models on the same "
-             "provider/host. Cost = summed token cost for priced (remote API) "
-             "models. \"Willing\" = share of NSFW-ladder prompts written; "
-             "\"Harm-refusal\" = share of deliberately harmful probes correctly "
-             "refused; \"Steer\" = obeys a constraining system prompt. Higher is "
-             "better on all three. \"Explicit peak\" is the most graphic rung the "
-             "model was willing to write, not an average. Cells show (scored/total) "
-             "rows — an empty reply counts against Willing and is excluded from the "
-             "refusal rates.*")
-    L.append("")
+def _cards(labels, stats, cfg):
+    sc = scoring_config(cfg)
+    for l in labels:
+        stats[l]["scorecard"] = scorecard(stats[l], sc)
+    return sc
 
-    floor = float((cfg or {}).get("defaults", {}).get("min_tok_per_s", 0) or 0)
-    L.append("## Speed")
-    L.append("")
-    L.append("| Model | Provider | Load s | TTFT ms | Gen tok/s (min–max) "
-             "| Prompt-ingest tok/s | Reasoning tokens (total) | n | Viable |")
-    L.append("|---|---|---|---|---|---|---|---|---|")
-    for label in labels:
-        sp = stats[label]["speed"]
-        spread = sp["tok_per_s_spread"]
-        spread_s = f"{spread[0]:.1f}–{spread[1]:.1f}" if spread else "-"
-        med = sp["tok_per_s_median"]
-        if med is None:
-            viable = "-"
-        elif floor and med < floor:
-            viable = f"⚠️ <{floor:g}"
-        else:
-            viable = "✓"
-        L.append(f"| {label} | {sp['device']} | {fmt(sp['load_s'], '.0f')} "
-                 f"| {fmt(sp['ttft_ms_median'], '.0f')} "
-                 f"| {fmt(med)} ({spread_s}) "
-                 f"| {fmt(sp['prompt_tok_per_s_median'], '.0f')} "
-                 f"| {sp['reasoning_tokens_total']} | {sp['n']} | {viable} |")
-    L.append("")
-    if floor:
-        L.append(f"*Viability floor: **{floor:g} tok/s**. A run generating below "
-                 f"this is aborted early (recorded as FAILED — too slow) so a "
-                 f"crawling model doesn't waste hours; models that finished but "
-                 f"sit below the floor are flagged ⚠️.*")
-        L.append("")
 
-    L.append("## RP quality (judge, 0–10)")
-    L.append("")
-    L.append("| Model | Prose | Character | Dialogue | Atmosphere | Emotion "
-             "| Agency | Consistency (MT) | Recall (MT) | Refusals | n |")
-    L.append("|---|---|---|---|---|---|---|---|---|---|---|")
-    for label in labels:
-        rp = stats[label]["rp"]
-        d, md = rp["dims"], rp["multi_dims"]
-        L.append("| " + " | ".join([
-            label, fmt(d["prose"]), fmt(d["character"]), fmt(d["dialogue"]),
-            fmt(d["atmosphere"]), fmt(d["emotion"]),
-            fmt(_mean([d["agency"], md["agency"]])),
-            fmt(md["consistency"]), fmt_pct(rp["recall_rate"]),
-            str(rp["refusals"]), f"{rp['n_scored']}/{rp['n_total']}",
-        ]) + " |")
-    L.append("")
+# ------------------------------------------------------------- report.md
 
-    L.append("### Objective prose metrics (creative rows, judge-free)")
-    L.append("")
-    L.append("| Model | Slop / 1k words | Trigram repetition | n |")
-    L.append("|---|---|---|---|")
-    for label in labels:
-        p = stats[label]["prose"]
-        L.append(f"| {label} | {fmt(p['slop_per_1k'], '.2f')} "
-                 f"| {fmt_pct(p['repetition'])} | {p['n']} |")
-    L.append("")
-    L.append("*Slop = overused RP clichés per 1k words; repetition = fraction "
-             "of repeated trigrams. Lower is better — deterministic, not judge "
-             "opinion.*")
-    L.append("")
+def render_markdown(labels: list[str], stats: dict, cfg: dict | None,
+                    archived_note: str | None = None) -> str:
+    """report.md: the scorecard (Chat / Coding) + one component table."""
+    sc = _cards(labels, stats, cfg)
+    ranked = rank_labels(labels, stats)
+    L = ["# CrucibleForge — Chat & Coding", ""]
+    head = [f"Generated {datetime.now().strftime('%Y-%m-%d %H:%M')}"]
+    revs = sorted({r for s in stats.values() for r in s.get("revisions", [])})
+    if revs:
+        head.append("suite " + ", ".join(revs))
+    judge = _primary_judge(cfg)
+    if judge:
+        head.append(f"judge {short_model(judge)}")
+    L.append(" · ".join(head))
+    if archived_note:
+        L += ["", archived_note]
+    L += ["", "## Scorecard", ""]
+    rows = []
+    for i, l in enumerate(ranked, 1):
+        c = stats[l]["scorecard"]
+        rows.append([str(i), l, fmt(c["chat"]), fmt(c["coding"]), fmt(c["total"]),
+                     fmt(c["tok_per_s"]), run_date(stats[l]), notes_cell(stats[l])])
+    L += _table(["#", "Model", "Chat", "Coding", "Overall", "tok/s", "Run date", "Notes"], rows)
+    def wtxt(grp):
+        return ", ".join(f"{component_label(k)} {int(v) if float(v).is_integer() else v}"
+                         for k, v in sc[grp].items())
+    L += ["", f"*0–100. **Chat** = {wtxt('chat')} (judged by the 122B). "
+              f"**Coding** = {wtxt('coding')} (Reason pools reasoning + math; all "
+              f"deterministic graders). **Overall** = Chat and Coding combined by those weights — "
+              f"the sort key only. tok/s = median generation speed (comparable on the "
+              f"same host only). Per-case failures: `failures.md`.*"]
 
-    L.append("## NSFW")
-    L.append("")
-    L.append("| Model | Willing | Erotic /10 | Explicit peak /10 "
-             "| Explicit mean /10 | Sanitized | Harm-refusal | False-compliance | n |")
-    L.append("|---|---|---|---|---|---|---|---|---|")
-    for label in labels:
-        nf, sf = stats[label]["nsfw"], stats[label]["safety"]
-        L.append("| " + " | ".join([
-            label, fmt_pct(nf["willingness"]), fmt(nf["erotic_quality"]),
-            fmt(nf["explicitness_peak"]), fmt(nf["explicitness_mean"]),
-            str(nf["sanitized"]), fmt_pct(sf["refusal_rate"]),
-            str(sf["false_compliance"]),
-            f"{nf['n_scored']}/{nf['n_total']}",
-        ]) + " |")
-    L.append("")
+    keys = list(sc["chat"]) + list(sc["coding"])
+    comp_rows = []
+    for l in ranked:
+        comp = stats[l]["scorecard"]["components"]
+        if any(comp.get(k) is not None for k in keys):
+            comp_rows.append([l] + [fmt(comp.get(k), ".0f") for k in keys])
+    if comp_rows:
+        L += ["", "## Components", ""]
+        L += _table(["Model"] + [component_label(k) for k in keys], comp_rows)
+        L += ["", "*RP / NSFW / Explicit peak: judge score ×10. Willing = share of NSFW "
+                  "prompts written. Steer = obeyed a constraining system prompt. Programs, "
+                  "Tools, Instruct, Reason = pass rate. A component not measured is left "
+                  "out and the others renormalised.*"]
+    return "\n".join(L) + "\n"
 
-    L.append("## Safety calibration (refuse harm, but not benign)")
-    L.append("")
-    L.append("| Model | Harm-refusal (want high) | False-compliance "
-             "| Over-refusal of benign (want low) | n harm / n benign |")
-    L.append("|---|---|---|---|---|")
-    for label in labels:
-        sf, ov = stats[label]["safety"], stats[label]["overrefusal"]
-        L.append("| " + " | ".join([
-            label, fmt_pct(sf["refusal_rate"]), str(sf["false_compliance"]),
-            fmt_pct(ov["rate"]),
-            f"{sf['n_scored']} / {ov['n_scored']}",
-        ]) + " |")
-    L.append("")
-    L.append("*A well-calibrated model refuses genuinely harmful requests "
-             "(high harm-refusal, zero false-compliance) WITHOUT over-refusing "
-             "benign-but-scary ones (low over-refusal). A model that scores 100% "
-             "harm-refusal by refusing everything is caught by the over-refusal "
-             "column.*")
-    L.append("")
-    L.append("### Explicitness by ladder rung")
-    L.append("")
-    rungs = sorted({r for label in labels
-                    for r in stats[label]["nsfw"]["per_rung"]})
-    if rungs:
-        L.append("| Model | " + " | ".join(rungs) + " |")
-        L.append("|---|" + "---|" * len(rungs))
-        for label in labels:
-            per = stats[label]["nsfw"]["per_rung"]
-            cells = []
-            for rung in rungs:
-                v = per.get(rung)
-                if not v:
-                    cells.append("-")
-                elif v["refused"] == v["n"]:
-                    cells.append("refused")
-                else:
-                    cells.append(fmt(v["explicitness"]))
-            L.append(f"| {label} | " + " | ".join(cells) + " |")
-    L.append("")
 
-    L.append("## Coding / Math / Tools / Instruction / Reasoning / Long-context / Steerability (objective)")
-    L.append("")
-    L.append("| Model | Coding | Math | Tool use | Instruction | Reasoning "
-             "| Long-context | Steerability |")
-    L.append("|---|---|---|---|---|---|---|---|")
-    for label in labels:
-        s = stats[label]
+# ---------------------------------------------------------- failures.md
 
-        def cell(cat):
-            c = s.get(cat) or {"rate": None, "passed": 0, "n": 0}
-            out = f"{fmt_pct(c['rate'])} ({c['passed']}/{c['n']})"
-            if c.get("skipped"):
-                out += f" +{c['skipped']} n/a"
-            return out
+def _model_notes(label: str, s: dict, cfg: dict | None = None) -> list[str]:
+    """Run-quality notes for one model (not failures)."""
+    out = []
+    floor = float(((cfg or {}).get("defaults") or {}).get("min_tok_per_s", 0) or 0)
+    med = (s.get("speed") or {}).get("tok_per_s_median")
+    if floor and med is not None and med < floor:
+        out.append(f"⚠️ {med:.2f} tok/s is below the {floor:g} tok/s viability floor")
+    ja = s.get("judge_agreement") or {}
+    if ja.get("samples", 1) > 1 and ja.get("dim_spread_mean") is not None:
+        out.append(f"judge self-consistency over {ja['samples']} samples: mean dimension "
+                   f"spread {ja['dim_spread_mean']:.1f}/10")
+    ro = s.get("reasoning_overflow") or {}
+    if ro.get("n"):
+        unrec = ro["n"] - ro["recovered"]
+        out.append(f"{ro['n']} reasoning overflow(s) (thinking used the whole budget); "
+                   f"{ro['recovered']} recovered" + (f", {unrec} scored as empty" if unrec else ""))
+    if s.get("pending_judge"):
+        out.append(f"{s['pending_judge']} quality rows NOT yet judged — run "
+                   f"`crucibleforge judge --models {label}`")
+    if s.get("judge_failed"):
+        out.append(f"{s['judge_failed']} rows had unparsable judge output (excluded)")
+    if s.get("empty_generation"):
+        out.append(f"{s['empty_generation']} judged row(s) produced NO content (counted "
+                   f"against Willing on the NSFW ladder)")
+    if s.get("truncation_rate"):
+        out.append(f"{s['truncation_rate'] * 100:.0f}% of creative rows hit the token limit")
+    if s.get("reasoning_passes"):
+        out.append(f"{s['reasoning_passes']} pass(es) read from the reasoning channel "
+                   f"(server/template misrouted the answer)")
+    sj = (s.get("coverage") or {}).get("self_judged") or []
+    if sj:
+        out.append(f"{len(sj)} reference-answer row(s) graded by the model itself")
+    for w in (s.get("meta") or {}).get("warnings") or []:
+        out.append("⚠️ " + w)
+    return out
 
-        L.append("| " + " | ".join([
-            label, cell("coding"), cell("math"), cell("tooluse"), cell("instruct"),
-            cell("reasoning"), cell("longctx_obj"), cell("steer"),
-        ]) + " |")
-    L.append("")
-    L.append("*Steerability = the model obeys a constraining system prompt: "
-             "refuses NSFW when told to stay SFW, and does not break character / "
-             "leak its system prompt when the user pushes (the Safe-Mode-bot "
-             "contract). Tool use includes multi-turn loops (call → tool result → "
-             "answer), parallel calls, decoys and a prompt-injection probe. "
-             "\"n/a\" = long-context cases skipped because they need more context "
-             "than the model was configured with (not failures).*")
-    L.append("")
 
-    # difficulty breakdown — where models actually separate
-    diff_cats = ["coding", "math", "tooluse", "instruct", "reasoning", "longctx_obj"]
-    has_diff = any((s.get(c) or {}).get("by_difficulty") for label in labels
-                   for c, s in [(c, stats[label]) for c in diff_cats])
-    if has_diff:
-        L.append("### Objective pass-rate by difficulty")
-        L.append("")
-        L.append("| Model | Category | Easy | Medium | Hard |")
-        L.append("|---|---|---|---|---|")
-        for label in labels:
-            for c in diff_cats:
-                bd = (stats[label].get(c) or {}).get("by_difficulty") or {}
-                if not bd:
-                    continue
+def _model_failures(s: dict) -> list[str]:
+    out = []
+    for cat in ("coding", "tooluse", "instruct", "reasoning", "math", "steer"):
+        for f in (s.get(cat) or {}).get("failures") or []:
+            out.append(f"[{component_label(cat)}] {f}")
+    for f in s.get("errored") or []:
+        out.append(f"[errored, not scored] {f}")
+    return out
 
-                def dcell(d):
-                    v = bd.get(d)
-                    return "-" if not v else f"{fmt_pct(v['rate'])} ({v['passed']}/{v['n']})"
-                L.append(f"| {label} | {c.replace('_obj', '')} | {dcell('easy')} | {dcell('medium')} "
-                         f"| {dcell('hard')} |")
-        L.append("")
-        L.append("*The **Hard** column is where strong models separate — an easy/"
-                 "medium sweep is expected of any capable model.*")
-        L.append("")
 
-    # planning / intent (judged)
-    if any(stats[label]["planning"]["n_total"] for label in labels):
-        L.append("## Planning / intent (judge, 0–10)")
-        L.append("")
-        L.append("| Model | Decomposition | Ordering | Completeness "
-                 "| Verification | Risks | Overall | n |")
-        L.append("|---|---|---|---|---|---|---|---|")
-        for label in labels:
-            p = stats[label]["planning"]
-            d = p["dims"]
-            L.append("| " + " | ".join([
-                label, fmt(d["decomposition"]), fmt(d["ordering"]),
-                fmt(d["completeness"]), fmt(d["verification"]), fmt(d["risks"]),
-                fmt(p["overall"]), f"{p['n_scored']}/{p['n_total']}",
-            ]) + " |")
-        L.append("")
-        L.append("*Given a high-level goal (\"build X\", \"change Y\"), does the "
-                 "model produce a correct, ordered plan that says what to check? "
-                 "The agent-planning capability behind multi-step agent work.*")
-        L.append("")
-
-    # NIAH grid — per length@depth pass rate
-    all_cells = sorted({c for label in labels
-                        for c in stats[label]["longctx"]["grid"]})
-    if all_cells:
-        L.append("## Long-context needle (retrieval by haystack length @ depth)")
-        L.append("")
-        L.append(f"| Model | {' | '.join(all_cells)} |")
-        L.append("|---|" + "---|" * len(all_cells))
-        for label in labels:
-            grid = stats[label]["longctx"]["grid"]
-            cells = []
-            for c in all_cells:
-                v = grid.get(c)
-                cells.append("-" if not v else ("✓" if v["pass"] == v["n"]
-                             else ("✗" if v["pass"] == 0 else f"{v['pass']}/{v['n']}")))
-            L.append(f"| {label} | " + " | ".join(cells) + " |")
-        L.append("")
-        L.append("*✓ = found at that depth/length, ✗ = missed. Retrieval "
-                 "usually degrades with length and at the middle depth.*")
-        L.append("")
-
-    notes = []
-    for label in labels:
-        s = stats[label]
-        med = s["speed"]["tok_per_s_median"]
-        if floor and med is not None and med < floor and not (s["meta"] or {}).get("failed"):
-            notes.append(f"- ⚠️ **{label}: {med:.2f} tok/s is below the "
-                         f"{floor:g} tok/s viability floor** — too slow for "
-                         f"practical use as a live bot.")
-        if s.get("objective_truncated_fails"):
-            notes.append(f"- ⚠️ {label}: {s['objective_truncated_fails']} objective "
-                         f"failure(s) were **truncations** (finish=length) — the reply "
-                         f"never reached an answer. For a thinking model raise "
-                         f"`defaults.thinking_max_tokens_factor` / set `thinking: true`; "
-                         f"otherwise the model is over-verbose for the case budget.")
+def render_failures(labels: list[str], stats: dict, cfg: dict | None) -> str:
+    """failures.md: run details + up to FAILURES_PER_MODEL failures per model."""
+    if not all("scorecard" in stats[l] for l in labels):
+        _cards(labels, stats, cfg)
+    ranked = rank_labels(labels, stats)
+    L = ["# CrucibleForge — failures and run details", ""]
+    detail_rows = []
+    for l in ranked:
+        s = stats[l]
+        sp = s["speed"]
+        if not s.get("n_rows"):
+            continue
+        spread = sp.get("tok_per_s_spread")
+        tps = fmt(sp.get("tok_per_s_median"))
+        if spread:
+            tps += f" ({spread[0]:.0f}–{spread[1]:.0f})"
+        plan = (s.get("meta") or {}).get("plan") or {}
         ro = s.get("reasoning_overflow") or {}
-        if ro.get("n"):
-            unrec = ro["n"] - ro["recovered"]
-            notes.append(f"- {label}: {ro['n']} reasoning overflow(s) — the thinking "
-                         f"channel consumed the whole token budget before any answer; "
-                         f"{ro['recovered']} recovered (answer re-asked on the case budget "
-                         f"with thinking disabled, reasoning cost kept in the metrics)"
-                         + (f", {unrec} unrecovered (scored as empty)." if unrec else "."))
-        if s.get("case_errors"):
-            notes.append(f"- {label}: {s['case_errors']} case(s) failed at the server "
-                         f"(transport error or the server rejected the model's output) "
-                         f"— objective cases scored as failures, judged cases counted as "
-                         f"empty; see `error` on the rows.")
-        if s.get("reasoning_passes"):
-            notes.append(f"- {label}: {s['reasoning_passes']} objective pass(es) were read "
-                         f"from the reasoning channel (finish=stop, empty content — the "
-                         f"server/template misrouted the answer).")
-        sj = (s.get("coverage") or {}).get("self_judged") or []
-        if sj:
-            notes.append(f"- {label}: {len(sj)} reference-answer row(s) ({', '.join(sj[:6])}"
-                         f"{'…' if len(sj) > 6 else ''}) were graded by the model itself "
-                         f"(gold-answer comparison only; the under-test exclusion is relaxed "
-                         f"for reference rows).")
-        if (s.get("coverage") or {}).get("judge_mismatch"):
-            notes.append(f"- ⚠️ {label}: judged by {', '.join(short_model(j) for j in s['coverage']['judges'])} "
-                         f"rather than the configured primary judge — its RP/NSFW/Steer/"
-                         f"planning numbers are not comparable with the rest of the board. "
-                         f"Re-judge with `crucibleforge judge --models {label} --force`.")
-        if s["pending_judge"]:
-            notes.append(f"- **{label}: {s['pending_judge']} quality rows are "
-                         f"NOT yet judged** — run `bench judge` then re-report.")
-        if s["judge_failed"]:
-            notes.append(f"- {label}: {s['judge_failed']} rows had unparsable "
-                         f"judge output (excluded from averages; see judge_raw "
-                         f"in the transcript).")
-        if s.get("empty_generation"):
-            notes.append(f"- {label}: {s['empty_generation']} judged row(s) "
-                         f"produced NO content (reasoning overflow / server error) — "
-                         f"excluded from quality means; on the NSFW ladder they count "
-                         f"against Willing. `crucibleforge recover` can re-run overflows.")
-        if s.get("truncation_rate"):
-            notes.append(f"- {label}: {s['truncation_rate']*100:.0f}% of creative "
-                         f"rows hit the token limit (finish=length) — quality "
-                         f"scores may understate a model whose replies were cut off.")
-        if (s["meta"] or {}).get("failed"):
-            notes.append(f"- {label}: run FAILED — {s['meta'].get('error', '?')}")
-        ja = s.get("judge_agreement") or {}
-        if ja.get("samples", 1) > 1 and ja.get("dim_spread_mean") is not None:
-            notes.append(f"- {label}: judge self-consistency over {ja['samples']} "
-                         f"samples — mean dimension spread {ja['dim_spread_mean']:.1f}/10 "
-                         f"(lower = more reliable judge).")
-        hr = s["nsfw"]["heuristic_refusals"]
-        nj = s["nsfw"]["n_scored"]
-        if nj:
-            jr = sum(v["refused"] for v in s["nsfw"]["per_rung"].values())
-            if hr != jr:
-                notes.append(f"- {label}: refusal cross-check — judge says "
-                             f"{jr}, keyword heuristic says {hr} (judge wins; "
-                             f"large gaps deserve a manual look).")
-        for failure in s["overrefusal"]["failures"]:
-            notes.append(f"- {label} [overrefusal] {failure}")
-        for cat in ("coding", "tooluse", "instruct", "reasoning", "steer"):
-            for failure in s[cat]["failures"]:
-                notes.append(f"- {label} [{cat}] {failure}")
-    # judge/model family-overlap caveat (same-family judges can be biased)
+        mins = run_minutes(s.get("meta") or {})
+        detail_rows.append([l, fmt(sp.get("load_s"), ".0f"), fmt(sp.get("ttft_ms_median"), ".0f"),
+                            tps, fmt(sp.get("reasoning_tokens_total"), ",.0f"),
+                            plan.get("parallel") or "-",
+                            f"{ro.get('n', 0)} ({ro.get('recovered', 0)})" if ro.get("n") else "-",
+                            len(s.get("errored") or []) or "-",
+                            fmt(mins, ".0f")])
+    if detail_rows:
+        L += ["## Run details", ""]
+        L += _table(["Model", "Load s", "TTFT ms", "tok/s", "Reasoning tokens", "Slots",
+                     "Overflows (recovered)", "Errored", "Minutes"], detail_rows)
+        L.append("")
+    for l in ranked:
+        s = stats[l]
+        fails = _model_failures(s)
+        notes = _model_notes(l, s, cfg)
+        status = (s.get("coverage") or {}).get("status")
+        if not (fails or notes or (s.get("meta") or {}).get("failed")):
+            continue
+        L += [f"## {l}", ""]
+        if (s.get("meta") or {}).get("failed"):
+            L.append(f"- **run FAILED:** {_cut(str(s['meta'].get('error') or '?'), 400)}")
+        elif status:
+            L.append(f"- coverage: {status}")
+        L += [f"- {n}" for n in notes]
+        for f in fails[:FAILURES_PER_MODEL]:
+            L.append(f"- {f}")
+        if len(fails) > FAILURES_PER_MODEL:
+            L.append(f"- … and {len(fails) - FAILURES_PER_MODEL} more (see the transcript)")
+        L.append("")
     if cfg:
-        fam_note = _family_overlap_note(labels, stats, by_name)
-        if fam_note:
-            notes.append(fam_note)
-    if notes:
-        L.append("## Notes")
-        L.append("")
-        L.extend(notes)
-        L.append("")
-    return "\n".join(L)
+        by_name = {m["name"]: m for m in (cfg or {}).get("models", [])}
+        fam = _family_overlap_note(ranked, stats, by_name)
+        if fam:
+            L += [fam, ""]
+    if len(L) == 2:
+        L.append("No failures.")
+    return "\n".join(L).rstrip() + "\n"
 
 
-def render_report_html(write: bool = True) -> str | None:
-    """Render the HTML bench board next to ``report.md``.
+# ------------------------------------------------------------ board data
 
-    Reads the just-written ``report.md`` and ``models.yaml``, builds the row
-    payload, and writes ``results/report.html``. Returns the rendered HTML
-    when ``write=True``, else ``None`` — callers that want a string without a
-    write (e.g. GUI ``GET /api/report``) can use ``build_rows``/``render_html``
-    from ``crucibleforge.templates.board`` directly.
+def _board_rows(rows: list[dict]) -> list[dict]:
+    """Rows of the LATEST run per (case, repeat): a re-run of a case replaces
+    the earlier attempt instead of adding a second one to the denominator."""
+    latest: dict[tuple, tuple[str, str]] = {}
+    for r in rows:
+        k = (r.get("case_id"), r.get("repeat"))
+        ts = str(r.get("ts") or "")
+        rid = r.get("bench_run_id")
+        cur = latest.get(k)
+        if cur is None or ts > cur[0]:
+            latest[k] = (ts, rid)
+    return [r for r in rows
+            if latest.get((r.get("case_id"), r.get("repeat")), (None, None))[1]
+            == r.get("bench_run_id")]
 
-    The HTML board is the user-facing scorecard and is written by default
-    whenever ``report.md`` is written — keep them in sync.
-    """
-    from .templates.board import build_rows, render_html
 
-    md_path = report_md_path()
-    if not md_path.exists():
-        log.warning("render_report_html: %s missing — run `report` first", md_path)
+def board_filter(label: str, cfg: dict | None, rows: list[dict] | None = None) -> list[dict]:
+    """The rows of ``label`` that count on the board: the benchmark profile,
+    the current suite revision, latest run per (case, repeat)."""
+    from .profiles import DEFAULT_PROFILE
+    if rows is None:
+        rows = load_transcripts(label)
+    current = _current_revisions(cfg)
+    keep = [r for r in rows
+            if r.get("profile") == DEFAULT_PROFILE
+            and (not current or r.get("bench_revision") in current)]
+    return _board_rows(keep)
+
+
+def _meta_counts(meta: dict, cfg: dict | None) -> bool:
+    """A failed run with no rows still belongs on the board (Notes say why)
+    when it was a benchmark run at the current revision."""
+    from .profiles import DEFAULT_PROFILE
+    current = _current_revisions(cfg)
+    return (meta.get("profile") == DEFAULT_PROFILE
+            and (not current or meta.get("bench_revision") in current))
+
+
+def _archived_note() -> str | None:
+    archives = sorted((p for p in results_dir().glob("archive-*") if p.is_dir()),
+                      key=lambda p: p.stat().st_mtime)
+    if not archives:
         return None
-    cfg = load_config()
-    registry_text = open(cfg["_path"], encoding="utf-8").read()
-    report_text = md_path.read_text(encoding="utf-8")
-    rows = build_rows(report_text, registry_text, "")
-    html_doc = render_html(rows)
-    if write:
-        report_html_path().write_text(html_doc, encoding="utf-8")
-    return html_doc
+    n = sum(1 for a in archives for _ in a.glob("transcripts_*.jsonl"))
+    if not n:
+        return None
+    newest = archives[-1].name
+    return (f"*{n} older run(s) archived in results/{newest}/ and earlier "
+            f"results/archive-*/ dirs — not on this board.*")
 
 
-def generate(labels_arg: str | None = None, write: bool = True) -> str:
-    """Render the scorecard for ``labels_arg`` (or every transcript present).
-
-    ``write=True`` (the CLI default) also (re)writes the shared
-    ``report.md``/``report.json`` — which is why passing an explicit
-    ``labels_arg`` here has always restricted THOSE FILES to just those
-    labels, same as `crucibleforge report --models X`. ``write=False`` skips
-    both writes and only returns the rendered markdown: for a caller that
-    wants a scorecard for a specific subset without touching the shared
-    board (WP-BENCH review I1 — the V2 run-report body used to call this
-    with the run's own labels and, as an unintended side effect, truncate
-    the shared board down to just those rows on every plain `run`)."""
-    try:
-        cfg = load_config()
-    except Exception:
-        cfg = None
+def board_stats(labels_arg: str | None, cfg: dict | None) -> tuple[list[str], dict, int]:
+    """(labels on the board, their stats, number of labels left off)."""
     if labels_arg:
         labels = [s.strip() for s in labels_arg.split(",") if s.strip()]
     else:
         labels = sorted({p.stem.removeprefix("transcripts_")
-                         for p in results_dir().glob("transcripts_*.jsonl")})
-    if not labels:
-        raise SystemExit("no transcripts in results/ — run `bench run` first")
-
-    stats = {label: model_stats(label, cfg) for label in labels}
-    sc = scoring_config(cfg)
+                         for p in results_dir().glob("transcripts_*.jsonl")}
+                        | {p.stem.removeprefix("meta_")
+                           for p in results_dir().glob("meta_*.json")})
+    stats: dict = {}
+    dropped = 0
     for label in labels:
-        stats[label]["scorecard"] = scorecard(stats[label], sc)
-    md = render_markdown(labels, stats, cfg)
+        rows = board_filter(label, cfg)
+        meta = load_meta(label)
+        if not rows and not _meta_counts(meta, cfg):
+            dropped += 1
+            continue
+        stats[label] = model_stats(label, cfg, rows=rows)
+        stats[label]["latest_ts"] = max((str(r.get("ts") or "") for r in rows), default=None)
+    kept = [l for l in labels if l in stats]
+    _cards(kept, stats, cfg)
+    return kept, stats, dropped
+
+
+# ------------------------------------------------------------ report.html
+
+def html_rows(labels: list[str], stats: dict) -> list[dict]:
+    """The HTML board's data — built from the SAME computed stats as
+    report.md (exact labels, numbers as numbers), never parsed back out of
+    the markdown."""
+    out = []
+    for i, l in enumerate(rank_labels(labels, stats), 1):
+        s = stats[l]
+        c = s["scorecard"]
+        meta = s.get("meta") or {}
+        out.append({
+            "rank": i, "label": l, "model_id": meta.get("model_id"),
+            "provider": meta.get("provider") or meta.get("device"),
+            "chat": c["chat"], "coding": c["coding"], "overall": c["total"],
+            "tok_s": c["tok_per_s"], "date": run_date(s), "notes": notes_cell(s),
+            "tier": (s.get("coverage") or {}).get("tier", 0),
+            "components": {component_label(k): c["components"].get(k)
+                           for k in list(c["weights"]["chat"]) + list(c["weights"]["coding"])},
+        })
+    return out
+
+
+def render_report_html(labels: list[str], stats: dict, cfg: dict | None = None,
+                       archived_note: str | None = None) -> str:
+    from .templates.board import render_html
+    judge = _primary_judge(cfg)
+    subtitle = " · ".join(x for x in (
+        f"generated {datetime.now().strftime('%Y-%m-%d %H:%M')}",
+        f"judge {short_model(judge)}" if judge else None,
+        (archived_note or "").strip("*") or None) if x)
+    return render_html(html_rows(labels, stats), subtitle=subtitle)
+
+
+# ------------------------------------------------------------- generate
+
+def scorecard_section(md: str) -> str:
+    """Just the '## Scorecard' block of a report.md text."""
+    if "## Scorecard" not in md:
+        return md
+    body = md.split("## Scorecard", 1)[1]
+    body = body.split("\n## ", 1)[0]
+    return ("## Scorecard" + body).rstrip() + "\n"
+
+
+def generate(labels_arg: str | None = None, write: bool = True) -> str:
+    """Render the board for ``labels_arg`` (or every model in results/).
+
+    ``write=True`` (the CLI default) (re)writes report.md, failures.md,
+    report.json and report.html. ``write=False`` only returns the markdown —
+    for a caller that wants a scorecard for a subset without touching the
+    shared board (the V2 run-report)."""
+    # load_config() re-points the results dir at <config dir>/results; the
+    # board must be built from (and written to) the dir the caller chose
+    here = results_dir()
+    try:
+        cfg = load_config()
+    except Exception:
+        cfg = None
+    finally:
+        set_results_dir(here)
+    labels, stats, dropped = board_stats(labels_arg, cfg)
+    archived = _archived_note()
+    if dropped:
+        extra = f"*{dropped} model(s) in results/ have no current benchmark run and are not shown.*"
+        archived = f"{archived}\n{extra}" if archived else extra
+    if not labels:
+        md = ("# CrucibleForge — Chat & Coding\n\nNo current benchmark results. Run "
+              "`uv run crucibleforge all --models <label> --fresh --yes`.\n"
+              + (f"\n{archived}\n" if archived else ""))
+    else:
+        md = render_markdown(labels, stats, cfg, archived_note=archived)
     if write:
+        results_dir().mkdir(parents=True, exist_ok=True)
         report_md_path().write_text(md, encoding="utf-8")
+        failures_md_path().write_text(render_failures(labels, stats, cfg) if labels
+                                      else "# CrucibleForge — failures\n\nNo results.\n",
+                                      encoding="utf-8")
         report_json_path().write_text(json.dumps(
             {"generated": datetime.now().isoformat(), "models": stats},
             indent=2, default=str), encoding="utf-8")
+        report_html_path().write_text(render_report_html(labels, stats, cfg, archived),
+                                      encoding="utf-8")
     return md
 
 
 def main(argv=None):
-    parser = argparse.ArgumentParser(description="Generate benchmark report")
+    parser = argparse.ArgumentParser(description="Generate the benchmark board")
     parser.add_argument("--models", default=None)
     args = parser.parse_args(argv)
-    print(generate(args.models))
-    print(f"\nwrote {report_md_path()} and {report_json_path()}")
+    md = generate(args.models)
+    print(scorecard_section(md))
+    print(f"wrote {report_md_path()}, {failures_md_path()}, {report_html_path()}")
 
 
 if __name__ == "__main__":
