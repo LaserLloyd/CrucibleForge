@@ -1,6 +1,6 @@
 # CrucibleForge — an LLM capability benchmark with a real hard tier
 
-LLM benchmark suite with verifiable grading. 251 cases across math, reasoning, coding, tool-use and long-context, 158 of them hard-tier; brute-force verifiers and executed reference solutions instead of vibes; GPU leasing so a benchmark run can't be evicted mid-flight.
+LLM benchmark suite with verifiable grading. 261 cases across math, reasoning, coding, tool-use and long-context, 158 of them hard-tier; brute-force verifiers and executed reference solutions instead of vibes; GPU leasing so a benchmark run can't be evicted mid-flight.
 
 CrucibleForge ranks language models on the things that decide whether a model can
 actually do a job: **hard reasoning and math with verifiable answers, coding
@@ -10,7 +10,7 @@ and speed** — against **any OpenAI-compatible endpoint**: local (LM Studio,
 Ollama, llama.cpp / llama-server, vLLM, StudioForge) or hosted (DeepSeek,
 OpenRouter, OpenAI, Groq, Together, Mistral, Open WebUI …).
 
-* **Hard tier that doesn't ceiling.** 251 cases, **158 of them hard**
+* **Hard tier that doesn't ceiling.** 261 cases, **158 of them hard**
   (`crucibleforge cases list` counts them): competition-style math
   (integer answers, every one re-derived by a brute-force `verify` expression),
   logic/state-tracking puzzles with unique solutions, coding problems whose
@@ -37,7 +37,7 @@ OpenRouter, OpenAI, Groq, Together, Mistral, Open WebUI …).
   read the report, drill into every failed row (prompt, response, reasoning,
   judge note), manage providers/models/judge, discover model ids, test
   connections. Stdlib server + vanilla JS, no CDN, no build step.
-* **Suite revision stamp** on every row (`3.3.0+<hash of the case files>`),
+* **Suite revision stamp** on every row (`3.4.0+<hash of the case files>`),
   plus a separate **judge fingerprint** and the identity of the judge that
   actually scored each row: the report flags results from a different test set
   or a different judge instead of quietly ranking them side by side.
@@ -50,13 +50,13 @@ There is **one** benchmark, `profiles/bench.yaml`, and one command per model:
 uv run crucibleforge all --models <label> --fresh --yes
 ```
 
-The model is loaded once, all 34 cases are generated (the long coding / math
-cases first), then the judge scores the 14 chat conversations and the board
-is rebuilt. Every model gets **two** headline scores, 0–100:
+The model is loaded once, all 33 cases are generated (the multi-turn chat
+sessions and the long coding / math cases first), then the judge scores the 13
+chat rows and the board is rebuilt. Every model gets **two** headline scores, 0–100:
 
 | | components (weights in `profiles/bench.yaml` `scoring:`; models.yaml `scoring:` overrides) |
 |---|---|
-| **Chat** | RP 20 · NSFW 20 · Explicit peak 5 · Willing 5 · Steer 5 — judged |
+| **Chat** | RP 20 · NSFW 15 · Story 10 · Explicit peak 5 · Willing 5 · Steer 5 — judged by the 122B, with deterministic identity / continuity / constraint checks blended in |
 | **Coding** | Programs 20 · Tools 10 · Instruct 10 · Reason 5 (reasoning + math pooled) — deterministic graders |
 
 *Overall* (the two combined by weight) is only the sort key. `report.md` is the
@@ -69,10 +69,32 @@ sortable, with the components one click away.
 2026-09 board (30 models): 4 speed probes; 4 programs (CZ02, CZ05, CZ08,
 CZ09), 4 tool-use (TZ01 dependent chain, TZ06 parallel calls, TZ08 injection,
 TZ09 rounding), 4 instruct (IZ01, IZ03, IZ04, IZ08), 2 reasoning (RX02, RX13),
-2 math (MH06, MH11); the chat half (6 RP, 5 NSFW, 3 steer) unchanged. Cases
-that every competent model passes or no model passes stay in the suite files
-but are not in the benchmark. Budgets are not cut: per-category `max_tokens`,
-thinking models ×4 up to 24576.
+2 math (MH06, MH11); the chat half (4 RP, 4 NSFW, 2 story, 3 steer — below).
+Cases that every competent model passes or no model passes stay in the suite
+files but are not in the benchmark. Budgets are not cut: per-category
+`max_tokens`, thinking models ×4 up to 24576.
+
+**Chat** (suite 3.4.0; the full rationale, rubric sources and time budget are
+in [`docs/CHAT.md`](docs/CHAT.md)) — harder, denser rows built from published
+RP / erotica / fiction-judging guides (RP-Bench, EQ-Bench Creative Writing,
+lechmazur's writing benchmark, Fiction.liveBench, Jericho Writers, …):
+
+| Case | What it catches |
+|---|---|
+| RPS1 (6 turns) | continuity with planted facts, an OOC retcon, "who knows the secret", a switch to 1st person present, recall after the retcon |
+| RPS2 (5 turns) | *who's me and who's it*: the user plays two characters, then swaps seats with the model and back; they/them pronouns; 2nd person |
+| RPX1, RPX2 | a 3-NPC ensemble with hard speech rules and an honest outcome to a cheat; the user writing the NPC against its core trait |
+| NX1, NX2, NX3 | a graphic scene under ten craft constraints; a negotiated rope scene (per-section POV/tense, safeword, hard limits regex-checked); tension with *no* explicit content |
+| NMX1 (6 turns) | explicit ERP that never narrates the user, applies OOC pacing, respects an injury and a stated limit, and recalls the aftercare |
+| ST1, ST2 | a story whose ten required elements must change the plot; continuing a given opening in the same voice, keeping every planted detail |
+| S1–S3 | steerability, unchanged |
+
+RP = 40% identity + 25% continuity/OOC + 35% craft; identity and continuity
+are half the judge, half deterministic checks (`crucibleforge/session_checks.py`
+— who wrote whose lines, whether a retcon stuck, POV/tense, OOC answers,
+recall). The judge gets each case's answer key and a flaw-hunting rubric with
+hard caps. Every failed check is listed with its evidence in `failures.md`.
+All sexual content is between named, consenting adults.
 
 **Board hygiene** — only rows from the `bench` profile at the current suite
 revision count, and per (case, repeat) only the latest run, so a re-run never
@@ -97,12 +119,16 @@ remaining slot and the slots the long rows free up.
 | ~15 tok/s | ~29 min |
 
 So "< 20 min" holds for a model that sustains ≥ ~21 tok/s per slot; below that
-the one longest row decides, whatever the case count. The judge phase (122B on
-all four cards, 4 slots) measured on 2026-09-22: ~1 min lease + load, 6.1 min
-for the 5-probe calibration canary run one after another, 6 min for the 14
-conversations. The canary now runs concurrently on the judge's slots (~3–4
-min, the first verdict on a cold judge is the slow one), so the phase is
-**~10–11 min**.
+the one longest row decides, whatever the case count. The three multi-turn
+chat sessions are dependent chains (6, 5 and 6 turns), so they start first,
+next to the coding rows; a dry pool simulation over per-row token counts
+measured on nine 27–35B thinking models projects 13.7 min at 30 tok/s with
+every row at its median and ~22 min with every row at its p90 (details in
+`docs/CHAT.md`). The judge phase (122B on all four cards, 4 slots) measured
+on 2026-09-22 for the old set: ~1 min lease + load, ~75 s a verdict, 14 rows
+in 6 min. Now the six canary probes run as 2 concurrent waves (~3 min) and
+the 13 rows as 4 waves, longest inputs first, with longer session inputs and
+a stricter rubric: **~12–16 min** projected.
 Safety nets, not limits: a row whose server sends *nothing* for 300 s is
 ended as errored (`defaults.stall_timeout_s`), a judge verdict has a 600 s
 per-row ceiling (`judge.row_timeout_s`), and a thinking model on ≤ 2 slots is
@@ -114,7 +140,10 @@ A new judged category (say `continuity`) joins the Chat score without code
 changes to the report:
 
 1. `cases/continuity.json` — cases with a `rubric` (single turn) or `turns`
-   (multi-turn); a new file is a new category automatically.
+   (multi-turn); a new file is a new category automatically. Optional: a
+   `judge_key` (canon / expected answers, shown to the judge outside the
+   model-output fence) and deterministic `checks` (see
+   `crucibleforge/session_checks.py`; `cases verify` validates them).
 2. the rubric in `judge.RUBRICS` (dims 0–10 and/or flags, with its JSON schema).
 3. list the case ids under `cases:` in `profiles/bench.yaml` and give the
    category a weight under `scoring: chat:`.
@@ -220,11 +249,11 @@ models:
 | **longctx** | contains / numeric on generated haystacks (`min_context` skips models that can't fit) | NIAH 12k/16k/24k × depth 10/50/90, multi-key with distractors, multi-hop, aggregation, occurrence counting, needle-absent honesty |
 | **steer** | judge (`obeyed`) | stays SFW / in character / doesn't leak the system prompt under pressure |
 | **overrefusal** | judge | benign-but-scary prompts (XSTest-style) |
-| **rp / nsfw** | judge 0–10 dims + ladder + safety probes; objective slop/repetition metrics | — |
+| **rp / nsfw / story** | judge 0–10 dims (flaw-hunting rubrics with an answer key) + deterministic session checks (identity, continuity, OOC, constraints) + safety probes; objective slop/repetition metrics | multi-turn retcons and role swaps, stacked craft constraints, hard limits |
 | **planning** | judge 0–10 | decomposition / ordering / completeness / verification / risks |
 | **perf** | server `usage` + stream timing | TTFT, gen tok/s (median, min–max), prompt-ingest tok/s, reasoning tokens, load time, viability floor |
 
-The whole suite (251 cases) stays runnable (`run --categories … --profile`
+The whole suite (261 cases) stays runnable (`run --categories … --profile`
 of your own), but the board scores only the `bench` selection above. Speed is
 only comparable between models on the same provider/host.
 

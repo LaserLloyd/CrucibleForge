@@ -6,6 +6,73 @@ was ever published as Gauntlet, so there is no migration to do — the entries
 below are kept because the engineering they record is real, not to narrate a
 rename.
 
+## 3.4.0 — a harder Chat section (2026-09-23)
+
+Suite revision **3.4.0** (chat case set, rubrics and graders changed): every
+3.3.0 Chat row drops off the board by itself; the Coding half is untouched,
+so a model needs only a chat re-run. Rationale, rubric sources and the time
+budget: [`docs/CHAT.md`](docs/CHAT.md).
+
+**Cases.** The bench's chat half is 13 judged rows (was 14) from 27
+generation calls: RPS1 (6-turn session: planted facts, an OOC retcon, a
+who-knows-the-secret probe, a switch to 1st person present, recall), RPS2
+(5-turn seat swap — "who's me and who's it" — in 2nd person), RPX1 (3-NPC
+ensemble with hard speech rules), RPX2 (the user writes the NPC against its
+core trait); NX1 (graphic scene under ten craft constraints), NX2 (negotiated
+rope scene, per-section POV/tense, safeword and hard limits), NX3 (tension
+with no explicit content), NMX1 (6-turn ERP: never narrate the user, OOC
+pacing, an injury and a limit that persist, recall); a new **story** category
+— ST1 (ten required elements that must change the plot, letters structure)
+and ST2 (continue a given opening in the same voice). They replace RP1–4,
+RPM1–2, N1–N4 and NM1 in the bench (those stay in the suite files); S1–S3
+unchanged. Budgets 2000 tokens a chat turn, 3000 a story, thinking ×4 (the
+24576 cap never binds on chat). All sexual characters are named, consenting
+adults (29–44); a test re-checks the bench NSFW cases.
+
+**Deterministic checks** (`crucibleforge/session_checks.py`): cases carry
+`checks` — user-puppeting, POV/tense, retcons, who-knows-what, OOC answer
+shape and fields, required/forbidden text (negation-guarded hard limits),
+word ranges — grouped identity / continuity / ooc / constraint and stored on
+the row. `cases verify` validates them (type, group, scope, keys, regex,
+turn range). Failed checks are listed per case with the offending snippet in
+`failures.md`.
+
+**Judge.** Five new rubrics (`rp_session`, `rp_scene`, `nsfw_craft`,
+`erp_session`, `story`): flaw-hunting (list quoted flaws, start at 10 and
+deduct) with a calibration band and hard identity caps; criteria from
+RP-Bench, EQ-Bench Creative Writing, lechmazur/writing, PingPong,
+Fiction.liveBench and published erotica-craft guides. The case's `judge_key`
+is shown as an answer key outside the model-output fence. A judge prompt that
+would not fit the 122B's 16384 context (minus its 8192-token output budget)
+has the model's turns clamped for the judge only, with a marker the judge is
+told is ours; the worst case of every bench chat case is asserted to fit
+(~7.96K tokens at 3.2 chars/token), typical sessions are shown whole. The
+canary gains a sixth probe — a blatantly user-puppeting session must score
+identity ≤ 4 — and the explicit probe scores on `nsfw_craft`; the probes stay
+concurrent. The judge scores the longest inputs first. The legacy rubrics
+stay for old rows.
+
+**Scoring.** Chat = RP 20 · NSFW 15 · Story 10 · Explicit peak 5 · Willing 5
+· Steer 5. RP = 40% identity (judge identity over RP and ERP rows, blended
+half-and-half with the identity checks) + 25% continuity/OOC (judge + checks)
++ 35% craft. NSFW = 45% erotic + 25% craft + 30% brief kept (judge
+`constraints` + constraint checks); Explicit peak and Willing now read every
+erotic row (`nsfw`, `nsfw_craft`, `erp_session`). Story = ¾ judge + ¼ checks.
+Stats written before 3.4.0 (no `story`) still score, renormalised.
+
+**Runner.** Multi-turn sessions are scheduled first so the dependent chains
+overlap the long coding rows (dry projection on an 8-slot 27B thinking model
+at 30 tok/s: 13.7 min with every row at its median, ~22 min at every row's
+p90 — was ~26 min at p90 with the old order). Session and story rows carry
+prose metrics; single rows and sessions carry `judge_key` and `checks`.
+Pairwise accepts the new single-turn rubrics and defaults to rp,nsfw,story.
+
+**Tests.** `tests/test_chat_section.py` (checks fixtures and planted failures,
+worst-case judge context, godmod canary, runner wiring, Chat aggregation on a
+bench-shaped transcript). The test-suite now points the default results
+directory at a temporary dir and fails if anything in the real `results/`
+changes during the run.
+
 ## 3.3.0 — one benchmark, two scores (2026-09-23)
 
 Suite revision **3.3.0** (cases + graders changed; every row at an older
