@@ -195,17 +195,31 @@ print("BENCH_OK_7742")
 SENTINEL = "BENCH_OK_7742"
 
 
-def extract_python(text: str) -> str:
+_OPEN_FENCE_RE = re.compile(r"```(?:python|py)[ \t]*\n", re.IGNORECASE)
+
+
+def extract_python(text: str, finish_reason: str | None = None) -> str:
     """Prefer the largest fenced code block; fall back to the raw text.
 
     Thinking tags are stripped first — a leaked (think)/<think> block often
     contains its own fenced snippet, and picking that fence as "the code" is
     exactly how a thinking model lands on an "unterminated string literal"
-    SyntaxError (the reasoning snippet, not the real answer, gets exec'd)."""
+    SyntaxError (the reasoning snippet, not the real answer, gets exec'd).
+
+    An OPENING ```python fence with no closing fence on a reply that ended
+    normally (``finish_reason`` not "length") is a finished answer whose
+    model simply never closed the fence: the fence line is dropped and the
+    rest is the code. Four correct solutions failed "SyntaxError (line 1)"
+    on the fence line itself before this. A truncated reply keeps the old
+    behaviour — its code was never finished."""
     text = strip_thinking_tags(text)
     blocks = FENCE_RE.findall(text)
     if blocks:
         return max(blocks, key=len).strip()
+    if finish_reason != "length":
+        m = _OPEN_FENCE_RE.search(text)
+        if m and "```" not in text[m.end():]:
+            return text[m.end():].strip()
     return text.strip()
 
 
@@ -250,8 +264,8 @@ def _sandbox_cmd(script_path: str, workdir: str) -> list[str]:
     return [sys.executable, "-I", script_path]
 
 
-def grade_python_exec(response_text: str, cfg: dict) -> dict:
-    code = extract_python(response_text)
+def grade_python_exec(response_text: str, cfg: dict, finish_reason: str | None = None) -> dict:
+    code = extract_python(response_text, finish_reason)
     if not code:
         return {"grade": "fail", "detail": "no code in response"}
     harness = _HARNESS.format(solution=code, tests=cfg["tests"])
@@ -547,24 +561,33 @@ def _answer_line(text: str) -> str:
     return text
 
 
+def _needle_hit(needle, text: str) -> bool:
+    """A needle is a string, or a list of strings meaning "any of these"
+    (e.g. ``["2026-11-30", "November 30"]`` — the same date either way)."""
+    if isinstance(needle, (list, tuple)):
+        return any(str(n).lower() in text for n in needle)
+    return str(needle).lower() in text
+
+
 def grade_contains(response_text: str, cfg: dict) -> dict:
     """Pass if the accepted needle(s) appear (case-insensitive). With
     answer_line=true, only the final 'Answer:' line is searched — so a needle
     that merely appears in the reasoning (e.g. 'Casey' during elimination)
     doesn't count as the answer. With match="all", EVERY needle must appear
-    (for RULER-style multi-value long-context retrieval)."""
+    (for RULER-style multi-value long-context retrieval). A needle may itself
+    be a list = any-of group."""
     scope = _answer_line(response_text) if cfg.get("answer_line") else response_text
     text = scope.lower()
     needles = cfg["needles"]
     if cfg.get("match") == "all":
-        missing = [n for n in needles if n.lower() not in text]
+        missing = [n for n in needles if not _needle_hit(n, text)]
         if missing:
             return {"grade": "fail", "detail": f"missing {missing}"}
         return {"grade": "pass", "detail": f"all {len(needles)} needles found"}
     forbid = [f for f in cfg.get("forbid", []) if f.lower() in text]
     if forbid:
         return {"grade": "fail", "detail": f"forbidden {forbid} in answer"}
-    if any(n.lower() in text for n in needles):
+    if any(_needle_hit(n, text) for n in needles):
         return {"grade": "pass", "detail": "needle found"}
     return {"grade": "fail", "detail": f"none of {needles} in answer"}
 
@@ -659,7 +682,8 @@ def grade_tool_parallel(tool_calls: list[dict], cfg: dict,
 
 
 GRADERS = {
-    "python_exec": lambda result, cfg: grade_python_exec(result.scoreable_text(), cfg),
+    "python_exec": lambda result, cfg: grade_python_exec(result.scoreable_text(), cfg,
+                                                        result.finish_reason),
     "tool_call": lambda result, cfg: grade_tool_call(result.tool_calls, result.scoreable_text(), cfg),
     "tool_parallel": lambda result, cfg: grade_tool_parallel(
         result.tool_calls, cfg, result.scoreable_text()),
@@ -671,11 +695,23 @@ GRADERS = {
 }
 
 
+# an explicit final-answer line ("Answer: 42", "answer = B, D, A")
+_EXPLICIT_ANSWER_RE = re.compile(r"(?im)^\W*(?:final\s+)?answer\s*[:=]")
+
+
 def grade(result, case: dict) -> dict | None:
-    """Grade a ChatResult for an objective case. None for judged/perf cases."""
+    """Grade a ChatResult for an objective case. None for judged/perf cases.
+
+    A reply that was cut off (finish=length) only counts for numeric/exact
+    grading when it carries an explicit "Answer:" line: otherwise the last
+    number of a truncated chain of thought would be read as the answer (a
+    false pass seen on the 2026-09 board)."""
     name = case.get("grader")
     if not name:
         return None
     if name not in GRADERS:
         return {"grade": "fail", "detail": f"unknown grader {name!r}"}
+    if (name in ("numeric", "exact") and getattr(result, "finish_reason", None) == "length"
+            and not _EXPLICIT_ANSWER_RE.search(result.scoreable_text() or "")):
+        return {"grade": "fail", "detail": "cut off before an explicit 'Answer:' line"}
     return GRADERS[name](result, case.get("grader_config", {}))
