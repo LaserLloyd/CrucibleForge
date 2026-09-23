@@ -47,6 +47,11 @@ def _check(case: dict) -> list[str]:
     elif not (case.get("rubric") or case.get("turns") or case.get("tool_script")
               or case.get("category") == "perf"):
         errs.append("no grader and no rubric")
+    if case.get("rubric"):
+        from .judge import RUBRICS
+        if case["rubric"] not in RUBRICS:
+            errs.append(f"unknown rubric {case['rubric']}")
+    errs += _check_session_checks(case)
     # tool names must exist
     tools = {t["function"]["name"] for t in case.get("tools") or [] if "function" in t}
     if g == "tool_call" and gc.get("expect_tool") and gc["expect_tool"] not in tools:
@@ -98,6 +103,56 @@ def _check(case: dict) -> list[str]:
             else:
                 if str(got).strip().lower() != str(want).strip().lower():
                     errs.append(f"verify: derived {got!r} != gold {want!r}")
+    return errs
+
+
+# required keys per session_checks type (see crucibleforge/session_checks.py)
+_CHECK_REQ = {"no_puppeting": ["names"], "forbid_regex": ["pattern"],
+              "require_regex": ["pattern"], "require_all": ["needles"],
+              "ooc_reply": [], "ooc_field": ["field"], "tense": ["want"],
+              "word_range": []}
+_CHECK_GROUPS = ("identity", "continuity", "ooc", "constraint")
+
+
+def _check_session_checks(case: dict) -> list[str]:
+    """A case's deterministic ``checks`` must be well-formed: known type and
+    group, required keys, compilable regex, turn indexes inside the script —
+    a broken check would silently fail (or pass) every model."""
+    import re
+
+    from .session_checks import CHECKS, SCOPES
+    errs: list[str] = []
+    specs = case.get("checks")
+    if specs is None:
+        return errs
+    if case.get("grader"):
+        errs.append("session 'checks' on a case with an objective grader")
+    n_turns = len(case.get("turns") or []) or 1
+    seen: set[str] = set()
+    for c in specs:
+        cid = c.get("id") or "?"
+        if cid in seen:
+            errs.append(f"duplicate check id {cid}")
+        seen.add(cid)
+        t = c.get("type")
+        if t not in CHECKS:
+            errs.append(f"check {cid}: unknown type {t!r}")
+            continue
+        for k in _CHECK_REQ.get(t, []):
+            if k not in c:
+                errs.append(f"check {cid}: missing {k}")
+        if c.get("group", "constraint") not in _CHECK_GROUPS:
+            errs.append(f"check {cid}: unknown group {c.get('group')!r}")
+        if c.get("scope", "narration") not in SCOPES:
+            errs.append(f"check {cid}: unknown scope {c.get('scope')!r}")
+        for i in c.get("turns") or []:
+            if not 1 <= int(i) <= n_turns:
+                errs.append(f"check {cid}: turn {i} outside 1..{n_turns}")
+        if c.get("pattern"):
+            try:
+                re.compile(c["pattern"])
+            except re.error as e:
+                errs.append(f"check {cid}: bad regex ({e})")
     return errs
 
 
