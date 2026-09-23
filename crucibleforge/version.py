@@ -27,7 +27,7 @@ from pathlib import Path
 
 # Bump for notable harness/metric changes (semver). The content-hash tracks
 # test-content changes automatically on top of this.
-SUITE_VERSION = "3.3.0"
+SUITE_VERSION = "3.4.0"
 
 _ROOT = Path(__file__).resolve().parent.parent
 _CASES_DIR = _ROOT / "cases"

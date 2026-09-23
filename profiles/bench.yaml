@@ -1,15 +1,18 @@
 # "bench" — THE benchmark. One run per model, two headline scores:
 #
-#   Chat   = RP, NSFW, explicit peak, willingness, steer   (122B-judged)
+#   Chat   = RP, NSFW, Story, explicit peak, willingness, steer
+#            (122B-judged + deterministic identity/continuity checks)
 #   Coding = programs, tools, instruct, reasoning+math    (deterministic)
 #
 # One command per model:  uv run crucibleforge all --models <label> --fresh --yes
 # The model is loaded once, every case is generated (longest categories first),
-# then the 122B judge scores the 14 chat conversations. Target on an 8-slot 27B
+# then the 122B judge scores the 13 chat rows. Target on an 8-slot 27B
 # thinking model: generation < 20 min, judging < 20 min (README "Run time").
 # Generation wall-clock is set by the longest single row: a 24576-token coding
 # answer at ~30-34 tok/s per slot (measured on the rig's 27Bs, 8-way) is
-# ~12-14 min; the other 29 rows fit around it on the remaining slots.
+# ~12-14 min; the other rows fit around it on the remaining slots. The three
+# multi-turn chat sessions (6, 5 and 6 DEPENDENT turns) are the chat half's
+# long pole, so they are scheduled first, alongside the coding rows.
 #
 # Case set (2026-09-23): the smallest set that still separates models — maintainer:
 # "shrink the test, don't limit models". Budgets are unchanged from the old
@@ -29,9 +32,23 @@
 #             from strong; cheap
 #   instruct  IZ01 IZ03 IZ04 IZ08 (43-47% overall, 75-88% of the top 16)
 #   reason    RX13 (43%), RX02 (70%, cheap); math MH06 (37%), MH11 (33%)
-#   chat      unchanged (6 RP, 5 NSFW, 3 steer) — being redesigned separately
+#   chat      (3.4.0, docs/CHAT.md) — harder, fewer rows, each packing several
+#             checks, with deterministic identity/continuity checks next to the judge:
+#     rp      RPS1 6-turn session (retcon + who-knows-what + POV switch + recall),
+#             RPS2 5-turn seat swap ("who's me and who's it", 2nd person),
+#             RPX1 3-NPC ensemble with speech rules, RPX2 the user writes the NPC
+#     nsfw    NX1 graphic scene under 10 craft constraints, NX2 negotiated rope
+#             scene (POV/tense per section, limits regex-checked), NX3 tension
+#             with NO explicit content, NMX1 6-turn ERP (never narrate the user,
+#             OOC pacing, injury + limit continuity, recall)
+#     story   ST1 ten required elements that must change the plot, ST2 continue
+#             a given opening in the same voice keeping every planted detail
+#     steer   S1-S3 unchanged
+#   Replaced RP1-4, RPM1-2, N1-N4, NM1 (still in the suite files). Budgets:
+#   2000 tokens a chat turn, 3000 a story; thinking models x4 (8000 / 12000 —
+#   under the 24576 cap, so it never binds on chat).
 name: bench
-description: the single benchmark — Chat (judged) + Coding (deterministic); < 20 min generation + < 20 min judging on an 8-slot 27B
+description: the single benchmark — Chat (judged + checks) + Coding (deterministic); < 20 min generation + < 20 min judging on an 8-slot 27B
 judge:
   provider: studioforge
   model_id: mradermacher/Qwen3.5-122B-A10B-heretic-v2-i1-GGUF/Qwen3.5-122B-A10B-heretic-v2.i1-Q5_K_M
@@ -42,12 +59,15 @@ thinking_max_tokens_cap: 24576
 # reasoning-overflow recovery (re-ask the answer with thinking off) is skipped
 # for these categories: 0 of 85 math recoveries ever produced a pass.
 no_recovery: [math]
-repeats: {perf: 1, rp: 1, nsfw: 1, steer: 1, coding: 1, tooluse: 1, instruct: 1, reasoning: 1, math: 1}
-max_tokens: {rp: 1500, nsfw: 1500, steer: 768, coding: 6144, tooluse: 1024, instruct: 768, reasoning: 4096, math: 4096}
+repeats: {perf: 1, rp: 1, nsfw: 1, story: 1, steer: 1, coding: 1, tooluse: 1, instruct: 1,
+          reasoning: 1, math: 1}
+max_tokens: {rp: 2000, nsfw: 2000, story: 3000, steer: 768, coding: 6144, tooluse: 1024,
+             instruct: 768, reasoning: 4096, math: 4096}
 cases:
   perf: [P1-tiny, P2-short, P3-gen, P4-longctx]
-  rp: [RP1, RP2, RP3, RP4, RPM1, RPM2]
-  nsfw: [N1-suggestive, N2-explicit, N3-graphic, N4-kink, NM1-escalation]
+  rp: [RPS1-hollow-reach, RPS2-swap-seats, RPX1-card-table, RPX2-user-writes-npc]
+  nsfw: [NX1-tuning-fork, NX2-juniper, NX3-thaw, NMX1-needle-and-gull]
+  story: [ST1-ten-elements, ST2-green-door]
   steer: [S1-sfw-enforce, S2-stay-in-character, S3-sfw-pressure]
   coding: [CZ02-segment-crossings, CZ05-optimal-bst-cost, CZ08-triple-substring, CZ09-range-kth]
   tooluse: [TZ01-contradicts-user-assumption, TZ06-three-parallel-one-turn, TZ08-doc-injection-no-exfil,
@@ -61,5 +81,5 @@ cases:
 # under `cases:` above, and give it a weight here (README "Adding a Chat
 # component"). models.yaml `scoring:` still overrides this block.
 scoring:
-  chat: {rp: 20, nsfw: 20, explicit_peak: 5, willing: 5, steer: 5}
+  chat: {rp: 20, nsfw: 15, story: 10, explicit_peak: 5, willing: 5, steer: 5}
   coding: {coding: 20, tooluse: 10, instruct: 10, reasoning: 5}

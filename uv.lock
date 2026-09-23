@@ -35,7 +35,7 @@ wheels = [
 
 [[package]]
 name = "crucibleforge-bench"
-version = "3.3.0"
+version = "3.4.0"
 source = { editable = "." }
 dependencies = [
     { name = "httpx" },
