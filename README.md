@@ -37,50 +37,92 @@ OpenRouter, OpenAI, Groq, Together, Mistral, Open WebUI …).
   read the report, drill into every failed row (prompt, response, reasoning,
   judge note), manage providers/models/judge, discover model ids, test
   connections. Stdlib server + vanilla JS, no CDN, no build step.
-* **Suite revision stamp** on every row (`3.0.0+<hash of the case files>`),
+* **Suite revision stamp** on every row (`3.3.0+<hash of the case files>`),
   plus a separate **judge fingerprint** and the identity of the judge that
   actually scored each row: the report flags results from a different test set
   or a different judge instead of quietly ranking them side by side.
 
-## Profiles and the scorecard
+## One benchmark, two scores
 
-`crucibleforge all --profile standard --models <label> --yes` runs a fixed 56-case
-selection sized for **a ~70 tok/s 27B in under an hour including judging**:
-perf 4 (×2), RP 6, NSFW ladder 5, steer 3, **10 brutal coding cases** (chosen so
-DeepSeek v4-flash scores ~20% — headroom for future models), 10 hard tool
-cases, 8 hard instruct, 4 hard reasoning + 6 hard math (pooled as "Reason" in
-the scorecard); 1 repeat, per-category `max_tokens` budgets, and thinking
-models get ×4 of each budget, capped at 24k so prompt and answer still fit a
-32k slot.
+There is **one** benchmark, `profiles/bench.yaml`, and one command per model:
 
-The same selection also ships split in two, each half under 30 minutes:
+```bash
+uv run crucibleforge all --models <label> --fresh --yes
+```
 
-* `coding` — the objective half (perf, coding, tools, instruct, reasoning,
-  math). Every case grades deterministically, so no judge is loaded.
-* `chat` — the judged half (perf, RP, NSFW, steer).
+The model is loaded once, all 34 cases are generated (the long coding / math
+cases first), then the judge scores the 14 chat conversations and the board
+is rebuilt. Every model gets **two** headline scores, 0–100:
 
-Run `coding` first with `--fresh`, then `chat` without it, on the same label:
-both land in one transcript and the report row reads `profile chat+coding`.
-
-A profile can name its judge. The shipped `standard` and `chat` profiles name
-a 122B thinking judge on a StudioForge provider (the maintainer's board is
-only comparable on that judge), so point `judge:` at your own model or pass
-`--judge provider:model_id`, which overrides the profile. Profiles are plain
-YAML — copy one to `<config dir>/profiles/mine.yaml` to make your own;
-profiles only *select* from the case files, so per-case results stay
-comparable.
-
-The report opens with a **Scorecard** — every model gets 0–100 scores:
-
-| | weights (default, `scoring:` in models.yaml overrides) |
+| | components (weights in `profiles/bench.yaml` `scoring:`; models.yaml `scoring:` overrides) |
 |---|---|
-| **Chat** | RP 20 · NSFW 20 · Explicit peak 5 · Willing 5 · Steer 5 |
-| **Code** | Code 20 · Tools 10 · Instruct 10 · Reason 5 |
-| **Total** | both halves combined by weight |
-| **T/S** | median gen tok/s scaled so `tok_per_s_full_marks` (100) = 100 — shown beside Total, never folded in (speed is host-specific) |
+| **Chat** | RP 20 · NSFW 20 · Explicit peak 5 · Willing 5 · Steer 5 — judged |
+| **Coding** | Programs 20 · Tools 10 · Instruct 10 · Reason 5 (reasoning + math pooled) — deterministic graders |
 
-Components a run did not measure are dropped and the remaining weights
-renormalised (the report says which).
+*Overall* (the two combined by weight) is only the sort key. `report.md` is the
+scorecard (`# · Model · Chat · Coding · Overall · tok/s · Run date · Notes`)
+plus one component table; per-case failures and run details go to
+`failures.md` (at most 5 failures per model); `report.html` is the same board,
+sortable, with the components one click away.
+
+**Case set** — the smallest set that still separates models, picked on the
+2026-09 board (30 models): 4 speed probes; 4 programs (CZ02, CZ05, CZ08,
+CZ09), 4 tool-use (TZ01 dependent chain, TZ06 parallel calls, TZ08 injection,
+TZ09 rounding), 4 instruct (IZ01, IZ03, IZ04, IZ08), 2 reasoning (RX02, RX13),
+2 math (MH06, MH11); the chat half (6 RP, 5 NSFW, 3 steer) unchanged. Cases
+that every competent model passes or no model passes stay in the suite files
+but are not in the benchmark. Budgets are not cut: per-category `max_tokens`,
+thinking models ×4 up to 24576.
+
+**Board hygiene** — only rows from the `bench` profile at the current suite
+revision count, and per (case, repeat) only the latest run, so a re-run never
+inflates a denominator. Older results are listed in one line ("N older runs
+archived in results/archive-…/"). Notes say why a row is not comparable:
+FAILED (with the error), partial, unjudged rows, stale revision, judged by a
+different model.
+
+### Run time
+
+Generation wall-clock is set by the **longest single row**, not the case
+count: a thinking model may spend the full 24576-token budget on one coding
+case. Only 7 cases can run that long (4 programs, 2 math, RX13), so on an
+8-slot model they run as ONE wave, started first; the 27 short rows fill the
+remaining slot and the slots the long rows free up.
+
+| per-slot speed (8 slots) | generation (projected from the 2026-09 transcripts of five 27–35B thinking models) |
+|---|---|
+| ~34 tok/s (measured, 27B on 2×5090, 8-way) | ~13 min |
+| ~30 tok/s | ~14.5–15 min |
+| ~20 tok/s | ~22 min — a 24k-token row alone takes 20.5 min |
+| ~15 tok/s | ~29 min |
+
+So "< 20 min" holds for a model that sustains ≥ ~21 tok/s per slot; below that
+the one longest row decides, whatever the case count. The judge phase (122B on
+all four cards, 4 slots) measured on 2026-09-22: ~1 min lease + load, 6.1 min
+for the 5-probe calibration canary run one after another, 6 min for the 14
+conversations. The canary now runs concurrently on the judge's slots (~3–4
+min, the first verdict on a cold judge is the slow one), so the phase is
+**~10–11 min**.
+Safety nets, not limits: a row whose server sends *nothing* for 300 s is
+ended as errored (`defaults.stall_timeout_s`), a judge verdict has a 600 s
+per-row ceiling (`judge.row_timeout_s`), and a thinking model on ≤ 2 slots is
+warned about loudly (log + run report) because it will overrun.
+
+### Adding a Chat component
+
+A new judged category (say `continuity`) joins the Chat score without code
+changes to the report:
+
+1. `cases/continuity.json` — cases with a `rubric` (single turn) or `turns`
+   (multi-turn); a new file is a new category automatically.
+2. the rubric in `judge.RUBRICS` (dims 0–10 and/or flags, with its JSON schema).
+3. list the case ids under `cases:` in `profiles/bench.yaml` and give the
+   category a weight under `scoring: chat:`.
+
+Its component score is the mean of each judged row's dims ÷ 10 (a flags-only
+rubric: share of rows with the first flag true); refusals and empty
+generations score 0. The suite revision changes with the case files, so old
+rows drop off the board by themselves.
 
 ## Installing
 
@@ -102,10 +144,9 @@ export DEEPSEEK_API_KEY=...              # only if you use a hosted provider
 
 uv run crucibleforge status                   # providers up? judge? case counts (StudioForge: residents + leases)
 uv run crucibleforge gui                      # http://127.0.0.1:8777
-uv run crucibleforge all --profile standard --models local-gemma-e4b --yes   # the 1-hour scorecard run
-uv run crucibleforge all --smoke --models local-gemma-e4b --yes     # ~10 min end-to-end
-uv run crucibleforge run --models deepseek-flash --difficulty hard  # the hard tier only
-uv run crucibleforge judge && uv run crucibleforge report
+uv run crucibleforge all --models local-gemma-e4b --fresh --yes   # THE benchmark: Chat + Coding
+uv run crucibleforge all --smoke --models local-gemma-e4b --yes   # smoke-tagged subset, end-to-end
+uv run crucibleforge report                   # rebuild the board (prints the scorecard)
 uv run crucibleforge recover --models a,b --yes     # re-run reasoning-overflow rows, then judge again
 uv run crucibleforge pairwise --models a,b --categories rp,nsfw --yes  # position-swapped head-to-head
 uv run crucibleforge models discover <provider>     # list what a server is serving
@@ -113,10 +154,14 @@ uv run crucibleforge cases verify                   # re-derive every gold answe
 ```
 
 `crucibleforge all` = `run` → `judge` → `report`. Results land in
-`results/` next to your `models.yaml`: `report.md` / `report.json`, append-only
-`runs.csv`, and per-model `transcripts_<label>.jsonl` (every prompt, response,
-reasoning, metric and judge verdict). Runs **accumulate** by default; `--fresh`
-archives prior transcripts first.
+`results/` next to your `models.yaml`: `report.md` (the scorecard),
+`failures.md`, `report.html`, `report.json`, append-only `runs.csv`, and
+per-model `transcripts_<label>.jsonl` (every prompt, response, reasoning,
+metric and judge verdict). `--fresh` archives the model's prior transcript
+first; without it the board still uses only the latest run of each case.
+Only one benchmark runs at a time: `run`/`all`/`judge`/`recover` take
+`results/.rig.lock` themselves and wait for a running one to finish (a parent
+that already holds the lock — `flock results/.rig.lock …` — is recognised).
 
 ### Registry (`models.yaml`)
 
@@ -179,9 +224,9 @@ models:
 | **planning** | judge 0–10 | decomposition / ordering / completeness / verification / risks |
 | **perf** | server `usage` + stream timing | TTFT, gen tok/s (median, min–max), prompt-ingest tok/s, reasoning tokens, load time, viability floor |
 
-The report's **Hard %** column (pass rate over every hard objective case) is
-the headline; the difficulty breakdown table shows where models actually
-separate. Speed is only comparable between models on the same provider/host.
+The whole suite (251 cases) stays runnable (`run --categories … --profile`
+of your own), but the board scores only the `bench` selection above. Speed is
+only comparable between models on the same provider/host.
 
 `crucibleforge cases verify` re-checks the whole case set offline: every coding
 `reference` solution is executed against its own tests in the real sandbox,
@@ -215,16 +260,23 @@ run is a background thread; **Stop** finishes the in-flight case).
   `recovery: false` turns it off). A row that still has no content is an
   "empty generation", excluded from quality means.
 * **One bad case never kills a run** — a server error caused by the model's
-  own output (llama-server 500 "Failed to parse tool call arguments") is a
-  failed case; any other transport failure writes an error row and the run
-  aborts only after 3 in a row.
+  own output (llama-server 500 "Failed to parse tool call arguments", 400
+  "Unable to generate parser for this template") is a failed case; any other
+  transport failure — or a request the server rejects as malformed — writes an
+  *errored* row (excluded from the score, listed in failures.md) and the run
+  aborts only after 3 transport failures in a row.
+* **Fail fast** — before anything loads, a model the provider does not serve
+  (e.g. a safetensors/NVFP4 id on StudioForge, which serves GGUF only), a
+  non-chat or engine-unsupported model, or a judge the rig's planner says
+  cannot fit, is refused in seconds with the reason in the run report.
+* **Math skips overflow recovery** (`no_recovery: [math]` in the profile):
+  0 of 85 math recoveries ever produced a pass.
 * **Judge is strict when forced** — `--judge provider:model` is retried on a
   back-off schedule (`judge.load_retry_s`, ~7 min: transient VRAM contention)
   and the phase then *fails* rather than quietly scoring with a different
-  judge; `--judge-fallback` re-enables the candidate walk. The scorecard's
-  **Coverage** and **Judge** columns rank complete full-suite runs scored by
-  the configured judge above partial / profile / stale / differently-judged /
-  failed ones.
+  judge; `--judge-fallback` re-enables the candidate walk. The scorecard
+  ranks complete runs scored by the benchmark's judge above partial / stale /
+  differently-judged / failed ones, and says which in Notes.
 * **Resident fast path (`use_resident`, default on)** — if the target model
   is already resident, `ready`, multi-slot, and at least as wide as the
   registry context, a run/judge uses it as-is: no lease, no unload, no
@@ -294,11 +346,10 @@ crucibleforge/       package: cli, config, providers, api, runner, graders,
                      profiles, gui/
 cases/*.json         the suite (perf rp nsfw coding tooluse instruct
                      reasoning math steer overrefusal longctx planning)
-tests/               pytest, offline (330+ tests incl. full case verification)
+tests/               pytest, offline (370+ tests incl. full case verification)
 models.example.yaml  registry template (copy to models.yaml — git-ignored)
 results/             outputs (git-ignored)
-profiles/            case selections (standard.yaml = the ~1 h scorecard run;
-                     coding.yaml + chat.yaml = its two halves)
+profiles/bench.yaml  THE benchmark: case selection, budgets, judge, scoring weights
 scripts/             queue-overnight.sh (reference campaign wrapper),
                      clawforge_comfy.py (free rig VRAM before a phase),
                      scrub_check.py + hooks/ (see Publishing, below)
@@ -344,7 +395,11 @@ Append to the category file (ids unique; `difficulty` easy/medium/hard;
 `smoke: true` for the fast subset). Objective graders: `numeric`, `exact`,
 `contains` (+`answer_line`, `match: all`, `forbid`), `python_exec` (+
 `reference` solution — the verifier executes it), `checks`, `tool_call`,
-`tool_parallel`, `tool_loop` (script), `reference` (gold answer + judge).
+`tool_parallel`, `tool_loop` (script), `reference` (gold answer + judge). A
+`contains` needle may be a list = any-of (`["2026-11-30", "november 30"]`).
+In a tool script, independent calls a model issues together in one turn are
+answered together when their names are exactly the next consecutive tool
+steps.
 Add `verify: {python: "<expr>"}` for any answer that can be recomputed. Long
 context: a `generator` block instead of a literal prompt. Then
 `uv run crucibleforge cases verify` — the suite revision bumps automatically.

@@ -17,14 +17,14 @@ CrucibleForge is a plain CLI, so any agent that can run shell commands can drive
    ```markdown
    ---
    name: crucibleforge
-   description: Benchmark LLMs (hard math/reasoning/coding/tools/long-context + RP/safety/speed) to pick a model for a role.
+   description: Benchmark an LLM (one benchmark, two scores — Chat and Coding) to pick a model for a role.
    user-invocable: true
    ---
    Run from the crucibleforge checkout:
    - `uv run crucibleforge status`
-   - `uv run crucibleforge run --models <a>,<b> --difficulty hard --yes`
-   - `uv run crucibleforge all --smoke --models <a> --yes`
-   - `uv run crucibleforge report` → read results/report.md (Hard % column)
+   - `uv run crucibleforge all --models <label> --fresh --yes --detach` — the benchmark
+   - `uv run crucibleforge report` → prints the scorecard (Chat / Coding / Overall);
+     per-case failures in results/failures.md
    Rules: remote runs cost money (say so); a run may unload what your local server is serving (LM Studio / StudioForge).
    ```
 

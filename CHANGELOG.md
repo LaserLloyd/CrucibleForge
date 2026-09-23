@@ -6,6 +6,90 @@ was ever published as Gauntlet, so there is no migration to do — the entries
 below are kept because the engineering they record is real, not to narrate a
 rename.
 
+## 3.3.0 — one benchmark, two scores (2026-09-23)
+
+Suite revision **3.3.0** (cases + graders changed; every row at an older
+revision is off the board — the 2026-09 results were moved to
+`results/archive-2026-09-23/`, nothing deleted).
+
+**One benchmark.** `profiles/bench.yaml` replaces `standard` / `coding` /
+`chat` and is the default for `run` / `all` / `judge` / `recover` (and the
+GUI). One command per model: `crucibleforge all --models <label> --fresh --yes`.
+34 cases, chosen on the 2026-09 board (30 models) as the smallest set that
+still separates models: programs CZ02 CZ05 CZ08 CZ09; tools TZ01 TZ06 TZ08
+TZ09; instruct IZ01 IZ03 IZ04 IZ08; reasoning RX02 RX13; math MH06 MH11; the
+chat half (6 RP, 5 NSFW, 3 steer) and the 4 speed probes (now 1 repeat).
+Dropped from the benchmark (still in the suite): cases no model passes (CZ01,
+CZ03, MH16), MH22 (1/30), MH01/MH20/CZ04/CZ10 (few passes, long), and cases
+(nearly) every competent model passes (TZ02/03/04/05/07/10, IZ02/05/06/07,
+RX08, RH5, CZ07, CY01).
+Budgets unchanged (thinking ×4 up to 24576) — the time box comes from fewer
+cases, not from limiting models.
+
+**Two scores.** The board is **Chat** (RP, NSFW, explicit peak, willing,
+steer — judged) and **Coding** (Programs, Tools, Instruct, Reason =
+reasoning + math — deterministic); Overall is only the sort key. The coding
+*category* is shown as "Programs". The capped T/S score is gone (tok/s stays).
+Weights live in the profile's `scoring:` block (models.yaml `scoring:` still
+overrides; the old `code:` key is accepted). A new judged category joins Chat
+by getting a case file, a rubric and a weight — the report scores it
+generically (README "Adding a Chat component").
+
+**Board.** `report.md` = scorecard (`# · Model · Chat · Coding · Overall ·
+tok/s · Run date · Notes`) + one component table; everything else (run
+details, ≤ 5 failures per model, run-quality notes) is in `failures.md`.
+Only `bench`-profile rows at the current revision count, and only the latest
+run per (case, repeat). Notes show only what makes a row not comparable.
+`crucibleforge report` prints the scorecard and the file paths, not the whole
+report. Every table cell goes through one escaper (`|`, newlines); failure
+reasons are cut at word boundaries; sections without data are skipped; one
+row order everywhere; reasoning tokens show "-" when the provider never
+reported them.
+
+**Fixes.**
+- The global `results/_stamp.json` (a 2026-09-09 DeepSeek probe) was copied
+  into every model's meta, so the whole board read "vdeepseek-v4-flash on
+  2026-09-09". The stamp must now carry the probed `model_id` and is applied
+  only to that model; a real version goes to Notes, never the Model cell.
+- HTML board: `script.js` referenced two placeholders the renderer never
+  replaced (ReferenceError → empty table), and rows were rebuilt from
+  models.yaml + fuzzy label matching + positional parsing of the markdown.
+  Rows now come from the computed stats; numeric sort; `</` escaped in the
+  embedded JSON; the hand-made report.html / report-full.html are archived.
+- V2 run-report: `## Result` carries one line per model (`label: Chat 88.7 ·
+  Coding 69.4 · 41 min`, or `label: FAILED — <full error>`), a Next hint by
+  error type, only files that exist, one H1.
+
+**Graders (correct answers were marked wrong).**
+- Tool loop: independent calls issued together in one turn are answered
+  together when they are exactly the next consecutive tool steps (TZ01: 14
+  models failed "2 tool calls, expected 1" with the right final line); every
+  call gets a tool message; the reasoning channel is passed back as
+  `reasoning_content` (DeepSeek thinking mode 400'd without it).
+- TZ05 no longer requires a literal "?"; TZ08 accepts "November 30" and no
+  longer forbids warning the user about the injected address (the real check
+  is that no tool is called).
+- An opening ```python fence with no closing fence on a finished reply runs
+  the code (4 correct solutions failed "SyntaxError line 1").
+- numeric / exact: a reply cut off at the length limit counts only with an
+  explicit "Answer:" line (no more last-number-of-a-truncated-chain passes).
+- Judge: an empty FINAL assistant turn in a multi-turn row is an empty
+  generation, not a refusal.
+
+**Run time.** Longest categories scheduled first; math skips reasoning-
+overflow recovery (0/85 ever passed); one benchmark at a time (`results/.rig.lock`
+taken by the CLI; a parent holding it is recognised; `use_resident` refuses a
+model another CrucibleForge run has leased); fail fast in seconds on a model
+the provider does not serve / a non-GGUF id on StudioForge / an unsupported
+architecture / a judge the planner says cannot fit; llama-server "Unable to
+generate parser for this template" fails the case instead of counting toward
+the transport-storm abort; transport errors and rejected requests are
+*errored* rows (excluded from the score); a loud warning when a thinking
+model gets ≤ 2 slots; the judge canary's 5 probes run concurrently; the
+fixed 20 s lease-ready wait is a 2 s poll. Safety nets only: a row whose
+server sends nothing for 300 s (`defaults.stall_timeout_s`) and a judge
+verdict past 600 s (`judge.row_timeout_s`) are ended instead of hanging.
+
 ## Unreleased — cross-platform correctness and the sandbox default
 
 - **BREAKING (macOS/Windows): grading refuses to run without a sandbox.**
