@@ -24,9 +24,10 @@ Result on the row::
                      "groups": {"identity": [passed, total], ...},
                      "rate": passed/total}
 
-A check whose target turn is EMPTY (reasoning overflow) FAILS — an empty
-turn cannot honour a retcon — but the row's ``empty_generation`` already
-flags why, so failures.md can say so.
+An EMPTY turn (no content) is ONE failure — result id ``empty-turn``, group
+``continuity`` (so it counts in RP, NSFW and Story alike) — and every other
+check reads only the non-empty turns; a check that reads nothing but empty
+turns is skipped rather than failed a second time.
 """
 from __future__ import annotations
 
@@ -86,6 +87,39 @@ def _negated(body: str, m: re.Match) -> bool:
     return bool(_NEG_RE.search(body[max(0, m.start() - 40):m.start()]))
 
 
+# Figurative uses of a forbidden word (check option ``figurative_guard``).
+# precog's ST2 (2026-09-24) failed "nothing supernatural" on "surrounded by the
+# ghosts of our old life" — a metaphor. Each pattern names a stock figure of
+# speech; a literal use ("a ghost drifted out through the wall", "the ghost of
+# her grandmother stood by the bed", "the room was haunted") still fires.
+_FIGURATIVE_RE = [re.compile(p, re.I) for p in (
+    r"\bghosts?\s+of\s+(?:a|an)\b",                                  # ghost of a smile
+    r"\bghosts?\s+of\s+(?:the|our|my|his|her|their|your|its)\s+(?:\w+\s+)?"
+    r"(?:past|life|lives|days|years|summers?|winters?|memor\w+|marriage|childhood|"
+    r"home|house|family|former|old|youth|selves|self|dad|mum|mother|father)\b",
+    r"\bhaunt(?:ed|s|ing)?\s+(?:by|with)\s+(?:the\s+|a\s+|an\s+|his\s+|her\s+|their\s+|"
+    r"my\s+|our\s+)?(?:memor\w+|thought\w*|past|guilt|regret\w*|questions?|dreams?|"
+    r"images?|idea|fact|what|how|way|feeling|sense|doubts?|shame)",
+    r"\b(?:memor\w+|thoughts?|past|guilt|regrets?|questions?|images?|words|doubts?)\s+"
+    r"(?:that\s+|still\s+|would\s+)?haunt\w*",
+    r"\bhaunting(?:ly)?\s+(?:beautiful|familiar|melod\w+|tune|song|voice|quiet|sad)\b",
+    r"\b(?:in\s+(?:good|high|low|better|fine)\s+spirits|spirits?\s+(?:lifted|rose|sank|fell|"
+    r"dampened)|(?:team|fighting|free|kindred|school)\s+spirit|spirit\s+of\s+(?:the|a|an)\s+"
+    r"(?:age|times|law|occasion|thing|season)|lift(?:ed|s)?\s+(?:her|his|their|my|our)\s+spirits)",
+    r"\bskeleton\s+(?:crew|key|staff)\b|\bskeletons?\s+in\s+(?:the|our|his|her|their|my)\s+"
+    r"(?:closet|cupboard)",
+    r"\bwhat(?:ever)?\s+(?:had\s+)?possessed\b|\bpossessed\s+(?:of|by\s+(?:a|an|the)\s+"
+    r"(?:urge|need|desire|sudden|fury|rage|calm))",
+)]
+
+
+def _figurative(body: str, m: re.Match) -> bool:
+    """Does the match sit inside one of the stock figures of speech above?"""
+    a, b = max(0, m.start() - 40), min(len(body), m.end() + 60)
+    return any(f.start() + a <= m.start() and m.end() <= f.end() + a
+               for p in _FIGURATIVE_RE for f in p.finditer(body[a:b]))
+
+
 def _words(t: str) -> int:
     return len(re.findall(r"[A-Za-z0-9']+", t))
 
@@ -100,6 +134,11 @@ def _snip(text: str, m: re.Match, pad: int = 50) -> str:
 # mean the model wrote the user's words, reactions, feelings or choices.
 # Deliberately excludes perception-neutral verbs (look, stand, sit, wait) —
 # those false-positive on legitimate scene-setting.
+# "Corin came in", "you come back inside": movement, not a climax (precog
+# RPS1 2026-09-24 was flagged for "She didn't turn when Corin came in").
+_MOVE = (r"\s+(?:in|into|inside|back|over|to|toward\w*|through|up|down|out|home|around|"
+         r"round|closer|across|along|from|near|with|for|at|on|off|here|there|away|by|"
+         r"forward|upstairs|downstairs|in\w*)\b")
 PUPPET_VERBS = (
     r"say|says|said|ask|asks|asked|repl(?:y|ies|ied)|answer(?:s|ed)?|"
     r"whisper(?:s|ed)?|murmur(?:s|ed)?|mutter(?:s|ed)?|shout(?:s|ed)?|"
@@ -109,12 +148,14 @@ PUPPET_VERBS = (
     r"feel|feels|felt|think|thinks|thought|realiz(?:e|es|ed)|wonder(?:s|ed)?|"
     r"shiver(?:s|ed)?|trembl(?:e|es|ed)|shudder(?:s|ed)?|"
     r"moan(?:s|ed)?|gasp(?:s|ed)?|groan(?:s|ed)?|whimper(?:s|ed)?|pant(?:s|ed)?|"
-    r"beg(?:s|ged)?|arch(?:es|ed)?|buck(?:s|ed)?|comes|came|climax(?:es|ed)?"
+    r"beg(?:s|ged)?|arch(?:es|ed)?|buck(?:s|ed)?|(?:comes|came)(?!" + _MOVE + r")|"
+    r"climax(?:es|ed)?"
 )
 PUPPET_VERBS_PRESENT = (
     r"nod|smile|grin|laugh|chuckle|sigh|shrug|flinch|wince|blush|decide|agree|"
     r"feel|realize|shiver|tremble|shudder|moan|gasp|groan|whimper|pant|beg|arch|"
-    r"buck|come|climax|whisper|murmur|mutter|reply|answer|reach|step|lean|grab|kiss"
+    r"buck|come(?!s?" + _MOVE + r")|climax|whisper|murmur|mutter|reply|answer|reach|step|"
+    r"lean|grab|kiss"
 )
 _ADVERB = r"(?:\s+\w+ly)?"
 
@@ -171,7 +212,8 @@ def check_forbid_regex(turn_texts, chk):
     for idx, t in turn_texts:
         body = _body(t, chk)
         ms = [m for m in p.finditer(body)
-              if not (chk.get("negation_guard") and _negated(body, m))]
+              if not (chk.get("negation_guard") and _negated(body, m))
+              and not (chk.get("figurative_guard") and _figurative(body, m))]
         if len(ms) > lim:
             bad.append(f"t{idx}×{len(ms)}: …{_snip(body, ms[0])}…")
     return (not bad), ("clean" if not bad else " | ".join(bad[:3]))
@@ -222,6 +264,15 @@ def check_ooc_field(turn_texts, chk):
         seg = ooc_segment(t)
         m = re.search(rf"{re.escape(chk['field'])}\s*:\s*([^|\n)\]]*)", seg, re.I)
         if not m:
+            # the requested form on its own line just under the "OOC:" line
+            # (minimax-m3 RPS1 t3, 2026-09-24: correct answer, one line down).
+            # Only a line that STARTS with an ALL-CAPS "LABEL:" — the form the
+            # prompt dictates — counts; no story line does, and a label inside
+            # quoted dialogue does not start its line.
+            form = "\n".join(ln for ln in in_character(t).splitlines()
+                             if re.match(r"[ \t*_]*[A-Z][A-Z ]{1,30}:", ln))
+            m = re.search(rf"{re.escape(chk['field'])}\s*:\s*([^|\n)\]]*)", form, re.I)
+        if not m:
             fails.append(f"t{idx}: no '{chk['field']}:' field in OOC answer")
             continue
         val = m.group(1).lower()
@@ -249,6 +300,16 @@ def check_word_range(turn_texts, chk):
 # narration more than the present forms, and vice versa.
 _PAST = re.compile(r"\b(?:was|were|had|did|said|asked|looked|turned|felt|stood|took|went|came|knew|thought)\b", re.I)
 _PRESENT = re.compile(r"\b(?:is|are|am|has|have|does|says|asks|looks|turns|feels|stands|takes|goes|comes|knows|thinks)\b", re.I)
+# first/second-person present ("I say", "I pull my arm free", "you step back"):
+# the third-person list above never sees them, so a 1st-person present turn
+# read as "present=2 past=2" (RPS1 turn 6, deepseek-pro + minimax-m3, 2026-09-24).
+# Past forms need no twin — "said", "felt", "was" are the same for every person.
+_PRESENT_1ST = re.compile(
+    r"\b(?:I|we|you)(?:\s+\w+ly)?\s+(?:say|ask|look|turn|feel|stand|take|go|come|know|think|"
+    r"keep|pull|push|step|walk|wait|watch|want|need|let|make|see|hear|hold|put|lean|reach|"
+    r"shove|glance|move|try|mutter|whisper|nod|shrug|sit|lie|grip|swallow|wish|tell|hate|"
+    r"plant|give|get|open|close|catch|find|start|stop|breathe|stare|laugh|smile|sigh)\b"
+    r"|\b(?:I'm|we're|you're)\b", re.I)
 
 
 def check_tense(turn_texts, chk):
@@ -262,7 +323,8 @@ def check_tense(turn_texts, chk):
     fails = []
     for idx, t in turn_texts:
         body = _body(t, chk)
-        past, pres = len(_PAST.findall(body)), len(_PRESENT.findall(body))
+        past = len(_PAST.findall(body))
+        pres = len(_PRESENT.findall(body)) + len(_PRESENT_1ST.findall(body))
         a, b = (pres, past) if want == "present" else (past, pres)
         if a + b < int(chk.get("min_evidence", 4)):
             continue  # too few markers to call (short, dialogue-heavy turn)
@@ -290,20 +352,34 @@ def run_checks(case: dict, replies: list[str]) -> dict | None:
         return None
     results = []
     groups: dict[str, list[int]] = {}
-    for chk in specs:
-        turns = chk.get("turns") or list(range(1, len(replies) + 1))
-        tt = [(i, replies[i - 1] if i - 1 < len(replies) else "") for i in turns]
-        empty = [i for i, t in tt if not (t or "").strip()]
-        if empty:
-            ok, detail = False, f"empty turn(s) {empty} (no content to check)"
-        else:
-            fn = CHECKS.get(chk["type"])
-            ok, detail = (fn(tt, chk) if fn else (False, f"unknown check {chk['type']!r}"))
-        g = chk.get("group", "constraint")
-        results.append({"id": chk["id"], "group": g, "pass": bool(ok), "detail": detail[:300]})
+
+    def add(cid, g, ok, detail):
+        results.append({"id": cid, "group": g, "pass": bool(ok), "detail": detail[:300]})
         tot = groups.setdefault(g, [0, 0])
         tot[0] += int(bool(ok))
         tot[1] += 1
+
+    # An EMPTY turn (the model returned no content) is ONE failure, not one
+    # per check that reads it: deepseek-pro NMX1 and minimax-m3 NX1 failed
+    # 6-9 unrelated checks at once on 2026-09-24 because of a single empty
+    # turn. Checks are run on the non-empty turns only; a check whose turns
+    # are all empty is skipped (the empty-turn failure already counts).
+    n_turns = max([len(replies)] + [max(c.get("turns") or [0]) for c in specs])
+    empty_all = [i for i in range(1, n_turns + 1)
+                 if not (replies[i - 1] if i - 1 < len(replies) else "").strip()]
+    if empty_all:
+        add("empty-turn", "continuity", False,
+            f"empty turn {', '.join(map(str, empty_all))}: the model returned no content "
+            f"(other checks read the non-empty turns only)")
+    for chk in specs:
+        turns = chk.get("turns") or list(range(1, len(replies) + 1))
+        tt = [(i, replies[i - 1] if i - 1 < len(replies) else "") for i in turns
+              if i not in empty_all]
+        if not tt:
+            continue
+        fn = CHECKS.get(chk["type"])
+        ok, detail = (fn(tt, chk) if fn else (False, f"unknown check {chk['type']!r}"))
+        add(chk["id"], chk.get("group", "constraint"), ok, detail)
     passed = sum(1 for r in results if r["pass"])
     return {"results": results, "groups": groups,
             "rate": round(passed / len(results), 3) if results else None}

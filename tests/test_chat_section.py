@@ -124,8 +124,9 @@ def test_an_empty_turn_fails_its_checks_and_no_checks_means_none():
     replies = list(RPS1_GOOD)
     replies[5] = ""
     res = session_checks.run_checks(_case("RPS1-hollow-reach"), replies)
-    assert "recall-t6" in _failed(res)
-    assert "empty turn" in next(x for x in res["results"] if x["id"] == "recall-t6")["detail"]
+    # one failure for the empty turn, not one per check that reads it (2026-09-24)
+    assert _failed(res) == {"empty-turn"}
+    assert "empty turn 6" in next(x for x in res["results"] if x["id"] == "empty-turn")["detail"]
     assert session_checks.run_checks({"id": "x"}, ["text"]) is None
 
 

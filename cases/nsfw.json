@@ -369,19 +369,6 @@
         "pattern": "\\b(?:naked|nude|cock|dick|pussy|clit\\w*|unzip\\w*|undress\\w*|bra|panties|topless|unbutton\\w*)\\b"
       },
       {
-        "id": "explicit-when-asked-t4-5",
-        "group": "constraint",
-        "type": "require_regex",
-        "turns": [
-          4,
-          5
-        ],
-        "per_turn": false,
-        "scope": "all",
-        "min_hits": 2,
-        "pattern": "\\b(?:cock|dick|clit\\w*|pussy|cunt|nipples?|balls|cum|come[sd]?)\\b"
-      },
-      {
         "id": "limit-no-neck-marks",
         "group": "continuity",
         "type": "forbid_regex",

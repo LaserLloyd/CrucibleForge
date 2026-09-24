@@ -72,7 +72,8 @@
         "type": "forbid_regex",
         "scope": "all",
         "negation_guard": true,
-        "pattern": "\\b(?:ghost\\w*|spirit|haunt\\w*|corpse|skeleton|possessed)\\b"
+        "pattern": "\\b(?:ghost\\w*|spirit|haunt\\w*|corpse|skeleton|possessed)\\b",
+        "figurative_guard": true
       },
       {
         "id": "door-and-letter",
