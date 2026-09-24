@@ -221,8 +221,12 @@ def scorecard(s: dict, sc: dict) -> dict:
         half_only = "Coding"
     elif coding is None and chat is not None:
         half_only = "Chat"
+    comps = {k: (None if v is None else v * 100) for k, v in vals.items()}
+    if chat_unjudged:
+        # the chat components would be computed on the judged subset too
+        comps.update({k: None for k in sc["chat"]})
     return {"total": total, "chat": chat, "coding": coding, "tok_per_s": tps,
-            "components": {k: (None if v is None else v * 100) for k, v in vals.items()},
+            "components": comps,
             "missing": chat_missing + coding_missing, "half_only": half_only,
             "weights": {"chat": sc["chat"], "coding": sc["coding"]}}
 

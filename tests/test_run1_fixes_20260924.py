@@ -309,6 +309,7 @@ def test_an_aborted_judge_shows_no_chat_score(tmp_path, monkeypatch):
     s = report.model_stats("m")
     card = report.scorecard(s, report.scoring_config(None))
     assert card["chat"] is None and card["total"] is None
+    assert card["components"]["story"] is None
     report._cards(["m"], {"m": s}, None)
     note = report.notes_cell(s)
     assert "judge aborted: canary FAILED" in note and "1 row unjudged" in note
