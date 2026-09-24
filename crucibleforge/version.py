@@ -23,6 +23,7 @@ block are unchanged.
 from __future__ import annotations
 
 import hashlib
+import json
 from pathlib import Path
 
 # Bump for notable harness/metric changes (semver). The content-hash tracks
@@ -49,13 +50,34 @@ def _load_cfg(cfg: dict | None) -> dict:
         return {}
 
 
+# Grading-only keys of a case. They say how an answer is SCORED, not what
+# is asked, so editing them must not relabel existing results as another
+# test set — the report re-applies the current checks to stored rows
+# (report._recheck), exactly as a grader fix applies to old rows.
+_GRADING_KEYS = ("checks",)
+
+# Stamps from before the grading keys were excluded from the hash, mapped
+# from the prompt-only hash they are equivalent to (verified 2026-09-24 with
+# `git show HEAD:cases/*`: 3.4.0+7c3f7296 is the full hash of exactly the case
+# files whose prompt-only hash is 0d6e0ad1). A prompt change moves the key
+# and the old stamp stops counting — as it should.
+_EQUIVALENT_STAMPS = {"0d6e0ad1": {"3.4.0+7c3f7296"}}
+
+
 def cases_hash() -> str:
-    """Stable short hash over all case-file contents."""
+    """Stable short hash over the case files' TEST CONTENT (prompts, turns,
+    budgets, rubrics, answer keys) — grading-only keys excluded."""
     h = hashlib.sha256()
     for p in sorted(_CASES_DIR.glob("*.json")):
+        data = json.loads(p.read_bytes())
+        cases = data if isinstance(data, list) else data.get("cases", [])
+        for c in cases if isinstance(cases, list) else []:
+            if isinstance(c, dict):
+                for k in _GRADING_KEYS:
+                    c.pop(k, None)
         h.update(p.name.encode())
         h.update(b"\0")
-        h.update(p.read_bytes())
+        h.update(json.dumps(data, sort_keys=True, ensure_ascii=False).encode())
     return h.hexdigest()[:8]
 
 
@@ -110,4 +132,5 @@ def revision(cfg: dict | None = None) -> str:
 
 def current_revisions(cfg: dict | None = None) -> set[str]:
     """Every stamp that means 'this test set, as configured now'."""
-    return {revision(cfg), legacy_revision(cfg)}
+    return ({revision(cfg), legacy_revision(cfg)}
+            | _EQUIVALENT_STAMPS.get(cases_hash(), set()))

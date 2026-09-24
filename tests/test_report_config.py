@@ -111,7 +111,7 @@ def test_report_pending_judge_flagged(tmp_path, monkeypatch):
     stats = report.model_stats("m")
     assert stats["pending_judge"] == 1
     md = report.render_markdown(["m"], {"m": stats}, None)
-    assert "1 rows unjudged" in md                      # scorecard Notes
+    assert "1 row unjudged" in md                      # scorecard Notes
     assert "NOT yet judged" in report.render_failures(["m"], {"m": stats}, None)
 
 

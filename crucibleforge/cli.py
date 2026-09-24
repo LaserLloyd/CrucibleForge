@@ -818,6 +818,10 @@ def cmd_judge(args, cfg):
         result = run_judge(cfg, labels, force=args.force, samples=samples,
                            judge_override=getattr(args, "judge", None),
                            allow_fallback=getattr(args, "judge_fallback", None))
+    except Exception as e:
+        # the board names the reason next to the unjudged rows
+        _stamp_judge_error(labels, str(e))
+        raise
     finally:
         guard.restore()
     _stamp_judged(labels)
@@ -840,6 +844,20 @@ def _stamp_judged(labels: list[str]) -> None:
         except (OSError, ValueError):
             continue
         meta["judged"] = _now()
+        meta.pop("judge_error", None)
+        p.write_text(json.dumps(meta, indent=2), encoding="utf-8")
+
+
+def _stamp_judge_error(labels: list[str], error: str) -> None:
+    """meta ``judge_error`` = why the last judge phase for these models
+    aborted (cleared by the next one that completes)."""
+    for label in labels:
+        p = results_dir() / f"meta_{label}.json"
+        try:
+            meta = json.loads(p.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        meta["judge_error"] = error[:500]
         p.write_text(json.dumps(meta, indent=2), encoding="utf-8")
 
 

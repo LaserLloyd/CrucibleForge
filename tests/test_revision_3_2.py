@@ -686,7 +686,12 @@ def test_coverage_flags_judge_mismatch_and_attempted(tmp_path, monkeypatch):
     assert stats["b"]["coverage"]["tier"] == 0 and stats["b"]["coverage"]["notes"] == []
     md = report.render_markdown(["a", "b"], stats, None)
     sc = md.split("## Scorecard")[1].split("## Components")[0]
-    assert sc.index("| b |") < sc.index("| a |")
+    # order is Overall-descending (2026-09-24); comparability is the Notes'
+    # job — the judge mismatch is named on a's row
+    ca, cb = stats["a"]["scorecard"], stats["b"]["scorecard"]
+    first, second = ("a", "b") if (ca["total"] or -1) >= (cb["total"] or -1) else ("b", "a")
+    assert sc.index(f"| {first} |") < sc.index(f"| {second} |")
+    assert "judged by K" in sc
     assert "judged by K" in sc.split("| a |")[1].split("\n")[0]
 
 

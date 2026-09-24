@@ -201,12 +201,23 @@ def scorecard(s: dict, sc: dict) -> dict:
 
     chat, chat_w, chat_missing = group(sc["chat"])
     coding, coding_w, coding_missing = group(sc["coding"])
+    chat_unjudged = bool(s.get("pending_judge"))
+    if chat_unjudged:
+        # Rows still waiting for the judge (e.g. the judge phase aborted):
+        # a Chat number from the judged subset would be computed on a
+        # different case set than everyone else's — show "-" and no Overall;
+        # the Notes cell says why and how many (2026-09-24).
+        chat = None
     parts = [(chat, chat_w), (coding, coding_w)]
     tot_w = sum(w for v, w in parts if v is not None)
     total = (sum(v * w for v, w in parts if v is not None) / tot_w) if tot_w else None
+    if chat_unjudged:
+        total = None
     tps = s["speed"].get("tok_per_s_median")
     half_only = None
-    if chat is None and coding is not None:
+    if chat_unjudged:
+        pass                                  # the unjudged note explains the "-"
+    elif chat is None and coding is not None:
         half_only = "Coding"
     elif coding is None and chat is not None:
         half_only = "Chat"
@@ -317,13 +328,24 @@ def _coverage(rows: list[dict], meta: dict, cfg: dict | None) -> dict:
     self_judged = sorted({r["case_id"] for r in rows if r.get("judge_model")
                           and r["judge_model"] == meta.get("model_id")})
     pending = sum(1 for r in rows if r.get("needs_judge") and "judge" not in r)
+    unparsable = sum(1 for r in rows if (r.get("judge") or {}).get("judge_failed")
+                     and not (r.get("judge") or {}).get("empty_generation"))
+    errored = sum(1 for r in rows if r.get("grade") == "error")
     notes: list[str] = []
     if failed:
         notes.append("FAILED: " + _cut(str(meta.get("error") or "?"), 70))
     if complete is False and cases:
         notes.append(f"partial ({cases}/{expected} cases)")
     if pending:
-        notes.append(f"{pending} rows unjudged")
+        unj = f"{pending} row{'s' if pending != 1 else ''} unjudged"
+        if meta.get("judge_error"):
+            notes.append(f"judge aborted: {_cut(str(meta['judge_error']), 70)}, {unj}")
+        else:
+            notes.append(unj)
+    if unparsable:
+        notes.append(f"{unparsable} verdict{'s' if unparsable != 1 else ''} unparsable")
+    if errored:
+        notes.append(f"{errored} row{'s' if errored != 1 else ''} errored (not scored)")
     if stale:
         notes.append("stale revision")
     if judge_mismatch:
@@ -675,9 +697,14 @@ def model_stats(label: str, cfg: dict | None = None, rows: list[dict] | None = N
 
     needle = [r for r in perf if r.get("grade")]
     pending = sum(1 for r in rows if r.get("needs_judge") and "judge" not in r)
-    judge_failed = sum(1 for r in rows
-                       if (r.get("judge") or {}).get("judge_failed")
-                       and not (r.get("judge") or {}).get("empty_generation"))
+    judge_failed_rows = [r for r in rows
+                         if (r.get("judge") or {}).get("judge_failed")
+                         and not (r.get("judge") or {}).get("empty_generation")]
+    judge_failed = len(judge_failed_rows)
+    judge_unparsable = [
+        f"{r.get('case_id')}: verdict unparsable, excluded "
+        f"({_cut(str(r['judge'].get('judge_error') or r['judge'].get('judge_raw') or 'empty reply'), 80)})"
+        for r in judge_failed_rows]
     empty_gen = sum(1 for r in rows
                     if (r.get("judge") or {}).get("empty_generation"))
     # truncation rate over genuine creative rows only — exclude the safety
@@ -751,6 +778,7 @@ def model_stats(label: str, cfg: dict | None = None, rows: list[dict] | None = N
         "needle": {"rate": (_mean([1.0 if r["grade"] == "pass" else 0.0
                                    for r in needle]) if needle else None)},
         "pending_judge": pending, "judge_failed": judge_failed,
+        "judge_unparsable": judge_unparsable,
         "empty_generation": empty_gen, "truncation_rate": trunc_rate,
         "reasoning_overflow": reasoning_overflow, "case_errors": case_errors,
         "errored": errored,
@@ -872,15 +900,19 @@ def run_minutes(meta: dict) -> float | None:
 
 
 def rank_labels(labels: list[str], stats: dict) -> list[str]:
-    """Scorecard order (used by EVERY table): comparable runs first, then by
-    Overall, then by label."""
+    """Scorecard order (used by EVERY table): Overall descending, then Chat,
+    then Coding (maintainer 2026-09-24). A row with no Overall (a half unjudged or
+    missing) follows the scored rows; a FAILED run goes last. Comparability
+    problems are the Notes cell's job, not the order's."""
     def key(l):
         cov = stats[l].get("coverage") or {}
-        tier = cov.get("tier")
-        if tier is None:
-            tier = 2 if cov.get("failed") else (1 if cov.get("complete") is False else 0)
-        total = (stats[l].get("scorecard") or {}).get("total")
-        return (tier, -(total if total is not None else -1), l)
+        failed = bool(cov.get("failed")) or cov.get("tier") == 2
+        c = stats[l].get("scorecard") or {}
+
+        def neg(x):
+            return -x if x is not None else float("inf")
+        return (failed, c.get("total") is None, neg(c.get("total")), neg(c.get("chat")),
+                neg(c.get("coding")), l)
     return sorted(labels, key=key)
 
 
@@ -1003,6 +1035,8 @@ def _model_failures(s: dict) -> list[str]:
             out.append(f"[{component_label(cat)}] {f}")
     for f in s.get("errored") or []:
         out.append(f"[errored, not scored] {f}")
+    for f in s.get("judge_unparsable") or []:
+        out.append(f"[judge] {f}")
     return out
 
 
@@ -1109,7 +1143,39 @@ def board_filter(label: str, cfg: dict | None, rows: list[dict] | None = None) -
     keep = [r for r in rows
             if r.get("profile") == DEFAULT_PROFILE
             and (not current or r.get("bench_revision") in current)]
-    return _board_rows(keep)
+    return _recheck(_board_rows(keep))
+
+
+_CASES_BY_ID: dict | None = None
+
+
+def _recheck(rows: list[dict]) -> list[dict]:
+    """Re-apply the CURRENT deterministic checks (session_checks) to stored
+    rows. Checks are grading, like graders: a fixed false positive must fix
+    every row already on the board, not only rows generated after the fix
+    (the checks are excluded from the suite revision hash for this reason —
+    version._GRADING_KEYS). Rows are copied, never rewritten on disk."""
+    global _CASES_BY_ID
+    from . import session_checks
+    from .config import load_cases
+    if _CASES_BY_ID is None:
+        try:
+            _CASES_BY_ID = {c["id"]: c for c in load_cases()}
+        except Exception as e:  # noqa: BLE001 — a broken case file must not blank the board
+            log.warning("recheck: could not load cases (%s) — stored checks kept", e)
+            _CASES_BY_ID = {}
+    out = []
+    for r in rows:
+        case = _CASES_BY_ID.get(r.get("case_id"))
+        if r.get("checks") is not None and case and case.get("checks"):
+            if r.get("conversation"):
+                replies = [m.get("content") or "" for m in r["conversation"]
+                           if m.get("role") == "assistant"]
+            else:
+                replies = [r.get("response") or ""]
+            r = {**r, "checks": session_checks.run_checks(case, replies)}
+        out.append(r)
+    return out
 
 
 def _meta_counts(meta: dict, cfg: dict | None) -> bool:
