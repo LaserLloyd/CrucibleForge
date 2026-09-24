@@ -5,7 +5,7 @@
 #
 #   uv run crucibleforge all --models <label> --fresh --yes
 #
-# which loads the model once, generates every case, has the 122B judge score
+# which loads the model once, generates every case, has the profile's judge (Gemma-4-31B heretic Q8) score
 # the chat rows, and rebuilds the board (results/report.md, failures.md,
 # report.html). This script only adds what a campaign needs around it:
 #
@@ -57,9 +57,15 @@ for MODEL in $MODELS; do
   uv run crucibleforge all --models "$MODEL" --fresh --yes
   rc=$?
   echo "=== MODEL $MODEL rc=$rc $(date) ==="
-  [ "$rc" -ne 0 ] && { echo "=== FAILED $MODEL rc=$rc ==="; exit 11; }
+  # one model failing (not served, engine can't load it, …) must not strand
+  # the rest of an unattended campaign: record it and carry on
+  [ "$rc" -ne 0 ] && { echo "=== FAILED $MODEL rc=$rc ==="; FAILED="${FAILED:-} $MODEL"; }
 done
 
 echo ""
+if [ -n "${FAILED:-}" ]; then
+  echo "=== DONE with failures:${FAILED} $(date) ==="
+  exit 11
+fi
 echo "=== DONE all models: $MODELS $(date) ==="
 exit 0

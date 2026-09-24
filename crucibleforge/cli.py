@@ -593,11 +593,22 @@ def cmd_status(args, cfg):
         price = m.get("price")
         pr = f" ${price.get('input', 0)}/{price.get('output', 0)} per 1M" if price else ""
         print(f"  [{flag}] {m['name']:28s} {m['provider']:12s} {m['model_id'][:60]:60s}{pr}")
+    # the benchmark's judge is the one the profile names (run/all/judge use
+    # it); the judge.candidates list is only the fallback walk for ad-hoc runs
     try:
-        judge = select_judge(cfg, set())
-        print(f"\njudge: {judge['model_id']} @ {judge['provider']}")
-    except JudgeError as e:
-        print(f"\njudge: UNAVAILABLE — {e}")
+        from .profiles import DEFAULT_PROFILE as _DP, load_profile as _lp, profile_judge as _pj
+        pj = _pj(_lp(_DP, cfg))
+    except Exception:  # noqa: BLE001
+        pj = None
+    if isinstance(pj, dict):
+        samples = int((cfg.get("judge") or {}).get("samples", 1))
+        print(f"\njudge (profile {_DP}): {pj['model_id']} @ {pj['provider']}  samples={samples}")
+    else:
+        try:
+            judge = select_judge(cfg, set())
+            print(f"\njudge: {judge['model_id']} @ {judge['provider']}")
+        except JudgeError as e:
+            print(f"\njudge: UNAVAILABLE — {e}")
     cases = load_cases()
     by_cat: dict[str, int] = {}
     hard = 0
@@ -1262,7 +1273,7 @@ def main(argv=None):
                        help="with --judge: allow the next judge candidate if the forced "
                             "judge cannot be loaded (default: strict — the judge phase fails)")
         p.add_argument("--judge", default=None,
-                       help="judge to use: a judge.candidates name, a registry label (e.g. minimax-m3), or provider:model_id. Default: the profile's judge (bench: the 122B). A hosted-API judge takes no GPU lease and no rig lock")
+                       help="judge to use: a judge.candidates name, a registry label (e.g. minimax-m3), or provider:model_id. Default: the profile's judge (bench: Gemma-4-31B heretic Q8). A hosted-API judge takes no GPU lease and no rig lock")
         p.add_argument("--no-link-check", action="store_true",
                        help="skip the pre-flight provider data-channel probe")
         add_v2_args(p)
@@ -1276,7 +1287,7 @@ def main(argv=None):
     p_judge.add_argument("--force", action="store_true",
                          help="re-judge rows that already have verdicts")
     p_judge.add_argument("--samples", type=int, default=None)
-    p_judge.add_argument("--judge", default=None, help="judge to use: a judge.candidates name, a registry label (e.g. minimax-m3), or provider:model_id. Default: the profile's judge (bench: the 122B). A hosted-API judge takes no GPU lease and no rig lock")
+    p_judge.add_argument("--judge", default=None, help="judge to use: a judge.candidates name, a registry label (e.g. minimax-m3), or provider:model_id. Default: the profile's judge (bench: Gemma-4-31B heretic Q8). A hosted-API judge takes no GPU lease and no rig lock")
     p_judge.add_argument("--allow-self-judge", action="store_true",
                          help="experiments only: let the judge score its own rows "
                               "(the report flags them as self-judged)")
