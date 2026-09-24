@@ -455,15 +455,22 @@ class _ProviderGuard:
     end and bring the evicted residents back (a family bot's model should
     not stay cold because a benchmark ran)."""
 
-    def __init__(self, cfg, entries, include_judge: bool = True, force_evict: bool = False):
+    def __init__(self, cfg, entries, include_judge: bool = True, force_evict: bool = False,
+                 judge=None):
         from .providers import provider_for, get_provider
         self.provs = {}
         for e in entries:
             p = provider_for(cfg, e)
             if p.type in ("lmstudio", "studioforge"):
                 self.provs[p.name] = p
+        # With a known judge only ITS provider is guarded: a hosted-API judge
+        # must not snapshot/restore (i.e. reload models on) the rig.
+        judge_cands = (cfg.get("judge") or {}).get("candidates", [])
+        if include_judge and judge:
+            from .judge import resolve_judge_spec
+            judge_cands = [resolve_judge_spec(cfg, judge)]
         if include_judge:
-            for cand in (cfg.get("judge") or {}).get("candidates", []):
+            for cand in judge_cands:
                 try:
                     p = get_provider(cfg, cand["provider"])
                 except Exception:
@@ -801,7 +808,8 @@ def cmd_judge(args, cfg):
     # with bench-first the lease itself evicts the family bot's model, and a
     # snapshot taken afterwards is empty — so nothing was restored and the
     # rig sat empty after the judge phase (run 1, 2026-09-08 08:59).
-    guard = _ProviderGuard(cfg, [], force_evict=force_evict)
+    guard = _ProviderGuard(cfg, [], force_evict=force_evict,
+                           judge=getattr(args, "judge", None))
     try:
         acquire_judge_lease(cfg, force_evict=force_evict,
                             override=getattr(args, "judge", None))
@@ -818,7 +826,8 @@ def cmd_judge(args, cfg):
     try:
         result = run_judge(cfg, labels, force=args.force, samples=samples,
                            judge_override=getattr(args, "judge", None),
-                           allow_fallback=getattr(args, "judge_fallback", None))
+                           allow_fallback=getattr(args, "judge_fallback", None),
+                           allow_self_judge=bool(getattr(args, "allow_self_judge", False)))
     except Exception as e:
         # the board names the reason next to the unjudged rows
         _stamp_judge_error(labels, str(e))
@@ -1048,6 +1057,30 @@ ENV_FILE = Path(os.environ.get("CRUCIBLEFORGE_ENV_FILE",
 RIG_LOCK_CMDS = ("run", "all", "judge", "recover")
 
 
+def _remote_judge_only(args, cfg) -> bool:
+    """`judge` with a hosted-API judge never touches the rig (no lease, no
+    load, no guard), so it does not wait behind — or block — a benchmark
+    holding results/.rig.lock. Do not re-judge a model that a running
+    benchmark is still writing."""
+    if getattr(args, "cmd", None) != "judge":
+        return False
+    try:
+        from .judge import resolve_judge_spec
+        from .profiles import DEFAULT_PROFILE, load_profile, profile_judge
+        from .providers import get_provider
+        spec = getattr(args, "judge", None) or profile_judge(
+            load_profile(getattr(args, "profile", None) or DEFAULT_PROFILE, cfg))
+        cand = resolve_judge_spec(cfg, spec)
+        if not cand:
+            return False
+        remote = get_provider(cfg, cand["provider"]).type not in ("lmstudio", "studioforge")
+    except Exception:  # noqa: BLE001 — unsure: take the lock
+        return False
+    if remote:
+        log.info("judge %s is a hosted API — the rig lock is not taken", cand["model_id"])
+    return remote
+
+
 def _rig_lock_path() -> Path:
     return results_dir() / ".rig.lock"
 
@@ -1201,7 +1234,7 @@ def main(argv=None):
                        help="with --judge: allow the next judge candidate if the forced "
                             "judge cannot be loaded (default: strict — the judge phase fails)")
         p.add_argument("--judge", default=None,
-                       help="force a judge: provider:model_id (must not be under test)")
+                       help="judge to use: a judge.candidates name, a registry label (e.g. minimax-m3), or provider:model_id. Default: the profile's judge (bench: the 122B). A hosted-API judge takes no GPU lease and no rig lock")
         p.add_argument("--no-link-check", action="store_true",
                        help="skip the pre-flight provider data-channel probe")
         p.add_argument("--run-id", default=None,
@@ -1228,7 +1261,10 @@ def main(argv=None):
     p_judge.add_argument("--force", action="store_true",
                          help="re-judge rows that already have verdicts")
     p_judge.add_argument("--samples", type=int, default=None)
-    p_judge.add_argument("--judge", default=None, help="provider:model_id")
+    p_judge.add_argument("--judge", default=None, help="judge to use: a judge.candidates name, a registry label (e.g. minimax-m3), or provider:model_id. Default: the profile's judge (bench: the 122B). A hosted-API judge takes no GPU lease and no rig lock")
+    p_judge.add_argument("--allow-self-judge", action="store_true",
+                         help="experiments only: let the judge score its own rows "
+                              "(the report flags them as self-judged)")
     p_judge.add_argument("--judge-fallback", action="store_true",
                          help="allow the next candidate if the forced --judge cannot load "
                               "(default: strict, the phase fails instead)")
@@ -1364,7 +1400,7 @@ def main(argv=None):
     v2_state = _v2_start(args) if v2_tracked else None
     rig_lock = None
     try:
-        if args.cmd in RIG_LOCK_CMDS:
+        if args.cmd in RIG_LOCK_CMDS and not _remote_judge_only(args, cfg):
             rig_lock = acquire_rig_lock()  # noqa: F841 — held until exit
         rc = handler(args, cfg)
     except ConfigError as e:

@@ -705,6 +705,9 @@ class JudgeClient:
         # greedy by default (2026-09-24): with the fixed per-sample seed a
         # verdict is as repeatable as the server's batching allows
         self.temperature = float(cand.get("temperature", jcfg.get("temperature", 0.0)))
+        # some hosted judges pin sampling (Kimi-k3 accepts only temperature 1
+        # and top_p 0.95); None = the request default (1.0)
+        self.top_p = cand.get("top_p", jcfg.get("top_p"))
         self.max_tokens = int(cand.get("max_tokens", jcfg.get("max_tokens", 1536)))
         self.extra_body = model_extra_body(cand)
         self.concurrency = self.provider.workers(self.model_id) if self.provider.type != "lmstudio" else 1
@@ -726,6 +729,8 @@ class JudgeClient:
         kw.setdefault("extra_body", self.extra_body)
         kw.setdefault("max_tokens", self.max_tokens)
         kw.setdefault("temperature", self.temperature)
+        if self.top_p is not None:
+            kw.setdefault("top_p", float(self.top_p))
         if self.row_timeout_s:
             kw.setdefault("max_wall_s", self.row_timeout_s)
         if self.no_schema:
@@ -770,32 +775,86 @@ def _eligible_judge_candidates(cfg: dict, benched_model_ids: set[str]) -> list[d
     return out
 
 
+# keys a registry entry's optional ``judge:`` block may set for its use as a judge
+_JUDGE_KEYS = ("context_length", "thinking", "temperature", "top_p", "max_tokens",
+               "extra_body", "no_schema", "row_timeout_s")
+
+
+def judge_from_registry(entry: dict) -> dict:
+    """A judge candidate built from a registry model entry: provider,
+    model_id, extra_body and thinking come from the entry, and its optional
+    ``judge:`` block overrides them for judging (pinned sampling for a hosted
+    API, thinking on, ...). The context is the judge default (16384) unless
+    the block says otherwise — NOT the entry's run context: the judge prompt
+    is clamped to fit the context, so every judge must see the same input."""
+    cand = {"provider": entry["provider"], "model_id": entry["model_id"],
+            "name": entry["name"], "context_length": JUDGE_DEFAULT_CONTEXT}
+    for k in ("extra_body", "thinking"):
+        if k in entry:
+            cand[k] = entry[k]
+    cand.update({k: v for k, v in (entry.get("judge") or {}).items() if k in _JUDGE_KEYS})
+    return cand
+
+
+def resolve_judge_spec(cfg: dict, spec: str | dict | None) -> dict | None:
+    """Turn a ``--judge`` spec into a judge candidate dict (None = no spec).
+
+    Accepted, in this order:
+      * a dict (a profile's ``judge:`` block) — used as is;
+      * the ``name`` of a ``judge.candidates`` entry;
+      * ``provider:model_id`` of a ``judge.candidates`` entry;
+      * a registry label (``minimax-m3``) — the entry's provider/model_id,
+        with its ``judge:`` block (thinking, context_length, top_p, ...);
+      * ``provider:model_id`` of a registry entry (same as its label);
+      * any other ``provider:model_id`` on a configured provider (plain
+        settings: no thinking, judge-wide temperature);
+      * a bare model_id of a candidate or registry entry.
+    Raises JudgeError when nothing matches."""
+    if spec is None or spec == "":
+        return None
+    if isinstance(spec, dict):
+        return dict(spec)
+    cands = list((cfg.get("judge") or {}).get("candidates", []))
+    models = list(cfg.get("models") or [])
+    hit = next((c for c in cands if c.get("name") == spec), None)
+    if hit:
+        return dict(hit)
+    pname, mid = (spec.split(":", 1) if ":" in spec
+                  and spec.split(":", 1)[0] in (cfg.get("providers") or {}) else (None, spec))
+    if pname:
+        hit = next((c for c in cands if c.get("provider") == pname and c["model_id"] == mid), None)
+        if hit:
+            return dict(hit)
+        ent = next((m for m in models if m.get("provider") == pname and m["model_id"] == mid), None)
+        if ent:
+            return judge_from_registry(ent)
+        return {"provider": pname, "model_id": mid}
+    ent = next((m for m in models if m.get("name") == spec), None)
+    if ent:
+        return judge_from_registry(ent)
+    hit = next((c for c in cands if c["model_id"] == spec), None)
+    if hit:
+        return dict(hit)
+    ent = next((m for m in models if m["model_id"] == spec), None)
+    if ent:
+        return judge_from_registry(ent)
+    raise JudgeError(f"--judge {spec!r}: not a judge candidate name, registry label or "
+                     f"provider:model_id on a configured provider")
+
+
 def select_judge(cfg: dict, benched_model_ids: set[str],
                  override: str | dict | None = None) -> dict:
     """First judge candidate available on its provider and not under test.
     ``override`` = "provider:model_id" (or a bare model_id matching one
     candidate), or a full candidate dict (provider, model_id, extra_body,
     thinking, ...) — e.g. from a run profile — forces a specific judge."""
-    cands = list(cfg["judge"].get("candidates", []))
-    if isinstance(override, dict):
-        forced = dict(override)
+    if override:
+        forced = resolve_judge_spec(cfg, override)
         if forced.get("provider") not in cfg["providers"]:
             raise JudgeError(f"judge provider {forced.get('provider')!r} is not configured")
         if forced["model_id"] in benched_model_ids:
-            raise JudgeError(f"judge {forced['model_id']} is itself under test")
-        return forced
-    if override:
-        if ":" in override and override.split(":", 1)[0] in cfg["providers"]:
-            pname, mid = override.split(":", 1)
-            forced = next((c for c in cands if c.get("provider") == pname
-                           and c["model_id"] == mid), None)
-            forced = forced or {"provider": pname, "model_id": mid}
-        else:
-            forced = next((c for c in cands if c["model_id"] == override), None)
-            if forced is None:
-                raise JudgeError(f"--judge {override!r}: not a judge candidate; use provider:model_id")
-        if forced["model_id"] in benched_model_ids:
-            raise JudgeError(f"judge {forced['model_id']} is itself under test")
+            raise JudgeError(f"judge {forced['model_id']} is itself under test "
+                             f"(--allow-self-judge scores its own rows anyway)")
         return forced
     eligible = _eligible_judge_candidates(cfg, benched_model_ids)
     if not eligible:
@@ -1479,7 +1538,8 @@ def pending_judge_rows(labels: list[str], force: bool = False) -> int:
 
 def run_judge(cfg: dict, labels: list[str], force: bool = False,
               samples: int | None = None, judge_override: str | dict | None = None,
-              stop=None, allow_fallback: bool | None = None) -> dict:
+              stop=None, allow_fallback: bool | None = None,
+              allow_self_judge: bool = False) -> dict:
     """Judge all pending quality rows for the given labels.
 
     Judged rows are APPENDED to the same transcript file; the loader's
@@ -1487,7 +1547,9 @@ def run_judge(cfg: dict, labels: list[str], force: bool = False,
     row. Nothing is overwritten, so a crash mid-judge loses nothing.
 
     samples: self-consistency sample count (median/majority over N judge
-    passes). Defaults to cfg.judge.samples. judge_override: "provider:model".
+    passes). Defaults to cfg.judge.samples. judge_override: any spec
+    ``resolve_judge_spec`` accepts (candidate name, registry label,
+    provider:model_id) or a candidate dict.
     stop: optional threading.Event checked between rows.
 
     A judge candidate that fails to LOAD (e.g. StudioForge HTTP 507 out of
@@ -1501,6 +1563,12 @@ def run_judge(cfg: dict, labels: list[str], force: bool = False,
     """
     by_name = {m["name"]: m for m in cfg["models"]}
     benched_ids = {by_name[l]["model_id"] for l in labels if l in by_name}
+    if allow_self_judge and benched_ids:
+        # experiments only (measuring self-preference): the report flags
+        # every row a model judged for itself
+        log.warning("--allow-self-judge: the under-test exclusion is OFF — a judge "
+                    "may score its own rows")
+        benched_ids = set()
     if samples is None:
         samples = int(cfg["judge"].get("samples", 1))
 

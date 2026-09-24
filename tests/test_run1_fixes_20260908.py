@@ -45,7 +45,7 @@ def test_cmd_judge_snapshots_before_lease(monkeypatch):
     order = []
 
     class Guard:
-        def __init__(self, cfg, entries, include_judge=True, force_evict=False):
+        def __init__(self, cfg, entries, include_judge=True, force_evict=False, judge=None):
             order.append("snapshot")
         def restore(self):
             order.append("restore")
