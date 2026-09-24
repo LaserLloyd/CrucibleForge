@@ -708,6 +708,11 @@ class JudgeClient:
         # some hosted judges pin sampling (Kimi-k3 accepts only temperature 1
         # and top_p 0.95); None = the request default (1.0)
         self.top_p = cand.get("top_p", jcfg.get("top_p"))
+        # samples > 1: greedy decoding would return the same verdict N times
+        # (a fixed seed does not vary a temperature-0 draw), so extra samples
+        # are drawn at this temperature; sample 0 stays at ``temperature``
+        self.sample_temperature = float(cand.get("sample_temperature",
+                                                 jcfg.get("sample_temperature", 0.7)))
         self.max_tokens = int(cand.get("max_tokens", jcfg.get("max_tokens", 1536)))
         self.extra_body = model_extra_body(cand)
         self.concurrency = self.provider.workers(self.model_id) if self.provider.type != "lmstudio" else 1
@@ -1311,12 +1316,15 @@ def judge_row(jc: JudgeClient, row: dict, samples: int = 1) -> dict:
     last_result = {}
     t0 = time.monotonic()
 
-    def _call(seed: int, extra: str | None = None, no_think: bool = False):
+    def _call(seed: int, extra: str | None = None, no_think: bool = False,
+              temperature: float | None = None):
         messages = [{"role": "system", "content": JUDGE_SYSTEM},
                     {"role": "user", "content": user_prompt}]
         if extra:
             messages.append({"role": "user", "content": extra})
         kwargs: dict = dict(seed=seed)
+        if temperature is not None:
+            kwargs["temperature"] = temperature
         if jc.row_timeout_s:
             # every attempt of this row draws on the same per-row budget
             kwargs["max_wall_s"] = max(30.0, jc.row_timeout_s - (time.monotonic() - t0))
@@ -1345,24 +1353,35 @@ def judge_row(jc: JudgeClient, row: dict, samples: int = 1) -> dict:
         # the row's retries share ONE per-row budget
         return bool(jc.row_timeout_s) and time.monotonic() - t0 > jc.row_timeout_s
 
-    for i in range(max(1, samples)):
-        raw = _call(seed=42 + i)
-        if i == 0:
-            first_raw = raw
+    n = max(1, samples)
+
+    def _sample(i: int):
+        temp = None if i == 0 else getattr(jc, "sample_temperature", None)
+        raw = _call(seed=42 + i, temperature=temp)
+        first = raw
         v = parse_verdict(raw, rubric)
         if v is None and _over():
-            break
+            return first, None
         if v is None and thinking and (not raw.strip() or last_result.get("finish_reason") == "length"):
             # the judge thought its budget away: ask again without thinking
-            raw = _call(seed=42 + i, no_think=True)
+            raw = _call(seed=42 + i, no_think=True, temperature=temp)
             v = parse_verdict(raw, rubric)
         if v is None and not _over():
             raw = _call(seed=42 + i, extra="Your previous reply was not valid "
                         "JSON for the schema. Respond again with ONLY the JSON object.",
-                        no_think=thinking)
+                        no_think=thinking, temperature=temp)
             v = parse_verdict(raw, rubric)
-        if v is not None:
-            verdicts.append(v)
+        return first, v
+
+    if n == 1:
+        results = [_sample(0)]
+    else:
+        # the samples of one row are independent: draw them concurrently so a
+        # 3-sample judge costs ~one sample of wall time on a multi-slot judge
+        with ThreadPoolExecutor(max_workers=n) as ex:
+            results = list(ex.map(_sample, range(n)))
+    first_raw = results[0][0]
+    verdicts.extend(v for _, v in results if v is not None)
 
     if not verdicts:
         log.warning("judge parse failed for %s/%s after retries (finish=%s)",
@@ -1659,14 +1678,17 @@ def run_judge(cfg: dict, labels: list[str], force: bool = False,
     # few slots they would otherwise land in the last wave and set its length
     jobs = sorted(((label, row) for label, rows in pending.items() for row in rows),
                   key=lambda lr: -judge_input_weight(lr[1]))
-    if jc.concurrency <= 1:
+    # each row draws its samples concurrently, so rows in flight x samples
+    # must not exceed the judge's slots (queued requests would eat row_timeout)
+    row_workers = max(1, int(jc.concurrency or 1) // max(1, samples))
+    if row_workers <= 1:
         for label, row in jobs:
             if stop is not None and stop.is_set():
                 log.warning("judge stopped by user after %d rows", counts["judged"])
                 break
             _one(label, row)
     else:
-        with ThreadPoolExecutor(max_workers=jc.concurrency) as pool:
+        with ThreadPoolExecutor(max_workers=row_workers) as pool:
             futs = [pool.submit(_one, l, r) for l, r in jobs]
             for f in futs:
                 if stop is not None and stop.is_set():

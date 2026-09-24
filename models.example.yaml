@@ -129,7 +129,8 @@ defaults:
 judge:
   temperature: 0.0          # greedy + fixed seed: repeatable verdicts
   max_tokens: 4096
-  samples: 1              # self-consistency passes per row (3 for a rigorous ranking)
+  samples: 3              # self-consistency: median of 3 judge passes per row (sample 0 greedy)
+  sample_temperature: 0.7 # extra samples are drawn at this temperature, concurrently
   # back-off (seconds) before re-trying a judge that failed to LOAD — a
   # shared GPU box is often only transiently out of VRAM. A forced --judge
   # fails after this schedule instead of switching judges (--judge-fallback).
