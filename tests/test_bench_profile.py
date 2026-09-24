@@ -22,7 +22,7 @@ def test_bench_is_the_only_profile_and_the_default():
     args = cli.argparse.Namespace(profile=None, judge=None, smoke=False)
     cfg2, cases, prof = cli._apply_profile_arg(args, cfg)
     assert prof["name"] == "bench" and cfg2["_profile"] == "bench"
-    assert cases and args.judge["model_id"].endswith("Qwen3.5-122B-A10B-heretic-v2.i1-Q5_K_M")
+    assert cases and args.judge["model_id"].endswith("gemma-4-31B-it-uncensored-heretic-Q8_0")
 
 
 def test_bench_budgets_are_unchanged_and_math_skips_recovery():
@@ -42,7 +42,7 @@ def test_bench_budgets_are_unchanged_and_math_skips_recovery():
     assert all(c["max_tokens"] == 2000 for c in by["rp"] + by["nsfw"])
     assert all(c["max_tokens"] == 3000 for c in by["story"])
     j = profiles.profile_judge(prof)
-    assert "Qwen3.5-122B" in j["model_id"] and j["thinking"] is True
+    assert "gemma-4-31B-it-uncensored-heretic" in j["model_id"] and j["thinking"] is True
 
 
 def test_bench_case_set_is_small_and_drops_the_non_discriminating():

@@ -314,9 +314,9 @@ def test_thinking_budget_auto_detects():
 
 # ------------------------------------------------------ profiles + scoring
 
-def j_model_is_122b(j):
-    # the only judge the board is comparable on (Gemma4-31B is gone from the rig)
-    return "Qwen3.5-122B" in j["model_id"] and j.get("thinking") is True
+def j_model_is_bench_judge(j):
+    # the board's judge (2026-09-24: Gemma-4-31B heretic Q8, replacing the 122B)
+    return "gemma-4-31B-it-uncensored-heretic" in j["model_id"] and j.get("thinking") is True
 
 
 def test_bench_profile_loads_and_applies():
@@ -334,7 +334,7 @@ def test_bench_profile_loads_and_applies():
     assert coding and all(c["max_tokens"] == 6144 for c in coding)
     math_ = [c for c in cases if c["category"] == "math"]
     assert math_ and all(c["max_tokens"] == 4096 for c in math_)
-    assert j_model_is_122b(profiles.profile_judge(prof))
+    assert j_model_is_bench_judge(profiles.profile_judge(prof))
     assert all(c["difficulty"] == "hard" for c in coding)
     # smoke narrows to smoke-tagged members only
     _, smoke = profiles.apply_profile(prof, cfg, smoke=True)
