@@ -62,6 +62,10 @@ providers:
     base_url: https://api.deepseek.com/v1
     api_key_env: DEEPSEEK_API_KEY
     concurrency: 4
+    # A remote API with a 1M context may lift the thinking budget the profile
+    # sizes for a 32768-token local server (remote providers only):
+    thinking_max_tokens_cap: 65536
+    thinking_max_tokens_factor: 12
   openrouter:
     type: openai
     base_url: https://openrouter.ai/api/v1
@@ -123,7 +127,7 @@ defaults:
 # any small instruct model is enough for the `reference` rubric (hard
 # questions with a gold answer). `--judge provider:model_id` forces one.
 judge:
-  temperature: 0.1
+  temperature: 0.0          # greedy + fixed seed: repeatable verdicts
   max_tokens: 4096
   samples: 1              # self-consistency passes per row (3 for a rigorous ranking)
   # back-off (seconds) before re-trying a judge that failed to LOAD — a
