@@ -27,6 +27,10 @@ Harness-only; the suite revision is unchanged.
 - **`judge --allow-self-judge`** (experiments): lifts the under-test
   exclusion so a contestant's self-preference can be measured; the report
   already flags self-judged rows.
+- **`judge --detach`** plus the run-report flags (`--run-id`, `--deliver-to`,
+  `--requester`, `--task-run-id`): a rig judge phase outlives an agent's exec
+  timeout, and it now writes `runs/<id>/{report.md,meta.json}` like run/all
+  (its minutes are the judge phase's own).
 
 ## 3.4.1 — fixes from the first real 3.4.0 run (2026-09-24)
 
