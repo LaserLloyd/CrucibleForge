@@ -417,7 +417,7 @@ def warm_model(model_id: str, base_url: str, api_key: str,
 
 def load_recommended(model_id: str, base_url: str, api_key: str,
                      ctx_size: int, prefer_mode: str | None = None,
-                     headers: dict | None = None) -> dict | None:
+                     headers: dict | None = None, max_slots: int | None = None) -> dict | None:
     """StudioForge 0.2 ``POST /api/models/<id>/load-recommended``: the server
     picks placement, KV type and slot count for exactly ``ctx_size`` per slot
     (quality-first). Returns the response dict on success, ``{"_status": 507,
@@ -426,6 +426,8 @@ def load_recommended(model_id: str, base_url: str, api_key: str,
     body: dict = {"ctx_size": int(ctx_size)}
     if prefer_mode:
         body["prefer_mode"] = prefer_mode
+    if max_slots:
+        body["max_slots"] = int(max_slots)
     try:
         code, data = _mgmt("POST", base_url, api_key, headers,
                            f"/api/models/{_quote(model_id)}/load-recommended",
@@ -443,6 +445,29 @@ def load_recommended(model_id: str, base_url: str, api_key: str,
     else:
         data.pop("_status", None)
     return data
+
+
+_FEWER_SLOTS_RE = re.compile(r"reduce parallel from (\d+) to (\d+)", re.IGNORECASE)
+
+
+def _fewer_slots_hint(res: dict) -> int | None:
+    """The slot count a 507 ``insufficient_vram`` refusal says would fit
+    ("reduce parallel from 8 to 7"), or None."""
+    if res.get("_status") != 507:
+        return None
+    m = _FEWER_SLOTS_RE.search(json_dumps_safe(res))
+    if not m:
+        return None
+    n = int(m.group(2))
+    return n if n >= 1 else None
+
+
+def json_dumps_safe(obj) -> str:
+    try:
+        import json
+        return json.dumps(obj, default=str)
+    except Exception:  # noqa: BLE001
+        return str(obj)
 
 
 def _refusal_reason(res: dict) -> str:
@@ -609,8 +634,10 @@ def load_model(model_id: str, base_url: str, api_key: str,
             except StatusUnavailable as e:
                 log.warning("pre-replan unload failed (%s) — continuing", e)
         waited = 0.0
+        max_slots = None
         while True:
-            res = load_recommended(model_id, base_url, api_key, wanted, headers=headers)
+            res = load_recommended(model_id, base_url, api_key, wanted, headers=headers,
+                                   max_slots=max_slots)
             if res is None:
                 break  # older server — profile fallback below
             if not res.get("_status"):
@@ -627,9 +654,19 @@ def load_model(model_id: str, base_url: str, api_key: str,
                 log.info("%s serving: parallel=%s ctx=%s devices=%s", model_id,
                          live.get("parallel"), live.get("ctx_size"), live.get("devices"))
                 return time.perf_counter() - t0
-            wait = _retry_wait(res, waited, wait_busy_s)
             detail = str(res.get("detail") or (res.get("error") or {}).get("message")
                          if isinstance(res.get("error"), dict) else res.get("error") or res)[:300]
+            # 2026-09-25: the planner can recommend N slots and then refuse its
+            # own load by a few GiB ("reduce parallel from 8 to 7"). Take the
+            # server's own suggestion once per step instead of failing the load.
+            fewer = _fewer_slots_hint(res)
+            if fewer and (max_slots is None or fewer < max_slots):
+                log.warning("load-recommended for %s at ctx=%d: the rig refused its own slot "
+                            "count — retrying at max_slots=%d (%s)", model_id, wanted, fewer,
+                            detail[:160])
+                max_slots = fewer
+                continue
+            wait = _retry_wait(res, waited, wait_busy_s)
             if wait is not None:
                 log.warning("load-recommended for %s at ctx=%d refused (HTTP %s, %s) — "
                             "retrying in %.0fs (%s)", model_id, wanted,
