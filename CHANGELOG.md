@@ -11,6 +11,14 @@ rename.
 Harness-only: the suite revision stays **3.4.0** (prompts unchanged), so the
 2026-09-24 rows stay on the board and are re-graded in place.
 
+**Slots.** The rig's planner sizes a load for one chat stream; JoyFox 35B-A3B
+came up at `parallel=1` on two 5090s, so ~30 jobs would have run serially.
+Below `min_slots` (4) the load is re-issued on the same cards and per-slot
+context at `target_slots` (8), stepping down on refusal — no budget or context
+is cut. **Board.** `all` rebuilt `results/report.md` scoped to its own
+`--models`, so every run overwrote the shared board with one row; the
+end-of-run board now lists every benchmarked model.
+
 **Judge canary.** Both aborts that day were ours, not a non-deterministic
 judge. The thinking 122B runs without the json_schema grammar and was never
 shown the JSON shape, so it invented one: the `explicit` probe's verdict came
