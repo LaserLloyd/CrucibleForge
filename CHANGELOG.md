@@ -36,7 +36,10 @@ failure (`empty-turn`) instead of failing every check that reads it. Checks
 are grading: they no longer enter the revision hash and the report re-applies
 the current checks to stored rows.
 
-**Runner.** Inline `<think>` (MiniMax-M3) is kept as reasoning, so an
+**Runner.** A reply that ends inside its reasoning block (finish=stop, no
+content) takes the recovery ladder: joyfox-35b opened `<think>` and stopped
+without `</think>` on every session turn from 2 on, so 13 of 17 turns reached
+the judge empty; the reasoning text is never taken as the answer. Inline `<think>` (MiniMax-M3) is kept as reasoning, so an
 inline-thinking overflow is detected and recovered (it was an empty answer
 with no reasoning). A remote provider may set `thinking_max_tokens_cap` /
 `thinking_max_tokens_factor` (deepseek, minimax: ×12 up to 65536). "Unable to
