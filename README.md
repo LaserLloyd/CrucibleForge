@@ -126,9 +126,12 @@ measured on nine 27–35B thinking models projects 13.7 min at 30 tok/s with
 every row at its median and ~22 min with every row at its p90 (details in
 `docs/CHAT.md`). The judge phase (122B on all four cards, 4 slots) measured
 on 2026-09-22 for the old set: ~1 min lease + load, ~75 s a verdict, 14 rows
-in 6 min. Now the six canary probes run as 2 concurrent waves (~3 min) and
-the 13 rows as 4 waves, longest inputs first, with longer session inputs and
-a stricter rubric: **~12–16 min** projected.
+in 6 min. The canary measured 2026-09-24 (six probes on 4 slots, greedy
+judge): 266–421 s — set by its slowest probe, not by the slot split (each
+slot keeps the full 16384 ctx): the STRICT-rubric probes think 3.5–8k tokens
+at ~17–20 tok/s per slot under 4-way load (the pre-3.4.0 canary's probes
+thought 0.6–2k). The 13 rows run as 4 waves, longest inputs first: budget
+**~15–20 min**; the terse-flaw-list wording (3.4.1) exists to hold that.
 Safety nets, not limits: a row whose server sends *nothing* for 300 s is
 ended as errored (`defaults.stall_timeout_s`), a judge verdict has a 600 s
 per-row ceiling (`judge.row_timeout_s`), and a thinking model on ≤ 2 slots is

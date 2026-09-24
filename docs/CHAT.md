@@ -268,7 +268,8 @@ would take ~27 min for that one session — that is a model overflowing on every
 overflow shows in failures.md.
 
 **Judge** (122B, 4 slots). Measured 2026-09-22 on the old set: ~1 min lease + load, ~75 s a
-verdict, 14 rows in ~6 min. Now: 6 canary probes = 2 waves (~3 min); 13 rows = 4 waves, the
+verdict, 14 rows in ~6 min. Measured 2026-09-24: the 6-probe canary takes 266–421 s (its slowest
+STRICT probe thinks 3.5–8k tokens at ~17–20 tok/s a slot); 13 rows = 4 waves, the
 sessions first with 6–8K-token inputs and a flaw-listing rubric that thinks longer
 (~120–180 s a wave) → **~12–16 min** total. The per-verdict ceiling (`judge.row_timeout_s`,
 600 s) bounds the worst wave.
