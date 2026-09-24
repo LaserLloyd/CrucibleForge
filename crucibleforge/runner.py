@@ -178,6 +178,17 @@ class _Ctx:
         d = cfg.get("defaults", {})
         self.think_factor = float(d.get("thinking_max_tokens_factor", 4))
         self.think_cap = int(d.get("thinking_max_tokens_cap", 32768))
+        # The profile's cap (24576) exists because the RIG's 32768 context
+        # must hold prompt + output. A remote API with a far larger window
+        # (DeepSeek / MiniMax: 1M) may override both knobs per provider in
+        # models.yaml — "don't limit models" (deepseek-pro lost 4 Programs
+        # rows truncated-empty at 24576 reasoning tokens on 2026-09-24).
+        pcfg = ((cfg.get("providers") or {}).get(getattr(provider, "name", None)) or {})
+        if getattr(provider, "type", None) not in ("studioforge", "lmstudio"):
+            if pcfg.get("thinking_max_tokens_cap"):
+                self.think_cap = int(pcfg["thinking_max_tokens_cap"])
+            if pcfg.get("thinking_max_tokens_factor"):
+                self.think_factor = float(pcfg["thinking_max_tokens_factor"])
         # defaults.reasoning_overflow_recovery (bool, default on); a model
         # entry can opt out with recovery: false
         self.recovery_enabled = (bool(d.get("reasoning_overflow_recovery", True))
@@ -655,7 +666,7 @@ def _run_one_model(cfg, entry, cases, csvw: _Csv, smoke,
             with ctx.lock:
                 state["case_errors"] += 1
             persist([_error_row(base_row, case, f"server rejected the model's output: {e}",
-                                kind="generation")])
+                                kind=_generation_reject_kind(str(e)))])
             return
         except (TransportError, WrongModelError) as e:
             if isinstance(e, RequestRejected) and e.status in _CASE_LOCAL_REJECT_STATUSES:
@@ -788,14 +799,24 @@ def _write_recover_record(label: str, **fields) -> None:
     path.write_text(json.dumps(meta, indent=2), encoding="utf-8")
 
 
+def _generation_reject_kind(error: str) -> str:
+    """``template`` when the server could not even RENDER the request with the
+    model's chat template ("Unable to generate parser for this template" —
+    precog-123b's template raises on a ``tool`` role message): nothing was
+    generated, so it is errored like a rejected request, not a model failure
+    (maintainer 2026-09-24: errored rows are excluded, never scored 0).
+    ``generation`` otherwise (malformed tool-call JSON the model wrote)."""
+    return "template" if "unable to generate parser" in error.lower() else "generation"
+
+
 def _error_row(base_row: dict, case: dict, error: str, kind: str = "generation") -> dict:
     """A persisted row for a case whose generation never arrived.
 
     ``kind="generation"``: the server could not deliver what the MODEL
-    produced (malformed tool-call JSON, an unbuildable template parser) — the
-    case FAILS and counts against the model. ``kind="transport"``: the server
-    or the request failed (connection, 5xx, a rejected request) — the row is
-    ERRORED (grade ``error``): excluded from the score, listed in
+    produced (malformed tool-call JSON) — the case FAILS and counts against
+    the model. ``kind="transport"``/``"template"``: the server or the request
+    failed (connection, 5xx, a rejected request, a chat template the server
+    cannot render) — the row is ERRORED (grade ``error``): excluded from the score, listed in
     failures.md, never judged."""
     first_user = (case.get("tool_script") or [{}])[0].get("user", "")
     row = {**base_row, "run_id": str(uuid.uuid4())[:8], "turn": None,
@@ -803,7 +824,7 @@ def _error_row(base_row: dict, case: dict, error: str, kind: str = "generation")
            "prompt": case.get("prompt") or first_user,
            "response": "", "reasoning": "", "tool_calls": [], "finish_reason": "error",
            "truncated": False, "error": error[:2000], "error_kind": kind, "metrics": {}}
-    if kind == "transport":
+    if kind in ("transport", "template"):
         row["grade"] = "error"
         row["grade_detail"] = error[:300]
         return row
@@ -945,6 +966,8 @@ def _run_multiturn(case, base_row, ctx: _Ctx, max_tokens, temperature, top_p, se
                "reasoning": result.reasoning_text, "tool_calls": [],
                "finish_reason": result.finish_reason,
                "truncated": result.finish_reason == "length",
+               # what was actually sent (boosted for a thinking model)
+               "max_tokens_sent": ctx.budget(max_tokens),
                "metrics": _metrics(result)}
         _annotate_recovery(row, result)
         if i == n_turns:

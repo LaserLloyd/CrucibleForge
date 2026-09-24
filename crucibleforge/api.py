@@ -46,6 +46,49 @@ _THINK_TAGS = re.compile(
     re.IGNORECASE)
 
 
+def split_thinking(text: str) -> tuple[str, str]:
+    """(visible answer, inline thinking). Same parsing as
+    ``strip_thinking_tags`` but the thinking blocks are KEPT, not dropped:
+    a provider that sends its reasoning inline in ``content`` (MiniMax-M3's
+    ``<think>…</think>``) must still land it in ``reasoning_text``, or a reply
+    that thought its whole budget away looks like an empty answer with no
+    reasoning at all and overflow recovery never fires (minimax-m3 NX1,
+    2026-09-24: 8000 tokens, finish=length, content and reasoning both "")."""
+    if not text:
+        return text, ""
+    out: list[str] = []
+    think: list[str] = []
+    pos = 0
+    while True:
+        m = _THINK_TAGS.search(text, pos)
+        if not m:
+            out.append(text[pos:])
+            break
+        tag = m.group(0).lower()
+        if tag == "(think)":
+            out.append(text[pos:m.start()])
+            close = _THINK_TAGS.search(text, m.end())
+            if not close:
+                think.append(text[m.end():])
+                break
+            think.append(text[m.end():close.start()])
+            pos = close.end()
+        elif tag in ("<think>", "<|thinking|>"):
+            out.append(text[pos:m.start()])
+            close_tags = ("</think>",) if tag == "<think>" else ("<|/thinking|>", "</|thinking|>")
+            ends = [e for e in (text.find(c, m.end()) for c in close_tags) if e >= 0]
+            if not ends:
+                think.append(text[m.end():])
+                break
+            end = min(ends)
+            think.append(text[m.end():end])
+            pos = end + len(close_tags[ends.index(end)])
+        else:
+            out.append(text[pos:m.start()])
+            pos = m.end()
+    return "".join(out), "\n".join(t.strip("\n") for t in think)
+
+
 def strip_thinking_tags(text: str) -> str:
     """Remove thinking blocks from a completion before any parsing.
 
@@ -135,8 +178,8 @@ _GENERATION_REJECT_MARKERS = (
     "invalid tool call",
     "tool call arguments",
     # llama-server cannot build a tool/reasoning parser for the model's chat
-    # template (HTTP 400, sometimes relayed inside a 5xx/SSE error): a
-    # property of the MODEL's template — that case fails, the run goes on
+    # template (HTTP 400, sometimes relayed inside a 5xx/SSE error): that case
+    # is ERRORED (runner._generation_reject_kind), the run goes on
     # (precog-123b aborted a whole run on three of these in a row)
     "unable to generate parser",
 )
@@ -342,6 +385,9 @@ class ChatResult:
         """The model's effective answer. Thinking models sometimes emit the
         whole answer in the reasoning channel with empty content.
         Thinking tags are stripped from whichever channel is used."""
+        if self.finish_reason == "length" and not self.response_text.strip():
+            # an unfinished thinking block is reasoning, never an answer
+            return ""
         return strip_thinking_tags(
             self.response_text.strip() or self.reasoning_text.strip())
 
@@ -507,8 +553,13 @@ def stream_chat(base_url: str, api_key: str, model: str, messages: list[dict], *
     # Strip thinking tags at the boundary — every grader, the judge and the
     # transcript consume response_text, so a leaked (think)/<think> block can
     # never corrupt tool-call JSON, instruct checks or code extraction.
-    r.response_text = strip_thinking_tags("".join(text_parts)).strip()
+    visible, inline_thinking = split_thinking("".join(text_parts))
+    r.response_text = visible.strip()
     r.reasoning_text = "".join(reasoning_parts)
+    if inline_thinking.strip() and not r.reasoning_text.strip():
+        # reasoning sent inline in content (MiniMax-M3): it IS the reasoning
+        # channel for overflow detection, recovery and the transcript
+        r.reasoning_text = inline_thinking
     r.tool_calls = _merge_tool_call_deltas(raw_tool_deltas)
     r.ttft_s = (first_tok_t - t0) if first_tok_t else None
 

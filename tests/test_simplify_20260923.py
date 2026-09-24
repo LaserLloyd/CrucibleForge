@@ -391,14 +391,16 @@ def _run(tmp_path, monkeypatch, prov, cases, thinking=False):
     return summary, config.load_transcripts("m")
 
 
-def test_parser_errors_fail_cases_without_aborting_the_run(tmp_path, monkeypatch):
+def test_parser_errors_error_cases_without_aborting_the_run(tmp_path, monkeypatch):
     def fn(messages, **kw):
         raise GenerationRejected("HTTP 400: Unable to generate parser for this template")
     cases = [c for c in config.load_cases(["instruct"])][:4]
     summary, rows = _run(tmp_path, monkeypatch, _RunProv(fn), cases)
     assert summary["m"]["failed"] is False            # 4 in a row did NOT abort the model
-    assert len(rows) == 4 and all(r["grade"] == "fail" for r in rows)
-    assert all(r["error_kind"] == "generation" for r in rows)
+    # nothing was generated (the template cannot be rendered): errored, not
+    # scored 0 (2026-09-24, precog-123b's tool rows)
+    assert len(rows) == 4 and all(r["grade"] == "error" for r in rows)
+    assert all(r["error_kind"] == "template" for r in rows)
 
 
 def test_transport_errors_are_errored_rows_excluded_from_the_score(tmp_path, monkeypatch):
