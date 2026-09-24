@@ -861,12 +861,16 @@ def _stamp_judge_error(labels: list[str], error: str) -> None:
         p.write_text(json.dumps(meta, indent=2), encoding="utf-8")
 
 
-def cmd_report(args, cfg):
+def cmd_report(args, cfg, full_board: bool = False):
     """Rebuild the board. Prints only the scorecard and where the files are
-    (the full report is in report.md / failures.md / report.html)."""
+    (the full report is in report.md / failures.md / report.html).
+
+    ``full_board`` (used at the end of ``all``): the shared board always lists
+    EVERY benchmarked model, not just the one this run benched — otherwise each
+    run overwrote results/report.md with a one-row board (2026-09-24)."""
     from .report import (failures_md_path, generate, report_html_path, report_md_path,
                          scorecard_section)
-    md = generate(args.models, write=True)
+    md = generate(None if full_board else args.models, write=True)
     print(scorecard_section(md))
     print(f"wrote {report_md_path()}")
     print(f"      {failures_md_path()}")
@@ -907,7 +911,7 @@ def cmd_all(args, cfg):
     else:
         if rc_j:
             log.error("judge phase exited %d — rendering the report without judged rows", rc_j)
-    return cmd_report(args, cfg) or rc_j
+    return cmd_report(args, cfg, full_board=True) or rc_j
 
 
 def cmd_gui(args, cfg):
