@@ -117,3 +117,21 @@ def test_guard_for_a_hosted_judge_does_not_touch_the_rig(monkeypatch):
     assert g.provs == {}
     g = cli._ProviderGuard(_cfg(), [], judge="sf:big/judge-122b")
     assert list(g.provs) == ["sf"]
+
+
+def test_judge_is_detachable_with_its_flags_kept(monkeypatch, tmp_path):
+    """A rig judge phase runs 20+ min — past an agent's exec timeout — so
+    `judge` takes --detach like run/all, keeping --results/--judge/--force."""
+    monkeypatch.setattr(cli, "ENV_FILE", cli.Path("/nonexistent/env"))
+    example = str(cli.Path(cli.__file__).resolve().parents[1] / "models.example.yaml")
+    argv = ["--config", example, "--results", str(tmp_path), "judge", "--models", "a,b", "--force",
+            "--judge", "gemma-judge", "--detach", "--run-id", "j-1"]
+    seen = {}
+    monkeypatch.setattr(cli, "_detach", lambda args, a: seen.update(args=args, argv=a) or 0)
+    with pytest.raises(SystemExit) as ei:
+        cli.main(argv)
+    assert ei.value.code == 0 and seen["args"].cmd == "judge"
+    unit, cmd, rid = cli._detach_argv(seen["args"], argv)
+    assert rid == "j-1" and "--detach" not in cmd[-1]
+    assert (f"uv run crucibleforge --config {example} --results {tmp_path} judge --models a,b --force "
+            "--judge gemma-judge --run-id j-1") in cmd[-1]
