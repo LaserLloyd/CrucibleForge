@@ -2,7 +2,7 @@
 
 Facts encoded here (verified against StudioForge 0.2.0, 2026-08-22; re-verified
 against ``1.26-09-04-3`` on 2026-09-06 during the WP-BENCH refactor — see
-``~/.openclaw/workspace/fleet-review/plan-v2/reports/wp-bench-audit.md``):
+the WP-BENCH audit):
 - Endpoint = ``providers.<name>.base_url`` (``.../v1``); the management API
   lives beside it at ``.../api/*``. Mutating management routes (load, unload,
   leases, settings) require ``X-MCP-Pin`` from a remote caller — pass it via
@@ -31,7 +31,7 @@ against ``1.26-09-04-3`` on 2026-09-06 during the WP-BENCH refactor — see
   api.WrongModelError guard still applies unchanged.
 - **D46 (priority tiers on a lease claim, live since ~2026-08):** 1 = chat,
   2 = agent, 3 = background — this client's own leases are class 3
-  unless ``lease_priority`` overrides it (unset today: see wp-bench-audit.md
+  unless ``lease_priority`` overrides it (unset today: see the WP-BENCH audit
   FIX-4, not yet implemented). A lease claim against a resident of a
   stronger-or-equal class is refused outright with a ``409`` (message
   containing ``higher-priority model`` / ``does not outrank`` / ``already
@@ -470,7 +470,7 @@ def _retry_wait(res: dict, waited: float, wait_busy_s: float) -> float | None:
     return max(2.0, min(float(ra), 60.0, wait_busy_s - waited))
 
 
-# D46 tier-refusal dialect (wp-bench-audit.md RC-1): a lease claim against a
+# D46 tier-refusal dialect (RC-1): a lease claim against a
 # resident of a stronger-or-equal priority class is refused with a 409 that
 # carries none of these markers as a code, or the message itself: it is a
 # "you do not outrank this" refusal, not "wait N seconds" — so it never
@@ -955,7 +955,7 @@ def acquire_lease(base_url: str, api_key: str, headers: dict | None, devices: li
       refusal: retried on ``retry_after_s`` when the server gives one, else
       (D46 gives none) on a fixed ``_TIER_REFUSAL_POLL_S`` cadence — both
       bounded by the same ``wait_busy_s`` budget. See ``_tier_refusal_reason`` /
-      wp-bench-audit.md RC-1.
+      RC-1.
     - A PINNED idle resident ("pinned model(s) … pass force=true"): this
       function never sets ``force=true`` on its own initiative for this or
       any other refusal — an earlier version did exactly that (RC-1) and it

@@ -105,7 +105,7 @@ class Provider:
     # plain GET /api/status). Sizeable win for benching a pinned,
     # priority-tiered family-bot model (e.g. a chat model pinned to specific
     # devices), which a lease can no longer touch anyway since D46 (see
-    # wp-bench-audit.md RC-1/RC-7). Default on; set ``use_resident: false``
+    # RC-1/RC-7). Default on; set ``use_resident: false``
     # in models.yaml to always take the lease/unload path instead.
     use_resident: bool = True
     # WP-BENCH FIX-2: force=true is never sent on this provider's own
@@ -222,7 +222,7 @@ class Provider:
         nothing unloaded, no PIN required (this is a plain GET /api/status).
         This is what lets a bench run against a pinned, priority-tiered
         family-bot model (e.g. a chat-tier model such as Dark-Scarlett-27B)
-        without touching the pin at all — see wp-bench-audit.md RC-1/RC-7.
+        without touching the pin at all — see RC-1/RC-7.
 
         Otherwise, with ``lease: true``: take a GPU lease that loads the
         model onto the leased cards (evicting idle residents, waiting for busy

@@ -562,7 +562,7 @@ DEFAULT_ROW_TIMEOUT_S = 600.0
 JUDGE_LEASE_HOLDER = "crucibleforge-judge"
 # All four cards by default; provider config (``lease_devices``) overrides.
 JUDGE_LEASE_DEFAULT_DEVICES = [0, 1, 2, 3]
-# WP-BENCH FIX-3 (wp-bench-audit.md RC-2): the judge lease waits exactly as
+# WP-BENCH FIX-3 (RC-2): the judge lease waits exactly as
 # long as the provider's own configured ``wait_busy_s`` (models.yaml
 # providers.studioforge.wait_busy_s, default 600s) — the SAME budget every
 # other lease in this tool honours, and the tool's own documented rule
