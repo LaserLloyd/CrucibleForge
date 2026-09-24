@@ -853,6 +853,24 @@ def test_acquire_judge_lease_skips_for_remote_api_judge(monkeypatch):
     assert out is None and called == []
 
 
+def test_acquire_judge_lease_follows_the_forced_judge(monkeypatch):
+    """--judge names the judge the phase will load; the lease must follow it.
+    A remote judge takes no lease even when the first configured candidate is
+    a rig model, and a forced rig judge is the model the lease names."""
+    monkeypatch.setenv("CRUCIBLEFORGE_TEST_PIN", "pin")
+    cfg = _judge_cfg()
+    cfg["providers"]["ds"] = {"type": "openai", "base_url": "https://api.x/v1",
+                              "api_key": "k"}
+    _stub_provider_alive(monkeypatch)
+    calls = []
+    monkeypatch.setattr(studioforge, "acquire_lease",
+                        lambda *a, **k: calls.append(k.get("model_ids")) or {"_lease_id": "L"})
+    assert judge.acquire_judge_lease(cfg, override="ds:remote-judge") is None
+    assert calls == []
+    judge.acquire_judge_lease(cfg, override={"provider": "sf", "model_id": "m/small-judge"})
+    assert calls == [["m/small-judge"]]
+
+
 def test_acquire_judge_lease_raises_with_holder_when_priority_hold_blocks(monkeypatch):
     """A priority_hold refusal (the chat/m agent is loading its model) must
     surface as ``JudgeLeaseUnavailable`` naming the holder so the operator

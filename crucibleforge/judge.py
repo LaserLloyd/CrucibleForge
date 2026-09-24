@@ -578,7 +578,8 @@ JUDGE_LEASE_DEFAULT_DEVICES = [0, 1, 2, 3]
 # constant.
 
 
-def acquire_judge_lease(cfg: dict, force_evict: bool = False) -> dict | None:
+def acquire_judge_lease(cfg: dict, force_evict: bool = False,
+                        override: str | dict | None = None) -> dict | None:
     """Reserve every StudioForge GPU for the judge run BEFORE any model load.
 
     The ``provider.lease: true`` path inside ``_lease_load`` already takes a
@@ -610,8 +611,12 @@ def acquire_judge_lease(cfg: dict, force_evict: bool = False) -> dict | None:
     (see ``studioforge.acquire_lease`` / ``studioforge.py``'s module
     docstring).
     """
+    # ``override`` is the judge the phase will actually load (--judge, or the
+    # profile's judge). Leasing for the first configured candidate instead
+    # reserved the cards for the 122B — and, under a force_evict policy,
+    # evicted residents — even when a remote API judge needed no rig at all.
     try:
-        cand = select_judge(cfg, set(), override=None)
+        cand = select_judge(cfg, set(), override=override)
     except JudgeError:
         # No judge candidate configured / available. Let run_judge raise its
         # own message — a missing judge is not a lease problem.

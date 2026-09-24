@@ -803,7 +803,8 @@ def cmd_judge(args, cfg):
     # rig sat empty after the judge phase (run 1, 2026-09-08 08:59).
     guard = _ProviderGuard(cfg, [], force_evict=force_evict)
     try:
-        acquire_judge_lease(cfg, force_evict=force_evict)
+        acquire_judge_lease(cfg, force_evict=force_evict,
+                            override=getattr(args, "judge", None))
     except JudgeLeaseUnavailable as e:
         holder = f" (current holder: {e.holder})" if e.holder else ""
         print(f"judge lease: {e}{holder}", file=sys.stderr)

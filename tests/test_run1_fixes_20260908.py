@@ -63,7 +63,7 @@ def test_cmd_judge_snapshots_before_lease(monkeypatch):
     monkeypatch.setattr("crucibleforge.judge.pending_judge_rows", lambda *a, **k: 1)
     monkeypatch.setattr("crucibleforge.judge.JudgeLeaseUnavailable", Unavailable)
 
-    def lease(cfg, force_evict=False):
+    def lease(cfg, force_evict=False, override=None):
         order.append("lease")
         raise Unavailable("no")
     monkeypatch.setattr("crucibleforge.judge.acquire_judge_lease", lease)
