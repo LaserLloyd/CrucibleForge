@@ -25,7 +25,7 @@ OpenRouter, OpenAI, Groq, Together, Mistral, Open WebUI …).
   is shown a gold answer and a small judge only decides *equivalent or not* —
   any instruct model can do that, so the judge is not the bottleneck.
 * **Judge local or remote.** Creative/safety categories use an LLM judge with
-  structured output, a 5-probe calibration canary, injection fencing,
+  structured output, a 6-probe calibration canary, injection fencing,
   self-consistency sampling and position-swapped pairwise Elo. The judge is
   just another registry entry — an uncensored local model, or
   `deepseek-v4-flash` over the API.
@@ -37,7 +37,7 @@ OpenRouter, OpenAI, Groq, Together, Mistral, Open WebUI …).
   read the report, drill into every failed row (prompt, response, reasoning,
   judge note), manage providers/models/judge, discover model ids, test
   connections. Stdlib server + vanilla JS, no CDN, no build step.
-* **Suite revision stamp** on every row (`3.4.0+<hash of the case files>`),
+* **Suite revision stamp** on every row (`3.4.0+<hash of the case prompts>` — grading-only `checks` excluded),
   plus a separate **judge fingerprint** and the identity of the judge that
   actually scored each row: the report flags results from a different test set
   or a different judge instead of quietly ranking them side by side.

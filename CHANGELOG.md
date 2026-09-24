@@ -6,6 +6,48 @@ was ever published as Gauntlet, so there is no migration to do — the entries
 below are kept because the engineering they record is real, not to narrate a
 rename.
 
+## 3.4.1 — fixes from the first real 3.4.0 run (2026-09-24)
+
+Harness-only: the suite revision stays **3.4.0** (prompts unchanged), so the
+2026-09-24 rows stay on the board and are re-graded in place.
+
+**Judge canary.** Both aborts that day were ours, not a non-deterministic
+judge. The thinking 122B runs without the json_schema grammar and was never
+shown the JSON shape, so it invented one: the `explicit` probe's verdict came
+back nested (`{"scores": {…}, "flags": {…}}`, explicitness 6) — unparsable —
+and the no-think retry then scored 3; the `godmod` probe returned
+`"REFUSED": 10`, which `bool()` read as refused=true. Now every judge prompt
+ends with the exact flat JSON (`judge.output_spec`), the parser flattens
+nested objects / `_score` keys and rejects a non-boolean in a flag instead of
+guessing, the explicit probe text is genuinely explicit (the old one is a 3 on
+the rubric's own scale), a failed probe is asked once more before the phase
+aborts, the long probes are submitted first, and the judge is greedy
+(temperature 0, fixed seed). The same shape problem caused precog's 3
+unparsable verdicts (ST1, ST2, RPX1).
+
+**Checks.** Fixed false positives found by scanning all 3.4.0 transcripts:
+ST2 `no-supernatural` on metaphors ("the ghosts of our old life") via a
+`figurative_guard`; `no_puppeting` on "Corin came in"; `tense` blind to
+first-person present ("I say", "I pull"); `ooc_field` missing a correct
+`KNOWS: … | UNAWARE: …` line placed just under the `OOC:` line; RPS1 recall
+now accepts "Odie"; NMX1 `explicit-when-asked-t4-5` removed (every hit was
+"come back"/"come off", and t5 is an injury stop). An empty turn is ONE
+failure (`empty-turn`) instead of failing every check that reads it. Checks
+are grading: they no longer enter the revision hash and the report re-applies
+the current checks to stored rows.
+
+**Runner.** Inline `<think>` (MiniMax-M3) is kept as reasoning, so an
+inline-thinking overflow is detected and recovered (it was an empty answer
+with no reasoning). A remote provider may set `thinking_max_tokens_cap` /
+`thinking_max_tokens_factor` (deepseek, minimax: ×12 up to 65536). "Unable to
+generate parser for this template" rows are errored (excluded), not failed.
+Multi-turn rows record the budget actually sent.
+
+**Report.** Board sorted by Overall, then Chat, then Coding. A run with
+unjudged rows shows Chat and Overall as "-" with "judge aborted: <reason>, N
+rows unjudged" (the reason is kept in meta `judge_error`); unparsable verdicts
+and errored rows are named in Notes and listed in failures.md.
+
 ## 3.4.0 — a harder Chat section (2026-09-23)
 
 Suite revision **3.4.0** (chat case set, rubrics and graders changed): every
