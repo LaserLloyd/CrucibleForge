@@ -333,6 +333,13 @@ def _v2_report_body(cmd: str, args, cfg: dict, rc: int, state: dict) -> str:
             continue
         card = s.get("scorecard") or {}
         mins = run_minutes(meta)
+        if cmd == "judge":
+            # a re-judge: this phase's own duration, not "run start -> now"
+            try:
+                t0 = datetime.fromisoformat(state["created"].replace("Z", "+00:00"))
+                mins = (datetime.now(timezone.utc) - t0).total_seconds() / 60
+            except (KeyError, ValueError, TypeError):
+                mins = None
         bits = [f"Chat {card['chat']:.1f}" if card.get("chat") is not None else "Chat -",
                 f"Coding {card['coding']:.1f}" if card.get("coding") is not None else "Coding -"]
         if mins is not None:
