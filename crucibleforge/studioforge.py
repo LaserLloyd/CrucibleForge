@@ -508,10 +508,66 @@ def _tier_refusal_reason(code: int, res: dict, detail: str) -> str | None:
     return None
 
 
+def _widen_slots(model_id: str, base_url: str, api_key: str, headers: dict | None,
+                 live: dict, ctx: int, min_slots: int, target_slots: int) -> dict | None:
+    """The rig's planner sizes slots for chat (one stream, its 'knee'); a
+    benchmark sends ~30 independent jobs at once. When load-recommended
+    lands below ``min_slots`` (2026-09-24: JoyFox 35B-A3B on two 5090s at
+    parallel=1 — every profile was a 1-slot knee estimate at 262144 ctx),
+    reload the SAME devices/ctx/KV with more slots, widest first. Each slot
+    keeps the full ``ctx`` window, so no model is limited; a width the server
+    refuses (507) just steps down. Returns the new plan, or None when nothing
+    wider fit (the recommended load is restored)."""
+    devices = live.get("devices")
+    body_base = {"ctx_size": int(live.get("ctx_size") or ctx)}
+    if devices:
+        body_base["devices"] = list(devices)
+    if live.get("kv_cache_type"):
+        body_base["kv_cache_type"] = live["kv_cache_type"]
+    have = int(live.get("parallel") or 1)
+    widths = [n for n in (target_slots, 6, 4, 2) if min(target_slots, 8) >= n > have]
+    widths = sorted(set(widths), reverse=True)
+    for n in widths:
+        try:
+            _mgmt("POST", base_url, api_key, headers,
+                  f"/api/models/{_quote(model_id)}/unload", timeout=WARMUP_TIMEOUT_S)
+            code, data = _mgmt("POST", base_url, api_key, headers,
+                               f"/api/models/{_quote(model_id)}/load",
+                               json={**body_base, "parallel": n}, timeout=WARMUP_TIMEOUT_S)
+        except StatusUnavailable as e:
+            log.warning("slot widening of %s to %d failed (%s)", model_id, n, e)
+            continue
+        if code >= 400:
+            log.info("%s: %d slots at ctx %s refused (HTTP %s) — trying fewer",
+                     model_id, n, body_base["ctx_size"], code)
+            continue
+        try:
+            wait_ready(model_id, base_url, api_key, headers=headers)
+            warm_model(model_id, base_url, api_key, headers=headers)
+        except StudioForgeError as e:
+            log.info("%s: %d slots did not come up (%s) — trying fewer", model_id, n, e)
+            continue
+        new = loaded_plan(model_id, base_url, api_key, headers) or {}
+        if int(new.get("parallel") or 1) > have:
+            log.warning("%s: the rig recommended %d slot(s); widened to %s slots at ctx %s "
+                        "on %s for the benchmark's concurrent jobs", model_id, have,
+                        new.get("parallel"), new.get("ctx_size"), new.get("devices"))
+            return new
+    log.warning("%s: could not widen beyond %d slot(s) — restoring the recommended load",
+                model_id, have)
+    try:
+        load_recommended(model_id, base_url, api_key, ctx, headers=headers)
+        wait_ready(model_id, base_url, api_key, headers=headers)
+    except (StatusUnavailable, StudioForgeError) as e:
+        log.warning("restoring the recommended load of %s failed: %s", model_id, e)
+    return None
+
+
 def load_model(model_id: str, base_url: str, api_key: str,
                context_length: int | None = None,
                recommended: bool = True, headers: dict | None = None,
-               wait_busy_s: float = DEFAULT_WAIT_BUSY_S) -> float:
+               wait_busy_s: float = DEFAULT_WAIT_BUSY_S,
+               min_slots: int = 0, target_slots: int = 8) -> float:
     """Load a StudioForge model at the registry context, the way the server
     recommends (placement + parallel slots), wait for it to be ready, then
     prove it serves. Returns load seconds.
@@ -565,6 +621,9 @@ def load_model(model_id: str, base_url: str, api_key: str,
                 wait_ready(model_id, base_url, api_key, headers=headers)
                 warm_model(model_id, base_url, api_key, headers=headers)
                 live = loaded_plan(model_id, base_url, api_key, headers) or {}
+                if min_slots and int(live.get("parallel") or 1) < min_slots:
+                    live = _widen_slots(model_id, base_url, api_key, headers, live,
+                                        wanted, min_slots, target_slots) or live
                 log.info("%s serving: parallel=%s ctx=%s devices=%s", model_id,
                          live.get("parallel"), live.get("ctx_size"), live.get("devices"))
                 return time.perf_counter() - t0

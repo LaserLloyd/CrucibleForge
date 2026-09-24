@@ -93,6 +93,11 @@ class Provider:
     lease_devices: list | None = None
     lease_idle_ttl_s: float = studioforge.LEASE_IDLE_TTL_S
     wait_busy_s: float = studioforge.DEFAULT_WAIT_BUSY_S
+    # The rig's planner sizes slots for one chat stream; a benchmark sends ~30
+    # jobs at once. Below min_slots the load is widened toward target_slots at
+    # the same ctx per slot (2026-09-24, JoyFox came up at parallel=1).
+    min_slots: int = 4
+    target_slots: int = 8
     restore_residents: bool = True
     # Resident fast path (WP-BENCH FIX-1): if the target model is ALREADY
     # resident, ready, and wide/multi-slot enough, switch_model() uses it
@@ -239,7 +244,8 @@ class Provider:
                                    wait_busy_s=self.wait_busy_s)
             t = studioforge.load_model(model_id, self.base_url, self.api_key,
                                        context_length, recommended=self.recommended_load,
-                                       headers=self.mgmt_headers(), wait_busy_s=self.wait_busy_s)
+                                       headers=self.mgmt_headers(), wait_busy_s=self.wait_busy_s,
+                                       min_slots=self.min_slots, target_slots=self.target_slots)
             self._remember_plan(model_id)
             return t
         return 0.0
@@ -337,7 +343,8 @@ class Provider:
                      model_id.rsplit("/", 1)[-1], str(e)[:120])
         studioforge.load_model(model_id, self.base_url, self.api_key, context_length,
                                recommended=self.recommended_load, headers=hdrs,
-                               wait_busy_s=self.wait_busy_s)
+                               wait_busy_s=self.wait_busy_s,
+                               min_slots=self.min_slots, target_slots=self.target_slots)
         self._remember_plan(model_id)
         plan = self._plans.get(model_id) or {}
         log.info("%s serving under lease %s: parallel=%s ctx=%s devices=%s", model_id,
@@ -632,6 +639,8 @@ def get_provider(cfg: dict, name: str) -> Provider:
         lease_idle_ttl_s=float(p.get("lease_idle_ttl_s", studioforge.LEASE_IDLE_TTL_S) or 0)
         or None,
         wait_busy_s=float(p.get("wait_busy_s", studioforge.DEFAULT_WAIT_BUSY_S)),
+        min_slots=int(p.get("min_slots", 4)),
+        target_slots=int(p.get("target_slots", 8)),
         restore_residents=bool(p.get("restore_residents", True)),
         use_resident=bool(p.get("use_resident", True)),
         force_evict_policy=bool(p.get("force_evict", False)) and ptype == "studioforge",
