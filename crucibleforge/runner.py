@@ -267,21 +267,40 @@ class _Ctx:
         return (r.finish_reason == "length" and not cls._answered(r)
                 and bool(r.reasoning_text.strip()))
 
+    @classmethod
+    def _stopped_without_answer(cls, r: ChatResult) -> bool:
+        """finish=stop with no answer at all. Measured 2026-09-24: joyfox-35b
+        opens <think>, writes its whole reply inside and ends the message
+        without </think> on every session turn >= 2 — streamed with
+        reasoning_format=deepseek, the reply is all reasoning_content and
+        content is empty (llama.cpp's NON-streamed parse returns the same
+        text as content, so the server itself does not call it thinking);
+        deepseek-pro NMX1 t6 drafted in its reasoning and stopped. The reply
+        is asked for again (thinking off, then continuation) — the reasoning
+        text is never taken as the answer: nothing distinguishes a reply
+        from real chain-of-thought (deepseek's starts "We need answer as…")."""
+        return r.finish_reason == "stop" and not cls._answered(r)
+
     def call(self, messages, *, max_tokens: int, recover: bool = True, **kw) -> ChatResult:
         """One completion on the CASE budget ``max_tokens`` (boosted for a
-        thinking model), with reasoning-overflow recovery. ``recover=False``
-        for timing rows (perf), whose metrics must stay single-shot."""
+        thinking model), with recovery for a reply that never reached the
+        content channel (reasoning overflow, or a stop inside the reasoning
+        block). ``recover=False`` for timing rows (perf), whose metrics must
+        stay single-shot."""
         kw.setdefault("extra_body", self.extra_body)
         first = self._chat(messages, max_tokens=self.budget(max_tokens), **kw)
-        if not (recover and self.recovery_enabled and self._overflowed(first)):
+        cause = ("overflow" if self._overflowed(first) else
+                 "stopped_in_reasoning" if self._stopped_without_answer(first) else None)
+        if not (recover and self.recovery_enabled and cause):
             return first
         first_info = {"finish_reason": first.finish_reason,
                       "completion_tokens": first.completion_tokens,
                       "reasoning_tokens": first.reasoning_tokens,
                       "reasoning_chars": len(first.reasoning_text),
                       "max_tokens_sent": self.budget(max_tokens)}
-        log.info("%s: reasoning overflow (%s reasoning tokens, no answer) — "
-                 "recovering the answer on a %d-token budget", self.model_id,
+        log.info("%s: %s (%s reasoning tokens, no answer) — recovering the answer on a "
+                 "%d-token budget", self.model_id,
+                 "reasoning overflow" if cause == "overflow" else "stopped inside reasoning",
                  first.reasoning_tokens or f"~{len(first.reasoning_text) // 4}", max_tokens)
         attempts = 0
         spent = [first]  # every attempt's tokens are billed on the row
@@ -310,7 +329,8 @@ class _Ctx:
                 error = f"no_think: {str(e)[:160]}"
                 log.warning("%s: recovery request failed (%s)", self.model_id, error)
         mode = "no_think"
-        if error is None and (r is None or (not self._answered(r) and r.finish_reason == "length")):
+        if (error is None and first.reasoning_text.strip()
+                and (r is None or not self._answered(r))):
             # rung 2: the template ignored the kwarg (or the model thinks
             # anyway) — continue from the truncated reasoning and ask for
             # the answer outright
@@ -330,7 +350,7 @@ class _Ctx:
         if r is None or not self._answered(r):
             # unrecoverable: keep the honest first result, annotated
             first.recovery = {"mode": None, "attempts": attempts, "first": first_info,
-                              "answer_max_tokens": max_tokens}
+                              "answer_max_tokens": max_tokens, "cause": cause}
             if error:
                 first.recovery["error"] = error
             log.warning("%s: reasoning overflow NOT recovered after %d attempt(s)",
@@ -338,7 +358,7 @@ class _Ctx:
             self._bill(first, spent)
             return first
         r.recovery = {"mode": mode, "attempts": attempts, "first": first_info,
-                      "answer_max_tokens": max_tokens}
+                      "answer_max_tokens": max_tokens, "cause": cause}
         # the thinking cost is part of the model's behaviour — keep it visible
         # in the metrics even though the answer came from the recovery pass
         if first.reasoning_tokens and not r.reasoning_tokens:

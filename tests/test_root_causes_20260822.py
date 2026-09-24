@@ -416,7 +416,8 @@ def test_report_notes_reasoning_overflow_recoveries(tmp_path, monkeypatch):
     ]
     (tmp_path / "transcripts_m.jsonl").write_text("\n".join(json.dumps(r) for r in rows) + "\n")
     stats = report.model_stats("m")
-    assert stats["reasoning_overflow"] == {"n": 2, "recovered": 1}
+    assert stats["reasoning_overflow"] == {"n": 2, "recovered": 1, "stopped": 0,
+                                           "stopped_recovered": 0}
     assert "reasoning overflow" in report.render_failures(["m"], {"m": stats}, None).lower()
 
 

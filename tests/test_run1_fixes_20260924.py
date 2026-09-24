@@ -404,3 +404,64 @@ def test_stored_template_parser_fails_are_errored_on_the_board(tmp_path, monkeyp
     assert kept[0]["grade"] == "error"
     s = report.model_stats("m", rows=kept)
     assert s["tooluse"]["n"] == 0
+
+
+# ---------------------------- a reply that STOPPED inside its reasoning block
+# joyfox-35b-rp (2026-09-24): from turn 2 of every session the model opens
+# <think>, writes its whole in-character reply there and ends the message
+# (finish=stop) without </think>. Streamed with reasoning_format=deepseek the
+# reply arrives as reasoning_content only; content is empty. deepseek-pro NMX1
+# t6 is the same shape (CoT + a draft, then stop). Such a turn gets the
+# recovery ladder (ask again with thinking off, then continuation) — the
+# reasoning text itself is never harvested as the answer.
+
+class _Prov:
+    name = "fake"
+    type = "openai"
+
+    def __init__(self, results):
+        self.results, self.calls = list(results), []
+
+    def chat(self, model_id, messages, **kw):
+        self.calls.append({"messages": messages, **kw})
+        return self.results.pop(0)
+
+
+def _mk_ctx(prov):
+    return runner._Ctx({"defaults": {}}, {"name": "m", "model_id": "m", "thinking": True},
+                       prov, 32768)
+
+
+def test_reply_stopped_inside_reasoning_is_asked_again_without_thinking():
+    stopped = ChatResult(response_text="", reasoning_text='Mara snorts. "Blue-tagged regulator."',
+                         finish_reason="stop", completion_tokens=40, served_model="m")
+    prov = _Prov([stopped, ChatResult(response_text='Mara snorts. "Fine."',
+                                      finish_reason="stop", served_model="m")])
+    r = _mk_ctx(prov).call([{"role": "user", "content": "q"}], max_tokens=2000)
+    assert r.response_text == 'Mara snorts. "Fine."'
+    assert r.recovery["mode"] == "no_think" and r.recovery["cause"] == "stopped_in_reasoning"
+    assert prov.calls[1]["extra_body"]["chat_template_kwargs"] == {"enable_thinking": False}
+    # never harvested: the answer is the retry's content, not the reasoning
+    assert "regulator" not in r.response_text
+
+
+def test_an_empty_stop_with_no_reasoning_is_retried_once():
+    empty = ChatResult(response_text="", finish_reason="stop", completion_tokens=1,
+                       served_model="m")
+    prov = _Prov([empty, ChatResult(response_text="reply", finish_reason="stop",
+                                    served_model="m")])
+    r = _mk_ctx(prov).call([{"role": "user", "content": "q"}], max_tokens=2000)
+    assert r.response_text == "reply" and len(prov.calls) == 2
+
+
+def test_multiturn_history_carries_the_recovered_reply():
+    stopped = ChatResult(response_text="", reasoning_text="draft", finish_reason="stop",
+                         served_model="m")
+    ok = ChatResult(response_text="turn text", finish_reason="stop", served_model="m")
+    prov = _Prov([ok, stopped, ok])
+    ctx = _mk_ctx(prov)
+    case = {"id": "X", "category": "rp", "turns": ["a", "b"], "system": "s"}
+    rows = runner._run_multiturn(case, {"case_id": "X"}, ctx, 2000, 0.8, 0.95, 1)
+    assert [m["content"] for m in rows[-1]["conversation"] if m["role"] == "assistant"] == [
+        "turn text", "turn text"]
+    assert rows[1]["recovery"]["cause"] == "stopped_in_reasoning"

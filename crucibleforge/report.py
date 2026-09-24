@@ -740,9 +740,15 @@ def model_stats(label: str, cfg: dict | None = None, rows: list[dict] | None = N
     # reasoning overflow: the thinking channel ate the whole budget. The
     # runner recovers the answer where it can; both counts are reported.
     overflow_rows = [r for r in rows if r.get("reasoning_overflow")]
+    stopped = [r for r in overflow_rows
+               if (r.get("recovery") or {}).get("cause") == "stopped_in_reasoning"]
     reasoning_overflow = {
-        "n": len(overflow_rows),
-        "recovered": sum(1 for r in overflow_rows if (r.get("recovery") or {}).get("mode")),
+        "n": len(overflow_rows) - len(stopped),
+        "recovered": sum(1 for r in overflow_rows if r not in stopped
+                         and (r.get("recovery") or {}).get("mode")),
+        # replies that ended inside the reasoning block (finish=stop)
+        "stopped": len(stopped),
+        "stopped_recovered": sum(1 for r in stopped if (r.get("recovery") or {}).get("mode")),
     }
     case_errors = sum(1 for r in rows if r.get("error"))
     errored = [f"{r.get('case_id')}: {_cut(str(r.get('error') or ''), 90)}"
@@ -1007,6 +1013,11 @@ def _model_notes(label: str, s: dict, cfg: dict | None = None) -> list[str]:
         unrec = ro["n"] - ro["recovered"]
         out.append(f"{ro['n']} reasoning overflow(s) (thinking used the whole budget); "
                    f"{ro['recovered']} recovered" + (f", {unrec} scored as empty" if unrec else ""))
+    if ro.get("stopped"):
+        unrec = ro["stopped"] - ro.get("stopped_recovered", 0)
+        out.append(f"{ro['stopped']} reply(ies) ended inside the reasoning block with no "
+                   f"content (asked again with thinking off); {ro.get('stopped_recovered', 0)} "
+                   f"recovered" + (f", {unrec} left empty" if unrec else ""))
     if s.get("pending_judge"):
         out.append(f"{s['pending_judge']} quality rows NOT yet judged — run "
                    f"`crucibleforge judge --models {label}`")
