@@ -353,10 +353,14 @@ def _v2_report_body(cmd: str, args, cfg: dict, rc: int, state: dict) -> str:
     lines += result_lines
     lines += [f"⚠️ {w}" for w in warnings]
     argv_bits = [f"crucibleforge {cmd} --models {models_arg}"]
-    for flag in ("profile", "categories", "difficulty", "cases"):
+    for flag in ("profile", "categories", "difficulty", "cases", "judge"):
         val = getattr(args, flag, None)
+        if isinstance(val, dict):   # the profile's judge block
+            val = val.get("name") or val.get("model_id")
         if val:
             argv_bits.append(f"--{flag} {val}")
+    if cmd == "judge" and getattr(args, "force", False):
+        argv_bits.append("--force")
     lines += ["", "## Evidence",
               f"- run id: `{state['run_id']}`",
               f"- command: `{' '.join(argv_bits)}`",
@@ -1205,12 +1209,29 @@ def main(argv=None):
                  "a priority-tier resident (a provider's standing `force_evict: true` "
                  "policy in models.yaml does the same for every run).")
 
-    def add_run_args(p):
-        add_force_evict_arg(p)
+    def add_v2_args(p):
+        """--detach + the fleet run-report routing (run / all / judge)."""
         p.add_argument("--detach", action="store_true",
                        help="re-launch this exact command as a transient systemd --user unit and "
                             "return immediately (prints the unit + run id). Use from any agent "
                             "tool call — the bench then outlives the call's timeout.")
+        p.add_argument("--run-id", default=None,
+                       help="id for this run's "
+                            f"{V2_RUNS_ROOT}/<id>/{{report.md,meta.json}} (else "
+                            "$CRUCIBLEFORGE_RUN_ID, else self-minted)")
+        p.add_argument("--deliver-to", default=None,
+                       help="DisPatch thread id to route the V2 run report to "
+                            "(else $CRUCIBLEFORGE_DELIVER_TO, else the standing scanner "
+                            "falls back to the daily thread)")
+        p.add_argument("--requester", default=None,
+                       help="gateway session key that dispatched this run, e.g. "
+                            "agent:main:daily-main-... (else $CRUCIBLEFORGE_REQUESTER)")
+        p.add_argument("--task-run-id", default=None,
+                       help="gateway runId for this unit of work, for blocked-task "
+                            "reconciliation (else $CRUCIBLEFORGE_TASK_RUN_ID)")
+
+    def add_run_args(p):
+        add_force_evict_arg(p)
         p.add_argument("--models", default="all",
                        help="comma-separated labels, or 'all' (= enabled)")
         p.add_argument("--categories", default=None,
@@ -1237,20 +1258,7 @@ def main(argv=None):
                        help="judge to use: a judge.candidates name, a registry label (e.g. minimax-m3), or provider:model_id. Default: the profile's judge (bench: the 122B). A hosted-API judge takes no GPU lease and no rig lock")
         p.add_argument("--no-link-check", action="store_true",
                        help="skip the pre-flight provider data-channel probe")
-        p.add_argument("--run-id", default=None,
-                       help="id for this run's "
-                            f"{V2_RUNS_ROOT}/<id>/{{report.md,meta.json}} (else "
-                            "$CRUCIBLEFORGE_RUN_ID, else self-minted)")
-        p.add_argument("--deliver-to", default=None,
-                       help="DisPatch thread id to route the V2 run report to "
-                            "(else $CRUCIBLEFORGE_DELIVER_TO, else the standing scanner "
-                            "falls back to the daily thread)")
-        p.add_argument("--requester", default=None,
-                       help="gateway session key that dispatched this run, e.g. "
-                            "agent:main:daily-main-... (else $CRUCIBLEFORGE_REQUESTER)")
-        p.add_argument("--task-run-id", default=None,
-                       help="gateway runId for this unit of work, for blocked-task "
-                            "reconciliation (else $CRUCIBLEFORGE_TASK_RUN_ID)")
+        add_v2_args(p)
 
     sub.add_parser("status", help="providers, registry, judge, cases")
     p_run = sub.add_parser("run", help="benchmark models")
@@ -1269,6 +1277,7 @@ def main(argv=None):
                          help="allow the next candidate if the forced --judge cannot load "
                               "(default: strict, the phase fails instead)")
     p_judge.add_argument("--profile", default=None, help="default: bench (its 122B judge)")
+    add_v2_args(p_judge)
     p_recover = sub.add_parser(
         "recover", help="re-run reasoning-overflow rows (empty answers) through recovery")
     add_force_evict_arg(p_recover)
@@ -1394,7 +1403,7 @@ def main(argv=None):
     # itself (not cmd_run's body) so `cmd_all` calling `cmd_run` internally
     # writes the contract exactly once, for the WHOLE all=run+judge+report
     # unit of work, not a premature "done" the moment run() alone finishes.
-    v2_tracked = args.cmd in ("run", "all")
+    v2_tracked = args.cmd in ("run", "all", "judge")
     if v2_tracked and getattr(args, "detach", False):
         sys.exit(_detach(args, argv))
     v2_state = _v2_start(args) if v2_tracked else None
