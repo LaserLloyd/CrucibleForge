@@ -1150,8 +1150,8 @@ _CASES_BY_ID: dict | None = None
 
 
 def _recheck(rows: list[dict]) -> list[dict]:
-    """Re-apply the CURRENT deterministic checks (session_checks) to stored
-    rows. Checks are grading, like graders: a fixed false positive must fix
+    """Re-apply the CURRENT grading to stored rows: the deterministic checks
+    (session_checks) and the errored/failed split for template-parser rows. Checks are grading, like graders: a fixed false positive must fix
     every row already on the board, not only rows generated after the fix
     (the checks are excluded from the suite revision hash for this reason —
     version._GRADING_KEYS). Rows are copied, never rewritten on disk."""
@@ -1166,6 +1166,11 @@ def _recheck(rows: list[dict]) -> list[dict]:
             _CASES_BY_ID = {}
     out = []
     for r in rows:
+        if (r.get("grade") == "fail" and r.get("error_kind") == "generation"
+                and "unable to generate parser" in str(r.get("error") or "").lower()):
+            # rows written before 3.4.1: a template the server could not
+            # render generated nothing — errored, not a model failure
+            r = {**r, "grade": "error", "error_kind": "template"}
         case = _CASES_BY_ID.get(r.get("case_id"))
         if r.get("checks") is not None and case and case.get("checks"):
             if r.get("conversation"):

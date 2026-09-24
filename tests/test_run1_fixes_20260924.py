@@ -389,3 +389,18 @@ def test_the_first_3_4_0_runs_stay_current():
     # rows of 2026-09-24 carry the pre-split stamp; same prompts -> current
     from crucibleforge import version
     assert "3.4.0+7c3f7296" in version.current_revisions()
+
+
+def test_stored_template_parser_fails_are_errored_on_the_board(tmp_path, monkeypatch):
+    from crucibleforge.version import revision
+    row = {"bench_run_id": "r1", "bench_revision": revision(), "profile": "bench",
+           "case_id": "TZ01-contradicts-user-assumption", "repeat": 1, "turn": None,
+           "category": "tooluse", "grade": "fail", "error_kind": "generation",
+           "error": "server rejected the model's output: HTTP 400: Unable to generate "
+                    "parser for this template", "ts": "2026-09-24T01:00:00+00:00",
+           "metrics": {}}
+    _seed(tmp_path, monkeypatch, "m", [row])
+    kept = report.board_filter("m", None)
+    assert kept[0]["grade"] == "error"
+    s = report.model_stats("m", rows=kept)
+    assert s["tooluse"]["n"] == 0
