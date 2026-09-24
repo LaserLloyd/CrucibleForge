@@ -141,6 +141,8 @@ judge:
     - {provider: lmstudio, model_id: "your-local-uncensored-judge", context_length: 16384}
     - {provider: deepseek, model_id: "deepseek-v4-flash"}
     - {provider: openrouter, model_id: "deepseek/deepseek-v4-flash"}
+    # a named candidate is selectable with `--judge <name>`
+    - {name: local-judge-q8, provider: lmstudio, model_id: "your-other-judge", context_length: 16384, thinking: true}
 
 # models under test.  price = USD per 1M tokens (report shows total cost).
 # extra_body = per-model request fields (llama.cpp: reasoning_format: deepseek
@@ -171,4 +173,8 @@ models:
     model_id: deepseek-v4-pro
     context_length: 131072
     price: {input: 0.435, output: 0.87}
+    # `--judge deepseek-pro` uses this entry as a judge; the block sets what
+    # differs for judging (thinking, temperature, top_p, extra_body, ...).
+    # The judge context is 16384 unless set here, whatever context_length says.
+    judge: {thinking: true}
     enabled: false

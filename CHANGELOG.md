@@ -6,6 +6,28 @@ was ever published as Gauntlet, so there is no migration to do — the entries
 below are kept because the engineering they record is real, not to narrate a
 rename.
 
+## Unreleased — judge selection (2026-09-24)
+
+Harness-only; the suite revision is unchanged.
+
+- **`--judge` spec.** Accepts a `judge.candidates` `name`, a registry label
+  (the entry's optional `judge:` block sets thinking / sampling / extra_body
+  for judging), or `provider:model_id` of a candidate or registry entry. A
+  registry-derived judge uses the judge context (16384), not the model's run
+  context, so every judge sees the same clamped input.
+- **Per-judge sampling.** A judge may pin `top_p` (Kimi-k3 accepts only
+  temperature 1 / top_p 0.95; `extra_body` cannot override request fields).
+- **The start-of-judge lease follows the judge actually used.** It used to
+  lease for the first configured candidate (the 122B) whatever `--judge`
+  said: a hosted-API judge reserved — and under `force_evict`, emptied — the
+  whole rig, and a smaller rig judge was planned as the 122B.
+- **Hosted judges leave the rig alone:** no rig lock, and the provider guard
+  covers only the judge in use (it used to snapshot/restore the rig for any
+  judge).
+- **`judge --allow-self-judge`** (experiments): lifts the under-test
+  exclusion so a contestant's self-preference can be measured; the report
+  already flags self-judged rows.
+
 ## 3.4.1 — fixes from the first real 3.4.0 run (2026-09-24)
 
 Harness-only: the suite revision stays **3.4.0** (prompts unchanged), so the
