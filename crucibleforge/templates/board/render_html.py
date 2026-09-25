@@ -10,7 +10,8 @@ The design is the element-filter board Jake approved on 2026-09-20/22
 click-to-sort on EVERY column including each component, a text filter, a
 "benched only" toggle, a "Filter by element →" row of min-score dropdowns
 (one per component), and a per-row ▸ expander with the components, Notes and
-the judge line. Columns: ``# · Model · Chat · Coding · Overall · tok/s ·
+the judge line. At <= 720 px (a phone in DisPatch's frame) the same rows render
+as one card per model instead of the wide table — see README.md. Columns: ``# · Model · Chat · Coding · Overall · tok/s ·
 Run date · Notes`` then one column per component on the far right.
 
 The page is served by DisPatch in a sandboxed frame, so it must carry no
@@ -91,6 +92,22 @@ def render_html(rows: list[dict], subtitle: str = "",
         f'<label class="comp-filter side-{esc(c["side"])}" data-c="{esc(c["label"])}">'
         f'<span class="lbl">{esc(c["label"])}</span>'
         f'<select aria-label="minimum {esc(c["label"])}">{opts}</select></label>' for c in comps)
+    # phone controls (<= 720 px): one "Sort" select + direction toggle, and the
+    # element filters behind one "Filters (n)" disclosure. Same JS state as the
+    # table headers, so rotating the phone keeps the view.
+    sort_opts = '<optgroup label="Headline">' + "".join(
+        f'<option value="{k}">{esc(t if k != "rank" else "Rank")}</option>'
+        for k, t in base if k != "notes") + "</optgroup>"
+    for side, title in (("chat", "Chat components"), ("coding", "Coding components")):
+        grp = "".join(f'<option value="c:{esc(c["label"])}">{esc(c["label"])}</option>'
+                      for c in comps if c["side"] == side)
+        if grp:
+            sort_opts += f'<optgroup label="{title}">{grp}</optgroup>'
+    mobile = ('<div class="m-sort m-only"><label class="m-lbl" for="sortSel">Sort</label>'
+              f'<select id="sortSel" aria-label="sort by">{sort_opts}</select>'
+              '<button id="sortDir" type="button" aria-label="sort direction">Top first</button></div>'
+              '<button id="filtersBtn" class="m-only" type="button" aria-expanded="false" '
+              'aria-controls="filtersRow">Filters</button>')
     foot = "".join(f"<p>{esc(scrub(line))}</p>" for line in (footer or []) if line)
     payload = data_json({"rows": rows, "components": comps, "thresholds": THRESHOLDS})
     return (
@@ -103,14 +120,16 @@ def render_html(rows: list[dict], subtitle: str = "",
         f'<div class="meta">{esc(scrub(subtitle))}</div>'
         '<div class="toolbar"><input id="filter" type="search" placeholder="filter model / provider…" '
         'aria-label="filter models">'
+        f'{mobile}'
         '<button id="expandAll">Expand all</button><button id="collapseAll">Collapse all</button>'
         '<label><input type="checkbox" id="benched"> benched only</label></div>'
-        f'<div class="filters-row"><span class="flabel">Filter by element →</span>{filters}'
+        f'<div class="filters-row" id="filtersRow"><span class="flabel">Filter by element →</span>{filters}'
         '<button id="clearFilters" title="Clear all element filters">Clear</button></div>'
         f'<div class="meta" id="count">{len(rows)} models</div>'
         "</header>"
         f'<div class="wrap"><table><thead><tr><th scope="col" style="width:24px"></th>{head}</tr></thead>'
         '<tbody id="tbody"></tbody></table></div>'
+        '<div class="cards" id="cards"></div>'
         f"<footer>{foot}</footer>"
         f'<script type="application/json" id="board-data">{payload}</script>'
         f"<script>{JS}</script></body></html>"
