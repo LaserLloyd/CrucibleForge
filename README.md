@@ -50,9 +50,12 @@ There is **one** benchmark, `profiles/bench.yaml`, and one command per model:
 uv run crucibleforge all --models <label> --fresh --yes
 ```
 
-The model is loaded once, all 33 cases are generated (the multi-turn chat
-sessions and the long coding / math cases first), then the judge scores the 13
-chat rows and the board is rebuilt. Every model gets **two** headline scores, 0–100:
+The model is loaded once, all 49 cases are generated (the multi-turn chat
+sessions and the long coding / math cases first), then the judge scores the 24
+chat rows and the board is rebuilt. `--fresh` is for a full re-run only: it
+archives the model's whole result set, so the CLI refuses it together with
+`--cases` / `--categories` (a targeted re-run never needs it — its new rows
+supersede the old ones). Every model gets **two** headline scores, 0–100:
 
 | | components (weights in `profiles/bench.yaml` `scoring:`; models.yaml `scoring:` overrides) |
 |---|---|

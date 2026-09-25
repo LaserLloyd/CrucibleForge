@@ -676,8 +676,25 @@ def _fail_fast(cfg, entries, *, check_judge: bool, judge) -> tuple[list[dict], d
     return ok, bad
 
 
+def _refuse_fresh_with_filter(args) -> None:
+    """``--fresh`` archives the model's WHOLE result set; combined with a
+    ``--cases``/``--categories`` filter it would re-run a handful of cases
+    and throw away every other row. Refuse unless ``--force``."""
+    if not getattr(args, "fresh", False) or getattr(args, "force", False):
+        return
+    flt = [f for f, v in (("--cases", getattr(args, "cases", None)),
+                          ("--categories", getattr(args, "categories", None))) if v]
+    if flt:
+        raise SystemExit(
+            f"refusing --fresh with {' and '.join(flt)}: --fresh archives the model's "
+            "WHOLE result set, not just the filtered cases. Use --fresh alone for a full "
+            f"re-run, or {' / '.join(flt)} alone for a targeted re-run (the new rows "
+            "supersede the old ones). Pass --force to archive everything anyway.")
+
+
 def cmd_run(args, cfg):
     from .runner import run_models
+    _refuse_fresh_with_filter(args)
     cfg, cases, prof = _apply_profile_arg(args, cfg)
     entries = resolve_models(cfg, args.models)
     if args.categories:
@@ -1281,6 +1298,10 @@ def main(argv=None):
     sub.add_parser("status", help="providers, registry, judge, cases")
     p_run = sub.add_parser("run", help="benchmark models")
     add_run_args(p_run)
+    # explicit, so `--force` is never prefix-matched to `--force-evict`
+    p_run.add_argument("--force", action="store_true",
+                       help="with --fresh plus --cases/--categories: archive the whole "
+                            "result set anyway")
     p_judge = sub.add_parser("judge", help="judge pending quality rows")
     add_force_evict_arg(p_judge)
     p_judge.add_argument("--models", default="all")
@@ -1313,7 +1334,9 @@ def main(argv=None):
     p_pw.add_argument("--yes", action="store_true")
     p_all = sub.add_parser("all", help="run + judge + report")
     add_run_args(p_all)
-    p_all.add_argument("--force", action="store_true")
+    p_all.add_argument("--force", action="store_true",
+                       help="re-judge rows that already have verdicts; also lets --fresh "
+                            "combine with --cases/--categories (archives the whole set)")
 
     p_gui = sub.add_parser("gui", help="web GUI (local, no CDN)")
     p_gui.add_argument("--host", default="127.0.0.1")

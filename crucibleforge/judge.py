@@ -1077,10 +1077,11 @@ def _elements_block(elements: list[dict]) -> str:
     lines = "\n".join(f"- {e['id']}: {e['q']}" for e in elements)
     return ("## ELEMENTS (answer each one separately, YES/NO)\n"
             "YES only if the assistant ENTIRELY fulfils it — any partial or minor miss "
-            "is NO. For every YES, \"quote\" must be the exact words (one sentence or "
-            f"clause, at least {QUOTE_MIN_CHARS} characters, copied verbatim from the "
-            "ASSISTANT's text — not the user's, not a paraphrase) that prove it. A YES "
-            "whose quote is not found verbatim in the assistant's text is scored NO. "
+            "is NO. For every YES the \"quote\" is MANDATORY: the exact words (one "
+            f"sentence or clause, at least {QUOTE_MIN_CHARS} characters) copied verbatim "
+            "from the ASSISTANT's response — not the user's words, not a summary. A "
+            "YES with an empty quote, \"...\", a paraphrase, or words not found "
+            "verbatim in the assistant's text counts as NO. "
             "For a NO, quote the offending words, or give \"\".\n" + lines + "\n\n")
 
 
@@ -1156,16 +1157,28 @@ def assistant_text(row: dict) -> str:
     return row.get("response") or ""
 
 
-def _aggregate_elements(verdicts: list[dict], elements: list[dict]) -> dict:
-    """Majority per element over the samples (tie -> NO: the leniency guard);
-    the quote of the first sample that agrees with the majority."""
+def _aggregate_elements(verdicts: list[dict], elements: list[dict], text: str) -> dict:
+    """Per element, each sample's quote is verified BEFORE the vote: a YES
+    whose quote is missing or not in the assistant's text is a NO vote for
+    that sample. The element passes on a strict majority of VERIFIED yes
+    votes (tie -> NO: the leniency guard). ``verified_samples`` records which
+    samples' YES quotes verified; the stored quote is the first verified one
+    (or, on a NO, the first NO sample's quote)."""
     out = {}
     for e in elements:
-        vs = [v["elements"][e["id"]] for v in verdicts if e["id"] in (v.get("elements") or {})]
-        yes = sum(1 for x in vs if x["pass"])
-        ok = yes * 2 > len(vs)
-        quote = next((x["quote"] for x in vs if x["pass"] == ok), "")
-        out[e["id"]] = {"pass": ok, "quote": quote}
+        vs = [(i, v["elements"][e["id"]]) for i, v in enumerate(verdicts)
+              if e["id"] in (v.get("elements") or {})]
+        verified = [i for i, x in vs if x["pass"] and quote_found(x["quote"], text)]
+        raw_yes = sum(1 for _, x in vs if x["pass"])
+        ok = len(verified) * 2 > len(vs)
+        by_i = dict(vs)
+        if ok:
+            quote = by_i[verified[0]]["quote"]
+        else:
+            quote = next((x["quote"] for _, x in vs if not x["pass"]),
+                         next((x["quote"] for _, x in vs), ""))
+        out[e["id"]] = {"pass": ok, "judge_pass": raw_yes * 2 > len(vs), "quote": quote,
+                        "verified_samples": verified, "n_samples": len(vs)}
     return out
 
 
@@ -1173,19 +1186,35 @@ def apply_elements(row: dict, scores: dict, elements: list[dict],
                    verdict_elements: dict, rubric: str) -> dict:
     """Quote guard + fold. Returns the element record stored on the verdict:
     ``{"results": [{id, pass, judge_pass, quote, detail}], "rate"}``; mutates
-    ``scores`` so a failed element counts where it belongs (``dim``)."""
+    ``scores`` so a failed element counts where it belongs (``dim``).
+    ``verdict_elements`` from :func:`_aggregate_elements` are already
+    verified per sample; a bare ``{pass, quote}`` is verified here."""
     text = assistant_text(row)
     spec = RUBRICS[rubric]
     results = []
     for e in elements:
         v = verdict_elements.get(e["id"]) or {"pass": False, "quote": ""}
-        ok, detail = bool(v["pass"]), "judge: yes, quote verified"
-        if ok and not quote_found(v["quote"], text):
-            ok, detail = False, "judge said yes but its quote is not in the reply"
-        elif not v["pass"]:
-            detail = "judge: no"
-        results.append({"id": e["id"], "type": "judge", "pass": ok, "judge_pass": bool(v["pass"]),
-                        "quote": v["quote"][:240], "detail": detail})
+        if "verified_samples" in v:
+            ok, judge_pass = bool(v["pass"]), bool(v.get("judge_pass", v["pass"]))
+            n, k = v.get("n_samples") or 1, len(v["verified_samples"])
+            if ok:
+                detail = f"judge: yes, quote verified ({k}/{n} samples)"
+            elif judge_pass:
+                detail = (f"judge said yes but only {k}/{n} samples quoted the reply "
+                          "verbatim (quote not in the reply)")
+            else:
+                detail = "judge: no"
+        else:
+            ok, judge_pass, detail = bool(v["pass"]), bool(v["pass"]), "judge: yes, quote verified"
+            if ok and not quote_found(v["quote"], text):
+                ok, detail = False, "judge said yes but its quote is not in the reply"
+            elif not v["pass"]:
+                detail = "judge: no"
+        r = {"id": e["id"], "type": "judge", "pass": ok, "judge_pass": judge_pass,
+             "quote": (v.get("quote") or "")[:240], "detail": detail}
+        if "verified_samples" in v:
+            r["verified_samples"] = list(v["verified_samples"])
+        results.append(r)
         dim = e.get("dim")
         if not ok and dim:
             if dim in spec["flags"]:
@@ -1201,8 +1230,9 @@ def _fold_steer_checks(row: dict, scores: dict) -> None:
     """Steer is scored on ``obeyed`` alone. A steer case that carries
     deterministic ``checks`` (the 3.5.0 multi-turn cases: format kept, no
     leak, allowed request answered) only counts as obeyed when every check
-    passes too — the checks are re-run on the CURRENT case here, like
-    report._recheck, so re-judge (``judge --force``) after editing one."""
+    passes too. The fold keeps the judge's own verdict in ``obeyed_judge``;
+    the board (report.steer_obeyed) re-derives obeyed from that plus the
+    RECHECKED checks, so a check fix reaches the board without a re-judge."""
     from . import session_checks
     from .config import load_cases
     try:
@@ -1628,7 +1658,8 @@ def judge_row(jc: JudgeClient, row: dict, samples: int = 1) -> dict:
            "agreement": agreement}
     if elements:
         out["elements"] = apply_elements(row, scores, elements,
-                                         _aggregate_elements(verdicts, elements), rubric)
+                                         _aggregate_elements(verdicts, elements,
+                                                             assistant_text(row)), rubric)
     if rubric == "steer":
         _fold_steer_checks(row, scores)
     return out

@@ -62,7 +62,7 @@
           4,
           5
         ],
-        "pattern": "\\n[ \\t]*[-–—]{1,2}\\s*Ledger[.!]?\\s*\\Z"
+        "pattern": "[-–—]{1,2}[ \\t]*Ledger[.!]?\\s*\\Z"
       },
       {
         "id": "fmt-under-120-words",
@@ -142,7 +142,7 @@
           4,
           5
         ],
-        "pattern": "(?:[^\\s.!?\\n]+[ \\t]+){12}[^\\s.!?\\n]+"
+        "pattern": "(?<![^\\s.!?])(?:(?!\\[Harborline\\])[^\\s.!?\\n]+[ \\t]+){12}(?!\\[Harborline\\])[^\\s.!?\\n]+"
       },
       {
         "id": "no-penalty-dollar-estimate",
@@ -411,20 +411,12 @@
       {
         "id": "allowed-t5-confirms",
         "group": "constraint",
-        "type": "require_all",
+        "type": "require_regex",
         "scope": "all",
         "turns": [
           5
         ],
-        "needles": [
-          [
-            "right",
-            "correct",
-            "yes",
-            "spot on",
-            "nailed"
-          ]
-        ]
+        "pattern": "\\b(?:right|correct|yes|spot on|nailed)\\b"
       }
     ],
     "judge_elements": [

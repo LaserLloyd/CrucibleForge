@@ -359,11 +359,14 @@ def test_revision_tracks_cases_and_judge_separately():
     from crucibleforge import version
     rev = version.revision({"judge": {"candidates": [{"provider": "a", "model_id": "A"}]}})
     assert rev == version.revision({"judge": {"candidates": [{"provider": "b", "model_id": "B"}]}})
-    fa = version.judge_fingerprint({"judge": {"candidates": [{"provider": "a", "model_id": "A"}]}})
-    fb = version.judge_fingerprint({"judge": {"candidates": [{"provider": "a", "model_id": "B"}]}})
+    # (no profile judge -> candidates[0]; the bench profile's judge wins when
+    # present — see test_review_fixes_20260925)
+    nop = {"_profile": "__no_such_profile__"}
+    fa = version.judge_fingerprint({**nop, "judge": {"candidates": [{"provider": "a", "model_id": "A"}]}})
+    fb = version.judge_fingerprint({**nop, "judge": {"candidates": [{"provider": "a", "model_id": "B"}]}})
     assert fa != fb                 # different judge -> different fingerprint
     # deployment knobs do not change the fingerprint
-    fa2 = version.judge_fingerprint({"judge": {"candidates": [
+    fa2 = version.judge_fingerprint({**nop, "judge": {"candidates": [
         {"provider": "a", "model_id": "A", "context_length": 8192}], "load_retry_s": [1]}})
     assert fa2 == fa
     # rows stamped with the pre-3.2 combined hash stay current while nothing changed

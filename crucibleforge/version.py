@@ -74,10 +74,22 @@ _GRADING_KEYS = ("checks", "judge_elements", "explicit_required", "willing")
 # peak, WL1/WL2 must-write, WL1R/WL2R must-refuse twins); no existing case
 # changed, so the 3.4.0 rows AND the rows already stamped with the first
 # 3.5.0 hash (91073254) still answer their questions.
+#
+# 3.5.0 review round (2026-09-25 evening): TZ11 step 10 gained an
+# ``answer_forbid`` (the old DOB), TZ12 step 10 word-bounded needles, TZ13
+# steps 3/5 ``forbid_args`` (the lookalike ids). Those live inside
+# ``tool_script``, so the hash moved to d2d09bda although no prompt changed —
+# grading-only in effect, so every earlier 3.5.0 stamp of the day still
+# answers its question. 3c64cb8b is the working-tree state of the
+# saturation run 000ac71a (between commits 59ed7b3=91073254 and
+# 029d563=6c4bded7; its stored prompts match the current cases — its old
+# RX20/RX21 ids no longer exist and drop out on their own).
 _V340 = {"3.4.0+0d6e0ad1", "3.4.0+7c3f7296"}
+_V350_TODAY = {"3.5.0+3c64cb8b", "3.5.0+91073254", "3.5.0+6c4bded7"}
 _EQUIVALENT_STAMPS = {"0d6e0ad1": {"3.4.0+7c3f7296"},
                       "91073254": _V340,
-                      "6c4bded7": _V340 | {"3.5.0+91073254"}}
+                      "6c4bded7": _V340 | {"3.5.0+91073254", "3.5.0+3c64cb8b"},
+                      "d2d09bda": _V340 | _V350_TODAY}
 
 
 def cases_hash() -> str:
@@ -97,14 +109,33 @@ def cases_hash() -> str:
     return h.hexdigest()[:8]
 
 
-def judge_fingerprint(cfg: dict | None = None) -> str | None:
-    """Short hash of the primary judge's measurement settings, or None when
-    no judge is configured."""
-    judge = _load_cfg(cfg).get("judge") or {}
-    cands = judge.get("candidates") or []
-    if not cands:
+def _profile_judge_spec(cfg: dict) -> dict | None:
+    """The judge the benchmark PROFILE names (cfg["_profile"], default
+    bench) — the judge whose verdicts count on the board — as a spec dict;
+    a profile judge given by name resolves against judge.candidates. None
+    when the profile names none (or cannot be read)."""
+    try:
+        from .profiles import DEFAULT_PROFILE, load_profile, profile_judge
+        j = profile_judge(load_profile(cfg.get("_profile") or DEFAULT_PROFILE, cfg))
+    except Exception:  # noqa: BLE001 — an unreadable profile falls back to candidates
         return None
-    primary = cands[0]
+    if isinstance(j, str):
+        cands = (cfg.get("judge") or {}).get("candidates") or []
+        return next((c for c in cands if j in (c.get("name"), c.get("model_id"))),
+                    {"model_id": j})
+    return j
+
+
+def judge_fingerprint(cfg: dict | None = None) -> str | None:
+    """Short hash of the measurement settings of the PROFILE's judge (the one
+    the board counts — not ``models.yaml`` candidates[0], which is only the
+    fallback when the profile names no judge), or None when there is none."""
+    cfg = _load_cfg(cfg)
+    judge = cfg.get("judge") or {}
+    cands = judge.get("candidates") or []
+    primary = _profile_judge_spec(cfg) or (cands[0] if cands else None)
+    if not primary:
+        return None
     parts = {k: primary.get(k) for k in _JUDGE_MEASUREMENT_KEYS if primary.get(k) is not None}
     parts["samples"] = judge.get("samples", 1)
     parts.setdefault("temperature", judge.get("temperature"))

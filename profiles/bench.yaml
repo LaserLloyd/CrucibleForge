@@ -6,7 +6,7 @@
 #
 # One command per model:  uv run crucibleforge all --models <label> --fresh --yes
 # The model is loaded once, every case is generated (longest categories first),
-# then the judge scores the 13 chat rows. Target on an 8-slot 27B
+# then the judge scores the 24 chat rows. Target on an 8-slot 27B
 # thinking model: generation < 20 min, judging < 20 min (README "Run time").
 # Generation wall-clock is set by the longest single row: a 24576-token coding
 # answer at ~30-34 tok/s per slot (measured on the rig's 27Bs, 8-way) is

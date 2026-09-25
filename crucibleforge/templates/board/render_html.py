@@ -32,7 +32,9 @@ JS = resources.files(_PKG).joinpath("script.js").read_text(encoding="utf-8")
 THRESHOLDS = [10, 30, 50, 70, 90, 100]
 
 _URL = re.compile(r"\b[a-zA-Z][a-zA-Z0-9+.-]*://[^\s\"'<>)]+")
-_IPV4 = re.compile(r"(?<![\w.])\d{1,3}(?:\.\d{1,3}){3}(?::\d+)?(?![\w.])")
+# a dotted quad right after "version " / "v" is a version string (a vendor
+# build like 1.26.8.28), not an address ("v1.2.3.4" is already excluded by \w)
+_IPV4 = re.compile(r"(?<![\w.])(?<![Vv]ersion )\d{1,3}(?:\.\d{1,3}){3}(?::\d+)?(?![\w.])")
 _HOST = re.compile(r"\b[\w-]+(?:\.[\w-]+)*\.(?:ts\.net|local|lan|internal|home\.arpa)\b"
                    r"(?::\d+)?|\blocalhost:\d+\b", re.IGNORECASE)
 

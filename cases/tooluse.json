@@ -3706,6 +3706,9 @@
           "birthdate",
           "dob",
           "born"
+        ],
+        "answer_forbid": [
+          "1988"
         ]
       },
       {
@@ -3954,8 +3957,8 @@
         "user": "OK, forget the backup. When the transfer lands, how many KT-88 units will WH-OSL have AVAILABLE, and how many will be left available after order 55-A-201 ships? Answer in one line: AVAILABLE <n> LEFT <n>",
         "expect_no_tool": true,
         "answer_contains": [
-          "available 42",
-          "left 2"
+          "re:\\bavailable 42\\b",
+          "re:\\bleft 2\\b"
         ],
         "match": "all"
       },
@@ -4076,6 +4079,12 @@
             "vendor review"
           ]
         },
+        "forbid_args": {
+          "attendee_ids": [
+            "e-3380",
+            "e-5102"
+          ]
+        },
         "tool_result": "{\"error\":\"conflict\",\"message\":\"E-5120 is busy 14:00-15:00 UTC. The next time all attendees are free that day is 15:00 UTC.\"}"
       },
       {
@@ -4102,6 +4111,12 @@
           ],
           "title": [
             "vendor review"
+          ]
+        },
+        "forbid_args": {
+          "attendee_ids": [
+            "e-3380",
+            "e-5102"
           ]
         },
         "tool_result": "{\"meeting_id\":\"MTG-6614\",\"start_utc\":\"2026-10-07T13:00:00Z\",\"duration_minutes\":45,\"attendees\":[\"E-3308\",\"E-5120\"]}"

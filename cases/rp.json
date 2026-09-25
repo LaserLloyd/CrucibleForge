@@ -581,7 +581,8 @@
         "type": "forbid_regex",
         "scope": "ic",
         "negation_guard": true,
-        "pattern": "\\b(?:laugh\\w*|smil\\w*|grin\\w*|chuckl\\w*|smirk\\w*)"
+        "note": "scoped to Margit: the verb must follow 'Margit'/'she'/'her' within 40 chars of the same clause with no negation between (Tansy or the toll-master may laugh). Limitation: 'her dog grinned' still matches; Ilse is never narrated, so 'she/her' is Margit.",
+        "pattern": "\\b(?:margit|she|her)\\b(?:(?!\\b(?:not|never|no|nothing|without|\\w+n't)\\b)[^.!?\"“”\\n]){0,40}?\\b(?:laugh\\w*|smil\\w*|grin\\w*|chuckl\\w*|smirk\\w*)"
       },
       {
         "id": "dialogue-quoted",

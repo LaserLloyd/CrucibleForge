@@ -415,6 +415,16 @@ def grade_tool_call(tool_calls: list[dict], response_text: str, cfg: dict) -> di
         if accepted and not any(a.lower() in val for a in accepted):
             return {"grade": "fail",
                     "detail": f"arg {arg_name}={args[arg_name]!r} matched none of {accepted}"}
+    # forbid_args: {"arg": ["substr", ...]} — any listed substring in that arg
+    # fails the call (a lookalike id next to the right one, e.g. E-5102 vs E-5120)
+    for arg_name, forbidden in (cfg.get("forbid_args") or {}).items():
+        if arg_name not in args:
+            continue
+        val = str(args[arg_name]).lower()
+        hit = [f for f in forbidden if f.lower() in val]
+        if hit:
+            return {"grade": "fail",
+                    "detail": f"arg {arg_name}={args[arg_name]!r} contains forbidden {hit}"}
     return {"grade": "pass", "detail": f"valid {expect} call"}
 
 
@@ -579,12 +589,20 @@ def _answer_line(text: str) -> str:
     return text
 
 
+RE_NEEDLE = "re:"
+
+
 def _needle_hit(needle, text: str) -> bool:
     """A needle is a string, or a list of strings meaning "any of these"
-    (e.g. ``["2026-11-30", "November 30"]`` — the same date either way)."""
+    (e.g. ``["2026-11-30", "November 30"]`` — the same date either way). A
+    string starting ``re:`` is a case-insensitive regex (``re:\\bleft 2\\b``
+    so that ``left 22`` does not count)."""
     if isinstance(needle, (list, tuple)):
-        return any(str(n).lower() in text for n in needle)
-    return str(needle).lower() in text
+        return any(_needle_hit(n, text) for n in needle)
+    n = str(needle)
+    if n.startswith(RE_NEEDLE):
+        return re.search(n[len(RE_NEEDLE):], text, re.I) is not None
+    return n.lower() in text
 
 
 def grade_contains(response_text: str, cfg: dict) -> dict:
@@ -614,6 +632,10 @@ def grade_contains(response_text: str, cfg: dict) -> dict:
 _NORM_RE = re.compile(r"[^a-z0-9]+")
 
 
+# 1,467 / 12,345,678 — but not "1,8,23" (a comma list) nor a group inside one
+_THOUSANDS_RE = re.compile(r"(?<!\d)(?<!\d,)\d{1,3}(?:,\d{3})+(?!\d)(?!,\d)")
+
+
 def _normalize(s: str) -> str:
     """Lowercase, collapse everything non-alphanumeric to single spaces."""
     return _NORM_RE.sub(" ", s.lower()).strip()
@@ -629,6 +651,9 @@ def grade_exact(response_text: str, cfg: dict) -> dict:
     m = re.search(r"answer\s*[:=\-]\s*(.*)$", scope, re.IGNORECASE | re.DOTALL)
     if m:
         scope = m.group(1)
+    if cfg.get("elements") == "positions":
+        # a thousands separator is not a word break: 1,467 == 1467
+        scope = _THOUSANDS_RE.sub(lambda m: m.group(0).replace(",", ""), scope)
     got = _normalize(scope)
     accepted = cfg.get("answers") or [cfg["answer"]]
     elements = _position_elements(got, accepted[0], cfg) if cfg.get("elements") == "positions" else {}

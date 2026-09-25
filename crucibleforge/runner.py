@@ -1101,6 +1101,7 @@ def _run_tool_loop(case, base_row, ctx: _Ctx, max_tokens, temperature, seed) -> 
                     steps[k] = grade_tool_call(
                         [call], "", {"expect_tool": script[k]["expect_tool"],
                                      "required_args": script[k].get("required_args", {}),
+                                     "forbid_args": script[k].get("forbid_args", {}),
                                      "max_calls": 1})
                 msg, ids = _assistant_tool_turn(result, ordered)
                 messages.append(msg)
@@ -1112,6 +1113,7 @@ def _run_tool_loop(case, base_row, ctx: _Ctx, max_tokens, temperature, seed) -> 
             steps[i] = grade_tool_call(result.tool_calls, _answer_view(result).scoreable_text(),
                                        {"expect_tool": step["expect_tool"],
                                         "required_args": step.get("required_args", {}),
+                                        "forbid_args": step.get("forbid_args", {}),
                                         "max_calls": step.get("max_calls", 1)})
             # feed the model's call(s) + our canned result back into context.
             # Every call needs an answer or the next request is malformed: the

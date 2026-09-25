@@ -56,9 +56,13 @@ def test_bench_case_set_is_small_and_drops_the_non_discriminating():
                     "IZ02-json-single-line-typed", "RH5-weboflies"):
         assert dropped not in ids
     long_cats = {"coding", "math"}
-    long_rows = [c for c in cases if c["category"] in long_cats or c["id"] == "RX13-recurrence-term"]
-    # the long cases fit in ONE wave on an 8-slot model
-    assert len(long_rows) <= 7
+    long_reason = {"RX13-recurrence-term", "RX20-five-houses-four-attributes",
+                   "RX21-flawed-cost-chain"}          # 4096 x4 thinking, like math
+    long_rows = [c for c in cases if c["category"] in long_cats or c["id"] in long_reason]
+    # 3.5.0: 4 programs + 2 math + RX13/RX20/RX21 = 9 long rows. They NO LONGER
+    # fit in one wave on an 8-slot model — the 9th waits for a free slot, which
+    # is part of why the 3.5.0 time box is only projected (skill, "Time box").
+    assert len(long_rows) == 9
     # chat half (3.4.0 + 3.5.0): 5 RP, 11 NSFW, 2 story, 6 steer = 24 judged rows;
     # the old RP1-4 / RPM1-2 / N1-N4 / NM1 stay in the suite files, out of the bench
     chat = {c["id"] for c in cases if c["category"] in ("rp", "nsfw", "story", "steer")}

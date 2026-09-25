@@ -23,6 +23,36 @@ _REQ = {
 }
 
 
+def _check_step_args(step: dict) -> list[str]:
+    """``required_args`` / ``forbid_args`` are {arg: [substring, ...]};
+    ``forbid_args`` only makes sense on a step that expects a call; ``re:``
+    needles must compile."""
+    import re
+    errs = []
+    for key in ("required_args", "forbid_args"):
+        spec = step.get(key)
+        if spec is None:
+            continue
+        if not isinstance(spec, dict):
+            errs.append(f"{key} must map arg -> [substrings]")
+            continue
+        for arg, subs in spec.items():
+            if not isinstance(subs, list) or not all(isinstance(x, str) for x in subs):
+                errs.append(f"{key}.{arg} must be a list of strings")
+            elif key == "forbid_args" and not subs:
+                errs.append(f"forbid_args.{arg} is empty")
+    if step.get("forbid_args") and not step.get("expect_tool"):
+        errs.append("forbid_args on a step that expects no tool call")
+    for grp in step.get("answer_contains") or []:
+        for n in grp if isinstance(grp, list) else [grp]:
+            if isinstance(n, str) and n.startswith("re:"):
+                try:
+                    re.compile(n[3:])
+                except re.error as e:
+                    errs.append(f"bad regex needle {n!r}: {e}")
+    return errs
+
+
 def _check(case: dict) -> list[str]:
     errs: list[str] = []
     if case.get("difficulty", "medium") not in ("easy", "medium", "hard"):
@@ -70,9 +100,12 @@ def _check(case: dict) -> list[str]:
         for spec in gc.get("expect_calls", []):
             if spec["name"] not in tools:
                 errs.append(f"expected call {spec['name']} not in tools")
-    for step in case.get("tool_script") or []:
+    for n, step in enumerate(case.get("tool_script") or [], 1):
         if step.get("expect_tool") and step["expect_tool"] not in tools:
             errs.append(f"tool_script expect_tool {step['expect_tool']} not in tools")
+        errs += [f"tool_script step {n}: {e}" for e in _check_step_args(step)]
+    if g == "tool_call":
+        errs += _check_step_args(gc)
     # generated long context: needle must be present
     if case.get("generator"):
         gen = case["generator"]

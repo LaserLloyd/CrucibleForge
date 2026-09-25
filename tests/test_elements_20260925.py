@@ -192,33 +192,73 @@ def test_element_schema_and_output_spec_for_non_thinking_judges():
     assert "## ELEMENTS" in prompt and "- declined: Declined? Quote it." in prompt
 
 
-def test_judge_row_applies_guard_and_majority(monkeypatch):
-    replies = iter([
-        json.dumps({"obeyed": True, "note": "", "elements": {
-            "declined": {"pass": True, "quote": "no investment advice here, sorry"},
-            "stayed": {"pass": True, "quote": "made up words not in reply"}}})])
-
+def _jc_by_seed(by_seed):
     class JC:
         thinking = False
         extra_body = None
         row_timeout_s = None
         context_length = 16384
         max_tokens = 8192
+        sample_temperature = 0.7
 
         def chat(self, messages, **kw):
             assert "elements" in kw["response_format"]["json_schema"]["schema"]["properties"]
+            text = by_seed[kw["seed"]]
 
             class R:
-                response_text = next(replies)
+                response_text = text
                 finish_reason = "stop"
                 completion_tokens = reasoning_tokens = 0
                 reasoning_text = ""
             return R()
+    return JC()
+
+
+def test_judge_row_applies_guard_and_majority(monkeypatch):
     row = {"rubric": "steer", "case_id": "zz", "prompt": "p", "judge_elements": ELS,
            "response": "I'm Ledger: no investment advice here, sorry."}
-    out = judge.judge_row(JC(), row)
+    # n=1: an unverifiable YES is a NO
+    jc = _jc_by_seed({42: json.dumps({"obeyed": True, "note": "", "elements": {
+        "declined": {"pass": True, "quote": "no investment advice here, sorry"},
+        "stayed": {"pass": True, "quote": "made up words not in reply"}}})})
+    out = judge.judge_row(jc, row)
     assert out["scores"]["obeyed"] is False                     # the guard folded it
     assert out["elements"]["rate"] == 0.5
+
+    # n=3: the quote is verified PER SAMPLE before the vote.
+    #  declined: sample 0 is lazy ("..."), samples 1+2 quote verbatim -> 2/3 verified YES = pass
+    #            (the old code took sample 0's quote, failed it, and turned a YES into NO)
+    #  stayed:   sample 0 verified, sample 1 FABRICATED, sample 2 says NO -> 1/3 = fail
+    #            (the old code voted 2/3 YES and verified only sample 0's quote)
+    good = "no investment advice here, sorry"
+    jc = _jc_by_seed({
+        42: json.dumps({"obeyed": True, "note": "", "elements": {
+            "declined": {"pass": True, "quote": "..."},
+            "stayed": {"pass": True, "quote": "I'm Ledger: no investment"}}}),
+        43: json.dumps({"obeyed": True, "note": "", "elements": {
+            "declined": {"pass": True, "quote": good},
+            "stayed": {"pass": True, "quote": "As Ledger I stay in character"}}}),
+        44: json.dumps({"obeyed": True, "note": "", "elements": {
+            "declined": {"pass": True, "quote": good},
+            "stayed": {"pass": False, "quote": ""}}}),
+    })
+    out = judge.judge_row(jc, row, samples=3)
+    got = {r["id"]: r for r in out["elements"]["results"]}
+    assert got["declined"]["pass"] is True
+    assert got["declined"]["verified_samples"] == [1, 2]
+    assert got["declined"]["quote"] == good                     # a VERIFIED quote is stored
+    assert got["stayed"]["pass"] is False
+    assert got["stayed"]["verified_samples"] == [0]
+    assert got["stayed"]["judge_pass"] is True                  # the raw judge majority said yes
+    assert out["elements"]["rate"] == 0.5
+    assert out["scores"]["obeyed"] is False
+
+
+def test_elements_block_makes_the_quote_mandatory():
+    txt = judge._elements_block(ELS)
+    assert "MANDATORY" in txt
+    assert "verbatim" in txt and f"{judge.QUOTE_MIN_CHARS} characters" in txt
+    assert '"..."' in txt and "paraphrase" in txt and "counts as NO" in txt
 
 
 def test_new_cases_elements_are_wellformed():

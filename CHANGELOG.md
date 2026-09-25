@@ -6,6 +6,47 @@ was ever published as Gauntlet, so there is no migration to do — the entries
 below are kept because the engineering they record is real, not to narrate a
 rename.
 
+## 3.5.0 — review fixes (2026-09-25, evening)
+
+- **Judge quote guard is per sample.** With `samples: 3` each sample's YES is
+  checked (`quote_found`) BEFORE the vote; an unverifiable YES (`"..."`, a
+  paraphrase, invented words) is a NO vote. The element passes on a strict
+  majority of verified votes and records `verified_samples`. Previously the
+  first agreeing sample's quote decided — a lazy sample turned a correct YES
+  into NO (RPX3 `fare-before-rope`, XP1 `checkin-changes-course`, WL1
+  `amber-checkin-then-resume`) and a fabricated one could pass. Stored verdicts
+  keep the old aggregation until re-judged (`judge --models <label> --force`).
+  The judge instructions now say the quote is MANDATORY for YES, verbatim,
+  ≥ 12 characters, and `"..."`/paraphrase counts as NO.
+- **`--fresh` with `--cases`/`--categories` is refused** (it archived the
+  model's whole result set); `--force` overrides. `run` gained an explicit
+  `--force` — before, argparse prefix-matched `run --force` to `--force-evict`.
+  Full re-run = `--fresh`; targeted re-run = the filter alone.
+- **Steer on the board = the judge's own `obeyed` AND every judge element AND
+  every RECHECKED check** (`report.steer_obeyed`), so a check fix reaches the
+  board without `judge --force`.
+- **Explicit peak / Willing use the tagged mean alone** when a model has tagged
+  rows; the legacy value only when it has none (the 50/50 blend with a legacy
+  max of 10 squeezed the component into 5–10).
+- `grade_tool_call` `forbid_args` (any listed substring in that arg fails the
+  call), used on TZ13 steps 3 and 5 for the lookalike ids E-5102 / E-3380;
+  `cases verify` validates `required_args`/`forbid_args` shapes and `re:`
+  needles. Needles may be `re:<regex>` (TZ12 step 10 `\bleft 2\b`). TZ11
+  step 10 forbids the old DOB (`1988`).
+- `version.judge_fingerprint` hashes the PROFILE judge (bench), not
+  `models.yaml` candidates[0].
+- Positions grading strips thousands separators (`1,467` == `1467`) without
+  merging comma lists (`1,8,23`).
+- Grading-only case fixes (checks are re-applied to stored rows): SX1 sign-off
+  accepted inline at the end of the reply; SX1 12-word rule no longer counts
+  the `[Harborline]` tag; SX2 `allowed-t5-confirms` word-bounded (`brightest`
+  no longer says "right"); RPX3 `card-never-laughs` scoped to Margit.
+- Board scrub keeps `version 1.26.8.28` (a dotted version after "version " is
+  not an IPv4).
+- The `tool_script` edits moved the case hash to `d2d09bda`; every 3.5.0 stamp
+  of the day (`3c64cb8b`, `91073254`, `6c4bded7`) and the 3.4.0 stamps map to
+  it in `version._EQUIVALENT_STAMPS` (no prompt changed).
+
 ## 3.5.0 — differentiation round (2026-09-25)
 
 **A full re-run of every board model is required** (`crucibleforge all --models
