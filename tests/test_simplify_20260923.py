@@ -131,45 +131,80 @@ def test_generic_judged_category_joins_chat_by_weight(tmp_path, monkeypatch):
 
 # ------------------------------------------------------------ HTML board
 
+def _board_data(html):
+    blob = html.split('<script type="application/json" id="board-data">', 1)[1].split("</script>", 1)[0]
+    return blob, json.loads(blob)
+
+
 def test_html_board_renders_rows_with_no_placeholders(tmp_path, monkeypatch):
     rows = [_bench_row("IZ01-logistics-47-words", "instruct"),
             _bench_row("CZ05-optimal-bst-cost", "coding", "fail")]
     _seed(tmp_path, monkeypatch, "m", rows,
-          meta={"model_id": "evil</script><b>x", "provider": "p", "profile": "bench"})
+          meta={"model_id": "evil</script><!--<b>x", "provider": "p", "profile": "bench"})
     report.generate()
     html = (tmp_path / "report.html").read_text()
     assert "PLACEHOLDER" not in html and "/*ROWS*/" not in html
-    script = html.split("<script>", 1)[1].rsplit("</script>", 1)[0]
-    assert "</script" not in script                     # "</" escaped inside the JSON
-    payload = script.split("const rows = ", 1)[1].split(";\n", 1)[0]
-    data = json.loads(payload)                          # "<\/" is valid JSON for "</"
-    assert data[0]["model_id"] == "evil</script><b>x"
-    assert data[0]["label"] == "m" and isinstance(data[0]["coding"], float)
+    blob, data = _board_data(html)
+    assert "<" not in blob                              # nothing can close/comment the element
+    row = data["rows"][0]
+    assert row["model_id"] == "evil</script><!--<b>x"
+    assert row["label"] == "m" and isinstance(row["coding"], float)
+    # the element-filter board: one sortable column + one min-score dropdown per component
+    comps = [c["label"] for c in data["components"]]
+    assert comps[:3] == ["RP", "NSFW", "Story"] and "Programs" in comps
+    for c in comps:
+        assert f'data-k="c:{c}"' in html and f'data-c="{c}"' in html
+    assert "Filter by element" in html and 'id="benched"' in html
+    assert "Suite revision" in html and "rendered " in html
+
+
+def test_html_board_scrubs_urls_ips_and_hosts():
+    from crucibleforge.templates.board import render_html
+    rows = [{"rank": 1, "label": "m", "model_id": "a/b", "provider": "p", "chat": 1.0,
+             "coding": 1.0, "overall": 1.0, "tok_s": 1.0, "date": "2026-09-25", "tier": 2,
+             "notes": "FAILED: http://192.0.2.10:1234/v1 refused; box.tail0.ts.net:8700 down; 198.51.100.7",
+             "components": {"RP": 50}}]
+    html = render_html(rows, "sub http://x.example/y", footer=["see https://h/i"])
+    for leak in ("192.0.2.10", "ts.net", "198.51.100.7", "http://", "https://"):
+        assert leak not in html, leak
+    assert "[host]" in html and "[url]" in html
+    assert "3.4.0+0d6e0ad1" == __import__("crucibleforge.templates.board", fromlist=["scrub"]).scrub("3.4.0+0d6e0ad1")
 
 
 @pytest.mark.skipif(shutil.which("node") is None, reason="node not installed")
-def test_html_board_script_executes_and_sorts_numerically(tmp_path, monkeypatch):
+def test_html_board_script_executes_sorts_and_filters(tmp_path, monkeypatch):
     from crucibleforge.templates.board import render_html
     rows = [{"rank": i + 1, "label": f"m{i}", "model_id": "x", "provider": "p",
              "chat": None, "coding": c, "overall": c, "tok_s": t, "date": "2026-09-23",
-             "notes": "", "tier": 0, "components": {"Programs": c}}
-            for i, (c, t) in enumerate([(50.0, 9.0), (80.0, 100.0), (20.0, 30.0)])]
-    html = render_html(rows, "sub")
-    script = html.split("<script>", 1)[1].rsplit("</script>", 1)[0]
+             "notes": "", "tier": 0, "components": {"Programs": c, "RP": rp}}
+            for i, (c, t, rp) in enumerate([(50.0, 9.0, 95), (80.0, 100.0, None), (20.0, 30.0, 40)])]
+    html = render_html(rows, "sub", components=[{"label": "RP", "side": "chat"},
+                                                {"label": "Programs", "side": "coding"}])
+    blob, _ = _board_data(html)
+    script = html.rsplit("<script>", 1)[1].rsplit("</script>", 1)[0]
+    keys = ['rank', 'label', 'chat', 'coding', 'overall', 'tok_s', 'date', 'notes', 'c:RP', 'c:Programs']
     harness = r"""
 const els = {};
-function el(id){ return els[id] || (els[id] = {id, innerHTML:'', textContent:'', handlers:{},
-  addEventListener(ev, fn){ this.handlers[ev] = fn; }}); }
-const ths = ['rank','label','chat','coding','overall','tok_s','date','notes'].map(k => ({dataset:{k},
-  arrow:{textContent:''}, handlers:{}, querySelector(){ return this.arrow; },
-  addEventListener(ev, fn){ this.handlers[ev] = fn; }}));
+function mk(o){ return Object.assign({innerHTML:'', textContent:'', handlers:{}, value:'', checked:false,
+  addEventListener(ev, fn){ this.handlers[ev] = fn; }, setAttribute(){},
+  classList:{toggle(){}}}, o); }
+function el(id){ return els[id] || (els[id] = mk({id})); }
+els['board-data'] = mk({textContent: """ + json.dumps(blob) + r"""});
+const ths = """ + json.dumps(keys) + r""".map(k => mk({dataset:{k}, arrow:{textContent:''},
+  querySelector(){ return this.arrow; }}));
+const rpFilter = mk({dataset:{c:'RP'}});
+const rpSelect = mk({closest(){ return rpFilter; }});
 global.document = { readyState: 'complete', getElementById: el,
-  querySelectorAll: (sel) => sel.startsWith('th') ? ths : [], addEventListener(){} };
+  querySelectorAll: (sel) => sel.startsWith('th') ? ths
+    : sel === '.comp-filter select' ? [rpSelect] : sel === '.comp-filter' ? [rpFilter] : [],
+  addEventListener(){} };
 """ + script + r"""
 const order = () => [...el('tbody').innerHTML.matchAll(/data-label="(m\d)"/g)].map(m => m[1]).join(',');
 const out = {initial: order()};
 ths[5].handlers.click();  out.tok_desc = order();   // tok/s: numeric, descending
 ths[3].handlers.click();  out.coding_desc = order();
+ths[8].handlers.click();  out.rp_desc = order();    // a component column; missing sorts last
+rpSelect.value = '50'; rpSelect.handlers.change(); out.rp_min50 = order();
 console.log(JSON.stringify(out));
 """
     p = tmp_path / "board.js"
@@ -180,6 +215,8 @@ console.log(JSON.stringify(out));
     assert out["initial"] == "m0,m1,m2"
     assert out["tok_desc"] == "m1,m2,m0"      # 100 > 30 > 9 (a string sort gives 9 > 30)
     assert out["coding_desc"] == "m1,m0,m2"
+    assert out["rp_desc"] == "m0,m2,m1"
+    assert out["rp_min50"] == "m0"            # RP >= 50: m2 (40) and m1 (unmeasured) drop
 
 
 # ------------------------------------------------------------ vendor stamp

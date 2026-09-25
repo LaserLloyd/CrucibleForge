@@ -1,121 +1,188 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>CrucibleForge Board</title><style>
-:root{--bg:#0d1117;--fg:#e6edf3;--muted:#8b949e;--border:#30363d;--accent:#58a6ff;--warn:#d29922;--fail:#f85149;--ok:#3fb950;--row:#161b22;--soft:#1c2128;}
-@media(prefers-color-scheme:light){:root{--bg:#ffffff;--fg:#1f2328;--muted:#57606a;--border:#d0d7de;--accent:#0969da;--warn:#9a6700;--fail:#cf222e;--ok:#1a7f37;--row:#f6f8fa;--soft:#eaeef2;}}
-*{box-sizing:border-box}html,body{margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--fg);}
-header{padding:10px 16px;border-bottom:1px solid var(--border);}
-h1{font-size:16px;margin:0 0 8px 0;font-weight:600;}
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="color-scheme" content="dark light"><title>CrucibleForge Board</title><style>:root{--bg:#0d1117;--fg:#e6edf3;--muted:#8b949e;--border:#30363d;--accent:#58a6ff;--warn:#d29922;--fail:#f85149;--ok:#3fb950;--row:#161b22;--soft:#1c2128;--chat:rgba(88,166,255,.07);--coding:rgba(63,185,80,.07);}
+@media(prefers-color-scheme:light){:root{--bg:#ffffff;--fg:#1f2328;--muted:#57606a;--border:#d0d7de;--accent:#0969da;--warn:#9a6700;--fail:#cf222e;--ok:#1a7f37;--row:#f6f8fa;--soft:#eaeef2;--chat:rgba(9,105,218,.06);--coding:rgba(26,127,55,.06);}}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;height:100%;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--fg);}
+body{display:flex;flex-direction:column;}
+header{padding:10px 16px;border-bottom:1px solid var(--border);flex:none;}
+h1{font-size:16px;margin:0 0 4px 0;font-weight:600;}
+.meta{font-size:12px;color:var(--muted);margin:4px 0 8px;}
 .toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:6px;}
-.toolbar input,.toolbar button{background:var(--row);color:var(--fg);border:1px solid var(--border);border-radius:6px;padding:5px 10px;font-size:13px;cursor:pointer;}
-.toolbar input{flex:1;min-width:140px;cursor:text;}
-.toolbar button:hover{background:var(--border);}
+.toolbar input[type=search],.toolbar button,.filters-row button{background:var(--row);color:var(--fg);border:1px solid var(--border);border-radius:6px;padding:5px 10px;font-size:13px;cursor:pointer;}
+.toolbar input[type=search]{flex:1;min-width:140px;cursor:text;}
+.toolbar button:hover,.filters-row button:hover{background:var(--border);}
 .toolbar label{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:4px;}
+/* "Filter by element →": one min-score dropdown per component, right-aligned over the component columns */
 .filters-row{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;align-items:center;padding-top:6px;border-top:1px dashed var(--border);}
-.filters-row .flabel{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-right:6px;}
-.filters-row .comp-filter{display:inline-flex;align-items:center;gap:4px;font-size:11px;color:var(--muted);background:var(--row);border:1px solid var(--border);border-radius:6px;padding:3px 6px;}
+.filters-row .flabel{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-right:6px;}
+.filters-row .comp-filter{display:inline-flex;align-items:center;gap:4px;font-size:11px;color:var(--muted);border:1px solid var(--border);border-radius:6px;padding:3px 6px;}
+.filters-row .comp-filter.side-chat{background:var(--chat);}
+.filters-row .comp-filter.side-coding{background:var(--coding);}
 .filters-row .comp-filter.is-active{border-color:var(--accent);color:var(--fg);}
-.filters-row .comp-filter select{background:transparent;color:var(--fg);border:0;font-size:11px;cursor:pointer;outline:none;padding:0 2px;}
+.filters-row .comp-filter select{background:var(--bg);color:var(--fg);border:0;font-size:11px;cursor:pointer;padding:0 2px;}
 .filters-row .comp-filter .lbl{font-weight:600;}
-table{width:100%;border-collapse:collapse;font-size:13px;border-top:1px solid var(--border);}
-thead{position:sticky;top:0;z-index:10;background:var(--bg);}
-th,td{padding:8px 10px;text-align:left;border-bottom:1px solid var(--border);vertical-align:middle;}
-th{background:var(--bg);font-weight:600;cursor:pointer;user-select:none;text-align:center;}
+.filters-row button{font-size:11px;padding:3px 8px;}
+.wrap{flex:1;min-height:0;overflow:auto;padding:0 16px;}
+table{border-collapse:separate;border-spacing:0;font-size:13px;min-width:100%;}
+thead th{position:sticky;top:0;z-index:10;}
+th,td{padding:7px 9px;text-align:left;border-bottom:1px solid var(--border);vertical-align:middle;white-space:nowrap;}
+th{background:var(--bg);font-weight:600;cursor:pointer;user-select:none;text-align:center;border-bottom:2px solid var(--border);}
 th:hover{background:var(--row);}
-th .arrow{opacity:0.5;font-size:10px;}
-tr:hover td{background:var(--soft);}
-.warn{color:var(--warn);}.fail{color:var(--fail);}.muted{color:var(--muted);}
-.warn-row td.notes{color:var(--warn);}.fail td.notes{color:var(--fail);}
-td.strong{font-weight:600;}td.label{font-weight:500;}td.notes{font-size:12px;max-width:380px;}
-.detail .group.wide{grid-column:1/-1;}
-@media(max-width:640px){main{padding:0 16px 40px;}th,td{padding:6px;}td.notes{max-width:180px;}}
+th .arrow{opacity:.5;font-size:10px;}
+th.side-chat{box-shadow:inset 0 -3px 0 var(--accent);}
+th.side-coding{box-shadow:inset 0 -3px 0 var(--ok);}
+td.side-chat{background:var(--chat);}
+td.side-coding{background:var(--coding);}
+tr.data-row:hover td{background:var(--soft);}
 .num{text-align:center;font-variant-numeric:tabular-nums;}
-main{padding:0 16px 60px;overflow-x:auto;}
-.meta{font-size:12px;color:var(--muted);margin:8px 0;}
-.toggle{background:transparent;border:0;color:var(--accent);cursor:pointer;font-size:14px;padding:0;width:18px;display:inline-block;}
+td.strong{font-weight:600;}td.label{font-weight:500;}
+td.notes{font-size:12px;white-space:normal;min-width:120px;max-width:320px;}
+.lo{color:var(--fail);}.mid{color:var(--warn);}.muted{color:var(--muted);}
+.warn-row td.notes{color:var(--warn);}.fail-row td.notes{color:var(--fail);}
+.toggle{background:transparent;border:0;color:var(--accent);cursor:pointer;font-size:14px;padding:0;width:18px;}
 .toggle:hover{color:var(--fg);}
-.detail-row td{background:var(--row);padding:0;}
-.detail{padding:12px 16px;display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;font-size:12px;}
+.detail-row td{background:var(--row);padding:0;white-space:normal;}
+.detail{padding:12px 16px;display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px;font-size:12px;max-width:1100px;}
 .detail .group{background:var(--soft);border:1px solid var(--border);border-radius:6px;padding:8px 10px;}
-.detail .group h4{margin:0 0 6px 0;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;font-weight:600;}
-.detail .group .val{font-size:18px;font-weight:600;font-variant-numeric:tabular-nums;}
-.detail .group .meta-line{font-size:11px;color:var(--muted);margin-top:4px;word-break:break-all;}
-.detail .comp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:6px;}
-.detail .comp{background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:6px 8px;cursor:pointer;text-align:center;}
+.detail .group.wide{grid-column:1/-1;}
+.detail .group h4{margin:0 0 6px 0;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;font-weight:600;}
+.detail .meta-line{font-size:12px;word-break:break-word;}
+.detail .comp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:6px;}
+.detail .comp{display:flex;flex-direction:column;align-items:center;background:var(--bg);color:var(--fg);border:1px solid var(--border);border-radius:4px;padding:6px 8px;cursor:pointer;font:inherit;}
 .detail .comp:hover{border-color:var(--accent);}
 .detail .comp .lbl{font-size:10px;color:var(--muted);text-transform:uppercase;}
-.detail .comp .val{font-size:14px;font-weight:600;font-variant-numeric:tabular-nums;}
-.sort-hint{font-size:11px;color:var(--muted);margin-top:8px;font-style:italic;}
-</style></head><body><header><h1>CrucibleForge — Chat &amp; Coding</h1><div class="meta">example board — made-up numbers</div><div class="toolbar"><input id="filter" placeholder="filter model…" aria-label="filter"><button id="expandAll">Expand all</button><button id="collapseAll">Collapse all</button></div></header><main><div class="meta" id="count">5 models · click a column to sort · click ▸ for components</div><table><thead><tr><th style="width:24px"></th><th data-k="rank" scope="col"># <span class="arrow"></span></th><th data-k="label" scope="col">Model <span class="arrow"></span></th><th data-k="chat" scope="col">Chat <span class="arrow"></span></th><th data-k="coding" scope="col">Coding <span class="arrow"></span></th><th data-k="overall" scope="col">Overall <span class="arrow"></span></th><th data-k="tok_s" scope="col">tok/s <span class="arrow"></span></th><th data-k="date" scope="col">Run date <span class="arrow"></span></th><th data-k="notes" scope="col">Notes <span class="arrow"></span></th></tr></thead><tbody id="tbody"></tbody></table></main><script>const rows = [{"rank": 1, "label": "example-27b-a", "model_id": "publisher/example-27b-a-GGUF/example-27b-a-Q5_K_M", "provider": "studioforge", "chat": 86.5, "coding": 88.9, "overall": 87.6, "tok_s": 34.2, "date": "2026-09-23", "notes": "", "tier": 0, "components": {"RP": 88, "NSFW": 74, "Story": 68, "Explicit peak": 100, "Willing": 100, "Steer": 100, "Programs": 88.9, "Tools": 100, "Instruct": 75, "Reason": 50}}, {"rank": 2, "label": "example-27b-b", "model_id": "publisher/example-27b-b-GGUF/example-27b-b-Q5_K_M", "provider": "studioforge", "chat": 88.1, "coding": 77.8, "overall": 83.5, "tok_s": 31.0, "date": "2026-09-23", "notes": "", "tier": 0, "components": {"RP": 88, "NSFW": 74, "Story": 68, "Explicit peak": 100, "Willing": 100, "Steer": 100, "Programs": 77.8, "Tools": 100, "Instruct": 75, "Reason": 50}}, {"rank": 3, "label": "example-api", "model_id": "publisher/example-api-GGUF/example-api-Q5_K_M", "provider": "studioforge", "chat": 83.5, "coding": 80.6, "overall": 82.2, "tok_s": 140.0, "date": "2026-09-23", "notes": "", "tier": 0, "components": {"RP": 88, "NSFW": 74, "Story": 68, "Explicit peak": 100, "Willing": 100, "Steer": 100, "Programs": 80.6, "Tools": 100, "Instruct": 75, "Reason": 50}}, {"rank": 4, "label": "example-8b", "model_id": "publisher/example-8b-GGUF/example-8b-Q5_K_M", "provider": "studioforge", "chat": 72.0, "coding": 25.0, "overall": 50.9, "tok_s": 120.5, "date": "2026-09-23", "notes": "partial (30/33 cases)", "tier": 1, "components": {"RP": 88, "NSFW": 74, "Story": 68, "Explicit peak": 100, "Willing": 100, "Steer": 100, "Programs": 25.0, "Tools": 100, "Instruct": 75, "Reason": 50}}, {"rank": 5, "label": "example-bad-id", "model_id": "publisher/example-bad-id-GGUF/example-bad-id-Q5_K_M", "provider": "studioforge", "chat": null, "coding": null, "overall": null, "tok_s": null, "date": "2026-09-23", "notes": "FAILED: example/X-NVFP4 is not served…", "tier": 2, "components": {}}];
-let sortKey = 'rank', sortDir = 1, filter = '';
+.detail .comp .val{font-size:15px;font-weight:600;font-variant-numeric:tabular-nums;}
+footer{flex:none;padding:8px 16px 12px;border-top:1px solid var(--border);font-size:11px;color:var(--muted);line-height:1.5;}
+footer p{margin:2px 0;}
+@media(max-width:640px){header,footer{padding-left:16px;padding-right:16px;}th,td{padding:6px;}.filters-row{justify-content:flex-start;}}
+</style></head><body><header><h1>CrucibleForge — Chat &amp; Coding</h1><div class="meta">14 models · suite 3.4.0+0d6e0ad1, 3.4.0+7c3f7296 · judge gemma-4-31B-it-uncensored…</div><div class="toolbar"><input id="filter" type="search" placeholder="filter model / provider…" aria-label="filter models"><button id="expandAll">Expand all</button><button id="collapseAll">Collapse all</button><label><input type="checkbox" id="benched"> benched only</label></div><div class="filters-row"><span class="flabel">Filter by element →</span><label class="comp-filter side-chat" data-c="RP"><span class="lbl">RP</span><select aria-label="minimum RP"><option value="">any</option><option value="10">≥10</option><option value="30">≥30</option><option value="50">≥50</option><option value="70">≥70</option><option value="90">≥90</option><option value="100">100</option></select></label><label class="comp-filter side-chat" data-c="NSFW"><span class="lbl">NSFW</span><select aria-label="minimum NSFW"><option value="">any</option><option value="10">≥10</option><option value="30">≥30</option><option value="50">≥50</option><option value="70">≥70</option><option value="90">≥90</option><option value="100">100</option></select></label><label class="comp-filter side-chat" data-c="Story"><span class="lbl">Story</span><select aria-label="minimum Story"><option value="">any</option><option value="10">≥10</option><option value="30">≥30</option><option value="50">≥50</option><option value="70">≥70</option><option value="90">≥90</option><option value="100">100</option></select></label><label class="comp-filter side-chat" data-c="Explicit peak"><span class="lbl">Explicit peak</span><select aria-label="minimum Explicit peak"><option value="">any</option><option value="10">≥10</option><option value="30">≥30</option><option value="50">≥50</option><option value="70">≥70</option><option value="90">≥90</option><option value="100">100</option></select></label><label class="comp-filter side-chat" data-c="Willing"><span class="lbl">Willing</span><select aria-label="minimum Willing"><option value="">any</option><option value="10">≥10</option><option value="30">≥30</option><option value="50">≥50</option><option value="70">≥70</option><option value="90">≥90</option><option value="100">100</option></select></label><label class="comp-filter side-chat" data-c="Steer"><span class="lbl">Steer</span><select aria-label="minimum Steer"><option value="">any</option><option value="10">≥10</option><option value="30">≥30</option><option value="50">≥50</option><option value="70">≥70</option><option value="90">≥90</option><option value="100">100</option></select></label><label class="comp-filter side-coding" data-c="Programs"><span class="lbl">Programs</span><select aria-label="minimum Programs"><option value="">any</option><option value="10">≥10</option><option value="30">≥30</option><option value="50">≥50</option><option value="70">≥70</option><option value="90">≥90</option><option value="100">100</option></select></label><label class="comp-filter side-coding" data-c="Tools"><span class="lbl">Tools</span><select aria-label="minimum Tools"><option value="">any</option><option value="10">≥10</option><option value="30">≥30</option><option value="50">≥50</option><option value="70">≥70</option><option value="90">≥90</option><option value="100">100</option></select></label><label class="comp-filter side-coding" data-c="Instruct"><span class="lbl">Instruct</span><select aria-label="minimum Instruct"><option value="">any</option><option value="10">≥10</option><option value="30">≥30</option><option value="50">≥50</option><option value="70">≥70</option><option value="90">≥90</option><option value="100">100</option></select></label><label class="comp-filter side-coding" data-c="Reason"><span class="lbl">Reason</span><select aria-label="minimum Reason"><option value="">any</option><option value="10">≥10</option><option value="30">≥30</option><option value="50">≥50</option><option value="70">≥70</option><option value="90">≥90</option><option value="100">100</option></select></label><button id="clearFilters" title="Clear all element filters">Clear</button></div><div class="meta" id="count">14 models</div></header><div class="wrap"><table><thead><tr><th scope="col" style="width:24px"></th><th data-k="rank" scope="col" aria-sort="none"># <span class="arrow"></span></th><th data-k="label" scope="col" aria-sort="none">Model <span class="arrow"></span></th><th data-k="chat" scope="col" aria-sort="none">Chat <span class="arrow"></span></th><th data-k="coding" scope="col" aria-sort="none">Coding <span class="arrow"></span></th><th data-k="overall" scope="col" aria-sort="none">Overall <span class="arrow"></span></th><th data-k="tok_s" scope="col" aria-sort="none">tok/s <span class="arrow"></span></th><th data-k="date" scope="col" aria-sort="none">Run date <span class="arrow"></span></th><th data-k="notes" scope="col" aria-sort="none">Notes <span class="arrow"></span></th><th data-k="c:RP" scope="col" aria-sort="none" class="side-chat" title="Chat component">RP <span class="arrow"></span></th><th data-k="c:NSFW" scope="col" aria-sort="none" class="side-chat" title="Chat component">NSFW <span class="arrow"></span></th><th data-k="c:Story" scope="col" aria-sort="none" class="side-chat" title="Chat component">Story <span class="arrow"></span></th><th data-k="c:Explicit peak" scope="col" aria-sort="none" class="side-chat" title="Chat component">Explicit peak <span class="arrow"></span></th><th data-k="c:Willing" scope="col" aria-sort="none" class="side-chat" title="Chat component">Willing <span class="arrow"></span></th><th data-k="c:Steer" scope="col" aria-sort="none" class="side-chat" title="Chat component">Steer <span class="arrow"></span></th><th data-k="c:Programs" scope="col" aria-sort="none" class="side-coding" title="Coding component">Programs <span class="arrow"></span></th><th data-k="c:Tools" scope="col" aria-sort="none" class="side-coding" title="Coding component">Tools <span class="arrow"></span></th><th data-k="c:Instruct" scope="col" aria-sort="none" class="side-coding" title="Coding component">Instruct <span class="arrow"></span></th><th data-k="c:Reason" scope="col" aria-sort="none" class="side-coding" title="Coding component">Reason <span class="arrow"></span></th></tr></thead><tbody id="tbody"></tbody></table></div><footer><p>0–100. Chat = RP 20, NSFW 15, Story 10, Explicit peak 5, Willing 5, Steer 5 (judged by gemma-4-31B-it-uncensored…). Coding = Programs 20, Tools 10, Instruct 10, Reason 5 (Reason pools reasoning + math; all deterministic graders). Overall = Chat and Coding combined by those weights — the sort key only. tok/s = median generation speed (comparable on the same host only). Per-case failures: failures.md.</p><p>Suite revision 3.4.0+0d6e0ad1, 3.4.0+7c3f7296 · judge actually used: llmfan46/gemma-4-31B-it-uncensored-heretic-GGUF/gemma-4-31B-it-uncensored-heretic-Q8_0 · rendered 2026-09-25 17:53</p></footer><script type="application/json" id="board-data">{"rows": [{"rank": 1, "label": "deepseek-pro", "model_id": "deepseek-v4-pro", "provider": "deepseek", "chat": 94.56529176841677, "coding": 94.44444444444444, "overall": 94.51350005814292, "tok_s": 75.20201299579155, "date": "2026-09-24", "notes": "", "tier": 0, "coverage": "full (33 cases)", "judge": "gemma-4-31B-it-uncensored-heretic-Q8_0", "components": {"RP": 95.54166666666667, "NSFW": 93.20032051282053, "Story": 86.50793650793652, "Explicit peak": 100.0, "Willing": 100.0, "Steer": 100.0, "Programs": 100.0, "Tools": 75.0, "Instruct": 100.0, "Reason": 100.0}}, {"rank": 2, "label": "minimax-m3", "model_id": "MiniMax-M3", "provider": "minimax", "chat": 95.31196962759464, "coding": 88.88888888888889, "overall": 92.5592207395779, "tok_s": 113.78929084817236, "date": "2026-09-24", "notes": "", "tier": 0, "coverage": "full (33 cases)", "judge": "gemma-4-31B-it-uncensored-heretic-Q8_0", "components": {"RP": 93.30833333333332, "NSFW": 95.52724358974359, "Story": 91.96428571428571, "Explicit peak": 100.0, "Willing": 100.0, "Steer": 100.0, "Programs": 75.0, "Tools": 100.0, "Instruct": 100.0, "Reason": 100.0}}, {"rank": 3, "label": "qwen3.8-27b-tturbo-fable-heretic", "model_id": "DavidAU/Qwen3.8-27B-TWIN-TURBO-Fable-Cold-Fusion-709-ULTRA-HERETIC-Uncensored-NM-DAU-NEO-MTP-GGUF/Qwen3.8-27B-TTURBO-Fable-C-Fusion-709-U-Httic-Uncen-NM-DAU-NEO-MAX-MTP-Q5_K_M", "provider": "studioforge", "chat": 89.55738705738706, "coding": 94.44444444444444, "overall": 91.6518402232688, "tok_s": 66.16264251969609, "date": "2026-09-25", "notes": "", "tier": 0, "coverage": "full (33 cases)", "judge": "gemma-4-31B-it-uncensored-heretic-Q8_0", "components": {"RP": 96.50000000000001, "NSFW": 82.93589743589743, "Story": 86.60714285714286, "Explicit peak": 100.0, "Willing": 100.0, "Steer": 66.66666666666666, "Programs": 100.0, "Tools": 100.0, "Instruct": 75.0, "Reason": 100.0}}, {"rank": 4, "label": "deepseek-flash", "model_id": "deepseek-flash", "provider": "deepseek", "chat": 93.71291208791209, "coding": 77.77777777777779, "overall": 86.88356881214024, "tok_s": 192.9780293059667, "date": "2026-09-24", "notes": "", "tier": 0, "coverage": "full (33 cases)", "judge": "gemma-4-31B-it-uncensored-heretic-Q8_0", "components": {"RP": 96.0, "NSFW": 86.25641025641025, "Story": 90.89285714285712, "Explicit peak": 100.0, "Willing": 100.0, "Steer": 100.0, "Programs": 75.0, "Tools": 75.0, "Instruct": 75.0, "Reason": 100.0}}, {"rank": 5, "label": "split-untied-31b", "model_id": "mradermacher/Split-Untied-31B-i1-GGUF/Split-Untied-31B.i1-Q5_K_S", "provider": "studioforge", "chat": 92.36575727513228, "coding": 77.77777777777779, "overall": 86.11376606198036, "tok_s": 63.06817409307095, "date": "2026-09-25", "notes": "", "tier": 0, "coverage": "full (33 cases)", "judge": "gemma-4-31B-it-uncensored-heretic-Q8_0", "components": {"RP": 93.88125000000001, "NSFW": 87.6875, "Story": 84.90079365079366, "Explicit peak": 100.0, "Willing": 100.0, "Steer": 100.0, "Programs": 100.0, "Tools": 100.0, "Instruct": 25.0, "Reason": 50.0}}, {"rank": 6, "label": "orion-26b-a4b-v1.1", "model_id": "Abiray/Orion-26B-A4B-v1.1-GGUF/Orion-26B-A4B-v1.1-Q5_K_M", "provider": "studioforge", "chat": 93.57033475783477, "coding": 75.0, "overall": 85.61161986161987, "tok_s": 240.88482646323783, "date": "2026-09-25", "notes": "", "tier": 0, "coverage": "full (33 cases)", "judge": "gemma-4-31B-it-uncensored-heretic-Q8_0", "components": {"RP": 92.1701388888889, "NSFW": 94.72115384615385, "Story": 85.0, "Explicit peak": 100.0, "Willing": 100.0, "Steer": 100.0, "Programs": 100.0, "Tools": 100.0, "Instruct": 25.0, "Reason": 25.0}}, {"rank": 7, "label": "orcarouter-qwen3.8-27b", "model_id": "bartowski/orcarouter_Qwen3.8-27B-Uncensored-GGUF/orcarouter_Qwen3.8-27B-Uncensored-Q5_K_L", "provider": "studioforge", "chat": 86.55072624135124, "coding": 77.77777777777779, "overall": 82.79089118553405, "tok_s": 66.1589240031755, "date": "2026-09-25", "notes": "", "tier": 0, "coverage": "full (33 cases)", "judge": "gemma-4-31B-it-uncensored-heretic-Q8_0", "components": {"RP": 92.4263888888889, "NSFW": 73.44391025641026, "Story": 74.28571428571429, "Explicit peak": 100.0, "Willing": 100.0, "Steer": 100.0, "Programs": 75.0, "Tools": 100.0, "Instruct": 75.0, "Reason": 50.0}}, {"rank": 8, "label": "orcarouter-qwen3.8-27b-q8", "model_id": "bartowski/orcarouter_Qwen3.8-27B-Uncensored-GGUF/orcarouter_Qwen3.8-27B-Uncensored-Q8_0", "provider": "studioforge", "chat": 91.12547695360196, "coding": 69.44444444444444, "overall": 81.83360587824875, "tok_s": 51.96327568287353, "date": "2026-09-24", "notes": "", "tier": 0, "coverage": "full (33 cases)", "judge": "gemma-4-31B-it-uncensored-heretic-Q8_0", "components": {"RP": 96.36458333333333, "NSFW": 83.99198717948717, "Story": 78.03571428571429, "Explicit peak": 100.0, "Willing": 100.0, "Steer": 100.0, "Programs": 50.0, "Tools": 100.0, "Instruct": 75.0, "Reason": 75.0}}, {"rank": 9, "label": "jax-xortron-27b", "model_id": "darkc0de/JAX-XORTRON-Q5_K_M-GGUF/jax-xortron-q5_k_m", "provider": "studioforge", "chat": 91.31982346357347, "coding": 66.66666666666666, "overall": 80.7541848363277, "tok_s": 69.52770442470609, "date": "2026-09-25", "notes": "", "tier": 0, "coverage": "full (33 cases)", "judge": "gemma-4-31B-it-uncensored-heretic-Q8_0", "components": {"RP": 85.93333333333334, "NSFW": 94.88141025641026, "Story": 83.73015873015873, "Explicit peak": 100.0, "Willing": 100.0, "Steer": 100.0, "Programs": 50.0, "Tools": 100.0, "Instruct": 50.0, "Reason": 100.0}}, {"rank": 10, "label": "ling-3.0-flash-heretic", "model_id": "mradermacher/Ling-3.0-flash-heretic-i1-GGUF/Ling-3.0-flash-heretic.i1-Q5_K_M", "provider": "studioforge", "chat": 86.25821504884004, "coding": 72.22222222222221, "overall": 80.24278955171812, "tok_s": 89.87073421775813, "date": "2026-09-24", "notes": "", "tier": 0, "coverage": "full (33 cases)", "judge": "gemma-4-31B-it-uncensored-heretic-Q8_0", "components": {"RP": 79.41458333333334, "NSFW": 86.40865384615385, "Story": 79.10714285714285, "Explicit peak": 100.0, "Willing": 100.0, "Steer": 100.0, "Programs": 75.0, "Tools": 75.0, "Instruct": 50.0, "Reason": 100.0}}, {"rank": 11, "label": "qwen3.8-27b-ultra-heretic-nvfp4", "model_id": "llmfan46/Qwen3.8-27B-Ultra-Uncensored-Heretic-Native-MTP-Preserved-NVFP4-GGUF/Qwen3.8-27B-Ultra-Uncensored-Heretic-NVFP4-BF16", "provider": "studioforge", "chat": 87.67923916361417, "coding": 63.888888888888886, "overall": 77.48337476016049, "tok_s": 77.31379368146406, "date": "2026-09-25", "notes": "", "tier": 0, "coverage": "full (33 cases)", "judge": "gemma-4-31B-it-uncensored-heretic-Q8_0", "components": {"RP": 94.82291666666667, "NSFW": 64.40544871794872, "Story": 89.82142857142857, "Explicit peak": 100.0, "Willing": 100.0, "Steer": 100.0, "Programs": 50.0, "Tools": 100.0, "Instruct": 50.0, "Reason": 75.0}}, {"rank": 12, "label": "laguna-s-vision", "model_id": "llmfan46/Laguna-S-2.1-Uncensored-Heretic-Vision-GGUF/Laguna-S-2.1-Uncensored-Heretic-Q3_K_S", "provider": "studioforge", "chat": 82.40570436507937, "coding": 38.88888888888889, "overall": 63.75564058956917, "tok_s": 40.282057199618194, "date": "2026-09-25", "notes": "", "tier": 0, "coverage": "full (33 cases)", "judge": "gemma-4-31B-it-uncensored-heretic-Q8_0", "components": {"RP": 77.28333333333333, "NSFW": 81.89583333333333, "Story": 67.02380952380953, "Explicit peak": 100.0, "Willing": 100.0, "Steer": 100.0, "Programs": 50.0, "Tools": 50.0, "Instruct": 0.0, "Reason": 50.0}}, {"rank": 13, "label": "joyfox-35b-rp", "model_id": "mradermacher/JoyFox-Qwen3.6-35B-A3B-RP-Aggressive-i1-GGUF/JoyFox-Qwen3.6-35B-A3B-RP-Aggressive.i1-Q6_K", "provider": "studioforge", "chat": 75.03440806878307, "coding": 44.44444444444444, "overall": 61.92442365835223, "tok_s": 252.57915080210225, "date": "2026-09-25", "notes": "", "tier": 0, "coverage": "full (33 cases)", "judge": "gemma-4-31B-it-uncensored-heretic-Q8_0", "components": {"RP": 74.19375000000001, "NSFW": 73.10416666666667, "Story": 68.82936507936506, "Explicit peak": 80.0, "Willing": 100.0, "Steer": 66.66666666666666, "Programs": 25.0, "Tools": 100.0, "Instruct": 25.0, "Reason": 50.0}}, {"rank": 14, "label": "precog-123b-v1a-q4", "model_id": "TheDrummer/Precog-123B-v1-GGUF/Precognition-123B-v1a-Q4_K_M", "provider": "studioforge", "chat": 88.32999084249083, "coding": 8.333333333333332, "overall": 54.045709052851905, "tok_s": 7.903117782480002, "date": "2026-09-24", "notes": "3 rows errored (not scored)", "tier": 0, "coverage": "3 rows errored (not scored)", "judge": "gemma-4-31B-it-uncensored-heretic-Q8_0", "components": {"RP": 91.36875, "NSFW": 84.47115384615384, "Story": 70.53571428571429, "Explicit peak": 100.0, "Willing": 100.0, "Steer": 100.0, "Programs": 0.0, "Tools": 0.0, "Instruct": 25.0, "Reason": 25.0}}], "components": [{"label": "RP", "side": "chat"}, {"label": "NSFW", "side": "chat"}, {"label": "Story", "side": "chat"}, {"label": "Explicit peak", "side": "chat"}, {"label": "Willing", "side": "chat"}, {"label": "Steer", "side": "chat"}, {"label": "Programs", "side": "coding"}, {"label": "Tools", "side": "coding"}, {"label": "Instruct", "side": "coding"}, {"label": "Reason", "side": "coding"}], "thresholds": [10, 30, 50, 70, 90, 100]}</script><script>(function () {
+'use strict';
+// The board data is baked into <script type="application/json" id="board-data">
+// by render_html.py — no fetch, no sidecar file.
+const DATA = JSON.parse(document.getElementById('board-data').textContent);
+const rows = DATA.rows;
+const COMPS = DATA.components;            // [{label, side}] in column order
+const THRESHOLDS = DATA.thresholds;       // [10, 30, 50, 70, 90, 100]
+const TEXT_COLS = new Set(['label', 'date', 'notes']);
+let sortKey = 'rank', sortDir = 1, filter = '', benchedOnly = false;
 const expanded = new Set();
-const NUMERIC = new Set(['rank', 'chat', 'coding', 'overall', 'tok_s']);
+const minScore = {};                      // component label -> threshold (number)
+
 function esc(s) {
   return String(s).replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
 }
-function num(v, d) {
-  return (v === null || v === undefined || isNaN(v)) ? '<span class="muted">–</span>' : Number(v).toFixed(d);
-}
-function key(r, k) {
+function isNum(v) { return v !== null && v !== undefined && v !== '' && !isNaN(v); }
+function num(v, d) { return isNum(v) ? Number(v).toFixed(d) : '<span class="muted">–</span>'; }
+function band(v) { return !isNum(v) ? '' : (v < 50 ? ' lo' : (v < 75 ? ' mid' : '')); }
+function value(r, k) {
+  if (k.startsWith('c:')) { const v = (r.components || {})[k.slice(2)]; return isNum(v) ? Number(v) : null; }
   const v = r[k];
-  if (NUMERIC.has(k)) return (v === null || v === undefined) ? null : Number(v);
-  return v === null || v === undefined ? '' : String(v).toLowerCase();
+  if (TEXT_COLS.has(k)) return v === null || v === undefined ? '' : String(v).toLowerCase();
+  return isNum(v) ? Number(v) : null;
 }
 function compare(a, b) {
-  const ka = key(a, sortKey), kb = key(b, sortKey);
-  if (ka === null && kb === null) return a.rank - b.rank;
-  if (ka === null) return 1;           // missing values always sort last
-  if (kb === null) return -1;
+  const ka = value(a, sortKey), kb = value(b, sortKey);
+  const ea = ka === null || ka === '', eb = kb === null || kb === '';
+  if (ea && eb) return a.rank - b.rank;
+  if (ea) return 1;                       // missing values always sort last
+  if (eb) return -1;
   if (ka < kb) return -sortDir;
   if (ka > kb) return sortDir;
   return a.rank - b.rank;
 }
+function passes(r) {
+  if (benchedOnly && !isNum(r.overall)) return false;
+  if (filter) {
+    const f = filter.toLowerCase();
+    if (!(r.label.toLowerCase().includes(f) || String(r.model_id || '').toLowerCase().includes(f)
+          || String(r.provider || '').toLowerCase().includes(f))) return false;
+  }
+  for (const lbl in minScore) {
+    const v = (r.components || {})[lbl];
+    if (!isNum(v) || Number(v) < minScore[lbl]) return false;
+  }
+  return true;
+}
 function detail(r) {
-  const comps = Object.entries(r.components || {}).map(([k, v]) =>
-    '<div class="comp"><div class="lbl">' + esc(k) + '</div><div class="val">' + num(v, 0) + '</div></div>').join('');
-  return '<div class="detail"><div class="group"><h4>Model id</h4><div class="meta-line">' + esc(r.model_id || '–') +
-    '</div></div><div class="group"><h4>Provider</h4><div class="meta-line">' + esc(r.provider || '–') +
-    '</div></div><div class="group wide"><h4>Components (Chat: RP · NSFW · Story · Explicit peak · Willing · Steer — ' +
-    'Coding: Programs · Tools · Instruct · Reason)</h4><div class="comp-grid">' + comps + '</div></div></div>';
+  const side = s => COMPS.filter(c => c.side === s).map(c => {
+    const v = (r.components || {})[c.label];
+    return '<button class="comp" data-sort="c:' + esc(c.label) + '" title="Sort all rows by ' + esc(c.label) + '">' +
+      '<span class="lbl">' + esc(c.label) + '</span><span class="val' + band(v) + '">' + num(v, 0) + '</span></button>';
+  }).join('');
+  const groups = ['chat', 'coding'].map(s => {
+    const inner = side(s);
+    return inner ? '<div class="group wide"><h4>' + (s === 'chat' ? 'Chat' : 'Coding') +
+      ' components — click one to sort every row by it</h4><div class="comp-grid">' + inner + '</div></div>' : '';
+  }).join('');
+  return '<div class="detail">' + groups +
+    '<div class="group"><h4>Notes</h4><div class="meta-line">' + esc(r.notes || 'none') + '</div></div>' +
+    '<div class="group"><h4>Judge</h4><div class="meta-line">' + esc(r.judge || '–') + '</div></div>' +
+    '<div class="group"><h4>Coverage</h4><div class="meta-line">' + esc(r.coverage || '–') + '</div></div>' +
+    '<div class="group"><h4>Model id</h4><div class="meta-line">' + esc(r.model_id || '–') + '</div></div>' +
+    '<div class="group"><h4>Provider</h4><div class="meta-line">' + esc(r.provider || '–') + '</div></div>' +
+    '</div>';
 }
 function render() {
-  const f = filter.toLowerCase();
-  const data = rows.filter(r => !f || r.label.toLowerCase().includes(f) || (r.model_id || '').toLowerCase().includes(f));
-  data.sort(compare);
+  const data = rows.filter(passes).sort(compare);
+  const ncol = 9 + COMPS.length;
   document.getElementById('tbody').innerHTML = data.map(r => {
     const open = expanded.has(r.label);
-    const cls = r.tier >= 2 ? 'fail' : (r.tier >= 1 ? 'warn-row' : '');
-    return '<tr class="data-row ' + cls + '" data-label="' + esc(r.label) + '">' +
-      '<td><button class="toggle" aria-expanded="' + open + '" data-toggle="' + esc(r.label) + '">' + (open ? '▾' : '▸') + '</button></td>' +
+    const cls = r.tier >= 2 ? ' fail-row' : (r.tier >= 1 ? ' warn-row' : '');
+    const comps = COMPS.map(c => {
+      const v = (r.components || {})[c.label];
+      return '<td class="num comp-col side-' + c.side + band(v) + '">' + num(v, 0) + '</td>';
+    }).join('');
+    return '<tr class="data-row' + cls + '" data-label="' + esc(r.label) + '">' +
+      '<td><button class="toggle" aria-expanded="' + open + '" aria-label="components" data-toggle="' + esc(r.label) + '">' + (open ? '▾' : '▸') + '</button></td>' +
       '<td class="num">' + r.rank + '</td><td class="label">' + esc(r.label) + '</td>' +
       '<td class="num strong">' + num(r.chat, 1) + '</td><td class="num strong">' + num(r.coding, 1) + '</td>' +
       '<td class="num">' + num(r.overall, 1) + '</td><td class="num">' + num(r.tok_s, 1) + '</td>' +
-      '<td>' + esc(r.date || '–') + '</td><td class="notes">' + esc(r.notes || '') + '</td></tr>' +
-      (open ? '<tr class="detail-row"><td colspan="9">' + detail(r) + '</td></tr>' : '');
+      '<td class="num">' + esc(r.date || '–') + '</td><td class="notes">' + esc(r.notes || '') + '</td>' + comps + '</tr>' +
+      (open ? '<tr class="detail-row"><td colspan="' + ncol + '">' + detail(r) + '</td></tr>' : '');
   }).join('');
   document.querySelectorAll('th[data-k]').forEach(th => {
     const a = th.querySelector('.arrow');
-    a.textContent = th.dataset.k === sortKey ? (sortDir === 1 ? '▲' : '▼') : '⇅';
+    const on = th.dataset.k === sortKey;
+    a.textContent = on ? (sortDir === 1 ? '▲' : '▼') : '⇅';
+    th.setAttribute('aria-sort', on ? (sortDir === 1 ? 'ascending' : 'descending') : 'none');
   });
+  document.querySelectorAll('.comp-filter').forEach(el => el.classList.toggle('is-active', el.dataset.c in minScore));
   document.getElementById('count').textContent = data.length + ' of ' + rows.length +
-    ' models · click a column to sort · click ▸ for components';
+    ' models · click any column to sort · ▸ shows components, notes and judge';
+}
+function sortBy(k) {
+  if (sortKey === k) sortDir = -sortDir;
+  else { sortKey = k; sortDir = (k === 'rank' || TEXT_COLS.has(k)) ? 1 : -1; }
+  render();
 }
 function init() {
   document.getElementById('filter').addEventListener('input', e => { filter = e.target.value; render(); });
+  document.getElementById('benched').addEventListener('change', e => { benchedOnly = e.target.checked; render(); });
   document.getElementById('expandAll').addEventListener('click', () => { rows.forEach(r => expanded.add(r.label)); render(); });
   document.getElementById('collapseAll').addEventListener('click', () => { expanded.clear(); render(); });
-  document.querySelectorAll('th[data-k]').forEach(th => th.addEventListener('click', () => {
-    const k = th.dataset.k;
-    if (sortKey === k) sortDir = -sortDir;
-    else { sortKey = k; sortDir = (k === 'rank' || k === 'label' || k === 'notes') ? 1 : -1; }
+  document.getElementById('clearFilters').addEventListener('click', () => {
+    for (const k in minScore) delete minScore[k];
+    document.querySelectorAll('.comp-filter select').forEach(s => { s.value = ''; });
+    render();
+  });
+  document.querySelectorAll('.comp-filter select').forEach(sel => sel.addEventListener('change', () => {
+    const c = sel.closest('.comp-filter').dataset.c;
+    if (sel.value === '') delete minScore[c]; else minScore[c] = Number(sel.value);
     render();
   }));
+  document.querySelectorAll('th[data-k]').forEach(th => th.addEventListener('click', () => sortBy(th.dataset.k)));
   document.getElementById('tbody').addEventListener('click', e => {
     const t = e.target.closest('[data-toggle]');
-    if (!t) return;
-    const l = t.dataset.toggle;
-    if (expanded.has(l)) expanded.delete(l); else expanded.add(l);
-    render();
+    if (t) {
+      const l = t.dataset.toggle;
+      if (expanded.has(l)) expanded.delete(l); else expanded.add(l);
+      render();
+      return;
+    }
+    const c = e.target.closest('[data-sort]');
+    if (c) sortBy(c.dataset.sort);
   });
   render();
 }
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
+})();
 </script></body></html>

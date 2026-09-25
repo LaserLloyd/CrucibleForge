@@ -948,6 +948,21 @@ def _cards(labels, stats, cfg):
 
 # ------------------------------------------------------------- report.md
 
+def scorecard_footnote(sc: dict, cfg: dict | None, markdown: bool = True) -> str:
+    """The scorecard footnote (weights + the judge whose verdicts count) —
+    shared by report.md and report.html."""
+    def wtxt(grp):
+        return ", ".join(f"{component_label(k)} {int(v) if float(v).is_integer() else v}"
+                         for k, v in sc[grp].items())
+    jname = short_model(_primary_judge(cfg)) or "the profile's judge"
+    b, i, c = ("**", "*", "`") if markdown else ("", "", "")
+    return (f"{i}0–100. {b}Chat{b} = {wtxt('chat')} (judged by {jname}). "
+            f"{b}Coding{b} = {wtxt('coding')} (Reason pools reasoning + math; all "
+            f"deterministic graders). {b}Overall{b} = Chat and Coding combined by those weights — "
+            f"the sort key only. tok/s = median generation speed (comparable on the "
+            f"same host only). Per-case failures: {c}failures.md{c}.{i}")
+
+
 def render_markdown(labels: list[str], stats: dict, cfg: dict | None,
                     archived_note: str | None = None) -> str:
     """report.md: the scorecard (Chat / Coding) + one component table."""
@@ -971,15 +986,7 @@ def render_markdown(labels: list[str], stats: dict, cfg: dict | None,
         rows.append([str(i), l, fmt(c["chat"]), fmt(c["coding"]), fmt(c["total"]),
                      fmt(c["tok_per_s"]), run_date(stats[l]), notes_cell(stats[l])])
     L += _table(["#", "Model", "Chat", "Coding", "Overall", "tok/s", "Run date", "Notes"], rows)
-    def wtxt(grp):
-        return ", ".join(f"{component_label(k)} {int(v) if float(v).is_integer() else v}"
-                         for k, v in sc[grp].items())
-    jname = short_model(_primary_judge(cfg)) or "the profile's judge"
-    L += ["", f"*0–100. **Chat** = {wtxt('chat')} (judged by {jname}). "
-              f"**Coding** = {wtxt('coding')} (Reason pools reasoning + math; all "
-              f"deterministic graders). **Overall** = Chat and Coding combined by those weights — "
-              f"the sort key only. tok/s = median generation speed (comparable on the "
-              f"same host only). Per-case failures: `failures.md`.*"]
+    L += ["", scorecard_footnote(sc, cfg)]
 
     keys = list(sc["chat"]) + list(sc["coding"])
     comp_rows = []
@@ -1256,27 +1263,56 @@ def html_rows(labels: list[str], stats: dict) -> list[dict]:
         s = stats[l]
         c = s["scorecard"]
         meta = s.get("meta") or {}
+        cov = s.get("coverage") or {}
+        judges = cov.get("judges") or s.get("judge_models") or []
         out.append({
             "rank": i, "label": l, "model_id": meta.get("model_id"),
             "provider": meta.get("provider") or meta.get("device"),
             "chat": c["chat"], "coding": c["coding"], "overall": c["total"],
             "tok_s": c["tok_per_s"], "date": run_date(s), "notes": notes_cell(s),
-            "tier": (s.get("coverage") or {}).get("tier", 0),
+            "tier": cov.get("tier", 0), "coverage": cov.get("status"),
+            "judge": ", ".join(str(j).rsplit("/", 1)[-1] for j in judges) if judges else None,
             "components": {component_label(k): c["components"].get(k)
                            for k in list(c["weights"]["chat"]) + list(c["weights"]["coding"])},
         })
     return out
 
 
+def html_components(stats: dict, cfg: dict | None = None) -> list[dict]:
+    """The component columns of the HTML board, in report.md order:
+    ``[{label, side: "chat"|"coding"}]``."""
+    sc = scoring_config(cfg)
+    for s in stats.values():            # the weights the scorecards were built with
+        sc = (s.get("scorecard") or {}).get("weights") or sc
+        break
+    return ([{"label": component_label(k), "side": "chat"} for k in sc["chat"]]
+            + [{"label": component_label(k), "side": "coding"} for k in sc["coding"]])
+
+
 def render_report_html(labels: list[str], stats: dict, cfg: dict | None = None,
                        archived_note: str | None = None) -> str:
+    """report.html: the element-filter board (templates/board)."""
     from .templates.board import render_html
-    judge = _primary_judge(cfg)
+    now = datetime.now().strftime("%Y-%m-%d %H:%M")
+    revs = sorted({r for l in labels for r in stats[l].get("revisions", [])})
+    used = sorted({j for l in labels
+                   for j in ((stats[l].get("coverage") or {}).get("judges")
+                             or stats[l].get("judge_models") or [])})
+    judge = ", ".join(short_model(j) for j in used) or short_model(_primary_judge(cfg))
     subtitle = " · ".join(x for x in (
-        f"generated {datetime.now().strftime('%Y-%m-%d %H:%M')}",
-        f"judge {short_model(judge)}" if judge else None,
-        (archived_note or "").strip("*") or None) if x)
-    return render_html(html_rows(labels, stats), subtitle=subtitle)
+        f"{len(labels)} models", f"suite {', '.join(revs)}" if revs else None,
+        f"judge {judge}" if judge and judge != "-" else None) if x)
+    footer = []
+    if labels:
+        footer.append(scorecard_footnote(_cards(labels, stats, cfg), cfg, markdown=False))
+    footer += [line.strip("*") for line in (archived_note or "").splitlines()]
+    footer.append(" · ".join(x for x in (
+        f"Suite revision {', '.join(revs)}" if revs else "No current suite revision",
+        f"judge actually used: {', '.join(used)}" if used else None,
+        f"rendered {now}") if x))
+    return render_html(html_rows(labels, stats), subtitle=subtitle,
+                       components=html_components({l: stats[l] for l in labels}, cfg),
+                       footer=footer)
 
 
 # ------------------------------------------------------------- generate

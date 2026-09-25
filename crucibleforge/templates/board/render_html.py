@@ -2,81 +2,140 @@
 
 ``crucibleforge report`` builds the rows from the same computed stats as
 report.md (``report.html_rows``) — exact labels, numbers as numbers — and this
-module bakes them into a self-contained page (no CDN, no network): a sortable
-scorecard (# · Model · Chat · Coding · Overall · tok/s · Run date · Notes),
-a text filter, and a per-row expander with the component breakdown.
+module bakes them into a self-contained page: inline CSS + JS, the rows as a
+``<script type="application/json">`` blob, no CDN, no fetch, no sidecar file.
+
+The design is the element-filter board Jake approved on 2026-09-20/22
+("the default template for these reports"): sticky header, centred numbers,
+click-to-sort on EVERY column including each component, a text filter, a
+"benched only" toggle, a "Filter by element →" row of min-score dropdowns
+(one per component), and a per-row ▸ expander with the components, Notes and
+the judge line. Columns: ``# · Model · Chat · Coding · Overall · tok/s ·
+Run date · Notes`` then one column per component on the far right.
+
+The page is served by DisPatch in a sandboxed frame, so it must carry no
+IPs, URLs or hostnames: every string is passed through :func:`scrub`.
 """
 from __future__ import annotations
 
 import html
 import json
+import re
 from importlib import resources
 
 _PKG = "crucibleforge.templates.board"
 CSS = resources.files(_PKG).joinpath("styles.css").read_text(encoding="utf-8")
 JS = resources.files(_PKG).joinpath("script.js").read_text(encoding="utf-8")
 
-#: the single substitution point in script.js
-ROWS_TOKEN = "/*ROWS*/[]"
+#: min-score choices in every "Filter by element →" dropdown
+THRESHOLDS = [10, 30, 50, 70, 90, 100]
+
+_URL = re.compile(r"\b[a-zA-Z][a-zA-Z0-9+.-]*://[^\s\"'<>)]+")
+_IPV4 = re.compile(r"(?<![\w.])\d{1,3}(?:\.\d{1,3}){3}(?::\d+)?(?![\w.])")
+_HOST = re.compile(r"\b[\w-]+(?:\.[\w-]+)*\.(?:ts\.net|local|lan|internal|home\.arpa)\b"
+                   r"(?::\d+)?|\blocalhost:\d+\b", re.IGNORECASE)
 
 
-def rows_json(rows: list[dict]) -> str:
-    """JSON safe to embed in a <script> element: "</" can never close the
-    element early, and U+2028/2029 cannot break the JS string grammar."""
-    return (json.dumps(rows, ensure_ascii=False, allow_nan=False)
-            .replace("</", "<\\/")
+def scrub(value):
+    """Strip URLs, IPv4 addresses and private host names from every string
+    in ``value`` (recursively) — error text in Notes can quote an endpoint."""
+    if isinstance(value, str):
+        return _HOST.sub("[host]", _IPV4.sub("[host]", _URL.sub("[url]", value)))
+    if isinstance(value, dict):
+        return {scrub(k): scrub(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [scrub(v) for v in value]
+    return value
+
+
+def data_json(payload: dict) -> str:
+    """JSON safe inside ``<script type="application/json">``: ``<``, ``>`` and
+    ``&`` are \\u-escaped, so no model name or error text can close the
+    element or open a comment; U+2028/2029 are escaped too."""
+    return (json.dumps(payload, ensure_ascii=False, allow_nan=False)
+            .replace("<", "\\u003c").replace(">", "\\u003e").replace("&", "\\u0026")
             .replace("\u2028", "\\u2028").replace("\u2029", "\\u2029"))
 
 
-def render_html(rows: list[dict], subtitle: str = "") -> str:
-    """The full HTML document with ``rows`` baked into the script."""
-    if ROWS_TOKEN not in JS:
-        raise RuntimeError("script.js lost its /*ROWS*/[] token")
-    js = JS.replace(ROWS_TOKEN, rows_json(rows))
-    cols = [("rank", "#"), ("label", "Model"), ("chat", "Chat"), ("coding", "Coding"),
-            ("overall", "Overall"), ("tok_s", "tok/s"), ("date", "Run date"),
-            ("notes", "Notes")]
-    head = "".join(f'<th data-k="{k}" scope="col">{html.escape(t)} <span class="arrow"></span></th>'
-                   for k, t in cols)
+def _components(rows: list[dict], components: list[dict] | None) -> list[dict]:
+    if components:
+        return [{"label": c["label"], "side": c.get("side") or "chat"} for c in components]
+    seen: dict[str, None] = {}
+    for r in rows:
+        for k in (r.get("components") or {}):
+            seen.setdefault(k, None)
+    return [{"label": k, "side": "chat"} for k in seen]
+
+
+def render_html(rows: list[dict], subtitle: str = "",
+                components: list[dict] | None = None,
+                footer: list[str] | None = None) -> str:
+    """The full HTML document.
+
+    ``rows``: ``report.html_rows`` shape. ``components``: ordered
+    ``[{label, side: "chat"|"coding"}]`` (defaults to the labels found in the
+    rows). ``footer``: plain-text lines (suite revision, judge, render time)."""
+    rows = scrub(rows)
+    comps = _components(rows, components)
+    esc = html.escape
+    base = [("rank", "#"), ("label", "Model"), ("chat", "Chat"), ("coding", "Coding"),
+            ("overall", "Overall"), ("tok_s", "tok/s"), ("date", "Run date"), ("notes", "Notes")]
+    head = "".join(f'<th data-k="{k}" scope="col" aria-sort="none">{esc(t)} '
+                   f'<span class="arrow"></span></th>' for k, t in base)
+    head += "".join(f'<th data-k="c:{esc(c["label"])}" scope="col" aria-sort="none" '
+                    f'class="side-{esc(c["side"])}" title="{esc(c["side"].title())} component">'
+                    f'{esc(c["label"])} <span class="arrow"></span></th>' for c in comps)
+    opts = '<option value="">any</option>' + "".join(
+        f'<option value="{t}">{"≥" if t < 100 else ""}{t}</option>' for t in THRESHOLDS)
+    filters = "".join(
+        f'<label class="comp-filter side-{esc(c["side"])}" data-c="{esc(c["label"])}">'
+        f'<span class="lbl">{esc(c["label"])}</span>'
+        f'<select aria-label="minimum {esc(c["label"])}">{opts}</select></label>' for c in comps)
+    foot = "".join(f"<p>{esc(scrub(line))}</p>" for line in (footer or []) if line)
+    payload = data_json({"rows": rows, "components": comps, "thresholds": THRESHOLDS})
     return (
         '<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">'
         '<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">'
+        '<meta name="color-scheme" content="dark light">'
         '<title>CrucibleForge Board</title>'
         f"<style>{CSS}</style></head><body>"
         "<header><h1>CrucibleForge — Chat &amp; Coding</h1>"
-        f'<div class="meta">{html.escape(subtitle)}</div>'
-        '<div class="toolbar"><input id="filter" placeholder="filter model…" aria-label="filter">'
+        f'<div class="meta">{esc(scrub(subtitle))}</div>'
+        '<div class="toolbar"><input id="filter" type="search" placeholder="filter model / provider…" '
+        'aria-label="filter models">'
         '<button id="expandAll">Expand all</button><button id="collapseAll">Collapse all</button>'
-        "</div></header><main>"
-        f'<div class="meta" id="count">{len(rows)} models · click a column to sort · '
-        "click ▸ for components</div>"
-        f'<table><thead><tr><th style="width:24px"></th>{head}</tr></thead>'
-        '<tbody id="tbody"></tbody></table>'
-        f"</main><script>{js}</script></body></html>"
+        '<label><input type="checkbox" id="benched"> benched only</label></div>'
+        f'<div class="filters-row"><span class="flabel">Filter by element →</span>{filters}'
+        '<button id="clearFilters" title="Clear all element filters">Clear</button></div>'
+        f'<div class="meta" id="count">{len(rows)} models</div>'
+        "</header>"
+        f'<div class="wrap"><table><thead><tr><th scope="col" style="width:24px"></th>{head}</tr></thead>'
+        '<tbody id="tbody"></tbody></table></div>'
+        f"<footer>{foot}</footer>"
+        f'<script type="application/json" id="board-data">{payload}</script>'
+        f"<script>{JS}</script></body></html>"
     )
 
 
-__all__ = ["CSS", "JS", "ROWS_TOKEN", "example", "render_html", "rows_json"]
-
-
 def example(path: str | None = None) -> str:
-    """Write example.html from made-up rows (no real results needed)."""
+    """Regenerate ``example.html`` from the REAL rows in results/ through the
+    same code path as ``crucibleforge report`` (without writing any results
+    file)."""
     from pathlib import Path
-    rows = []
-    for i, (label, chat, coding, tps, notes, tier) in enumerate([
-            ("example-27b-a", 86.5, 88.9, 34.2, "", 0),
-            ("example-27b-b", 88.1, 77.8, 31.0, "", 0),
-            ("example-api", 83.5, 80.6, 140.0, "", 0),
-            ("example-8b", 72.0, 25.0, 120.5, "partial (30/33 cases)", 1),
-            ("example-bad-id", None, None, None, "FAILED: example/X-NVFP4 is not served…", 2)], 1):
-        comps = {} if chat is None else {
-            "RP": 88, "NSFW": 74, "Story": 68, "Explicit peak": 100, "Willing": 100, "Steer": 100,
-            "Programs": coding, "Tools": 100, "Instruct": 75, "Reason": 50}
-        overall = None if chat is None else round((chat * 55 + coding * 45) / 100, 1)
-        rows.append({"rank": i, "label": label, "model_id": f"publisher/{label}-GGUF/{label}-Q5_K_M",
-                     "provider": "studioforge", "chat": chat, "coding": coding, "overall": overall,
-                     "tok_s": tps, "date": "2026-09-23", "notes": notes, "tier": tier,
-                     "components": comps})
-    out = render_html(rows, "example board — made-up numbers")
+
+    from ... import report
+    from ...config import load_config, results_dir, set_results_dir
+    here = results_dir()
+    try:
+        cfg = load_config()
+    except Exception:  # noqa: BLE001 — a missing registry still renders the board
+        cfg = None
+    finally:
+        set_results_dir(here)
+    labels, stats, _ = report.board_stats(None, cfg)
+    out = report.render_report_html(labels, stats, cfg)
     Path(path or Path(__file__).with_name("example.html")).write_text(out, encoding="utf-8")
     return out
+
+
+__all__ = ["CSS", "JS", "THRESHOLDS", "data_json", "example", "render_html", "scrub"]
