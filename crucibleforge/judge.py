@@ -1678,9 +1678,11 @@ def run_judge(cfg: dict, labels: list[str], force: bool = False,
     # few slots they would otherwise land in the last wave and set its length
     jobs = sorted(((label, row) for label, rows in pending.items() for row in rows),
                   key=lambda lr: -judge_input_weight(lr[1]))
-    # each row draws its samples concurrently, so rows in flight x samples
-    # must not exceed the judge's slots (queued requests would eat row_timeout)
-    row_workers = max(1, int(jc.concurrency or 1) // max(1, samples))
+    # each row draws its samples concurrently: keep every judge slot busy
+    # (ceil, not floor — 8 slots / 3 samples = 3 rows, 9 requests, one waits a
+    # moment; floor left 2 of 8 slots idle for the whole phase, 2026-09-25)
+    slots, n_s = int(jc.concurrency or 1), max(1, samples)
+    row_workers = max(1, -(-slots // n_s))
     if row_workers <= 1:
         for label, row in jobs:
             if stop is not None and stop.is_set():
