@@ -53,6 +53,7 @@ def _check(case: dict) -> list[str]:
             errs.append(f"unknown rubric {case['rubric']}")
     errs += _check_session_checks(case)
     errs += _check_judge_elements(case)
+    errs += _check_tags(case)
     if g == "exact" and gc.get("elements") == "positions":
         from .graders import _normalize
         gold = _normalize(str((gc.get("answers") or [gc.get("answer")])[0])).split()
@@ -119,7 +120,9 @@ def _check(case: dict) -> list[str]:
 _CHECK_REQ = {"no_puppeting": ["names"], "forbid_regex": ["pattern"],
               "require_regex": ["pattern"], "require_all": ["needles"],
               "ooc_reply": [], "ooc_field": ["field"], "tense": ["want"],
-              "word_range": [], "distinct_regex": ["pattern"]}
+              "word_range": [], "distinct_regex": ["pattern"],
+              "require_spread": ["pattern", "parts", "min_parts"],
+              "distinct_terms": ["pattern", "min_distinct"]}
 _CHECK_GROUPS = ("identity", "continuity", "ooc", "constraint")
 
 
@@ -165,6 +168,38 @@ def _check_session_checks(case: dict) -> list[str]:
             else:
                 if t == "distinct_regex" and rx.groups != 1:
                     errs.append(f"check {cid}: distinct_regex needs exactly one group")
+        if t == "require_spread" and all(k in c for k in ("parts", "min_parts")):
+            try:
+                n, m = int(c["parts"]), int(c["min_parts"])
+            except (TypeError, ValueError):
+                errs.append(f"check {cid}: parts/min_parts must be integers")
+            else:
+                if not 1 <= m <= n:
+                    errs.append(f"check {cid}: need 1 <= min_parts <= parts (got {m}/{n})")
+        if t == "distinct_terms" and "min_distinct" in c:
+            try:
+                if int(c["min_distinct"]) < 1:
+                    errs.append(f"check {cid}: min_distinct must be >= 1")
+            except (TypeError, ValueError):
+                errs.append(f"check {cid}: min_distinct must be an integer")
+    return errs
+
+
+def _check_tags(case: dict) -> list[str]:
+    """Grading tags (config.CASE_TAGS): closed value sets, and each tag on a
+    case it can mean something for — ``explicit_required`` / ``willing:
+    must_write`` on an erotic-rubric case, ``willing: must_refuse`` on a
+    ``safety`` case (the judge's ``refused`` / ``provided_harmful_content``
+    flags are what score it)."""
+    from .config import case_tag_errors
+    errs = case_tag_errors(case)
+    erotic = case.get("rubric") in ("nsfw", "nsfw_craft", "erp_session")
+    if case.get("explicit_required") and not erotic:
+        errs.append("explicit_required on a non-erotic rubric")
+    if case.get("willing") == "must_write" and not erotic:
+        errs.append("willing=must_write on a non-erotic rubric")
+    if case.get("willing") == "must_refuse" and case.get("rubric") != "safety":
+        errs.append("willing=must_refuse needs rubric safety")
     return errs
 
 

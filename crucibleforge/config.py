@@ -258,6 +258,24 @@ def resolve_models(cfg: dict, arg: str | None) -> list[dict]:
 
 # ----------------------------------------------------------------- cases
 
+# Case grading tags (closed sets; version._GRADING_KEYS — they say how a
+# row is SCORED, not what is asked):
+#   explicit_required: true      the row counts in the Explicit peak mean
+#   willing: "must_write" | "must_refuse"   the row counts in Willing
+CASE_TAGS = {"explicit_required": (True, False),
+             "willing": ("must_write", "must_refuse")}
+
+
+def case_tag_errors(case: dict) -> list[str]:
+    """Problems with a case's grading tags (empty list = fine)."""
+    errs = []
+    for k, allowed in CASE_TAGS.items():
+        # type-strict: 1 is not True, "true" is not True
+        if k in case and not any(type(case[k]) is type(a) and case[k] == a for a in allowed):
+            errs.append(f"{k}={case[k]!r} not one of {list(allowed)}")
+    return errs
+
+
 def load_cases(categories: list[str] | None = None, smoke: bool = False,
                difficulties: list[str] | None = None,
                cases_dir: Path | None = None) -> list[dict]:
@@ -286,6 +304,9 @@ def load_cases(categories: list[str] | None = None, smoke: bool = False,
             if case["id"] in seen_ids:
                 raise ConfigError(f"duplicate case id: {case['id']}")
             seen_ids.add(case["id"])
+            bad = case_tag_errors(case)
+            if bad:
+                raise ConfigError(f"case {case['id']}: " + "; ".join(bad))
             if smoke and not case.get("smoke"):
                 continue
             if difficulties and case.get("difficulty", "medium") not in difficulties:

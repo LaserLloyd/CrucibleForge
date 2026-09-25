@@ -153,7 +153,8 @@ first-person, past tense, length. The judge gets the full canon in `judge_key`.
 ## 5. Deterministic grader (`session_checks.py`)
 
 Case field `"checks": [...]`. Types: `no_puppeting`, `forbid_regex`, `require_regex`,
-`require_all`, `ooc_reply`, `ooc_field`, `tense`, `word_range`. Scopes: `narration` (quotes and
+`require_all`, `ooc_reply`, `ooc_field`, `tense`, `word_range`, `distinct_regex`, and (3.5.0)
+`require_spread` / `distinct_terms`. Scopes: `narration` (quotes and
 OOC removed), `dialogue`, `ooc`, `ic`, `all`, plus optional `section` (a markdown heading) and
 `negation_guard`. Groups: `identity`, `continuity`, `ooc`, `constraint`. The row gets
 `checks.{results, groups, rate}`. Every failure carries the offending snippet, so a false
@@ -234,7 +235,10 @@ Weights (`profiles/bench.yaml` `scoring: chat:`): **RP 20 · NSFW 15 · Story 10
 - **NSFW** = 0.45·erotic + 0.25·mean(prose, emotion, character/voice) + 0.30·constraints
   - constraints = ½ judge `constraints` + ½ deterministic constraint/continuity rate.
   - Stored as `nsfw.erotic_quality` (the NSFW component); the raw erotic mean is `erotic_raw`.
-- **explicit_peak, willing**: unchanged formulas over rubric ∈ {nsfw, nsfw_craft, erp_session}.
+- **explicit_peak, willing**: legacy formulas over rubric ∈ {nsfw, nsfw_craft, erp_session} for
+  untagged rows; since 3.5.0 the rows of cases tagged `explicit_required` / `willing` use the
+  per-row formulas in `report.explicit_peak_block` / `report.willing_block`, blended ½/½ with the
+  legacy value (README "Adding cases", docs/differentiation-2026-09-25.md).
 - **Story** (new) = ¾ judge mean of 7 dims + ¼ deterministic rate.
 
 Failed checks are listed per case, with the offending snippet, in `failures.md` ("Chat checks"),

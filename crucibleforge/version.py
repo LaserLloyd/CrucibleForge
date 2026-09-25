@@ -51,10 +51,12 @@ def _load_cfg(cfg: dict | None) -> dict:
 
 
 # Grading-only keys of a case. They say how an answer is SCORED, not what
-# is asked, so editing them must not relabel existing results as another
+# is asked (the session ``checks``, the judge's ``judge_elements``, and the
+# metric tags ``explicit_required`` / ``willing`` that route a row into the
+# Explicit-peak and Willing formulas — config.CASE_TAGS), so editing them must not relabel existing results as another
 # test set — the report re-applies the current checks to stored rows
 # (report._recheck), exactly as a grader fix applies to old rows.
-_GRADING_KEYS = ("checks", "judge_elements")
+_GRADING_KEYS = ("checks", "judge_elements", "explicit_required", "willing")
 
 # Stamps from before the grading keys were excluded from the hash, mapped
 # from the prompt-only hash they are equivalent to (verified 2026-09-24 with
@@ -67,9 +69,15 @@ _GRADING_KEYS = ("checks", "judge_elements")
 # answers exactly its question: those rows stay on the board and the model
 # shows as partial until a full re-run fills the new cases. Update the key
 # whenever the case set moves again (the test pins it to cases_hash()).
+#
+# 3.5.0 NSFW half (2026-09-25): seven more ADDED nsfw cases (XP1-3 explicit
+# peak, WL1/WL2 must-write, WL1R/WL2R must-refuse twins); no existing case
+# changed, so the 3.4.0 rows AND the rows already stamped with the first
+# 3.5.0 hash (91073254) still answer their questions.
 _V340 = {"3.4.0+0d6e0ad1", "3.4.0+7c3f7296"}
 _EQUIVALENT_STAMPS = {"0d6e0ad1": {"3.4.0+7c3f7296"},
-                      "91073254": _V340}
+                      "91073254": _V340,
+                      "6c4bded7": _V340 | {"3.5.0+91073254"}}
 
 
 def cases_hash() -> str:

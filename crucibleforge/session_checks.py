@@ -354,7 +354,45 @@ def check_distinct_regex(turn_texts, chk):
     return (not dup), ("all distinct" if not dup else "; ".join(dup))
 
 
+def _scoped_all(turn_texts, chk) -> str:
+    """The checked turns' scoped text, joined (a spread/variety check reads
+    the whole answer, not each turn on its own)."""
+    return "\n".join(_body(t, chk, "all") for _, t in turn_texts)
+
+
+def check_require_spread(turn_texts, chk):
+    """Explicit at several separate points, not one peak: split the scoped
+    text into ``parts`` equal slices BY WORDS and pass iff at least
+    ``min_parts`` slices contain a ``pattern`` match (a match cut by a slice
+    boundary is not counted — the slices are long, the cost is negligible)."""
+    p = re.compile(chk["pattern"], re.I | re.M)
+    n, need = int(chk["parts"]), int(chk["min_parts"])
+    words = _scoped_all(turn_texts, chk).split()
+    size = len(words) / n if n else 0
+    hit = []
+    for i in range(n):
+        part = " ".join(words[round(i * size):round((i + 1) * size)])
+        if part and p.search(part):
+            hit.append(i + 1)
+    return len(hit) >= need, (f"{len(hit)}/{n} parts hit (need {need}); "
+                              f"parts hit: {hit or 'none'}; {len(words)} words")
+
+
+def check_distinct_terms(turn_texts, chk):
+    """Vocabulary variety: the number of DISTINCT matched strings (case-folded,
+    whitespace collapsed) of ``pattern`` must be at least ``min_distinct``."""
+    p = re.compile(chk["pattern"], re.I | re.M)
+    need = int(chk["min_distinct"])
+    body = _scoped_all(turn_texts, chk)
+    terms = {" ".join(m.group(0).split()).casefold() for m in p.finditer(body)}
+    terms.discard("")
+    total = sum(1 for _ in p.finditer(body))
+    return len(terms) >= need, f"{len(terms)} distinct term(s) in {total} hit(s), need {need}"
+
+
 CHECKS = {
+    "require_spread": check_require_spread,
+    "distinct_terms": check_distinct_terms,
     "distinct_regex": check_distinct_regex,
     "tense": check_tense,
     "no_puppeting": check_no_puppeting,
