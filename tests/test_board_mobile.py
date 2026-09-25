@@ -1,15 +1,17 @@
-"""The board on phones (2026-09-25): <= 720 px renders one card per model
-instead of the 18-column table, with a Sort select + direction toggle and the
-element filters behind one "Filters (n)" disclosure. One JSON block and one JS
-state drive both layouts."""
+"""The board on phones (2026-09-25, revised 2026-09-26): <= 720 px offers a
+persisted Table | Cards toggle (Table by default: the same table scrolling
+inside its box), a Sort select + direction toggle, and the element filters
+behind one "Filters (n)" disclosure that starts OPEN when a filter is active.
+One JSON block and one JS state drive both layouts."""
 import json
 import re
 import shutil
-import subprocess
 
 import pytest
 
 from crucibleforge.templates.board import CSS, render_html
+
+from test_board_layout import run_board
 
 COMPS = [{"label": "RP", "side": "chat"}, {"label": "Programs", "side": "coding"}]
 
@@ -33,15 +35,18 @@ def _mobile_block(css):
 def test_page_carries_card_layout_and_phone_controls():
     html = render_html(_rows(), "sub", components=COMPS, footer=["f"])
     assert 'id="cards"' in html and "@media(max-width:720px)" in html
-    # the table is still there, unchanged, for desktop
-    assert '<tbody id="tbody"></tbody>' in html and 'data-k="c:RP"' in html
-    # phone controls: one Sort select over every sortable key, a direction toggle,
-    # and the Filters disclosure pointing at the (same) element-filter row
+    # the table is still there for desktop (its head is built by script.js)
+    assert '<tbody id="tbody"></tbody>' in html and '<thead id="thead"></thead>' in html
+    data = json.loads(html.split('id="board-data">', 1)[1].split("</script>", 1)[0])
+    assert [c["key"] for c in data["extra"]][:2] == ["c:RP", "c:Programs"]
+    # phone controls: Table | Cards, one Sort select over every sortable key,
+    # a direction toggle, and the Filters disclosure pointing at the filter row
+    assert 'id="viewTable"' in html and 'id="viewCards"' in html
     sel = re.search(r'<select id="sortSel"[^>]*>(.*?)</select>', html).group(1)
     values = re.findall(r'<option value="([^"]*)"', sel)
-    assert values == ["rank", "label", "chat", "coding", "overall", "tok_s", "date",
-                      "c:RP", "c:Programs"]
-    assert "Chat components" in sel and "Coding components" in sel
+    assert values == ["rank", "label", "chat", "coding", "overall", "tok_s", "c:RP", "c:Programs",
+                      "date", "notes", "judge", "coverage", "provider"]
+    assert "Chat components" in sel and "Coding components" in sel and "Run info" in sel
     assert 'id="sortDir"' in html
     assert 'id="filtersBtn"' in html and 'aria-controls="filtersRow"' in html
     assert 'class="filters-row" id="filtersRow"' in html
@@ -68,62 +73,38 @@ def test_phone_page_still_carries_no_urls_or_hosts():
     for leak in ("192.0.2.10", "ts.net", "http://", "https://", "src=\"http", "@import"):
         assert leak not in html, leak
     assert "<link" not in html and "fetch(" not in html
-    assert len(html.encode()) < 100_000
+    assert len(html.encode()) < 120_000
 
 
 @pytest.mark.skipif(shutil.which("node") is None, reason="node not installed")
-def test_one_state_drives_cards_and_table(tmp_path):
-    html = render_html(_rows(), "sub", components=COMPS)
-    blob = html.split('<script type="application/json" id="board-data">', 1)[1].split("</script>", 1)[0]
-    script = html.rsplit("<script>", 1)[1].rsplit("</script>", 1)[0]
-    harness = r"""
-const els = {};
-function mk(o){ return Object.assign({innerHTML:'', textContent:'', handlers:{}, value:'', checked:false,
-  cls: new Set(), attrs: {},
-  addEventListener(ev, fn){ this.handlers[ev] = fn; }, setAttribute(k, v){ this.attrs[k] = v; },
-  classList:null}, o); }
-function el(id){
-  if (!els[id]) { const e = mk({id}); e.classList = {toggle(c, on){ on ? e.cls.add(c) : e.cls.delete(c); }}; els[id] = e; }
-  return els[id];
-}
-els['board-data'] = mk({textContent: """ + json.dumps(blob) + r"""});
-const progFilter = mk({dataset:{c:'Programs'}, classList:{toggle(){}}});
-const progSelect = mk({closest(){ return progFilter; }});
-global.document = { readyState: 'complete', getElementById: el,
-  querySelectorAll: (sel) => sel === '.comp-filter select' ? [progSelect] : sel === '.comp-filter' ? [progFilter] : [],
-  addEventListener(){} };
-""" + script + r"""
-const cards = () => [...el('cards').innerHTML.matchAll(/<article class="card[^"]*" data-label="(m\d)"/g)].map(m => m[1]).join(',');
-const table = () => [...el('tbody').innerHTML.matchAll(/data-label="(m\d)"/g)].map(m => m[1]).join(',');
-const out = {initial: cards(), initialTable: table(), dir0: el('sortDir').textContent};
-el('sortSel').value = 'tok_s'; el('sortSel').handlers.change({target: el('sortSel')});
-out.tok = cards(); out.tokTable = table(); out.dir1 = el('sortDir').textContent;
-el('sortDir').handlers.click(); out.tokAsc = cards(); out.dir2 = el('sortDir').textContent;
-out.btn0 = el('filtersBtn').textContent;
-el('filtersBtn').handlers.click(); out.open = el('filtersRow').cls.has('open');
-progSelect.value = '50'; progSelect.handlers.change();
-out.prog = cards(); out.btn1 = el('filtersBtn').textContent; out.sel = el('sortSel').value;
-el('filter').handlers.input({target: {value: 'm1'}}); out.text = cards();
-el('filter').handlers.input({target: {value: 'zzz'}}); out.empty = el('cards').innerHTML;
-el('filter').handlers.input({target: {value: ''}});
-el('cards').handlers.click({target: {closest: s => s === '[data-toggle]' ? {dataset: {toggle: 'm1'}} : null}});
-out.expandedCard = /card-detail/.test(el('cards').innerHTML);
-out.expandedRow = /detail-row/.test(el('tbody').innerHTML);
-out.cardsHtml = el('cards').innerHTML;
-console.log(JSON.stringify(out));
-"""
-    p = tmp_path / "board.js"
-    p.write_text(harness)
-    res = subprocess.run(["node", str(p)], capture_output=True, text=True, timeout=30)
-    assert res.returncode == 0, res.stderr
-    out = json.loads(res.stdout)
+def test_one_state_drives_cards_and_table():
+    out = run_board(render_html(_rows(), "sub", components=COMPS), r"""
+      el('viewCards').fire('click');
+      out.initial = cardOrder(); out.initialTable = order(); out.dir0 = el('sortDir').textContent;
+      el('sortSel').value = 'tok_s'; el('sortSel').fire('change', {target: el('sortSel')});
+      out.tok = cardOrder(); out.tokTable = order(); out.dir1 = el('sortDir').textContent;
+      el('sortDir').fire('click'); out.tokAsc = cardOrder(); out.dir2 = el('sortDir').textContent;
+      out.btn0 = el('filtersBtn').textContent; out.open0 = el('filtersRow').cls.has('open');
+      el('filtersBtn').fire('click'); out.open = el('filtersRow').cls.has('open');
+      pickFilter('c:Programs', 50);
+      out.prog = cardOrder(); out.btn1 = el('filtersBtn').textContent; out.sel = el('sortSel').value;
+      el('filter').fire('input', {target: {value: 'm1'}}); out.text = cardOrder();
+      el('filter').fire('input', {target: {value: 'zzz'}}); out.empty = el('cards').innerHTML;
+      el('filter').fire('input', {target: {value: ''}});
+      el('cards').fire('click', {target: {closest: s => s === '[data-toggle]' ? {dataset: {toggle: 'm1'}} : null}});
+      out.expandedCard = /card-detail/.test(el('cards').innerHTML);
+      out.expandedRow = /detail-row/.test(el('tbody').innerHTML);
+      out.cardsHtml = el('cards').innerHTML;
+      el('viewTable').fire('click'); out.view = body.getAttribute('data-view');
+      await wait(400); out.saved = saved();
+    """)
     assert out["initial"] == out["initialTable"] == "m0,m1,m2"
     assert "Top first" in out["dir0"]
     # the Sort select re-orders cards AND table the same way; numbers default high-first
     assert out["tok"] == out["tokTable"] == "m1,m2,m0" and "High first" in out["dir1"]
     assert out["tokAsc"] == "m0,m2,m1" and "Low first" in out["dir2"]
-    # Filters (n) counts active element filters; the row opens
-    assert out["btn0"].endswith("Filters") and out["open"] is True
+    # Filters (n) counts active element filters; closed with none, the row opens
+    assert out["btn0"].endswith("Filters") and out["open0"] is False and out["open"] is True
     assert out["prog"] == "m0,m1" and out["btn1"].endswith("Filters (1)")   # asc tok/s kept
     assert out["sel"] == "tok_s"
     assert out["text"] == "m1"
@@ -134,3 +115,17 @@ console.log(JSON.stringify(out));
     assert 'class="card fail-card"' in html_cards               # tier colour on the card
     assert 'class="val mid"' in html_cards                      # same bands as the table (Programs 50)
     assert "hl-val" in html_cards and "chip side-coding" in html_cards
+    # back to Table; the whole view is saved
+    assert out["view"] == "table"
+    assert out["saved"]["view"] == "table" and out["saved"]["filters"] == {"c:Programs": 50}
+    assert out["saved"]["expanded"] == ["m1"] and out["saved"]["sortKey"] == "tok_s"
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="node not installed")
+def test_filters_disclosure_starts_open_when_a_saved_filter_is_active():
+    st = {"version": 1, "columns": ["c:RP", "c:Programs"], "sortKey": "rank", "sortDir": 1,
+          "filters": {"c:RP": 50}, "text": "", "benched": False, "expanded": [], "view": "table"}
+    out = run_board(render_html(_rows(), "sub", components=COMPS), r"""
+      out.open = el('filtersRow').cls.has('open'); out.btn = el('filtersBtn').textContent;
+    """, store={"crucibleforge-board-layout": json.dumps(st)})
+    assert out["open"] is True and out["btn"] == "▾ Filters (1)"

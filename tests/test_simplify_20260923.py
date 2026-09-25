@@ -152,9 +152,9 @@ def test_html_board_renders_rows_with_no_placeholders(tmp_path, monkeypatch):
     # the element-filter board: one sortable column + one min-score dropdown per component
     comps = [c["label"] for c in data["components"]]
     assert comps[:3] == ["RP", "NSFW", "Story"] and "Programs" in comps
-    for c in comps:
-        assert f'data-k="c:{c}"' in html and f'data-c="{c}"' in html
-    assert "Filter by element" in html and 'id="benched"' in html
+    # every component is a choosable (sortable, filterable) right-hand column
+    assert [c["key"] for c in data["extra"]][:len(comps)] == [f"c:{c}" for c in comps]
+    assert 'id="filtersRow"' in html and "Filter by element" in html and 'id="benched"' in html
     assert "Suite revision" in html and "rendered " in html
 
 
@@ -174,44 +174,21 @@ def test_html_board_scrubs_urls_ips_and_hosts():
 @pytest.mark.skipif(shutil.which("node") is None, reason="node not installed")
 def test_html_board_script_executes_sorts_and_filters(tmp_path, monkeypatch):
     from crucibleforge.templates.board import render_html
+    from test_board_layout import run_board
     rows = [{"rank": i + 1, "label": f"m{i}", "model_id": "x", "provider": "p",
              "chat": None, "coding": c, "overall": c, "tok_s": t, "date": "2026-09-23",
              "notes": "", "tier": 0, "components": {"Programs": c, "RP": rp}}
             for i, (c, t, rp) in enumerate([(50.0, 9.0, 95), (80.0, 100.0, None), (20.0, 30.0, 40)])]
     html = render_html(rows, "sub", components=[{"label": "RP", "side": "chat"},
                                                 {"label": "Programs", "side": "coding"}])
-    blob, _ = _board_data(html)
-    script = html.rsplit("<script>", 1)[1].rsplit("</script>", 1)[0]
-    keys = ['rank', 'label', 'chat', 'coding', 'overall', 'tok_s', 'date', 'notes', 'c:RP', 'c:Programs']
-    harness = r"""
-const els = {};
-function mk(o){ return Object.assign({innerHTML:'', textContent:'', handlers:{}, value:'', checked:false,
-  addEventListener(ev, fn){ this.handlers[ev] = fn; }, setAttribute(){},
-  classList:{toggle(){}}}, o); }
-function el(id){ return els[id] || (els[id] = mk({id})); }
-els['board-data'] = mk({textContent: """ + json.dumps(blob) + r"""});
-const ths = """ + json.dumps(keys) + r""".map(k => mk({dataset:{k}, arrow:{textContent:''},
-  querySelector(){ return this.arrow; }}));
-const rpFilter = mk({dataset:{c:'RP'}});
-const rpSelect = mk({closest(){ return rpFilter; }});
-global.document = { readyState: 'complete', getElementById: el,
-  querySelectorAll: (sel) => sel.startsWith('th') ? ths
-    : sel === '.comp-filter select' ? [rpSelect] : sel === '.comp-filter' ? [rpFilter] : [],
-  addEventListener(){} };
-""" + script + r"""
-const order = () => [...el('tbody').innerHTML.matchAll(/data-label="(m\d)"/g)].map(m => m[1]).join(',');
-const out = {initial: order()};
-ths[5].handlers.click();  out.tok_desc = order();   // tok/s: numeric, descending
-ths[3].handlers.click();  out.coding_desc = order();
-ths[8].handlers.click();  out.rp_desc = order();    // a component column; missing sorts last
-rpSelect.value = '50'; rpSelect.handlers.change(); out.rp_min50 = order();
-console.log(JSON.stringify(out));
-"""
-    p = tmp_path / "board.js"
-    p.write_text(harness)
-    res = subprocess.run(["node", str(p)], capture_output=True, text=True, timeout=30)
-    assert res.returncode == 0, res.stderr
-    out = json.loads(res.stdout)
+    out = run_board(html, r"""
+      const click = k => el('thead').fire('click', {target: th(k)});
+      out.initial = order();
+      click('tok_s'); out.tok_desc = order();      // tok/s: numeric, descending
+      click('coding'); out.coding_desc = order();
+      click('c:RP'); out.rp_desc = order();        // a component column; missing sorts last
+      pickFilter('c:RP', 50); out.rp_min50 = order();
+    """)
     assert out["initial"] == "m0,m1,m2"
     assert out["tok_desc"] == "m1,m2,m0"      # 100 > 30 > 9 (a string sort gives 9 > 30)
     assert out["coding_desc"] == "m1,m0,m2"

@@ -11,15 +11,36 @@ h1{font-size:16px;margin:0 0 4px 0;font-weight:600;}
 .toolbar input[type=search]{flex:1;min-width:140px;cursor:text;}
 .toolbar button:hover,.filters-row button:hover{background:var(--border);}
 .toolbar label{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:4px;}
-/* "Filter by element →": one min-score dropdown per component, right-aligned over the component columns */
-.filters-row{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;align-items:center;padding-top:6px;border-top:1px dashed var(--border);}
+#colsBtn[aria-expanded=true]{border-color:var(--accent);color:var(--accent);}
+/* ⚙ Columns chooser: inline panel under the toolbar */
+.cols-panel{display:none;margin:4px 0 8px;border:1px solid var(--border);border-radius:8px;background:var(--row);padding:8px 10px;max-width:560px;}
+.cols-panel.open{display:block;}
+.cols-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:13px;margin-bottom:6px;}
+.cols-head .muted{font-size:11px;flex:1;}
+.cols-head button,.col-item button{background:var(--bg);color:var(--fg);border:1px solid var(--border);border-radius:6px;padding:3px 10px;font-size:12px;cursor:pointer;}
+.cols-head button:hover,.col-item button:hover:not(:disabled){border-color:var(--accent);}
+.cols-list{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:4px;}
+.col-item{display:flex;align-items:center;gap:6px;border:1px solid var(--border);border-radius:6px;padding:3px 6px;background:var(--bg);font-size:12px;}
+.col-item.on{border-color:var(--accent);}
+.col-item.dragging{opacity:.4;}
+.col-item .grip{cursor:grab;color:var(--muted);letter-spacing:-2px;}
+.col-item label{flex:1;display:flex;align-items:center;gap:4px;cursor:pointer;min-width:0;}
+.col-item .cg{color:var(--muted);font-size:10px;}
+.col-item button{padding:1px 7px;}
+.col-item button:disabled{opacity:.3;cursor:default;}
+/* "Filter by element →": Chat / Coding / Overall + one per chosen numeric column; always visible on desktop */
+.filters-row{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-start;align-items:center;padding-top:6px;border-top:1px dashed var(--border);}
 .filters-row .flabel{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-right:6px;}
 .filters-row .comp-filter{display:inline-flex;align-items:center;gap:4px;font-size:11px;color:var(--muted);border:1px solid var(--border);border-radius:6px;padding:3px 6px;}
+.filters-row .comp-filter.main{background:var(--soft);}
 .filters-row .comp-filter.side-chat{background:var(--chat);}
 .filters-row .comp-filter.side-coding{background:var(--coding);}
 .filters-row .comp-filter.is-active{border-color:var(--accent);color:var(--fg);}
 .filters-row .comp-filter select{background:var(--bg);color:var(--fg);border:0;font-size:11px;cursor:pointer;padding:0 2px;}
 .filters-row .comp-filter .lbl{font-weight:600;}
+.filters-row .comp-filter .ge{opacity:.7;}
+.filters-row .comp-filter input{width:48px;background:var(--bg);color:var(--fg);border:1px solid var(--border);border-radius:4px;font-size:11px;padding:1px 4px;}
+.filters-row .comp-filter input::placeholder{color:var(--muted);}
 .filters-row button{font-size:11px;padding:3px 8px;}
 .wrap{flex:1;min-height:0;overflow:auto;padding:0 16px;}
 table{border-collapse:separate;border-spacing:0;font-size:13px;min-width:100%;}
@@ -38,6 +59,10 @@ td.strong{font-weight:600;}td.label{font-weight:500;}
 td.notes{font-size:12px;white-space:normal;min-width:120px;max-width:320px;}
 .lo{color:var(--fail);}.mid{color:var(--warn);}.muted{color:var(--muted);}
 .warn-row td.notes{color:var(--warn);}.fail-row td.notes{color:var(--fail);}
+th.xcol,td.xcol{width:24px;padding-left:4px;padding-right:0;}
+td.meta-col{font-size:12px;white-space:normal;min-width:90px;max-width:260px;}
+td.empty{color:var(--muted);text-align:center;padding:24px;}
+.warn-row td.xcol{box-shadow:inset 3px 0 0 var(--warn);}.fail-row td.xcol{box-shadow:inset 3px 0 0 var(--fail);}
 .toggle{background:transparent;border:0;color:var(--accent);cursor:pointer;font-size:14px;padding:0;width:18px;}
 .toggle:hover{color:var(--fg);}
 .detail-row td{background:var(--row);padding:0;white-space:normal;}
@@ -58,13 +83,36 @@ footer p{margin:2px 0;}
    Desktop keeps the table above untouched: the phone-only controls and the card
    list are hidden there, and the table is hidden here. Same rows, same JS state. */
 .m-only,.cards{display:none;}
+.viewtog{gap:0;}
+.viewtog button{border-radius:0;}
+.viewtog button:first-child{border-radius:8px 0 0 8px;}
+.viewtog button:last-child{border-radius:0 8px 8px 0;border-left:0;}
+.viewtog button[aria-pressed=true]{background:var(--accent);color:var(--bg);border-color:var(--accent);font-weight:600;}
 @media(max-width:720px){
 html,body{height:auto;}
 body{display:block;overflow-x:hidden;}
 header{padding:12px 16px 10px;}
 h1{font-size:18px;}
 .meta{font-size:13px;overflow-wrap:anywhere;}
-.desk-only,.wrap,#expandAll,#collapseAll,.filters-row .flabel{display:none;}
+.desk-only,#expandAll,#collapseAll,.filters-row .flabel{display:none;}
+/* Table | Cards (persisted; Table by default). Table: the same table, scrolling
+   sideways INSIDE its box — the page itself never scrolls sideways. */
+body[data-view=cards] .wrap{display:none;}
+.wrap{flex:none;overflow-x:auto;overflow-y:visible;margin:0 16px;padding:0 0 8px;max-width:calc(100vw - 32px);-webkit-overflow-scrolling:touch;}
+.wrap table{font-size:13px;}
+.wrap th,.wrap td{padding:7px 6px;}
+.wrap td.label,.wrap th.label{position:sticky;left:0;z-index:2;background:var(--bg);white-space:normal;min-width:110px;max-width:42vw;overflow-wrap:anywhere;box-shadow:inset -1px 0 0 var(--border);}
+.wrap thead th.label{z-index:11;}
+.wrap tr.data-row:hover td.label{background:var(--soft);}
+.detail{grid-template-columns:1fr;max-width:calc(100vw - 16px);}
+.toolbar #colsBtn,.toolbar #resetLayout{min-height:44px;font-size:15px;border-radius:8px;flex:1 1 auto;}
+.cols-panel{max-width:none;}
+.cols-list{grid-template-columns:1fr;}
+.col-item{min-height:44px;font-size:15px;}
+.col-item button{min-width:44px;min-height:36px;font-size:16px;}
+.col-item input{width:20px;height:20px;}
+.viewtog{flex:1 1 100%;}
+.viewtog button{flex:1;min-height:44px;font-size:15px;background:var(--row);color:var(--fg);border:1px solid var(--border);cursor:pointer;}
 .toolbar{gap:8px;}
 .toolbar input[type=search]{flex:1 1 100%;min-width:0;font-size:16px;min-height:44px;padding:8px 12px;}
 .m-only{display:flex;}
@@ -81,11 +129,14 @@ h1{font-size:18px;}
 .filters-row{display:none;border-top:0;padding-top:0;}
 .filters-row.open{display:flex;flex-direction:column;align-items:stretch;gap:6px;margin-top:4px;}
 .filters-row .comp-filter{display:flex;justify-content:space-between;min-height:44px;font-size:15px;padding:0 4px 0 12px;border-radius:8px;}
-.filters-row .comp-filter select{font-size:16px;min-height:40px;min-width:45%;border-radius:6px;padding:0 8px;border:1px solid var(--border);}
+.filters-row .comp-filter select{font-size:16px;min-height:40px;min-width:38%;margin-left:auto;border-radius:6px;padding:0 8px;border:1px solid var(--border);}
+.filters-row .comp-filter input{font-size:16px;min-height:40px;width:72px;border-radius:6px;}
+.filters-row .comp-filter .ge{font-size:15px;}
 .filters-row button{min-height:44px;font-size:15px;border-radius:8px;}
 .meta#count{margin:8px 0 0;font-size:14px;}
-/* cards */
-.cards{display:flex;flex-direction:column;gap:12px;padding:12px 16px 16px;}
+/* cards (the Cards view) */
+body[data-view=cards] .cards{display:flex;}
+.cards{flex-direction:column;gap:12px;padding:12px 16px 16px;}
 .card{background:var(--row);border:1px solid var(--border);border-radius:12px;padding:12px 14px;min-width:0;}
 .card.warn-card{border-left:4px solid var(--warn);}
 .card.fail-card{border-left:4px solid var(--fail);}
@@ -118,55 +169,153 @@ h1{font-size:18px;}
 .empty{color:var(--muted);font-size:15px;text-align:center;padding:24px 0;}
 footer{font-size:13px;overflow-wrap:anywhere;}
 }
-</style></head><body><header><h1>CrucibleForge — Chat &amp; Coding</h1><div class="meta">14 models · suite 3.4.0+0d6e0ad1, 3.4.0+7c3f7296, 3.5.0+3c64cb8b, 3.5.0+6c4bded7, 3.5.0+91073254 · judge gemma-4-31B-it-uncensored…</div><div class="toolbar"><input id="filter" type="search" placeholder="filter model / provider…" aria-label="filter models"><div class="m-sort m-only"><label class="m-lbl" for="sortSel">Sort</label><select id="sortSel" aria-label="sort by"><optgroup label="Headline"><option value="rank">Rank</option><option value="label">Model</option><option value="chat">Chat</option><option value="coding">Coding</option><option value="overall">Overall</option><option value="tok_s">tok/s</option><option value="date">Run date</option></optgroup><optgroup label="Chat components"><option value="c:RP">RP</option><option value="c:NSFW">NSFW</option><option value="c:Story">Story</option><option value="c:Explicit peak">Explicit peak</option><option value="c:Willing">Willing</option><option value="c:Steer">Steer</option></optgroup><optgroup label="Coding components"><option value="c:Programs">Programs</option><option value="c:Tools">Tools</option><option value="c:Instruct">Instruct</option><option value="c:Reason">Reason</option></optgroup></select><button id="sortDir" type="button" aria-label="sort direction">Top first</button></div><button id="filtersBtn" class="m-only" type="button" aria-expanded="false" aria-controls="filtersRow">Filters</button><button id="expandAll">Expand all</button><button id="collapseAll">Collapse all</button><label><input type="checkbox" id="benched"> benched only</label></div><div class="filters-row" id="filtersRow"><span class="flabel">Filter by element →</span><label class="comp-filter side-chat" data-c="RP"><span class="lbl">RP</span><select aria-label="minimum RP"><option value="">any</option><option value="10">≥10</option><option value="30">≥30</option><option value="50">≥50</option><option value="70">≥70</option><option value="90">≥90</option><option value="100">100</option></select></label><label class="comp-filter side-chat" data-c="NSFW"><span class="lbl">NSFW</span><select aria-label="minimum NSFW"><option value="">any</option><option value="10">≥10</option><option value="30">≥30</option><option value="50">≥50</option><option value="70">≥70</option><option value="90">≥90</option><option value="100">100</option></select></label><label class="comp-filter side-chat" data-c="Story"><span class="lbl">Story</span><select aria-label="minimum Story"><option value="">any</option><option value="10">≥10</option><option value="30">≥30</option><option value="50">≥50</option><option value="70">≥70</option><option value="90">≥90</option><option value="100">100</option></select></label><label class="comp-filter side-chat" data-c="Explicit peak"><span class="lbl">Explicit peak</span><select aria-label="minimum Explicit peak"><option value="">any</option><option value="10">≥10</option><option value="30">≥30</option><option value="50">≥50</option><option value="70">≥70</option><option value="90">≥90</option><option value="100">100</option></select></label><label class="comp-filter side-chat" data-c="Willing"><span class="lbl">Willing</span><select aria-label="minimum Willing"><option value="">any</option><option value="10">≥10</option><option value="30">≥30</option><option value="50">≥50</option><option value="70">≥70</option><option value="90">≥90</option><option value="100">100</option></select></label><label class="comp-filter side-chat" data-c="Steer"><span class="lbl">Steer</span><select aria-label="minimum Steer"><option value="">any</option><option value="10">≥10</option><option value="30">≥30</option><option value="50">≥50</option><option value="70">≥70</option><option value="90">≥90</option><option value="100">100</option></select></label><label class="comp-filter side-coding" data-c="Programs"><span class="lbl">Programs</span><select aria-label="minimum Programs"><option value="">any</option><option value="10">≥10</option><option value="30">≥30</option><option value="50">≥50</option><option value="70">≥70</option><option value="90">≥90</option><option value="100">100</option></select></label><label class="comp-filter side-coding" data-c="Tools"><span class="lbl">Tools</span><select aria-label="minimum Tools"><option value="">any</option><option value="10">≥10</option><option value="30">≥30</option><option value="50">≥50</option><option value="70">≥70</option><option value="90">≥90</option><option value="100">100</option></select></label><label class="comp-filter side-coding" data-c="Instruct"><span class="lbl">Instruct</span><select aria-label="minimum Instruct"><option value="">any</option><option value="10">≥10</option><option value="30">≥30</option><option value="50">≥50</option><option value="70">≥70</option><option value="90">≥90</option><option value="100">100</option></select></label><label class="comp-filter side-coding" data-c="Reason"><span class="lbl">Reason</span><select aria-label="minimum Reason"><option value="">any</option><option value="10">≥10</option><option value="30">≥30</option><option value="50">≥50</option><option value="70">≥70</option><option value="90">≥90</option><option value="100">100</option></select></label><button id="clearFilters" title="Clear all element filters">Clear</button></div><div class="meta" id="count">14 models</div></header><div class="wrap"><table><thead><tr><th scope="col" style="width:24px"></th><th data-k="rank" scope="col" aria-sort="none"># <span class="arrow"></span></th><th data-k="label" scope="col" aria-sort="none">Model <span class="arrow"></span></th><th data-k="chat" scope="col" aria-sort="none">Chat <span class="arrow"></span></th><th data-k="coding" scope="col" aria-sort="none">Coding <span class="arrow"></span></th><th data-k="overall" scope="col" aria-sort="none">Overall <span class="arrow"></span></th><th data-k="tok_s" scope="col" aria-sort="none">tok/s <span class="arrow"></span></th><th data-k="date" scope="col" aria-sort="none">Run date <span class="arrow"></span></th><th data-k="notes" scope="col" aria-sort="none">Notes <span class="arrow"></span></th><th data-k="c:RP" scope="col" aria-sort="none" class="side-chat" title="Chat component">RP <span class="arrow"></span></th><th data-k="c:NSFW" scope="col" aria-sort="none" class="side-chat" title="Chat component">NSFW <span class="arrow"></span></th><th data-k="c:Story" scope="col" aria-sort="none" class="side-chat" title="Chat component">Story <span class="arrow"></span></th><th data-k="c:Explicit peak" scope="col" aria-sort="none" class="side-chat" title="Chat component">Explicit peak <span class="arrow"></span></th><th data-k="c:Willing" scope="col" aria-sort="none" class="side-chat" title="Chat component">Willing <span class="arrow"></span></th><th data-k="c:Steer" scope="col" aria-sort="none" class="side-chat" title="Chat component">Steer <span class="arrow"></span></th><th data-k="c:Programs" scope="col" aria-sort="none" class="side-coding" title="Coding component">Programs <span class="arrow"></span></th><th data-k="c:Tools" scope="col" aria-sort="none" class="side-coding" title="Coding component">Tools <span class="arrow"></span></th><th data-k="c:Instruct" scope="col" aria-sort="none" class="side-coding" title="Coding component">Instruct <span class="arrow"></span></th><th data-k="c:Reason" scope="col" aria-sort="none" class="side-coding" title="Coding component">Reason <span class="arrow"></span></th></tr></thead><tbody id="tbody"></tbody></table></div><div class="cards" id="cards"></div><footer><p>0–100. Chat = RP 20, NSFW 15, Story 10, Explicit peak 5, Willing 5, Steer 5 (judged by gemma-4-31B-it-uncensored…). Coding = Programs 20, Tools 10, Instruct 10, Reason 5 (Reason pools reasoning + math; all deterministic graders). Overall = Chat and Coding combined by those weights — the sort key only. tok/s = median generation speed (comparable on the same host only). Per-case failures: failures.md.</p><p>Suite revision 3.4.0+0d6e0ad1, 3.4.0+7c3f7296, 3.5.0+3c64cb8b, 3.5.0+6c4bded7, 3.5.0+91073254 · judge actually used: llmfan46/gemma-4-31B-it-uncensored-heretic-GGUF/gemma-4-31B-it-uncensored-heretic-Q8_0 · rendered 2026-09-25 23:14</p></footer><script type="application/json" id="board-data">{"rows": [{"rank": 1, "label": "deepseek-pro", "model_id": "deepseek-v4-pro", "provider": "deepseek", "chat": 94.56529176841677, "coding": 94.44444444444444, "overall": 94.51350005814292, "tok_s": 75.20201299579155, "date": "2026-09-24", "notes": "partial (33/49 cases)", "tier": 1, "coverage": "partial (33/49 cases)", "judge": "gemma-4-31B-it-uncensored-heretic-Q8_0", "components": {"RP": 95.54166666666667, "NSFW": 93.20032051282053, "Story": 86.50793650793652, "Explicit peak": 100.0, "Willing": 100.0, "Steer": 100.0, "Programs": 100.0, "Tools": 75.0, "Instruct": 100.0, "Reason": 100.0}}, {"rank": 2, "label": "minimax-m3", "model_id": "MiniMax-M3", "provider": "minimax", "chat": 95.31196962759464, "coding": 88.88888888888889, "overall": 92.5592207395779, "tok_s": 113.78929084817236, "date": "2026-09-24", "notes": "partial (33/49 cases)", "tier": 1, "coverage": "partial (33/49 cases)", "judge": "gemma-4-31B-it-uncensored-heretic-Q8_0", "components": {"RP": 93.30833333333332, "NSFW": 95.52724358974359, "Story": 91.96428571428571, "Explicit peak": 100.0, "Willing": 100.0, "Steer": 100.0, "Programs": 75.0, "Tools": 100.0, "Instruct": 100.0, "Reason": 100.0}}, {"rank": 3, "label": "deepseek-flash", "model_id": "deepseek-flash", "provider": "deepseek", "chat": 93.71291208791209, "coding": 77.77777777777779, "overall": 86.88356881214024, "tok_s": 192.9780293059667, "date": "2026-09-24", "notes": "partial (33/49 cases)", "tier": 1, "coverage": "partial (33/49 cases)", "judge": "gemma-4-31B-it-uncensored-heretic-Q8_0", "components": {"RP": 96.0, "NSFW": 86.25641025641025, "Story": 90.89285714285712, "Explicit peak": 100.0, "Willing": 100.0, "Steer": 100.0, "Programs": 75.0, "Tools": 75.0, "Instruct": 75.0, "Reason": 100.0}}, {"rank": 4, "label": "split-untied-31b", "model_id": "mradermacher/Split-Untied-31B-i1-GGUF/Split-Untied-31B.i1-Q5_K_S", "provider": "studioforge", "chat": 92.36575727513228, "coding": 77.77777777777779, "overall": 86.11376606198036, "tok_s": 63.06817409307095, "date": "2026-09-25", "notes": "partial (33/49 cases)", "tier": 1, "coverage": "partial (33/49 cases)", "judge": "gemma-4-31B-it-uncensored-heretic-Q8_0", "components": {"RP": 93.88125000000001, "NSFW": 87.6875, "Story": 84.90079365079366, "Explicit peak": 100.0, "Willing": 100.0, "Steer": 100.0, "Programs": 100.0, "Tools": 100.0, "Instruct": 25.0, "Reason": 50.0}}, {"rank": 5, "label": "orion-26b-a4b-v1.1", "model_id": "Abiray/Orion-26B-A4B-v1.1-GGUF/Orion-26B-A4B-v1.1-Q5_K_M", "provider": "studioforge", "chat": 93.57033475783477, "coding": 75.0, "overall": 85.61161986161987, "tok_s": 240.88482646323783, "date": "2026-09-25", "notes": "partial (33/49 cases)", "tier": 1, "coverage": "partial (33/49 cases)", "judge": "gemma-4-31B-it-uncensored-heretic-Q8_0", "components": {"RP": 92.1701388888889, "NSFW": 94.72115384615385, "Story": 85.0, "Explicit peak": 100.0, "Willing": 100.0, "Steer": 100.0, "Programs": 100.0, "Tools": 100.0, "Instruct": 25.0, "Reason": 25.0}}, {"rank": 6, "label": "qwen3.8-27b-tturbo-fable-heretic", "model_id": "DavidAU/Qwen3.8-27B-TWIN-TURBO-Fable-Cold-Fusion-709-ULTRA-HERETIC-Uncensored-NM-DAU-NEO-MTP-GGUF/Qwen3.8-27B-TTURBO-Fable-C-Fusion-709-U-Httic-Uncen-NM-DAU-NEO-MAX-MTP-Q5_K_M", "provider": "studioforge", "chat": 80.14487410737411, "coding": 86.70634920634922, "overall": 82.95693486407774, "tok_s": 66.16264251969609, "date": "2026-09-25", "notes": "", "tier": 0, "coverage": "full (51 cases)", "judge": "gemma-4-31B-it-uncensored-heretic-Q8_0", "components": {"RP": 93.40530303030302, "NSFW": 79.81766381766381, "Story": 86.60714285714286, "Explicit peak": 83.78333333333332, "Willing": 25.0, "Steer": 66.66666666666666, "Programs": 100.0, "Tools": 71.42857142857143, "Instruct": 75.0, "Reason": 87.5}}, {"rank": 7, "label": "orcarouter-qwen3.8-27b", "model_id": "bartowski/orcarouter_Qwen3.8-27B-Uncensored-GGUF/orcarouter_Qwen3.8-27B-Uncensored-Q5_K_L", "provider": "studioforge", "chat": 86.55072624135124, "coding": 77.77777777777779, "overall": 82.79089118553405, "tok_s": 66.1589240031755, "date": "2026-09-25", "notes": "partial (33/49 cases)", "tier": 1, "coverage": "partial (33/49 cases)", "judge": "gemma-4-31B-it-uncensored-heretic-Q8_0", "components": {"RP": 92.4263888888889, "NSFW": 73.44391025641026, "Story": 74.28571428571429, "Explicit peak": 100.0, "Willing": 100.0, "Steer": 100.0, "Programs": 75.0, "Tools": 100.0, "Instruct": 75.0, "Reason": 50.0}}, {"rank": 8, "label": "orcarouter-qwen3.8-27b-q8", "model_id": "bartowski/orcarouter_Qwen3.8-27B-Uncensored-GGUF/orcarouter_Qwen3.8-27B-Uncensored-Q8_0", "provider": "studioforge", "chat": 91.12547695360196, "coding": 69.44444444444444, "overall": 81.83360587824875, "tok_s": 51.96327568287353, "date": "2026-09-24", "notes": "partial (33/49 cases)", "tier": 1, "coverage": "partial (33/49 cases)", "judge": "gemma-4-31B-it-uncensored-heretic-Q8_0", "components": {"RP": 96.36458333333333, "NSFW": 83.99198717948717, "Story": 78.03571428571429, "Explicit peak": 100.0, "Willing": 100.0, "Steer": 100.0, "Programs": 50.0, "Tools": 100.0, "Instruct": 75.0, "Reason": 75.0}}, {"rank": 9, "label": "jax-xortron-27b", "model_id": "darkc0de/JAX-XORTRON-Q5_K_M-GGUF/jax-xortron-q5_k_m", "provider": "studioforge", "chat": 91.31982346357347, "coding": 66.66666666666666, "overall": 80.7541848363277, "tok_s": 69.52770442470609, "date": "2026-09-25", "notes": "partial (33/49 cases)", "tier": 1, "coverage": "partial (33/49 cases)", "judge": "gemma-4-31B-it-uncensored-heretic-Q8_0", "components": {"RP": 85.93333333333334, "NSFW": 94.88141025641026, "Story": 83.73015873015873, "Explicit peak": 100.0, "Willing": 100.0, "Steer": 100.0, "Programs": 50.0, "Tools": 100.0, "Instruct": 50.0, "Reason": 100.0}}, {"rank": 10, "label": "ling-3.0-flash-heretic", "model_id": "mradermacher/Ling-3.0-flash-heretic-i1-GGUF/Ling-3.0-flash-heretic.i1-Q5_K_M", "provider": "studioforge", "chat": 86.25821504884004, "coding": 72.22222222222221, "overall": 80.24278955171812, "tok_s": 89.87073421775813, "date": "2026-09-24", "notes": "partial (33/49 cases)", "tier": 1, "coverage": "partial (33/49 cases)", "judge": "gemma-4-31B-it-uncensored-heretic-Q8_0", "components": {"RP": 79.41458333333334, "NSFW": 86.40865384615385, "Story": 79.10714285714285, "Explicit peak": 100.0, "Willing": 100.0, "Steer": 100.0, "Programs": 75.0, "Tools": 75.0, "Instruct": 50.0, "Reason": 100.0}}, {"rank": 11, "label": "qwen3.8-27b-ultra-heretic-nvfp4", "model_id": "llmfan46/Qwen3.8-27B-Ultra-Uncensored-Heretic-Native-MTP-Preserved-NVFP4-GGUF/Qwen3.8-27B-Ultra-Uncensored-Heretic-NVFP4-BF16", "provider": "studioforge", "chat": 87.67923916361417, "coding": 63.888888888888886, "overall": 77.48337476016049, "tok_s": 77.31379368146406, "date": "2026-09-25", "notes": "partial (33/49 cases)", "tier": 1, "coverage": "partial (33/49 cases)", "judge": "gemma-4-31B-it-uncensored-heretic-Q8_0", "components": {"RP": 94.82291666666667, "NSFW": 64.40544871794872, "Story": 89.82142857142857, "Explicit peak": 100.0, "Willing": 100.0, "Steer": 100.0, "Programs": 50.0, "Tools": 100.0, "Instruct": 50.0, "Reason": 75.0}}, {"rank": 12, "label": "laguna-s-vision", "model_id": "llmfan46/Laguna-S-2.1-Uncensored-Heretic-Vision-GGUF/Laguna-S-2.1-Uncensored-Heretic-Q3_K_S", "provider": "studioforge", "chat": 82.40570436507937, "coding": 38.88888888888889, "overall": 63.75564058956917, "tok_s": 40.282057199618194, "date": "2026-09-25", "notes": "partial (33/49 cases)", "tier": 1, "coverage": "partial (33/49 cases)", "judge": "gemma-4-31B-it-uncensored-heretic-Q8_0", "components": {"RP": 77.28333333333333, "NSFW": 81.89583333333333, "Story": 67.02380952380953, "Explicit peak": 100.0, "Willing": 100.0, "Steer": 100.0, "Programs": 50.0, "Tools": 50.0, "Instruct": 0.0, "Reason": 50.0}}, {"rank": 13, "label": "joyfox-35b-rp", "model_id": "mradermacher/JoyFox-Qwen3.6-35B-A3B-RP-Aggressive-i1-GGUF/JoyFox-Qwen3.6-35B-A3B-RP-Aggressive.i1-Q6_K", "provider": "studioforge", "chat": 75.03440806878307, "coding": 44.44444444444444, "overall": 61.92442365835223, "tok_s": 252.57915080210225, "date": "2026-09-25", "notes": "partial (33/49 cases)", "tier": 1, "coverage": "partial (33/49 cases)", "judge": "gemma-4-31B-it-uncensored-heretic-Q8_0", "components": {"RP": 74.19375000000001, "NSFW": 73.10416666666667, "Story": 68.82936507936506, "Explicit peak": 80.0, "Willing": 100.0, "Steer": 66.66666666666666, "Programs": 25.0, "Tools": 100.0, "Instruct": 25.0, "Reason": 50.0}}, {"rank": 14, "label": "precog-123b-v1a-q4", "model_id": "TheDrummer/Precog-123B-v1-GGUF/Precognition-123B-v1a-Q4_K_M", "provider": "studioforge", "chat": 88.32999084249083, "coding": 8.333333333333332, "overall": 54.045709052851905, "tok_s": 7.903117782480002, "date": "2026-09-24", "notes": "partial (33/49 cases); 3 rows errored (not scored)", "tier": 1, "coverage": "partial (33/49 cases); 3 rows errored (not scored)", "judge": "gemma-4-31B-it-uncensored-heretic-Q8_0", "components": {"RP": 91.36875, "NSFW": 84.47115384615384, "Story": 70.53571428571429, "Explicit peak": 100.0, "Willing": 100.0, "Steer": 100.0, "Programs": 0.0, "Tools": 0.0, "Instruct": 25.0, "Reason": 25.0}}], "components": [{"label": "RP", "side": "chat"}, {"label": "NSFW", "side": "chat"}, {"label": "Story", "side": "chat"}, {"label": "Explicit peak", "side": "chat"}, {"label": "Willing", "side": "chat"}, {"label": "Steer", "side": "chat"}, {"label": "Programs", "side": "coding"}, {"label": "Tools", "side": "coding"}, {"label": "Instruct", "side": "coding"}, {"label": "Reason", "side": "coding"}], "thresholds": [10, 30, 50, 70, 90, 100]}</script><script>(function () {
+</style></head><body data-view="table"><header><h1>CrucibleForge — Chat &amp; Coding</h1><div class="meta">14 models · suite 3.4.0+0d6e0ad1, 3.4.0+7c3f7296, 3.5.0+3c64cb8b, 3.5.0+6c4bded7, 3.5.0+91073254, 3.5.0+d2d09bda · judge gemma-4-31B-it-uncensored…</div><div class="toolbar"><input id="filter" type="search" placeholder="filter model / provider…" aria-label="filter models"><div class="viewtog m-only" role="group" aria-label="phone layout"><button id="viewTable" type="button" aria-pressed="true">Table</button><button id="viewCards" type="button" aria-pressed="false">Cards</button></div><div class="m-sort m-only"><label class="m-lbl" for="sortSel">Sort</label><select id="sortSel" aria-label="sort by"><optgroup label="Headline"><option value="rank">Rank</option><option value="label">Model</option><option value="chat">Chat</option><option value="coding">Coding</option><option value="overall">Overall</option><option value="tok_s">tok/s</option></optgroup><optgroup label="Chat components"><option value="c:RP">RP</option><option value="c:NSFW">NSFW</option><option value="c:Story">Story</option><option value="c:Explicit peak">Explicit peak</option><option value="c:Willing">Willing</option><option value="c:Steer">Steer</option></optgroup><optgroup label="Coding components"><option value="c:Programs">Programs</option><option value="c:Tools">Tools</option><option value="c:Instruct">Instruct</option><option value="c:Reason">Reason</option></optgroup><optgroup label="Run info"><option value="date">Run date</option><option value="notes">Notes</option><option value="judge">Judge</option><option value="coverage">Coverage</option><option value="provider">Provider</option></optgroup></select><button id="sortDir" type="button" aria-label="sort direction">Top first</button></div><button id="filtersBtn" class="m-only" type="button" aria-expanded="false" aria-controls="filtersRow">Filters</button><button id="expandAll" type="button">Expand all</button><button id="collapseAll" type="button">Collapse all</button><label class="benched"><input type="checkbox" id="benched"> benched only</label><button id="colsBtn" type="button" aria-expanded="false" aria-controls="colsPanel">⚙ Columns</button><button id="resetLayout" type="button" title="Back to the default columns, sort and filters">Reset layout</button></div><section class="cols-panel" id="colsPanel" aria-label="choose columns"><div class="cols-head"><strong>Right-hand columns</strong><span class="muted">tick to show · drag or ↑↓ to order · saved for you</span><button id="colsDone" type="button">Done</button></div><ol class="cols-list" id="colsList"></ol></section><div class="filters-row" id="filtersRow"></div><div class="meta" id="count">14 models</div></header><div class="wrap"><table><thead id="thead"></thead><tbody id="tbody"></tbody></table></div><div class="cards" id="cards"></div><footer><p>0–100. Chat = RP 20, NSFW 15, Story 10, Explicit peak 5, Willing 5, Steer 5 (judged by gemma-4-31B-it-uncensored…). Coding = Programs 20, Tools 10, Instruct 10, Reason 5 (Reason pools reasoning + math; all deterministic graders). Overall = Chat and Coding combined by those weights — the sort key only. tok/s = median generation speed (comparable on the same host only). Per-case failures: failures.md.</p><p>Suite revision 3.4.0+0d6e0ad1, 3.4.0+7c3f7296, 3.5.0+3c64cb8b, 3.5.0+6c4bded7, 3.5.0+91073254, 3.5.0+d2d09bda · judge actually used: llmfan46/gemma-4-31B-it-uncensored-heretic-GGUF/gemma-4-31B-it-uncensored-heretic-Q8_0 · rendered 2026-09-26 07:40</p></footer><script type="application/json" id="board-data">{"rows": [{"rank": 1, "label": "minimax-m3", "model_id": "MiniMax-M3", "provider": "minimax", "chat": 95.31196962759464, "coding": 88.88888888888889, "overall": 92.5592207395779, "tok_s": 113.78929084817236, "date": "2026-09-24", "notes": "partial (33/49 cases)", "tier": 1, "coverage": "partial (33/49 cases)", "judge": "gemma-4-31B-it-uncensored-heretic-Q8_0", "components": {"RP": 93.30833333333332, "NSFW": 95.52724358974359, "Story": 91.96428571428571, "Explicit peak": 100.0, "Willing": 100.0, "Steer": 100.0, "Programs": 75.0, "Tools": 100.0, "Instruct": 100.0, "Reason": 100.0}}, {"rank": 2, "label": "split-untied-31b", "model_id": "mradermacher/Split-Untied-31B-i1-GGUF/Split-Untied-31B.i1-Q5_K_S", "provider": "studioforge", "chat": 92.36575727513228, "coding": 77.77777777777779, "overall": 86.11376606198036, "tok_s": 63.06817409307095, "date": "2026-09-25", "notes": "partial (33/49 cases)", "tier": 1, "coverage": "partial (33/49 cases)", "judge": "gemma-4-31B-it-uncensored-heretic-Q8_0", "components": {"RP": 93.88125000000001, "NSFW": 87.6875, "Story": 84.90079365079366, "Explicit peak": 100.0, "Willing": 100.0, "Steer": 100.0, "Programs": 100.0, "Tools": 100.0, "Instruct": 25.0, "Reason": 50.0}}, {"rank": 3, "label": "orion-26b-a4b-v1.1", "model_id": "Abiray/Orion-26B-A4B-v1.1-GGUF/Orion-26B-A4B-v1.1-Q5_K_M", "provider": "studioforge", "chat": 93.57033475783477, "coding": 75.0, "overall": 85.61161986161987, "tok_s": 240.88482646323783, "date": "2026-09-25", "notes": "partial (33/49 cases)", "tier": 1, "coverage": "partial (33/49 cases)", "judge": "gemma-4-31B-it-uncensored-heretic-Q8_0", "components": {"RP": 92.1701388888889, "NSFW": 94.72115384615385, "Story": 85.0, "Explicit peak": 100.0, "Willing": 100.0, "Steer": 100.0, "Programs": 100.0, "Tools": 100.0, "Instruct": 25.0, "Reason": 25.0}}, {"rank": 4, "label": "qwen3.8-27b-tturbo-fable-heretic", "model_id": "DavidAU/Qwen3.8-27B-TWIN-TURBO-Fable-Cold-Fusion-709-ULTRA-HERETIC-Uncensored-NM-DAU-NEO-MTP-GGUF/Qwen3.8-27B-TTURBO-Fable-C-Fusion-709-U-Httic-Uncen-NM-DAU-NEO-MAX-MTP-Q5_K_M", "provider": "studioforge", "chat": 80.14487410737411, "coding": 86.70634920634922, "overall": 82.95693486407774, "tok_s": 66.16264251969609, "date": "2026-09-25", "notes": "", "tier": 0, "coverage": "full (51 cases)", "judge": "gemma-4-31B-it-uncensored-heretic-Q8_0", "components": {"RP": 93.40530303030302, "NSFW": 79.81766381766381, "Story": 86.60714285714286, "Explicit peak": 83.78333333333332, "Willing": 25.0, "Steer": 66.66666666666666, "Programs": 100.0, "Tools": 71.42857142857143, "Instruct": 75.0, "Reason": 87.5}}, {"rank": 5, "label": "orcarouter-qwen3.8-27b", "model_id": "bartowski/orcarouter_Qwen3.8-27B-Uncensored-GGUF/orcarouter_Qwen3.8-27B-Uncensored-Q5_K_L", "provider": "studioforge", "chat": 86.55072624135124, "coding": 77.77777777777779, "overall": 82.79089118553405, "tok_s": 66.1589240031755, "date": "2026-09-25", "notes": "partial (33/49 cases)", "tier": 1, "coverage": "partial (33/49 cases)", "judge": "gemma-4-31B-it-uncensored-heretic-Q8_0", "components": {"RP": 92.4263888888889, "NSFW": 73.44391025641026, "Story": 74.28571428571429, "Explicit peak": 100.0, "Willing": 100.0, "Steer": 100.0, "Programs": 75.0, "Tools": 100.0, "Instruct": 75.0, "Reason": 50.0}}, {"rank": 6, "label": "deepseek-flash", "model_id": "deepseek-flash", "provider": "deepseek", "chat": 88.0203203046953, "coding": 73.80952380952381, "overall": 81.9299789496218, "tok_s": 192.9780293059667, "date": "2026-09-25", "notes": "", "tier": 0, "coverage": "full (49 cases)", "judge": "gemma-4-31B-it-uncensored-heretic-Q8_0", "components": {"RP": 95.72727272727273, "NSFW": 87.68856837606836, "Story": 90.89285714285712, "Explicit peak": 95.15, "Willing": 50.0, "Steer": 83.33333333333334, "Programs": 75.0, "Tools": 57.14285714285714, "Instruct": 75.0, "Reason": 100.0}}, {"rank": 7, "label": "orcarouter-qwen3.8-27b-q8", "model_id": "bartowski/orcarouter_Qwen3.8-27B-Uncensored-GGUF/orcarouter_Qwen3.8-27B-Uncensored-Q8_0", "provider": "studioforge", "chat": 91.12547695360196, "coding": 69.44444444444444, "overall": 81.83360587824875, "tok_s": 51.96327568287353, "date": "2026-09-24", "notes": "partial (33/49 cases)", "tier": 1, "coverage": "partial (33/49 cases)", "judge": "gemma-4-31B-it-uncensored-heretic-Q8_0", "components": {"RP": 96.36458333333333, "NSFW": 83.99198717948717, "Story": 78.03571428571429, "Explicit peak": 100.0, "Willing": 100.0, "Steer": 100.0, "Programs": 50.0, "Tools": 100.0, "Instruct": 75.0, "Reason": 75.0}}, {"rank": 8, "label": "jax-xortron-27b", "model_id": "darkc0de/JAX-XORTRON-Q5_K_M-GGUF/jax-xortron-q5_k_m", "provider": "studioforge", "chat": 91.31982346357347, "coding": 66.66666666666666, "overall": 80.7541848363277, "tok_s": 69.52770442470609, "date": "2026-09-25", "notes": "partial (33/49 cases)", "tier": 1, "coverage": "partial (33/49 cases)", "judge": "gemma-4-31B-it-uncensored-heretic-Q8_0", "components": {"RP": 85.93333333333334, "NSFW": 94.88141025641026, "Story": 83.73015873015873, "Explicit peak": 100.0, "Willing": 100.0, "Steer": 100.0, "Programs": 50.0, "Tools": 100.0, "Instruct": 50.0, "Reason": 100.0}}, {"rank": 9, "label": "ling-3.0-flash-heretic", "model_id": "mradermacher/Ling-3.0-flash-heretic-i1-GGUF/Ling-3.0-flash-heretic.i1-Q5_K_M", "provider": "studioforge", "chat": 86.25821504884004, "coding": 72.22222222222221, "overall": 80.24278955171812, "tok_s": 89.87073421775813, "date": "2026-09-24", "notes": "partial (33/49 cases)", "tier": 1, "coverage": "partial (33/49 cases)", "judge": "gemma-4-31B-it-uncensored-heretic-Q8_0", "components": {"RP": 79.41458333333334, "NSFW": 86.40865384615385, "Story": 79.10714285714285, "Explicit peak": 100.0, "Willing": 100.0, "Steer": 100.0, "Programs": 75.0, "Tools": 75.0, "Instruct": 50.0, "Reason": 100.0}}, {"rank": 10, "label": "qwen3.8-27b-ultra-heretic-nvfp4", "model_id": "llmfan46/Qwen3.8-27B-Ultra-Uncensored-Heretic-Native-MTP-Preserved-NVFP4-GGUF/Qwen3.8-27B-Ultra-Uncensored-Heretic-NVFP4-BF16", "provider": "studioforge", "chat": 87.67923916361417, "coding": 63.888888888888886, "overall": 77.48337476016049, "tok_s": 77.31379368146406, "date": "2026-09-25", "notes": "partial (33/49 cases)", "tier": 1, "coverage": "partial (33/49 cases)", "judge": "gemma-4-31B-it-uncensored-heretic-Q8_0", "components": {"RP": 94.82291666666667, "NSFW": 64.40544871794872, "Story": 89.82142857142857, "Explicit peak": 100.0, "Willing": 100.0, "Steer": 100.0, "Programs": 50.0, "Tools": 100.0, "Instruct": 50.0, "Reason": 75.0}}, {"rank": 11, "label": "laguna-s-vision", "model_id": "llmfan46/Laguna-S-2.1-Uncensored-Heretic-Vision-GGUF/Laguna-S-2.1-Uncensored-Heretic-Q3_K_S", "provider": "studioforge", "chat": 82.40570436507937, "coding": 38.88888888888889, "overall": 63.75564058956917, "tok_s": 40.282057199618194, "date": "2026-09-25", "notes": "partial (33/49 cases)", "tier": 1, "coverage": "partial (33/49 cases)", "judge": "gemma-4-31B-it-uncensored-heretic-Q8_0", "components": {"RP": 77.28333333333333, "NSFW": 81.89583333333333, "Story": 67.02380952380953, "Explicit peak": 100.0, "Willing": 100.0, "Steer": 100.0, "Programs": 50.0, "Tools": 50.0, "Instruct": 0.0, "Reason": 50.0}}, {"rank": 12, "label": "joyfox-35b-rp", "model_id": "mradermacher/JoyFox-Qwen3.6-35B-A3B-RP-Aggressive-i1-GGUF/JoyFox-Qwen3.6-35B-A3B-RP-Aggressive.i1-Q6_K", "provider": "studioforge", "chat": 75.03440806878307, "coding": 44.44444444444444, "overall": 61.92442365835223, "tok_s": 252.57915080210225, "date": "2026-09-25", "notes": "partial (33/49 cases)", "tier": 1, "coverage": "partial (33/49 cases)", "judge": "gemma-4-31B-it-uncensored-heretic-Q8_0", "components": {"RP": 74.19375000000001, "NSFW": 73.10416666666667, "Story": 68.82936507936506, "Explicit peak": 80.0, "Willing": 100.0, "Steer": 66.66666666666666, "Programs": 25.0, "Tools": 100.0, "Instruct": 25.0, "Reason": 50.0}}, {"rank": 13, "label": "precog-123b-v1a-q4", "model_id": "TheDrummer/Precog-123B-v1-GGUF/Precognition-123B-v1a-Q4_K_M", "provider": "studioforge", "chat": 88.32999084249083, "coding": 8.333333333333332, "overall": 54.045709052851905, "tok_s": 7.903117782480002, "date": "2026-09-24", "notes": "partial (33/49 cases); 3 rows errored (not scored)", "tier": 1, "coverage": "partial (33/49 cases); 3 rows errored (not scored)", "judge": "gemma-4-31B-it-uncensored-heretic-Q8_0", "components": {"RP": 91.36875, "NSFW": 84.47115384615384, "Story": 70.53571428571429, "Explicit peak": 100.0, "Willing": 100.0, "Steer": 100.0, "Programs": 0.0, "Tools": 0.0, "Instruct": 25.0, "Reason": 25.0}}, {"rank": 14, "label": "deepseek-pro", "model_id": "deepseek-v4-pro", "provider": "deepseek", "chat": null, "coding": 87.3015873015873, "overall": null, "tok_s": 75.20201299579155, "date": "2026-09-25", "notes": "5 rows unjudged", "tier": 1, "coverage": "5 rows unjudged", "judge": "gemma-4-31B-it-uncensored-heretic-Q8_0", "components": {"RP": null, "NSFW": null, "Story": null, "Explicit peak": null, "Willing": null, "Steer": null, "Programs": 100.0, "Tools": 42.857142857142854, "Instruct": 100.0, "Reason": 100.0}}], "components": [{"label": "RP", "side": "chat"}, {"label": "NSFW", "side": "chat"}, {"label": "Story", "side": "chat"}, {"label": "Explicit peak", "side": "chat"}, {"label": "Willing", "side": "chat"}, {"label": "Steer", "side": "chat"}, {"label": "Programs", "side": "coding"}, {"label": "Tools", "side": "coding"}, {"label": "Instruct", "side": "coding"}, {"label": "Reason", "side": "coding"}], "thresholds": [10, 30, 50, 70, 90, 100], "main": [{"key": "rank", "label": "#", "kind": "num"}, {"key": "label", "label": "Model", "kind": "text"}, {"key": "chat", "label": "Chat", "kind": "num"}, {"key": "coding", "label": "Coding", "kind": "num"}, {"key": "overall", "label": "Overall", "kind": "num"}, {"key": "tok_s", "label": "tok/s", "kind": "num"}], "extra": [{"key": "c:RP", "label": "RP", "kind": "num", "side": "chat", "group": "Chat component"}, {"key": "c:NSFW", "label": "NSFW", "kind": "num", "side": "chat", "group": "Chat component"}, {"key": "c:Story", "label": "Story", "kind": "num", "side": "chat", "group": "Chat component"}, {"key": "c:Explicit peak", "label": "Explicit peak", "kind": "num", "side": "chat", "group": "Chat component"}, {"key": "c:Willing", "label": "Willing", "kind": "num", "side": "chat", "group": "Chat component"}, {"key": "c:Steer", "label": "Steer", "kind": "num", "side": "chat", "group": "Chat component"}, {"key": "c:Programs", "label": "Programs", "kind": "num", "side": "coding", "group": "Coding component"}, {"key": "c:Tools", "label": "Tools", "kind": "num", "side": "coding", "group": "Coding component"}, {"key": "c:Instruct", "label": "Instruct", "kind": "num", "side": "coding", "group": "Coding component"}, {"key": "c:Reason", "label": "Reason", "kind": "num", "side": "coding", "group": "Coding component"}, {"key": "date", "label": "Run date", "kind": "text", "group": "Run info"}, {"key": "notes", "label": "Notes", "kind": "text", "group": "Run info"}, {"key": "judge", "label": "Judge", "kind": "text", "group": "Run info"}, {"key": "coverage", "label": "Coverage", "kind": "text", "group": "Run info"}, {"key": "provider", "label": "Provider", "kind": "text", "group": "Run info"}]}</script><script>(function () {
 'use strict';
 // The board data is baked into <script type="application/json" id="board-data">
 // by render_html.py — no fetch, no sidecar file.
-// ONE state (sort key/dir, text filter, benched toggle, element filters,
-// expanded set) drives BOTH layouts: the wide table (> 720 px) and the phone
-// cards (<= 720 px). Both are rendered on every change and CSS shows one, so
-// rotating a phone keeps the exact view.
+//
+// ONE state drives every layout: the table (desktop, and the phone's Table
+// view) and the phone cards. State = the viewer's chosen right-hand columns
+// (ordered), sort key/dir, per-column ≥ filters, text filter, benched-only,
+// expanded rows and the phone view. It is saved on every change (debounced):
+//   - inside DisPatch (a sandboxed frame: no localStorage of its own) through
+//     the shell's tool-state bridge — {type:'dispatch:tool-state', op:'get'|'set'};
+//   - opened directly, in localStorage.
+// Both are best-effort; a page that can save nothing still works.
 const DATA = JSON.parse(document.getElementById('board-data').textContent);
 const rows = DATA.rows;
 const COMPS = DATA.components;            // [{label, side}] in column order
 const THRESHOLDS = DATA.thresholds;       // [10, 30, 50, 70, 90, 100]
-const TEXT_COLS = new Set(['label', 'date', 'notes']);
-let sortKey = 'rank', sortDir = 1, filter = '', benchedOnly = false, filtersOpen = false;
-const expanded = new Set();
-const minScore = {};                      // component label -> threshold (number)
+const MAIN = DATA.main;                   // fixed left columns [{key, label, kind}]
+const EXTRA = DATA.extra;                 // choosable right-hand columns [{key, label, kind, side?, group}]
+const MAIN_BY = {}; MAIN.forEach(c => { MAIN_BY[c.key] = c; });
+const EXTRA_BY = {}; EXTRA.forEach(c => { EXTRA_BY[c.key] = c; });
+const HEAD_FILTERS = ['chat', 'coding', 'overall'];   // always filterable
+const TEXT_COLS = new Set(['label', 'date', 'notes', 'judge', 'coverage', 'provider']);
+const LABELS = new Set(rows.map(r => r.label));
+const STATE_VERSION = 1;                  // bump = every saved layout resets
+const STORE_KEY = 'crucibleforge-board-layout';
+const BRIDGE = 'dispatch:tool-state';
+const MAX_STATE = 16 * 1024;
 
+function defaults() {
+  return {columns: COMPS.map(c => 'c:' + c.label), sortKey: 'rank', sortDir: 1,
+          filters: {}, text: '', benched: false, expanded: [], view: 'table'};
+}
+let S = defaults();
+let expanded = new Set();
+let filtersOpen = false, colsOpen = false, dragKey = null;
+
+const $ = id => document.getElementById(id);
 function esc(s) {
   return String(s).replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
 }
 function isNum(v) { return v !== null && v !== undefined && v !== '' && !isNaN(v); }
 function num(v, d) { return isNum(v) ? Number(v).toFixed(d) : '<span class="muted">–</span>'; }
 function band(v) { return !isNum(v) ? '' : (v < 50 ? ' lo' : (v < 75 ? ' mid' : '')); }
+function colOf(k) { return MAIN_BY[k] || EXTRA_BY[k]; }
 function value(r, k) {
   if (k.startsWith('c:')) { const v = (r.components || {})[k.slice(2)]; return isNum(v) ? Number(v) : null; }
   const v = r[k];
   if (TEXT_COLS.has(k)) return v === null || v === undefined ? '' : String(v).toLowerCase();
   return isNum(v) ? Number(v) : null;
 }
+function filterKeys(cols) {
+  return HEAD_FILTERS.concat(cols.filter(k => EXTRA_BY[k] && EXTRA_BY[k].kind === 'num'));
+}
+
+// ------------------------------------------------------------ saved state
+/** Whatever came back from storage → a valid state. Unknown columns, filters
+ *  on columns that are not shown, and rows that no longer exist are dropped
+ *  silently; another `version` means defaults. */
+function sanitize(raw) {
+  const d = defaults();
+  if (!raw || typeof raw !== 'object' || raw.version !== STATE_VERSION) return d;
+  if (Array.isArray(raw.columns)) {
+    const seen = new Set();
+    d.columns = raw.columns.filter(k => typeof k === 'string' && EXTRA_BY[k] && !seen.has(k) && seen.add(k));
+  }
+  if (typeof raw.sortKey === 'string' && colOf(raw.sortKey)) {      // an unknown key: rank, top first
+    d.sortKey = raw.sortKey;
+    if (raw.sortDir === 1 || raw.sortDir === -1) d.sortDir = raw.sortDir;
+  }
+  const fk = filterKeys(d.columns);
+  if (raw.filters && typeof raw.filters === 'object') {
+    for (const k of Object.keys(raw.filters)) {
+      const v = raw.filters[k];
+      if (fk.includes(k) && typeof v === 'number' && isFinite(v) && v >= 0) d.filters[k] = v;
+    }
+  }
+  if (typeof raw.text === 'string') d.text = raw.text.slice(0, 200);
+  d.benched = raw.benched === true;
+  if (Array.isArray(raw.expanded)) d.expanded = raw.expanded.filter(l => typeof l === 'string' && LABELS.has(l));
+  if (raw.view === 'table' || raw.view === 'cards') d.view = raw.view;
+  return d;
+}
+function serialize() {
+  return {version: STATE_VERSION, columns: S.columns.slice(), sortKey: S.sortKey, sortDir: S.sortDir,
+          filters: Object.assign({}, S.filters), text: S.text, benched: S.benched,
+          expanded: [...expanded], view: S.view};
+}
+const framed = (() => { try { return window.parent !== window; } catch (e) { return true; } })();
+let saveTimer = null, touched = false, bridgeHeard = false;
+function writeNow() {
+  saveTimer = null;
+  const st = serialize();
+  let json = JSON.stringify(st);
+  if (json.length > MAX_STATE) { st.expanded = []; json = JSON.stringify(st); }   // the only unbounded part
+  if (framed) { try { window.parent.postMessage({type: BRIDGE, op: 'set', state: st}, '*'); } catch (e) { /* no bridge */ } }
+  try { window.localStorage.setItem(STORE_KEY, json); } catch (e) { /* sandboxed / disabled: fine */ }
+}
+function save() {
+  touched = true;
+  if (saveTimer) clearTimeout(saveTimer);
+  saveTimer = setTimeout(writeNow, 300);
+}
+function loadLocal() {
+  try { const s = window.localStorage.getItem(STORE_KEY); return s ? JSON.parse(s) : null; } catch (e) { return null; }
+}
+// The shell answers `get` and also pushes once after load: the FIRST answer is
+// the saved layout; every later one is an ack of our own `set` and ignored.
+function onBridge(ev) {
+  if (ev.source !== window.parent) return;
+  const d = ev.data;
+  if (!d || typeof d !== 'object' || d.type !== BRIDGE || bridgeHeard) return;
+  bridgeHeard = true;
+  if (d.state && !touched) applyState(sanitize(d.state));
+}
+function applyState(st) {
+  expanded = new Set(st.expanded);
+  S = st;
+  filtersOpen = Object.keys(S.filters).length > 0;
+  $('filter').value = S.text;
+  $('benched').checked = S.benched;
+  renderFilters();
+  renderChooser();
+  render();
+}
+
+// ------------------------------------------------------------ rows
 function compare(a, b) {
-  const ka = value(a, sortKey), kb = value(b, sortKey);
+  const ka = value(a, S.sortKey), kb = value(b, S.sortKey);
   const ea = ka === null || ka === '', eb = kb === null || kb === '';
   if (ea && eb) return a.rank - b.rank;
   if (ea) return 1;                       // missing values always sort last
   if (eb) return -1;
-  if (ka < kb) return -sortDir;
-  if (ka > kb) return sortDir;
+  if (ka < kb) return -S.sortDir;
+  if (ka > kb) return S.sortDir;
   return a.rank - b.rank;
 }
 function passes(r) {
-  if (benchedOnly && !isNum(r.overall)) return false;
-  if (filter) {
-    const f = filter.toLowerCase();
+  if (S.benched && !isNum(r.overall)) return false;
+  if (S.text) {
+    const f = S.text.toLowerCase();
     if (!(r.label.toLowerCase().includes(f) || String(r.model_id || '').toLowerCase().includes(f)
           || String(r.provider || '').toLowerCase().includes(f))) return false;
   }
-  for (const lbl in minScore) {
-    const v = (r.components || {})[lbl];
-    if (!isNum(v) || Number(v) < minScore[lbl]) return false;
+  for (const k in S.filters) {
+    const v = value(r, k);
+    if (v === null || v < S.filters[k]) return false;
   }
   return true;
 }
@@ -188,23 +337,22 @@ function detail(r) {
       ' components — click one to sort every row by it</h4><div class="comp-grid">' + inner + '</div></div>' : '';
   }).join('');
   return '<div class="detail">' + groups +
-    '<div class="group"><h4>Notes</h4><div class="meta-line">' + esc(r.notes || 'none') + '</div></div>' +
+    '<div class="group wide"><h4>Notes</h4><div class="meta-line">' + esc(r.notes || 'none') + '</div></div>' +
+    '<div class="group"><h4>Run date</h4><div class="meta-line">' + esc(r.date || '–') + '</div></div>' +
     metaGroups(r) + '</div>';
 }
-// Phone card: headline numbers big, components always visible (they are the
-// point of the board and fit in two short columns); only the bookkeeping
-// (judge, coverage, model id, provider) sits behind the per-card Details toggle,
-// which shares the table's ▸ expanded set.
+// Phone card: headline numbers big, every component in two short columns; the
+// bookkeeping sits behind the per-card Details toggle (shares the ▸ set).
 function card(r) {
   const open = expanded.has(r.label);
   const cls = r.tier >= 2 ? ' fail-card' : (r.tier >= 1 ? ' warn-card' : '');
   const head = [['chat', 'Chat'], ['coding', 'Coding'], ['overall', 'Overall']].map(([k, t]) =>
-    '<div class="hl' + (sortKey === k ? ' sorted' : '') + '"><span class="hl-lbl">' + t + '</span>' +
+    '<div class="hl' + (S.sortKey === k ? ' sorted' : '') + '"><span class="hl-lbl">' + t + '</span>' +
     '<span class="hl-val">' + num(r[k], 1) + '</span></div>').join('');
   const col = s => {
     const items = COMPS.filter(c => c.side === s).map(c => {
       const v = (r.components || {})[c.label];
-      return '<div class="chip side-' + s + (sortKey === 'c:' + c.label ? ' sorted' : '') + '">' +
+      return '<div class="chip side-' + s + (S.sortKey === 'c:' + c.label ? ' sorted' : '') + '">' +
         '<span class="lbl">' + esc(c.label) + '</span><span class="val' + band(v) + '">' + num(v, 0) + '</span></div>';
     }).join('');
     return items ? '<div class="ccol"><h4>' + (s === 'chat' ? 'Chat' : 'Coding') + '</h4>' + items + '</div>' : '';
@@ -212,8 +360,8 @@ function card(r) {
   return '<article class="card' + cls + '" data-label="' + esc(r.label) + '">' +
     '<div class="card-top"><span class="rank">#' + r.rank + '</span><h2 class="name">' + esc(r.label) + '</h2></div>' +
     '<div class="hls">' + head + '</div>' +
-    '<div class="sub"><span' + (sortKey === 'tok_s' ? ' class="sorted"' : '') + '>' + num(r.tok_s, 1) + ' tok/s</span>' +
-    '<span' + (sortKey === 'date' ? ' class="sorted"' : '') + '>' + esc(r.date || '–') + '</span></div>' +
+    '<div class="sub"><span' + (S.sortKey === 'tok_s' ? ' class="sorted"' : '') + '>' + num(r.tok_s, 1) + ' tok/s</span>' +
+    '<span' + (S.sortKey === 'date' ? ' class="sorted"' : '') + '>' + esc(r.date || '–') + '</span></div>' +
     (r.notes ? '<div class="card-notes">' + esc(r.notes) + '</div>' : '') +
     '<div class="ccols">' + col('chat') + col('coding') + '</div>' +
     '<button class="card-toggle" type="button" aria-expanded="' + open + '" data-toggle="' + esc(r.label) + '">' +
@@ -221,90 +369,252 @@ function card(r) {
     (open ? '<div class="card-detail">' + metaGroups(r) + '</div>' : '') +
     '</article>';
 }
+function th(k) {
+  const c = colOf(k);
+  const on = S.sortKey === k;
+  const cls = c.side ? 'side-' + c.side : (MAIN_BY[k] ? 'main-col' : 'extra-col');
+  return '<th data-k="' + esc(k) + '" scope="col" class="' + cls + (k === 'label' ? ' label' : '') + '" aria-sort="' +
+    (on ? (S.sortDir === 1 ? 'ascending' : 'descending') : 'none') + '"' +
+    (c.side ? ' title="' + (c.side === 'chat' ? 'Chat' : 'Coding') + ' component"' : '') + '>' + esc(c.label) +
+    ' <span class="arrow">' + (on ? (S.sortDir === 1 ? '▲' : '▼') : '⇅') + '</span></th>';
+}
+function cell(r, k) {
+  const c = EXTRA_BY[k];
+  if (k.startsWith('c:')) {
+    const v = (r.components || {})[c.label];
+    return '<td class="num comp-col side-' + c.side + band(v) + '">' + num(v, 0) + '</td>';
+  }
+  if (k === 'notes') return '<td class="notes">' + esc(r.notes || '') + '</td>';
+  if (k === 'date') return '<td class="num">' + esc(r.date || '–') + '</td>';
+  return '<td class="meta-col">' + esc(r[k] || '–') + '</td>';
+}
 function dirText() {
-  if (sortKey === 'rank') return sortDir === 1 ? '▲ Top first' : '▼ Bottom first';
-  if (TEXT_COLS.has(sortKey)) return sortDir === 1 ? '▲ A → Z' : '▼ Z → A';
-  return sortDir === -1 ? '▼ High first' : '▲ Low first';
+  if (S.sortKey === 'rank') return S.sortDir === 1 ? '▲ Top first' : '▼ Bottom first';
+  if (TEXT_COLS.has(S.sortKey)) return S.sortDir === 1 ? '▲ A → Z' : '▼ Z → A';
+  return S.sortDir === -1 ? '▼ High first' : '▲ Low first';
 }
 function render() {
   const data = rows.filter(passes).sort(compare);
-  const ncol = 9 + COMPS.length;
-  document.getElementById('tbody').innerHTML = data.map(r => {
+  const ncol = 1 + MAIN.length + S.columns.length;
+  $('thead').innerHTML = '<tr><th scope="col" class="xcol" aria-label="details"></th>' +
+    MAIN.map(c => th(c.key)).join('') + S.columns.map(th).join('') + '</tr>';
+  $('tbody').innerHTML = data.map(r => {
     const open = expanded.has(r.label);
     const cls = r.tier >= 2 ? ' fail-row' : (r.tier >= 1 ? ' warn-row' : '');
-    const comps = COMPS.map(c => {
-      const v = (r.components || {})[c.label];
-      return '<td class="num comp-col side-' + c.side + band(v) + '">' + num(v, 0) + '</td>';
-    }).join('');
     return '<tr class="data-row' + cls + '" data-label="' + esc(r.label) + '">' +
-      '<td><button class="toggle" aria-expanded="' + open + '" aria-label="components" data-toggle="' + esc(r.label) + '">' + (open ? '▾' : '▸') + '</button></td>' +
+      '<td class="xcol"><button class="toggle" aria-expanded="' + open + '" aria-label="details" data-toggle="' + esc(r.label) + '">' + (open ? '▾' : '▸') + '</button></td>' +
       '<td class="num">' + r.rank + '</td><td class="label">' + esc(r.label) + '</td>' +
       '<td class="num strong">' + num(r.chat, 1) + '</td><td class="num strong">' + num(r.coding, 1) + '</td>' +
-      '<td class="num">' + num(r.overall, 1) + '</td><td class="num">' + num(r.tok_s, 1) + '</td>' +
-      '<td class="num">' + esc(r.date || '–') + '</td><td class="notes">' + esc(r.notes || '') + '</td>' + comps + '</tr>' +
+      '<td class="num strong">' + num(r.overall, 1) + '</td><td class="num">' + num(r.tok_s, 1) + '</td>' +
+      S.columns.map(k => cell(r, k)).join('') + '</tr>' +
       (open ? '<tr class="detail-row"><td colspan="' + ncol + '">' + detail(r) + '</td></tr>' : '');
-  }).join('');
-  document.getElementById('cards').innerHTML = data.length ? data.map(card).join('')
+  }).join('') || '<tr><td colspan="' + ncol + '" class="empty">No model matches these filters.</td></tr>';
+  $('cards').innerHTML = data.length ? data.map(card).join('')
     : '<p class="empty">No model matches these filters.</p>';
-  document.querySelectorAll('th[data-k]').forEach(th => {
-    const a = th.querySelector('.arrow');
-    const on = th.dataset.k === sortKey;
-    a.textContent = on ? (sortDir === 1 ? '▲' : '▼') : '⇅';
-    th.setAttribute('aria-sort', on ? (sortDir === 1 ? 'ascending' : 'descending') : 'none');
-  });
-  document.querySelectorAll('.comp-filter').forEach(el => el.classList.toggle('is-active', el.dataset.c in minScore));
-  const nf = Object.keys(minScore).length;
-  const fb = document.getElementById('filtersBtn');
+  const nf = Object.keys(S.filters).length;
+  const fb = $('filtersBtn');
   fb.textContent = (filtersOpen ? '▾ ' : '▸ ') + 'Filters' + (nf ? ' (' + nf + ')' : '');
   fb.setAttribute('aria-expanded', String(filtersOpen));
   fb.classList.toggle('is-active', nf > 0);
-  document.getElementById('filtersRow').classList.toggle('open', filtersOpen);
-  document.getElementById('sortSel').value = sortKey;
-  document.getElementById('sortDir').textContent = dirText();
-  document.getElementById('count').innerHTML = data.length + ' of ' + rows.length + ' models' +
-    '<span class="desk-only"> · click any column to sort · ▸ shows components, notes and judge</span>';
+  $('filtersRow').classList.toggle('open', filtersOpen);
+  $('sortSel').value = S.sortKey;
+  $('sortDir').textContent = dirText();
+  document.body.setAttribute('data-view', S.view);
+  $('viewTable').setAttribute('aria-pressed', String(S.view === 'table'));
+  $('viewCards').setAttribute('aria-pressed', String(S.view === 'cards'));
+  $('colsBtn').setAttribute('aria-expanded', String(colsOpen));
+  $('colsPanel').classList.toggle('open', colsOpen);
+  $('count').innerHTML = data.length + ' of ' + rows.length + ' models' +
+    '<span class="desk-only"> · click any column to sort · ▸ shows every component, notes, run date and judge</span>';
 }
+
+// ------------------------------------------------------------ filters row
+// Rebuilt only when the column set changes (never while typing): Chat, Coding
+// and Overall always, then one per chosen numeric column, in column order.
+function filterChip(k) {
+  const c = colOf(k);
+  const v = S.filters[k];
+  const custom = isNum(v) && !THRESHOLDS.includes(v);
+  const opts = '<option value="">any</option>' + THRESHOLDS.map(t =>
+    '<option value="' + t + '"' + (v === t ? ' selected' : '') + '>' + (t < 100 ? '≥' : '') + t + '</option>').join('') +
+    '<option value="custom" disabled' + (custom ? ' selected' : '') + '>custom</option>';
+  return '<div class="comp-filter ' + (c.side ? 'side-' + c.side : 'main') + (k in S.filters ? ' is-active' : '') +
+    '" data-f="' + esc(k) + '" role="group" aria-label="minimum ' + esc(c.label) + '">' +
+    '<span class="lbl">' + esc(c.label) + '</span>' +
+    '<select aria-label="minimum ' + esc(c.label) + '">' + opts + '</select>' +
+    '<span class="ge" aria-hidden="true">≥</span><input type="number" inputmode="decimal" min="0" max="100" step="any" ' +
+    'placeholder="__" value="' + (isNum(v) ? v : '') + '" aria-label="minimum ' + esc(c.label) + ', any number"></div>';
+}
+function renderFilters() {
+  $('filtersRow').innerHTML = '<span class="flabel">Filter by element →</span>' +
+    filterKeys(S.columns).map(filterChip).join('') +
+    '<button type="button" data-act="clear" title="Clear every element filter">Clear</button>';
+}
+function setFilter(chip, k, n) {
+  if (n === null) delete S.filters[k]; else S.filters[k] = n;
+  if (chip && chip.classList) chip.classList.toggle('is-active', k in S.filters);
+  render(); save();
+}
+function onFilterChange(e) {
+  const t = e.target;
+  if (!t || t.tagName !== 'SELECT') return;
+  const chip = t.closest('[data-f]');
+  if (!chip) return;
+  if (t.value === 'custom') return;
+  const n = t.value === '' ? null : Number(t.value);
+  const inp = chip.querySelector('input');
+  if (inp) inp.value = n === null ? '' : String(n);
+  setFilter(chip, chip.dataset.f, n);
+}
+function onFilterInput(e) {
+  const t = e.target;
+  if (!t || t.tagName !== 'INPUT') return;
+  const chip = t.closest('[data-f]');
+  if (!chip) return;
+  const raw = String(t.value).trim();
+  const n = raw === '' ? null : Number(raw);
+  if (n !== null && (!isFinite(n) || n < 0)) return;
+  const sel = chip.querySelector('select');
+  if (sel) sel.value = n === null ? '' : (THRESHOLDS.includes(n) ? String(n) : 'custom');
+  setFilter(chip, chip.dataset.f, n);
+}
+function onFilterClick(e) {
+  if (!e.target.closest('[data-act="clear"]')) return;
+  S.filters = {};
+  renderFilters(); render(); save();
+}
+
+// ------------------------------------------------------------ column chooser
+// Every choosable column: the chosen ones first in their order (checked,
+// ↑/↓ and drag to reorder), then the rest in default order (unchecked).
+function renderChooser() {
+  const rest = EXTRA.map(c => c.key).filter(k => !S.columns.includes(k));
+  const n = S.columns.length;
+  $('colsList').innerHTML = S.columns.concat(rest).map(k => {
+    const c = EXTRA_BY[k];
+    const i = S.columns.indexOf(k), on = i >= 0;
+    return '<li class="col-item' + (on ? ' on' : '') + '" draggable="true" data-col="' + esc(k) + '">' +
+      '<span class="grip" aria-hidden="true">⋮⋮</span>' +
+      '<label><input type="checkbox" data-col="' + esc(k) + '"' + (on ? ' checked' : '') + '> ' +
+      '<span class="cl">' + esc(c.label) + '</span> <span class="cg">' + esc(c.group) + '</span></label>' +
+      '<button type="button" data-move="-1" data-col="' + esc(k) + '" aria-label="Move ' + esc(c.label) + ' left"' +
+      (!on || i === 0 ? ' disabled' : '') + '>↑</button>' +
+      '<button type="button" data-move="1" data-col="' + esc(k) + '" aria-label="Move ' + esc(c.label) + ' right"' +
+      (!on || i === n - 1 ? ' disabled' : '') + '>↓</button></li>';
+  }).join('');
+}
+function columnsChanged() { renderChooser(); renderFilters(); render(); save(); }
+function setColumn(k, on) {
+  if (!EXTRA_BY[k]) return;
+  const has = S.columns.includes(k);
+  if (on && !has) S.columns.push(k);
+  if (!on && has) {
+    S.columns = S.columns.filter(x => x !== k);
+    delete S.filters[k];                   // a hidden filter would hide rows silently
+    if (S.sortKey === k) { S.sortKey = 'rank'; S.sortDir = 1; }
+  }
+  columnsChanged();
+}
+function moveColumn(k, delta) {
+  const i = S.columns.indexOf(k), j = i + delta;
+  if (i < 0 || j < 0 || j >= S.columns.length) return;
+  S.columns.splice(i, 1); S.columns.splice(j, 0, k);
+  columnsChanged();
+}
+/** Drag-and-drop: put `k` just before `target` (dropping on an unchosen row
+ *  = append). Dragging an unchosen column in also chooses it. */
+function moveBefore(k, target) {
+  if (!EXTRA_BY[k] || k === target) return;
+  S.columns = S.columns.filter(x => x !== k);
+  const j = S.columns.indexOf(target);
+  if (j < 0) S.columns.push(k); else S.columns.splice(j, 0, k);
+  columnsChanged();
+}
+function onColsChange(e) {
+  const t = e.target;
+  if (t && t.type === 'checkbox' && t.dataset.col) setColumn(t.dataset.col, t.checked);
+}
+function onColsClick(e) {
+  const b = e.target.closest('[data-move]');
+  if (b && !b.disabled) moveColumn(b.dataset.col, Number(b.dataset.move));
+}
+function itemOf(e) { const it = e.target && e.target.closest ? e.target.closest('li[data-col]') : null; return it; }
+function onDragStart(e) {
+  const it = itemOf(e);
+  if (!it) return;
+  dragKey = it.dataset.col;
+  if (e.dataTransfer) { e.dataTransfer.effectAllowed = 'move'; try { e.dataTransfer.setData('text/plain', dragKey); } catch (x) { /* old engines */ } }
+  it.classList.add('dragging');
+}
+function onDragOver(e) { if (dragKey && itemOf(e)) { e.preventDefault(); if (e.dataTransfer) e.dataTransfer.dropEffect = 'move'; } }
+function onDrop(e) {
+  const it = itemOf(e);
+  if (!dragKey || !it) return;
+  e.preventDefault();
+  const k = dragKey; dragKey = null;
+  moveBefore(k, it.dataset.col);
+}
+function onDragEnd() { dragKey = null; renderChooser(); }
+
+// ------------------------------------------------------------ wiring
 function defaultDir(k) { return (k === 'rank' || TEXT_COLS.has(k)) ? 1 : -1; }
 function sortBy(k) {
-  if (sortKey === k) sortDir = -sortDir;
-  else { sortKey = k; sortDir = defaultDir(k); }
-  render();
+  if (!colOf(k)) return;
+  if (S.sortKey === k) S.sortDir = -S.sortDir;
+  else { S.sortKey = k; S.sortDir = defaultDir(k); }
+  render(); save();
 }
 function onListClick(e) {
   const t = e.target.closest('[data-toggle]');
   if (t) {
     const l = t.dataset.toggle;
     if (expanded.has(l)) expanded.delete(l); else expanded.add(l);
-    render();
+    render(); save();
     return;
   }
   const c = e.target.closest('[data-sort]');
   if (c) sortBy(c.dataset.sort);
 }
+function onHeadClick(e) { const h = e.target.closest('th[data-k]'); if (h) sortBy(h.dataset.k); }
+function setView(v) { S.view = v; render(); save(); }
+function resetLayout() {
+  applyState(defaults());
+  touched = true;
+  if (saveTimer) clearTimeout(saveTimer);
+  writeNow();
+}
 function init() {
-  document.getElementById('filter').addEventListener('input', e => { filter = e.target.value; render(); });
-  document.getElementById('benched').addEventListener('change', e => { benchedOnly = e.target.checked; render(); });
-  document.getElementById('expandAll').addEventListener('click', () => { rows.forEach(r => expanded.add(r.label)); render(); });
-  document.getElementById('collapseAll').addEventListener('click', () => { expanded.clear(); render(); });
-  document.getElementById('clearFilters').addEventListener('click', () => {
-    for (const k in minScore) delete minScore[k];
-    document.querySelectorAll('.comp-filter select').forEach(s => { s.value = ''; });
-    render();
-  });
-  document.querySelectorAll('.comp-filter select').forEach(sel => sel.addEventListener('change', () => {
-    const c = sel.closest('.comp-filter').dataset.c;
-    if (sel.value === '') delete minScore[c]; else minScore[c] = Number(sel.value);
-    render();
-  }));
-  document.getElementById('sortSel').addEventListener('change', e => {
-    sortKey = e.target.value; sortDir = defaultDir(sortKey); render();
-  });
-  document.getElementById('sortDir').addEventListener('click', () => { sortDir = -sortDir; render(); });
-  document.getElementById('filtersBtn').addEventListener('click', () => { filtersOpen = !filtersOpen; render(); });
-  document.querySelectorAll('th[data-k]').forEach(th => th.addEventListener('click', () => sortBy(th.dataset.k)));
-  document.getElementById('tbody').addEventListener('click', onListClick);
-  document.getElementById('cards').addEventListener('click', onListClick);
-  render();
+  $('filter').addEventListener('input', e => { S.text = e.target.value; render(); save(); });
+  $('benched').addEventListener('change', e => { S.benched = !!e.target.checked; render(); save(); });
+  $('expandAll').addEventListener('click', () => { rows.forEach(r => expanded.add(r.label)); render(); save(); });
+  $('collapseAll').addEventListener('click', () => { expanded.clear(); render(); save(); });
+  $('sortSel').addEventListener('change', e => { S.sortKey = e.target.value; S.sortDir = defaultDir(S.sortKey); render(); save(); });
+  $('sortDir').addEventListener('click', () => { S.sortDir = -S.sortDir; render(); save(); });
+  $('filtersBtn').addEventListener('click', () => { filtersOpen = !filtersOpen; render(); });
+  $('viewTable').addEventListener('click', () => setView('table'));
+  $('viewCards').addEventListener('click', () => setView('cards'));
+  $('colsBtn').addEventListener('click', () => { colsOpen = !colsOpen; render(); });
+  $('colsDone').addEventListener('click', () => { colsOpen = false; render(); });
+  $('resetLayout').addEventListener('click', resetLayout);
+  const fr = $('filtersRow');
+  fr.addEventListener('change', onFilterChange);
+  fr.addEventListener('input', onFilterInput);
+  fr.addEventListener('click', onFilterClick);
+  const cl = $('colsList');
+  cl.addEventListener('change', onColsChange);
+  cl.addEventListener('click', onColsClick);
+  cl.addEventListener('dragstart', onDragStart);
+  cl.addEventListener('dragover', onDragOver);
+  cl.addEventListener('drop', onDrop);
+  cl.addEventListener('dragend', onDragEnd);
+  $('thead').addEventListener('click', onHeadClick);
+  $('tbody').addEventListener('click', onListClick);
+  $('cards').addEventListener('click', onListClick);
+  applyState(sanitize(loadLocal()));
+  if (framed) {
+    window.addEventListener('message', onBridge);
+    try { window.parent.postMessage({type: BRIDGE, op: 'get'}, '*'); } catch (e) { /* no bridge */ }
+  }
 }
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
 })();

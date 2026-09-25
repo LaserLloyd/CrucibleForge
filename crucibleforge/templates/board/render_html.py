@@ -5,14 +5,18 @@ report.md (``report.html_rows``) — exact labels, numbers as numbers — and th
 module bakes them into a self-contained page: inline CSS + JS, the rows as a
 ``<script type="application/json">`` blob, no CDN, no fetch, no sidecar file.
 
-The design is the element-filter board Jake approved on 2026-09-20/22
-("the default template for these reports"): sticky header, centred numbers,
-click-to-sort on EVERY column including each component, a text filter, a
-"benched only" toggle, a "Filter by element →" row of min-score dropdowns
-(one per component), and a per-row ▸ expander with the components, Notes and
-the judge line. At <= 720 px (a phone in DisPatch's frame) the same rows render
-as one card per model instead of the wide table — see README.md. Columns: ``# · Model · Chat · Coding · Overall · tok/s ·
-Run date · Notes`` then one column per component on the far right.
+The design is the element-filter board Jake approved on 2026-09-20/22,
+revised 2026-09-26 ("make it a table, expandable rows, sortable by element;
+main = Chat, Coding, Overall, tok/s; customizable columns on the far right;
+save my layout; filtering back"): fixed columns ``# · Model · Chat · Coding ·
+Overall · tok/s``, then the viewer's chosen columns (⚙ Columns: every
+component, Run date, Notes, Judge, Coverage, Provider; default = the
+components in scoring order), click-to-sort on every column, a text filter, a
+"benched only" toggle, a "Filter by element →" row (≥ steps + a free number,
+for Chat/Coding/Overall and every chosen numeric column), and a per-row ▸
+expander (every component, Notes, Run date, judge). The layout is saved per
+viewer — through DisPatch's tool-state bridge when framed, else localStorage.
+At <= 720 px the phone gets Table | Cards (Table by default). See README.md.
 
 The page is served by DisPatch in a sandboxed frame, so it must carry no
 IPs, URLs or hostnames: every string is passed through :func:`scrub`.
@@ -70,6 +74,25 @@ def _components(rows: list[dict], components: list[dict] | None) -> list[dict]:
     return [{"label": k, "side": "chat"} for k in seen]
 
 
+#: fixed left-hand columns (always shown, in this order)
+MAIN_COLUMNS = [("rank", "#", "num"), ("label", "Model", "text"), ("chat", "Chat", "num"),
+                ("coding", "Coding", "num"), ("overall", "Overall", "num"), ("tok_s", "tok/s", "num")]
+#: choosable right-hand columns besides the components (key, header, kind)
+INFO_COLUMNS = [("date", "Run date", "text"), ("notes", "Notes", "text"), ("judge", "Judge", "text"),
+                ("coverage", "Coverage", "text"), ("provider", "Provider", "text")]
+
+
+def columns(comps: list[dict]) -> tuple[list[dict], list[dict]]:
+    """``(main, extra)`` column specs baked into the page. ``extra`` is what
+    the ⚙ Columns chooser offers: every component (the default right-hand
+    set, in scoring order), then the run-info columns."""
+    main = [{"key": k, "label": t, "kind": kind} for k, t, kind in MAIN_COLUMNS]
+    extra = [{"key": f"c:{c['label']}", "label": c["label"], "kind": "num", "side": c["side"],
+              "group": f"{c['side'].title()} component"} for c in comps]
+    extra += [{"key": k, "label": t, "kind": kind, "group": "Run info"} for k, t, kind in INFO_COLUMNS]
+    return main, extra
+
+
 def render_html(rows: list[dict], subtitle: str = "",
                 components: list[dict] | None = None,
                 footer: list[str] | None = None) -> str:
@@ -77,60 +100,64 @@ def render_html(rows: list[dict], subtitle: str = "",
 
     ``rows``: ``report.html_rows`` shape. ``components``: ordered
     ``[{label, side: "chat"|"coding"}]`` (defaults to the labels found in the
-    rows). ``footer``: plain-text lines (suite revision, judge, render time)."""
+    rows). ``footer``: plain-text lines (suite revision, judge, render time).
+
+    The table head, the filter row and the column chooser are built by
+    ``script.js`` from the viewer's saved layout; this page only carries the
+    chrome and the data."""
     rows = scrub(rows)
-    comps = _components(rows, components)
+    comps = scrub(_components(rows, components))
+    main, extra = columns(comps)
     esc = html.escape
-    base = [("rank", "#"), ("label", "Model"), ("chat", "Chat"), ("coding", "Coding"),
-            ("overall", "Overall"), ("tok_s", "tok/s"), ("date", "Run date"), ("notes", "Notes")]
-    head = "".join(f'<th data-k="{k}" scope="col" aria-sort="none">{esc(t)} '
-                   f'<span class="arrow"></span></th>' for k, t in base)
-    head += "".join(f'<th data-k="c:{esc(c["label"])}" scope="col" aria-sort="none" '
-                    f'class="side-{esc(c["side"])}" title="{esc(c["side"].title())} component">'
-                    f'{esc(c["label"])} <span class="arrow"></span></th>' for c in comps)
-    opts = '<option value="">any</option>' + "".join(
-        f'<option value="{t}">{"≥" if t < 100 else ""}{t}</option>' for t in THRESHOLDS)
-    filters = "".join(
-        f'<label class="comp-filter side-{esc(c["side"])}" data-c="{esc(c["label"])}">'
-        f'<span class="lbl">{esc(c["label"])}</span>'
-        f'<select aria-label="minimum {esc(c["label"])}">{opts}</select></label>' for c in comps)
-    # phone controls (<= 720 px): one "Sort" select + direction toggle, and the
-    # element filters behind one "Filters (n)" disclosure. Same JS state as the
-    # table headers, so rotating the phone keeps the view.
+    # phone Sort select (the table headers sort too): every sortable key
     sort_opts = '<optgroup label="Headline">' + "".join(
-        f'<option value="{k}">{esc(t if k != "rank" else "Rank")}</option>'
-        for k, t in base if k != "notes") + "</optgroup>"
+        f'<option value="{c["key"]}">{esc("Rank" if c["key"] == "rank" else c["label"])}</option>'
+        for c in main) + "</optgroup>"
     for side, title in (("chat", "Chat components"), ("coding", "Coding components")):
         grp = "".join(f'<option value="c:{esc(c["label"])}">{esc(c["label"])}</option>'
                       for c in comps if c["side"] == side)
         if grp:
             sort_opts += f'<optgroup label="{title}">{grp}</optgroup>'
-    mobile = ('<div class="m-sort m-only"><label class="m-lbl" for="sortSel">Sort</label>'
+    sort_opts += '<optgroup label="Run info">' + "".join(
+        f'<option value="{k}">{esc(t)}</option>' for k, t, _ in INFO_COLUMNS) + "</optgroup>"
+    mobile = ('<div class="viewtog m-only" role="group" aria-label="phone layout">'
+              '<button id="viewTable" type="button" aria-pressed="true">Table</button>'
+              '<button id="viewCards" type="button" aria-pressed="false">Cards</button></div>'
+              '<div class="m-sort m-only"><label class="m-lbl" for="sortSel">Sort</label>'
               f'<select id="sortSel" aria-label="sort by">{sort_opts}</select>'
               '<button id="sortDir" type="button" aria-label="sort direction">Top first</button></div>'
               '<button id="filtersBtn" class="m-only" type="button" aria-expanded="false" '
               'aria-controls="filtersRow">Filters</button>')
+    chooser = ('<section class="cols-panel" id="colsPanel" aria-label="choose columns">'
+               '<div class="cols-head"><strong>Right-hand columns</strong>'
+               '<span class="muted">tick to show · drag or ↑↓ to order · saved for you</span>'
+               '<button id="colsDone" type="button">Done</button></div>'
+               '<ol class="cols-list" id="colsList"></ol></section>')
     foot = "".join(f"<p>{esc(scrub(line))}</p>" for line in (footer or []) if line)
-    payload = data_json({"rows": rows, "components": comps, "thresholds": THRESHOLDS})
+    payload = data_json({"rows": rows, "components": comps, "thresholds": THRESHOLDS,
+                         "main": main, "extra": extra})
     return (
         '<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">'
         '<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">'
         '<meta name="color-scheme" content="dark light">'
         '<title>CrucibleForge Board</title>'
-        f"<style>{CSS}</style></head><body>"
+        f"<style>{CSS}</style></head><body data-view=\"table\">"
         "<header><h1>CrucibleForge — Chat &amp; Coding</h1>"
         f'<div class="meta">{esc(scrub(subtitle))}</div>'
         '<div class="toolbar"><input id="filter" type="search" placeholder="filter model / provider…" '
         'aria-label="filter models">'
         f'{mobile}'
-        '<button id="expandAll">Expand all</button><button id="collapseAll">Collapse all</button>'
-        '<label><input type="checkbox" id="benched"> benched only</label></div>'
-        f'<div class="filters-row" id="filtersRow"><span class="flabel">Filter by element →</span>{filters}'
-        '<button id="clearFilters" title="Clear all element filters">Clear</button></div>'
+        '<button id="expandAll" type="button">Expand all</button>'
+        '<button id="collapseAll" type="button">Collapse all</button>'
+        '<label class="benched"><input type="checkbox" id="benched"> benched only</label>'
+        '<button id="colsBtn" type="button" aria-expanded="false" aria-controls="colsPanel">⚙ Columns</button>'
+        '<button id="resetLayout" type="button" title="Back to the default columns, sort and filters">'
+        'Reset layout</button></div>'
+        f'{chooser}'
+        '<div class="filters-row" id="filtersRow"></div>'
         f'<div class="meta" id="count">{len(rows)} models</div>'
         "</header>"
-        f'<div class="wrap"><table><thead><tr><th scope="col" style="width:24px"></th>{head}</tr></thead>'
-        '<tbody id="tbody"></tbody></table></div>'
+        '<div class="wrap"><table><thead id="thead"></thead><tbody id="tbody"></tbody></table></div>'
         '<div class="cards" id="cards"></div>'
         f"<footer>{foot}</footer>"
         f'<script type="application/json" id="board-data">{payload}</script>'
@@ -159,4 +186,5 @@ def example(path: str | None = None) -> str:
     return out
 
 
-__all__ = ["CSS", "JS", "THRESHOLDS", "data_json", "example", "render_html", "scrub"]
+__all__ = ["CSS", "INFO_COLUMNS", "JS", "MAIN_COLUMNS", "THRESHOLDS", "columns", "data_json", "example",
+           "render_html", "scrub"]
