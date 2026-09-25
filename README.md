@@ -436,6 +436,26 @@ Add `verify: {python: "<expr>"}` for any answer that can be recomputed. Long
 context: a `generator` block instead of a literal prompt. Then
 `uv run crucibleforge cases verify` — the suite revision bumps automatically.
 
+**Elements (3.5.0).** A case is graded as several independent pass/fail
+elements (InFoBench / IFEval instruction-level), aim for ≥ 5, each failable by
+at least one current model. The case still passes only when every element
+does (the strict rate stays comparable with old rows); each row also carries
+`elements: {results: [{id, type, pass, detail}], rate}` and the report adds an
+`element_rate` per objective component plus the failed elements, with evidence,
+in `failures.md`. Where elements come from:
+`checks` grader: one element per check. `exact` with `"elements": "positions"`
+(+ `element_labels`): one element per answer word (grid cells, one per
+islander). Tool scripts: one element per step. Judged cases: session `checks`
+(regex / counts / OOC / puppeting, deterministic) plus `judge_elements`:
+`[{"id", "q", "dim", "cap"}]`. The judge answers each one YES/NO with a
+**verbatim quote**; a YES whose quote (whitespace/case normalised, ≥ 12
+characters) is not in the assistant's text is scored NO. A failed judge element
+sets its `dim` flag false (steer: `obeyed`) or caps its `dim` dimension at
+`cap` (default 3). A multi-turn steer case is obeyed only when every session
+check passes too. Checks and `judge_elements` are grading, not the question:
+editing them does not change the suite revision (re-judge after editing a judge
+element or a steer check). Method and sources: `docs/differentiation-2026-09-25.md`.
+
 ## Content warning
 
 The `nsfw`, `overrefusal` and safety-probe cases contain sexual and

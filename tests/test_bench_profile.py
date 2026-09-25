@@ -48,7 +48,8 @@ def test_bench_budgets_are_unchanged_and_math_skips_recovery():
 def test_bench_case_set_is_small_and_drops_the_non_discriminating():
     _, _, cases = _bench()
     ids = {c["id"] for c in cases}
-    assert len(ids) == len(cases) == 33
+    # 3.5.0 (2026-09-25): 33 + 9 differentiation cases (SX1-3, TZ11-13, RX20-21, RPX3)
+    assert len(ids) == len(cases) == 42
     for dropped in ("CZ01-prime-census", "CZ03-lisp-machine", "MH16-digit-sum-power",
                     "MH22-dual-base-palindrome", "TZ02-unit-disambiguated-toolset",
                     "IZ02-json-single-line-typed", "RH5-weboflies"):
@@ -57,13 +58,18 @@ def test_bench_case_set_is_small_and_drops_the_non_discriminating():
     long_rows = [c for c in cases if c["category"] in long_cats or c["id"] == "RX13-recurrence-term"]
     # the long cases fit in ONE wave on an 8-slot model
     assert len(long_rows) <= 7
-    # chat half (3.4.0): 4 RP, 4 NSFW, 2 story, 3 steer = 13 judged rows; the
-    # old RP1-4 / RPM1-2 / N1-N4 / NM1 stay in the suite files, out of the bench
+    # chat half (3.4.0 + 3.5.0): 5 RP, 4 NSFW, 2 story, 6 steer = 17 judged rows;
+    # the old RP1-4 / RPM1-2 / N1-N4 / NM1 stay in the suite files, out of the bench
     chat = {c["id"] for c in cases if c["category"] in ("rp", "nsfw", "story", "steer")}
     assert chat == {"RPS1-hollow-reach", "RPS2-swap-seats", "RPX1-card-table",
-                    "RPX2-user-writes-npc", "NX1-tuning-fork", "NX2-juniper", "NX3-thaw",
-                    "NMX1-needle-and-gull", "ST1-ten-elements", "ST2-green-door",
-                    "S1-sfw-enforce", "S2-stay-in-character", "S3-sfw-pressure"}
+                    "RPX2-user-writes-npc", "RPX3-ferry-at-veln", "NX1-tuning-fork",
+                    "NX2-juniper", "NX3-thaw", "NMX1-needle-and-gull", "ST1-ten-elements",
+                    "ST2-green-door", "S1-sfw-enforce", "S2-stay-in-character", "S3-sfw-pressure",
+                    "SX1-harborline-ledger", "SX2-brightdesk-pip", "SX3-kestrel-wren"}
+    new_obj = {c["id"] for c in cases if c["category"] in ("tooluse", "reasoning")}
+    assert {"TZ11-clinic-ask-then-correct", "TZ12-stock-transfer-pallets",
+            "TZ13-meeting-dependent-args", "RX20-five-houses-four-attributes",
+            "RX21-flawed-cost-chain"} <= new_obj
     all_ids = {c["id"] for c in config.load_cases(["rp", "nsfw"])}
     assert {"RP1", "RPM2", "N3-graphic", "NM1-escalation"} <= all_ids
 

@@ -458,6 +458,33 @@ def story_block(story_final: list[dict]) -> dict:
             "n_scored": len(j), "n_total": len(story_final)}
 
 
+def _element_rate(rows: list[dict]) -> float | None:
+    """Instruction-level rate (IFEval) beside the strict case pass rate: the
+    mean over cases of the share of a case's elements that passed (a case
+    without elements is one element: its grade). Cases are weighted equally,
+    so a 20-cell grid does not outweigh a one-answer question."""
+    vals = []
+    for r in rows:
+        res = (r.get("elements") or {}).get("results")
+        if res:
+            vals.append(sum(1 for x in res if x.get("pass")) / len(res))
+        else:
+            vals.append(1.0 if r.get("grade") == "pass" else 0.0)
+    return (sum(vals) / len(vals)) if vals else None
+
+
+def _element_failure_line(r: dict) -> str | None:
+    """failures.md line for a failed case with per-element results: how many
+    elements failed, then each with its evidence."""
+    res = (r.get("elements") or {}).get("results") or []
+    bad = [x for x in res if not x.get("pass")]
+    if not bad:
+        return None
+    return (f"{r.get('case_id')}: {len(bad)}/{len(res)} elements failed — " + "; ".join(
+        f"{x.get('id')} ({_cut(str(x.get('detail') or ''), 70)})" for x in bad[:6])
+        + (f"; +{len(bad) - 6} more" if len(bad) > 6 else ""))
+
+
 def check_failures(rows: list[dict]) -> list[str]:
     """One line per case with failed deterministic checks: how many failed,
     then each failed check with its evidence snippet — the snippet is what
@@ -666,7 +693,8 @@ def model_stats(label: str, cfg: dict | None = None, rows: list[dict] | None = N
             return {"rate": None, "passed": 0, "n": 0, "failures": [],
                     "by_difficulty": {}, "skipped": skipped}
         passed = [r for r in graded if r["grade"] == "pass"]
-        failures = [f"{r['case_id']}: {_cut(str(r.get('grade_detail') or ''), 90)}"
+        failures = [_element_failure_line(r) or
+                    f"{r['case_id']}: {_cut(str(r.get('grade_detail') or ''), 90)}"
                     for r in graded if r["grade"] != "pass"]
         by_diff = {}
         for diff in ("easy", "medium", "hard"):
@@ -676,7 +704,7 @@ def model_stats(label: str, cfg: dict | None = None, rows: list[dict] | None = N
                 by_diff[diff] = {"rate": dp / len(drows), "passed": dp, "n": len(drows)}
         return {"rate": len(passed) / len(graded), "passed": len(passed),
                 "n": len(graded), "failures": failures, "by_difficulty": by_diff,
-                "skipped": skipped}
+                "skipped": skipped, "element_rate": _element_rate(graded)}
 
     # ---- long-context needle grid (parse length/depth from case_id) ----
     longctx_grid: dict = {}

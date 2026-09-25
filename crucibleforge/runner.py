@@ -943,6 +943,10 @@ def _run_single(case, base_row, ctx: _Ctx, max_tokens, temperature, top_p, seed)
                     if result.reasoning_text else "no reasoning channel")
             detail = f"TRUNCATED at {sent} tokens ({reas}); {detail}"
         row["grade_detail"] = detail
+        if verdict.get("results") is not None:
+            # per-element verdicts (grade_checks / positional exact): the case
+            # grade stays strict, the elements say how much was right
+            row["elements"] = {"results": verdict["results"], "rate": verdict.get("rate")}
         if verdict.get("needs_judge"):
             # reference-answer grading: a (small) LLM judge compares the
             # model's answer to the gold answer — see judge.RUBRICS["reference"]
@@ -1054,6 +1058,13 @@ def _parallel_block(script: list[dict], i: int, calls: list[dict]) -> list[int] 
     return block
 
 
+def _step_type(step: dict) -> str:
+    """Element type of a tool_script step, for failures.md."""
+    if step.get("expect_tool"):
+        return "tool_call"
+    return "no_tool" if step.get("expect_no_tool") else "answer"
+
+
 def _run_tool_loop(case, base_row, ctx: _Ctx, max_tokens, temperature, seed) -> dict:
     """Agent tool loop: model calls a tool, we inject a canned tool result,
     the model must incorporate it into a final answer. Grades every step
@@ -1140,6 +1151,12 @@ def _run_tool_loop(case, base_row, ctx: _Ctx, max_tokens, temperature, seed) -> 
     passed = bool(graded) and all(s["grade"] == "pass" for s in graded)
     detail = "; ".join(f"step{k+1}:{s['grade']}({s['detail']})"
                        for k, s in enumerate(steps) if s is not None)
+    # one step = one element (BFCL multi-turn / tau-bench milestones): the
+    # case passes only when every step does, the elements keep each verdict
+    results = [{"id": f"step{k + 1}", "type": _step_type(script[k]),
+                "pass": s["grade"] == "pass", "detail": str(s["detail"])[:300]}
+               for k, s in enumerate(steps) if s is not None]
+    rate = round(sum(r["pass"] for r in results) / len(results), 3) if results else None
     row = {**base_row, "run_id": str(uuid.uuid4())[:8], "turn": None,
             "prompt": case["tool_script"][0].get("user", ""),
             "response": (last_result.response_text if last_result else ""),
@@ -1147,6 +1164,7 @@ def _run_tool_loop(case, base_row, ctx: _Ctx, max_tokens, temperature, seed) -> 
             "tool_calls": [], "finish_reason": (last_result.finish_reason if last_result else None),
             "truncated": False,
             "grade": "pass" if passed else "fail", "grade_detail": detail[:300],
+            "elements": {"results": results, "rate": rate},
             "metrics": _metrics(last_result) if last_result else {}}
     if last_result is not None:
         _annotate_recovery(row, last_result)

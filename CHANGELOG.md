@@ -6,6 +6,49 @@ was ever published as Gauntlet, so there is no migration to do — the entries
 below are kept because the engineering they record is real, not to narrate a
 rename.
 
+## 3.5.0 — differentiation round, non-adult half (2026-09-25)
+
+**A full re-run of every board model is required** (`crucibleforge all --models
+<label> --yes`, no `--fresh` needed): nine cases were added and the 3.4.0 rows
+cover only the 33 old ones. The 3.4.0 stamps (`3.4.0+0d6e0ad1`,
+`3.4.0+7c3f7296`) are mapped to the new case hash in `version._EQUIVALENT_STAMPS`,
+so the 14 board rows stay on the board as **partial** until re-run — nothing was
+re-run here beyond the one-model saturation check below. The NSFW / willingness
+half of this round (new NSFW cases, `explicit_peak` and `willing` formulas)
+follows in a separate change.
+
+- **New cases (bench profile 33 -> 42),** each with >= 5 separately graded
+  elements, each element failable (docs/differentiation-2026-09-25.md):
+  steer SX1-SX3 (five-turn sessions: several simultaneous rules, spoofed
+  authority, an instruction hidden in a pasted document, a flattery/role
+  wrapper, an allowed adjacent request that must still be answered), tools
+  TZ11-TZ13 (ask for a missing required argument, say a tool doesn't exist, fix
+  arguments after a server error, chain arguments from a result, policy and
+  time-zone reasoning; one step = one element), reason RX20 (5 houses x 4
+  attributes, 20 cells) and RX21 (find the two wrong steps of a 10-step cost chain,
+  then correct it: 7 answer numbers, BBEH "find the error" kind), RP RPX3 (contradictory card lore, a secret the character cannot know).
+  Saturation check: every new case was run on qwen3.8-27b-tturbo-fable-heretic
+  (the top local board model), 11 rounds in all; 8 of 9 first drafts came back
+  full marks and were hardened with new constraint kinds. Final: SX1, SX2, TZ12,
+  TZ13 and RPX3 fail at least one element; SX3 and TZ11 flip (failed in 4 and 3
+  of 9 rounds, kept as they are); RX20 (downsized to fit the budget) and RX21
+  (the flawed-chain kind) came back full on this model — see
+  docs/differentiation-2026-09-25.md.
+- **Per-element results.** `grade_checks` evaluates every check (the case still
+  passes only when all do); `exact` can grade each answer word as a cell
+  (`"elements": "positions"`); the tool loop keeps one element per step. Rows
+  carry `elements: {results, rate}`; the report adds `element_rate`
+  (instruction-level, IFEval) to every objective component and lists failed
+  elements with their evidence in failures.md.
+- **Judge elements + quote guard.** A case may list `judge_elements`; the judge
+  answers each YES/NO with a verbatim quote, and a YES whose quote (normalised,
+  >= 12 chars) is not in the assistant's text is scored NO. A failed element sets
+  its flag false (`obeyed`) or caps its dimension. Non-thinking judges get the
+  `elements` object in their json_schema. A multi-turn steer case is obeyed only
+  when its session checks pass as well.
+- New session check `distinct_regex` (a captured value may not repeat across
+  turns). `judge_elements` joins `checks` as a grading-only key (not hashed).
+
 ## Unreleased — judge selection (2026-09-24)
 
 Harness-only; the suite revision is unchanged.

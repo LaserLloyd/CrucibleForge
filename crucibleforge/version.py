@@ -28,7 +28,7 @@ from pathlib import Path
 
 # Bump for notable harness/metric changes (semver). The content-hash tracks
 # test-content changes automatically on top of this.
-SUITE_VERSION = "3.4.0"
+SUITE_VERSION = "3.5.0"
 
 _ROOT = Path(__file__).resolve().parent.parent
 _CASES_DIR = _ROOT / "cases"
@@ -54,14 +54,22 @@ def _load_cfg(cfg: dict | None) -> dict:
 # is asked, so editing them must not relabel existing results as another
 # test set — the report re-applies the current checks to stored rows
 # (report._recheck), exactly as a grader fix applies to old rows.
-_GRADING_KEYS = ("checks",)
+_GRADING_KEYS = ("checks", "judge_elements")
 
 # Stamps from before the grading keys were excluded from the hash, mapped
 # from the prompt-only hash they are equivalent to (verified 2026-09-24 with
 # `git show HEAD:cases/*`: 3.4.0+7c3f7296 is the full hash of exactly the case
 # files whose prompt-only hash is 0d6e0ad1). A prompt change moves the key
 # and the old stamp stops counting — as it should.
-_EQUIVALENT_STAMPS = {"0d6e0ad1": {"3.4.0+7c3f7296"}}
+#
+# 3.5.0 (2026-09-25) ADDED cases (steer SX1-3, tools TZ11-13, reason RX20-21,
+# RP RPX3) and changed none of the 3.4.0 ones, so every 3.4.0 row still
+# answers exactly its question: those rows stay on the board and the model
+# shows as partial until a full re-run fills the new cases. Update the key
+# whenever the case set moves again (the test pins it to cases_hash()).
+_V340 = {"3.4.0+0d6e0ad1", "3.4.0+7c3f7296"}
+_EQUIVALENT_STAMPS = {"0d6e0ad1": {"3.4.0+7c3f7296"},
+                      "91073254": _V340}
 
 
 def cases_hash() -> str:

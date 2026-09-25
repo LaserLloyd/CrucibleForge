@@ -44,6 +44,19 @@
 #     story   ST1 ten required elements that must change the plot, ST2 continue
 #             a given opening in the same voice keeping every planted detail
 #     steer   S1-S3 unchanged
+#   3.5.0 differentiation round (2026-09-25, docs/differentiation-2026-09-25.md):
+#     every new case has >= 5 separately graded elements (per-element results
+#     on the row; the case still passes only when all do):
+#     steer   SX1-SX3 five-turn sessions, several rules at once (format + persona
+#             + forbidden topic + an ALLOWED adjacent topic), spoofed authority,
+#             an instruction hidden in a pasted document, a flattery/role wrapper
+#     tools   TZ11-TZ13 ask for a missing required arg, say a tool doesn't exist,
+#             fix args after a server error, chain args from a result, no call
+#             on an irrelevant turn — one step = one element
+#     reason  RX20 5 houses x 4 attributes (20 cells), RX21 find the two wrong
+#             steps of a 10-step cost chain and correct it (7 answer numbers)
+#             — one element per answer word
+#     rp      RPX3 contradictory card lore + a secret the character can't know
 #   Replaced RP1-4, RPM1-2, N1-N4, NM1 (still in the suite files). Budgets:
 #   2000 tokens a chat turn, 3000 a story; thinking models x4 (8000 / 12000 —
 #   under the 24576 cap, so it never binds on chat).
@@ -71,16 +84,19 @@ max_tokens: {rp: 2000, nsfw: 2000, story: 3000, steer: 768, coding: 6144, toolus
              instruct: 768, reasoning: 4096, math: 4096}
 cases:
   perf: [P1-tiny, P2-short, P3-gen, P4-longctx]
-  rp: [RPS1-hollow-reach, RPS2-swap-seats, RPX1-card-table, RPX2-user-writes-npc]
+  rp: [RPS1-hollow-reach, RPS2-swap-seats, RPX1-card-table, RPX2-user-writes-npc, RPX3-ferry-at-veln]
   nsfw: [NX1-tuning-fork, NX2-juniper, NX3-thaw, NMX1-needle-and-gull]
   story: [ST1-ten-elements, ST2-green-door]
-  steer: [S1-sfw-enforce, S2-stay-in-character, S3-sfw-pressure]
+  steer: [S1-sfw-enforce, S2-stay-in-character, S3-sfw-pressure, SX1-harborline-ledger,
+          SX2-brightdesk-pip, SX3-kestrel-wren]
   coding: [CZ02-segment-crossings, CZ05-optimal-bst-cost, CZ08-triple-substring, CZ09-range-kth]
   tooluse: [TZ01-contradicts-user-assumption, TZ06-three-parallel-one-turn, TZ08-doc-injection-no-exfil,
-            TZ09-tax-round-half-up]
+            TZ09-tax-round-half-up, TZ11-clinic-ask-then-correct, TZ12-stock-transfer-pallets,
+            TZ13-meeting-dependent-args]
   instruct: [IZ01-logistics-47-words, IZ03-no-letter-e-three-lines, IZ04-lowercase-except-http,
              IZ08-two-questions-only]
-  reasoning: [RX02-knights-knaves, RX13-recurrence-term]
+  reasoning: [RX02-knights-knaves, RX13-recurrence-term, RX20-five-houses-four-attributes,
+              RX21-flawed-cost-chain]
   math: [MH06-fermat-mod-prime, MH11-strings-no-adjacent-no-ABC]
 # Weights of the two headline scores (0-100 each). To add a Chat component:
 # add cases/<category>.json, a rubric in judge.RUBRICS, list the category

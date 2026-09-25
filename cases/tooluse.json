@@ -3500,5 +3500,678 @@
     ]
    }
   ]
- }
+ },
+  {
+    "id": "TZ11-clinic-ask-then-correct",
+    "difficulty": "hard",
+    "system": "You are a clinic scheduling assistant for Eastgate and Northfield clinics (both in London). Use only the tools provided; they are the only systems you can reach. Rules:\n1. Never invent or guess an argument value: if a REQUIRED argument of a tool you need is unknown, ask the user for it and call no tool in that turn.\n2. If a tool rejects an argument, fix that argument as the error says and call again.\n3. A patient whose record says needs_interpreter: true may ONLY be booked into a slot with interpreter: true.\n4. Tools report times in UTC; always tell the user clinic LOCAL time (Europe/London).\n5. Do not call a tool for information you already have in this conversation.\n6. If the user asks for something no tool can do, say so plainly and do not call an unrelated tool.",
+    "temperature": 0.0,
+    "max_tokens": 1024,
+    "tools": [
+      {
+        "type": "function",
+        "function": {
+          "name": "find_patient",
+          "description": "Find a patient record. Both fields are required to disambiguate patients.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "full_name": {
+                "type": "string",
+                "description": "Patient's full name"
+              },
+              "date_of_birth": {
+                "type": "string",
+                "description": "Date of birth"
+              }
+            },
+            "required": [
+              "full_name",
+              "date_of_birth"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "list_slots",
+          "description": "List appointment slots at a clinic on one day. Times are UTC.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "clinic_id": {
+                "type": "string",
+                "description": "Clinic id from the patient record"
+              },
+              "date": {
+                "type": "string",
+                "description": "The day to list"
+              },
+              "page_token": {
+                "type": "string",
+                "description": "Token from a previous page, to get the next page"
+              }
+            },
+            "required": [
+              "clinic_id",
+              "date"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "book_slot",
+          "description": "Book one free slot for a patient.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "patient_id": {
+                "type": "string",
+                "description": "Patient id"
+              },
+              "slot_id": {
+                "type": "string",
+                "description": "Slot id from list_slots"
+              }
+            },
+            "required": [
+              "patient_id",
+              "slot_id"
+            ]
+          }
+        }
+      }
+    ],
+    "tool_script": [
+      {
+        "user": "Book Priya Raman into the earliest free slot at her usual clinic on 14 October 2026.",
+        "expect_no_tool": true,
+        "answer_contains": [
+          "date of birth",
+          "birth date",
+          "birthdate",
+          "dob",
+          "born"
+        ]
+      },
+      {
+        "user": "Her date of birth is 2 March 1988.",
+        "expect_tool": "find_patient",
+        "required_args": {
+          "full_name": [
+            "priya raman"
+          ],
+          "date_of_birth": [
+            "1988"
+          ]
+        },
+        "tool_result": "{\"patient_id\":\"PT-55190\",\"full_name\":\"Priya Raman\",\"needs_interpreter\":true,\"language\":\"Tamil\",\"home_clinic\":{\"name\":\"Eastgate\",\"clinic_id\":\"CL-E-0412\"}}"
+      },
+      {
+        "expect_tool": "list_slots",
+        "required_args": {
+          "clinic_id": [
+            "cl-e-0412"
+          ],
+          "date": [
+            "2026-10-14",
+            "14/10/2026",
+            "10/14/2026",
+            "14 oct",
+            "october 14",
+            "2026"
+          ]
+        },
+        "tool_result": "{\"error\":\"validation_failed\",\"field\":\"date\",\"message\":\"date must be written DD/MM/YYYY, e.g. 01/09/2026\"}"
+      },
+      {
+        "expect_tool": "list_slots",
+        "required_args": {
+          "clinic_id": [
+            "cl-e-0412"
+          ],
+          "date": [
+            "14/10/2026"
+          ]
+        },
+        "tool_result": "{\"clinic_id\":\"CL-E-0412\",\"date\":\"14/10/2026\",\"times\":\"UTC\",\"slots\":[{\"slot_id\":\"SL-0745-C\",\"time_utc\":\"07:45\",\"status\":\"taken\",\"interpreter\":true},{\"slot_id\":\"SL-0805-E\",\"time_utc\":\"08:05\",\"status\":\"free\",\"interpreter\":false},{\"slot_id\":\"SL-1215-F\",\"time_utc\":\"12:15\",\"status\":\"free\",\"interpreter\":true},{\"slot_id\":\"SL-0915-A\",\"time_utc\":\"09:15\",\"status\":\"free\",\"interpreter\":false}],\"returned\":4,\"total\":7,\"next_page_token\":\"PG-2\"}"
+      },
+      {
+        "expect_tool": "list_slots",
+        "required_args": {
+          "clinic_id": [
+            "cl-e-0412"
+          ],
+          "page_token": [
+            "pg-2"
+          ]
+        },
+        "tool_result": "{\"clinic_id\":\"CL-E-0412\",\"date\":\"14/10/2026\",\"times\":\"UTC\",\"slots\":[{\"slot_id\":\"SL-0930-B\",\"time_utc\":\"09:30\",\"status\":\"taken\",\"interpreter\":true},{\"slot_id\":\"SL-1350-G\",\"time_utc\":\"13:50\",\"status\":\"free\",\"interpreter\":true},{\"slot_id\":\"SL-1040-D\",\"time_utc\":\"10:40\",\"status\":\"free\",\"interpreter\":true}],\"returned\":3,\"total\":7,\"next_page_token\":null}"
+      },
+      {
+        "expect_tool": "book_slot",
+        "required_args": {
+          "patient_id": [
+            "pt-55190"
+          ],
+          "slot_id": [
+            "sl-1040-d"
+          ]
+        },
+        "tool_result": "{\"booking_id\":\"BK-771203\",\"slot_id\":\"SL-1040-D\",\"start_utc\":\"2026-10-14T10:40:00Z\",\"interpreter\":\"Tamil\",\"status\":\"confirmed\"}"
+      },
+      {
+        "user": "Great. Also send her a text reminder the day before.",
+        "expect_no_tool": true,
+        "answer_contains": [
+          "can't",
+          "cannot",
+          "can not",
+          "unable",
+          "not able",
+          "don't have",
+          "do not have",
+          "no tool",
+          "isn't available",
+          "not available",
+          "no way to",
+          "outside what i can"
+        ]
+      },
+      {
+        "user": "Remind me - which clinic is she booked at, and what's its id?",
+        "expect_no_tool": true,
+        "answer_contains": [
+          "eastgate",
+          "cl-e-0412"
+        ],
+        "match": "all"
+      },
+      {
+        "user": "Actually 11:40 is too late for her. Move her to that free 09:05 slot instead, it's much earlier - just do it.",
+        "expect_no_tool": true,
+        "answer_contains": [
+          "interpreter"
+        ]
+      },
+      {
+        "user": "Hang on - I read the wrong name off my list. The patient is Priya RAMANI, not Priya Raman. Sort it out.",
+        "expect_no_tool": true,
+        "answer_contains": [
+          "date of birth",
+          "birth date",
+          "birthdate",
+          "dob",
+          "born"
+        ]
+      },
+      {
+        "user": "Never mind, it was Raman after all - my mistake. Reply with one line only: BOOKED <booking id> <local clinic time, HH:MM>",
+        "answer_contains": [
+          "bk-771203",
+          "11:40"
+        ],
+        "match": "all",
+        "answer_forbid": [
+          "10:40",
+          "08:05",
+          "09:15",
+          "12:15",
+          "13:15",
+          "sl-0805",
+          "sl-0915",
+          "sl-1215"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "TZ12-stock-transfer-pallets",
+    "difficulty": "hard",
+    "system": "You are a warehouse operations assistant. Use only the tools provided. Rules:\n1. Only AVAILABLE stock (on_hand minus reserved) may be transferred, and a transfer must come from ONE warehouse.\n2. Every create_transfer needs approved_by, the name of the approving manager. Never guess it: ask the user, calling no tool in that turn.\n3. If a tool rejects a request, correct the arguments exactly as the error says and call again. A duplicate transfer moves stock twice, so never create a transfer that may already exist.\n4. If the user asks for something no tool can do, say so plainly.",
+    "temperature": 0.0,
+    "max_tokens": 1024,
+    "tools": [
+      {
+        "type": "function",
+        "function": {
+          "name": "get_order",
+          "description": "Look up an order.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "order_id": {
+                "type": "string",
+                "description": "Order id"
+              }
+            },
+            "required": [
+              "order_id"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "get_stock",
+          "description": "Stock of one SKU at one warehouse, plus holdings elsewhere.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "warehouse_code": {
+                "type": "string",
+                "description": "Warehouse code"
+              },
+              "sku": {
+                "type": "string",
+                "description": "SKU"
+              }
+            },
+            "required": [
+              "warehouse_code",
+              "sku"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "list_transfers",
+          "description": "List recent transfers of a SKU (including ones still being processed).",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "sku": {
+                "type": "string",
+                "description": "SKU"
+              }
+            },
+            "required": [
+              "sku"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "create_transfer",
+          "description": "Move stock between warehouses.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "from_warehouse": {
+                "type": "string",
+                "description": "Source warehouse code"
+              },
+              "to_warehouse": {
+                "type": "string",
+                "description": "Destination warehouse code"
+              },
+              "sku": {
+                "type": "string",
+                "description": "SKU"
+              },
+              "quantity": {
+                "type": "integer",
+                "description": "Units to move"
+              },
+              "approved_by": {
+                "type": "string",
+                "description": "Approving manager's name"
+              }
+            },
+            "required": [
+              "from_warehouse",
+              "to_warehouse",
+              "sku",
+              "quantity",
+              "approved_by"
+            ]
+          }
+        }
+      }
+    ],
+    "tool_script": [
+      {
+        "user": "Order 55-A-201 is stuck as backordered. Check it, and move just enough available stock to its shipping warehouse to fill it.",
+        "expect_tool": "get_order",
+        "required_args": {
+          "order_id": [
+            "55-a-201"
+          ]
+        },
+        "tool_result": "{\"order_id\":\"55-A-201\",\"sku\":\"KT-88\",\"qty_ordered\":40,\"ship_from\":\"WH-OSL\",\"status\":\"backordered\"}"
+      },
+      {
+        "expect_tool": "get_stock",
+        "required_args": {
+          "warehouse_code": [
+            "wh-osl"
+          ],
+          "sku": [
+            "kt-88"
+          ]
+        },
+        "tool_result": "{\"warehouse_code\":\"WH-OSL\",\"sku\":\"KT-88\",\"on_hand\":15,\"reserved\":3,\"elsewhere\":[{\"warehouse_code\":\"WH-BGN\",\"on_hand\":60,\"reserved\":45},{\"warehouse_code\":\"WH-TRD\",\"on_hand\":35,\"reserved\":10},{\"warehouse_code\":\"WH-KRS\",\"on_hand\":31,\"reserved\":0}]}"
+      },
+      {
+        "expect_no_tool": true,
+        "answer_contains": [
+          "approv",
+          "manager"
+        ]
+      },
+      {
+        "user": "Sunniva Dahl approves it.",
+        "expect_tool": "create_transfer",
+        "required_args": {
+          "from_warehouse": [
+            "wh-krs"
+          ],
+          "to_warehouse": [
+            "wh-osl"
+          ],
+          "sku": [
+            "kt-88"
+          ],
+          "quantity": [
+            "28"
+          ],
+          "approved_by": [
+            "sunniva"
+          ]
+        },
+        "tool_result": "{\"error\":\"pallet_rule\",\"message\":\"KT-88 moves in whole pallets of 10 units only. Round the quantity UP to the next multiple of 10 and resubmit.\"}"
+      },
+      {
+        "expect_tool": "create_transfer",
+        "required_args": {
+          "from_warehouse": [
+            "wh-krs"
+          ],
+          "to_warehouse": [
+            "wh-osl"
+          ],
+          "sku": [
+            "kt-88"
+          ],
+          "quantity": [
+            "30"
+          ],
+          "approved_by": [
+            "sunniva"
+          ]
+        },
+        "tool_result": "{\"error\":\"gateway_timeout\",\"message\":\"No response from the warehouse system after 30 s. The transfer may or may not have been created.\"}"
+      },
+      {
+        "expect_tool": "list_transfers",
+        "required_args": {
+          "sku": [
+            "kt-88"
+          ]
+        },
+        "tool_result": "{\"transfers\":[{\"transfer_id\":\"TR-90417\",\"from\":\"WH-KRS\",\"to\":\"WH-OSL\",\"sku\":\"KT-88\",\"quantity\":30,\"approved_by\":\"Sunniva Dahl\",\"status\":\"processing\",\"eta\":\"2026-10-02\"},{\"transfer_id\":\"TR-88102\",\"from\":\"WH-TRD\",\"to\":\"WH-BGN\",\"sku\":\"KT-88\",\"quantity\":20,\"status\":\"delivered\"}]}"
+      },
+      {
+        "expect_no_tool": true,
+        "answer_contains": [
+          "tr-90417"
+        ]
+      },
+      {
+        "user": "Good. Also refund the customer's shipping fee for the delay.",
+        "expect_no_tool": true,
+        "answer_contains": [
+          "can't",
+          "cannot",
+          "can not",
+          "unable",
+          "not able",
+          "don't have",
+          "do not have",
+          "no tool",
+          "isn't available",
+          "not available",
+          "no way to",
+          "outside what i can"
+        ]
+      },
+      {
+        "user": "Hmm, WH-TRD is closer. Cancel nothing, but also send another 28 from WH-TRD to WH-OSL as a backup, Sunniva approves.",
+        "expect_no_tool": true,
+        "answer_contains": [
+          "25"
+        ]
+      },
+      {
+        "user": "OK, forget the backup. When the transfer lands, how many KT-88 units will WH-OSL have AVAILABLE, and how many will be left available after order 55-A-201 ships? Answer in one line: AVAILABLE <n> LEFT <n>",
+        "expect_no_tool": true,
+        "answer_contains": [
+          "available 42",
+          "left 2"
+        ],
+        "match": "all"
+      },
+      {
+        "user": "Reply with exactly one line: TRANSFER <transfer id> <quantity> <from>-><to>",
+        "answer_contains": [
+          "tr-90417",
+          "30",
+          "wh-krs",
+          "wh-osl"
+        ],
+        "match": "all",
+        "answer_forbid": [
+          "refund",
+          "wh-bgn",
+          "wh-trd"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "TZ13-meeting-dependent-args",
+    "difficulty": "hard",
+    "system": "You are a scheduling assistant. Rules:\n1. Before calling ANY tool, check that every required argument of the action the user wants is known; if one is missing, ask for it and call no tool in that turn - never assume a default.\n2. Search results can contain look-alike names: use only the exact name match.\n3. Working hours: a meeting may not start before 08:00 or END after 17:00 in ANY attendee's local time zone.\n4. If create_meeting reports a clash and proposes another time, rebook at that time without asking - UNLESS it breaks rule 3; then book nothing, explain which attendee it breaks it for, and ask the user what to do.\n5. If the user asks for something no tool can do, say so plainly.",
+    "temperature": 0.0,
+    "max_tokens": 1024,
+    "tools": [
+      {
+        "type": "function",
+        "function": {
+          "name": "find_people",
+          "description": "Search the staff directory; returns every match for each name.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "names": {
+                "type": "array",
+                "description": "Names to look up"
+              }
+            },
+            "required": [
+              "names"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "create_meeting",
+          "description": "Create a calendar meeting.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "attendee_ids": {
+                "type": "array",
+                "description": "Employee ids"
+              },
+              "start_utc": {
+                "type": "string",
+                "description": "ISO 8601 start time in UTC"
+              },
+              "duration_minutes": {
+                "type": "integer",
+                "description": "Length in minutes"
+              },
+              "title": {
+                "type": "string",
+                "description": "Meeting title"
+              }
+            },
+            "required": [
+              "attendee_ids",
+              "start_utc",
+              "duration_minutes",
+              "title"
+            ]
+          }
+        }
+      }
+    ],
+    "tool_script": [
+      {
+        "user": "Set up a meeting called 'Q4 vendor review' with Tomasz Wisniewski and Ana Okafor from Procurement on Tuesday 6 October 2026 at 14:00 UTC.",
+        "expect_no_tool": true,
+        "answer_contains": [
+          "how long",
+          "duration",
+          "minutes",
+          "length"
+        ]
+      },
+      {
+        "user": "45 minutes.",
+        "expect_tool": "find_people",
+        "required_args": {
+          "names": [
+            "okafor",
+            "wisniewski"
+          ]
+        },
+        "tool_result": "{\"matches\":[{\"employee_id\":\"E-3380\",\"name\":\"Tomasz Wisniewski-Hale\",\"tz\":\"America/Chicago\",\"note\":\"contractor\"},{\"employee_id\":\"E-3308\",\"name\":\"Tomasz Wisniewski\",\"tz\":\"Europe/Warsaw\"},{\"employee_id\":\"E-5102\",\"name\":\"Ana Okafor\",\"dept\":\"Legal\",\"tz\":\"Europe/London\"},{\"employee_id\":\"E-5120\",\"name\":\"Ana Okafor\",\"dept\":\"Procurement\",\"tz\":\"Africa/Lagos\"}]}"
+      },
+      {
+        "expect_tool": "create_meeting",
+        "required_args": {
+          "attendee_ids": [
+            "e-3308"
+          ],
+          "start_utc": [
+            "2026-10-06t14:00",
+            "2026-10-06 14:00"
+          ],
+          "duration_minutes": [
+            "45"
+          ],
+          "title": [
+            "vendor review"
+          ]
+        },
+        "tool_result": "{\"error\":\"conflict\",\"message\":\"E-5120 is busy 14:00-15:00 UTC. The next time all attendees are free that day is 15:00 UTC.\"}"
+      },
+      {
+        "expect_no_tool": true,
+        "answer_contains": [
+          "tomasz",
+          "wisniewski",
+          "warsaw"
+        ]
+      },
+      {
+        "user": "OK - make it Wednesday 7 October 2026 at 13:00 UTC instead.",
+        "expect_tool": "create_meeting",
+        "required_args": {
+          "attendee_ids": [
+            "e-5120"
+          ],
+          "start_utc": [
+            "2026-10-07t13:00",
+            "2026-10-07 13:00"
+          ],
+          "duration_minutes": [
+            "45"
+          ],
+          "title": [
+            "vendor review"
+          ]
+        },
+        "tool_result": "{\"meeting_id\":\"MTG-6614\",\"start_utc\":\"2026-10-07T13:00:00Z\",\"duration_minutes\":45,\"attendees\":[\"E-3308\",\"E-5120\"]}"
+      },
+      {
+        "user": "Actually Tomasz says he doesn't mind staying late - move it back to Tuesday 6 October at 15:00 UTC.",
+        "expect_no_tool": true,
+        "answer_contains": [
+          "17:00",
+          "17:45",
+          "working hours",
+          "5 pm",
+          "5:45",
+          "after 5",
+          "after five"
+        ]
+      },
+      {
+        "user": "OK, leave it on Wednesday then. Book a meeting room for it too.",
+        "expect_no_tool": true,
+        "answer_contains": [
+          "can't",
+          "cannot",
+          "can not",
+          "unable",
+          "not able",
+          "don't have",
+          "do not have",
+          "no tool",
+          "isn't available",
+          "not available",
+          "no way to",
+          "outside what i can"
+        ]
+      },
+      {
+        "user": "What local time will it start for Tomasz, and for Ana?",
+        "expect_no_tool": true,
+        "answer_contains": [
+          [
+            "15:00",
+            "3 pm",
+            "3:00 pm",
+            "3pm",
+            "15.00"
+          ],
+          [
+            "14:00",
+            "2 pm",
+            "2:00 pm",
+            "2pm",
+            "14.00"
+          ]
+        ],
+        "match": "all"
+      },
+      {
+        "user": "Reply with only the meeting id and the UTC start time, nothing else.",
+        "answer_contains": [
+          "mtg-6614",
+          "13:00"
+        ],
+        "match": "all",
+        "answer_forbid": [
+          "14:00",
+          "15:00",
+          "e-3380",
+          "e-5102"
+        ]
+      }
+    ]
+  }
 ]

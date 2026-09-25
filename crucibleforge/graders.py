@@ -424,103 +424,121 @@ def _strip_fence(text: str) -> str:
     return m.group(1).strip() if m else text.strip()
 
 
+def _check_one(text: str, check: dict) -> tuple[bool, str]:
+    """One declarative check -> (passed, detail). The detail of a failure is
+    the evidence shown in failures.md."""
+    kind = check["type"]
+    if kind == "exact":
+        if text != check["value"]:
+            return False, f"exact mismatch: got {text[:80]!r}"
+    elif kind == "lowercase":
+        letters = [c for c in text if c.isalpha()]
+        if not letters or any(c.isupper() for c in letters):
+            return False, "not all-lowercase (or no letters)"
+    elif kind == "line_count_prefix":
+        lines = [l for l in text.splitlines() if l.strip()]
+        if len(lines) != check["n"]:
+            return False, f"{len(lines)} lines, expected {check['n']}"
+        bad = [l for l in lines if not l.startswith(check["prefix"])]
+        if bad:
+            return False, f"line missing prefix: {bad[0][:60]!r}"
+    elif kind == "ends_with":
+        if not text.rstrip().endswith(check["value"]):
+            return False, f"does not end with {check['value']!r}"
+    elif kind == "json_object":
+        try:
+            obj = json.loads(_strip_fence(text))
+        except json.JSONDecodeError as e:
+            return False, f"invalid JSON: {e}"
+        if not isinstance(obj, dict):
+            return False, "JSON is not an object"
+        for key, typ in check.get("keys", {}).items():
+            if key not in obj:
+                return False, f"missing key {key!r}"
+            if typ == "bool":
+                ok = isinstance(obj[key], bool)
+            elif typ == "int":
+                ok = isinstance(obj[key], int) and not isinstance(obj[key], bool)
+            elif typ == "number":
+                ok = isinstance(obj[key], (int, float)) and not isinstance(obj[key], bool)
+            elif typ == "str":
+                ok = isinstance(obj[key], str)
+            elif typ == "list":
+                ok = isinstance(obj[key], list)
+            else:
+                return False, f"unknown json type {typ!r}"
+            if not ok:
+                return False, f"key {key!r} is {type(obj[key]).__name__}, expected {typ}"
+    elif kind == "max_words":
+        if len(text.split()) > check["n"]:
+            return False, f"{len(text.split())} words > {check['n']}"
+    elif kind == "min_words":
+        if len(text.split()) < check["n"]:
+            return False, f"{len(text.split())} words < {check['n']}"
+    elif kind == "forbidden_words":
+        low = text.lower()
+        hit = [w for w in check["words"] if re.search(rf"\b{re.escape(w.lower())}\b", low)]
+        if hit:
+            return False, f"used forbidden word(s): {hit}"
+    elif kind == "required_words":
+        low = text.lower()
+        miss = [w for w in check["words"] if re.search(rf"\b{re.escape(w.lower())}\b", low) is None]
+        if miss:
+            return False, f"missing required word(s): {miss}"
+    elif kind == "keyword_count":
+        low = text.lower()
+        c = len(re.findall(rf"\b{re.escape(check['word'].lower())}\b", low))
+        if c != check["n"]:
+            return False, f"'{check['word']}' appears {c}x, expected {check['n']}"
+    elif kind == "sentence_count":
+        # Guard common false boundaries before splitting: decimals (3.50)
+        # and a few abbreviations (Dr., Mr., e.g., i.e., etc.).
+        guarded = re.sub(r"(\d)\.(\d)", r"\1<DOT>\2", text)
+        for abbr in ("Dr.", "Mr.", "Mrs.", "Ms.", "Prof.", "e.g.", "i.e.",
+                     "etc.", "vs.", "St.", "Jr.", "Sr."):
+            guarded = guarded.replace(abbr, abbr.replace(".", "<DOT>"))
+        sents = [s for s in re.split(r"[.!?]+", guarded) if s.strip()]
+        if len(sents) != check["n"]:
+            return False, f"{len(sents)} sentences, expected {check['n']}"
+    elif kind == "all_caps":
+        letters = [c for c in text if c.isalpha()]
+        if not letters or any(c.islower() for c in letters):
+            return False, "not all-uppercase (or no letters)"
+    elif kind == "starts_with":
+        if not text.startswith(check["value"]):
+            return False, f"does not start with {check['value']!r}"
+    elif kind == "regex":
+        if re.search(check["pattern"], text) is None:
+            return False, f"no match for /{check['pattern']}/"
+    else:
+        return False, f"unknown check type {kind!r}"
+    return True, "ok"
+
+
 def grade_checks(response_text: str, cfg: dict) -> dict:
-    """Run every declarative check; all must pass. An empty response fails
+    """Run EVERY declarative check (instruction-level, IFEval): the case
+    passes only when all do (prompt-level strict, unchanged), and each check's
+    own verdict is kept as an element — ``results=[{id,type,pass,detail}]``
+    and ``rate`` = passed/total. ``detail`` is still the FIRST failure's text,
+    so older failures.md lines read the same. An empty response fails
     outright — an aborted/empty generation must never score a vacuous pass on
     lowercase/max_words (audit finding). Thinking tags are stripped first so
     a leaked block can't break json_object parsing or exact/starts_with."""
     text = strip_thinking_tags(response_text).strip()
     if not text:
-        return {"grade": "fail", "detail": "empty response"}
-    for check in cfg["checks"]:
-        kind = check["type"]
-        if kind == "exact":
-            if text != check["value"]:
-                return {"grade": "fail", "detail": f"exact mismatch: got {text[:80]!r}"}
-        elif kind == "lowercase":
-            letters = [c for c in text if c.isalpha()]
-            if not letters or any(c.isupper() for c in letters):
-                return {"grade": "fail", "detail": "not all-lowercase (or no letters)"}
-        elif kind == "line_count_prefix":
-            lines = [l for l in text.splitlines() if l.strip()]
-            if len(lines) != check["n"]:
-                return {"grade": "fail", "detail": f"{len(lines)} lines, expected {check['n']}"}
-            bad = [l for l in lines if not l.startswith(check["prefix"])]
-            if bad:
-                return {"grade": "fail", "detail": f"line missing prefix: {bad[0][:60]!r}"}
-        elif kind == "ends_with":
-            if not text.rstrip().endswith(check["value"]):
-                return {"grade": "fail", "detail": f"does not end with {check['value']!r}"}
-        elif kind == "json_object":
-            try:
-                obj = json.loads(_strip_fence(text))
-            except json.JSONDecodeError as e:
-                return {"grade": "fail", "detail": f"invalid JSON: {e}"}
-            if not isinstance(obj, dict):
-                return {"grade": "fail", "detail": "JSON is not an object"}
-            for key, typ in check.get("keys", {}).items():
-                if key not in obj:
-                    return {"grade": "fail", "detail": f"missing key {key!r}"}
-                if typ == "bool":
-                    ok = isinstance(obj[key], bool)
-                elif typ == "int":
-                    ok = isinstance(obj[key], int) and not isinstance(obj[key], bool)
-                elif typ == "number":
-                    ok = isinstance(obj[key], (int, float)) and not isinstance(obj[key], bool)
-                elif typ == "str":
-                    ok = isinstance(obj[key], str)
-                elif typ == "list":
-                    ok = isinstance(obj[key], list)
-                else:
-                    return {"grade": "fail", "detail": f"unknown json type {typ!r}"}
-                if not ok:
-                    return {"grade": "fail",
-                            "detail": f"key {key!r} is {type(obj[key]).__name__}, expected {typ}"}
-        elif kind == "max_words":
-            if len(text.split()) > check["n"]:
-                return {"grade": "fail", "detail": f"{len(text.split())} words > {check['n']}"}
-        elif kind == "min_words":
-            if len(text.split()) < check["n"]:
-                return {"grade": "fail", "detail": f"{len(text.split())} words < {check['n']}"}
-        elif kind == "forbidden_words":
-            low = text.lower()
-            hit = [w for w in check["words"] if re.search(rf"\b{re.escape(w.lower())}\b", low)]
-            if hit:
-                return {"grade": "fail", "detail": f"used forbidden word(s): {hit}"}
-        elif kind == "required_words":
-            low = text.lower()
-            miss = [w for w in check["words"] if re.search(rf"\b{re.escape(w.lower())}\b", low) is None]
-            if miss:
-                return {"grade": "fail", "detail": f"missing required word(s): {miss}"}
-        elif kind == "keyword_count":
-            low = text.lower()
-            c = len(re.findall(rf"\b{re.escape(check['word'].lower())}\b", low))
-            if c != check["n"]:
-                return {"grade": "fail",
-                        "detail": f"'{check['word']}' appears {c}x, expected {check['n']}"}
-        elif kind == "sentence_count":
-            # Guard common false boundaries before splitting: decimals (3.50)
-            # and a few abbreviations (Dr., Mr., e.g., i.e., etc.).
-            guarded = re.sub(r"(\d)\.(\d)", r"\1<DOT>\2", text)
-            for abbr in ("Dr.", "Mr.", "Mrs.", "Ms.", "Prof.", "e.g.", "i.e.",
-                         "etc.", "vs.", "St.", "Jr.", "Sr."):
-                guarded = guarded.replace(abbr, abbr.replace(".", "<DOT>"))
-            sents = [s for s in re.split(r"[.!?]+", guarded) if s.strip()]
-            if len(sents) != check["n"]:
-                return {"grade": "fail", "detail": f"{len(sents)} sentences, expected {check['n']}"}
-        elif kind == "all_caps":
-            letters = [c for c in text if c.isalpha()]
-            if not letters or any(c.islower() for c in letters):
-                return {"grade": "fail", "detail": "not all-uppercase (or no letters)"}
-        elif kind == "starts_with":
-            if not text.startswith(check["value"]):
-                return {"grade": "fail", "detail": f"does not start with {check['value']!r}"}
-        elif kind == "regex":
-            if re.search(check["pattern"], text) is None:
-                return {"grade": "fail", "detail": f"no match for /{check['pattern']}/"}
-        else:
-            return {"grade": "fail", "detail": f"unknown check type {kind!r}"}
-    return {"grade": "pass", "detail": "all checks passed"}
+        return {"grade": "fail", "detail": "empty response", "results": [
+            {"id": c.get("id") or f"{c['type']}-{i + 1}", "type": c["type"], "pass": False,
+             "detail": "empty response"} for i, c in enumerate(cfg["checks"])], "rate": 0.0}
+    results = []
+    for i, check in enumerate(cfg["checks"]):
+        ok, detail = _check_one(text, check)
+        results.append({"id": check.get("id") or f"{check['type']}-{i + 1}",
+                        "type": check["type"], "pass": ok, "detail": str(detail)[:300]})
+    failed = [r for r in results if not r["pass"]]
+    rate = round((len(results) - len(failed)) / len(results), 3) if results else None
+    if failed:
+        return {"grade": "fail", "detail": failed[0]["detail"], "results": results, "rate": rate}
+    return {"grade": "pass", "detail": "all checks passed", "results": results, "rate": rate}
 
 
 # ---------------------------------------------------------------- numeric
@@ -613,10 +631,27 @@ def grade_exact(response_text: str, cfg: dict) -> dict:
         scope = m.group(1)
     got = _normalize(scope)
     accepted = cfg.get("answers") or [cfg["answer"]]
+    elements = _position_elements(got, accepted[0], cfg) if cfg.get("elements") == "positions" else {}
     for a in accepted:
         if got == _normalize(str(a)):
-            return {"grade": "pass", "detail": f"exact match {a!r}"}
-    return {"grade": "fail", "detail": f"got {got[:60]!r}, expected one of {accepted}"}
+            return {"grade": "pass", "detail": f"exact match {a!r}", **elements}
+    return {"grade": "fail", "detail": f"got {got[:60]!r}, expected one of {accepted}", **elements}
+
+
+def _position_elements(got: str, gold, cfg: dict) -> dict:
+    """Cell-level elements of an ``exact`` answer (ZebraLogic cell accuracy,
+    K&K per-person accuracy): the gold answer's i-th word vs the answer's
+    i-th word, each its own pass/fail. The case grade stays the strict exact
+    match; this only says HOW MUCH of a wrong answer was right."""
+    want, have = _normalize(str(gold)).split(), got.split()
+    labels = cfg.get("element_labels") or [f"pos{i + 1}" for i in range(len(want))]
+    results = []
+    for i, w in enumerate(want):
+        h = have[i] if i < len(have) else None
+        results.append({"id": labels[i] if i < len(labels) else f"pos{i + 1}", "type": "position",
+                        "pass": h == w, "detail": f"{h!r}" + ("" if h == w else f" (want {w!r})")})
+    passed = sum(1 for r in results if r["pass"])
+    return {"results": results, "rate": round(passed / len(results), 3) if results else None}
 
 
 # -------------------------------------------------------------- reference
@@ -713,5 +748,9 @@ def grade(result, case: dict) -> dict | None:
         return {"grade": "fail", "detail": f"unknown grader {name!r}"}
     if (name in ("numeric", "exact") and getattr(result, "finish_reason", None) == "length"
             and not _EXPLICIT_ANSWER_RE.search(result.scoreable_text() or "")):
-        return {"grade": "fail", "detail": "cut off before an explicit 'Answer:' line"}
+        cfg = case.get("grader_config", {})
+        elements = (_position_elements("", (cfg.get("answers") or [cfg.get("answer")])[0], cfg)
+                    if name == "exact" and cfg.get("elements") == "positions" else {})
+        return {"grade": "fail", "detail": "cut off before an explicit 'Answer:' line",
+                **elements}
     return GRADERS[name](result, case.get("grader_config", {}))

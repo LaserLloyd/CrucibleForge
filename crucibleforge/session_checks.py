@@ -333,7 +333,29 @@ def check_tense(turn_texts, chk):
     return (not fails), (f"{want} ok" if not fails else f"not {want}: " + "; ".join(fails))
 
 
+def check_distinct_regex(turn_texts, chk):
+    """pattern: a regex with ONE capture group, matched once per checked turn
+    (the last match counts); the captured values (case-folded, whitespace
+    collapsed) must all differ across the turns — e.g. "never recommend the
+    same exhibit twice". A turn with no match is skipped here (a separate
+    require_regex owns the format)."""
+    p = re.compile(chk["pattern"], re.I | re.M)
+    seen: dict[str, int] = {}
+    dup = []
+    for idx, t in turn_texts:
+        ms = list(p.finditer(_body(t, chk, "all")))
+        if not ms:
+            continue
+        v = " ".join(ms[-1].group(1).split()).casefold()
+        if v in seen:
+            dup.append(f"t{idx} repeats t{seen[v]}: {v!r}")
+        else:
+            seen[v] = idx
+    return (not dup), ("all distinct" if not dup else "; ".join(dup))
+
+
 CHECKS = {
+    "distinct_regex": check_distinct_regex,
     "tense": check_tense,
     "no_puppeting": check_no_puppeting,
     "forbid_regex": check_forbid_regex,

@@ -52,6 +52,15 @@ def _check(case: dict) -> list[str]:
         if case["rubric"] not in RUBRICS:
             errs.append(f"unknown rubric {case['rubric']}")
     errs += _check_session_checks(case)
+    errs += _check_judge_elements(case)
+    if g == "exact" and gc.get("elements") == "positions":
+        from .graders import _normalize
+        gold = _normalize(str((gc.get("answers") or [gc.get("answer")])[0])).split()
+        labels = gc.get("element_labels")
+        if labels is not None and len(labels) != len(gold):
+            errs.append(f"element_labels: {len(labels)} labels for {len(gold)} answer words")
+        if labels is not None and len(set(labels)) != len(labels):
+            errs.append("element_labels: duplicate label")
     # tool names must exist
     tools = {t["function"]["name"] for t in case.get("tools") or [] if "function" in t}
     if g == "tool_call" and gc.get("expect_tool") and gc["expect_tool"] not in tools:
@@ -110,7 +119,7 @@ def _check(case: dict) -> list[str]:
 _CHECK_REQ = {"no_puppeting": ["names"], "forbid_regex": ["pattern"],
               "require_regex": ["pattern"], "require_all": ["needles"],
               "ooc_reply": [], "ooc_field": ["field"], "tense": ["want"],
-              "word_range": []}
+              "word_range": [], "distinct_regex": ["pattern"]}
 _CHECK_GROUPS = ("identity", "continuity", "ooc", "constraint")
 
 
@@ -150,9 +159,37 @@ def _check_session_checks(case: dict) -> list[str]:
                 errs.append(f"check {cid}: turn {i} outside 1..{n_turns}")
         if c.get("pattern"):
             try:
-                re.compile(c["pattern"])
+                rx = re.compile(c["pattern"])
             except re.error as e:
                 errs.append(f"check {cid}: bad regex ({e})")
+            else:
+                if t == "distinct_regex" and rx.groups != 1:
+                    errs.append(f"check {cid}: distinct_regex needs exactly one group")
+    return errs
+
+
+def _check_judge_elements(case: dict) -> list[str]:
+    """``judge_elements`` (judge.py): each needs an id and a question, needs a
+    rubric to be judged under, and a ``dim`` must name a dimension or flag of
+    that rubric — otherwise a failed element would silently count nowhere."""
+    els = case.get("judge_elements")
+    if els is None:
+        return []
+    from .judge import RUBRICS
+    errs: list[str] = []
+    rub = RUBRICS.get(case.get("rubric") or "")
+    if not rub:
+        return ["judge_elements on a case without a known rubric"]
+    seen: set[str] = set()
+    for e in els:
+        eid = e.get("id") or "?"
+        if eid in seen:
+            errs.append(f"duplicate judge element {eid}")
+        seen.add(eid)
+        if not e.get("q"):
+            errs.append(f"judge element {eid}: missing q")
+        if e.get("dim") and e["dim"] not in rub["dims"] + rub["flags"]:
+            errs.append(f"judge element {eid}: dim {e['dim']!r} not in rubric {case['rubric']}")
     return errs
 
 

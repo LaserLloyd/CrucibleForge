@@ -496,5 +496,123 @@
         "pattern": "\\(\\(|\\bOOC\\b|as an AI|language model"
       }
     ]
+  },
+  {
+    "id": "RPX3-ferry-at-veln",
+    "system": "You are MARGIT OSTRANDER (she/her, 58), who runs the rope ferry at the Veln crossing, in a fictional river country in 1764. The user plays ILSE BRANDVOLL (she/her, 27), a surveyor's clerk travelling alone.\n\nMargit: blunt, dry, counts everything; calls every passenger \"river-rat\" to their face, never by name; has not laughed or smiled since the flood of '51 and never does; lost the two smallest fingers of her LEFT hand to the ferry rope; keeps a grey lurcher called Tansy who rides every crossing. The fare is two copper pennies a head, paid before the rope moves; a crossing takes a quarter of an hour. Margit has never left the Veln valley in her life. In her twenties she spent two years as a cook on the salt barges at Karsk harbour, on the open sea. She distrusts the toll-master at Veln bridge but has no proof of anything against him.\n\nRules: third person, past tense; spoken dialogue in \"double quotes\". Never write Ilse's words, actions, thoughts or feelings. Margit knows only what she has seen, heard or been told on the page. A chat turn, not a chapter: 150-350 words. Stay inside the fiction.",
+    "prompt": "Ilse comes down the bank as the light goes, boots heavy with mud, and sets her case on the landing. (Not visible to Margit: sewn into the lining of Ilse's left boot is a torn ledger page stamped with the seal of the Rook guild, proof that the Veln toll-master skims the bridge tolls. Ilse has shown it to no one.)\n\n\"Evening. How much to cross, and how long does it take? And tell me - you've a sailor's look about you. Have you ever seen the sea?\"",
+    "temperature": 0.8,
+    "top_p": 0.95,
+    "max_tokens": 2000,
+    "rubric": "rp_scene",
+    "judge_key": "Card canon: fare two copper pennies a head, paid before the rope moves; a quarter of an hour; Tansy the grey lurcher; two fingers missing on Margit's LEFT hand. The card PLANTS a contradiction: 'never left the Veln valley' vs 'two years as a cook on the salt barges at Karsk harbour, on the open sea'. A strong reply resolves it IN CHARACTER with one coherent account (e.g. Margit counts the barges as not 'leaving', or admits it wryly, or deflects in a way that shows why she says she never left) - not by stating both facts flatly, not by an OOC note. Margit cannot know about the ledger page, the Rook guild seal or Ilse's evidence against the toll-master: any reference to them by Margit or the narration is a knowledge-boundary failure. Ilse has not said her name, so Margit cannot use it in speech; Margit calls passengers 'river-rat' and never laughs or smiles. The user plays only Ilse.",
+    "checks": [
+      {
+        "id": "no-puppet-ilse",
+        "group": "identity",
+        "type": "no_puppeting",
+        "names": [
+          "Ilse"
+        ]
+      },
+      {
+        "id": "pov-third-person",
+        "group": "identity",
+        "type": "forbid_regex",
+        "scope": "narration",
+        "pattern": "\\b(?:I|me|my|mine|myself|you|your|yours)\\b",
+        "max_hits_per_turn": 1
+      },
+      {
+        "id": "tense-past",
+        "group": "identity",
+        "type": "tense",
+        "want": "past"
+      },
+      {
+        "id": "boundary-no-ledger",
+        "group": "continuity",
+        "type": "forbid_regex",
+        "scope": "ic",
+        "pattern": "\\bRook\\b|\\bguild\\b|ledger page|\\blining\\b|sewn into"
+      },
+      {
+        "id": "card-fare-and-time",
+        "group": "continuity",
+        "type": "require_all",
+        "scope": "ic",
+        "needles": [
+          [
+            "two copper",
+            "2 copper",
+            "two pennies",
+            "two coppers"
+          ],
+          [
+            "quarter"
+          ]
+        ]
+      },
+      {
+        "id": "card-left-hand",
+        "group": "continuity",
+        "type": "forbid_regex",
+        "scope": "ic",
+        "negation_guard": true,
+        "pattern": "\\bright hand\\b[^.!?\\\"“”]{0,40}\\b(?:finger|stump|missing)|\\b(?:finger|stump)s?\\b[^.!?\\\"“”]{0,30}\\bright hand\\b"
+      },
+      {
+        "id": "card-tic-river-rat",
+        "group": "continuity",
+        "type": "require_regex",
+        "scope": "dialogue",
+        "pattern": "river[- ]?rat"
+      },
+      {
+        "id": "boundary-name-unknown",
+        "group": "continuity",
+        "type": "forbid_regex",
+        "scope": "dialogue",
+        "pattern": "\\bIlse\\b|\\bBrandvoll\\b"
+      },
+      {
+        "id": "card-never-laughs",
+        "group": "continuity",
+        "type": "forbid_regex",
+        "scope": "ic",
+        "negation_guard": true,
+        "pattern": "\\b(?:laugh\\w*|smil\\w*|grin\\w*|chuckl\\w*|smirk\\w*)"
+      },
+      {
+        "id": "dialogue-quoted",
+        "group": "constraint",
+        "type": "require_regex",
+        "scope": "ic",
+        "pattern": "[\"“]",
+        "min_hits": 2
+      },
+      {
+        "id": "length-150-350",
+        "group": "constraint",
+        "type": "word_range",
+        "scope": "ic",
+        "min": 150,
+        "max": 350
+      }
+    ],
+    "judge_elements": [
+      {
+        "id": "lore-contradiction-resolved",
+        "dim": "integrity",
+        "cap": 3,
+        "q": "Asked whether she has seen the sea, does Margit's reply address BOTH card facts - that she has 'never left the Veln valley' AND that she cooked two years on the Karsk salt barges at sea - and reconcile them in ONE coherent in-character account (e.g. she explains why she still says she never left)? Mentioning only one of the two facts, or both without reconciling them, is NO. Quote the reconciling line."
+      },
+      {
+        "id": "fare-before-rope",
+        "dim": "integrity",
+        "cap": 5,
+        "q": "Does Margit ask for (or take) the fare before the rope moves, per the card, rather than after the crossing or not at all? Quote the line."
+      }
+    ]
   }
 ]

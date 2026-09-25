@@ -545,5 +545,68 @@
     "range(10,0,-1)"
    ]
   }
- }
+ },
+  {
+    "id": "RX20-five-houses-four-attributes",
+    "difficulty": "hard",
+    "system": "Reason step by step, then end your reply with a single final line 'Answer: <value>' containing only the final answer.",
+    "prompt": "Five houses stand in a row, numbered 1 to 5 from left to right. In each house lives one person, and the five people are Ines, Kofi, Maren, Teodor and Yusra. Each person drinks exactly one drink (horchata, kombucha, kvass, lassi, mate), keeps exactly one pet (axolotl, ferret, gecko, parrot, tortoise) and has exactly one trade (bookbinder, cartographer, farrier, glazier, luthier). No two people share a drink, a pet or a trade. \"Next to each other\" means in adjacent houses; \"to the left\" means a lower house number.\n1. Yusra and the tortoise owner live next to each other.\n2. The horchata drinker and Yusra live next to each other.\n3. The cartographer and Teodor live next to each other.\n4. Kofi lives somewhere to the left of the gecko owner.\n5. Teodor and the axolotl owner live next to each other.\n6. Yusra lives somewhere to the left of the horchata drinker.\n7. The tortoise owner lives somewhere to the left of the luthier.\n8. The luthier and the kombucha drinker live next to each other.\n9. The ferret owner lives somewhere to the left of the cartographer.\n10. Maren and the bookbinder live next to each other.\n11. The lassi drinker lives somewhere to the left of the bookbinder.\n12. The bookbinder and the axolotl owner live next to each other.\n13. The ferret owner and the mate drinker live next to each other.\n14. Kofi and the gecko owner live next to each other.\n15. The axolotl owner and Ines live next to each other.\n16. Ines lives somewhere to the left of the farrier.\nExactly one arrangement satisfies every clue. Give the full arrangement as 20 words on the Answer line: the five names in house order 1-5, then the five drinks in house order, then the pets, then the trades (each in house order 1-5), separated by single spaces, singular (for example: Answer: Ines Kofi Maren Teodor Yusra horchata kombucha kvass lassi mate axolotl ferret gecko parrot tortoise bookbinder cartographer farrier glazier luthier).",
+    "temperature": 0.0,
+    "max_tokens": 4096,
+    "grader": "exact",
+    "grader_config": {
+      "answer": "kofi yusra ines maren teodor kombucha lassi horchata mate kvass tortoise gecko ferret axolotl parrot glazier luthier bookbinder cartographer farrier",
+      "elements": "positions",
+      "element_labels": [
+        "name@1",
+        "name@2",
+        "name@3",
+        "name@4",
+        "name@5",
+        "drink@1",
+        "drink@2",
+        "drink@3",
+        "drink@4",
+        "drink@5",
+        "pet@1",
+        "pet@2",
+        "pet@3",
+        "pet@4",
+        "pet@5",
+        "job@1",
+        "job@2",
+        "job@3",
+        "job@4",
+        "job@5"
+      ]
+    },
+    "verify": {
+      "python": "(lambda P5: (lambda s: s[0] if len(s)==1 else 'NOT UNIQUE: %d' % len(s))([' '.join(N+D+P+J) for N in P5(['Ines', 'Kofi', 'Maren', 'Teodor', 'Yusra']) for P in P5(['axolotl', 'ferret', 'gecko', 'tortoise', 'parrot']) if abs(N.index('Yusra')-P.index('tortoise'))==1 if N.index('Kofi')<P.index('gecko') if abs(N.index('Teodor')-P.index('axolotl'))==1 if abs(N.index('Kofi')-P.index('gecko'))==1 if abs(P.index('axolotl')-N.index('Ines'))==1 for J in P5(['glazier', 'cartographer', 'luthier', 'farrier', 'bookbinder']) if abs(J.index('cartographer')-N.index('Teodor'))==1 if P.index('tortoise')<J.index('luthier') if P.index('ferret')<J.index('cartographer') if abs(N.index('Maren')-J.index('bookbinder'))==1 if abs(J.index('bookbinder')-P.index('axolotl'))==1 if N.index('Ines')<J.index('farrier') for D in P5(['kvass', 'mate', 'horchata', 'kombucha', 'lassi']) if abs(D.index('horchata')-N.index('Yusra'))==1 if N.index('Yusra')<D.index('horchata') if abs(J.index('luthier')-D.index('kombucha'))==1 if D.index('lassi')<J.index('bookbinder') if abs(P.index('ferret')-D.index('mate'))==1]))(__import__('itertools').permutations)"
+    }
+  },
+  {
+    "id": "RX21-flawed-cost-chain",
+    "difficulty": "hard",
+    "system": "Reason step by step, then end your reply with a single final line 'Answer: <value>' containing only the final answer.",
+    "prompt": "A caterer's assistant priced a wedding reception and wrote out the working below. The facts are: 180 guests; each table seats at most 8 guests; every table needs 2 tablecloths; the linen company also requires one spare tablecloth for every 10 tablecloths needed (rounded up); tablecloth rental is $5 each; each meal costs $40; 15% of the guests are vegetarian, and each vegetarian meal carries a $5 surcharge on top of the $40; a 20% service charge applies to the food (meals plus vegetarian surcharges) only; a 5% early-booking discount on the food applies only to bookings made more than 90 days ahead, and this booking was made 40 days ahead; the total is food plus tablecloth rental plus service charge minus any discount.\nStep 1. Tables needed: 180 / 8 = 22 tables.\nStep 2. Tablecloths needed: 2 x 22 = 44.\nStep 3. With spares: 44 / 10 = 4.4, rounded up to 5 spares, so 44 + 5 = 49 tablecloths.\nStep 4. Tablecloth rental: 49 x $5 = $245.\nStep 5. Meals: 180 x $40 = $7,200.\nStep 6. Vegetarian guests: 15% of 180 = 27 guests.\nStep 7. Vegetarian surcharge: 27 x $5 = $135.\nStep 8. Service charge: 20% of ($7,200 + $135 + $245) = $1,516.\nStep 9. Early-booking discount: booked 40 days ahead, so $0.\nStep 10. Total: $7,200 + $135 + $245 + $1,516 - $0 = $9,096.\nExactly two steps are wrong; every other step follows correctly from the values written before it. Find the two wrong steps and redo the working correctly from the start. On the Answer line give seven whole numbers, digits only, no $ signs, commas or units, separated by single spaces: the number of the first wrong step, the number of the second wrong step (smaller step number first), the corrected value of the first wrong step, the corrected number of tablecloths with spares (step 3), the corrected tablecloth rental, the corrected service charge, and the corrected total (for example: Answer: 2 6 45 50 250 1500 9200).",
+    "temperature": 0.0,
+    "max_tokens": 4096,
+    "grader": "exact",
+    "grader_config": {
+      "answer": "1 8 23 51 255 1467 9057",
+      "elements": "positions",
+      "element_labels": [
+        "wrong-step-a",
+        "wrong-step-b",
+        "fixed-step-a",
+        "fixed-tablecloths",
+        "fixed-rental",
+        "fixed-service",
+        "fixed-total"
+      ]
+    },
+    "verify": {
+      "python": "(lambda S, F: (lambda bad, C: ' '.join(map(str, bad + [C[bad[0]], C[3], C[4], C[8], C[10]])) if len(bad) == 2 else 'NOT EXACTLY TWO FLAWS: %r' % bad)([k for k in range(1, 11) if F[k](S) != S[k]], (lambda C: [C.update({k: F[k](C)}) for k in range(1, 11)] and C)({})))({1: 22, 2: 44, 3: 49, 4: 245, 5: 7200, 6: 27, 7: 135, 8: 1516, 9: 0, 10: 9096}, {1: lambda v: -(-180 // 8), 2: lambda v: 2 * v[1], 3: lambda v: v[2] - (-v[2] // 10), 4: lambda v: 5 * v[3], 5: lambda v: 180 * 40, 6: lambda v: 180 * 15 // 100, 7: lambda v: 5 * v[6], 8: lambda v: (v[5] + v[7]) * 20 // 100, 9: lambda v: 0, 10: lambda v: v[5] + v[7] + v[4] + v[8] - v[9]})"
+    }
+  }
 ]
