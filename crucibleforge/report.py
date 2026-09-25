@@ -259,7 +259,7 @@ def _current_revisions(cfg: dict | None) -> set[str]:
 
 
 def _primary_judge(cfg: dict | None) -> str | None:
-    """The judge whose verdicts count: the benchmark profile's (the 122B),
+    """The judge whose verdicts count: the benchmark profile's,
     else the registry's first judge candidate."""
     try:
         from .profiles import default_judge_id
@@ -974,7 +974,8 @@ def render_markdown(labels: list[str], stats: dict, cfg: dict | None,
     def wtxt(grp):
         return ", ".join(f"{component_label(k)} {int(v) if float(v).is_integer() else v}"
                          for k, v in sc[grp].items())
-    L += ["", f"*0–100. **Chat** = {wtxt('chat')} (judged by the 122B). "
+    jname = short_model(_primary_judge(cfg)) or "the profile's judge"
+    L += ["", f"*0–100. **Chat** = {wtxt('chat')} (judged by {jname}). "
               f"**Coding** = {wtxt('coding')} (Reason pools reasoning + math; all "
               f"deterministic graders). **Overall** = Chat and Coding combined by those weights — "
               f"the sort key only. tok/s = median generation speed (comparable on the "
