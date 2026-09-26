@@ -25,3 +25,35 @@ def test_retired_case_ids_stay_off_the_board(tmp_path, monkeypatch):
     _, stats, _ = report.board_stats(None, None)
     assert stats["m"]["reasoning"]["n"] == 1 and stats["m"]["reasoning"]["passed"] == 0
     assert stats["m"]["coverage"]["cases"] == 1
+
+
+def test_tool_loop_row_keeps_every_step_reply():
+    from crucibleforge import runner
+    from crucibleforge.api import ChatResult
+
+    class Ctx:
+        def __init__(self, res):
+            self.res = list(res)
+
+        def call(self, messages, **kw):
+            return self.res.pop(0)
+
+        def recover_for(self, case):
+            return False
+
+    case = {"id": "t", "category": "tooluse", "tools": [], "tool_script": [
+        {"user": "find her", "expect_tool": "find", "tool_result": '{"dob": "1990"}'},
+        {"user": "old dob?", "expect_no_tool": True, "answer_contains": ["1990"],
+         "answer_forbid": ["1988"]},
+        {"user": "done?", "expect_no_tool": True, "answer_contains": ["yes"]}]}
+    ctx = Ctx([ChatResult(response_text="", reasoning_text="think",
+                          tool_calls=[{"id": "c1", "name": "find", "arguments": "{}"}]),
+               ChatResult(response_text="It was 1988, now 1990."),
+               ChatResult(response_text="yes")])
+    row = runner._run_tool_loop(case, {"case_id": "t"}, ctx, 100, 0.0, 1)
+    conv = row["tool_conversation"]
+    said = [m["content"] for m in conv if m["role"] == "assistant"]
+    assert "It was 1988, now 1990." in said and row["response"] == "yes"
+    assert any(m["role"] == "tool" for m in conv)
+    assert all("reasoning_content" not in m for m in conv)
+    assert not row["elements"]["results"][1]["pass"]      # the forbidden 1988 is on record

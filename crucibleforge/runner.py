@@ -1167,6 +1167,12 @@ def _run_tool_loop(case, base_row, ctx: _Ctx, max_tokens, temperature, seed) -> 
             "truncated": False,
             "grade": "pass" if passed else "fail", "grade_detail": detail[:300],
             "elements": {"results": results, "rate": rate},
+            # every step's reply and call, so a step verdict in failures.md
+            # can be checked against what the model actually said (only the
+            # LAST reply used to be stored — step 10's "forbidden content"
+            # was unverifiable). The reasoning channel is dropped for size.
+            "tool_conversation": [{k: v for k, v in m.items() if k != "reasoning_content"}
+                                  for m in messages],
             "metrics": _metrics(last_result) if last_result else {}}
     if last_result is not None:
         _annotate_recovery(row, last_result)
