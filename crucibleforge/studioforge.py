@@ -533,6 +533,43 @@ def _tier_refusal_reason(code: int, res: dict, detail: str) -> str | None:
     return None
 
 
+_KV_Q8_OR_SMALLER = {"q8_0", "q5_1", "q5_0", "q4_1", "q4_0", "iq4_nl"}
+
+
+def _try_widths(model_id: str, base_url: str, api_key: str, headers: dict | None,
+                body_base: dict, widths: list[int], have: int) -> dict | None:
+    """Reload ``model_id`` at each width (widest first) with ``body_base``;
+    the first plan wider than ``have`` wins, else None."""
+    kv = body_base.get("kv_cache_type") or "recommended"
+    for n in widths:
+        try:
+            _mgmt("POST", base_url, api_key, headers,
+                  f"/api/models/{_quote(model_id)}/unload", timeout=WARMUP_TIMEOUT_S)
+            code, data = _mgmt("POST", base_url, api_key, headers,
+                               f"/api/models/{_quote(model_id)}/load",
+                               json={**body_base, "parallel": n}, timeout=WARMUP_TIMEOUT_S)
+        except StatusUnavailable as e:
+            log.warning("slot widening of %s to %d failed (%s)", model_id, n, e)
+            continue
+        if code >= 400:
+            log.info("%s: %d slots at ctx %s (KV %s) refused (HTTP %s) — trying fewer",
+                     model_id, n, body_base["ctx_size"], kv, code)
+            continue
+        try:
+            wait_ready(model_id, base_url, api_key, headers=headers)
+            warm_model(model_id, base_url, api_key, headers=headers)
+        except StudioForgeError as e:
+            log.info("%s: %d slots did not come up (%s) — trying fewer", model_id, n, e)
+            continue
+        new = loaded_plan(model_id, base_url, api_key, headers) or {}
+        if int(new.get("parallel") or 1) > have:
+            log.warning("%s: the rig recommended %d slot(s); widened to %s slots at ctx %s "
+                        "(KV %s) on %s for the benchmark's concurrent jobs", model_id, have,
+                        new.get("parallel"), new.get("ctx_size"), kv, new.get("devices"))
+            return new
+    return None
+
+
 def _widen_slots(model_id: str, base_url: str, api_key: str, headers: dict | None,
                  live: dict, ctx: int, min_slots: int, target_slots: int) -> dict | None:
     """The rig's planner sizes slots for chat (one stream, its 'knee'); a
@@ -547,36 +584,23 @@ def _widen_slots(model_id: str, base_url: str, api_key: str, headers: dict | Non
     body_base = {"ctx_size": int(live.get("ctx_size") or ctx)}
     if devices:
         body_base["devices"] = list(devices)
-    if live.get("kv_cache_type"):
-        body_base["kv_cache_type"] = live["kv_cache_type"]
+    for k in ("kv_cache_type", "kv_cache_type_v"):
+        if live.get(k):
+            body_base[k] = live[k]
     have = int(live.get("parallel") or 1)
-    widths = [n for n in (target_slots, 6, 4, 2) if min(target_slots, 8) >= n > have]
+    widths = [n for n in (target_slots, 6, 4, 3, 2) if min(target_slots, 8) >= n > have]
     widths = sorted(set(widths), reverse=True)
-    for n in widths:
-        try:
-            _mgmt("POST", base_url, api_key, headers,
-                  f"/api/models/{_quote(model_id)}/unload", timeout=WARMUP_TIMEOUT_S)
-            code, data = _mgmt("POST", base_url, api_key, headers,
-                               f"/api/models/{_quote(model_id)}/load",
-                               json={**body_base, "parallel": n}, timeout=WARMUP_TIMEOUT_S)
-        except StatusUnavailable as e:
-            log.warning("slot widening of %s to %d failed (%s)", model_id, n, e)
-            continue
-        if code >= 400:
-            log.info("%s: %d slots at ctx %s refused (HTTP %s) — trying fewer",
-                     model_id, n, body_base["ctx_size"], code)
-            continue
-        try:
-            wait_ready(model_id, base_url, api_key, headers=headers)
-            warm_model(model_id, base_url, api_key, headers=headers)
-        except StudioForgeError as e:
-            log.info("%s: %d slots did not come up (%s) — trying fewer", model_id, n, e)
-            continue
-        new = loaded_plan(model_id, base_url, api_key, headers) or {}
-        if int(new.get("parallel") or 1) > have:
-            log.warning("%s: the rig recommended %d slot(s); widened to %s slots at ctx %s "
-                        "on %s for the benchmark's concurrent jobs", model_id, have,
-                        new.get("parallel"), new.get("ctx_size"), new.get("devices"))
+    # Pass 1 keeps the recommended KV cache; pass 2 (2026-09-26) retries the
+    # same widths with a q8_0 KV cache before settling for one slot. precog
+    # 123B at f16 KV fitted one slot on all four cards — a 3x slower run —
+    # while q8_0 (about half the KV memory, negligible quality cost) fitted 3.
+    # Per load only: the model's saved settings are not touched.
+    passes = [dict(body_base)]
+    if str(live.get("kv_cache_type") or "f16").lower() not in _KV_Q8_OR_SMALLER:
+        passes.append({**body_base, "kv_cache_type": "q8_0", "kv_cache_type_v": "q8_0"})
+    for body in passes:
+        new = _try_widths(model_id, base_url, api_key, headers, body, widths, have)
+        if new is not None:
             return new
     log.warning("%s: could not widen beyond %d slot(s) — restoring the recommended load",
                 model_id, have)
