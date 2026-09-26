@@ -1378,10 +1378,28 @@ def board_filter(label: str, cfg: dict | None, rows: list[dict] | None = None) -
     if rows is None:
         rows = load_transcripts(label)
     current = _current_revisions(cfg)
+    ids = _profile_case_ids(cfg)
     keep = [r for r in rows
             if r.get("profile") == DEFAULT_PROFILE
-            and (not current or r.get("bench_revision") in current)]
+            and (not current or r.get("bench_revision") in current)
+            and (ids is None or r.get("case_id") in ids)]
     return _recheck(_board_rows(keep))
+
+
+def _profile_case_ids(cfg: dict | None) -> set[str] | None:
+    """The case ids of the benchmark profile, or None when it cannot be read.
+    A row whose case left the profile (renamed/replaced — e.g. the saturation
+    run's RX20-five-houses-six-attributes, later RX20-five-houses-four-attributes)
+    is not on the board: an equivalent revision stamp says the OTHER cases are
+    unchanged, not that a retired case still counts. Without this filter such
+    rows entered the pass rates and inflated coverage past the profile (51/49
+    read as "full" and would have hidden two genuinely missing cases)."""
+    try:
+        from .profiles import DEFAULT_PROFILE, apply_profile, load_profile
+        _, cases = apply_profile(load_profile(DEFAULT_PROFILE, cfg), cfg or {})
+        return {c["id"] for c in cases}
+    except Exception:
+        return None
 
 
 _CASES_BY_ID: dict | None = None
