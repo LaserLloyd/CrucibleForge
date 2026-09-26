@@ -57,3 +57,16 @@ def test_tool_loop_row_keeps_every_step_reply():
     assert any(m["role"] == "tool" for m in conv)
     assert all("reasoning_content" not in m for m in conv)
     assert not row["elements"]["results"][1]["pass"]      # the forbidden 1988 is on record
+
+
+def test_guard_failure_keeps_the_unverified_quote_as_evidence():
+    from crucibleforge import judge
+    text = "\"Okay,\" he said. \"I can do that.\" Then they went upstairs together."
+    els = [{"id": "neg"}]
+    verdicts = [{"elements": {"neg": {"pass": True, "quote": "\"Okay,\" he said. \"I can do that.\""}}},
+                {"elements": {"neg": {"pass": True, "quote": "She told him her limits first"}}},
+                {"elements": {"neg": {"pass": True, "quote": "They negotiated at the door"}}}]
+    out = judge._aggregate_elements(verdicts, els, text)["neg"]
+    assert out["pass"] is False and out["judge_pass"] is True
+    assert out["verified_samples"] == [0]
+    assert not judge.quote_found(out["quote"], text)     # the evidence shows the failed quote

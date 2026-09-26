@@ -1174,6 +1174,12 @@ def _aggregate_elements(verdicts: list[dict], elements: list[dict], text: str) -
         by_i = dict(vs)
         if ok:
             quote = by_i[verified[0]]["quote"]
+        elif raw_yes * 2 > len(vs):
+            # the judge's majority said yes but the quote guard failed it:
+            # keep a quote that FAILED verification as the evidence (keeping
+            # a verified one made failures.md show a quote that IS in the
+            # reply next to "quote not in the reply")
+            quote = next((x["quote"] for i, x in vs if x["pass"] and i not in verified), "")
         else:
             quote = next((x["quote"] for _, x in vs if not x["pass"]),
                          next((x["quote"] for _, x in vs), ""))
