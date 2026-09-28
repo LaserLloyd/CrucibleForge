@@ -17,6 +17,7 @@ prefer running overnight or with other consumers stopped.
 from __future__ import annotations
 
 import argparse
+import copy
 import json
 import logging
 import os
@@ -694,6 +695,10 @@ def _refuse_fresh_with_filter(args) -> None:
 
 def cmd_run(args, cfg):
     from .runner import run_models
+    # labels the generation phase actually ran (set below once run_models has
+    # been called; None = the phase never started) — cmd_all judges these
+    # even when another model of the batch failed
+    args.ran_labels = None
     _refuse_fresh_with_filter(args)
     cfg, cases, prof = _apply_profile_arg(args, cfg)
     entries = resolve_models(cfg, args.models)
@@ -745,6 +750,7 @@ def cmd_run(args, cfg):
         summary = run_models(cfg, entries, cases, smoke=args.smoke)
     finally:
         guard.restore()
+    args.ran_labels = [e["name"] for e in entries if e["name"] in summary]
     for label, why in unrunnable.items():
         summary[label] = {"failed": True, "error": why}
     print("\nrun summary:")
@@ -954,9 +960,24 @@ def cmd_pairwise(args, cfg):
 
 
 def cmd_all(args, cfg):
+    """run -> judge -> report. A model-level generation failure (not served,
+    OOM, lease refused, transport abort) is that MODEL's failure: it is
+    recorded in its meta (the board and the run-report say FAILED and why) and
+    the batch's exit code stays non-zero — but the judge phase still runs over
+    every model the run phase got to (a model with no pending rows is a no-op
+    there), and the board is rebuilt. Only a run phase that never started
+    (nothing runnable, LM Studio busy without --yes) skips the later phases.
+    Before 2026-09-28 any single failure returned here, so one unservable
+    model in a 31-model backfill left the 25 good transcripts unjudged."""
     rc = cmd_run(args, cfg)
-    if rc:
+    ran = getattr(args, "ran_labels", None)
+    if rc and not ran:
         return rc
+    if rc:
+        log.error("run phase: some models failed — judging the %d that ran: %s",
+                  len(ran), ",".join(ran))
+        args = copy.copy(args)
+        args.models = ",".join(ran)
     # WP-BENCH review fix: cmd_judge signals failure by RETURNING non-zero in
     # two cases (4 = start-of-judge lease unavailable, 1 = rows errored) —
     # neither raises, so the bare `cmd_judge(args, cfg)` this used to be
@@ -971,7 +992,7 @@ def cmd_all(args, cfg):
     else:
         if rc_j:
             log.error("judge phase exited %d — rendering the report without judged rows", rc_j)
-    return cmd_report(args, cfg, full_board=True) or rc_j
+    return cmd_report(args, cfg, full_board=True) or rc or rc_j
 
 
 def cmd_gui(args, cfg):

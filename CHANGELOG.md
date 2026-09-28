@@ -21,6 +21,9 @@ rename.
   untracked case file in `cases/` had moved the revision and turned every
   existing row stale (the whole board read "partial"). Rows stamped during
   that window are mapped as equivalent.
+- **`all` judges the models that ran.** A model that is not served, OOMs, or
+  aborts is recorded as FAILED and keeps the exit code non-zero, but no longer
+  stops the judge and the board rebuild for the rest of the batch.
 - The test-suite runs as a clean clone (`CRUCIBLEFORGE_NO_PRIVATE=1`).
 
 ## 3.5.0 — review fixes (2026-09-25, evening)
