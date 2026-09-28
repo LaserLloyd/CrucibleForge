@@ -6,6 +6,23 @@ was ever published as Gauntlet, so there is no migration to do — the entries
 below are kept because the engineering they record is real, not to narrate a
 rename.
 
+## Unreleased (2026-09-28)
+
+- **Private categories.** Local-only components live in `cases/private/`,
+  `profiles/private/` and `profiles/<name>.private.yaml` (an overlay merged
+  into the public profile) — all git-ignored and refused by `scrub_check.py`.
+  `profiles.private_scope()` is the single source of what is private;
+  `report --public` builds the board without it (rows, coverage and weights —
+  the public Chat score is computed without the private component) and fails
+  closed if any private term survives rendering. The HTML board's former
+  no-op `private_categories` hook is now a real guard (`forbidden=`).
+- **Suite revision no longer includes local case files.** `cases_hash` covers
+  the public `cases/*.json` only; private rows carry `private_revision`. An
+  untracked case file in `cases/` had moved the revision and turned every
+  existing row stale (the whole board read "partial"). Rows stamped during
+  that window are mapped as equivalent.
+- The test-suite runs as a clean clone (`CRUCIBLEFORGE_NO_PRIVATE=1`).
+
 ## 3.5.0 — review fixes (2026-09-25, evening)
 
 - **Judge quote guard is per sample.** With `samples: 3` each sample's YES is

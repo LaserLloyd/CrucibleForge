@@ -129,7 +129,54 @@ _BUILTIN_JUDGED = {"rp", "nsfw", "story", "steer", "planning", "overrefusal"}
 
 
 def component_label(k: str) -> str:
-    return COMPONENT_LABELS.get(k) or k.replace("_", " ").title()
+    return (COMPONENT_LABELS.get(k) or _profile_labels().get(k)
+            or k.replace("_", " ").title())
+
+
+_PROFILE_LABELS: dict | None = None
+
+
+def _profile_labels() -> dict:
+    """Display names a profile gives its components (``labels:`` — a private
+    component names itself in the git-ignored overlay, never in this file)."""
+    global _PROFILE_LABELS
+    if _PROFILE_LABELS is None:
+        try:
+            from .profiles import DEFAULT_PROFILE, load_profile
+            _PROFILE_LABELS = dict(load_profile(DEFAULT_PROFILE).get("labels") or {})
+        except Exception:
+            _PROFILE_LABELS = {}
+    return _PROFILE_LABELS
+
+
+# ---------------------------------------------------------------- audience
+# Two audiences, ONE mechanism. The local board (default) shows everything.
+# A PUBLIC artifact (`crucibleforge report --public`) is built with
+# cfg["_audience"] == "public": _hidden() then returns profiles.private_scope(),
+# and the few functions that decide WHAT is on the board — board_filter (rows),
+# _profile_case_ids / _expected_case_count (coverage), scoring_config
+# (components and weights) — leave private categories out. Everything
+# downstream (scorecards, markdown, JSON, HTML, failures, notes) is computed
+# from that and so is clean by construction; public_leaks() then re-checks
+# the rendered text and generate() refuses to write on any hit (fail closed).
+PUBLIC = "public"
+
+
+class PrivateLeak(RuntimeError):
+    """A public artifact still contained a private term — nothing was written."""
+
+
+def _hidden(cfg: dict | None) -> dict | None:
+    if (cfg or {}).get("_audience") != PUBLIC:
+        return None
+    from .profiles import private_scope
+    return private_scope(cfg)
+
+
+def public_leaks(text: str, scope: dict) -> list[str]:
+    """The private terms (category names, case ids, labels) found in ``text``."""
+    low = text.lower()
+    return [t for t in scope["terms"] if t and t.lower() in low]
 # failures.md shows at most this many failure bullets per model
 FAILURES_PER_MODEL = 5
 
@@ -153,6 +200,10 @@ def scoring_config(cfg: dict | None) -> dict:
                 if isinstance(user.get(k), dict):
                     sc[grp] = {kk: float(v) for kk, v in user[k].items()}
                     break
+    hidden = _hidden(cfg)
+    if hidden:
+        for grp in sc:
+            sc[grp] = {k: v for k, v in sc[grp].items() if k not in hidden["categories"]}
     return sc
 
 
@@ -304,9 +355,13 @@ def _expected_case_count(cfg: dict | None, profile: str | None) -> int | None:
     try:
         from .profiles import DEFAULT_PROFILE, apply_profile, load_profile
         _, cases = apply_profile(load_profile(profile or DEFAULT_PROFILE, cfg), cfg or {})
-        return len(cases)
     except Exception:
         return None
+    hidden = _hidden(cfg)
+    if hidden:
+        cases = [c for c in cases if c["category"] not in hidden["categories"]
+                 and c["id"] not in hidden["case_ids"]]
+    return len(cases)
 
 
 def _coverage(rows: list[dict], meta: dict, cfg: dict | None) -> dict:
@@ -1377,12 +1432,19 @@ def board_filter(label: str, cfg: dict | None, rows: list[dict] | None = None) -
     from .profiles import DEFAULT_PROFILE
     if rows is None:
         rows = load_transcripts(label)
+    from . import config as _config
+    from .version import private_row_current
     current = _current_revisions(cfg)
     ids = _profile_case_ids(cfg)
+    hidden = _hidden(cfg)
     keep = [r for r in rows
             if r.get("profile") == DEFAULT_PROFILE
             and (not current or r.get("bench_revision") in current)
-            and (ids is None or r.get("case_id") in ids)]
+            and (ids is None or r.get("case_id") in ids)
+            # a private case is outside bench_revision: its own stamp decides
+            and (r.get("category") not in _config.PRIVATE_CATEGORIES or private_row_current(r))
+            and not (hidden and (r.get("category") in hidden["categories"]
+                                 or r.get("case_id") in hidden["case_ids"]))]
     return _recheck(_board_rows(keep))
 
 
@@ -1397,9 +1459,12 @@ def _profile_case_ids(cfg: dict | None) -> set[str] | None:
     try:
         from .profiles import DEFAULT_PROFILE, apply_profile, load_profile
         _, cases = apply_profile(load_profile(DEFAULT_PROFILE, cfg), cfg or {})
-        return {c["id"] for c in cases}
     except Exception:
         return None
+    hidden = _hidden(cfg)
+    return {c["id"] for c in cases
+            if not (hidden and (c["category"] in hidden["categories"]
+                                or c["id"] in hidden["case_ids"]))}
 
 
 _CASES_BY_ID: dict | None = None
@@ -1551,7 +1616,8 @@ def render_report_html(labels: list[str], stats: dict, cfg: dict | None = None,
         f"rendered {now}") if x))
     return render_html(html_rows(labels, stats), subtitle=subtitle,
                        components=html_components({l: stats[l] for l in labels}, cfg),
-                       footer=footer)
+                       footer=footer,
+                       forbidden=(_hidden(cfg) or {}).get("terms"))
 
 
 # ------------------------------------------------------------- generate
@@ -1565,13 +1631,25 @@ def scorecard_section(md: str) -> str:
     return ("## Scorecard" + body).rstrip() + "\n"
 
 
-def generate(labels_arg: str | None = None, write: bool = True) -> str:
+def public_dir():
+    return results_dir() / "public"
+
+
+def generate(labels_arg: str | None = None, write: bool = True,
+             public: bool = False, out_dir=None) -> str:
     """Render the board for ``labels_arg`` (or every model in results/).
 
     ``write=True`` (the CLI default) (re)writes report.md, failures.md,
     report.json and report.html. ``write=False`` only returns the markdown —
     for a caller that wants a scorecard for a subset without touching the
-    shared board (the V2 run-report)."""
+    shared board (the V2 run-report).
+
+    ``public=True`` builds the board for an audience other than the operator
+    (anything that may leave the box): private categories (profiles.
+    private_scope) are left out of the rows, coverage and weights, the
+    rendered texts are re-checked for every private term, and on any hit
+    :class:`PrivateLeak` is raised with NOTHING written. Files go to
+    ``out_dir`` (default ``results/public/``), never over the local board."""
     # load_config() re-points the results dir at <config dir>/results; the
     # board must be built from (and written to) the dir the caller chose
     here = results_dir()
@@ -1581,6 +1659,8 @@ def generate(labels_arg: str | None = None, write: bool = True) -> str:
         cfg = None
     finally:
         set_results_dir(here)
+    if public:
+        cfg = {**(cfg or {}), "_audience": PUBLIC}
     labels, stats, dropped = board_stats(labels_arg, cfg)
     archived = _archived_note()
     if dropped:
@@ -1592,25 +1672,41 @@ def generate(labels_arg: str | None = None, write: bool = True) -> str:
               + (f"\n{archived}\n" if archived else ""))
     else:
         md = render_markdown(labels, stats, cfg, archived_note=archived)
+    if public:
+        scope = _hidden(cfg)
+        leaks = public_leaks(md, scope)
+        if leaks:
+            raise PrivateLeak(f"public report.md would contain private terms: {leaks}")
     if write:
-        results_dir().mkdir(parents=True, exist_ok=True)
-        report_md_path().write_text(md, encoding="utf-8")
-        failures_md_path().write_text(render_failures(labels, stats, cfg) if labels
-                                      else "# CrucibleForge — failures\n\nNo results.\n",
-                                      encoding="utf-8")
-        report_json_path().write_text(json.dumps(
-            {"generated": datetime.now().isoformat(), "models": stats},
-            indent=2, default=str), encoding="utf-8")
-        report_html_path().write_text(render_report_html(labels, stats, cfg, archived),
-                                      encoding="utf-8")
+        out = {
+            "report.md": md,
+            "failures.md": (render_failures(labels, stats, cfg) if labels
+                            else "# CrucibleForge — failures\n\nNo results.\n"),
+            "report.json": json.dumps({"generated": datetime.now().isoformat(),
+                                       "models": stats}, indent=2, default=str),
+            "report.html": render_report_html(labels, stats, cfg, archived),
+        }
+        if public:
+            leaks = {name: public_leaks(text, scope) for name, text in out.items()}
+            leaks = {k: v for k, v in leaks.items() if v}
+            if leaks:       # fail closed: nothing is written
+                raise PrivateLeak(f"public artifacts would contain private terms: {leaks}")
+            from pathlib import Path
+            target = Path(out_dir) if out_dir else public_dir()
+        else:
+            target = results_dir()
+        target.mkdir(parents=True, exist_ok=True)
+        for name, text in out.items():
+            (target / name).write_text(text, encoding="utf-8")
     return md
 
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description="Generate the benchmark board")
     parser.add_argument("--models", default=None)
+    parser.add_argument("--public", action="store_true")
     args = parser.parse_args(argv)
-    md = generate(args.models)
+    md = generate(args.models, public=args.public)
     print(scorecard_section(md))
     print(f"wrote {report_md_path()}, {failures_md_path()}, {report_html_path()}")
 

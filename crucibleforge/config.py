@@ -56,8 +56,30 @@ _BASE_CATEGORIES = ["perf", "rp", "nsfw", "coding", "tooluse", "instruct",
 # A new category is just a new cases/<name>.json (plus, for a judged one, a
 # rubric in judge.RUBRICS and a weight under scoring.chat) — see README
 # "Adding a Chat component".
-CATEGORIES = _BASE_CATEGORIES + sorted(p.stem for p in CASES_DIR.glob("*.json")
-                                       if p.stem not in _BASE_CATEGORIES)
+#
+# PRIVATE categories live in cases/private/<name>.json: git-ignored (and
+# refused by scripts/scrub_check.py if ever staged), loaded exactly like a
+# public case file, kept out of the public suite revision (version.py), and
+# scrubbed from every public artifact (report --public). A category is private
+# because of WHERE its file lives — profiles.private_scope() is the one
+# place that turns that (plus a profile's ``private:`` list) into the set of
+# names/ids to hide. See README "Private categories".
+PRIVATE_CASES_DIR = CASES_DIR / "private"
+#: CRUCIBLEFORGE_NO_PRIVATE=1 = behave exactly like a clean clone: no private
+#: case files, no private profiles/overlays. The test-suite sets it (conftest)
+#: so it verifies what ships, whatever private files the operator has.
+PRIVATE_ENABLED = os.environ.get("CRUCIBLEFORGE_NO_PRIVATE") != "1"
+
+
+def _stems(d: Path) -> list[str]:
+    return [p.stem for p in d.glob("*.json")] if d.is_dir() else []
+
+
+#: categories whose case file is in cases/private/ (empty on a clean clone)
+PRIVATE_CATEGORIES = (sorted(set(_stems(PRIVATE_CASES_DIR)) - set(_BASE_CATEGORIES))
+                      if PRIVATE_ENABLED else [])
+CATEGORIES = _BASE_CATEGORIES + sorted(
+    (set(_stems(CASES_DIR)) | set(PRIVATE_CATEGORIES)) - set(_BASE_CATEGORIES))
 
 # Categories whose rows need the LLM judge (everything else grades objectively).
 JUDGED_CATEGORIES = {"rp", "nsfw", "story", "steer", "overrefusal", "planning"}
@@ -297,6 +319,8 @@ def load_cases(categories: list[str] | None = None, smoke: bool = False,
     seen_ids: set[str] = set()
     for cat in categories:
         path = cases_dir / f"{cat}.json"
+        if not path.exists() and cat in PRIVATE_CATEGORIES:
+            path = PRIVATE_CASES_DIR / f"{cat}.json"
         if not path.exists():
             raise ConfigError(f"missing case file: {path}")
         for case in json.loads(path.read_text(encoding="utf-8")):

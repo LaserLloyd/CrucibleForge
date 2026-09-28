@@ -68,6 +68,10 @@
 #   2000 tokens a chat turn, 3000 a story; thinking models x4 (8000 / 12000 —
 #   under the 24576 cap, so it never binds on chat).
 name: bench
+# A local, git-ignored profiles/bench.private.yaml may add PRIVATE components
+# (cases in cases/private/, their weight, label and budgets) on top of this
+# file — they count on the local board and are scrubbed from every public
+# artifact (`crucibleforge report --public`). README "Private categories".
 description: the single benchmark — Chat (judged + checks) + Coding (deterministic); < 20 min generation + < 20 min judging on an 8-slot 27B
 # Judge (2026-09-24 comparison of 8 judge runs on the same 65 chat rows): the
 # Gemma-4-31B heretic Q8 reproduces the former 122B judge's verdicts (per-dim

@@ -24,3 +24,10 @@ run_*.sh
 models.yaml.bak*
 # local scheduled-bench scratch (holds rig addresses + home paths)
 .scheduled/
+# PRIVATE benchmark content — local only, never published (README "Private
+# categories"). scripts/scrub_check.py refuses these paths even if forced in.
+cases/private/
+profiles/private/
+profiles/*.private.yaml
+# operator batch/campaign launchers (rig model lists, home paths)
+scripts/bench-*-batch.sh

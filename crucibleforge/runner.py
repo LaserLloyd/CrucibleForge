@@ -41,6 +41,8 @@ from .graders import (_extract_tool_calls_from_text, grade, grade_contains,
                       grade_tool_call, prose_metrics)
 from .providers import Provider, cost_usd, merge_extra_body, model_extra_body, provider_for
 from .version import judge_fingerprint as _judge_fp, revision as _revision
+from .version import private_category_hash
+from . import config as _config
 
 log = logging.getLogger(__name__)
 
@@ -584,7 +586,12 @@ def _run_one_model(cfg, entry, cases, csvw: _Csv, smoke,
     judge_fp = _judge_fp(cfg)
 
     def base_row_for(case, repeat, seed, temperature, top_p, max_tokens, rid=None):
-        return {
+        extra = {}
+        if case["category"] in _config.PRIVATE_CATEGORIES:
+            # a private case is outside bench_revision (version.cases_hash);
+            # this is the stamp that says which private content it answered
+            extra["private_revision"] = private_category_hash(case["category"])
+        return {**extra,
             "bench_run_id": rid or bench_run_id,
             "bench_revision": revision, "judge_fingerprint": judge_fp,
             "profile": cfg.get("_profile"),

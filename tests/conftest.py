@@ -20,6 +20,11 @@ sys.path.insert(0, str(_ROOT))
 # import time and load_config() honours it), and check the real dir after.
 _REAL_RESULTS = _ROOT / "results"
 os.environ["CRUCIBLEFORGE_RESULTS"] = tempfile.mkdtemp(prefix="crucibleforge-test-results-")
+# ... and see exactly what a clean clone sees: the operator's git-ignored
+# private cases/profiles (cases/private/, profiles/private/, *.private.yaml)
+# must not change what the suite verifies. Private-category tests build their
+# own fixtures (tests/test_private_categories.py).
+os.environ["CRUCIBLEFORGE_NO_PRIVATE"] = "1"
 
 
 def _snapshot(d: Path) -> dict:

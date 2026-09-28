@@ -113,6 +113,16 @@ FORBIDDEN_IF_COMMITTED = [
     (re.compile(r"(^|/)scrub-rules\.local\.txt$"),
      "the private-identifier list — publishing the words that must never be "
      "published is its own leak"),
+    # Private benchmark content (README "Private categories"): local-only case
+    # files, whole private profiles and private profile overlays.
+    (re.compile(r"(^|/)cases/private/"),
+     "a private benchmark case file (local only — cases/private/ never ships)"),
+    (re.compile(r"(^|/)profiles/private/"),
+     "a private benchmark profile (local only — profiles/private/ never ships)"),
+    (re.compile(r"\.private\.ya?ml$"),
+     "a private profile overlay (local only — *.private.yaml never ships)"),
+    (re.compile(r"(^|/)scripts/bench-[^/]*-batch\.sh$"),
+     "an operator batch launcher (rig-specific model list and home paths)"),
 ]
 
 # Content patterns. Each is (regex, human explanation).

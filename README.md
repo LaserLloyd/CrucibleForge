@@ -159,6 +159,37 @@ rubric: share of rows with the first flag true); refusals and empty
 generations score 0. The suite revision changes with the case files, so old
 rows drop off the board by themselves.
 
+### Private categories
+
+A component can be **private**: scored on your own board, never published.
+Everything about it lives in git-ignored files (and `scripts/scrub_check.py`
+refuses them even if forced in):
+
+| File | What |
+|---|---|
+| `cases/private/<category>.json` | the cases — loaded like any case file |
+| `profiles/bench.private.yaml` | an overlay merged into `profiles/bench.yaml`: `private: [<category>]`, `cases:`, `scoring: chat:`, `labels:` (display name), `repeats:`/`max_tokens:` |
+| `profiles/private/<name>.yaml` | whole private profiles (experiments) |
+
+`profiles.private_scope()` is the one source of what is private: the
+overlay's `private:` list plus every category whose file is in
+`cases/private/` (so forgetting the list entry cannot publish it), their case
+ids and labels.
+
+- `crucibleforge report` — your board, private components included.
+- `crucibleforge report --public [--out DIR]` — the board for anyone else
+  (default `results/public/`): private rows, cases and weights are left out
+  *before* scoring, so the Chat score is the one without them (not yours with
+  a column hidden). Every file is then re-checked for every private category
+  name, case id and label; one hit and nothing is written (exit 3).
+  `templates/board/example.html` (tracked) is always built this way.
+- Private case files are outside the suite revision (`version.cases_hash`), so
+  a clean clone and your box agree on it and editing a private case never
+  relabels public rows stale; private rows carry their own `private_revision`.
+- The test-suite runs with `CRUCIBLEFORGE_NO_PRIVATE=1` — exactly what a clean
+  clone sees — and `tests/test_private_categories.py` checks that no tracked
+  file names a local private category or case id.
+
 ## Installing
 
 **The supported install is a clone plus `uv sync`** — run CrucibleForge from

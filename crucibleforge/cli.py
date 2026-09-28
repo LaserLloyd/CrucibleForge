@@ -917,8 +917,19 @@ def cmd_report(args, cfg, full_board: bool = False):
     ``full_board`` (used at the end of ``all``): the shared board always lists
     EVERY benchmarked model, not just the one this run benched — otherwise each
     run overwrote results/report.md with a one-row board (2026-09-24)."""
-    from .report import (failures_md_path, generate, report_html_path, report_md_path,
-                         scorecard_section)
+    from .report import (PrivateLeak, failures_md_path, generate, public_dir,
+                         report_html_path, report_md_path, scorecard_section)
+    if getattr(args, "public", False):
+        try:
+            md = generate(None if full_board else args.models, write=True, public=True,
+                          out_dir=getattr(args, "out", None))
+        except PrivateLeak as e:
+            print(f"refused: {e}", file=sys.stderr)
+            return 3
+        print(scorecard_section(md))
+        print(f"wrote the PUBLIC board (private categories excluded) to "
+              f"{getattr(args, 'out', None) or public_dir()}")
+        return 0
     md = generate(None if full_board else args.models, write=True)
     print(scorecard_section(md))
     print(f"wrote {report_md_path()}")
@@ -1327,6 +1338,12 @@ def main(argv=None):
     p_recover.add_argument("--no-link-check", action="store_true")
     p_report = sub.add_parser("report", help="generate comparison report")
     p_report.add_argument("--models", default=None)
+    p_report.add_argument("--public", action="store_true",
+                          help="build the board for an audience other than you: private "
+                               "categories (cases/private/, a profile's private: list) are "
+                               "left out and every file is leak-checked before writing; "
+                               "writes results/public/ (or --out), never the local board")
+    p_report.add_argument("--out", default=None, help="with --public: output directory")
     p_pw = sub.add_parser("pairwise", help="head-to-head A/B Elo on creative categories")
     p_pw.add_argument("--models", default="all")
     p_pw.add_argument("--categories", default="rp,nsfw,story")

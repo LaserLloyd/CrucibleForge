@@ -89,24 +89,69 @@ _V350_TODAY = {"3.5.0+3c64cb8b", "3.5.0+91073254", "3.5.0+6c4bded7"}
 _EQUIVALENT_STAMPS = {"0d6e0ad1": {"3.4.0+7c3f7296"},
                       "91073254": _V340,
                       "6c4bded7": _V340 | {"3.5.0+91073254", "3.5.0+3c64cb8b"},
-                      "d2d09bda": _V340 | _V350_TODAY}
+                      "d2d09bda": _V340 | _V350_TODAY | {"3.5.0+96800151"}}
+
+
+def _hash_case_file(h, p: Path) -> None:
+    data = json.loads(p.read_bytes())
+    cases = data if isinstance(data, list) else data.get("cases", [])
+    for c in cases if isinstance(cases, list) else []:
+        if isinstance(c, dict):
+            for k in _GRADING_KEYS:
+                c.pop(k, None)
+    h.update(p.name.encode())
+    h.update(b"\0")
+    h.update(json.dumps(data, sort_keys=True, ensure_ascii=False).encode())
 
 
 def cases_hash() -> str:
-    """Stable short hash over the case files' TEST CONTENT (prompts, turns,
-    budgets, rubrics, answer keys) — grading-only keys excluded."""
+    """Stable short hash over the PUBLIC case files' TEST CONTENT (prompts,
+    turns, budgets, rubrics, answer keys) — grading-only keys excluded.
+
+    cases/private/ is deliberately NOT part of it (the glob is not
+    recursive): the suite revision must be the same on a clean clone as on
+    the operator's box, and adding or editing a local private case must not
+    relabel every public row stale. Private rows carry their own per-category
+    stamp instead (:func:`private_category_hash`)."""
     h = hashlib.sha256()
     for p in sorted(_CASES_DIR.glob("*.json")):
-        data = json.loads(p.read_bytes())
-        cases = data if isinstance(data, list) else data.get("cases", [])
-        for c in cases if isinstance(cases, list) else []:
-            if isinstance(c, dict):
-                for k in _GRADING_KEYS:
-                    c.pop(k, None)
-        h.update(p.name.encode())
-        h.update(b"\0")
-        h.update(json.dumps(data, sort_keys=True, ensure_ascii=False).encode())
+        _hash_case_file(h, p)
     return h.hexdigest()[:8]
+
+
+def private_category_hash(category: str) -> str | None:
+    """The ``private_revision`` stamp of a private category: the same content
+    hash as :func:`cases_hash`, over cases/private/<category>.json alone.
+    None when the category has no private case file here."""
+    from . import config as _config
+    p = _config.PRIVATE_CASES_DIR / f"{category}.json"
+    if category not in _config.PRIVATE_CATEGORIES or not p.is_file():
+        return None
+    h = hashlib.sha256()
+    _hash_case_file(h, p)
+    return h.hexdigest()[:8]
+
+
+# Rows written before private categories had their own stamp (the 2026-09-28
+# private-category backfill): their ``bench_revision`` hashed the then-untracked
+# private files in WITH the public ones. Public part: identical to d2d09bda
+# (verified 2026-09-28: the tracked case set alone hashes to d2d09bda), so the
+# stamp is equivalent there (_EQUIVALENT_STAMPS). Private part: the
+# private_category_hash() values of the case content those rows answered —
+# hashes only, so no private category name sits in this tracked file.
+_LEGACY_PRIVATE_STAMPS = {"3.5.0+96800151": {"75de47b3"}}
+
+
+def private_row_current(row: dict) -> bool:
+    """Whether a row of a PRIVATE category still answers the current private
+    case file of its category."""
+    cur = private_category_hash(str(row.get("category")))
+    if cur is None:
+        return False
+    stamp = row.get("private_revision")
+    if stamp is None:
+        return cur in _LEGACY_PRIVATE_STAMPS.get(row.get("bench_revision"), set())
+    return stamp == cur
 
 
 def _profile_judge_spec(cfg: dict) -> dict | None:

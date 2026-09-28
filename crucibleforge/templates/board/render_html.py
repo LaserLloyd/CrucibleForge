@@ -95,18 +95,31 @@ def columns(comps: list[dict]) -> tuple[list[dict], list[dict]]:
 
 def render_html(rows: list[dict], subtitle: str = "",
                 components: list[dict] | None = None,
-                footer: list[str] | None = None) -> str:
+                footer: list[str] | None = None,
+                forbidden: list[str] | None = None) -> str:
     """The full HTML document.
 
     ``rows``: ``report.html_rows`` shape. ``components``: ordered
     ``[{label, side: "chat"|"coding"}]`` (defaults to the labels found in the
     rows). ``footer``: plain-text lines (suite revision, judge, render time).
+    ``forbidden``: for a PUBLIC page, the private terms (category names, case
+    ids, labels — ``profiles.private_scope()["terms"]``). The caller has
+    already left private rows out (report.py builds the public board from
+    filtered rows); here a component column whose label is forbidden is
+    dropped as well, and if any forbidden term still appears anywhere in the
+    page, :class:`ValueError` is raised instead of returning it (fail closed).
+    ``None`` = the operator's own board, rendered as is.
 
     The table head, the filter row and the column chooser are built by
     ``script.js`` from the viewer's saved layout; this page only carries the
     chrome and the data."""
     rows = scrub(rows)
     comps = scrub(_components(rows, components))
+    if forbidden:
+        bad = {t.lower() for t in forbidden}
+        comps = [c for c in comps if c["label"].lower() not in bad]
+        rows = [{**r, "components": {k: v for k, v in (r.get("components") or {}).items()
+                                     if k.lower() not in bad}} for r in rows]
     main, extra = columns(comps)
     esc = html.escape
     # phone Sort select (the table headers sort too): every sortable key
@@ -136,7 +149,7 @@ def render_html(rows: list[dict], subtitle: str = "",
     foot = "".join(f"<p>{esc(scrub(line))}</p>" for line in (footer or []) if line)
     payload = data_json({"rows": rows, "components": comps, "thresholds": THRESHOLDS,
                          "main": main, "extra": extra})
-    return (
+    page = (
         '<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">'
         '<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">'
         '<meta name="color-scheme" content="dark light">'
@@ -163,12 +176,19 @@ def render_html(rows: list[dict], subtitle: str = "",
         f'<script type="application/json" id="board-data">{payload}</script>'
         f"<script>{JS}</script></body></html>"
     )
+    if forbidden:
+        low = page.lower()
+        hits = [t for t in forbidden if t and t.lower() in low]
+        if hits:
+            raise ValueError(f"public board would contain private terms: {hits}")
+    return page
 
 
 def example(path: str | None = None) -> str:
     """Regenerate ``example.html`` from the REAL rows in results/ through the
-    same code path as ``crucibleforge report`` (without writing any results
-    file)."""
+    same code path as ``crucibleforge report --public`` (without writing any
+    results file). example.html is TRACKED — it ships — so it is always the
+    public board: private categories never reach it."""
     from pathlib import Path
 
     from ... import report
@@ -180,6 +200,7 @@ def example(path: str | None = None) -> str:
         cfg = None
     finally:
         set_results_dir(here)
+    cfg = {**(cfg or {}), "_audience": report.PUBLIC}
     labels, stats, _ = report.board_stats(None, cfg)
     out = report.render_report_html(labels, stats, cfg)
     Path(path or Path(__file__).with_name("example.html")).write_text(out, encoding="utf-8")
