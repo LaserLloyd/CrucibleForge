@@ -236,3 +236,19 @@ def test_no_tracked_file_names_a_private_category():
         text = fp.read_text(encoding="utf-8", errors="ignore")
         hits += [(f, t) for t in terms if re.search(rf"(?<![\w-]){re.escape(t)}(?![\w-])", text)]
     assert not hits, hits
+
+
+def test_public_board_does_not_list_a_private_only_model(private_env):
+    """A model whose only rows are private must not appear on the public
+    board at all — an empty row would still reveal it was benchmarked."""
+    _write_rows(private_env, label="m-full")
+    res = private_env["results"]
+    rows = [json.loads(l) for l in (res / "transcripts_m-full.jsonl").read_text().splitlines()]
+    (res / "transcripts_m-private-only.jsonl").write_text(
+        "\n".join(json.dumps({**r, "model_label": "m-private-only"}) for r in rows
+                  if r["category"] == CAT) + "\n")
+    (res / "meta_m-private-only.json").write_text((res / "meta_m-full.json").read_text())
+    local = report.generate(write=False)
+    public = report.generate(write=False, public=True)
+    assert "m-private-only" in local
+    assert "m-private-only" not in public and "m-full" in public

@@ -382,6 +382,11 @@ def _v2_report_body(cmd: str, args, cfg: dict, rc: int, state: dict) -> str:
     lines += ["", "## Files"] + ([f"- `{f}`" for f in present] or ["None."])
     lines += ["", "## Failed"]
     lines += [f"- {who}: {err}" for who, err in failed] or ["None."]
+    plan = getattr(args, "bench_all_plan", None)
+    if plan is not None:
+        from .bench_all import format_plan
+        lines += ["", "## Plan", "```", format_plan(plan), "```"]
+        lines += [f"- {n}" for n in getattr(args, "bench_all_notes", None) or []]
     lines += ["", "## Next"]
     if failed:
         lines += [f"- {who}: {_next_hint(err)}" for who, err in failed]
@@ -947,6 +952,18 @@ def cmd_report(args, cfg, full_board: bool = False):
     return 0
 
 
+def cmd_bench_all(args, cfg):
+    """The whole-board refresh (crucibleforge/bench_all.py)."""
+    from .bench_all import execute
+    rc = execute(args, cfg)
+    plan = getattr(args, "bench_all_plan", None)
+    if plan is not None:
+        # the run report lists the contestants this refresh touched
+        touched = sorted({m for g in plan["groups"] for m in g["models"]} | set(plan["judge"]))
+        args.models = ",".join(touched) or None
+    return rc
+
+
 def cmd_pairwise(args, cfg):
     from .pairwise import run_pairwise, render_pairwise_md
     entries = resolve_models(cfg, args.models)
@@ -1128,7 +1145,7 @@ ENV_FILE = Path(os.environ.get("CRUCIBLEFORGE_ENV_FILE",
 # log line. A parent that already holds it (a queue script's `flock
 # results/.rig.lock …`) is detected by walking the process ancestry for an
 # open fd on the lock file, so the child does not deadlock on its own parent.
-RIG_LOCK_CMDS = ("run", "all", "judge", "recover")
+RIG_LOCK_CMDS = ("run", "all", "judge", "recover", "bench-all")
 
 
 def _remote_judge_only(args, cfg) -> bool:
@@ -1382,6 +1399,20 @@ def main(argv=None):
                        help="re-judge rows that already have verdicts; also lets --fresh "
                             "combine with --cases/--categories (archives the whole set)")
 
+    p_ba = sub.add_parser(
+        "bench-all", help="refresh the whole board: sync the registry with the rig, "
+                          "generate only missing cases, judge, rebuild both boards "
+                          "(plan only unless --go)")
+    p_ba.add_argument("--go", action="store_true", help="execute (default: print the plan)")
+    p_ba.add_argument("--include-api", action="store_true",
+                      help="also complete hosted-API models (metered — costs money)")
+    p_ba.add_argument("--no-sync", action="store_true",
+                      help="do not register rig models missing from models.yaml")
+    p_ba.add_argument("--no-prune", action="store_true",
+                      help="keep board rows of models gone from the rig / disabled")
+    p_ba.add_argument("--models", default=None, help=argparse.SUPPRESS)
+    add_v2_args(p_ba)
+
     p_gui = sub.add_parser("gui", help="web GUI (local, no CDN)")
     p_gui.add_argument("--host", default="127.0.0.1")
     p_gui.add_argument("--port", type=int, default=8777)
@@ -1469,7 +1500,7 @@ def main(argv=None):
     # coding case. "cases list" and the read-only commands never execute
     # anything, so they are not gated.
     from . import graders
-    executes_code = args.cmd in {"run", "all", "recover", "gui"} or (
+    executes_code = args.cmd in {"run", "all", "recover", "gui", "bench-all"} or (
         args.cmd == "cases" and getattr(args, "action", None) == "verify")
     if executes_code:
         try:
@@ -1481,14 +1512,15 @@ def main(argv=None):
     handler = {"status": cmd_status, "run": cmd_run, "judge": cmd_judge,
                "recover": cmd_recover, "report": cmd_report, "pairwise": cmd_pairwise, "all": cmd_all,
                "gui": cmd_gui, "import-openclaw": cmd_import_openclaw,
-               "models": cmd_models, "cases": cmd_cases}[args.cmd]
+               "models": cmd_models, "cases": cmd_cases, "bench-all": cmd_bench_all}[args.cmd]
     # WP-BENCH FIX-6: `run`/`all` are the two commands that do real benched
     # work end to end, so they are the ones tracked by the fleet-wide
     # runs/<id>/{report.md,meta.json} contract. This wraps the dispatch
     # itself (not cmd_run's body) so `cmd_all` calling `cmd_run` internally
     # writes the contract exactly once, for the WHOLE all=run+judge+report
     # unit of work, not a premature "done" the moment run() alone finishes.
-    v2_tracked = args.cmd in ("run", "all", "judge")
+    v2_tracked = args.cmd in ("run", "all", "judge") or (
+        args.cmd == "bench-all" and (getattr(args, "go", False) or getattr(args, "detach", False)))
     if v2_tracked and getattr(args, "detach", False):
         sys.exit(_detach(args, argv))
     v2_state = _v2_start(args) if v2_tracked else None

@@ -1813,19 +1813,27 @@ def judge_input_weight(row: dict) -> int:
     return len(row.get("response") or "")
 
 
+#: how many verdict attempts --retry-failed spends on one row before leaving
+#: it failed (a verdict that times out every time must not make every
+#: `bench-all` re-spend 10 minutes on it — the row stays "unparsable" on the
+#: board; --force still re-judges it)
+MAX_VERDICT_ATTEMPTS = 2
+
+
 def needs_verdict(r: dict, force: bool = False, retry_failed: bool = False) -> bool:
     """Whether a transcript row goes to the judge. ``force``: every judged row
     again. ``retry_failed``: also a row whose stored verdict FAILED (row
-    timeout, unparsable reply) — not an empty generation, which has nothing
-    to judge — so one slow verdict can be redone without re-judging a whole
-    model (``--force``)."""
+    timeout, unparsable reply) and has had fewer than MAX_VERDICT_ATTEMPTS
+    tries — not an empty generation, which has nothing to judge — so one slow
+    verdict can be redone without re-judging a whole model (``--force``)."""
     if not r.get("needs_judge"):
         return False
     j = r.get("judge")
     if force or j is None:
         return True
     return bool(retry_failed and isinstance(j, dict) and j.get("judge_failed")
-                and not j.get("empty_generation"))
+                and not j.get("empty_generation")
+                and int(j.get("attempts") or 1) < MAX_VERDICT_ATTEMPTS)
 
 
 def pending_judge_rows(labels: list[str], force: bool = False,
@@ -1941,6 +1949,10 @@ def run_judge(cfg: dict, labels: list[str], force: bool = False,
             with lock:
                 counts["errored"] += 1
             return
+        prev = row.get("judge")
+        if verdict.get("judge_failed") and isinstance(prev, dict) and prev.get("judge_failed"):
+            # a retried failure: count it, so --retry-failed stops at the cap
+            verdict = {**verdict, "attempts": int(prev.get("attempts") or 1) + 1}
         row["judge"] = verdict
         row["judge_model"] = judge_id
         _apply_reference_grade(row, verdict)

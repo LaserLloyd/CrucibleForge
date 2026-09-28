@@ -1546,7 +1546,9 @@ def board_stats(labels_arg: str | None, cfg: dict | None) -> tuple[list[str], di
     for label in labels:
         rows = board_filter(label, cfg)
         meta = load_meta(label)
-        if not rows and not _meta_counts(meta, cfg):
+        # public: a model with no public rows (only private ones) is not
+        # listed at all — an empty row would still say it was benchmarked
+        if not rows and (_hidden(cfg) or not _meta_counts(meta, cfg)):
             dropped += 1
             continue
         stats[label] = model_stats(label, cfg, rows=rows)

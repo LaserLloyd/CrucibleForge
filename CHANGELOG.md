@@ -6,6 +6,21 @@ was ever published as Gauntlet, so there is no migration to do — the entries
 below are kept because the engineering they record is real, not to narrate a
 rename.
 
+## Unreleased (2026-09-29)
+
+- **`crucibleforge bench-all`** — the whole-board refresh as one idempotent
+  command: lists the rig, registers unregistered chat models (text append —
+  comments survive; never embeddings or the judge), prunes board rows of
+  models gone from the rig / disabled / unregistered into
+  `results/archive-<date>-pruned/`, generates only the missing case ids per
+  model (grouped, never `--fresh`), judges once (+ one capped retry of failed
+  verdicts), and rebuilds the local and public boards. Plan only unless
+  `--go`; `--detach` for the runs/<id> contract. Exit 0 done/nothing to do ·
+  1 a model failed · 3 public leak refused · 4 rig busy · 5 rig unreachable.
+- A failed verdict is retried at most once by `--retry-failed`
+  (`verdict.attempts`); `--force` still re-judges anything.
+- The public board no longer lists a model that has only private rows.
+
 ## Unreleased (2026-09-28)
 
 - **Private categories.** Local-only components live in `cases/private/`,
