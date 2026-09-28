@@ -25,6 +25,10 @@ rename.
   aborts is recorded as FAILED and keeps the exit code non-zero, but no longer
   stops the judge and the board rebuild for the rest of the batch.
 - The test-suite runs as a clean clone (`CRUCIBLEFORGE_NO_PRIVATE=1`).
+- **`judge --retry-failed`** re-judges only rows whose stored verdict failed
+  (row timeout, unparsable reply — not empty generations), instead of
+  `--force` re-judging every row of the model. One predicate
+  (`judge.needs_verdict`) decides for both the pending count and the run.
 
 ## 3.5.0 — review fixes (2026-09-25, evening)
 

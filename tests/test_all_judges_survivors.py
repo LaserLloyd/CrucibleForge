@@ -106,3 +106,36 @@ def test_cmd_run_records_the_labels_it_ran(monkeypatch):
                               yes=True, cmd="all", judge=None, force_evict=False)
     assert cli.cmd_run(args, {"defaults": {}}) == 1
     assert args.ran_labels == ["a", "b"]
+
+
+# ------------------------------------------------ judge --retry-failed (2026-09-28)
+
+def test_retry_failed_selects_only_failed_verdicts():
+    from crucibleforge.judge import needs_verdict
+    fresh = {"needs_judge": True}
+    ok = {"needs_judge": True, "judge": {"judge_failed": False, "scores": {"x": 5}}}
+    timed_out = {"needs_judge": True, "judge": {"judge_failed": True,
+                                                "judge_error": "request exceeded its 30s wall-clock ceiling"}}
+    empty = {"needs_judge": True, "judge": {"judge_failed": True, "empty_generation": True}}
+    objective = {"grade": "pass"}
+    assert [needs_verdict(r) for r in (fresh, ok, timed_out, empty, objective)] == \
+        [True, False, False, False, False]
+    assert [needs_verdict(r, retry_failed=True) for r in (fresh, ok, timed_out, empty, objective)] == \
+        [True, False, True, False, False]
+    assert [needs_verdict(r, force=True) for r in (fresh, ok, timed_out, empty, objective)] == \
+        [True, True, True, True, False]
+
+
+def test_cmd_judge_passes_retry_failed_through(monkeypatch):
+    seen = {}
+
+    def fake_pending(labels, force=False, retry_failed=False):
+        seen.update(labels=labels, force=force, retry_failed=retry_failed)
+        return 0                                   # nothing to do -> rig untouched
+    monkeypatch.setattr("crucibleforge.judge.pending_judge_rows", fake_pending)
+    monkeypatch.setattr(cli, "_apply_profile_arg", lambda args, cfg: (cfg, [], {}))
+    monkeypatch.setattr(cli, "resolve_models", lambda cfg, m: [{"name": "a"}])
+    args = argparse.Namespace(models="a", force=False, retry_failed=True, samples=None,
+                              smoke=False, judge=None)
+    assert cli.cmd_judge(args, {}) == 0
+    assert seen == {"labels": ["a"], "force": False, "retry_failed": True}

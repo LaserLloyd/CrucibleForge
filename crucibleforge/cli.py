@@ -841,7 +841,9 @@ def cmd_judge(args, cfg):
     # around the named model, or refuse fast with a message naming the
     # holder, instead of timing out 178 rows in.
     from .judge import pending_judge_rows
-    if pending_judge_rows(labels, force=bool(getattr(args, "force", False))) == 0:
+    retry_failed = bool(getattr(args, "retry_failed", False))
+    if pending_judge_rows(labels, force=bool(getattr(args, "force", False)),
+                          retry_failed=retry_failed) == 0:
         # Judge-free profile (e.g. `coding`) or already judged: do not touch
         # the rig at all — a lease here would evict residents and vacate
         # ComfyUI for a phase that has nothing to do.
@@ -872,7 +874,8 @@ def cmd_judge(args, cfg):
         result = run_judge(cfg, labels, force=args.force, samples=samples,
                            judge_override=getattr(args, "judge", None),
                            allow_fallback=getattr(args, "judge_fallback", None),
-                           allow_self_judge=bool(getattr(args, "allow_self_judge", False)))
+                           allow_self_judge=bool(getattr(args, "allow_self_judge", False)),
+                           retry_failed=retry_failed)
     except Exception as e:
         # the board names the reason next to the unjudged rows
         _stamp_judge_error(labels, str(e))
@@ -1339,6 +1342,9 @@ def main(argv=None):
     p_judge.add_argument("--models", default="all")
     p_judge.add_argument("--force", action="store_true",
                          help="re-judge rows that already have verdicts")
+    p_judge.add_argument("--retry-failed", action="store_true",
+                         help="also re-judge rows whose stored verdict FAILED (row timeout, "
+                              "unparsable reply) — without --force's re-judging of every row")
     p_judge.add_argument("--samples", type=int, default=None)
     p_judge.add_argument("--judge", default=None, help="judge to use: a judge.candidates name, a registry label (e.g. minimax-m3), or provider:model_id. Default: the profile's judge (bench: Gemma-4-31B heretic Q8). A hosted-API judge takes no GPU lease and no rig lock")
     p_judge.add_argument("--allow-self-judge", action="store_true",

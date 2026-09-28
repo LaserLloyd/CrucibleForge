@@ -1813,19 +1813,35 @@ def judge_input_weight(row: dict) -> int:
     return len(row.get("response") or "")
 
 
-def pending_judge_rows(labels: list[str], force: bool = False) -> int:
+def needs_verdict(r: dict, force: bool = False, retry_failed: bool = False) -> bool:
+    """Whether a transcript row goes to the judge. ``force``: every judged row
+    again. ``retry_failed``: also a row whose stored verdict FAILED (row
+    timeout, unparsable reply) — not an empty generation, which has nothing
+    to judge — so one slow verdict can be redone without re-judging a whole
+    model (``--force``)."""
+    if not r.get("needs_judge"):
+        return False
+    j = r.get("judge")
+    if force or j is None:
+        return True
+    return bool(retry_failed and isinstance(j, dict) and j.get("judge_failed")
+                and not j.get("empty_generation"))
+
+
+def pending_judge_rows(labels: list[str], force: bool = False,
+                       retry_failed: bool = False) -> int:
     """How many transcript rows still need a judge verdict — computed from
     the files alone, so `judge`/`all` can skip the rig entirely (no lease,
     no eviction, no ComfyUI vacate) when a judge-free profile like `coding`
     has nothing to score."""
     return sum(1 for label in labels for r in load_transcripts(label)
-               if r.get("needs_judge") and (force or "judge" not in r))
+               if needs_verdict(r, force, retry_failed))
 
 
 def run_judge(cfg: dict, labels: list[str], force: bool = False,
               samples: int | None = None, judge_override: str | dict | None = None,
               stop=None, allow_fallback: bool | None = None,
-              allow_self_judge: bool = False) -> dict:
+              allow_self_judge: bool = False, retry_failed: bool = False) -> dict:
     """Judge all pending quality rows for the given labels.
 
     Judged rows are APPENDED to the same transcript file; the loader's
@@ -1859,7 +1875,7 @@ def run_judge(cfg: dict, labels: list[str], force: bool = False,
         samples = int(cfg["judge"].get("samples", 1))
 
     pending = {label: [r for r in load_transcripts(label)
-                       if r.get("needs_judge") and (force or "judge" not in r)]
+                       if needs_verdict(r, force, retry_failed)]
                for label in labels}
     total = sum(len(v) for v in pending.values())
     if total == 0:
