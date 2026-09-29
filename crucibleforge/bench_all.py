@@ -302,6 +302,10 @@ def execute(args, cfg: dict) -> int:
     p = plan(cfg, rig_ids, include_api=args.include_api, board_labels=board, first=first)
     print(format_plan(p))
     args.bench_all_plan = p
+    # the run report names what this refresh touches — set now, so a report
+    # written after an interrupt (SIGTERM mid-judge) says the same
+    touched = sorted({m for g in p["groups"] for m in g["models"]} | set(p["judge"]))
+    args.models = ",".join(touched) or None
     if not args.go:
         print("\n(plan only — add --go to execute)")
         return EXIT_OK

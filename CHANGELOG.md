@@ -20,6 +20,15 @@ rename.
 - A failed verdict is retried at most once by `--retry-failed`
   (`verdict.attempts`); `--force` still re-judges anything.
 - The public board no longer lists a model that has only private rows.
+- `bench-all` plan-only never waits for the rig lock; a case that errored
+  twice (or whose prompt is longer than the model's context) is not retried
+  forever; `--first LABEL[,...]` generates those models before the rest.
+- **A stopped judge phase stops.** SIGTERM / Ctrl-C / Stop now ends the phase
+  after the rows in flight (saved); queued rows stay pending
+  (`judge.run_rows`). Before, the pool's exit ran the whole queue.
+- **Two steer format checks backtracked exponentially** (SX2, SX3) and froze a
+  whole benchmark process; rewritten to equivalent linear regexes (grading
+  only, revision unchanged) with a test that times every case-file regex.
 
 ## Unreleased (2026-09-28)
 

@@ -190,6 +190,24 @@ ids and labels.
   clone sees — and `tests/test_private_categories.py` checks that no tracked
   file names a local private category or case id.
 
+### Refreshing the whole board
+
+```bash
+uv run crucibleforge bench-all            # the plan: what is missing, what would change
+uv run crucibleforge bench-all --go       # do it (add --detach on a server)
+```
+
+`bench-all` lists the models your StudioForge server has, registers chat
+models the registry lacks (embeddings and the judge excluded; appended as
+text so `models.yaml` keeps its comments), moves board rows of models that are
+gone, disabled or unregistered to `results/archive-<date>-pruned/`, generates
+only the case ids each model is missing (never `--fresh`), judges once, and
+rebuilds both boards. Re-running it is always safe; with everything complete
+it reports *nothing to do*. Exit codes: 0 done · 1 a model failed (the others
+are still judged and on the board) · 3 the public board refused a leak · 4 the
+server is busy (judge lease refused) · 5 the server is unreachable. Hosted-API
+models are completed only with `--include-api` (they cost money).
+
 ## Installing
 
 **The supported install is a clone plus `uv sync`** — run CrucibleForge from

@@ -955,13 +955,7 @@ def cmd_report(args, cfg, full_board: bool = False):
 def cmd_bench_all(args, cfg):
     """The whole-board refresh (crucibleforge/bench_all.py)."""
     from .bench_all import execute
-    rc = execute(args, cfg)
-    plan = getattr(args, "bench_all_plan", None)
-    if plan is not None:
-        # the run report lists the contestants this refresh touched
-        touched = sorted({m for g in plan["groups"] for m in g["models"]} | set(plan["judge"]))
-        args.models = ",".join(touched) or None
-    return rc
+    return execute(args, cfg)
 
 
 def cmd_pairwise(args, cfg):
