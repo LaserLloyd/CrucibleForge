@@ -1410,6 +1410,8 @@ def main(argv=None):
                       help="do not register rig models missing from models.yaml")
     p_ba.add_argument("--no-prune", action="store_true",
                       help="keep board rows of models gone from the rig / disabled")
+    p_ba.add_argument("--first", default=None,
+                      help="comma list of labels to generate before everything else")
     p_ba.add_argument("--models", default=None, help=argparse.SUPPRESS)
     add_v2_args(p_ba)
 
@@ -1526,7 +1528,8 @@ def main(argv=None):
     v2_state = _v2_start(args) if v2_tracked else None
     rig_lock = None
     try:
-        if args.cmd in RIG_LOCK_CMDS and not _remote_judge_only(args, cfg):
+        plan_only = args.cmd == "bench-all" and not getattr(args, "go", False)
+        if args.cmd in RIG_LOCK_CMDS and not plan_only and not _remote_judge_only(args, cfg):
             rig_lock = acquire_rig_lock()  # noqa: F841 — held until exit
         rc = handler(args, cfg)
     except ConfigError as e:

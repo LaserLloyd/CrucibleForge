@@ -31,6 +31,7 @@ def _plan(cfg, rig, rows=None, pending=None, board=None, **kw):
     return bench_all.plan(cfg, set(rig), board_labels=board or [],
                           rows_for=lambda l: rows.get(l, []),
                           pending_for=lambda l: pending.get(l, 0),
+                          attempts_for=lambda l: {},
                           judge_id=JUDGE, case_ids=CASES, **kw)
 
 
@@ -159,3 +160,39 @@ def test_retry_failed_is_capped_per_row():
     assert needs_verdict(once, retry_failed=True)
     assert not needs_verdict(twice, retry_failed=True)
     assert needs_verdict(twice, force=True)
+
+
+def test_a_case_that_keeps_erroring_is_not_retried_forever():
+    rows = [{"case_id": "C1", "grade": "error", "error_kind": "transport"}]
+    assert bench_all.missing_cases(rows, CASES[:1], {"C1": 1}) == ["C1"]
+    assert bench_all.missing_cases(rows, CASES[:1], {"C1": 2}) == []
+
+
+def test_a_prompt_longer_than_the_context_is_permanent():
+    rows = [{"case_id": "C1", "grade": "error", "error_kind": "transport",
+             "error": 'server error: {"message": "The prompt does not fit the context \'m\'"}'}]
+    assert bench_all.missing_cases(rows, CASES[:1]) == []
+
+
+def test_first_puts_the_named_models_at_the_front():
+    cfg = _cfg([_m("a", "org/a"), _m("b", "org/b"), _m("q8", "org/q8")])
+    rows = {"a": _done("C1"), "b": _done("C1", "C2")}
+    p = _plan(cfg, ["org/a", "org/b", "org/q8"], rows=rows, first=["q8"])
+    assert p["groups"][0] == {"models": ["q8"], "cases": CASES}
+    assert [g["models"] for g in p["groups"][1:]] == [["a"], ["b"]]
+    # a --first model sharing a group with others is split out ahead of them
+    p = _plan(cfg, ["org/a", "org/b", "org/q8"], rows={"a": _done("C1"), "b": _done("C1"),
+                                                         "q8": _done("C1")}, first=["b"])
+    assert p["groups"] == [{"models": ["b"], "cases": ["C2", "C3"]},
+                           {"models": ["a", "q8"], "cases": ["C2", "C3"]}]
+
+
+def test_plan_only_never_waits_for_the_rig_lock(monkeypatch):
+    """A plan must answer at once while a bench holds results/.rig.lock."""
+    called = {}
+    monkeypatch.setattr(cli, "acquire_rig_lock", lambda: called.setdefault("lock", True))
+    monkeypatch.setattr(cli, "load_config", lambda *a, **k: {"models": [], "providers": {}})
+    monkeypatch.setattr(cli, "cmd_bench_all", lambda args, cfg: 0)
+    with pytest.raises(SystemExit) as e:
+        cli.main(["bench-all"])
+    assert e.value.code == 0 and "lock" not in called

@@ -52,6 +52,12 @@ _NOT_CHAT = re.compile(r"embed|rerank|whisper|clip|tts", re.IGNORECASE)
 #: a row with only these errors is retried (a template error is permanent: the
 #: server cannot render that model's template — re-running changes nothing)
 _RETRYABLE_ERRORS = {"transport", "timeout", "generation", None}
+#: server messages that mean the case can never run on this model as loaded
+#: (the prompt is longer than the model's context) — not worth a retry
+_PERMANENT_MESSAGES = ("does not fit the context",)
+#: a case that errored this many times (across runs) is left errored — the
+#: board shows "N rows errored" — instead of being retried by every bench-all
+MAX_CASE_ATTEMPTS = 2
 
 
 # ------------------------------------------------------------------ plan
@@ -67,22 +73,43 @@ def _label_for(model_id: str, taken: set[str]) -> str:
     return lab
 
 
-def missing_cases(rows: list[dict], case_ids: list[str]) -> list[str]:
+def _permanent_error(r: dict) -> bool:
+    return (r.get("error_kind") not in _RETRYABLE_ERRORS
+            or any(m in str(r.get("error") or "") for m in _PERMANENT_MESSAGES))
+
+
+def missing_cases(rows: list[dict], case_ids: list[str],
+                  attempts: dict[str, int] | None = None) -> list[str]:
     """Benchmark case ids with no usable current row. ``rows`` = the label's
     board rows (report.board_filter). A case counts as done when it has any
     row that is not a retryable error (a pass, a fail, a skipped long-context
-    case, or a permanent template error)."""
+    case, a template error, a prompt longer than the model's context), or when
+    it has already errored ``MAX_CASE_ATTEMPTS`` times (``attempts``: errored
+    rows per case id across the label's whole transcript history)."""
     done = set()
     for r in rows:
-        if r.get("grade") != "error" or r.get("error_kind") not in _RETRYABLE_ERRORS:
+        if r.get("grade") != "error" or _permanent_error(r):
             done.add(r.get("case_id"))
-    return [c for c in case_ids if c not in done]
+    attempts = attempts or {}
+    return [c for c in case_ids
+            if c not in done and attempts.get(c, 0) < MAX_CASE_ATTEMPTS]
+
+
+def error_attempts(label: str) -> dict[str, int]:
+    """Errored benchmark rows per case id over the label's whole history."""
+    from .config import load_transcripts
+    from .profiles import DEFAULT_PROFILE
+    out: dict[str, int] = {}
+    for r in load_transcripts(label):
+        if r.get("profile") == DEFAULT_PROFILE and r.get("grade") == "error":
+            out[r.get("case_id")] = out.get(r.get("case_id"), 0) + 1
+    return out
 
 
 def plan(cfg: dict, rig_ids: set[str], *, include_api: bool = False,
          board_labels: list[str] | None = None, rows_for=None,
          judge_id: str | None = None, case_ids: list[str] | None = None,
-         pending_for=None) -> dict:
+         pending_for=None, attempts_for=None, first: list[str] | None = None) -> dict:
     """What bench-all would do — computed, nothing touched. Pure given its
     inputs (the tests drive it with fakes)."""
     from . import report
@@ -95,6 +122,7 @@ def plan(cfg: dict, rig_ids: set[str], *, include_api: bool = False,
         j = profile_judge(load_profile(DEFAULT_PROFILE, cfg))
         judge_id = j.get("model_id") if isinstance(j, dict) else j
     rows_for = rows_for or (lambda label: report.board_filter(label, cfg))
+    attempts_for = attempts_for or error_attempts
     if pending_for is None:
         def pending_for(label):
             from .config import load_transcripts
@@ -144,15 +172,25 @@ def plan(cfg: dict, rig_ids: set[str], *, include_api: bool = False,
 
     groups: dict[tuple, list[str]] = {}
     for label in candidates:
-        miss = tuple(missing_cases([] if label in {a["name"] for a in add} else rows_for(label),
-                                   case_ids))
+        new = label in {a["name"] for a in add}
+        miss = tuple(missing_cases([] if new else rows_for(label), case_ids,
+                                   {} if new else attempts_for(label)))
         if miss:
             groups.setdefault(miss, []).append(label)
+    ordered = []
+    first = [f for f in (first or []) if f]
+    for miss, labels in groups.items():       # --first: their own groups, ahead
+        head = [l for l in labels if l in first]
+        if head:
+            ordered.insert(sum(1 for o in ordered if o[2]), (miss, head, True))
+        rest = [l for l in labels if l not in first]
+        if rest:
+            ordered.append((miss, rest, False))
     to_judge = sorted({l for l in candidates if pending_for(l)}
                       | {l for labels in groups.values() for l in labels})
     return {"rig_models": len(rig_ids), "add": add, "skipped_rig": skipped_rig,
             "candidates": candidates, "not_on_rig": not_on_rig, "prune": prune,
-            "groups": [{"models": labels, "cases": list(miss)} for miss, labels in groups.items()],
+            "groups": [{"models": labels, "cases": list(miss)} for miss, labels, _ in ordered],
             "judge": to_judge, "case_count": len(case_ids)}
 
 
@@ -260,7 +298,8 @@ def execute(args, cfg: dict) -> int:
         return EXIT_RIG_DOWN
     board = sorted({p.stem.removeprefix("transcripts_") for p in results_dir().glob("transcripts_*.jsonl")}
                    | {p.stem.removeprefix("meta_") for p in results_dir().glob("meta_*.json")})
-    p = plan(cfg, rig_ids, include_api=args.include_api, board_labels=board)
+    first = [x.strip() for x in (getattr(args, "first", None) or "").split(",") if x.strip()]
+    p = plan(cfg, rig_ids, include_api=args.include_api, board_labels=board, first=first)
     print(format_plan(p))
     args.bench_all_plan = p
     if not args.go:
