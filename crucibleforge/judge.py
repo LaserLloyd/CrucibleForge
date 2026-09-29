@@ -1836,6 +1836,27 @@ def needs_verdict(r: dict, force: bool = False, retry_failed: bool = False) -> b
                 and int(j.get("attempts") or 1) < MAX_VERDICT_ATTEMPTS)
 
 
+def run_rows(jobs, fn, workers: int, stop=None) -> None:
+    """Run ``fn(label, row)`` for every job on ``workers`` threads.
+
+    A stop (the GUI's Stop event, SIGTERM -> SystemExit, Ctrl-C, an exception
+    from a row) ends the phase after the rows already IN FLIGHT — their
+    verdicts are saved as they finish — and cancels the queued ones, which
+    stay pending for the next run. A plain ``with ThreadPoolExecutor`` waits
+    for the whole queue on the way out: a stopped 369-row judge phase kept
+    going for hours (2026-09-29)."""
+    pool = ThreadPoolExecutor(max_workers=max(1, workers))
+    try:
+        futs = [pool.submit(fn, label, row) for label, row in jobs]
+        for f in futs:
+            if stop is not None and stop.is_set():
+                log.warning("judge stopped — rows in flight finish, queued rows stay pending")
+                break
+            f.result()
+    finally:
+        pool.shutdown(wait=True, cancel_futures=True)
+
+
 def pending_judge_rows(labels: list[str], force: bool = False,
                        retry_failed: bool = False) -> int:
     """How many transcript rows still need a judge verdict — computed from
@@ -1985,12 +2006,7 @@ def run_judge(cfg: dict, labels: list[str], force: bool = False,
                 break
             _one(label, row)
     else:
-        with ThreadPoolExecutor(max_workers=row_workers) as pool:
-            futs = [pool.submit(_one, l, r) for l, r in jobs]
-            for f in futs:
-                if stop is not None and stop.is_set():
-                    break
-                f.result()
+        run_rows(jobs, _one, row_workers, stop)
     log.info("judging done: %d rows, %d unparsable judge verdicts, %d empty generations "
              "(model produced no content — not a judge failure), %d errored (not written)",
              counts["judged"], counts["failed"], counts["empty"], counts["errored"])

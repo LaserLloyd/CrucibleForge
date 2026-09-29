@@ -139,3 +139,34 @@ def test_cmd_judge_passes_retry_failed_through(monkeypatch):
                               smoke=False, judge=None)
     assert cli.cmd_judge(args, {}) == 0
     assert seen == {"labels": ["a"], "force": False, "retry_failed": True}
+
+
+# ------------------------------------------ a stopped judge stops (2026-09-29)
+
+def test_a_stopped_judge_does_not_run_its_queue():
+    import threading
+    import time
+    from crucibleforge.judge import run_rows
+    stop, done = threading.Event(), []
+
+    def one(label, row):
+        time.sleep(0.05)
+        done.append(row)
+        stop.set()                       # the first finished row asks to stop
+    run_rows([("m", i) for i in range(40)], one, workers=2, stop=stop)
+    assert len(done) <= 4                # the in-flight rows, not the 40 queued
+
+
+def test_an_interrupt_cancels_the_queue_and_propagates():
+    import time
+    from crucibleforge.judge import run_rows
+    done = []
+
+    def one(label, row):
+        time.sleep(0.02)
+        done.append(row)
+        if row == 0:
+            raise KeyboardInterrupt      # stands in for SIGTERM -> SystemExit
+    with pytest.raises(KeyboardInterrupt):
+        run_rows([("m", i) for i in range(40)], one, workers=2)
+    assert len(done) <= 4
