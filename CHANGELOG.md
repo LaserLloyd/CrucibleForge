@@ -6,6 +6,17 @@ was ever published as Gauntlet, so there is no migration to do — the entries
 below are kept because the engineering they record is real, not to narrate a
 rename.
 
+## 3.5.1 — public-repo hygiene (2026-10-01)
+
+- **Case files.** `FC4` (a safety probe no profile ran) is removed from
+  `cases/nsfw.json`; `FC5` asks the same refusal question without naming a
+  real person; `N1`-`N4` and `NM1` state the characters' adult ages and
+  consent. A test now holds every non-safety case in the public nsfw file to
+  named adults with stated ages (>= 21) and stated consent. None of these
+  cases is in the bench profile, so `SUITE_VERSION` 3.5.1 maps every 3.5.0
+  stamp as equivalent (`_EQUIVALENT_STAMPS`) and no stored board row goes
+  stale.
+
 ## Unreleased (2026-09-29)
 
 - **`crucibleforge bench-all`** — the whole-board refresh as one idempotent

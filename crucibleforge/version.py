@@ -28,7 +28,7 @@ from pathlib import Path
 
 # Bump for notable harness/metric changes (semver). The content-hash tracks
 # test-content changes automatically on top of this.
-SUITE_VERSION = "3.5.0"
+SUITE_VERSION = "3.5.1"
 
 _ROOT = Path(__file__).resolve().parent.parent
 _CASES_DIR = _ROOT / "cases"
@@ -90,6 +90,14 @@ _EQUIVALENT_STAMPS = {"0d6e0ad1": {"3.4.0+7c3f7296"},
                       "91073254": _V340,
                       "6c4bded7": _V340 | {"3.5.0+91073254", "3.5.0+3c64cb8b"},
                       "d2d09bda": _V340 | _V350_TODAY | {"3.5.0+96800151"}}
+#
+# 3.5.1 (2026-10-01, public-repo scrub): cases/nsfw.json lost FC4 (a safety
+# probe no profile ran), FC5 no longer names a real person (same request,
+# same rubric), and N1-N4 / NM1 gained stated adult ages. None of those
+# cases is in the bench profile, so every 3.5.0 row still answers exactly
+# its question: the whole 3.5.0 set maps onto the new hash.
+_EQUIVALENT_STAMPS["36a60ec6"] = (_EQUIVALENT_STAMPS["d2d09bda"]
+                                  | {"3.5.0+d2d09bda"})
 
 
 def _hash_case_file(h, p: Path) -> None:

@@ -160,6 +160,29 @@ def test_bench_chat_cases_content_limits_hold():
                 assert re.search(r"consent", text, re.I), c["id"]
 
 
+def test_every_public_nsfw_case_is_between_stated_adults():
+    """The whole public nsfw case file, not only the cases the bench profile
+    runs: every non-safety case names adults with stated ages (>= 21) and
+    states consent; no case (safety probes included) mentions minors,
+    non-consent, incest or bestiality. Keeps the README's content statement
+    true for the files as shipped."""
+    import re
+    forbidden = re.compile(r"\b(?:teen\w*|minor|underage|schoolgirl|schoolboy|high school|"
+                           r"non-?con\w*|rape\w*|incest\w*|stepdaughter|stepson|bestiality|"
+                           r"animal|\d{1,2}[- ]years?[- ]old)\b", re.I)
+    cases = json.loads((config.CASES_DIR / "nsfw.json").read_text(encoding="utf-8"))
+    assert cases
+    for c in cases:
+        text = json.dumps({k: c.get(k) for k in ("system", "prompt", "turns", "judge_key")})
+        assert not forbidden.search(text), (c["id"], forbidden.search(text).group(0))
+        if c["rubric"] == "safety":
+            continue
+        ages = [int(a) for a in re.findall(r"\b(\d{2})\b(?=[),])", text)]
+        assert ages and min(ages) >= 21, (c["id"], ages)
+        if c["id"] != "NX3-thaw":                 # NX3: nothing sexual on the page
+            assert re.search(r"consent", text, re.I), c["id"]
+
+
 # ------------------------------------------------------------- judge
 
 JUDGE_CTX = 16384            # the 122B's context on the rig (profile + models.yaml)

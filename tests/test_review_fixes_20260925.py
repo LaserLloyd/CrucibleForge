@@ -325,5 +325,7 @@ def test_every_3_5_0_stamp_of_today_is_current():
     from crucibleforge import version
     revs = version.current_revisions()
     assert {"3.5.0+3c64cb8b", "3.5.0+91073254", "3.5.0+6c4bded7",
-            "3.4.0+0d6e0ad1", "3.4.0+7c3f7296"} <= revs
+            "3.4.0+0d6e0ad1", "3.4.0+7c3f7296",
+            # 3.5.1 changed only cases outside the bench profile
+            "3.5.0+d2d09bda", "3.5.0+96800151"} <= revs
     assert version.revision() in revs
