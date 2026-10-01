@@ -31,3 +31,5 @@ profiles/private/
 profiles/*.private.yaml
 # operator batch/campaign launchers (rig model lists, home paths)
 scripts/bench-*-batch.sh
+# operator-only stronger explicit-canary paragraph (judge.CANARY_EXPLICIT_DEFAULT)
+crucibleforge/canary_explicit.local.txt

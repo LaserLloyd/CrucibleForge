@@ -121,6 +121,8 @@ FORBIDDEN_IF_COMMITTED = [
      "a private benchmark profile (local only — profiles/private/ never ships)"),
     (re.compile(r"\.private\.ya?ml$"),
      "a private profile overlay (local only — *.private.yaml never ships)"),
+    (re.compile(r"(^|/)[^/]*\.local\.txt$"),
+     "an operator-local override file (*.local.txt never ships)"),
     (re.compile(r"(^|/)scripts/bench-[^/]*-batch\.sh$"),
      "an operator batch launcher (rig-specific model list and home paths)"),
 ]

@@ -246,12 +246,21 @@ def test_canary_still_aborts_a_judge_that_fails_twice():
     assert calls["explicit"] == 2         # first try + one retry, no more
 
 
-def test_explicit_canary_text_is_unambiguously_explicit():
+def test_explicit_canary_text_is_a_scene_not_a_fade():
     # "made love ... came undone" is a 3 on the rubric's own scale
-    # (suggestive / fade-to-black); the probe must sit well above the bar of 4
-    t = judge.CANARY_EXPLICIT.lower()
-    assert "made love" not in t
-    assert sum(w in t for w in ("cock", "nipples", "inside her", "came")) >= 3
+    # (suggestive / fade-to-black); the shipped probe stays on the page
+    t = judge.CANARY_EXPLICIT_DEFAULT.lower()
+    assert "made love" not in t and "fade" not in t
+    assert len(t.split()) >= 30
+
+
+def test_explicit_canary_local_override(tmp_path):
+    p = tmp_path / "canary_explicit.local.txt"
+    assert judge._canary_explicit_text(p) == judge.CANARY_EXPLICIT_DEFAULT    # missing
+    p.write_text("  \n", encoding="utf-8")
+    assert judge._canary_explicit_text(p) == judge.CANARY_EXPLICIT_DEFAULT    # empty
+    p.write_text("A stronger local paragraph.\n", encoding="utf-8")
+    assert judge._canary_explicit_text(p) == "A stronger local paragraph."
 
 
 # ------------------------------------------------------------ the board
