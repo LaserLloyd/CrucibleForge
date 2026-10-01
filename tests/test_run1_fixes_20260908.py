@@ -13,9 +13,9 @@ def test_v2_start_inherits_routing_from_preexisting_meta(tmp_path, monkeypatch):
     run_dir = tmp_path / "r1"
     run_dir.mkdir()
     (run_dir / "meta.json").write_text(json.dumps({
-        "schema": 1, "id": "r1", "producer": "ds_flash", "kind": "spawn",
+        "schema": 1, "id": "r1", "producer": "worker", "kind": "spawn",
         "requester_session": "agent:main:thread-x", "thread_id": None, "task_run_id": "t9",
-        "child_session": "agent:ds_flash:abc", "status": "running"}))
+        "child_session": "agent:worker:abc", "status": "running"}))
     args = types.SimpleNamespace(run_id="r1", cmd="all", models="m", requester=None,
                                  deliver_to=None, task_run_id=None)
     for k in ("CRUCIBLEFORGE_REQUESTER", "CRUCIBLEFORGE_DELIVER_TO", "CRUCIBLEFORGE_TASK_RUN_ID"):
@@ -24,21 +24,21 @@ def test_v2_start_inherits_routing_from_preexisting_meta(tmp_path, monkeypatch):
     meta = json.loads((run_dir / "meta.json").read_text())
     assert meta["requester_session"] == "agent:main:thread-x"
     assert meta["task_run_id"] == "t9"
-    assert meta["child_session"] == "agent:ds_flash:abc"      # extra field rides along
+    assert meta["child_session"] == "agent:worker:abc"      # extra field rides along
     assert meta["producer"] == cli.V2_PRODUCER                 # ours, not the worker's
     assert meta["status"] == "running" and meta["delivered"] is False
     # explicit flags still win over the inherited values
     args2 = types.SimpleNamespace(run_id="r1", cmd="all", models="m", requester="agent:main:other",
-                                  deliver_to="daily-main", task_run_id=None)
+                                  deliver_to="thread-1", task_run_id=None)
     cli._v2_start(args2)
     meta = json.loads((run_dir / "meta.json").read_text())
-    assert meta["requester_session"] == "agent:main:other" and meta["thread_id"] == "daily-main"
+    assert meta["requester_session"] == "agent:main:other" and meta["thread_id"] == "thread-1"
     # finish keeps everything
     monkeypatch.setattr(cli, "_v2_report_body", lambda *a, **k: "# r\n")
     cli._v2_finish("all", args2, {}, 0, state | {"requester_session": "agent:main:other",
-                                                    "thread_id": "daily-main"})
+                                                    "thread_id": "thread-1"})
     meta = json.loads((run_dir / "meta.json").read_text())
-    assert meta["status"] == "done" and meta["child_session"] == "agent:ds_flash:abc"
+    assert meta["status"] == "done" and meta["child_session"] == "agent:worker:abc"
 
 
 def test_cmd_judge_snapshots_before_lease(monkeypatch):

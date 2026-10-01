@@ -35,3 +35,20 @@ scripts/bench-*-batch.sh
 crucibleforge/canary_explicit.local.txt
 # operator-local CRUCIBLEFORGE_* defaults (paths on this machine)
 crucibleforge.local.env
+# defence in depth: secrets, run outputs and assistant notes never ship,
+# even if written outside results/
+.env
+.env.*
+*.jsonl
+*.csv
+meta_*.json
+transcripts_*.jsonl
+report.html
+report.json
+.claude/
+CLAUDE.md
+CLAUDE.local.md
+.openclaw/
+memory/
+# one-off operator launchers (home paths)
+scripts/bench-all-resume-*.sh

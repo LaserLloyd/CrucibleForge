@@ -1,5 +1,5 @@
 """WP-BENCH (Plan V2) — the studioforge.py lease-client fixes made against
-~/.openclaw/workspace/fleet-review/plan-v2/reports/wp-bench-audit.md.
+the maintainer's WP-BENCH audit notes (not published).
 
 No network, no rig, no model load, no lease: every StudioForge call is
 stubbed at the module boundary, exactly like test_revision_3_2.py. This file
@@ -10,7 +10,7 @@ covers what that one doesn't:
   still never auto-escalated for it.
 
 Also covers two review-round-1 fixes against
-~/.openclaw/workspace/fleet-review/plan-v2/reports/review-wp-bench.md:
+the maintainer's WP-BENCH review notes (not published):
 - M3: the retry log line names the ACTUAL cause (D46 tier vs a plain
   lease_conflict), not a blanket "D46" for both.
 - M4: the resident fast path fetches the live plan once, not twice.
@@ -37,12 +37,12 @@ def _sf_cfg(**extra):
 # --------------------------------------------------------------- FIX-2: D46
 
 def test_acquire_lease_retries_d46_higher_priority_refusal_until_granted(monkeypatch):
-    """The literal server message from wp-bench-audit.md §0: no `pinned`
+    """The literal server message from the WP-BENCH audit notes §0: no `pinned`
     substring, no retry_after_s. Must be retried (bounded poll), not raised
     on the first attempt, and never with force=true."""
     d46_body = {
-        "detail": "higher-priority model(s) ReadyArt/Dark-Scarlett-27B-v2.0-GGUF/"
-                  "Dark-Scarlett-27B-v2.0.i1-Q5_K_M_hb16 (priority 1) are resident on "
+        "detail": "higher-priority model(s) example/Chat-27B-GGUF/"
+                  "Chat-27B.Q5_K_M (priority 1) are resident on "
                   "CUDA [0, 1, 2, 3]; a lease grant does not outrank the chat or agent "
                   "tier (D46). Pass force=true to evict them anyway, or lease other cards"
     }

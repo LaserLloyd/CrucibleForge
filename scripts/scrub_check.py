@@ -653,25 +653,25 @@ def selftest() -> int:
         positives = {
             "tailscale-magicdns": "https://mybox.tailc0ffee.ts.net:8443/",  # scrub-ok: selftest fixture
             "tailnet-id":         "tailnet is tailc0ffee00",  # scrub-ok: selftest fixture
-            "lan-ip-192":         "rig MCP at http://192.168.9.44:8700/mcp",  # scrub-ok: selftest fixture
+            "lan-ip-192":         "rig MCP at http://192.168.1.10:8080/mcp",  # scrub-ok: selftest fixture
             "lan-ip-10":          "base_url: http://10.1.2.3:1234/v1",  # scrub-ok: selftest fixture
             "lan-ip-172":         "server 172.20.0.5 serves the judge",  # scrub-ok: selftest fixture
-            "tailnet-ip-100":     "tailnet address 100.66.12.9",  # scrub-ok: selftest fixture
+            "tailnet-ip-100":     "tailnet address 100.64.1.2",  # scrub-ok: selftest fixture
             "home-path-bare":     "cd /var/home/operator",  # scrub-ok: selftest fixture
             "home-path-slash":    "logs in /home/operator/.local/share",  # scrub-ok: selftest fixture
             "runtime-uid":        "XDG_RUNTIME_DIR=/run/user/1000",  # scrub-ok: selftest fixture
             "email":              "contact me at person@somecompany.co.uk",  # scrub-ok: selftest fixture
-            "openai-key":         "sk-abcdefghij0123456789abcdefghij",  # scrub-ok: selftest fixture
-            "stripe-key":         "sk_live_abcdefghij0123456789",  # scrub-ok: selftest fixture
-            "github-pat":         "github_pat_11ABCDEFG0abcdefghijkl",  # scrub-ok: selftest fixture
-            "github-oauth":       "gho_16CharsAndMoreToPassTheLengthGate12",  # scrub-ok: selftest fixture
-            "gitlab-pat":         "glpat-abcdefghij0123456789",  # scrub-ok: selftest fixture
-            "slack-token":        "xoxb-1234567890-abcdefghijkl",  # scrub-ok: selftest fixture
-            "google-key":         "AIzaSyA0123456789abcdefghijklmnopqrstuvw",  # scrub-ok: selftest fixture
-            "bearer-token":       "Authorization: Bearer abcdefghijklmnopqrstuvwxyz012345",  # scrub-ok: selftest fixture
-            "jwt":                "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N",  # scrub-ok: selftest fixture
-            "pem-pgp":            "-----BEGIN PGP PRIVATE KEY BLOCK-----",  # scrub-ok: selftest fixture
-            "pem-openssh":        "-----BEGIN OPENSSH PRIVATE KEY-----",  # scrub-ok: selftest fixture
+            "openai-key":         "sk-" + "a" * 30,  # scrub-ok: selftest fixture
+            "stripe-key":         "sk_" + "live_" + "a" * 20,  # scrub-ok: selftest fixture
+            "github-pat":         "github_" + "pat_" + "a" * 22,  # scrub-ok: selftest fixture
+            "github-oauth":       "gh" + "o_" + "a" * 36,  # scrub-ok: selftest fixture
+            "gitlab-pat":         "gl" + "pat-" + "a" * 20,  # scrub-ok: selftest fixture
+            "slack-token":        "xo" + "xb-" + "1" * 10 + "-" + "a" * 12,  # scrub-ok: selftest fixture
+            "google-key":         "AI" + "za" + "a" * 35,  # scrub-ok: selftest fixture
+            "bearer-token":       "Authorization: Bearer " + "a" * 32,  # scrub-ok: selftest fixture
+            "jwt":                "ey" + "J" + "a" * 16 + "." + "b" * 16 + "." + "c" * 16,  # scrub-ok: selftest fixture
+            "pem-pgp":            "-----BEGIN PGP " + "PRIVATE KEY BLOCK-----",  # scrub-ok: selftest fixture
+            "pem-openssh":        "-----BEGIN OPENSSH " + "PRIVATE KEY-----",  # scrub-ok: selftest fixture
             "session-url":        "see https://claude.ai/code/session_01ABCdef",  # scrub-ok: selftest fixture
             "session-trailer":    "Claude-Session: https://example.invalid/x",  # scrub-ok: selftest fixture
             "ai-coauthor":        "Co-Authored-By: Claude <noreply@anthropic.com>",  # scrub-ok: selftest fixture
@@ -754,7 +754,7 @@ def selftest() -> int:
         # useless or unusably noisy.
         (root / ".gitignore").write_text("ignored.log\n", encoding="utf-8")
         (root / "ignored.log").write_text(
-            "judge at http://192.168.9.44:1234/v1\n",  # scrub-ok: selftest fixture
+            "judge at http://192.168.1.10:1234/v1\n",  # scrub-ok: selftest fixture
             encoding="utf-8")
         if any("ignored.log" in p for p in scan(root)):
             failures.append("a git-ignored file was scanned by default "

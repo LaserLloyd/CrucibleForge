@@ -214,9 +214,9 @@ def test_acquire_lease_waits_on_503_then_returns_lease_id(monkeypatch):
 
 
 def test_acquire_lease_never_auto_forces_a_pinned_resident(monkeypatch):
-    """WP-BENCH FIX-2 (wp-bench-audit.md RC-1): a 'pinned model(s) ... pass
+    """WP-BENCH FIX-2 (the WP-BENCH audit notes RC-1): a 'pinned model(s) ... pass
     force=true' 409 used to make this function silently flip force=true and
-    retry — exactly how a family bot's pinned model got evicted out from
+    retry — exactly how a chat-tier pinned model got evicted out from
     under it, contradicting the tool's own "never evicted or forced" promise.
     It must now raise as a FINAL error, unmodified, leaving force=False."""
     bodies = []
@@ -333,7 +333,7 @@ def test_switch_model_resident_fast_path_skips_lease_and_unload(monkeypatch):
     and at least as wide as requested is used as-is — no lease, no unload,
     no PIN traffic at all beyond the plain GET /api/status loaded_plan()
     already does. This is what lets a bench run against a pinned,
-    priority-1 family-bot model such as Dark-Scarlett-27B (wp-bench-audit.md
+    priority-1 chat-tier model (the WP-BENCH audit notes
     RC-1/RC-7)."""
     monkeypatch.setenv("CRUCIBLEFORGE_TEST_PIN", "pin")
     p = providers.get_provider(_sf_cfg(lease=True, lease_devices=[0, 1]), "sf")
@@ -347,10 +347,10 @@ def test_switch_model_resident_fast_path_skips_lease_and_unload(monkeypatch):
                         lambda *a, **k: calls.append("unload_all") or 0)
     monkeypatch.setattr(studioforge, "load_model",
                         lambda *a, **k: calls.append("load_model") or 1.0)
-    t = p.switch_model("dark-scarlett", 32768)
+    t = p.switch_model("chat-27b", 32768)
     assert t == 0.0
     assert calls == []  # no lease, no unload, no load — nothing but the GET
-    assert p.loaded_plan_for("dark-scarlett") == {
+    assert p.loaded_plan_for("chat-27b") == {
         "state": "ready", "parallel": 2, "ctx_size": 262144, "devices": [0, 1],
         "kv_cache_type": None, "loaded_by": None, "mode": None,
     }
@@ -358,7 +358,7 @@ def test_switch_model_resident_fast_path_skips_lease_and_unload(monkeypatch):
 
 def test_switch_model_resident_fast_path_needs_no_pin(monkeypatch):
     """The fast path is a plain GET /api/status — no X-MCP-Pin required at
-    all, unlike a lease or an unload/load (wp-bench-audit.md §2.2/RECIPE 1:
+    all, unlike a lease or an unload/load (the WP-BENCH audit notes §2.2/RECIPE 1:
     "the resident-only run needs no secret at all")."""
     p = providers.get_provider(_sf_cfg(lease=True, lease_devices=[0, 1]), "sf")  # no PIN env set
     assert p.mgmt_headers().get("X-MCP-Pin", "") == ""
@@ -778,10 +778,10 @@ def _stub_provider_alive(monkeypatch):
 
 def test_acquire_judge_lease_takes_all_devices_names_judge_model(monkeypatch):
     """The judge command must reserve the whole rig BEFORE any model load,
-    naming the actual judge so StudioForge plans around it (Lloyd 2026-08-31
+    naming the actual judge so StudioForge plans around it (maintainer
     directive: "block out all the gpus when running the judge").
 
-    WP-BENCH FIX-3 (wp-bench-audit.md RC-2): ``wait_busy_s`` must be the
+    WP-BENCH FIX-3 (the WP-BENCH audit notes RC-2): ``wait_busy_s`` must be the
     PROVIDER's own configured value (here the dataclass default, 600s), not
     a judge-specific ``0.0`` "fail fast" — that hardcoded value is what cost
     22 aborted judge runs in one day to transient rig contention that would
@@ -906,7 +906,7 @@ def test_acquire_judge_lease_raises_with_holder_when_pinned_resident_blocks(monk
 
     def refusal(*a, **k):
         raise studioforge.StudioForgeError(
-            "lease refused (HTTP 409): pinned model(s) family-bot-30b are "
+            "lease refused (HTTP 409): pinned model(s) chat-model-30b are "
             "resident on CUDA [0, 1, 2, 3]; pass force=true", status=409)
 
     monkeypatch.setattr(studioforge, "acquire_lease", refusal)
@@ -914,7 +914,7 @@ def test_acquire_judge_lease_raises_with_holder_when_pinned_resident_blocks(monk
     with pytest.raises(judge.JudgeLeaseUnavailable) as ei:
         judge.acquire_judge_lease(cfg)
     assert ei.value.status == 409
-    assert "family-bot-30b" in (ei.value.holder or "")
+    assert "chat-model-30b" in (ei.value.holder or "")
 
 
 def test_acquire_judge_lease_propagates_unparseable_holder_as_unknown(monkeypatch):

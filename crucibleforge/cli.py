@@ -137,7 +137,7 @@ def _archive_labels(labels: list[str]) -> None:
 
 
 # --------------------------------------------------------- WP-BENCH FIX-6
-# runs/<id>/{report.md,meta.json} write contract (r1-meta-schema.md schema
+# runs/<id>/{report.md,meta.json} write contract (the run-report schema v1 schema
 # v1). Tracked for `run` and `all` only (see `main()`) — a whole CLI process
 # is the "unit of work"; `cmd_all` calling `cmd_run` internally must not
 # trip this twice, which is why it lives at the top-level dispatch and not
@@ -148,7 +148,7 @@ def _utcnow_iso() -> str:
 
 
 def _mint_run_id() -> str:
-    """Self-minted id per r1-meta-schema.md: w-<UTC stamp>-<4 hex>."""
+    """Self-minted id per the run-report schema v1: w-<UTC stamp>-<4 hex>."""
     ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     return f"w-{ts}-{secrets.token_hex(2)}"
 
@@ -162,10 +162,10 @@ def _resolve_run_id(args) -> str:
     that names a run id never needs to invent one; an ad-hoc human/cron
     invocation gets one anyway, so the write contract is unconditional.
 
-    Validated against r1-meta-schema.md's own rule ("id — must equal the
+    Validated against the run-report schema v1's own rule ("id — must equal the
     directory name"): an unchecked id containing e.g. `/` or `..` writes
     outside V2_RUNS_ROOT with a directory name that does not match the `id`
-    field it records — and puts the report where runs-deliver's
+    field it records — and puts the report where the run-report scanner's
     `runs/*/meta.json` glob can never see it, so the run reports success and
     is never delivered (WP-BENCH review M1). An invalid candidate is logged
     and replaced with a self-minted id, never used as given."""
@@ -186,10 +186,10 @@ def _v2_run_dir(run_id: str) -> Path:
 
 def _atomic_write_json(path: Path, obj: dict) -> None:
     """tmp + fsync(file) + os.replace + fsync(dir) — meta.json is the commit
-    marker the standing `runs-deliver` scanner keys on; a half-written file
+    marker the fleet's run-report scanner keys on; a half-written file
     must never be visible at the final name. The directory fsync (WP-BENCH
-    review M2, matching r1-meta-schema.md's own write order and the
-    reference implementation in ~/.local/bin/runs-deliver's
+    review M2, matching the run-report schema v1's own write order and the
+    reference implementation in the fleet's run-report scanner's
     write_meta_atomic) makes the RENAME itself durable across a power loss,
     not just the tmp file's bytes — best-effort, never fails the write."""
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -214,7 +214,7 @@ def _v2_meta(run_id: str, *, status: str, created: str, finished: str | None, ti
             requester_session: str | None, thread_id: str | None,
             task_run_id: str | None, extra: dict | None = None) -> dict:
     """The 15-field schema v1 object, field order matching
-    r1-meta-schema.md's own example verbatim. producer/kind are constants —
+    the run-report schema v1's own example verbatim. producer/kind are constants —
     crucibleforge is always the producer of its own runs, always dispatched
     as a cron-style worker (see V2_KIND)."""
     meta = {
@@ -238,7 +238,7 @@ _V2_INHERIT = ("requester_session", "thread_id", "task_run_id")
 
 def _v2_existing(run_id: str) -> dict:
     """The meta.json a worker may have pre-written into OUR run dir when it
-    spawned us with a chosen --run-id (Flash does: producer ds_flash, kind
+    spawned us with a chosen --run-id (a dispatching worker does: producer worker, kind
     spawn, requester_session = the asking session). 2026-09-08: we used to
     overwrite it wholesale, so the run's routing was lost and the standing
     scanner delivered the report to the bot's daily thread instead of the
@@ -259,8 +259,8 @@ def _v2_start(args) -> dict:
     """FIRST act for a V2-tracked command, before any benchmark work at all:
     mint/resolve the run id and write meta.json with status "running". This
     is what lets the fleet-wide standing scanner flag a worker that dies
-    mid-run as stale instead of it leaving no trace (r1-meta-schema.md
-    "running-first" convention, matching workspace-ds-flash/AGENTS.md).
+    mid-run as stale instead of it leaving no trace (the run-report schema v1
+    "running-first" convention, matching the worker conventions).
 
     Never raises — a filesystem problem here is logged and the run proceeds;
     the V2 write contract must never be why a benchmark did not run."""
@@ -326,7 +326,7 @@ def _next_hint(error: str) -> str:
 
 def _v2_report_body(cmd: str, args, cfg: dict, rc: int, state: dict) -> str:
     """runs/<id>/report.md: the 5-heading contract (Result / Evidence /
-    Files / Failed / Next) + the scorecard. runs-deliver posts only the
+    Files / Failed / Next) + the scorecard. the run-report scanner posts only the
     ``## Result`` section when the report is long, so Result carries one
     self-contained line per model: ``label: Chat 88.7 · Coding 69.4 · 41 min``
     or ``label: FAILED — <the full error>``."""
@@ -508,7 +508,7 @@ def _judge_policy_force(cfg: dict) -> bool:
 class _ProviderGuard:
     """Leave the rig as we found it. LM Studio: snapshot/restore the served
     model. StudioForge: snapshot the residents, release our GPU lease at the
-    end and bring the evicted residents back (a family bot's model should
+    end and bring the evicted residents back (a chat-tier model should
     not stay cold because a benchmark ran)."""
 
     def __init__(self, cfg, entries, include_judge: bool = True, force_evict: bool = False,
@@ -880,7 +880,7 @@ def cmd_judge(args, cfg):
     # happens. The provider's ``lease: true`` path would do this inside
     # ``_lease_load`` — but only after the runner is partway through a
     # multi-minute 122B download, when a 507 has no context to act on.
-    # Acquiring the lease up-front (Lloyd 2026-08-31: "block out all the gpus
+    # Acquiring the lease up-front (maintainer: "block out all the gpus
     # when running the judge") lets the rig either grant the lease and plan
     # around the named model, or refuse fast with a message naming the
     # holder, instead of timing out 178 rows in.
@@ -896,7 +896,7 @@ def cmd_judge(args, cfg):
         return 0
     force_evict = getattr(args, "force_evict", False) or _judge_policy_force(cfg)
     # The guard's resident snapshot MUST be taken before the judge lease:
-    # with bench-first the lease itself evicts the family bot's model, and a
+    # with bench-first the lease itself evicts a chat-tier resident, and a
     # snapshot taken afterwards is empty — so nothing was restored and the
     # rig sat empty after the judge phase (run 1, 2026-09-08 08:59).
     guard = _ProviderGuard(cfg, [], force_evict=force_evict,
@@ -1347,7 +1347,7 @@ def main(argv=None):
                             "falls back to the daily thread)")
         p.add_argument("--requester", default=None,
                        help="gateway session key that dispatched this run, e.g. "
-                            "agent:main:daily-main-... (else $CRUCIBLEFORGE_REQUESTER)")
+                            "agent:example:thread-1 (else $CRUCIBLEFORGE_REQUESTER)")
         p.add_argument("--task-run-id", default=None,
                        help="gateway runId for this unit of work, for blocked-task "
                             "reconciliation (else $CRUCIBLEFORGE_TASK_RUN_ID)")

@@ -1,5 +1,5 @@
 """WP-BENCH (Plan V2) — cli.py fixes made against
-~/.openclaw/workspace/fleet-review/plan-v2/reports/wp-bench-audit.md.
+the maintainer's WP-BENCH audit notes (not published).
 
 No network, no rig, no model load, no lease. Split out from
 test_wp_bench_refactor.py (which covers the studioforge.py/providers.py/
@@ -8,7 +8,7 @@ judge.py lease-client fixes) because these specifically exercise cli.py:
 - FIX-5: `crucibleforge status` warns on an EMPTY expanded X-MCP-Pin value,
   not just a missing header key.
 - FIX-6: the runs/<id>/{report.md,meta.json} write contract (schema v1,
-  r1-meta-schema.md) — running-first, done/failed last, atomic, and wired
+  the run-report schema v1) — running-first, done/failed last, atomic, and wired
   into `cli.main()` for `run`/`all`.
 """
 from __future__ import annotations
@@ -115,18 +115,18 @@ def test_atomic_write_json_leaves_no_tmp_file_and_is_valid_json(tmp_path):
 
 def test_v2_start_writes_running_meta_before_any_work(tmp_path, monkeypatch):
     """The FIRST act: mint/resolve the id, write status=running, finished=null,
-    delivered=false — the running-first convention (r1-meta-schema.md,
-    workspace-ds-flash/AGENTS.md) that lets the fleet-wide runs-deliver
+    delivered=false — the running-first convention (the run-report schema v1,
+    the worker conventions) that lets the fleet-wide run-report
     scanner flag a worker that dies mid-run as stale."""
     monkeypatch.setattr(cli, "V2_RUNS_ROOT", tmp_path)
-    args = argparse.Namespace(cmd="run", models="dark-scarlett-35b-v2", run_id="w-test-1",
+    args = argparse.Namespace(cmd="run", models="chat-35b", run_id="w-test-1",
                               requester=None, deliver_to=None, task_run_id=None)
     state = cli._v2_start(args)
     meta_path = tmp_path / "w-test-1" / "meta.json"
     meta = json.loads(meta_path.read_text())
     assert meta == {
         "schema": 1, "id": "w-test-1", "producer": "crucibleforge", "kind": "cron-worker",
-        "title": "CrucibleForge run: dark-scarlett-35b-v2",
+        "title": "CrucibleForge run: chat-35b",
         "requester_session": None, "thread_id": None, "task_run_id": None,
         "status": "running", "created": state["created"], "finished": None,
         "delivered": False, "delivered_at": None, "delivered_to": None, "delivery_mode": None,
@@ -135,12 +135,12 @@ def test_v2_start_writes_running_meta_before_any_work(tmp_path, monkeypatch):
 
 def test_v2_start_copies_routing_fields_from_flags_and_env(tmp_path, monkeypatch):
     monkeypatch.setattr(cli, "V2_RUNS_ROOT", tmp_path)
-    monkeypatch.setenv("CRUCIBLEFORGE_REQUESTER", "agent:main:daily-main-2026-09-06")
+    monkeypatch.setenv("CRUCIBLEFORGE_REQUESTER", "agent:example:thread-1")
     args = argparse.Namespace(cmd="all", models="m1", run_id="w-test-2",
                               requester=None, deliver_to="thread-123", task_run_id="task-9")
     cli._v2_start(args)
     meta = json.loads((tmp_path / "w-test-2" / "meta.json").read_text())
-    assert meta["requester_session"] == "agent:main:daily-main-2026-09-06"
+    assert meta["requester_session"] == "agent:example:thread-1"
     assert meta["thread_id"] == "thread-123"
     assert meta["task_run_id"] == "task-9"
 
@@ -331,7 +331,7 @@ def test_resolve_run_id_rejects_a_traversal_id_and_self_mints(monkeypatch):
     """WP-BENCH review M1: an id containing '/' (or anything outside
     [A-Za-z0-9._-]) must never be used as given — it would write outside
     V2_RUNS_ROOT with a directory name that does not match the recorded
-    `id` field, and runs-deliver's `runs/*/meta.json` glob would never find
+    `id` field, and the run-report scanner's `runs/*/meta.json` glob would never find
     it (a run that reports success and is never delivered)."""
     monkeypatch.delenv("CRUCIBLEFORGE_RUN_ID", raising=False)
     rid = cli._resolve_run_id(argparse.Namespace(run_id="../escaped"))
@@ -352,9 +352,9 @@ def test_resolve_run_id_rejects_an_oversized_id(monkeypatch):
 
 
 def test_atomic_write_json_fsyncs_the_containing_directory(tmp_path, monkeypatch):
-    """WP-BENCH review M2: r1-meta-schema.md's write order is "fsync the
+    """WP-BENCH review M2: the run-report schema v1's write order is "fsync the
     file AND THEN the containing directory, then os.replace()" — matching
-    the reference implementation in ~/.local/bin/runs-deliver's
+    the reference implementation in the fleet's run-report scanner's
     write_meta_atomic. A pure file fsync alone does not make the RENAME
     itself durable across a power loss."""
     real_fsync = os.fsync

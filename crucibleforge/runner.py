@@ -903,7 +903,7 @@ def _answer_view(result: ChatResult) -> ChatResult:
     reasoning channel when content is empty — right for a server that
     misrouted a FINISHED answer (finish=stop), wrong for a reasoning overflow
     (finish=length): code dug out of 100k chars of cut-off chain-of-thought
-    was never delivered to anyone (9 of dark-scarlett's 51 coding 'passes'
+    was never delivered to anyone (9 of one model's 51 coding 'passes'
     on 2026-08-22 were exactly that). Overflows are recovered upstream; an
     unrecovered one is graded on its (empty) content."""
     if result.finish_reason == "length" and not result.response_text.strip():

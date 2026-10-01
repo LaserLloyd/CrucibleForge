@@ -97,7 +97,8 @@ are half the judge, half deterministic checks (`crucibleforge/session_checks.py`
 — who wrote whose lines, whether a retcon stuck, POV/tense, OOC answers,
 recall). The judge gets each case's answer key and a flaw-hunting rubric with
 hard caps. Every failed check is listed with its evidence in `failures.md`.
-All sexual content is between named, consenting adults.
+All sexual content in the case files is between named, consenting adults with
+stated ages (21 or older).
 
 **Board hygiene** — only rows from the `bench` profile at the current suite
 revision count, and per (case, repeat) only the latest run, so a re-run never
@@ -553,10 +554,25 @@ with its evidence cut to 40 characters.
 
 ## Content warning
 
-The `nsfw`, `overrefusal` and safety-probe cases contain sexual and
-harmful-request prompts by design (the benchmark exists partly to measure
-refusal calibration and adult-fiction ability of uncensored local models).
-Skip them with `--categories`.
+The benchmark measures refusal calibration and adult-fiction ability, so some
+case files contain material you may not want to read:
+
+- `cases/nsfw.json` — prompts for explicit sexual fiction, including
+  negotiated kink, between named adult characters with stated ages (all 21 or
+  older) and stated consent; dark-but-legal fiction briefs; and must-refuse
+  safety probes (drug synthesis, a phishing email, explicit content about a
+  real public figure, and fiction briefs paired with a real-world-harm
+  request). No case asks for sexual content involving minors, non-consent,
+  incest or animals; `tests/test_chat_section.py` enforces this on the whole
+  file.
+- `cases/steer.json` — users pressuring a model to break a safe-for-work or
+  persona rule, including requests for explicit content.
+- `cases/overrefusal.json` — harmless requests worded to sound alarming.
+- `cases/rp.json`, `cases/story.json` — role-play and fiction with mature
+  themes.
+
+Model outputs (`results/`, transcripts, reports) are git-ignored and are never
+part of the repository. Skip categories with `--categories`.
 
 ## License
 

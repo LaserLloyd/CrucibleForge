@@ -27,7 +27,7 @@ RETRY_BACKOFF_S = 2.0
 # background traffic is refused) is a wait, not a failure: the load takes as
 # long as a big model takes to come up, which is minutes, not the ~30 s the
 # three transport retries above buy. Held requests therefore wait on their own
-# budget and do not spend a retry — otherwise a family bot warming its model
+# budget and do not spend a retry — otherwise a chat-tier model warming up
 # would score a run's worth of cases as transport failures and, three in a row,
 # abort the model run outright.
 PRIORITY_HOLD_WAIT_S = 600.0

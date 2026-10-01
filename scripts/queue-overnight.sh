@@ -42,7 +42,7 @@ set -a
 source "$ENV_FILE"
 set +a
 
-MODELS="${MODELS:-dark-scarlett-27b-v2}"
+MODELS="${MODELS:?set MODELS to the registry labels to bench}"
 STAMP=$(date +%Y%m%d-%H%M%S)
 LOG="results/bench_queue-${STAMP}.log"
 mkdir -p results

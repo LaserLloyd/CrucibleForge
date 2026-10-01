@@ -88,7 +88,7 @@ This keeps the strict rate comparable with the old rows. The report adds an
 
 ## Saturation check on the top local model (the HLE filter)
 
-Jake's rule was to test on a local model before updating the test. Every new case
+The maintainer's rule was to test on a local model before updating the test. Every new case
 was run, generation plus the profile's Gemma-4-31B heretic judge, on
 **qwen3.8-27b-tturbo-fable-heretic**, the top local board model. The runs used the
 normal lease path on the GPU rig (bench-first, cards [0, 1]).
@@ -172,7 +172,7 @@ Read this with two caveats:
 
   A single-repeat board run will sometimes let a strong model through a case. That
   is the τ-bench pass^k point. If the board needs tighter numbers, raise `repeats`
-  for steer and rp; that is Jake's call, and it costs time.
+  for steer and rp; that is the maintainer's call, and it costs time.
 - **RX20 and RX21 did not separate this model.** Both have per-element
   grading, so a weaker model's partly right grid or partly corrected chain still
   scores in `element_rate`. On the board they will separate only below the top
@@ -241,7 +241,7 @@ A full re-run of every board model is needed to fill the new cases. Do not use
 as partial until then.
 
 ```
-set -a; source ~/.openclaw/gateway.systemd.env; set +a
+set -a; source "$CRUCIBLEFORGE_ENV_FILE"; set +a
 uv run crucibleforge all --models <label> --yes     # per model
 uv run crucibleforge report
 ```

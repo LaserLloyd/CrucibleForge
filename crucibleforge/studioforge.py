@@ -86,7 +86,7 @@ NEVER_APPEARED_GRACE_S = 60.0
 # Transient management-API failures tolerated in a row while polling.
 STATUS_ERROR_TOLERANCE = 3
 # How long to wait for a resident that is mid-request before giving up on
-# evicting it (a family bot's turn is seconds to a few minutes).
+# evicting it (a chat turn is seconds to a few minutes).
 DEFAULT_WAIT_BUSY_S = 600.0
 # Lease defaults: holder name the rig shows, and a safety TTL so a crashed
 # client cannot hold the cards forever (the keepalive touches it meanwhile).
@@ -1020,7 +1020,7 @@ def acquire_lease(base_url: str, api_key: str, headers: dict | None, devices: li
     - A PINNED idle resident ("pinned model(s) … pass force=true"): this
       function never sets ``force=true`` on its own initiative for this or
       any other refusal — an earlier version did exactly that (RC-1) and it
-      is precisely how a family bot's pinned model got silently evicted. If
+      is precisely how a chat-tier pinned model got silently evicted. If
       the *caller* passed ``force=True`` from the start, that stands for the
       whole retry loop and a pinned refusal is granted immediately; if not,
       a pinned (or any other unrecognised) 409 is raised as a **final**

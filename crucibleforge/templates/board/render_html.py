@@ -5,7 +5,7 @@ report.md (``report.html_rows``) — exact labels, numbers as numbers — and th
 module bakes them into a self-contained page: inline CSS + JS, the rows as a
 ``<script type="application/json">`` blob, no CDN, no fetch, no sidecar file.
 
-The design is the element-filter board Jake approved on 2026-09-20/22,
+The design is the element-filter board the maintainer approved on 2026-09-20/22,
 revised 2026-09-26 ("make it a table, expandable rows, sortable by element;
 main = Chat, Coding, Overall, tok/s; customizable columns on the far right;
 save my layout; filtering back"): fixed columns ``# · Model · Chat · Coding ·

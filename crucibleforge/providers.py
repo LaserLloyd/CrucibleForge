@@ -103,7 +103,7 @@ class Provider:
     # resident, ready, and wide/multi-slot enough, switch_model() uses it
     # as-is — no lease, no unload_all, no PIN needed at all (loaded_plan is a
     # plain GET /api/status). Sizeable win for benching a pinned,
-    # priority-tiered family-bot model (e.g. a chat model pinned to specific
+    # priority-tiered chat-tier model (e.g. a chat model pinned to specific
     # devices), which a lease can no longer touch anyway since D46 (see
     # RC-1/RC-7). Default on; set ``use_resident: false``
     # in models.yaml to always take the lease/unload path instead.
@@ -221,7 +221,7 @@ class Provider:
         least as wide as ``context_length``, use it as-is — no lease taken,
         nothing unloaded, no PIN required (this is a plain GET /api/status).
         This is what lets a bench run against a pinned, priority-tiered
-        family-bot model (e.g. a chat-tier model such as Dark-Scarlett-27B)
+        chat-tier model (e.g. a pinned priority-1 chat model)
         without touching the pin at all — see RC-1/RC-7.
 
         Otherwise, with ``lease: true``: take a GPU lease that loads the
@@ -501,7 +501,7 @@ class Provider:
 
     def snapshot(self):
         """State to restore after a run. LM Studio: the served model.
-        StudioForge: the residents that were not ours, so a family bot's model
+        StudioForge: the residents that were not ours, so a chat-tier model
         can be brought back after the benchmark evicted it."""
         if self.type == "lmstudio":
             try:

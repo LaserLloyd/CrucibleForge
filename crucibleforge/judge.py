@@ -554,8 +554,8 @@ class JudgeError(RuntimeError):
 class JudgeLeaseUnavailable(RuntimeError):
     """The judge could not acquire the all-GPU lease at startup. Carries the
     StudioForge error/status so the caller can name the conflict in its log
-    line and exit non-zero (Lloyd 2026-08-31: "block out all the GPUs when
-    running the judge; as otherwise it doesn't seem to work")."""
+    line and exit non-zero (maintainer: "block out all the GPUs when running the
+    judge; as otherwise it doesn't seem to work")."""
 
     def __init__(self, msg: str, *, holder: str | None = None,
                  detail: str | None = None, status: int | None = None):
@@ -566,11 +566,10 @@ class JudgeLeaseUnavailable(RuntimeError):
 
 
 # Back-off schedule (seconds) for re-trying a judge that failed to LOAD. On a
-# shared rig the usual cause is transient VRAM contention — on 2026-08-22 the
-# hourly image job restarted ComfyUI on the judge's GPUs at 08:00 and the
-# 122B judge was evicted mid-load; the old code immediately switched to a
-# different (smaller, other-family) judge, silently breaking the single-judge
-# rule for that model. ~7 minutes covers an image generation + its self-heal.
+# shared rig the usual cause is transient VRAM contention (another client
+# briefly taking the judge's GPUs); switching straight to a different judge
+# would silently break the single-judge rule for that model. ~7 minutes covers
+# a typical co-tenant job and its recovery.
 DEFAULT_LOAD_RETRY_S = [15, 30, 60, 120, 180]
 
 # Per-row ceiling for one judge verdict (judge.row_timeout_s overrides). A
@@ -632,7 +631,7 @@ def acquire_judge_lease(cfg: dict, force_evict: bool = False,
     lease request already asking to evict an IDLE resident of EITHER
     refusal dialect — the rig's own D46 message literally says "pass
     force=true to evict them anyway", so this CAN and will evict a pinned,
-    priority-tiered resident (e.g. a family bot's model), not just a
+    priority-tiered resident (e.g. a chat-tier model), not just a
     plain-pinned one. It never overrides a resident that is mid-request
     (see ``studioforge.acquire_lease`` / ``studioforge.py``'s module
     docstring).

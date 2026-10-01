@@ -16,6 +16,20 @@ rename.
   cases is in the bench profile, so `SUITE_VERSION` 3.5.1 maps every 3.5.0
   stamp as equivalent (`_EQUIVALENT_STAMPS`) and no stored board row goes
   stale.
+- **Shipped explicit canary is non-graphic.** It still keeps the scene on the
+  page and scores explicitness 4 (the bar) on the bench judge; an operator can
+  put a stronger paragraph in the git-ignored
+  `crucibleforge/canary_explicit.local.txt`.
+- **No default paths under the home directory.** The run-report directory
+  (`CRUCIBLEFORGE_V2_RUNS_ROOT`) and the env file a detached unit sources
+  (`CRUCIBLEFORGE_ENV_FILE`) are opt-in; a git-ignored
+  `crucibleforge.local.env` can set `CRUCIBLEFORGE_*` defaults for one machine.
+- Comments, tests and docs no longer reference private planning notes or
+  operator-specific agents, models and times; `scripts/queue-overnight.sh`
+  requires `MODELS`; scrubber self-test fixtures use neutral addresses and
+  build their fake keys at runtime; `scrub_check.py` refuses `*.local.txt` /
+  `*.local.env`; `.gitignore` covers env files, stray run outputs and
+  assistant notes. LICENSE holder: Laser Lloyd.
 
 ## Unreleased (2026-09-29)
 
@@ -470,7 +484,7 @@ finding adversarially verified — 39 confirmed) plus the rig's own
   `crucibleforge`) for the benched model and again for the judge, keeps it alive,
   releases it on exit; busy residents are *waited for* (`wait_busy_s`), never
   evicted, never `force`d (the old client unloaded everything and sent
-  `force: true` — the one client on the box that could rip a family bot's
+  `force: true` — the one client on the box that could rip a chat-tier
   model out mid-reply); evicted residents are reloaded at the end
   (`restore_residents`); the `X-MCP-Pin` header reaches every management call
   (`${ENV}` in `headers`). `507`/`503` bodies are read: `retry_after_s` is
@@ -489,7 +503,7 @@ finding adversarially verified — 39 confirmed) plus the rig's own
   `reasoning_format` in `extra_body` means thinking. A model-local abort no
   longer sets the global STOP (the rest of the batch used to be skipped
   silently). **Graders never harvest an answer from truncated reasoning**
-  (finish=length): 9 of dark-scarlett's 51 coding "passes" were code dug out of
+  (finish=length): 9 of one model's 51 coding "passes" were code dug out of
   100k chars of cut-off chain-of-thought that no user ever received. The
   registry/live context mismatch is detected and long-context cases skipped
   honestly. `crucibleforge recover` re-runs each (run, case, repeat) triple, logs
