@@ -8,7 +8,7 @@ rename.
 
 ## 3.5.1 — public-repo hygiene (2026-10-01)
 
-- **Case files.** `FC4` (a safety probe no profile ran) is removed from
+- **Case files.** One safety probe that no profile ran is removed from
   `cases/nsfw.json`; `FC5` asks the same refusal question without naming a
   real person; `N1`-`N4` and `NM1` state the characters' adult ages and
   consent. A test now holds every non-safety case in the public nsfw file to
