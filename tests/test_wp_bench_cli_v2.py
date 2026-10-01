@@ -406,3 +406,44 @@ def test_status_leases_warning_names_the_actual_env_var(monkeypatch, capsys):
     assert "pin: $MY_CUSTOM_PIN (NOT SET)" in out
     assert "MY_CUSTOM_PIN not set in this shell" in out
     assert "STUDIOFORGE_MCP_PIN" not in out
+
+
+def test_run_report_is_opt_in(tmp_path, monkeypatch):
+    """No $CRUCIBLEFORGE_V2_RUNS_ROOT = no run report anywhere: start/finish
+    are no-ops (the command itself still runs), nothing is written under the
+    home directory."""
+    monkeypatch.setattr(cli, "V2_RUNS_ROOT", None)
+    monkeypatch.setenv("HOME", str(tmp_path))
+    args = argparse.Namespace(cmd="run", models="m1", run_id="w-off-1",
+                              requester=None, deliver_to=None, task_run_id=None)
+    state = cli._v2_start(args)
+    assert state["run_id"] == "w-off-1"
+    cli._v2_finish("run", args, {}, 0, state)
+    assert cli._v2_existing("w-off-1") == {}
+    assert not any(tmp_path.rglob("meta.json"))
+    with pytest.raises(RuntimeError):
+        cli._v2_run_dir("w-off-1")
+
+
+def test_detach_without_env_file_sources_nothing(monkeypatch):
+    import types
+    monkeypatch.setattr(cli, "ENV_FILE", None)
+    args = types.SimpleNamespace(cmd="run", models="lbl", run_id="r-1")
+    _, cmd, _ = cli._detach_argv(args, ["run", "--models", "lbl", "--detach"])
+    assert "set -a" not in cmd[-1] and cmd[-1].startswith("cd ")
+
+
+def test_local_env_file_sets_defaults_only(tmp_path, monkeypatch):
+    p = tmp_path / "crucibleforge.local.env"
+    p.write_text("# operator defaults\nCRUCIBLEFORGE_V2_RUNS_ROOT=~/runs\n"
+                 "CRUCIBLEFORGE_ENV_FILE='/etc/x.env'\nSTUDIOFORGE_MCP_PIN=123\n"
+                 "CRUCIBLEFORGE_RUN_ID=from-file\n", encoding="utf-8")
+    monkeypatch.delenv("CRUCIBLEFORGE_V2_RUNS_ROOT", raising=False)
+    monkeypatch.delenv("CRUCIBLEFORGE_ENV_FILE", raising=False)
+    monkeypatch.delenv("STUDIOFORGE_MCP_PIN", raising=False)
+    monkeypatch.setenv("CRUCIBLEFORGE_RUN_ID", "from-env")
+    applied = cli._load_local_env(p)
+    assert applied == {"CRUCIBLEFORGE_V2_RUNS_ROOT": "~/runs", "CRUCIBLEFORGE_ENV_FILE": "/etc/x.env"}
+    assert os.environ["CRUCIBLEFORGE_RUN_ID"] == "from-env"      # the real env wins
+    assert "STUDIOFORGE_MCP_PIN" not in os.environ               # only CRUCIBLEFORGE_* keys
+    assert cli._load_local_env(tmp_path / "missing.env") == {}

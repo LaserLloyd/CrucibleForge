@@ -208,6 +208,25 @@ are still judged and on the board) · 3 the public board refused a leak · 4 the
 server is busy (judge lease refused) · 5 the server is unreachable. Hosted-API
 models are completed only with `--include-api` (they cost money).
 
+### Detached runs and the run report
+
+`--detach` (on `run`, `all`, `judge` and `bench-all`) re-launches the command as
+a transient `systemd --user` unit and returns at once. Two optional settings,
+both off by default:
+
+- `CRUCIBLEFORGE_ENV_FILE` — a file the detached unit sources before it starts
+  (for example one holding `STUDIOFORGE_MCP_PIN=…`), so a secret never appears
+  in the unit's command line.
+- `CRUCIBLEFORGE_V2_RUNS_ROOT` — a directory that receives a
+  `<run id>/{meta.json,report.md}` run report (status `running`, then
+  `done`/`failed`) for a scanner that delivers finished runs. Unset, no run
+  report is written.
+
+To set them once for every invocation on a machine (cron units, scripts, a
+terminal), put `KEY=VALUE` lines in a git-ignored `crucibleforge.local.env`
+next to `models.yaml`. Only `CRUCIBLEFORGE_*` keys are read from it, and a
+variable already in the environment wins.
+
 ## Installing
 
 **The supported install is a clone plus `uv sync`** — run CrucibleForge from

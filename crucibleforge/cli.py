@@ -35,16 +35,46 @@ from .config import (CATEGORIES, ConfigError, EXAMPLE_CONFIG_PATH,
 
 log = logging.getLogger("crucibleforge")
 
-# WP-BENCH FIX-6 (r1-meta-schema.md, schema v1): the fleet-wide runs/<id>/
-# {report.md,meta.json} write contract — deliberately NOT under this
-# project's own `results/`, which is a different, tool-owned directory (see
-# `results_dir()`). Fixed per-machine and absolute on purpose: every producer
-# on the box writes here so ONE standing scanner (`runs-deliver`) can deliver
-# all of them, independent of cwd/--results. Resolved via ``Path.home()``
-# (never a literal username in the source — this is a public repo) with an
-# env override for anyone whose fleet convention differs.
-V2_RUNS_ROOT = Path(os.environ.get("CRUCIBLEFORGE_V2_RUNS_ROOT")
-                    or (Path.home() / ".openclaw" / "workspace" / "runs"))
+# Operator-local defaults: a git-ignored crucibleforge.local.env next to
+# models.yaml may set CRUCIBLEFORGE_* variables (KEY=VALUE lines, # comments)
+# for every invocation on that machine — a cron unit, an agent's exec, a
+# terminal — without exporting them in each caller. The real environment
+# always wins; keys outside CRUCIBLEFORGE_* are ignored (this is not a
+# secrets file: CRUCIBLEFORGE_ENV_FILE names one, it does not hold one).
+LOCAL_ENV_PATH = Path(__file__).resolve().parents[1] / "crucibleforge.local.env"
+
+
+def _load_local_env(path: Path = LOCAL_ENV_PATH) -> dict[str, str]:
+    """setdefault each CRUCIBLEFORGE_* line of ``path`` into os.environ;
+    returns what was applied. A missing/unreadable file applies nothing."""
+    applied: dict[str, str] = {}
+    try:
+        lines = path.read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return applied
+    for line in lines:
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, val = line.partition("=")
+        key, val = key.strip(), val.strip().strip("'\"")
+        if key.startswith("CRUCIBLEFORGE_") and val and key not in os.environ:
+            os.environ[key] = val
+            applied[key] = val
+    return applied
+
+
+_load_local_env()
+
+# The optional runs/<id>/{report.md,meta.json} run-report contract (schema
+# v1) — deliberately NOT under this project's own `results/`, which is a
+# different, tool-owned directory (see `results_dir()`). Absolute and
+# per-machine on purpose: every producer on a box writes into one directory so
+# one standing scanner can deliver all of them, independent of cwd/--results.
+# OPT-IN: unset (the default) writes no run report at all; set
+# $CRUCIBLEFORGE_V2_RUNS_ROOT to the directory your scanner watches.
+_V2_RUNS_ENV = os.environ.get("CRUCIBLEFORGE_V2_RUNS_ROOT")
+V2_RUNS_ROOT: Path | None = Path(_V2_RUNS_ENV).expanduser() if _V2_RUNS_ENV else None
 V2_PRODUCER = "crucibleforge"
 V2_KIND = "cron-worker"
 
@@ -149,6 +179,8 @@ def _resolve_run_id(args) -> str:
 
 
 def _v2_run_dir(run_id: str) -> Path:
+    if V2_RUNS_ROOT is None:
+        raise RuntimeError("no run-report directory: $CRUCIBLEFORGE_V2_RUNS_ROOT is not set")
     return V2_RUNS_ROOT / run_id
 
 
@@ -211,6 +243,8 @@ def _v2_existing(run_id: str) -> dict:
     overwrite it wholesale, so the run's routing was lost and the standing
     scanner delivered the report to the bot's daily thread instead of the
     thread that asked for the bench. Returns {} when there is none."""
+    if V2_RUNS_ROOT is None:
+        return {}
     try:
         p = _v2_run_dir(run_id) / "meta.json"
         if p.exists():
@@ -251,6 +285,9 @@ def _v2_start(args) -> dict:
     created = _utcnow_iso()
     state = {"run_id": run_id, "requester_session": requester, "thread_id": deliver_to,
              "task_run_id": task_run_id, "title": title, "created": created, "extra": extra}
+    if V2_RUNS_ROOT is None:
+        log.info("run report off ($CRUCIBLEFORGE_V2_RUNS_ROOT not set)")
+        return state
     try:
         meta = _v2_meta(run_id, status="running", created=created, finished=None, title=title,
                         requester_session=requester, thread_id=deliver_to,
@@ -425,6 +462,8 @@ def _v2_finish(cmd: str, args, cfg: dict, rc: int, state: dict) -> None:
     meta.json atomically with the terminal status. Best-effort throughout —
     a bug in this delivery-plumbing code must never change the `rc` the
     process actually exits with (see the try/except around every step)."""
+    if V2_RUNS_ROOT is None:
+        return
     run_id = state["run_id"]
     run_dir = _v2_run_dir(run_id)
     try:
@@ -1121,13 +1160,14 @@ def cmd_cases(args, cfg):
 # exactly 30 min with one case left, no report, and its GPU lease orphaned.
 # A bench must not live inside an agent's tool call at all: `--detach`
 # re-launches this exact command as a transient systemd --user unit and
-# returns at once, printing the unit and run id. The unit sources the
-# gateway env file itself (the PIN never appears in argv), writes the same
-# runs/<id>/{report.md,meta.json} contract, and survives the agent, the
-# gateway, and any exec timeout. Poll: `systemctl --user is-active <unit>`
-# and runs/<id>/meta.json `status`.
-ENV_FILE = Path(os.environ.get("CRUCIBLEFORGE_ENV_FILE",
-                               str(Path.home() / ".openclaw" / "gateway.systemd.env")))
+# returns at once, printing the unit and run id. The unit sources
+# $CRUCIBLEFORGE_ENV_FILE itself when one is named (so a secret such as the
+# rig PIN never appears in argv), writes the runs/<id>/{report.md,meta.json}
+# contract when $CRUCIBLEFORGE_V2_RUNS_ROOT is set, and survives the agent and
+# any exec timeout. Poll: `systemctl --user is-active <unit>` (and the run
+# report's meta.json `status`, when enabled).
+_ENV_FILE_ENV = os.environ.get("CRUCIBLEFORGE_ENV_FILE")
+ENV_FILE: Path | None = Path(_ENV_FILE_ENV).expanduser() if _ENV_FILE_ENV else None
 
 
 # ------------------------------------------------------------- rig lock
@@ -1234,8 +1274,9 @@ def _detach_argv(args, argv: list[str] | None) -> tuple[str, list[str], str]:
     unit = "crucibleforge-" + re.sub(r"[^A-Za-z0-9_.-]+", "-", run_id)[:120]
     cwd = str(Path(__file__).resolve().parents[1])
     inner_cmd = " ".join(shlex.quote(a) for a in inner)
-    script = (f"set -a; [ -r {shlex.quote(str(ENV_FILE))} ] && . {shlex.quote(str(ENV_FILE))}; set +a; "
-              f"cd {shlex.quote(cwd)} && exec uv run crucibleforge {inner_cmd}")
+    source = (f"set -a; [ -r {shlex.quote(str(ENV_FILE))} ] && . {shlex.quote(str(ENV_FILE))}; set +a; "
+              if ENV_FILE is not None else "")
+    script = f"{source}cd {shlex.quote(cwd)} && exec uv run crucibleforge {inner_cmd}"
     cmd = ["systemd-run", "--user", "--collect", "--quiet", f"--unit={unit}",
            f"--description=CrucibleForge {args.cmd}: {args.models} (run {run_id})",
            f"--setenv=CRUCIBLEFORGE_RUN_ID={run_id}",
@@ -1254,10 +1295,10 @@ def _detach(args, argv: list[str] | None) -> int:
         print(f"detach failed (systemd-run rc={r.returncode}): {(r.stderr or r.stdout).strip()[:400]}",
               file=sys.stderr)
         return r.returncode or 1
-    run_dir = _v2_run_dir(run_id)
     print(f"detached: unit={unit} run_id={run_id}")
     print(f"  status: systemctl --user is-active {unit}   (active = running, inactive = finished)")
-    print(f"  result: {run_dir}/meta.json (status done|failed) and report.md")
+    if V2_RUNS_ROOT is not None:
+        print(f"  result: {_v2_run_dir(run_id)}/meta.json (status done|failed) and report.md")
     print(f"  log:    journalctl --user -u {unit} -n 50")
     return 0
 
@@ -1298,7 +1339,7 @@ def main(argv=None):
                             "tool call — the bench then outlives the call's timeout.")
         p.add_argument("--run-id", default=None,
                        help="id for this run's "
-                            f"{V2_RUNS_ROOT}/<id>/{{report.md,meta.json}} (else "
+                            "$CRUCIBLEFORGE_V2_RUNS_ROOT/<id>/{report.md,meta.json} (else "
                             "$CRUCIBLEFORGE_RUN_ID, else self-minted)")
         p.add_argument("--deliver-to", default=None,
                        help="DisPatch thread id to route the V2 run report to "

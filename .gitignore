@@ -33,3 +33,5 @@ profiles/*.private.yaml
 scripts/bench-*-batch.sh
 # operator-only stronger explicit-canary paragraph (judge.CANARY_EXPLICIT_DEFAULT)
 crucibleforge/canary_explicit.local.txt
+# operator-local CRUCIBLEFORGE_* defaults (paths on this machine)
+crucibleforge.local.env
