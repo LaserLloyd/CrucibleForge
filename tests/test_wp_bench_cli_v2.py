@@ -447,3 +447,32 @@ def test_local_env_file_sets_defaults_only(tmp_path, monkeypatch):
     assert os.environ["CRUCIBLEFORGE_RUN_ID"] == "from-env"      # the real env wins
     assert "STUDIOFORGE_MCP_PIN" not in os.environ               # only CRUCIBLEFORGE_* keys
     assert cli._load_local_env(tmp_path / "missing.env") == {}
+
+
+def test_v2_report_resolves_a_label_registered_mid_run(tmp_path, monkeypatch):
+    """A bench-all run registers its own contestants into models.yaml while it
+    runs, so the config snapshot main() loaded at dispatch is stale by the time
+    the V2 report is written. The report must re-read the registry instead of
+    judging the run's own --models against that stale snapshot — before the fix
+    a freshly-registered label rendered "(no models resolved)" even though the
+    board (which reloads the config itself) already listed the model."""
+    monkeypatch.setattr(cli, "V2_RUNS_ROOT", tmp_path)
+    monkeypatch.setattr(cfgmod, "RESULTS_DIR", tmp_path / "results")
+    stale = {"_path": str(tmp_path / "models.yaml"),
+             "models": [{"name": "old", "provider": "p", "model_id": "x",
+                         "context_length": 8192, "enabled": True}],
+             "providers": {"p": {"type": "openai", "base_url": "http://x"}},
+             "defaults": {}, "judge": {"candidates": []}}
+    current = {**stale, "models": stale["models"] + [
+        {"name": "fresh", "provider": "p", "model_id": "z",
+         "context_length": 8192, "enabled": True}]}
+    monkeypatch.setattr(cli, "load_config", lambda *a, **kw: current)
+    args = argparse.Namespace(cmd="bench-all", models="fresh", run_id="w-fresh-1",
+                              requester=None, deliver_to=None, task_run_id=None,
+                              profile=None, judge=None, categories=None,
+                              difficulty=None, cases=None)
+    state = cli._v2_start(args)
+    cli._v2_finish("bench-all", args, stale, 0, state)
+    body = (tmp_path / "w-fresh-1" / "report.md").read_text()
+    assert "(no models resolved)" not in body
+    assert "fresh" in body.split("## Result")[1].split("## Evidence")[0]

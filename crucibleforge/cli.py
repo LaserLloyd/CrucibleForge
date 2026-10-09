@@ -338,7 +338,22 @@ def _v2_report_body(cmd: str, args, cfg: dict, rc: int, state: dict) -> str:
         entries = resolve_models(cfg, models_arg)
         labels = [e["name"] for e in entries]
     except Exception as e:  # noqa: BLE001 — a bad --models must not blank the report
-        log.warning("V2 report: could not resolve --models %r: %s", models_arg, e)
+        # `cfg` is the registry snapshot loaded at process dispatch. A command
+        # may register its OWN labels mid-run — bench-all appends new models to
+        # models.yaml and then benches them — so a freshly-added name is absent
+        # here even though the board (which reloads the config itself and reads
+        # saved results) already lists it. Re-read the registry from disk before
+        # giving up, or the run's own report reads "(no models resolved)".
+        try:
+            from .config import set_results_dir
+            here = results_dir()
+            try:
+                entries = resolve_models(load_config(cfg.get("_path")), models_arg)
+            finally:
+                set_results_dir(here)
+            labels = [e["name"] for e in entries]
+        except Exception as e2:  # noqa: BLE001
+            log.warning("V2 report: could not resolve --models %r: %s", models_arg, e2)
     stats: dict = {}
     scorecard = None
     render_err = None
