@@ -135,13 +135,25 @@ class Provider:
     _keepalive: threading.Thread | None = field(default=None, repr=False)
     _plans: dict = field(default_factory=dict, repr=False)
     _status_cache: tuple = field(default=(0.0, None), repr=False)
+    # HTTP status of the last GET /models probe (None = no answer / not probed)
+    last_probe_status: int | None = field(default=None, repr=False)
 
     # ---------------------------------------------------------- discovery
+    def auth_wall(self, probe: bool = False) -> int | None:
+        """401/403 when the server last answered /models with an auth refusal
+        (reachable, but it wants a key / rejected ours), else None. ``probe``
+        issues a fresh GET /models when nothing has been recorded yet."""
+        if self.last_probe_status is None and probe:
+            self.alive()
+        return self.last_probe_status if self.last_probe_status in (401, 403) else None
+
     def alive(self) -> bool:
         headers = self._headers()
+        self.last_probe_status = None
         try:
             with httpx.Client(timeout=10) as http:
                 resp = http.get(f"{self.base_url}/models", headers=headers)
+                self.last_probe_status = resp.status_code
                 if resp.status_code == 200:
                     return True
                 # Some gateways 401/404 on /models but serve completions fine.
@@ -178,8 +190,10 @@ class Provider:
             ids = set(studioforge.list_models(self.base_url, self.api_key))
         else:
             try:
+                self.last_probe_status = None
                 with httpx.Client(timeout=15) as http:
                     resp = http.get(f"{self.base_url}/models", headers=self._headers())
+                self.last_probe_status = resp.status_code
                 if resp.status_code == 200:
                     data = resp.json()
                     items = data.get("data", data) if isinstance(data, dict) else data

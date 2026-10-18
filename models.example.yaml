@@ -18,6 +18,8 @@
 #   headers: {...}     extra HTTP headers (e.g. OpenRouter's HTTP-Referer); ${ENV}
 #                      placeholders are expanded (StudioForge: X-MCP-Pin for
 #                      management calls from another machine)
+#   api_key_env: VAR   name of the env var holding the bearer key (sent as
+#                      "Authorization: Bearer"); StudioForge API keys go here
 #   extra_body: {...}  extra request fields for every model on this provider
 #   StudioForge rig etiquette (type: studioforge):
 #   use_resident: true  (default) if the target model is ALREADY resident, ready,
@@ -54,9 +56,13 @@ providers:
     type: openai
     base_url: http://localhost:11434/v1
     api_key: ollama
-  llamacpp:                       # llama-server / StudioForge / any local OpenAI-compatible
+  llamacpp:                       # StudioForge gateway / llama-server / any local OpenAI-compatible
     type: openai
-    base_url: http://localhost:8080/v1
+    # StudioForge's OpenAI API is the GATEWAY on 1234 (its panel on 8080 does not
+    # serve /v1). A bare llama-server listens on 8080 by default: use
+    # http://127.0.0.1:8080/v1 only for that. If the gateway enforces API keys
+    # add:  api_key_env: STUDIOFORGE_API_KEY   (sent as "Authorization: Bearer").
+    base_url: http://127.0.0.1:1234/v1
   deepseek:
     type: openai
     base_url: https://api.deepseek.com/v1

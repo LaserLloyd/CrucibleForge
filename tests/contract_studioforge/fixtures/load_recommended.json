@@ -1,0 +1,8 @@
+{
+  "_note": "derived from client code (studioforge.py load_recommended): POST /api/models/{url-quoted id}/load-recommended",
+  "model_id": "pub/repo/chat-Q5_K_S",
+  "expect_path": "/api/models/pub%2Frepo%2Fchat-Q5_K_S/load-recommended",
+  "args": {"ctx_size": 32768, "prefer_mode": "dual_5090", "max_slots": 4},
+  "expect_request_body": {"ctx_size": 32768, "prefer_mode": "dual_5090", "max_slots": 4},
+  "response": {"ok": true, "plan": {"parallel": 4, "ctx_size": 32768}}
+}

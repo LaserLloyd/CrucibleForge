@@ -1,0 +1,139 @@
+#!/bin/sh
+# CrucibleForge container entrypoint. Deliberately POSIX sh and short.
+#
+# In order:
+#  1. If started as root: align the `app` account with PUID/PGID, chown /data,
+#     drop privileges (setpriv) and re-exec. Not root: skip (nothing to adjust).
+#  2. Fail LOUD and EARLY when /data is not writable (bind-mount UID mismatch).
+#  3. Pre-upgrade backup: when the image version differs from the one that last
+#     ran on this volume, copy the small state files (models.yaml, the results
+#     summaries) to /data/backups/<old>-to-<new>-<timestamp>/ (keep the last 5).
+#     Transcripts (transcripts_*.jsonl, the large files) are NOT copied; back
+#     those up with the volume backup in docs/deploy/docker.md.
+#  4. First start: seed /data/models.yaml with the local provider pointed at the
+#     Docker host. An existing file is never touched.
+#  5. `docker compose run --rm app status` works: a first argument that is not
+#     an executable (or starts with "-") is a crucibleforge subcommand.
+#  6. CRUCIBLEFORGE_GUI_TOKEN, when set, is the GUI's stable access token.
+#
+# It does not install, migrate or "repair" anything, and never recursively
+# chowns a healthy volume on every boot.
+set -eu
+
+DATA_DIR=/data
+PUID="${PUID:-1000}"
+PGID="${PGID:-1000}"
+CFG="${CRUCIBLEFORGE_CONFIG:-$DATA_DIR/models.yaml}"
+LLM_BASE_URL="${LLM_BASE_URL:-http://host.docker.internal:1234/v1}"
+
+log() { printf '%s crucibleforge-entrypoint: %s\n' "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" "$*" >&2; }
+die() { log "FATAL: $*"; exit 1; }
+
+# ---- 1. privileges ----------------------------------------------------------
+if [ "$(id -u)" = "0" ]; then
+    log "started as root; chown ${DATA_DIR} to ${PUID}:${PGID} and drop privileges"
+    if [ "$(id -u app)" != "$PUID" ] || [ "$(id -g app)" != "$PGID" ]; then
+        # Cosmetic only (names the uid "app" in ps/id). Under compose /etc is on
+        # the read-only image filesystem, so this normally fails; nothing below
+        # needs it: setpriv takes numeric ids and HOME is /data.
+        { groupmod -o -g "$PGID" app && usermod -o -u "$PUID" -g "$PGID" app; } 2>/dev/null \
+            || log "note: /etc is read-only; running as uid ${PUID} without a passwd entry"
+    fi
+    mkdir -p "$DATA_DIR"
+    chown "$PUID:$PGID" "$DATA_DIR"
+    # Any entry not owned by PUID -- an existing models.yaml, or the image's own
+    # /data/results and /data/tmp (UID 1000, mode 0750) that a fresh named volume
+    # is populated with -- would be unreadable after the drop.
+    if [ -n "$(find "$DATA_DIR" -mindepth 1 -maxdepth 2 ! -user "$PUID" 2>/dev/null | head -n 1)" ]; then
+        log "ownership mismatch on existing data: one-time recursive chown"
+        chown -R "$PUID:$PGID" "$DATA_DIR"
+    fi
+    # --clear-groups, not --init-groups: --init-groups looks the uid up in
+    # /etc/passwd and aborts ("uid N not found") for any PUID other than 1000,
+    # because the usermod above cannot write the read-only /etc.
+    exec setpriv --reuid="$PUID" --regid="$PGID" --clear-groups --inh-caps=-all -- "$0" "$@"
+fi
+
+# ---- 2. writability --------------------------------------------------------
+if [ ! -w "$DATA_DIR" ]; then
+    log "${DATA_DIR} is not writable by UID $(id -u) (owned by $(stat -c '%u:%g' "$DATA_DIR" 2>/dev/null || echo '?'))."
+    log "  Bind mount owned by another user? Either chown it to $(id -u):$(id -g), or use the"
+    log "  PUID/PGID override (docs/deploy/docker.md, 'Volume permissions'), or use the named volume."
+    die "data directory not writable"
+fi
+mkdir -p "$DATA_DIR/results" "$DATA_DIR/tmp"
+for d in "$DATA_DIR/results" "$DATA_DIR/tmp"; do
+    [ -r "$d" ] && [ -w "$d" ] && [ -x "$d" ] \
+        || die "$d is not usable by UID $(id -u) (owned by $(stat -c '%u:%g' "$d" 2>/dev/null || echo '?'))"
+done
+
+# ---- 3. pre-upgrade backup --------------------------------------------------
+state_files() {
+    [ -f "$DATA_DIR/models.yaml" ] && echo "$DATA_DIR/models.yaml"
+    # `|| true`: under set -e a failing find (unreadable directory) inside the
+    # $(state_files) substitution would end the container with no message.
+    find "$DATA_DIR" -maxdepth 1 -name 'models.yaml.bak*' -type f 2>/dev/null || true
+    find "$DATA_DIR/results" -maxdepth 1 -type f \( -name '*.csv' -o -name '*.json' -o -name '*.md' \) 2>/dev/null || true
+    return 0
+}
+
+pre_upgrade_backup() {
+    marker="$DATA_DIR/.image-version"
+    pkg="$(python -c "import importlib.metadata as m; print(m.version('crucibleforge-bench'))" 2>/dev/null || echo unknown)"
+    new="${pkg}-${IMAGE_VERSION:-dev}"
+    old="$(cat "$marker" 2>/dev/null || true)"
+    if [ "$old" != "$new" ]; then
+        files="$(state_files)"
+        if [ -n "$files" ]; then
+            tag_old="$(printf '%s' "${old:-unversioned}" | tr -c 'A-Za-z0-9._+\n-' '_')"
+            tag_new="$(printf '%s' "$new" | tr -c 'A-Za-z0-9._+\n-' '_')"
+            dest="$DATA_DIR/backups/${tag_old}-to-${tag_new}-$(date -u '+%Y%m%dT%H%M%SZ')"
+            mkdir -p "$dest"
+            printf '%s\n' "$files" | while IFS= read -r f; do
+                rel="${f#"$DATA_DIR"/}"
+                mkdir -p "$dest/$(dirname "$rel")"
+                cp -p "$f" "$dest/$rel"
+            done
+            log "image version changed (${old:-none} -> ${new}): state files copied to ${dest}"
+            # keep the 5 newest
+            ls -1dt "$DATA_DIR"/backups/*/ 2>/dev/null | tail -n +6 | while IFS= read -r d; do rm -rf "$d"; done
+        fi
+        printf '%s\n' "$new" > "$marker"
+    fi
+}
+pre_upgrade_backup
+
+# ---- 4. first-start seed -----------------------------------------------------
+if [ ! -f "$CFG" ] && [ -f /app/models.example.yaml ]; then
+    mkdir -p "$(dirname "$CFG")"
+    # '|' as the sed delimiter: URLs contain '/'. Both spellings of loopback:
+    # the template's StudioForge entry says 127.0.0.1, the LM Studio one says
+    # localhost, and inside a container either one is the container itself
+    # (tests/test_deploy_seed.py applies these rules to the real template).
+    # LLM_BASE_URL is escaped for the replacement side: a '&' (query string)
+    # would otherwise insert the matched text, a '|' would end the expression.
+    # Written to a temp file and renamed, so a failed seed never leaves a
+    # partial models.yaml that blocks every later seed.
+    url_sed="$(printf '%s' "$LLM_BASE_URL" | sed 's/[\\|&]/\\&/g')"
+    # Generic loopback -> host rewrite FIRST, then the :1234 gateway entries ->
+    # LLM_BASE_URL: the other order re-wrote an operator's own
+    # LLM_BASE_URL=http://127.0.0.1:... (host networking) a second time.
+    sed -e 's|http://localhost:|http://host.docker.internal:|g' \
+        -e 's|http://127.0.0.1:|http://host.docker.internal:|g' \
+        -e "s|http://host.docker.internal:1234/v1|${url_sed}|g" \
+        /app/models.example.yaml > "$CFG.seed.$$"
+    mv "$CFG.seed.$$" "$CFG"
+    log "seeded $CFG (primary local provider -> ${LLM_BASE_URL})"
+fi
+
+# ---- 5/6. command + GUI token -------------------------------------------------
+if [ "$#" -eq 0 ] || [ "${1#-}" != "$1" ] || ! command -v "$1" >/dev/null 2>&1; then
+    set -- crucibleforge "$@"
+fi
+if [ "${CRUCIBLEFORGE_GUI_TOKEN:-}" != "" ] && [ "${1:-}" = "crucibleforge" ] && [ "${2:-}" = "gui" ]; then
+    set -- "$@" --token "$CRUCIBLEFORGE_GUI_TOKEN"
+fi
+
+log "data=${DATA_DIR} uid=$(id -u) gid=$(id -g) version=${IMAGE_VERSION:-dev}"
+# exec: the app becomes the process that receives SIGTERM.
+exec "$@"

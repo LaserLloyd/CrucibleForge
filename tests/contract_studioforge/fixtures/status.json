@@ -1,0 +1,11 @@
+{
+  "_note": "derived from client code (studioforge.py residents / loaded_plan): GET /api/status",
+  "response": {
+    "version": "future-version-string",
+    "loaded": [
+      {"model_id": "pub/repo/chat-Q5_K_S", "state": "ready", "active_requests": 1, "loaded_by": "crucibleforge",
+       "ttl_s": 3600, "pinned": false,
+       "plan": {"devices": [0, 1], "ctx_size": 65536, "parallel": 4, "kv_cache_type": "q8_0", "mode": "dual_5090"}}
+    ]
+  }
+}

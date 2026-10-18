@@ -109,9 +109,9 @@ def test_private_scope_is_the_single_source(private_env):
 def test_private_by_location_even_without_the_list(private_env, tmp_path):
     """Forgetting `private:` in the overlay must not publish the category."""
     ov = Path(private_env["cfg"]["_path"]).parent / "profiles" / "bench.private.yaml"
-    data = yaml.safe_load(ov.read_text())
+    data = yaml.safe_load(ov.read_text(encoding="utf-8"))
     del data["private"]
-    ov.write_text(yaml.safe_dump(data))
+    ov.write_text(yaml.safe_dump(data), encoding="utf-8")
     assert CAT in profiles.private_scope(private_env["cfg"])["categories"]
 
 
@@ -120,7 +120,7 @@ def test_private_cases_do_not_move_the_public_revision(private_env):
     a clean clone and the operator's box agree, and a private edit never
     relabels the public rows stale (the 2026-09-28 board-wide 'partial' bug)."""
     before = version.cases_hash()
-    (cfgmod.PRIVATE_CASES_DIR / f"{CAT}.json").write_text("[]")
+    (cfgmod.PRIVATE_CASES_DIR / f"{CAT}.json").write_text("[]", encoding="utf-8")
     assert version.cases_hash() == before
 
 
@@ -130,7 +130,7 @@ def test_private_rows_carry_their_own_stamp(private_env):
     assert not version.private_row_current({**ok, "private_revision": "00000000"})
     # the private case file changed -> old private rows are stale
     (cfgmod.PRIVATE_CASES_DIR / f"{CAT}.json").write_text(json.dumps(
-        [{"id": i, "prompt": "edited", "rubric": "nsfw_craft"} for i in IDS]))
+        [{"id": i, "prompt": "edited", "rubric": "nsfw_craft"} for i in IDS]), encoding="utf-8")
     assert not version.private_row_current(ok)
 
 
@@ -141,8 +141,8 @@ def test_local_board_shows_the_private_component(private_env):
     md = report.generate(write=True)
     res = private_env["results"]
     assert LABEL in md
-    assert LABEL in (res / "report.html").read_text()
-    s = json.loads((res / "report.json").read_text())["models"]["m-one"]
+    assert LABEL in (res / "report.html").read_text(encoding="utf-8")
+    s = json.loads((res / "report.json").read_text(encoding="utf-8"))["models"]["m-one"]
     assert s["scorecard"]["components"][CAT] == pytest.approx(80.0)
 
 
@@ -151,7 +151,7 @@ def test_public_board_excludes_every_private_term(private_env):
     report.generate(write=True)                    # the local board exists too
     md = report.generate(write=True, public=True)
     pub = private_env["results"] / "public"
-    texts = {p.name: p.read_text() for p in pub.iterdir()}
+    texts = {p.name: p.read_text(encoding="utf-8") for p in pub.iterdir()}
     assert set(texts) == {"report.md", "failures.md", "report.json", "report.html"}
     for name, text in texts.items():
         for term in (CAT, LABEL, *IDS):
@@ -162,7 +162,7 @@ def test_public_board_excludes_every_private_term(private_env):
     assert CAT not in s["scorecard"]["weights"]["chat"]
     assert "m-one" in md
     # the local board was not overwritten
-    assert LABEL in (private_env["results"] / "report.md").read_text()
+    assert LABEL in (private_env["results"] / "report.md").read_text(encoding="utf-8")
 
 
 def test_public_coverage_does_not_count_private_cases(private_env):
@@ -194,7 +194,7 @@ def test_render_html_guard_refuses_a_forbidden_term():
 # ------------------------------------------------------------ repo hygiene
 
 def _git(*a):
-    return subprocess.run(["git", "-C", str(REPO), *a], capture_output=True, text=True)
+    return subprocess.run(["git", "-C", str(REPO), *a], capture_output=True, text=True, encoding="utf-8")
 
 
 @pytest.mark.skipif(shutil.which("git") is None or not (REPO / ".git").exists(),
@@ -226,7 +226,7 @@ def test_no_tracked_file_names_a_private_category():
     terms = set()
     for p in pdir.glob("*.json"):
         terms.add(p.stem)
-        terms.update(c["id"] for c in json.loads(p.read_text()))
+        terms.update(c["id"] for c in json.loads(p.read_text(encoding="utf-8")))
     tracked = _git("ls-files").stdout.split()
     hits = []
     for f in tracked:
@@ -243,11 +243,11 @@ def test_public_board_does_not_list_a_private_only_model(private_env):
     board at all — an empty row would still reveal it was benchmarked."""
     _write_rows(private_env, label="m-full")
     res = private_env["results"]
-    rows = [json.loads(l) for l in (res / "transcripts_m-full.jsonl").read_text().splitlines()]
+    rows = [json.loads(l) for l in (res / "transcripts_m-full.jsonl").read_text(encoding="utf-8").splitlines()]
     (res / "transcripts_m-private-only.jsonl").write_text(
         "\n".join(json.dumps({**r, "model_label": "m-private-only"}) for r in rows
-                  if r["category"] == CAT) + "\n")
-    (res / "meta_m-private-only.json").write_text((res / "meta_m-full.json").read_text())
+                  if r["category"] == CAT) + "\n", encoding="utf-8")
+    (res / "meta_m-private-only.json").write_text((res / "meta_m-full.json").read_text(encoding="utf-8"), encoding="utf-8")
     local = report.generate(write=False)
     public = report.generate(write=False, public=True)
     assert "m-private-only" in local

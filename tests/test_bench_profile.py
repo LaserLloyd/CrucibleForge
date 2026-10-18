@@ -101,7 +101,7 @@ def test_meta_records_profile_revision_and_start(tmp_path, monkeypatch):
     runner._write_meta("lbl", entry, P(), failed=True, error="old", profile="bench")
     runner._write_meta("lbl", entry, P(), profile="bench", revision="3.3.0+abc",
                        reset=True, started="2026-09-23T00:00:00+00:00")
-    meta = json.loads((tmp_path / "meta_lbl.json").read_text())
+    meta = json.loads((tmp_path / "meta_lbl.json").read_text(encoding="utf-8"))
     assert meta["profile"] == "bench" and meta["bench_revision"] == "3.3.0+abc"
     assert meta["started"] == "2026-09-23T00:00:00+00:00"
     assert "error" not in meta and meta["failed"] is False  # reset drops the old run
@@ -118,9 +118,9 @@ def test_judge_skips_rig_when_nothing_pending(tmp_path, monkeypatch):
     monkeypatch.setattr(config, "results_dir", lambda: tmp_path)
     (tmp_path / "transcripts_lbl.jsonl").write_text(
         json.dumps({"bench_run_id": "b", "case_id": "CZ01", "repeat": 1, "turn": None,
-                    "category": "coding", "needs_judge": False}) + "\n")
+                    "category": "coding", "needs_judge": False}) + "\n", encoding="utf-8")
     assert judge.pending_judge_rows(["lbl"]) == 0
     (tmp_path / "transcripts_lbl.jsonl").write_text(
         json.dumps({"bench_run_id": "b", "case_id": "RP1", "repeat": 1, "turn": None,
-                    "category": "rp", "needs_judge": True}) + "\n")
+                    "category": "rp", "needs_judge": True}) + "\n", encoding="utf-8")
     assert judge.pending_judge_rows(["lbl"]) == 1

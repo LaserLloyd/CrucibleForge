@@ -6,13 +6,13 @@ CI step that re-derives every gold answer exit 2 on every clean runner.
 """
 from __future__ import annotations
 
-import shutil
 import subprocess
 import sys
 from pathlib import Path
 
 import pytest
 
+from _hostenv import posix_bash
 from crucibleforge import cli
 from crucibleforge.config import ConfigError
 
@@ -72,17 +72,20 @@ def test_config_init_without_the_template_is_a_clean_error(monkeypatch, tmp_path
     assert not (tmp_path / "models.yaml").exists()
 
 
-@pytest.mark.skipif(shutil.which("bash") is None, reason="needs bash")
+@pytest.mark.skipif(posix_bash() is None,
+                    reason="needs a POSIX bash (on Windows, Git for Windows' bash; "
+                           "the System32 WSL launcher does not count)")
 def test_queue_script_requires_an_explicit_env_file(tmp_path):
     """No guessing a path under $HOME: the operator names the env file."""
     script = REPO / "scripts" / "queue-overnight.sh"
     env = {"PATH": "/usr/bin:/bin", "HOME": str(tmp_path)}
-    p = subprocess.run(["bash", str(script)], capture_output=True, text=True,
+    bash = posix_bash()
+    p = subprocess.run([bash, str(script)], capture_output=True, text=True, encoding="utf-8",
                        env=env, cwd=str(tmp_path))
     assert p.returncode == 2, p.stdout + p.stderr
     assert "CRUCIBLEFORGE_ENV_FILE" in p.stderr
 
-    p = subprocess.run(["bash", str(script)], capture_output=True, text=True,
+    p = subprocess.run([bash, str(script)], capture_output=True, text=True, encoding="utf-8",
                        env={**env, "CRUCIBLEFORGE_ENV_FILE": str(tmp_path / "nope.env")},
                        cwd=str(tmp_path))
     assert p.returncode == 2
@@ -93,10 +96,36 @@ def test_readme_says_the_supported_install_is_a_checkout():
     """Finding 2's minimal fix is documentation — if the note goes, the
     packaging gap is silent again."""
     text = (REPO / "README.md").read_text(encoding="utf-8")
-    assert "## Installing" in text
+    assert "## Install" in text
     assert "uv sync" in text
     assert "wheel" in text.lower() and "supported" in text.lower()
 
 
 if __name__ == "__main__":  # pragma: no cover
     sys.exit(pytest.main([__file__]))
+
+
+def test_version_flag_prints_package_version_and_exits_0(monkeypatch, capsys):
+    from importlib import metadata
+
+    monkeypatch.setattr(cli, "load_config", _no_config)
+    monkeypatch.setattr(metadata, "version", lambda name: "9.8.7")
+    with pytest.raises(SystemExit) as e:
+        cli.main(["--version"])
+    assert e.value.code == 0
+    assert capsys.readouterr().out.strip() == "crucibleforge 9.8.7"
+
+
+def test_version_flag_falls_back_to_suite_version_when_not_installed(monkeypatch, capsys):
+    from importlib import metadata
+
+    from crucibleforge.version import SUITE_VERSION
+
+    def missing(name):
+        raise metadata.PackageNotFoundError(name)
+
+    monkeypatch.setattr(metadata, "version", missing)
+    with pytest.raises(SystemExit) as e:
+        cli.main(["--version"])
+    assert e.value.code == 0
+    assert capsys.readouterr().out.strip() == f"crucibleforge {SUITE_VERSION}"

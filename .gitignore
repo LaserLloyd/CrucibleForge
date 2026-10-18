@@ -52,3 +52,6 @@ CLAUDE.local.md
 memory/
 # one-off operator launchers (home paths)
 scripts/bench-all-resume-*.sh
+
+# the compose template is the one .env.* file that ships
+!.env.example

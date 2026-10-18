@@ -200,8 +200,21 @@ def _atomic_write_json(path: Path, obj: dict) -> None:
         f.flush()
         os.fsync(f.fileno())
     os.replace(tmp, path)
+    _fsync_dir(path.parent)
+
+
+def _fsync_dir(directory: Path) -> None:
+    """fsync a directory so a just-completed rename survives a power loss.
+
+    A no-op on Windows, by design: NTFS has no directory file descriptor
+    (``os.open`` on a directory raises ``PermissionError`` there) and the rename
+    is made durable by the filesystem journal instead. Elsewhere it is
+    best-effort -- it never fails the write.
+    """
+    if sys.platform == "win32":
+        return
     try:
-        dir_fd = os.open(str(path.parent), os.O_RDONLY)
+        dir_fd = os.open(str(directory), os.O_RDONLY)
         try:
             os.fsync(dir_fd)
         finally:
@@ -337,7 +350,7 @@ def _v2_report_body(cmd: str, args, cfg: dict, rc: int, state: dict) -> str:
     try:
         entries = resolve_models(cfg, models_arg)
         labels = [e["name"] for e in entries]
-    except Exception as e:  # noqa: BLE001 — a bad --models must not blank the report
+    except Exception:  # noqa: BLE001 — a bad --models must not blank the report
         # `cfg` is the registry snapshot loaded at process dispatch. A command
         # may register its OWN labels mid-run — bench-all appends new models to
         # models.yaml and then benches them — so a freshly-added name is absent
@@ -583,6 +596,33 @@ _LmStudioGuard = _ProviderGuard  # back-compat name (GUI imports it)
 
 # --------------------------------------------------------------- commands
 
+# The documented env var for a StudioForge gateway key (models.example.yaml).
+DEFAULT_API_KEY_ENV = "STUDIOFORGE_API_KEY"
+
+
+def _auth_wall_note(cfg, p, code: int | None = None) -> str | None:
+    """One line when the server answered /models with 401/403, else None.
+
+    ``alive()`` deliberately counts such an answer as reachable (some gateways
+    refuse the listing yet serve completions), so without this note a gateway
+    that wants a key looks plainly UP."""
+    code = code or p.auth_wall()
+    if code not in (401, 403):
+        return None
+    pcfg = cfg["providers"].get(p.name) or {}
+    env = pcfg.get("api_key_env") or ""
+    literal = pcfg.get("api_key")
+    if not env and isinstance(literal, str) and literal.startswith("${") and literal.endswith("}"):
+        env = literal[2:-1]           # `api_key: ${VAR}` names its variable too
+    if p.api_key:
+        source = f"${env}" if env else "api_key in models.yaml"
+        return (f"reachable, but it rejected the API key from {source} "
+                f"(HTTP {code}): check the key")
+    name = env or DEFAULT_API_KEY_ENV
+    extra = "" if env else f" and add api_key_env: {name} to the provider in models.yaml"
+    return f"reachable, but it wants an API key: set ${name}{extra} (HTTP {code})"
+
+
 def cmd_status(args, cfg):
     from .providers import all_providers
     from .judge import select_judge, JudgeError
@@ -612,6 +652,9 @@ def cmd_status(args, cfg):
         pin = f" pin: ${pin_env} ({'set' if live_pin else 'NOT SET'})" if pin_env else ""
         print(f"  {p.name:14s} {p.type:11s} {p.base_url:45s} {state:4s} "
               f"conc={p.concurrency} {key}{keyset}{pin}")
+        wall = _auth_wall_note(cfg, p)
+        if wall:
+            print(f"    {wall}")
         try:
             loaded = p.loaded_models()
         except Exception as e:  # noqa: BLE001 — a missing lms CLI must not kill status
@@ -1128,6 +1171,10 @@ def cmd_models(args, cfg):
         prov = get_provider(cfg, args.provider)
         ids = sorted(prov.list_models(refresh=True))
         if not ids:
+            wall = _auth_wall_note(cfg, prov, prov.auth_wall(probe=True))
+            if wall:
+                print(f"{args.provider}: no model listing: {wall}")
+                return 1
             print(f"{args.provider}: no model listing (endpoint has no /models or key missing)")
             return 1
         known = {m["model_id"] for m in cfg["models"] if m["provider"] == args.provider}
@@ -1244,7 +1291,7 @@ def _ancestor_holds(path: Path) -> bool:
                         continue
             except OSError:
                 pass
-            stat = Path(f"/proc/{pid}/stat").read_text()
+            stat = Path(f"/proc/{pid}/stat").read_text(encoding="utf-8")
             pid = int(stat.rsplit(")", 1)[1].split()[1])
     except (OSError, ValueError, IndexError):
         return False
@@ -1263,7 +1310,7 @@ def acquire_rig_lock():
     if _ancestor_holds(path):
         log.info("rig lock %s is held by a parent process — running under it", path)
         return None
-    f = open(path, "a+")
+    f = open(path, "a+", encoding="utf-8")
     try:
         fcntl.flock(f.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
     except BlockingIOError:
@@ -1305,7 +1352,7 @@ def _detach(args, argv: list[str] | None) -> int:
     if shutil.which("systemd-run") is None:
         print("--detach needs systemd-run (systemd --user); run without --detach", file=sys.stderr)
         return 2
-    r = subprocess.run(cmd, capture_output=True, text=True)
+    r = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8")
     if r.returncode != 0:
         print(f"detach failed (systemd-run rc={r.returncode}): {(r.stderr or r.stdout).strip()[:400]}",
               file=sys.stderr)
@@ -1318,11 +1365,23 @@ def _detach(args, argv: list[str] | None) -> int:
     return 0
 
 
+def package_version() -> str:
+    """Installed distribution version; the suite version from a bare checkout."""
+    from importlib import metadata
+    try:
+        return metadata.version("crucibleforge-bench")
+    except metadata.PackageNotFoundError:
+        from .version import SUITE_VERSION
+        return SUITE_VERSION
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(
         prog="crucibleforge",
         description="CrucibleForge — LLM capability benchmark (hard tier, deterministic "
                     "graders, local or remote judge, web GUI)")
+    parser.add_argument("--version", action="version",
+                        version=f"crucibleforge {package_version()}")
     parser.add_argument("--config", default=None, help="path to models.yaml")
     parser.add_argument(
         "--allow-unsandboxed", action="store_true",
@@ -1560,6 +1619,16 @@ def main(argv=None):
         except graders.SandboxUnavailable as e:
             print(f"sandbox: {e}", file=sys.stderr)
             sys.exit(3)
+        why = graders.unsandboxed_reason()
+        if why:
+            # require_sandbox() passed without a sandbox: the opt-in is in
+            # force. Say so now, on the terminal, before any work starts --
+            # not once in the log at the first coding case hours into a run.
+            # A bwrap that is installed but broken lands here too, which is
+            # easy to mistake for "I have the sandbox, the flag is a no-op".
+            log.warning("%s is in force and there is NO sandbox: %s. Coding cases will "
+                        "execute model-written code as this user, with network access "
+                        "and this user's files readable.", graders.ALLOW_FLAG, why)
 
     handler = {"status": cmd_status, "run": cmd_run, "judge": cmd_judge,
                "recover": cmd_recover, "report": cmd_report, "pairwise": cmd_pairwise, "all": cmd_all,

@@ -1,0 +1,30 @@
+# Keep the build context to what the image needs.
+.git
+.github
+.gitignore
+.venv
+.scratch-data
+.pytest_cache
+.ruff_cache
+__pycache__
+*.pyc
+*.egg-info
+dist
+build
+# operator-local, possibly private: never into an image layer
+models.yaml
+models.yaml.bak*
+results
+runs
+cases/private
+profiles/private
+.env
+.env.*
+*.log
+*.jsonl
+scripts
+tests
+docs
+CHANGELOG.md
+CLAUDE.md
+.claude

@@ -1,0 +1,10 @@
+{
+  "_note": "derived from client code (studioforge.py acquire_lease / _lease_id): POST /api/leases",
+  "expect_request_keys": ["devices", "model_ids", "holder", "reason", "idle_ttl_s", "force"],
+  "responses_with_an_id": [
+    {"id": "L1", "devices": [0, 1]},
+    {"lease_id": "L2", "devices": [0, 1]},
+    {"lease": {"id": "L3"}, "devices": [0, 1]}
+  ],
+  "expect_ids": ["L1", "L2", "L3"]
+}

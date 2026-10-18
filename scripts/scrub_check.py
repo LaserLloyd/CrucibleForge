@@ -913,4 +913,14 @@ def main() -> int:
 
 
 if __name__ == "__main__":
+    # The report uses a few non-ASCII glyphs. A Windows console (and a git hook
+    # run from one) is cp1252 by default, where printing them raised
+    # UnicodeEncodeError and the scanner died AFTER scanning but BEFORE saying
+    # whether the tree was clean. Degrade the glyph, never the verdict.
+    for _stream in (sys.stdout, sys.stderr):
+        if hasattr(_stream, "reconfigure"):
+            try:
+                _stream.reconfigure(errors="replace")
+            except (ValueError, OSError):
+                pass
     sys.exit(main())

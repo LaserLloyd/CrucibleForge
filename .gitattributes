@@ -1,0 +1,8 @@
+# Files that run under a POSIX shell or inside Linux containers must stay LF on
+# every checkout: a CRLF shebang or hook makes bash fail with "not found" / "\r".
+*.sh text eol=lf
+scripts/hooks/* text eol=lf
+Dockerfile text eol=lf
+.dockerignore text eol=lf
+deploy/** text eol=lf
+.github/workflows/containers.yml text eol=lf

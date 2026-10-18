@@ -18,8 +18,8 @@ def test_retired_case_ids_stay_off_the_board(tmp_path, monkeypatch):
             # a case id that left the profile (the saturation run's old RX20)
             _row("RX20-five-houses-six-attributes", "reasoning", "pass"),
             _row("RX21-eleven-islanders-two-days", "reasoning", "pass")]
-    (tmp_path / "transcripts_m.jsonl").write_text("\n".join(json.dumps(r) for r in rows) + "\n")
-    (tmp_path / "meta_m.json").write_text(json.dumps({"model_id": "x/y", "profile": "bench"}))
+    (tmp_path / "transcripts_m.jsonl").write_text("\n".join(json.dumps(r) for r in rows) + "\n", encoding="utf-8")
+    (tmp_path / "meta_m.json").write_text(json.dumps({"model_id": "x/y", "profile": "bench"}), encoding="utf-8")
     kept = report.board_filter("m", None)
     assert [r["case_id"] for r in kept] == ["RX02-knights-knaves"]
     _, stats, _ = report.board_stats(None, None)

@@ -63,7 +63,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        # windows-latest: the maintainer's rig is Windows, so the suite must be
+        # green there. Like macOS it has no bubblewrap; the suite grants its OWN
+        # fixtures the unsandboxed opt-in (tests/conftest.py) and the gold-answer
+        # step below passes --allow-unsandboxed explicitly.
+        os: [ubuntu-latest, macos-latest, windows-latest]
     steps:
       - uses: actions/checkout@v6
       - name: Install uv
@@ -79,6 +83,24 @@ jobs:
       - name: Install bubblewrap (the sandbox the graders require)
         if: runner.os == 'Linux'
         run: sudo apt-get update -qq && sudo apt-get install -y -qq bubblewrap
+      # bubblewrap on PATH is not a sandbox. GitHub's ubuntu images restrict
+      # unprivileged user namespaces (AppArmor), so bwrap installs fine and then
+      # cannot create one -- and a suite that only checked `which bwrap` ran
+      # graded code with the network wide open. The graders' own self-test
+      # (probe_bwrap) starts the real sandbox and connects to a loopback port
+      # from inside it, so ask that. If the runner cannot isolate, say so in the
+      # annotations and opt in explicitly for the rest of the job; the sandbox
+      # tests cover both modes. Nothing here is silent and nothing is weakened:
+      # the code that runs is this repository's own fixtures.
+      - name: Probe the sandbox (opt in explicitly if the runner cannot isolate)
+        if: runner.os == 'Linux'
+        run: |
+          if uv run python -c "import sys; from crucibleforge import graders as g; r = g.unsandboxed_reason(); print(r or 'bwrap sandbox works and the network is isolated'); sys.exit(1 if r else 0)"; then
+            echo "Using the real bubblewrap sandbox."
+          else
+            echo "::warning title=No usable bubblewrap sandbox on this runner::Running with CRUCIBLEFORGE_ALLOW_UNSANDBOXED=1 (explicit opt-in); the sandbox tests assert the refusal and opt-in paths instead of a blocked connect."
+            echo "CRUCIBLEFORGE_ALLOW_UNSANDBOXED=1" >> "$GITHUB_ENV"
+          fi
       # Ruff is version-pinned on purpose. `uvx ruff` resolves to whatever is
       # newest at run time, so an unpinned lint step turns every upstream
       # release into a build that breaks without anyone touching this repo.
@@ -95,15 +117,18 @@ jobs:
       # solution is executed against its own tests. A case file edited by hand
       # fails here rather than silently mis-scoring a model.
       - name: Verify every case's gold answer
-        # macOS has no bwrap and never will, so this step executes the repo's
-        # OWN reference solutions unsandboxed — on a disposable runner, with
-        # code that is in this repository and reviewable, not a model's. That
-        # is exactly the deliberate choice --allow-unsandboxed exists for, and
-        # naming it here keeps it visible in the log instead of hidden in a
-        # default. On Linux the flag is absent and the real sandbox is used.
+        # macOS and Windows have no bwrap and never will, so on those legs this
+        # step executes the repo's OWN reference solutions unsandboxed — on a
+        # disposable runner, with code that is in this repository and
+        # reviewable, not a model's. That is exactly the deliberate choice
+        # --allow-unsandboxed exists for, and naming it here keeps it visible in
+        # the log instead of hidden in a default. On Linux the flag is absent and
+        # the real sandbox is used. (bash on every leg: Windows runners default
+        # to PowerShell.)
+        shell: bash
         run: |
-          if [ "${{ runner.os }}" = "macOS" ]; then
-            uv run crucibleforge --allow-unsandboxed cases verify
-          else
+          if [ "${{ runner.os }}" = "Linux" ]; then
             uv run crucibleforge cases verify
+          else
+            uv run crucibleforge --allow-unsandboxed cases verify
           fi

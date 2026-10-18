@@ -6,6 +6,69 @@ was ever published as Gauntlet, so there is no migration to do — the entries
 below are kept because the engineering they record is real, not to narrate a
 rename.
 
+## 3.6.0 — Windows and hermetic tests (2026-10-18)
+
+No case, grader or metric changed. `SUITE_VERSION` moves to 3.6.0 and the
+3.5.1 stamp of the same case set (`36a60ec6`) is registered as equivalent in
+`_EQUIVALENT_STAMPS`, so no stored board row goes stale.
+
+- **The test-suite is green on Windows** (it was 120+ failures: a `fork`-only
+  regex-timeout test, the WSL `bash` launcher, case-insensitive paths,
+  directory `fsync`, the POSIX-only rig lock, and text I/O without an
+  encoding). `.github/workflows/ci.yml` now has a `windows-latest` leg.
+  - The regex catastrophic-backtracking guard keeps its `fork` version where
+    fork exists and has a persistent `spawn` worker version for Windows.
+  - Every text read/write names `encoding="utf-8"`, enforced by a static test
+    (`tests/test_windows_portability.py`).
+  - The directory `fsync` after an atomic write is a documented no-op on
+    Windows (`cli._fsync_dir`).
+  - `.gitattributes` keeps `*.sh` and `scripts/hooks/*` LF under
+    `core.autocrlf=true`.
+  - On Windows the rig lock (`results/.rig.lock`) is still not enforced
+    (`flock` is POSIX); one benchmark at a time remains the operator's job.
+    Coding cases still need `bwrap` or `--allow-unsandboxed`.
+- **Hermetic tests.** `tests/_netguard.py` refuses every outbound connection
+  except to ephemeral loopback ports a test opens itself (never :1234 or the
+  other service ports, never a hosted API, never a made-up LAN name), and fails
+  the test that tried even if the code swallowed the error. Removed the real TLS
+  connection to `api.deepseek.com` (`test_revision_3_2.py`), the `rig:1234`
+  lease-release hook that fired at interpreter exit, and the `GET /api/leases`
+  / `POST .../unload` calls to made-up hosts.
+- **StudioForge contract tests** (`tests/contract_studioforge/`): recorded-style
+  fixtures derived from this client's code pin `gpu_leased`, `priority_hold`,
+  `insufficient_vram`, `lease_conflict`, `error.studioforge.retry_after_s`,
+  lease `kind` / `holder_family`, `/api/status`, `load-recommended` and the
+  additive `/v1/models` fields.
+- `models.example.yaml`: the StudioForge example now points at the gateway
+  (`http://127.0.0.1:1234/v1`), not the panel port (8080), and shows
+  `api_key_env`.
+- `SECURITY.md` added.
+- **Sandbox self-test.** A `bwrap` that is installed but cannot start (a
+  container, user namespaces blocked) is detected up front: the run is refused,
+  or with `--allow-unsandboxed` runs without it and says so on stderr before any
+  work starts. The self-test runs the exact sandbox a graded run uses (so a
+  `bwrap` that cannot mount `/proc` no longer passes it and then fails every
+  coding case), and graded code starts with a minimal environment: no provider
+  API keys, no management PIN, no GUI token. Not a measurement change: a
+  solution that passes in a working sandbox passes the same way.
+- **The self-test proves the network is isolated.** `--unshare-all` is a
+  request, not a fact: on a GitHub runner `bwrap` is installed but user
+  namespaces are restricted. The self-test now also connects, from inside the
+  sandbox, to a loopback port it is listening on; if that succeeds (or bwrap
+  cannot start) the sandbox counts as unavailable: coding cases are refused
+  without `--allow-unsandboxed`, and with it run unsandboxed and say so. The CI
+  Linux leg probes with the same function and, when the runner cannot isolate,
+  sets `CRUCIBLEFORGE_ALLOW_UNSANDBOXED=1` explicitly (with a run annotation).
+  The "network blocked" test is parametrized over both modes (sandboxed,
+  refused, opted-in) instead of assuming `bwrap` on PATH means a sandbox.
+- `status` / `models discover` say when a gateway is reachable but answers
+  `/models` with 401/403, naming the variable to set (`api_key_env`, or the
+  `${VAR}` of an `api_key:` placeholder) or that the configured key was rejected.
+- Container: the PUID/PGID override starts for any UID (`setpriv
+  --clear-groups`; `--init-groups` needed a passwd entry the read-only image
+  cannot get); the first-start seed escapes `LLM_BASE_URL` for `sed` and is
+  written atomically.
+
 ## 3.5.1 — public-repo hygiene (2026-10-01)
 
 - **Case files.** One safety probe that no profile ran is removed from

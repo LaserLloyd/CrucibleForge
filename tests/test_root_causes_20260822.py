@@ -229,7 +229,7 @@ def test_generation_rejected_scores_case_fail_and_run_continues(tmp_path, monkey
     assert "rejected" in rows["T1"]["grade_detail"].lower()
     assert rows["T1"]["error"]
     assert rows["I1"]["grade"] == "pass"
-    meta = json.loads((tmp_path / "meta_m.json").read_text())
+    meta = json.loads((tmp_path / "meta_m.json").read_text(encoding="utf-8"))
     assert meta["failed"] is False and meta.get("finished")
 
 
@@ -335,7 +335,7 @@ def test_run_judge_separates_empty_generations_from_parse_failures(tmp_path, mon
         {"bench_run_id": "r", "case_id": "B", "repeat": 1, "turn": None, "rubric": "nsfw",
          "needs_judge": True, "response": "another scene", "prompt": "p"},
     ]
-    (tmp_path / "transcripts_m.jsonl").write_text("\n".join(json.dumps(r) for r in rows) + "\n")
+    (tmp_path / "transcripts_m.jsonl").write_text("\n".join(json.dumps(r) for r in rows) + "\n", encoding="utf-8")
 
     class FakeJC:
         model_id = "j"
@@ -378,11 +378,11 @@ def test_report_coverage_marks_partial_runs(tmp_path, monkeypatch):
     monkeypatch.setattr(report, "_current_revision", lambda cfg: "3.0.0+abc")
     for label, n in (("full", 200), ("smoke", 13)):
         (tmp_path / f"transcripts_{label}.jsonl").write_text(
-            "\n".join(json.dumps(_row(f"C{i}")) for i in range(n)) + "\n")
-        (tmp_path / f"meta_{label}.json").write_text(json.dumps({"device": "sf", "failed": False}))
-    (tmp_path / "transcripts_dead.jsonl").write_text(json.dumps(_row("C0")) + "\n")
+            "\n".join(json.dumps(_row(f"C{i}")) for i in range(n)) + "\n", encoding="utf-8")
+        (tmp_path / f"meta_{label}.json").write_text(json.dumps({"device": "sf", "failed": False}), encoding="utf-8")
+    (tmp_path / "transcripts_dead.jsonl").write_text(json.dumps(_row("C0")) + "\n", encoding="utf-8")
     (tmp_path / "meta_dead.json").write_text(json.dumps({"device": "sf", "failed": True,
-                                                         "error": "HTTP 500"}))
+                                                         "error": "HTTP 500"}), encoding="utf-8")
     stats = {l: report.model_stats(l) for l in ("full", "smoke", "dead")}
     assert stats["full"]["coverage"]["complete"] is True
     assert stats["smoke"]["coverage"]["complete"] is False
@@ -399,7 +399,7 @@ def test_report_coverage_flags_stale_revision(tmp_path, monkeypatch):
     monkeypatch.setattr(config, "RESULTS_DIR", tmp_path)
     monkeypatch.setattr(report, "_expected_case_count", lambda cfg, profile: 1)
     monkeypatch.setattr(report, "_current_revision", lambda cfg: "3.0.0+new")
-    (tmp_path / "transcripts_old.jsonl").write_text(json.dumps(_row("C0", rev="3.0.0+old")) + "\n")
+    (tmp_path / "transcripts_old.jsonl").write_text(json.dumps(_row("C0", rev="3.0.0+old")) + "\n", encoding="utf-8")
     stats = report.model_stats("old")
     assert stats["coverage"]["stale"] is True
     md = report.render_markdown(["old"], {"old": stats}, None)
@@ -414,7 +414,7 @@ def test_report_notes_reasoning_overflow_recoveries(tmp_path, monkeypatch):
         {**_row("C2", cat="coding", grade="fail"), "reasoning_overflow": True,
          "recovery": {"mode": None, "attempts": 2}, "truncated": True},
     ]
-    (tmp_path / "transcripts_m.jsonl").write_text("\n".join(json.dumps(r) for r in rows) + "\n")
+    (tmp_path / "transcripts_m.jsonl").write_text("\n".join(json.dumps(r) for r in rows) + "\n", encoding="utf-8")
     stats = report.model_stats("m")
     assert stats["reasoning_overflow"] == {"n": 2, "recovered": 1, "stopped": 0,
                                            "stopped_recovered": 0}
@@ -423,6 +423,7 @@ def test_report_notes_reasoning_overflow_recoveries(tmp_path, monkeypatch):
 
 # ------------------------------------------------ 6. studioforge readiness
 
+@pytest.mark.usefixtures("no_management_calls")
 def test_load_model_waits_for_ready_before_warmup(monkeypatch):
     # load_model first asks "already loaded?" (consumes one poll), then
     # wait_ready polls: loading, loading, ready
@@ -469,7 +470,7 @@ def test_recover_models_reruns_only_overflow_jobs_under_original_run_id(tmp_path
            {"bench_run_id": "orig", "case_id": "M2", "repeat": 1, "turn": None,
             "category": "math", "finish_reason": "stop", "response": "4",
             "reasoning": "", "grade": "pass", "metrics": {}}]
-    (tmp_path / "transcripts_m.jsonl").write_text("\n".join(json.dumps(r) for r in old) + "\n")
+    (tmp_path / "transcripts_m.jsonl").write_text("\n".join(json.dumps(r) for r in old) + "\n", encoding="utf-8")
 
     from crucibleforge import providers
     seen = []

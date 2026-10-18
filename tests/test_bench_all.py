@@ -3,7 +3,6 @@ listing + registry + board rows, and does only what is missing."""
 from __future__ import annotations
 
 import argparse
-import json
 
 import pytest
 import yaml
@@ -98,9 +97,9 @@ def test_pending_judge_rows_alone_trigger_a_judge_phase():
 def test_append_registry_lands_inside_models_and_keeps_comments(tmp_path):
     f = tmp_path / "models.yaml"
     f.write_text("# head comment\ndefaults: {}\nmodels:\n- name: a\n  model_id: org/a\n"
-                 "  provider: sf\n# providers comment\nproviders:\n  sf: {type: studioforge}\n")
+                 "  provider: sf\n# providers comment\nproviders:\n  sf: {type: studioforge}\n", encoding="utf-8")
     bench_all.append_registry(f, [{"name": "b", "model_id": "org/b"}], "sf")
-    text = f.read_text()
+    text = f.read_text(encoding="utf-8")
     d = yaml.safe_load(text)
     assert [m["name"] for m in d["models"]] == ["a", "b"]
     assert d["providers"] == {"sf": {"type": "studioforge"}}
@@ -110,15 +109,15 @@ def test_append_registry_lands_inside_models_and_keeps_comments(tmp_path):
 
 def test_append_registry_refuses_rather_than_corrupting(tmp_path):
     f = tmp_path / "models.yaml"
-    f.write_text("defaults: {}\n")
+    f.write_text("defaults: {}\n", encoding="utf-8")
     with pytest.raises(ValueError):
         bench_all.append_registry(f, [{"name": "b", "model_id": "org/b"}], "sf")
-    assert f.read_text() == "defaults: {}\n"
+    assert f.read_text(encoding="utf-8") == "defaults: {}\n"
 
 
 def test_prune_moves_files_to_a_dated_archive(tmp_path):
-    (tmp_path / "transcripts_x.jsonl").write_text("{}\n")
-    (tmp_path / "meta_x.json").write_text("{}")
+    (tmp_path / "transcripts_x.jsonl").write_text("{}\n", encoding="utf-8")
+    (tmp_path / "meta_x.json").write_text("{}", encoding="utf-8")
     dest = bench_all.prune_results(tmp_path, ["x"])
     assert dest.name.endswith("-pruned")
     assert (dest / "transcripts_x.jsonl").exists() and not (tmp_path / "meta_x.json").exists()

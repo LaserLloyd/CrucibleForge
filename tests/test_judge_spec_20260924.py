@@ -1,5 +1,6 @@
 """--judge spec resolution, per-judge sampling, the self-judge switch and the
 rig-lock skip for hosted judges (2026-09-24 judge comparison)."""
+import shlex
 import types
 
 import pytest
@@ -133,5 +134,6 @@ def test_judge_is_detachable_with_its_flags_kept(monkeypatch, tmp_path):
     assert ei.value.code == 0 and seen["args"].cmd == "judge"
     unit, cmd, rid = cli._detach_argv(seen["args"], argv)
     assert rid == "j-1" and "--detach" not in cmd[-1]
-    assert (f"uv run crucibleforge --config {example} --results {tmp_path} judge --models a,b --force "
+    assert (f"uv run crucibleforge --config {shlex.quote(example)} --results {shlex.quote(str(tmp_path))} "
+            "judge --models a,b --force "
             "--judge gemma-judge --run-id j-1") in cmd[-1]

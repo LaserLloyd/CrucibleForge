@@ -19,6 +19,8 @@ from __future__ import annotations
 import builtins
 import json
 import logging
+import os
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -75,7 +77,9 @@ def test_transcript_and_meta_paths_collide_when_names_differ_only_in_case(tmp_pa
     monkeypatch.setattr(config, "RESULTS_DIR", tmp_path)
     a = config.transcript_path("Qwen")
     b = config.transcript_path("qwen")
-    assert a != b                                   # distinct on Linux
+    # compare the TEXT: pathlib's own == is case-insensitive on Windows, which
+    # would make "distinct" false there without saying anything about the code.
+    assert str(a) != str(b)                         # distinct as written (every OS)
     assert str(a).casefold() == str(b).casefold()   # identical on macOS/Windows
 
 
@@ -298,14 +302,120 @@ def test_cli_does_not_gate_read_only_commands(monkeypatch):
 def test_bwrap_path_unchanged_when_available(monkeypatch):
     """The fix must not alter the sandboxed command on Linux."""
     monkeypatch.setattr(graders, "_BWRAP", "/usr/bin/bwrap")
+    monkeypatch.setattr(graders, "_BWRAP_PROBES", {"/usr/bin/bwrap": (True, "")})
     cmd = graders._sandbox_cmd("/x/harness.py", "/x")
     assert cmd[0] == "/usr/bin/bwrap"
     assert "--unshare-all" in cmd and "--die-with-parent" in cmd
 
 
+# ------------------------------------------- bwrap present but unable to start
+
+def _fake_bwrap(tmp_path, monkeypatch, exit_code, message=""):
+    """Put a fake ``bwrap`` first on PATH that prints ``message`` to stderr and
+    exits with ``exit_code``; point the graders at it with a fresh probe cache."""
+    if sys.platform == "win32":
+        script = tmp_path / "bwrap.cmd"
+        body = "@echo off\r\n"
+        if message:
+            body += f"echo {message} 1>&2\r\n"
+        body += f"exit /b {exit_code}\r\n"
+        script.write_text(body, encoding="ascii")
+    else:
+        script = tmp_path / "bwrap"
+        body = "#!/bin/sh\n"
+        if message:
+            body += f"echo '{message}' >&2\n"
+        body += f"exit {exit_code}\n"
+        script.write_text(body, encoding="ascii")
+        script.chmod(0o755)
+    monkeypatch.setenv("PATH", str(tmp_path) + os.pathsep + os.environ.get("PATH", ""))
+    found = shutil.which("bwrap")
+    assert found and Path(found).parent == tmp_path
+    monkeypatch.setattr(graders, "_BWRAP", found)
+    monkeypatch.setattr(graders, "_BWRAP_PROBES", {})
+    monkeypatch.setattr(graders, "_warned_no_sandbox", False)
+    return found
+
+
+NAMESPACE_ERROR = "bwrap: No permissions to create new namespace"
+
+
+def test_bwrap_that_cannot_start_is_not_a_sandbox(tmp_path, monkeypatch):
+    _fake_bwrap(tmp_path, monkeypatch, 1, NAMESPACE_ERROR)
+    assert graders.sandbox_available() is False
+
+
+def test_failed_probe_without_the_flag_refuses_with_the_bwrap_error(tmp_path, monkeypatch):
+    _fake_bwrap(tmp_path, monkeypatch, 1, NAMESPACE_ERROR)
+    monkeypatch.setattr(graders, "ALLOW_UNSANDBOXED", False)
+    with pytest.raises(graders.SandboxUnavailable) as e:
+        graders.require_sandbox()
+    text = str(e.value)
+    assert NAMESPACE_ERROR in text
+    assert "cannot start" in text and graders.ALLOW_FLAG in text
+    with pytest.raises(graders.SandboxUnavailable):
+        graders._sandbox_cmd("/x/harness.py", "/x")
+
+
+def test_cli_exits_3_with_the_bwrap_error_when_the_probe_fails(tmp_path, monkeypatch, capsys):
+    from crucibleforge import cli
+    _fake_bwrap(tmp_path, monkeypatch, 1, NAMESPACE_ERROR)
+    monkeypatch.setattr(graders, "ALLOW_UNSANDBOXED", False)
+    monkeypatch.setattr(cli, "load_config", lambda *a, **kw: {"models": [], "providers": {}})
+    with pytest.raises(SystemExit) as e:
+        cli.main(["cases", "verify"])
+    assert e.value.code == 3
+    err = capsys.readouterr().err
+    assert NAMESPACE_ERROR in err and graders.ALLOW_FLAG in err
+
+
+def test_failed_probe_with_the_flag_runs_unsandboxed_and_warns_once(tmp_path, monkeypatch, caplog):
+    _fake_bwrap(tmp_path, monkeypatch, 1, NAMESPACE_ERROR)
+    monkeypatch.setattr(graders, "ALLOW_UNSANDBOXED", True)
+    graders.require_sandbox()   # must not raise
+    with caplog.at_level(logging.WARNING, logger="crucibleforge.graders"):
+        for _ in range(3):
+            cmd = graders._sandbox_cmd("/x/harness.py", "/x")
+    assert cmd == [sys.executable, "-I", "/x/harness.py"]
+    warnings = [r.getMessage() for r in caplog.records if r.levelno >= logging.WARNING]
+    assert len(warnings) == 1, warnings
+    assert "WITHOUT a sandbox" in warnings[0] and NAMESPACE_ERROR in warnings[0]
+
+
+def test_working_bwrap_passes_the_probe_and_keeps_the_sandboxed_command(tmp_path, monkeypatch):
+    found = _fake_bwrap(tmp_path, monkeypatch, 0)
+    monkeypatch.setattr(graders, "ALLOW_UNSANDBOXED", False)
+    assert graders.sandbox_available() is True
+    graders.require_sandbox()   # must not raise
+    cmd = graders._sandbox_cmd("/x/harness.py", "/x")
+    assert cmd[0] == found and "--unshare-all" in cmd
+
+
+def test_probe_runs_once_per_path(tmp_path, monkeypatch):
+    found = _fake_bwrap(tmp_path, monkeypatch, 0)
+    real_run = subprocess.run
+    calls = []
+
+    def counting_run(cmd, *a, **kw):
+        calls.append(cmd)
+        return real_run(cmd, *a, **kw)
+
+    monkeypatch.setattr(subprocess, "run", counting_run)
+    for _ in range(4):
+        graders.sandbox_available()
+    assert len(calls) == 1
+    # the self-test is the graded sandbox itself, starting the real interpreter
+    # and checking from inside it that a loopback connect fails
+    cmd = calls[0]
+    n = len(graders._bwrap_args(found))
+    assert cmd[:n] == graders._bwrap_args(found)
+    assert cmd[n:n + 4] == [graders._REAL_PY, "-I", "-c", graders._NET_PROBE_SNIPPET]
+    assert cmd[n + 4].isdigit()   # the loopback port the probe is listening on
+
+
 # ------------------------------------------------------------- the CI matrix
 
-def test_ci_gives_linux_a_real_sandbox_and_names_the_macos_opt_in():
+def test_ci_gives_linux_a_real_sandbox_and_names_the_unsandboxed_opt_in():
     """The refusal must not be silently defeated by CI.
 
     Two ways to keep the macOS leg green: install a sandbox (impossible there)
@@ -322,10 +432,39 @@ def test_ci_gives_linux_a_real_sandbox_and_names_the_macos_opt_in():
     assert "bubblewrap" in runs, "Linux CI must install the real sandbox"
     assert "--allow-unsandboxed" in runs, (
         "macOS has no bwrap; the opt-in has to be explicit in the workflow")
-    # ...and only for macOS.
-    macos_only = [ln for ln in runs.splitlines() if "--allow-unsandboxed" in ln]
-    assert macos_only, runs
-    assert "macOS" in runs
+    # ...and never for Linux: the plain command is the Linux branch, the flagged
+    # one is the else-branch taken by macOS and Windows (neither has bwrap).
+    verify = next(st for st in steps if "gold answer" in st.get("name", ""))
+    lines = [ln.strip() for ln in verify["run"].splitlines()]
+    assert 'if [ "${{ runner.os }}" = "Linux" ]; then' in lines, lines
+    then_cmd = lines[lines.index('if [ "${{ runner.os }}" = "Linux" ]; then') + 1]
+    assert "--allow-unsandboxed" not in then_cmd and "cases verify" in then_cmd
+    assert verify.get("shell") == "bash", "Windows runners default to PowerShell"
+    assert {"ubuntu-latest", "macos-latest", "windows-latest"} <= set(
+        ci["jobs"]["unit"]["strategy"]["matrix"]["os"])
+
+
+def test_ci_probes_the_sandbox_and_opts_in_explicitly_when_it_cannot_isolate():
+    """A runner whose user namespaces are restricted has bwrap on PATH and no
+    sandbox. CI must find that out with the graders' own self-test and then say
+    so (an annotation plus the env opt-in), not run graded code unisolated by
+    accident."""
+    yaml_mod = pytest.importorskip("yaml")
+    root = Path(__file__).resolve().parent.parent
+    ci = yaml_mod.safe_load((root / ".github" / "workflows" / "ci.yml").read_text(
+        encoding="utf-8"))
+    steps = ci["jobs"]["unit"]["steps"]
+    names = [s.get("name", "") for s in steps]
+    probe = next(s for s in steps if s.get("name", "").startswith("Probe the sandbox"))
+    assert probe["if"] == "runner.os == 'Linux'"
+    run = probe["run"]
+    assert "unsandboxed_reason" in run, "must ask the graders' own self-test"
+    assert "CRUCIBLEFORGE_ALLOW_UNSANDBOXED=1" in run and "$GITHUB_ENV" in run
+    assert "::warning" in run, "the opt-in must be visible in the run annotations"
+    # before the steps that execute graded code
+    assert names.index(probe["name"]) < names.index("Tests")
+    assert names.index(probe["name"]) < next(
+        i for i, n in enumerate(names) if "gold answer" in n)
 
 
 def test_ci_actions_are_not_end_of_life():

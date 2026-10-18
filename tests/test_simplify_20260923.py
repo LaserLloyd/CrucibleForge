@@ -30,10 +30,10 @@ def _bench_row(cid, cat, grade="pass", run="r1", ts="2026-09-23T01:00:00+00:00",
 def _seed(tmp_path, monkeypatch, label, rows, meta=None):
     monkeypatch.setattr(config, "RESULTS_DIR", tmp_path)
     (tmp_path / f"transcripts_{label}.jsonl").write_text(
-        "\n".join(json.dumps(r) for r in rows) + "\n")
+        "\n".join(json.dumps(r) for r in rows) + "\n", encoding="utf-8")
     (tmp_path / f"meta_{label}.json").write_text(json.dumps(
         meta or {"model_id": "x/y", "provider": "p", "profile": "bench",
-                 "finished": "2026-09-23T01:30:00+00:00"}))
+                 "finished": "2026-09-23T01:30:00+00:00"}), encoding="utf-8")
 
 
 def test_scorecard_has_only_chat_and_coding_headlines(tmp_path, monkeypatch):
@@ -62,7 +62,7 @@ def test_board_uses_latest_run_and_only_current_bench_rows(tmp_path, monkeypatch
     labels, stats, dropped = report.board_stats(None, None)
     assert labels == ["m"] and stats["m"]["instruct"]["n"] == 1   # no inflated denominator
     # a model with only older rows is left off, counted in one line
-    (tmp_path / "transcripts_ancient.jsonl").write_text(json.dumps(rows[3]) + "\n")
+    (tmp_path / "transcripts_ancient.jsonl").write_text(json.dumps(rows[3]) + "\n", encoding="utf-8")
     labels, _, dropped = report.board_stats(None, None)
     assert labels == ["m"] and dropped == 1
 
@@ -82,13 +82,13 @@ def test_sections_without_data_are_skipped(tmp_path, monkeypatch):
     _seed(tmp_path, monkeypatch, "m", [], meta={"model_id": "x", "profile": "bench",
                                                  "failed": True, "error": "not served"})
     from crucibleforge.version import revision
-    meta = json.loads((tmp_path / "meta_m.json").read_text())
+    meta = json.loads((tmp_path / "meta_m.json").read_text(encoding="utf-8"))
     meta["bench_revision"] = revision()
-    (tmp_path / "meta_m.json").write_text(json.dumps(meta))
+    (tmp_path / "meta_m.json").write_text(json.dumps(meta), encoding="utf-8")
     md = report.generate()
     assert "## Components" not in md          # nobody has a component value
     assert "FAILED: not served" in md
-    fails = (tmp_path / "failures.md").read_text()
+    fails = (tmp_path / "failures.md").read_text(encoding="utf-8")
     assert "## Run details" not in fails      # no rows -> no dash-only table
     assert "run FAILED" in fails
 
@@ -142,7 +142,7 @@ def test_html_board_renders_rows_with_no_placeholders(tmp_path, monkeypatch):
     _seed(tmp_path, monkeypatch, "m", rows,
           meta={"model_id": "evil</script><!--<b>x", "provider": "p", "profile": "bench"})
     report.generate()
-    html = (tmp_path / "report.html").read_text()
+    html = (tmp_path / "report.html").read_text(encoding="utf-8")
     assert "PLACEHOLDER" not in html and "/*ROWS*/" not in html
     blob, data = _board_data(html)
     assert "<" not in blob                              # nothing can close/comment the element
@@ -206,18 +206,18 @@ def test_vendor_stamp_only_applies_to_the_model_it_probed(tmp_path, monkeypatch)
         type = "openai"
     stamp = {"model_id": "deepseek-v4-flash", "model_version_resolved": "deepseek-v4-flash-0731",
              "test_date_utc": "2026-09-09", "vendor_probe_source": "GET /v1/models"}
-    (tmp_path / "_stamp.json").write_text(json.dumps(stamp))
+    (tmp_path / "_stamp.json").write_text(json.dumps(stamp), encoding="utf-8")
     runner._write_meta("a", {"model_id": "deepseek-v4-flash"}, P())
     runner._write_meta("b", {"model_id": "some/other-gguf"}, P())
-    a = json.loads((tmp_path / "meta_a.json").read_text())
-    b = json.loads((tmp_path / "meta_b.json").read_text())
+    a = json.loads((tmp_path / "meta_a.json").read_text(encoding="utf-8"))
+    b = json.loads((tmp_path / "meta_b.json").read_text(encoding="utf-8"))
     assert a["model_version_resolved"] == "deepseek-v4-flash-0731"
     assert "model_version_resolved" not in b and "test_date_utc" not in b
     # the legacy stamp (no model_id) — the 2026-09-09 DeepSeek probe — applies to nobody
     (tmp_path / "_stamp.json").write_text(json.dumps({k: v for k, v in stamp.items()
-                                                      if k != "model_id"}))
+                                                      if k != "model_id"}), encoding="utf-8")
     runner._write_meta("c", {"model_id": "deepseek-v4-flash"}, P())
-    assert "model_version_resolved" not in json.loads((tmp_path / "meta_c.json").read_text())
+    assert "model_version_resolved" not in json.loads((tmp_path / "meta_c.json").read_text(encoding="utf-8"))
 
 
 # ------------------------------------------------------------ graders
@@ -451,7 +451,7 @@ def test_few_slots_warning_on_a_thinking_model(tmp_path, monkeypatch):
     prov = _RunProv(fn, workers=1)
     summary, _ = _run(tmp_path, monkeypatch, prov, cases, thinking=True)
     assert any("parallel slot" in w for w in summary["m"]["warnings"])
-    meta = json.loads((tmp_path / "meta_m.json").read_text())
+    meta = json.loads((tmp_path / "meta_m.json").read_text(encoding="utf-8"))
     assert meta["warnings"] and meta["started"] and meta["finished"]
 
 
@@ -545,23 +545,35 @@ def test_rig_lock_sees_a_parent_holding_it(tmp_path, monkeypatch):
     code = ("import sys; sys.path.insert(0, %r); from pathlib import Path; "
             "from crucibleforge import cli; print(cli._ancestor_holds(Path(%r)))"
             % (str(Path(__file__).resolve().parents[1]), str(lock)))
-    with open(lock, "a"):
-        res = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True)
+    with open(lock, "a", encoding="utf-8"):
+        res = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, encoding="utf-8")
     assert res.stdout.strip() == "True"
-    res = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True)
+    res = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, encoding="utf-8")
     assert res.stdout.strip() == "False"
 
 
+@pytest.mark.skipif(sys.platform == "win32",
+                    reason="the rig lock is flock()-based: POSIX only (see the Windows test below)")
 def test_rig_lock_serialises_two_benchmarks(tmp_path, monkeypatch):
     monkeypatch.setattr(config, "RESULTS_DIR", tmp_path)
     f = cli.acquire_rig_lock()
-    assert f is not None and "pid" in (tmp_path / ".rig.lock").read_text()
+    assert f is not None and "pid" in (tmp_path / ".rig.lock").read_text(encoding="utf-8")
     code = ("import sys,fcntl; f=open(%r,'a+'); "
             "\ntry:\n fcntl.flock(f.fileno(), fcntl.LOCK_EX|fcntl.LOCK_NB); print('got')"
             "\nexcept BlockingIOError: print('busy')" % str(tmp_path / ".rig.lock"))
-    res = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True)
+    res = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, encoding="utf-8")
     assert res.stdout.strip() == "busy"
     f.close()
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="Windows-only contract")
+def test_rig_lock_is_not_enforced_on_windows(tmp_path, monkeypatch):
+    """There is no flock() on Windows: acquire_rig_lock() returns None (one
+    benchmark at a time is then the operator's job, as documented in cli.py)
+    and must not create a lock file that nothing enforces."""
+    monkeypatch.setattr(config, "RESULTS_DIR", tmp_path)
+    assert cli.acquire_rig_lock() is None
+    assert not (tmp_path / ".rig.lock").exists()
 
 
 # ------------------------------------------------------------ V2 run-report
@@ -571,14 +583,14 @@ def test_v2_result_carries_one_line_per_model(tmp_path, monkeypatch):
     monkeypatch.setattr(cli, "V2_RUNS_ROOT", tmp_path / "runs")
     monkeypatch.setattr(config, "RESULTS_DIR", tmp_path)
     (tmp_path / "transcripts_good.jsonl").write_text(
-        json.dumps(_bench_row("IZ01-logistics-47-words", "instruct")) + "\n")
+        json.dumps(_bench_row("IZ01-logistics-47-words", "instruct")) + "\n", encoding="utf-8")
     (tmp_path / "meta_good.json").write_text(json.dumps({
         "model_id": "g", "profile": "bench", "bench_revision": revision(),
         "started": "2026-09-23T01:00:00+00:00", "finished": "2026-09-23T01:20:00+00:00",
-        "judged": "2026-09-23T01:41:00+00:00"}))
+        "judged": "2026-09-23T01:41:00+00:00"}), encoding="utf-8")
     (tmp_path / "meta_bad.json").write_text(json.dumps({
         "model_id": "b", "profile": "bench", "bench_revision": revision(), "failed": True,
-        "error": "mistralai/X-NVFP4 is not served by provider studioforge: it is not a GGUF id"}))
+        "error": "mistralai/X-NVFP4 is not served by provider studioforge: it is not a GGUF id"}), encoding="utf-8")
     cfg = {"models": [{"name": "good", "provider": "p", "model_id": "g"},
                       {"name": "bad", "provider": "p", "model_id": "b"}],
            "providers": {"p": {"type": "openai", "base_url": "http://x"}},

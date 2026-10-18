@@ -1,6 +1,18 @@
 # CrucibleForge — an LLM capability benchmark with a real hard tier
 
-LLM benchmark suite with verifiable grading. 261 cases across math, reasoning, coding, tool-use and long-context, 158 of them hard-tier; brute-force verifiers and executed reference solutions instead of vibes; GPU leasing so a benchmark run can't be evicted mid-flight.
+<table>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/readme/dashboard.png" alt="CrucibleForge web GUI dashboard: provider status, the judge, the case set by category and the model registry"><br><sub><b>Dashboard.</b> Provider health, the judge, the case set by category and your model registry.</sub></td>
+    <td width="50%"><img src="docs/screenshots/readme/run.png" alt="CrucibleForge Run page: pick models, categories, difficulty tiers and a judge, then start the benchmark"><br><sub><b>Run.</b> Pick models, categories and difficulty tiers, then start; the log follows the run.</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/readme/cases.png" alt="CrucibleForge Cases page listing the coding cases with tier, grader and prompt"><br><sub><b>Cases.</b> All 276 cases, filterable by category, with tier, deterministic grader and prompt.</sub></td>
+    <td width="50%"></td>
+  </tr>
+</table>
+
+
+LLM benchmark suite with verifiable grading. 276 cases across math, reasoning, coding, tool-use and long-context, 166 of them hard-tier; brute-force verifiers and executed reference solutions instead of vibes; GPU leasing so a benchmark run can't be evicted mid-flight.
 
 CrucibleForge ranks language models on the things that decide whether a model can
 actually do a job: **hard reasoning and math with verifiable answers, coding
@@ -10,7 +22,7 @@ and speed** — against **any OpenAI-compatible endpoint**: local (LM Studio,
 Ollama, llama.cpp / llama-server, vLLM, StudioForge) or hosted (DeepSeek,
 OpenRouter, OpenAI, Groq, Together, Mistral, Open WebUI …).
 
-* **Hard tier that doesn't ceiling.** 261 cases, **158 of them hard**
+* **Hard tier that doesn't ceiling.** 276 cases, **166 of them hard**
   (`crucibleforge cases list` counts them): competition-style math
   (integer answers, every one re-derived by a brute-force `verify` expression),
   logic/state-tracking puzzles with unique solutions, coding problems whose
@@ -37,7 +49,7 @@ OpenRouter, OpenAI, Groq, Together, Mistral, Open WebUI …).
   read the report, drill into every failed row (prompt, response, reasoning,
   judge note), manage providers/models/judge, discover model ids, test
   connections. Stdlib server + vanilla JS, no CDN, no build step.
-* **Suite revision stamp** on every row (`3.4.0+<hash of the case prompts>` — grading-only `checks` excluded),
+* **Suite revision stamp** on every row (`3.6.0+<hash of the case prompts>` — grading-only `checks` excluded),
   plus a separate **judge fingerprint** and the identity of the judge that
   actually scored each row: the report flags results from a different test set
   or a different judge instead of quietly ranking them side by side.
@@ -77,7 +89,7 @@ Cases that every competent model passes or no model passes stay in the suite
 files but are not in the benchmark. Budgets are not cut: per-category
 `max_tokens`, thinking models ×4 up to 24576.
 
-**Chat** (suite 3.4.0; the full rationale, rubric sources and time budget are
+**Chat** (suite 3.6.0; the full rationale, rubric sources and time budget are
 in [`docs/CHAT.md`](docs/CHAT.md)) — harder, denser rows built from published
 RP / erotica / fiction-judging guides (RP-Bench, EQ-Bench Creative Writing,
 lechmazur's writing benchmark, Fiction.liveBench, Jericho Writers, …):
@@ -183,7 +195,7 @@ ids and labels.
   *before* scoring, so the Chat score is the one without them (not yours with
   a column hidden). Every file is then re-checked for every private category
   name, case id and label; one hit and nothing is written (exit 3).
-  `templates/board/example.html` (tracked) is always built this way.
+  `crucibleforge/templates/board/example.html` (tracked) is always built this way.
 - Private case files are outside the suite revision (`version.cases_hash`), so
   a clean clone and your box agree on it and editing a private case never
   relabels public rows stale; private rows carry their own `private_revision`.
@@ -228,26 +240,206 @@ terminal), put `KEY=VALUE` lines in a git-ignored `crucibleforge.local.env`
 next to `models.yaml`. Only `CRUCIBLEFORGE_*` keys are read from it, and a
 variable already in the environment wins.
 
-## Installing
+## Install
 
-**The supported install is a clone plus `uv sync`** — run CrucibleForge from
-the checkout. A wheel/PyPI install is *not* supported yet: the case set
-(`cases/`), the profiles (`profiles/`) and `models.example.yaml` live outside
-the Python package and are not packaged into a distribution, and the default
-results directory is resolved relative to the checkout. Building and installing
-a wheel therefore gives you a CLI with no cases to run; `config --init` says so
-rather than raising. Packaging those data files properly is a planned change.
+Pick your platform; in each, method 1 is the simplest. CrucibleForge runs from a git checkout (a wheel or `pip install` is not supported:
+the cases, profiles and `models.example.yaml` live outside the Python package). It needs an OpenAI-compatible LLM server to test, such as the
+StudioForge gateway, LM Studio, Ollama or a hosted API; no GPU is needed on the machine that runs CrucibleForge.
 
-## Quick start
+Ports: 8777 (the web GUI, loopback only by default). Point the LLM endpoint at the StudioForge gateway `http://<host>:1234/v1`,
+never at the panel on :8080, which does not serve `/v1`. If your gateway requires a key, put its name in `api_key_env` on the provider
+in `models.yaml` (the key itself stays in an environment variable).
+
+Native installs run model-written code for the coding cases, so on Linux they need `bubblewrap` (`bwrap`); Windows and macOS have none
+and need `--allow-unsandboxed`. The Docker image avoids both: the container is the sandbox.
+
+### Windows
+
+Run the blocks in PowerShell. After a `winget install`, close and reopen PowerShell.
+
+#### 1. Docker Desktop (simplest)
+
+Choose this to get the GUI with no Python and no sandbox flag. Your `models.yaml` and results live on a Docker volume that survives upgrades.
+
+```powershell
+winget install --id Git.Git -e --source winget
+winget install --id Docker.DockerDesktop -e --source winget
+# start Docker Desktop once and wait until it says the engine is running, then:
+git clone https://github.com/LaserLloyd/CrucibleForge.git   # scrub-ok: public repo URL
+cd CrucibleForge
+Copy-Item deploy\compose\.env.example deploy\compose\.env
+# optional: edit deploy\compose\.env (LLM_BASE_URL, API keys); the default is http://host.docker.internal:1234/v1
+docker compose -f deploy/compose/compose.yml up -d
+docker compose -f deploy/compose/compose.yml ps                        # STATUS: healthy
+docker compose -f deploy/compose/compose.yml logs app | Select-String "GUI:"   # open the printed http://127.0.0.1:8777/?token=... URL
+```
+
+| Pros | Cons |
+|---|---|
+| No Python, no `uv`, no sandbox flag; the container is the sandbox | Docker Desktop is a large install and needs virtualisation enabled |
+| Data on a named volume; `down` keeps it, updates keep it | The LLM server on the host must accept connections from the container, not only on the host's `127.0.0.1` |
+| Read-only image, non-root, no capabilities | Coding cases run in the container, which can reach the network |
+
+#### 2. Native, `uv` from a clone
+
+Choose this to edit the code or run without Docker.
+
+```powershell
+winget install --id Git.Git -e --source winget
+winget install --id astral-sh.uv -e --source winget
+# close and reopen PowerShell, then:
+git clone https://github.com/LaserLloyd/CrucibleForge.git   # scrub-ok: public repo URL
+cd CrucibleForge
+uv sync --python 3.13
+uv run crucibleforge config --init              # writes models.yaml; edit its base_url to your gateway /v1
+uv run crucibleforge cases list | Select-Object -Last 1     # prints: 276 cases
+uv run crucibleforge --allow-unsandboxed gui    # http://127.0.0.1:8777
+```
+
+`--allow-unsandboxed` goes before the subcommand and is needed for `run`, `all`, `gui`, `bench-all` and `cases verify`: model-written code then runs
+as you, with no isolation. Use method 1 if that worries you.
+
+| Pros | Cons |
+|---|---|
+| Smallest; edit the code and re-run at once | No sandbox on Windows: graded code runs as you |
+| `uv` fetches Python 3.13 itself (the pin matches the Docker image) | `--detach` needs systemd, and the rig lock is not enforced on Windows |
+| Results sit in the checkout next to `models.yaml` | You manage updates (`git pull`, `uv sync`) |
+
+### Linux
+
+Blocks assume Ubuntu or Debian (apt).
+
+#### 1. Docker Compose (simplest)
+
+Choose this to get the GUI with no Python and no bubblewrap. Your `models.yaml` and results live on a Docker volume that survives upgrades.
 
 ```bash
-git clone https://github.com/LaserLloyd/CrucibleForge.git crucibleforge && cd crucibleforge  # scrub-ok: the public repo URL
-uv sync                                  # or: pip install -e .
-uv run crucibleforge config --init       # writes models.yaml (git-ignored); then edit it
-export DEEPSEEK_API_KEY=...              # only if you use a hosted provider
+sudo apt-get update && sudo apt-get install -y git curl docker.io docker-compose-v2
+sudo usermod -aG docker $USER      # log out and in once, or prefix the docker lines below with sudo
+git clone https://github.com/LaserLloyd/CrucibleForge.git && cd CrucibleForge   # scrub-ok: public repo URL
+cp deploy/compose/.env.example deploy/compose/.env
+# optional: edit deploy/compose/.env (LLM_BASE_URL, API keys); the default is http://host.docker.internal:1234/v1
+docker compose -f deploy/compose/compose.yml up -d
+docker compose -f deploy/compose/compose.yml ps                      # STATUS: healthy
+docker compose -f deploy/compose/compose.yml logs app | grep "GUI:"  # open the printed http://127.0.0.1:8777/?token=... URL
+```
 
+| Pros | Cons |
+|---|---|
+| No Python, no `uv`, no bubblewrap; the container is the sandbox | Needs a Docker engine and about 190 MB for the image |
+| Data on a named volume; `down` keeps it, updates keep it | The LLM server on the host must listen on an address the container can reach, not only `127.0.0.1` |
+| Read-only image, non-root, no capabilities | Coding cases run in the container, which can reach the network |
+
+#### 2. Native, `uv` from a clone
+
+Choose this to edit the code, use `--detach` (a `systemd --user` unit), or get bubblewrap isolation for the coding cases. A bare Ubuntu image has none of
+`git`, `curl` or `bwrap`, so the first line installs them.
+
+```bash
+sudo apt-get update && sudo apt-get install -y git curl ca-certificates bubblewrap
+curl -LsSf https://astral.sh/uv/install.sh | sh
+source $HOME/.local/bin/env
+git clone https://github.com/LaserLloyd/CrucibleForge.git && cd CrucibleForge   # scrub-ok: public repo URL
+uv sync --python 3.13
+uv run crucibleforge config --init     # writes models.yaml; edit its base_url to your gateway /v1
+uv run crucibleforge cases list | tail -n 1     # prints: 276 cases
+uv run crucibleforge gui               # http://127.0.0.1:8777
+```
+
+If bubblewrap is missing or cannot start (a container, or a kernel that blocks unprivileged user namespaces), pass `--allow-unsandboxed` before the subcommand; CrucibleForge tests bwrap once at start and says which case it is.
+
+| Pros | Cons |
+|---|---|
+| Bubblewrap isolates graded code from your home directory | Most prerequisites: git, curl, uv, bubblewrap |
+| `--detach` runs long benchmarks as a `systemd --user` unit | You manage updates (`git pull`, `uv sync`) |
+| Edit the code and re-run at once; results sit in the checkout | PEP 668 does not apply (uv makes its own venv), but `pip install .` is unsupported |
+
+### macOS
+
+The GUI and CLI are plain Python, so a native install should work; there is no bubblewrap on macOS, so every run command needs `--allow-unsandboxed`.
+Docker Desktop avoids that.
+
+#### 1. Docker Desktop (simplest)
+
+```bash
+brew install git
+brew install --cask docker     # then open Docker Desktop once and wait for "Engine running"
+git clone https://github.com/LaserLloyd/CrucibleForge.git && cd CrucibleForge   # scrub-ok: public repo URL
+cp deploy/compose/.env.example deploy/compose/.env
+docker compose -f deploy/compose/compose.yml up -d
+docker compose -f deploy/compose/compose.yml ps                      # STATUS: healthy
+docker compose -f deploy/compose/compose.yml logs app | grep "GUI:"  # open the printed URL
+```
+
+| Pros | Cons |
+|---|---|
+| No Python, no sandbox flag; data on a named volume | Docker Desktop is a large install |
+| Same files and steps as Linux | Needs Homebrew (<https://brew.sh>) for the commands above |
+
+#### 2. Native, `uv` from a clone
+
+```bash
+brew install git uv
+git clone https://github.com/LaserLloyd/CrucibleForge.git && cd CrucibleForge   # scrub-ok: public repo URL
+uv sync --python 3.13
+uv run crucibleforge config --init     # writes models.yaml; edit its base_url to your gateway /v1
+uv run crucibleforge cases list | tail -n 1     # prints: 276 cases
+uv run crucibleforge --allow-unsandboxed gui    # http://127.0.0.1:8777
+```
+
+| Pros | Cons |
+|---|---|
+| Smallest; edit the code and re-run at once | No sandbox: graded code runs as you |
+| `uv` fetches Python 3.13 itself | You manage updates (`git pull`, `uv sync`) |
+
+### Docker settings, CLI and backups
+
+The GUI URL in the log always shows port 8777, the container's port. If you changed `HOST_PORT`, open the same URL with that port instead.
+
+Optional settings go in `deploy/compose/.env` (copy `.env.example`):
+
+| Variable | Default | |
+|---|---|---|
+| `LLM_BASE_URL` | `http://host.docker.internal:1234/v1` | your local server as the container sees it (seeds `models.yaml` once; later edit it in the GUI) |
+| `CRUCIBLEFORGE_GUI_TOKEN` | empty (random per start) | stable GUI access token |
+| `DEEPSEEK_API_KEY` / `OPENROUTER_API_KEY` / `OPENAI_API_KEY` | empty | hosted providers; names must match `api_key_env` |
+| any other key, e.g. `STUDIOFORGE_API_KEY` | not set | add the line to `.env`, then set `api_key_env: STUDIOFORGE_API_KEY` on that provider in the GUI (Providers) |
+| `CRUCIBLEFORGE_ALLOW_UNSANDBOXED` | `1` | the container is the sandbox for model-written code ([why](docs/deploy/docker.md#coding-cases-and-the-sandbox)) |
+| `BIND_ADDR` / `HOST_PORT` | `127.0.0.1` / `8777` | host side of the port mapping; a token is required off-loopback |
+
+Run the CLI in the same image and volume:
+
+```bash
+docker compose -f deploy/compose/compose.yml run --rm app cases verify
+docker compose -f deploy/compose/compose.yml run --rm app all --models <label> --fresh --yes
+```
+
+### Upgrade and uninstall
+
+- **Docker:** `git pull` then `docker compose -f deploy/compose/compose.yml up -d --build`. To roll back, `git checkout` the earlier commit and
+  run the same `up -d --build`. `models.yaml` and `results/` live only in the `crucibleforge-data` volume, which `down` keeps and a new image reuses;
+  on the first start of a new version the small state files are copied to `/data/backups/` (last 5 kept). `docker compose ... down` removes the
+  container; **`down -v` also deletes the volume**. Back up with the app stopped:
+
+  ```bash
+  docker compose -f deploy/compose/compose.yml stop app
+  docker run --rm -v crucibleforge_crucibleforge-data:/data:ro -v "$PWD":/backup alpine tar czf /backup/crucibleforge-data-$(date +%F).tgz -C /data .
+  docker compose -f deploy/compose/compose.yml start app
+  ```
+
+  Restore, bind-mounted data (`PUID`/`PGID`) and the full list of settings: [`docs/deploy/docker.md`](docs/deploy/docker.md).
+- **Native:** `git pull && uv sync --python 3.13`. To uninstall, copy `models.yaml` and `results/` somewhere safe, then delete the clone
+  (they sit in it unless you set `CRUCIBLEFORGE_CONFIG` or `CRUCIBLEFORGE_RESULTS`).
+
+## Run a benchmark
+
+From a native install, prefix `uv run`; with Docker use `docker compose -f deploy/compose/compose.yml run --rm app <args>`. Add `--allow-unsandboxed`
+before the subcommand on Windows and macOS.
+
+```bash
 uv run crucibleforge status                   # providers up? judge? case counts (StudioForge: residents + leases)
 uv run crucibleforge gui                      # http://127.0.0.1:8777
+export DEEPSEEK_API_KEY=...                   # only if you use a hosted provider
 uv run crucibleforge all --models local-gemma-e4b --fresh --yes   # THE benchmark: Chat + Coding
 uv run crucibleforge all --smoke --models local-gemma-e4b --yes   # smoke-tagged subset, end-to-end
 uv run crucibleforge report                   # rebuild the board (prints the scorecard)
@@ -328,7 +520,7 @@ models:
 | **planning** | judge 0–10 | decomposition / ordering / completeness / verification / risks |
 | **perf** | server `usage` + stream timing | TTFT, gen tok/s (median, min–max), prompt-ingest tok/s, reasoning tokens, load time, viability floor |
 
-The whole suite (261 cases) stays runnable (`run --categories … --profile`
+The whole suite (276 cases) stays runnable (`run --categories … --profile`
 of your own), but the board scores only the `bench` selection above. Speed is
 only comparable between models on the same provider/host.
 
@@ -450,7 +642,7 @@ crucibleforge/       package: cli, config, providers, api, runner, graders,
                      profiles, gui/
 cases/*.json         the suite (perf rp nsfw coding tooluse instruct
                      reasoning math steer overrefusal longctx planning)
-tests/               pytest, offline (370+ tests incl. full case verification)
+tests/               pytest, offline (700+ tests incl. full case verification)
 models.example.yaml  registry template (copy to models.yaml — git-ignored)
 results/             outputs (git-ignored)
 profiles/bench.yaml  THE benchmark: case selection, budgets, judge, scoring weights
@@ -458,7 +650,7 @@ scripts/             queue-overnight.sh (reference campaign wrapper),
                      clawforge_comfy.py (free rig VRAM before a phase),
                      scrub_check.py + hooks/ (see Publishing, below)
 docs/OPENCLAW.md     driving CrucibleForge from an agent framework
-CHANGELOG.md         what changed in 3.0 → 3.2
+CHANGELOG.md         release history (latest: 3.6.0)
 ```
 
 `uv run pytest` — no network needed. `uv run crucibleforge cases list|verify`.
