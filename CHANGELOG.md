@@ -51,6 +51,16 @@ No case, grader or metric changed. `SUITE_VERSION` moves to 3.6.0 and the
   coding case), and graded code starts with a minimal environment: no provider
   API keys, no management PIN, no GUI token. Not a measurement change: a
   solution that passes in a working sandbox passes the same way.
+- **The self-test proves the network is isolated.** `--unshare-all` is a
+  request, not a fact: on a GitHub runner `bwrap` is installed but user
+  namespaces are restricted. The self-test now also connects, from inside the
+  sandbox, to a loopback port it is listening on; if that succeeds (or bwrap
+  cannot start) the sandbox counts as unavailable: coding cases are refused
+  without `--allow-unsandboxed`, and with it run unsandboxed and say so. The CI
+  Linux leg probes with the same function and, when the runner cannot isolate,
+  sets `CRUCIBLEFORGE_ALLOW_UNSANDBOXED=1` explicitly (with a run annotation).
+  The "network blocked" test is parametrized over both modes (sandboxed,
+  refused, opted-in) instead of assuming `bwrap` on PATH means a sandbox.
 - `status` / `models discover` say when a gateway is reachable but answers
   `/models` with 401/403, naming the variable to set (`api_key_env`, or the
   `${VAR}` of an `api_key:` placeholder) or that the configured key was rejected.
