@@ -514,7 +514,7 @@ crucibleforge/       package: cli, config, providers, api, runner, graders,
                      profiles, gui/
 cases/*.json         the suite (perf rp nsfw coding tooluse instruct
                      reasoning math steer overrefusal longctx planning)
-tests/               pytest, offline (370+ tests incl. full case verification)
+tests/               pytest, offline (700+ tests incl. full case verification)
 models.example.yaml  registry template (copy to models.yaml — git-ignored)
 results/             outputs (git-ignored)
 profiles/bench.yaml  THE benchmark: case selection, budgets, judge, scoring weights
@@ -522,7 +522,7 @@ scripts/             queue-overnight.sh (reference campaign wrapper),
                      clawforge_comfy.py (free rig VRAM before a phase),
                      scrub_check.py + hooks/ (see Publishing, below)
 docs/OPENCLAW.md     driving CrucibleForge from an agent framework
-CHANGELOG.md         what changed in 3.0 → 3.2
+CHANGELOG.md         release history (latest: 3.6.0)
 ```
 
 `uv run pytest` — no network needed. `uv run crucibleforge cases list|verify`.
