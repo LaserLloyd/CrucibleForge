@@ -41,7 +41,10 @@ if [ "$(id -u)" = "0" ]; then
     fi
     mkdir -p "$DATA_DIR"
     chown "$PUID:$PGID" "$DATA_DIR"
-    if [ -e "$CFG" ] && [ "$(stat -c '%u' "$CFG")" != "$PUID" ]; then
+    # Any entry not owned by PUID -- an existing models.yaml, or the image's own
+    # /data/results and /data/tmp (UID 1000, mode 0750) that a fresh named volume
+    # is populated with -- would be unreadable after the drop.
+    if [ -n "$(find "$DATA_DIR" -mindepth 1 -maxdepth 2 ! -user "$PUID" 2>/dev/null | head -n 1)" ]; then
         log "ownership mismatch on existing data: one-time recursive chown"
         chown -R "$PUID:$PGID" "$DATA_DIR"
     fi
@@ -59,12 +62,18 @@ if [ ! -w "$DATA_DIR" ]; then
     die "data directory not writable"
 fi
 mkdir -p "$DATA_DIR/results" "$DATA_DIR/tmp"
+for d in "$DATA_DIR/results" "$DATA_DIR/tmp"; do
+    [ -r "$d" ] && [ -w "$d" ] && [ -x "$d" ] \
+        || die "$d is not usable by UID $(id -u) (owned by $(stat -c '%u:%g' "$d" 2>/dev/null || echo '?'))"
+done
 
 # ---- 3. pre-upgrade backup --------------------------------------------------
 state_files() {
     [ -f "$DATA_DIR/models.yaml" ] && echo "$DATA_DIR/models.yaml"
-    find "$DATA_DIR" -maxdepth 1 -name 'models.yaml.bak*' -type f 2>/dev/null
-    find "$DATA_DIR/results" -maxdepth 1 -type f \( -name '*.csv' -o -name '*.json' -o -name '*.md' \) 2>/dev/null
+    # `|| true`: under set -e a failing find (unreadable directory) inside the
+    # $(state_files) substitution would end the container with no message.
+    find "$DATA_DIR" -maxdepth 1 -name 'models.yaml.bak*' -type f 2>/dev/null || true
+    find "$DATA_DIR/results" -maxdepth 1 -type f \( -name '*.csv' -o -name '*.json' -o -name '*.md' \) 2>/dev/null || true
     return 0
 }
 
@@ -106,10 +115,12 @@ if [ ! -f "$CFG" ] && [ -f /app/models.example.yaml ]; then
     # Written to a temp file and renamed, so a failed seed never leaves a
     # partial models.yaml that blocks every later seed.
     url_sed="$(printf '%s' "$LLM_BASE_URL" | sed 's/[\\|&]/\\&/g')"
-    sed -e "s|http://localhost:1234/v1|${url_sed}|g" \
-        -e "s|http://127.0.0.1:1234/v1|${url_sed}|g" \
-        -e 's|http://localhost:|http://host.docker.internal:|g' \
+    # Generic loopback -> host rewrite FIRST, then the :1234 gateway entries ->
+    # LLM_BASE_URL: the other order re-wrote an operator's own
+    # LLM_BASE_URL=http://127.0.0.1:... (host networking) a second time.
+    sed -e 's|http://localhost:|http://host.docker.internal:|g' \
         -e 's|http://127.0.0.1:|http://host.docker.internal:|g' \
+        -e "s|http://host.docker.internal:1234/v1|${url_sed}|g" \
         /app/models.example.yaml > "$CFG.seed.$$"
     mv "$CFG.seed.$$" "$CFG"
     log "seeded $CFG (primary local provider -> ${LLM_BASE_URL})"
