@@ -258,12 +258,19 @@ environment variable holding it.
 ## Quick start
 
 ```bash
+# 1. clone and install
 git clone https://github.com/LaserLloyd/CrucibleForge.git crucibleforge && cd crucibleforge  # scrub-ok: the public repo URL
 uv sync                                  # or: pip install -e .
-uv run crucibleforge config --init       # writes models.yaml (git-ignored); then edit it
-export DEEPSEEK_API_KEY=...              # only if you use a hosted provider
+# 2. write models.yaml (git-ignored), then edit it to point at your server
+uv run crucibleforge config --init
+# 3. check it: providers up? judge? case counts (StudioForge: residents + leases)
+uv run crucibleforge status
+```
 
-uv run crucibleforge status                   # providers up? judge? case counts (StudioForge: residents + leases)
+### More commands
+
+```bash
+export DEEPSEEK_API_KEY=...              # only if you use a hosted provider
 uv run crucibleforge gui                      # http://127.0.0.1:8777
 uv run crucibleforge all --models local-gemma-e4b --fresh --yes   # THE benchmark: Chat + Coding
 uv run crucibleforge all --smoke --models local-gemma-e4b --yes   # smoke-tagged subset, end-to-end
