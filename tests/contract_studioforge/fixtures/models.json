@@ -1,0 +1,13 @@
+{
+  "_note": "derived from client code (studioforge.py list_models / loaded_models, preflight.py): GET /v1/models; the studioforge{} block is additive and read defensively",
+  "response": {
+    "object": "list",
+    "data": [
+      {"id": "pub/repo/chat-Q5_K_S", "object": "model",
+       "studioforge": {"state": "loaded", "kind": "chat", "size_bytes": 20000000000, "arch_supported": true}},
+      {"id": "pub/repo/embed-Q8_0", "object": "model",
+       "studioforge": {"state": "not-loaded", "kind": "embedding", "size_bytes": 600000000},
+       "future_additive_field": 1}
+    ]
+  }
+}
