@@ -405,7 +405,12 @@ def test_probe_runs_once_per_path(tmp_path, monkeypatch):
         graders.sandbox_available()
     assert len(calls) == 1
     # the self-test is the graded sandbox itself, starting the real interpreter
-    assert calls[0] == graders._bwrap_args(found) + [graders._REAL_PY, "-I", "-c", "pass"]
+    # and checking from inside it that a loopback connect fails
+    cmd = calls[0]
+    n = len(graders._bwrap_args(found))
+    assert cmd[:n] == graders._bwrap_args(found)
+    assert cmd[n:n + 4] == [graders._REAL_PY, "-I", "-c", graders._NET_PROBE_SNIPPET]
+    assert cmd[n + 4].isdigit()   # the loopback port the probe is listening on
 
 
 # ------------------------------------------------------------- the CI matrix
@@ -437,6 +442,29 @@ def test_ci_gives_linux_a_real_sandbox_and_names_the_unsandboxed_opt_in():
     assert verify.get("shell") == "bash", "Windows runners default to PowerShell"
     assert {"ubuntu-latest", "macos-latest", "windows-latest"} <= set(
         ci["jobs"]["unit"]["strategy"]["matrix"]["os"])
+
+
+def test_ci_probes_the_sandbox_and_opts_in_explicitly_when_it_cannot_isolate():
+    """A runner whose user namespaces are restricted has bwrap on PATH and no
+    sandbox. CI must find that out with the graders' own self-test and then say
+    so (an annotation plus the env opt-in), not run graded code unisolated by
+    accident."""
+    yaml_mod = pytest.importorskip("yaml")
+    root = Path(__file__).resolve().parent.parent
+    ci = yaml_mod.safe_load((root / ".github" / "workflows" / "ci.yml").read_text(
+        encoding="utf-8"))
+    steps = ci["jobs"]["unit"]["steps"]
+    names = [s.get("name", "") for s in steps]
+    probe = next(s for s in steps if s.get("name", "").startswith("Probe the sandbox"))
+    assert probe["if"] == "runner.os == 'Linux'"
+    run = probe["run"]
+    assert "unsandboxed_reason" in run, "must ask the graders' own self-test"
+    assert "CRUCIBLEFORGE_ALLOW_UNSANDBOXED=1" in run and "$GITHUB_ENV" in run
+    assert "::warning" in run, "the opt-in must be visible in the run annotations"
+    # before the steps that execute graded code
+    assert names.index(probe["name"]) < names.index("Tests")
+    assert names.index(probe["name"]) < next(
+        i for i, n in enumerate(names) if "gold answer" in n)
 
 
 def test_ci_actions_are_not_end_of_life():

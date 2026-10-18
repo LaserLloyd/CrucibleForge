@@ -11,6 +11,7 @@ import logging
 import os
 import re
 import shutil
+import socket
 import subprocess
 import sys
 import tempfile
@@ -43,31 +44,65 @@ class SandboxUnavailable(RuntimeError):
 _BWRAP_PROBES: dict[str, tuple[bool, str]] = {}
 BWRAP_PROBE_TIMEOUT_S = 10
 
+#: Exit status of the probe snippet when the loopback connect SUCCEEDED, i.e. the
+#: network is reachable from inside the "sandbox". Any other non-zero status is
+#: bwrap (or the interpreter) failing to start.
+NET_REACHABLE_RC = 87
+
+#: Run inside the sandbox by ``probe_bwrap``. argv[1] is a loopback port that the
+#: probing process is LISTENING on, so a connect that is not isolated succeeds
+#: (a closed port would refuse and look exactly like isolation). In a fresh
+#: network namespace loopback is down and the connect fails. One line on
+#: purpose: it travels as a single argv element, and a Windows ``.cmd`` stand-in
+#: for bwrap (the tests') would cut a multi-line argument at the first newline.
+_NET_PROBE_SNIPPET = (
+    "import socket,sys;c=socket.socket();c.settimeout(0.5);"
+    f"sys.exit({NET_REACHABLE_RC} if c.connect_ex(('127.0.0.1',int(sys.argv[1])))==0 else 0)"
+)
+
 
 def probe_bwrap(path: str) -> tuple[bool, str]:
     """Start the interpreter once inside the exact sandbox a graded run uses
-    (``_bwrap_args``) and cache whether that worked.
+    (``_bwrap_args``), check that it really has no network, and cache whether
+    that worked.
 
     ``shutil.which`` only proves the binary exists. In a container, or on a
-    kernel with unprivileged user namespaces switched off, it exists but cannot
-    create the namespaces, and every coding case then fails with "No
-    permissions to create new namespace". The probe finds that out up front.
+    kernel with unprivileged user namespaces switched off (Ubuntu 24.04 runners
+    restrict them with AppArmor), it exists but cannot create the namespaces,
+    and every coding case then fails with "No permissions to create new
+    namespace". The probe finds that out up front.
 
     It runs the real flags, not a minimal ``--ro-bind / / true``: a bwrap that
     can create the namespaces but not, say, mount ``/proc`` (a container with
     masked /proc paths) or see the interpreter's install root passes a minimal
     test and then fails every coding case -- scored as the MODEL failing.
+
+    And it does not take ``--unshare-all`` on trust: the snippet inside the
+    sandbox connects to a loopback port this process is listening on. If that
+    connect succeeds the network is NOT isolated, and a sandbox that does not
+    isolate the network is not a sandbox (graded code could phone home), so the
+    probe fails.
     """
     cached = _BWRAP_PROBES.get(path)
     if cached is not None:
         return cached
     try:
+        listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    except OSError as e:
+        return _BWRAP_PROBES.setdefault(path, (False, f"network self-test could not open a socket: {e}"))
+    try:
+        listener.bind(("127.0.0.1", 0))
+        listener.listen(1)   # the kernel completes the handshake; no accept() needed
+        port = listener.getsockname()[1]
         proc = subprocess.run(
-            _bwrap_args(path) + [_REAL_PY, "-I", "-c", "pass"],
+            _bwrap_args(path) + [_REAL_PY, "-I", "-c", _NET_PROBE_SNIPPET, str(port)],
             capture_output=True, text=True, encoding="utf-8", errors="replace",
             timeout=BWRAP_PROBE_TIMEOUT_S, env=_child_env())
         if proc.returncode == 0:
             result = (True, "")
+        elif proc.returncode == NET_REACHABLE_RC:
+            result = (False, "network isolation is not in effect: a loopback connect "
+                             "succeeded inside the sandbox (--unshare-net had no effect)")
         else:
             err = proc.stderr.strip() or proc.stdout.strip() or f"exit status {proc.returncode}"
             result = (False, err.splitlines()[-1][:300])
@@ -75,6 +110,8 @@ def probe_bwrap(path: str) -> tuple[bool, str]:
         result = (False, f"self-test timed out after {BWRAP_PROBE_TIMEOUT_S}s")
     except OSError as e:
         result = (False, str(e))
+    finally:
+        listener.close()
     _BWRAP_PROBES[path] = result
     return result
 

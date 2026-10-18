@@ -1,8 +1,11 @@
 """Unit tests for objective graders — no network, no LM Studio."""
+import logging
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+import pytest
 
 from crucibleforge import graders
 from crucibleforge.api import ChatResult
@@ -252,16 +255,63 @@ def test_python_exec_top_level_exit_swallowed_then_tested():
     assert out["grade"] == "pass", out
 
 
-def test_python_exec_network_blocked_under_sandbox():
-    # Under bwrap --unshare-all there is no network; a solution that opens a
-    # socket to the internet must fail (not hang, not pass).
-    if not graders._BWRAP:
-        import pytest
-        pytest.skip("no bwrap")
-    resp = ("```python\nimport socket\n"
-            "def f():\n    s=socket.create_connection(('1.1.1.1',53),timeout=3)\n    return 1\n```")
-    out = graders.grade_python_exec(resp, {"tests": "assert f()==1"})
-    assert out["grade"] == "fail"
+def _loopback_solution(port: int) -> str:
+    return "\n".join((
+        "```python",
+        "import socket",
+        "def f():",
+        f"    socket.create_connection(('127.0.0.1', {port}), timeout=3).close()",
+        "    return 1",
+        "```",
+    ))
+
+
+@pytest.fixture
+def loopback_listener():
+    """A loopback listener the test owns (tests/_netguard.py allows exactly this).
+    A connect that succeeds is proof the graded code could reach the network."""
+    import socket
+    srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    srv.bind(("127.0.0.1", 0))
+    srv.listen(5)
+    try:
+        yield srv.getsockname()[1]
+    finally:
+        srv.close()
+
+
+# Both modes the suite runs in: a sandbox that really isolates the network, and
+# no usable sandbox (macOS, Windows, a CI runner that restricts user namespaces)
+# where the operator has to say so. Which one a given machine can exercise is
+# decided by ``sandbox_available()`` -- never by ``shutil.which("bwrap")``, since
+# bwrap on PATH proves nothing about namespaces.
+@pytest.mark.parametrize("mode", ["sandboxed", "refused", "opted_in"])
+def test_python_exec_network_blocked_under_sandbox(mode, loopback_listener, monkeypatch, caplog):
+    resp = _loopback_solution(loopback_listener)
+    cfg = {"tests": "assert f()==1"}
+    if mode == "sandboxed":
+        if not graders.sandbox_available():
+            pytest.skip("no working bwrap sandbox on this machine "
+                        "(the refused / opted_in cases cover that path)")
+        monkeypatch.setattr(graders, "ALLOW_UNSANDBOXED", False)
+        out = graders.grade_python_exec(resp, cfg)
+        assert out["grade"] == "fail", out   # the connect was refused: no network
+        return
+    # Force "no usable sandbox" on every machine, including Linux with a good bwrap.
+    monkeypatch.setattr(graders, "_BWRAP", None)
+    monkeypatch.setattr(graders, "_warned_no_sandbox", False)
+    if mode == "refused":
+        monkeypatch.setattr(graders, "ALLOW_UNSANDBOXED", False)
+        with pytest.raises(graders.SandboxUnavailable):
+            graders.grade_python_exec(resp, cfg)
+        return
+    # opted_in: it runs, it warns, and the code is NOT isolated -- which is the
+    # point of the warning. Assert that honestly instead of pretending it is blocked.
+    monkeypatch.setattr(graders, "ALLOW_UNSANDBOXED", True)
+    with caplog.at_level(logging.WARNING, logger="crucibleforge.graders"):
+        out = graders.grade_python_exec(resp, cfg)
+    assert out["grade"] == "pass", out
+    assert any("WITHOUT a sandbox" in r.getMessage() for r in caplog.records)
 
 
 def test_prose_metrics_slop_and_repetition():
