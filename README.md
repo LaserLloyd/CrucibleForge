@@ -183,7 +183,7 @@ ids and labels.
   *before* scoring, so the Chat score is the one without them (not yours with
   a column hidden). Every file is then re-checked for every private category
   name, case id and label; one hit and nothing is written (exit 3).
-  `templates/board/example.html` (tracked) is always built this way.
+  `crucibleforge/templates/board/example.html` (tracked) is always built this way.
 - Private case files are outside the suite revision (`version.cases_hash`), so
   a clean clone and your box agree on it and editing a private case never
   relabels public rows stale; private rows carry their own `private_revision`.
