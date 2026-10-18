@@ -39,8 +39,51 @@ class SandboxUnavailable(RuntimeError):
     """No bwrap, and the operator has not opted in to running without it."""
 
 
+#: bwrap path -> (works, error text). Filled by the first probe of that path.
+_BWRAP_PROBES: dict[str, tuple[bool, str]] = {}
+BWRAP_PROBE_TIMEOUT_S = 10
+
+
+def probe_bwrap(path: str) -> tuple[bool, str]:
+    """Run ``bwrap --unshare-all --ro-bind / / true`` once and cache the result.
+
+    ``shutil.which`` only proves the binary exists. In a container, or on a
+    kernel with unprivileged user namespaces switched off, it exists but cannot
+    create the namespaces, and every coding case then fails with "No
+    permissions to create new namespace". The probe finds that out up front.
+    """
+    cached = _BWRAP_PROBES.get(path)
+    if cached is not None:
+        return cached
+    try:
+        proc = subprocess.run(
+            [path, "--unshare-all", "--ro-bind", "/", "/", "true"],
+            capture_output=True, text=True, encoding="utf-8", errors="replace",
+            timeout=BWRAP_PROBE_TIMEOUT_S)
+        if proc.returncode == 0:
+            result = (True, "")
+        else:
+            err = proc.stderr.strip() or proc.stdout.strip() or f"exit status {proc.returncode}"
+            result = (False, err.splitlines()[-1][:300])
+    except subprocess.TimeoutExpired:
+        result = (False, f"self-test timed out after {BWRAP_PROBE_TIMEOUT_S}s")
+    except OSError as e:
+        result = (False, str(e))
+    _BWRAP_PROBES[path] = result
+    return result
+
+
+def _bwrap_error() -> str:
+    """The self-test error of the bwrap on PATH; "" when none is installed or it works."""
+    if not _BWRAP:
+        return ""
+    ok, err = probe_bwrap(_BWRAP)
+    return "" if ok else err
+
+
 def sandbox_available() -> bool:
-    return _BWRAP is not None
+    """True when bwrap is on PATH and its self-test passes."""
+    return _BWRAP is not None and probe_bwrap(_BWRAP)[0]
 
 
 def require_sandbox() -> None:
@@ -62,15 +105,27 @@ def require_sandbox() -> None:
     """
     if sandbox_available() or ALLOW_UNSANDBOXED:
         return
-    raise SandboxUnavailable(
-        f"refusing to execute model-authored code without a sandbox.\n"
-        f"  bubblewrap (bwrap) was not found on PATH ({sys.platform}).\n"
-        f"  Graded code would run as you: network reachable, home directory\n"
-        f"  readable. On Linux: install bubblewrap (dnf/apt install bubblewrap).\n"
-        f"  On macOS or Windows there is no sandbox available at all — pass\n"
-        f"  {ALLOW_FLAG} to run anyway, only for models you are\n"
-        f"  willing to execute unsandboxed."
-    )
+    err = _bwrap_error()
+    if err:
+        why = (
+            f"  bubblewrap (bwrap) is installed but cannot start here ({sys.platform}):\n"
+            f"    {err}\n"
+            f"  Unprivileged user namespaces are probably blocked (a container or a\n"
+            f"  hardened kernel). Graded code would run as you: network reachable, home\n"
+            f"  directory readable. Allow user namespaces for bwrap, or pass\n"
+            f"  {ALLOW_FLAG} to run anyway, only for models you are\n"
+            f"  willing to execute unsandboxed."
+        )
+    else:
+        why = (
+            f"  bubblewrap (bwrap) was not found on PATH ({sys.platform}).\n"
+            f"  Graded code would run as you: network reachable, home directory\n"
+            f"  readable. On Linux: install bubblewrap (dnf/apt install bubblewrap).\n"
+            f"  On macOS or Windows there is no sandbox available at all — pass\n"
+            f"  {ALLOW_FLAG} to run anyway, only for models you are\n"
+            f"  willing to execute unsandboxed."
+        )
+    raise SandboxUnavailable("refusing to execute model-authored code without a sandbox.\n" + why)
 # Resolve the venv symlink to the real interpreter + its install root so we can
 # bind them into the sandbox (a uv venv python is a symlink outside /usr).
 _REAL_PY = os.path.realpath(sys.executable)
@@ -238,7 +293,7 @@ def _sandbox_cmd(script_path: str, workdir: str) -> list[str]:
     ``require_sandbox``. Raises ``SandboxUnavailable`` when it is not allowed,
     so no code path can reach the unsandboxed interpreter by accident."""
     global _warned_no_sandbox
-    if _BWRAP:
+    if _BWRAP and probe_bwrap(_BWRAP)[0]:
         return [
             _BWRAP, "--unshare-all", "--die-with-parent", "--new-session",
             "--ro-bind", "/usr", "/usr",
@@ -257,10 +312,12 @@ def _sandbox_cmd(script_path: str, workdir: str) -> list[str]:
     require_sandbox()
     if not _warned_no_sandbox:
         _warned_no_sandbox = True
+        bwrap_err = _bwrap_error()
         log.warning(
             "%s is in force: executing model-authored code WITHOUT a sandbox "
-            "on %s. It can reach the network and read your home directory.",
-            ALLOW_FLAG, sys.platform)
+            "on %s%s. It can reach the network and read your home directory.",
+            ALLOW_FLAG, sys.platform,
+            f" (bwrap is installed but its self-test failed: {bwrap_err})" if bwrap_err else "")
     return [sys.executable, "-I", script_path]
 
 
