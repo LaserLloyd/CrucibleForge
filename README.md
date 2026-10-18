@@ -230,13 +230,14 @@ variable already in the environment wins.
 
 ## Installing
 
-### Windows
-
-The test suite is green on Windows. Coding cases need `--allow-unsandboxed` because `bwrap` is not available;
-`--detach` is systemd-only; the rig lock (`results/.rig.lock`) is not enforced on Windows. Point the registry at
-the StudioForge **gateway**, `http://127.0.0.1:1234/v1` (the panel on :8080 does not serve `/v1`). For a gateway
-that requires a key, set `api_key_env` in `models.yaml` to the name of the environment variable holding it.
-
+You need `git`, [`uv`](https://docs.astral.sh/uv/getting-started/installation/)
+(`curl -LsSf https://astral.sh/uv/install.sh | sh`; it fetches a Python ≥ 3.12
+for you) and, **on Linux, `bubblewrap`** (`sudo apt install bubblewrap` /
+`sudo dnf install bubblewrap`): `run`, `all`, `gui`, `bench-all` and
+`cases verify` execute model-written or reference code and refuse to start
+without the sandbox unless you pass `--allow-unsandboxed` (see Design notes).
+A bare `ubuntu:24.04` has none of the three; `apt install git curl bubblewrap`
+first.
 
 **The supported install is a clone plus `uv sync`** — run CrucibleForge from
 the checkout. A wheel/PyPI install is *not* supported yet: the case set
@@ -245,6 +246,14 @@ the Python package and are not packaged into a distribution, and the default
 results directory is resolved relative to the checkout. Building and installing
 a wheel therefore gives you a CLI with no cases to run; `config --init` says so
 rather than raising. Packaging those data files properly is a planned change.
+
+### Windows
+
+CrucibleForge runs on Windows and its test suite is green there. Coding cases need `--allow-unsandboxed` because
+`bwrap` is not available; `--detach` is systemd-only; the rig lock (`results/.rig.lock`) is not enforced on
+Windows. Point the registry at the StudioForge **gateway**, `http://127.0.0.1:1234/v1` (the panel on :8080 does
+not serve `/v1`). For a gateway that requires a key, set `api_key_env` in `models.yaml` to the name of the
+environment variable holding it.
 
 ## Quick start
 
