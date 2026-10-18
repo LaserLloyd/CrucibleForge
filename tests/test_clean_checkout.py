@@ -103,3 +103,29 @@ def test_readme_says_the_supported_install_is_a_checkout():
 
 if __name__ == "__main__":  # pragma: no cover
     sys.exit(pytest.main([__file__]))
+
+
+def test_version_flag_prints_package_version_and_exits_0(monkeypatch, capsys):
+    from importlib import metadata
+
+    monkeypatch.setattr(cli, "load_config", _no_config)
+    monkeypatch.setattr(metadata, "version", lambda name: "9.8.7")
+    with pytest.raises(SystemExit) as e:
+        cli.main(["--version"])
+    assert e.value.code == 0
+    assert capsys.readouterr().out.strip() == "crucibleforge 9.8.7"
+
+
+def test_version_flag_falls_back_to_suite_version_when_not_installed(monkeypatch, capsys):
+    from importlib import metadata
+
+    from crucibleforge.version import SUITE_VERSION
+
+    def missing(name):
+        raise metadata.PackageNotFoundError(name)
+
+    monkeypatch.setattr(metadata, "version", missing)
+    with pytest.raises(SystemExit) as e:
+        cli.main(["--version"])
+    assert e.value.code == 0
+    assert capsys.readouterr().out.strip() == f"crucibleforge {SUITE_VERSION}"

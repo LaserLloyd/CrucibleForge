@@ -183,7 +183,7 @@ ids and labels.
   *before* scoring, so the Chat score is the one without them (not yours with
   a column hidden). Every file is then re-checked for every private category
   name, case id and label; one hit and nothing is written (exit 3).
-  `templates/board/example.html` (tracked) is always built this way.
+  `crucibleforge/templates/board/example.html` (tracked) is always built this way.
 - Private case files are outside the suite revision (`version.cases_hash`), so
   a clean clone and your box agree on it and editing a private case never
   relabels public rows stale; private rows carry their own `private_revision`.
@@ -258,12 +258,19 @@ environment variable holding it.
 ## Quick start
 
 ```bash
+# 1. clone and install
 git clone https://github.com/LaserLloyd/CrucibleForge.git crucibleforge && cd crucibleforge  # scrub-ok: the public repo URL
 uv sync                                  # or: pip install -e .
-uv run crucibleforge config --init       # writes models.yaml (git-ignored); then edit it
-export DEEPSEEK_API_KEY=...              # only if you use a hosted provider
+# 2. write models.yaml (git-ignored), then edit it to point at your server
+uv run crucibleforge config --init
+# 3. check it: providers up? judge? case counts (StudioForge: residents + leases)
+uv run crucibleforge status
+```
 
-uv run crucibleforge status                   # providers up? judge? case counts (StudioForge: residents + leases)
+### More commands
+
+```bash
+export DEEPSEEK_API_KEY=...              # only if you use a hosted provider
 uv run crucibleforge gui                      # http://127.0.0.1:8777
 uv run crucibleforge all --models local-gemma-e4b --fresh --yes   # THE benchmark: Chat + Coding
 uv run crucibleforge all --smoke --models local-gemma-e4b --yes   # smoke-tagged subset, end-to-end
@@ -514,7 +521,7 @@ crucibleforge/       package: cli, config, providers, api, runner, graders,
                      profiles, gui/
 cases/*.json         the suite (perf rp nsfw coding tooluse instruct
                      reasoning math steer overrefusal longctx planning)
-tests/               pytest, offline (370+ tests incl. full case verification)
+tests/               pytest, offline (700+ tests incl. full case verification)
 models.example.yaml  registry template (copy to models.yaml — git-ignored)
 results/             outputs (git-ignored)
 profiles/bench.yaml  THE benchmark: case selection, budgets, judge, scoring weights
@@ -522,7 +529,7 @@ scripts/             queue-overnight.sh (reference campaign wrapper),
                      clawforge_comfy.py (free rig VRAM before a phase),
                      scrub_check.py + hooks/ (see Publishing, below)
 docs/OPENCLAW.md     driving CrucibleForge from an agent framework
-CHANGELOG.md         what changed in 3.0 → 3.2
+CHANGELOG.md         release history (latest: 3.6.0)
 ```
 
 `uv run pytest` — no network needed. `uv run crucibleforge cases list|verify`.
