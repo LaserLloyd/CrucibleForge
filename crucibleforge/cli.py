@@ -1331,11 +1331,23 @@ def _detach(args, argv: list[str] | None) -> int:
     return 0
 
 
+def package_version() -> str:
+    """Installed distribution version; the suite version from a bare checkout."""
+    from importlib import metadata
+    try:
+        return metadata.version("crucibleforge-bench")
+    except metadata.PackageNotFoundError:
+        from .version import SUITE_VERSION
+        return SUITE_VERSION
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(
         prog="crucibleforge",
         description="CrucibleForge — LLM capability benchmark (hard tier, deterministic "
                     "graders, local or remote judge, web GUI)")
+    parser.add_argument("--version", action="version",
+                        version=f"crucibleforge {package_version()}")
     parser.add_argument("--config", default=None, help="path to models.yaml")
     parser.add_argument(
         "--allow-unsandboxed", action="store_true",
