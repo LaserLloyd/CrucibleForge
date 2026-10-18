@@ -45,21 +45,27 @@ BWRAP_PROBE_TIMEOUT_S = 10
 
 
 def probe_bwrap(path: str) -> tuple[bool, str]:
-    """Run ``bwrap --unshare-all --ro-bind / / true`` once and cache the result.
+    """Start the interpreter once inside the exact sandbox a graded run uses
+    (``_bwrap_args``) and cache whether that worked.
 
     ``shutil.which`` only proves the binary exists. In a container, or on a
     kernel with unprivileged user namespaces switched off, it exists but cannot
     create the namespaces, and every coding case then fails with "No
     permissions to create new namespace". The probe finds that out up front.
+
+    It runs the real flags, not a minimal ``--ro-bind / / true``: a bwrap that
+    can create the namespaces but not, say, mount ``/proc`` (a container with
+    masked /proc paths) or see the interpreter's install root passes a minimal
+    test and then fails every coding case -- scored as the MODEL failing.
     """
     cached = _BWRAP_PROBES.get(path)
     if cached is not None:
         return cached
     try:
         proc = subprocess.run(
-            [path, "--unshare-all", "--ro-bind", "/", "/", "true"],
+            _bwrap_args(path) + [_REAL_PY, "-I", "-c", "pass"],
             capture_output=True, text=True, encoding="utf-8", errors="replace",
-            timeout=BWRAP_PROBE_TIMEOUT_S)
+            timeout=BWRAP_PROBE_TIMEOUT_S, env=_child_env())
         if proc.returncode == 0:
             result = (True, "")
         else:
@@ -130,6 +136,52 @@ def require_sandbox() -> None:
 # bind them into the sandbox (a uv venv python is a symlink outside /usr).
 _REAL_PY = os.path.realpath(sys.executable)
 _PY_ROOT = str(Path(_REAL_PY).resolve().parent.parent)  # .../cpython-X.Y.Z
+
+
+def _bwrap_args(bwrap: str) -> list[str]:
+    """The bwrap invocation every graded run uses, up to (not including) the
+    harness bind and the interpreter. ``probe_bwrap`` runs exactly this, so a
+    sandbox that passes the self-test is the sandbox the grading gets."""
+    return [
+        bwrap, "--unshare-all", "--die-with-parent", "--new-session",
+        "--ro-bind", "/usr", "/usr",
+        "--ro-bind-try", "/lib", "/lib",
+        "--ro-bind-try", "/lib64", "/lib64",
+        "--ro-bind-try", "/bin", "/bin",
+        "--ro-bind-try", "/sbin", "/sbin",
+        "--ro-bind-try", _PY_ROOT, _PY_ROOT,   # the real interpreter + stdlib
+        "--proc", "/proc", "--dev", "/dev",
+        "--tmpfs", "/tmp",
+        "--chdir", "/tmp",
+        "--setenv", "PATH", "/usr/bin:/bin",
+    ]
+
+
+#: The only environment variables graded code inherits. Everything else stays
+#: out of its reach: provider API keys (compose forwards DEEPSEEK_/OPENROUTER_/
+#: OPENAI_API_KEY into the container), STUDIOFORGE_API_KEY, a management PIN,
+#: CRUCIBLEFORGE_GUI_TOKEN. bwrap passes the environment through unchanged, and
+#: the unsandboxed path (Docker default, Windows, macOS) also has the network.
+#: SYSTEMROOT/WINDIR/COMSPEC/PATHEXT: a Windows interpreter needs them to start.
+_CHILD_ENV_KEEP = frozenset({
+    "PATH", "HOME", "USERPROFILE", "TMPDIR", "TEMP", "TMP", "LANG", "LC_ALL",
+    "LC_CTYPE", "SYSTEMROOT", "WINDIR", "COMSPEC", "PATHEXT", "TZ",
+})
+
+
+def _child_env() -> dict[str, str]:
+    """``os.environ`` reduced to ``_CHILD_ENV_KEEP`` (names compared upper-case)."""
+    return {k: v for k, v in os.environ.items() if k.upper() in _CHILD_ENV_KEEP}
+
+
+def unsandboxed_reason() -> str | None:
+    """Why graded code would run with NO sandbox, or None when bwrap is used."""
+    if sandbox_available():
+        return None
+    err = _bwrap_error()
+    if err:
+        return f"bwrap is installed but its self-test failed: {err}"
+    return f"bubblewrap (bwrap) is not on PATH ({sys.platform})"
 
 # ---------------------------------------------------------------- refusals
 # Tight, response-channel-only marker list. The v1 draft matched "i'm sorry"
@@ -294,19 +346,8 @@ def _sandbox_cmd(script_path: str, workdir: str) -> list[str]:
     so no code path can reach the unsandboxed interpreter by accident."""
     global _warned_no_sandbox
     if _BWRAP and probe_bwrap(_BWRAP)[0]:
-        return [
-            _BWRAP, "--unshare-all", "--die-with-parent", "--new-session",
-            "--ro-bind", "/usr", "/usr",
-            "--ro-bind-try", "/lib", "/lib",
-            "--ro-bind-try", "/lib64", "/lib64",
-            "--ro-bind-try", "/bin", "/bin",
-            "--ro-bind-try", "/sbin", "/sbin",
-            "--ro-bind-try", _PY_ROOT, _PY_ROOT,   # the real interpreter + stdlib
-            "--proc", "/proc", "--dev", "/dev",
-            "--tmpfs", "/tmp",
+        return _bwrap_args(_BWRAP) + [
             "--ro-bind", script_path, "/tmp/harness.py",
-            "--chdir", "/tmp",
-            "--setenv", "PATH", "/usr/bin:/bin",
             _REAL_PY, "-I", "/tmp/harness.py",
         ]
     require_sandbox()
@@ -336,7 +377,7 @@ def grade_python_exec(response_text: str, cfg: dict, finish_reason: str | None =
             proc = subprocess.run(
                 _sandbox_cmd(str(path), td),
                 capture_output=True, text=True, encoding="utf-8",
-                errors="replace", timeout=CODE_TIMEOUT_S, cwd=td)
+                errors="replace", timeout=CODE_TIMEOUT_S, cwd=td, env=_child_env())
         except subprocess.TimeoutExpired:
             return {"grade": "fail", "detail": f"timeout >{CODE_TIMEOUT_S}s"}
     out = proc.stdout + proc.stderr

@@ -99,7 +99,9 @@ whenever it is on `PATH` even when the opt-in is set. So the image:
   is the sandbox**. It runs as UID 1000, with all capabilities dropped,
   `no-new-privileges`, and memory/CPU limits. It can still reach the network
   and read `/data`, so keep nothing in that volume you would not hand to a
-  model's code.
+  model's code. Put API keys in `.env`, not as literal `api_key:` values in
+  `models.yaml`: graded code starts with a minimal environment that carries
+  no provider keys and no `CRUCIBLEFORGE_GUI_TOKEN`.
 
 To use `bwrap` instead, build with `--build-arg WITH_BWRAP=1`, run the
 container under a seccomp profile that allows user namespaces, and set

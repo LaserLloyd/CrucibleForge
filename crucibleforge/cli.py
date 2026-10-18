@@ -1614,6 +1614,16 @@ def main(argv=None):
         except graders.SandboxUnavailable as e:
             print(f"sandbox: {e}", file=sys.stderr)
             sys.exit(3)
+        why = graders.unsandboxed_reason()
+        if why:
+            # require_sandbox() passed without a sandbox: the opt-in is in
+            # force. Say so now, on the terminal, before any work starts --
+            # not once in the log at the first coding case hours into a run.
+            # A bwrap that is installed but broken lands here too, which is
+            # easy to mistake for "I have the sandbox, the flag is a no-op".
+            log.warning("%s is in force and there is NO sandbox: %s. Coding cases will "
+                        "execute model-written code as this user, with network access "
+                        "and this user's files readable.", graders.ALLOW_FLAG, why)
 
     handler = {"status": cmd_status, "run": cmd_run, "judge": cmd_judge,
                "recover": cmd_recover, "report": cmd_report, "pairwise": cmd_pairwise, "all": cmd_all,

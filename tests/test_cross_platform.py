@@ -404,7 +404,8 @@ def test_probe_runs_once_per_path(tmp_path, monkeypatch):
     for _ in range(4):
         graders.sandbox_available()
     assert len(calls) == 1
-    assert calls[0] == [found, "--unshare-all", "--ro-bind", "/", "/", "true"]
+    # the self-test is the graded sandbox itself, starting the real interpreter
+    assert calls[0] == graders._bwrap_args(found) + [graders._REAL_PY, "-I", "-c", "pass"]
 
 
 # ------------------------------------------------------------- the CI matrix
