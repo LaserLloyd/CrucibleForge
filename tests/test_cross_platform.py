@@ -75,7 +75,9 @@ def test_transcript_and_meta_paths_collide_when_names_differ_only_in_case(tmp_pa
     monkeypatch.setattr(config, "RESULTS_DIR", tmp_path)
     a = config.transcript_path("Qwen")
     b = config.transcript_path("qwen")
-    assert a != b                                   # distinct on Linux
+    # compare the TEXT: pathlib's own == is case-insensitive on Windows, which
+    # would make "distinct" false there without saying anything about the code.
+    assert str(a) != str(b)                         # distinct as written (every OS)
     assert str(a).casefold() == str(b).casefold()   # identical on macOS/Windows
 
 
@@ -305,7 +307,7 @@ def test_bwrap_path_unchanged_when_available(monkeypatch):
 
 # ------------------------------------------------------------- the CI matrix
 
-def test_ci_gives_linux_a_real_sandbox_and_names_the_macos_opt_in():
+def test_ci_gives_linux_a_real_sandbox_and_names_the_unsandboxed_opt_in():
     """The refusal must not be silently defeated by CI.
 
     Two ways to keep the macOS leg green: install a sandbox (impossible there)
@@ -322,10 +324,16 @@ def test_ci_gives_linux_a_real_sandbox_and_names_the_macos_opt_in():
     assert "bubblewrap" in runs, "Linux CI must install the real sandbox"
     assert "--allow-unsandboxed" in runs, (
         "macOS has no bwrap; the opt-in has to be explicit in the workflow")
-    # ...and only for macOS.
-    macos_only = [ln for ln in runs.splitlines() if "--allow-unsandboxed" in ln]
-    assert macos_only, runs
-    assert "macOS" in runs
+    # ...and never for Linux: the plain command is the Linux branch, the flagged
+    # one is the else-branch taken by macOS and Windows (neither has bwrap).
+    verify = next(st for st in steps if "gold answer" in st.get("name", ""))
+    lines = [ln.strip() for ln in verify["run"].splitlines()]
+    assert 'if [ "${{ runner.os }}" = "Linux" ]; then' in lines, lines
+    then_cmd = lines[lines.index('if [ "${{ runner.os }}" = "Linux" ]; then') + 1]
+    assert "--allow-unsandboxed" not in then_cmd and "cases verify" in then_cmd
+    assert verify.get("shell") == "bash", "Windows runners default to PowerShell"
+    assert {"ubuntu-latest", "macos-latest", "windows-latest"} <= set(
+        ci["jobs"]["unit"]["strategy"]["matrix"]["os"])
 
 
 def test_ci_actions_are_not_end_of_life():

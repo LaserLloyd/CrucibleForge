@@ -64,7 +64,7 @@ def test_load_transcripts_dedupes_last_wins(tmp_path, monkeypatch):
     path = tmp_path / f"transcripts_{label}.jsonl"
     r1 = {"case_id": "X", "repeat": 1, "turn": None, "response": "old"}
     r2 = {"case_id": "X", "repeat": 1, "turn": None, "response": "new", "judge": {"x": 1}}
-    path.write_text(json.dumps(r1) + "\n" + json.dumps(r2) + "\n")
+    path.write_text(json.dumps(r1) + "\n" + json.dumps(r2) + "\n", encoding="utf-8")
     rows = config.load_transcripts(label)
     assert len(rows) == 1
     assert rows[0]["response"] == "new" and "judge" in rows[0]
@@ -75,7 +75,7 @@ def test_load_transcripts_skips_torn_line(tmp_path, monkeypatch):
     label = "tmodel"
     path = tmp_path / f"transcripts_{label}.jsonl"
     path.write_text(json.dumps({"case_id": "A", "repeat": 1, "turn": None}) + "\n"
-                    + '{"case_id": "B", "repeat"')  # torn final line
+                    + '{"case_id": "B", "repeat"', encoding="utf-8")  # torn final line
     rows = config.load_transcripts(label)
     assert len(rows) == 1 and rows[0]["case_id"] == "A"
 
@@ -84,9 +84,9 @@ def test_load_transcripts_skips_torn_line(tmp_path, monkeypatch):
 def _write(tmp_path, monkeypatch, label, rows, meta=None):
     monkeypatch.setattr(config, "RESULTS_DIR", tmp_path)
     (tmp_path / f"transcripts_{label}.jsonl").write_text(
-        "\n".join(json.dumps(r) for r in rows) + "\n")
+        "\n".join(json.dumps(r) for r in rows) + "\n", encoding="utf-8")
     if meta:
-        (tmp_path / f"meta_{label}.json").write_text(json.dumps(meta))
+        (tmp_path / f"meta_{label}.json").write_text(json.dumps(meta), encoding="utf-8")
 
 
 def test_report_handles_all_none(tmp_path, monkeypatch):

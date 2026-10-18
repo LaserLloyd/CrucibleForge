@@ -295,19 +295,19 @@ def _chat_row(cid, judged=True, failed=False, **kw):
 def _seed(tmp_path, monkeypatch, label, rows, meta=None):
     monkeypatch.setattr(config, "RESULTS_DIR", tmp_path)
     (tmp_path / f"transcripts_{label}.jsonl").write_text(
-        "\n".join(json.dumps(r) for r in rows) + "\n")
+        "\n".join(json.dumps(r) for r in rows) + "\n", encoding="utf-8")
     (tmp_path / f"meta_{label}.json").write_text(json.dumps(
         {"model_id": "x/y", "provider": "p", "profile": "bench",
-         "finished": "2026-09-24T01:30:00+00:00", **(meta or {})}))
+         "finished": "2026-09-24T01:30:00+00:00", **(meta or {})}), encoding="utf-8")
 
 
 def test_unparsable_verdicts_are_named_on_the_board_and_in_failures(tmp_path, monkeypatch):
     rows = [_chat_row("ST1-ten-elements", failed=True), _chat_row("ST2-green-door")]
     _seed(tmp_path, monkeypatch, "m", rows)
     report.generate()
-    md = (tmp_path / "report.md").read_text()
+    md = (tmp_path / "report.md").read_text(encoding="utf-8")
     assert "1 verdict unparsable" in md
-    fails = (tmp_path / "failures.md").read_text()
+    fails = (tmp_path / "failures.md").read_text(encoding="utf-8")
     assert "ST1-ten-elements" in fails and "unparsable" in fails
 
 
@@ -327,11 +327,11 @@ def test_an_aborted_judge_shows_no_chat_score(tmp_path, monkeypatch):
 def test_cmd_judge_records_and_clears_the_abort_reason(tmp_path, monkeypatch):
     from crucibleforge import cli
     monkeypatch.setattr(config, "RESULTS_DIR", tmp_path)
-    (tmp_path / "meta_m.json").write_text(json.dumps({"model_id": "x"}))
+    (tmp_path / "meta_m.json").write_text(json.dumps({"model_id": "x"}), encoding="utf-8")
     cli._stamp_judge_error(["m"], "canary FAILED: boom")
-    assert json.loads((tmp_path / "meta_m.json").read_text())["judge_error"] == "canary FAILED: boom"
+    assert json.loads((tmp_path / "meta_m.json").read_text(encoding="utf-8"))["judge_error"] == "canary FAILED: boom"
     cli._stamp_judged(["m"])
-    assert "judge_error" not in json.loads((tmp_path / "meta_m.json").read_text())
+    assert "judge_error" not in json.loads((tmp_path / "meta_m.json").read_text(encoding="utf-8"))
 
 
 # -------------------------------------- a template the server cannot render
@@ -386,12 +386,12 @@ def test_editing_checks_does_not_restale_results(tmp_path, monkeypatch):
     shutil_copy(version._CASES_DIR, d)
     monkeypatch.setattr(version, "_CASES_DIR", d)
     assert version.cases_hash() == before
-    story = json.loads((d / "story.json").read_text())
+    story = json.loads((d / "story.json").read_text(encoding="utf-8"))
     story[0]["checks"] = []
-    (d / "story.json").write_text(json.dumps(story))
+    (d / "story.json").write_text(json.dumps(story), encoding="utf-8")
     assert version.cases_hash() == before            # grading only
     story[0]["prompt"] += " Extra."
-    (d / "story.json").write_text(json.dumps(story))
+    (d / "story.json").write_text(json.dumps(story), encoding="utf-8")
     assert version.cases_hash() != before            # the question changed
 
 

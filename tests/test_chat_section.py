@@ -441,7 +441,7 @@ def bench_shaped_rows():
 def test_chat_aggregates_rp_nsfw_story(tmp_path, monkeypatch):
     monkeypatch.setattr(config, "RESULTS_DIR", tmp_path)
     (tmp_path / "transcripts_m.jsonl").write_text(
-        "\n".join(json.dumps(r) for r in bench_shaped_rows()) + "\n")
+        "\n".join(json.dumps(r) for r in bench_shaped_rows()) + "\n", encoding="utf-8")
     s = report.model_stats("m")
     rp = s["rp"]
     # identity: judge mean over rp_session/rp_scene/erp = (6+6+8+8+4)/5 = 6.4;

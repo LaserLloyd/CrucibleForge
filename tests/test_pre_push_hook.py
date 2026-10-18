@@ -36,7 +36,7 @@ ZERO = "0" * 40
 
 def _git(repo: Path, *args: str) -> str:
     out = subprocess.run(["git", "-C", str(repo), *args],
-                         capture_output=True, text=True, check=True)
+                         capture_output=True, text=True, encoding="utf-8", check=True)
     return out.stdout.strip()
 
 
@@ -74,7 +74,7 @@ def _run_hook(repo: Path, tip: str) -> subprocess.CompletedProcess[str]:
         ["sh", str(repo / "scripts" / "hooks-pre-push"), "origin",
          "https://example.com/repo.git"],
         input=f"refs/heads/main {tip} refs/heads/main {ZERO}\n",
-        cwd=str(repo), capture_output=True, text=True, env=env, check=False,
+        cwd=str(repo), capture_output=True, text=True, encoding="utf-8", env=env, check=False,
     )
 
 
@@ -83,7 +83,7 @@ def test_the_tip_alone_looks_clean(planted):
     repo, tip, _middle = planted
     tip_scan = subprocess.run(
         [sys.executable, str(repo / "scripts" / "scrub_check.py"), "--rev", tip],
-        cwd=str(repo), capture_output=True, text=True, check=False)
+        cwd=str(repo), capture_output=True, text=True, encoding="utf-8", check=False)
     assert tip_scan.returncode == 0, tip_scan.stdout
 
 

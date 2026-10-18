@@ -195,7 +195,7 @@ for target in ["minimax-m3", "deepseek-pro", "joyfox-35b-rp", "precog-123b-v1a-q
 print("\n".join(out))
 json.dump({n: {"chat": dict(zip(LABELS, chat[n])),
                "components": {l: {c: data[n]["cards"][l]["components"].get(c) for c in CHAT_COMPS} for l in LABELS}}
-           for n in names}, open(Path(__file__).parent / "judge_compare.json", "w"), indent=1)
+           for n in names}, open(Path(__file__).parent / "judge_compare.json", "w", encoding="utf-8"), indent=1)
 
 # ---- discrimination: does the judge tell the 5 models apart on the SAME case?
 print("\n## Discrimination per case (mean over dims of the std across the 5 models; higher = separates more) and identical-verdict cases")

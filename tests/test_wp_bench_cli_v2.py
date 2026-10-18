@@ -16,6 +16,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import sys
 
 import pytest
 
@@ -108,7 +109,7 @@ def test_atomic_write_json_leaves_no_tmp_file_and_is_valid_json(tmp_path):
     target = tmp_path / "sub" / "meta.json"
     cli._atomic_write_json(target, {"a": 1, "b": [1, 2, 3]})
     assert target.exists()
-    assert json.loads(target.read_text()) == {"a": 1, "b": [1, 2, 3]}
+    assert json.loads(target.read_text(encoding="utf-8")) == {"a": 1, "b": [1, 2, 3]}
     leftovers = list(target.parent.glob("*.tmp.*"))
     assert leftovers == []
 
@@ -123,7 +124,7 @@ def test_v2_start_writes_running_meta_before_any_work(tmp_path, monkeypatch):
                               requester=None, deliver_to=None, task_run_id=None)
     state = cli._v2_start(args)
     meta_path = tmp_path / "w-test-1" / "meta.json"
-    meta = json.loads(meta_path.read_text())
+    meta = json.loads(meta_path.read_text(encoding="utf-8"))
     assert meta == {
         "schema": 1, "id": "w-test-1", "producer": "crucibleforge", "kind": "cron-worker",
         "title": "CrucibleForge run: chat-35b",
@@ -139,7 +140,7 @@ def test_v2_start_copies_routing_fields_from_flags_and_env(tmp_path, monkeypatch
     args = argparse.Namespace(cmd="all", models="m1", run_id="w-test-2",
                               requester=None, deliver_to="thread-123", task_run_id="task-9")
     cli._v2_start(args)
-    meta = json.loads((tmp_path / "w-test-2" / "meta.json").read_text())
+    meta = json.loads((tmp_path / "w-test-2" / "meta.json").read_text(encoding="utf-8"))
     assert meta["requester_session"] == "agent:example:thread-1"
     assert meta["thread_id"] == "thread-123"
     assert meta["task_run_id"] == "task-9"
@@ -157,12 +158,12 @@ def test_v2_finish_writes_report_then_rewrites_meta_done_atomically(tmp_path, mo
     cfg = {"models": [], "providers": {}, "defaults": {}, "judge": {"candidates": []}}
     cli._v2_finish("run", args, cfg, 0, state)
     run_dir = tmp_path / "w-test-3"
-    meta = json.loads((run_dir / "meta.json").read_text())
+    meta = json.loads((run_dir / "meta.json").read_text(encoding="utf-8"))
     assert meta["status"] == "done"
     assert meta["finished"] is not None and meta["finished"] != state["created"] or True
     assert meta["created"] == state["created"]  # created is preserved from the FIRST write
     assert meta["delivered"] is False  # scanner-owned fields untouched by the producer
-    body = (run_dir / "report.md").read_text()
+    body = (run_dir / "report.md").read_text(encoding="utf-8")
     assert "## Result" in body and "## Evidence" in body and "## Files" in body
     assert "## Failed" in body and "## Next" in body
     assert "w-test-3" in body
@@ -178,9 +179,9 @@ def test_v2_finish_marks_failed_on_nonzero_rc(tmp_path, monkeypatch):
     state = cli._v2_start(args)
     cfg = {"models": [], "providers": {}, "defaults": {}, "judge": {"candidates": []}}
     cli._v2_finish("run", args, cfg, 1, state)
-    meta = json.loads((tmp_path / "w-test-4" / "meta.json").read_text())
+    meta = json.loads((tmp_path / "w-test-4" / "meta.json").read_text(encoding="utf-8"))
     assert meta["status"] == "failed"
-    body = (tmp_path / "w-test-4" / "report.md").read_text()
+    body = (tmp_path / "w-test-4" / "report.md").read_text(encoding="utf-8")
     assert "FAILED" in body
     assert "None." not in body.split("## Failed")[1].split("## Next")[0]
 
@@ -206,7 +207,7 @@ def test_cli_main_run_writes_v2_contract_end_to_end(tmp_path, monkeypatch):
     assert ei.value.code == 0
     assert calls == ["m1"]
     run_dir = v2_root / "w-e2e-1"
-    meta = json.loads((run_dir / "meta.json").read_text())
+    meta = json.loads((run_dir / "meta.json").read_text(encoding="utf-8"))
     assert meta["status"] == "done" and meta["id"] == "w-e2e-1"
     assert (run_dir / "report.md").exists()
 
@@ -262,7 +263,7 @@ def test_cli_main_all_writes_v2_contract_exactly_once_not_from_inner_run(tmp_pat
     # objective-only report is still worth having).
     assert ei.value.code == 4
     run_dir = v2_root / "w-e2e-2"
-    meta = json.loads((run_dir / "meta.json").read_text())
+    meta = json.loads((run_dir / "meta.json").read_text(encoding="utf-8"))
     assert meta["status"] == "failed"
     assert len(write_events) == 1 and write_events[0] == ("all", 4)
 
@@ -285,7 +286,7 @@ def _seed_two_label_board():
                                                                 encoding="utf-8")
     report_mod.generate(None)  # no labels_arg -> every transcript present -> seeds the board
     board = report_mod.report_md_path()
-    return board, board.read_text(), board.stat().st_size
+    return board, board.read_text(encoding="utf-8"), board.stat().st_size
 
 
 def test_report_generate_write_false_preserves_shared_board():
@@ -301,7 +302,7 @@ def test_report_generate_write_false_preserves_shared_board():
     md = report_mod.generate("one", write=False)
 
     assert "one" in md and "two" not in md  # the returned text IS scoped to the request
-    assert board.read_text() == before_text  # but the shared file is untouched
+    assert board.read_text(encoding="utf-8") == before_text  # but the shared file is untouched
     assert board.stat().st_size == before_size
 
 
@@ -323,7 +324,7 @@ def test_cli_main_run_preserves_shared_board_when_given_one_label(monkeypatch, t
     with pytest.raises(SystemExit) as ei:
         cli.main(["run", "--models", "one", "--yes"])
     assert ei.value.code == 0
-    assert board.read_text() == before_text
+    assert board.read_text(encoding="utf-8") == before_text
     assert board.stat().st_size == before_size
 
 
@@ -368,8 +369,33 @@ def test_atomic_write_json_fsyncs_the_containing_directory(tmp_path, monkeypatch
     cli._atomic_write_json(target, {"a": 1})
     assert target.exists()
     # one fsync for the tmp file's contents, one for the directory after the
-    # rename -- not just the first.
-    assert len(fsynced) == 2
+    # rename -- not just the first.  Windows has no directory descriptor, so
+    # the directory fsync is a documented no-op there (cli._fsync_dir).
+    assert len(fsynced) == (1 if sys.platform == "win32" else 2)
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="directory fsync is a no-op on Windows")
+def test_fsync_dir_failure_never_fails_the_write(tmp_path, monkeypatch):
+    def boom(fd):
+        raise OSError("EIO")
+    real_fsync = os.fsync
+
+    def selective(fd):          # let the file fsync through, fail the directory one
+        if len(calls) >= 1:
+            boom(fd)
+        calls.append(fd)
+        return real_fsync(fd)
+    calls = []
+    monkeypatch.setattr(os, "fsync", selective)
+    target = tmp_path / "meta.json"
+    cli._atomic_write_json(target, {"a": 1})
+    assert target.exists()
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="Windows-only contract")
+def test_fsync_dir_is_a_no_op_on_windows(tmp_path, monkeypatch):
+    monkeypatch.setattr(os, "open", lambda *a, **k: pytest.fail("must not open a directory"))
+    cli._fsync_dir(tmp_path)
 
 
 def test_exit_code_from_exception_maps_systemexit_int_code():
@@ -473,6 +499,6 @@ def test_v2_report_resolves_a_label_registered_mid_run(tmp_path, monkeypatch):
                               difficulty=None, cases=None)
     state = cli._v2_start(args)
     cli._v2_finish("bench-all", args, stale, 0, state)
-    body = (tmp_path / "w-fresh-1" / "report.md").read_text()
+    body = (tmp_path / "w-fresh-1" / "report.md").read_text(encoding="utf-8")
     assert "(no models resolved)" not in body
     assert "fresh" in body.split("## Result")[1].split("## Evidence")[0]

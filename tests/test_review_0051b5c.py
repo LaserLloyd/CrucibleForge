@@ -94,9 +94,9 @@ def test_failed_recover_does_not_relabel_a_complete_run_as_failed(tmp_path, monk
     old = [{"bench_run_id": "orig", "case_id": f"M{i}", "repeat": 1, "turn": None,
             "category": "math", "finish_reason": "length", "response": "",
             "reasoning": "thinking...", "grade": "fail", "metrics": {}} for i in range(3)]
-    (tmp_path / "transcripts_m.jsonl").write_text("\n".join(json.dumps(r) for r in old) + "\n")
+    (tmp_path / "transcripts_m.jsonl").write_text("\n".join(json.dumps(r) for r in old) + "\n", encoding="utf-8")
     (tmp_path / "meta_m.json").write_text(json.dumps(
-        {"model_label": "m", "bench_run_id": "orig", "failed": False, "finished": "x"}))
+        {"model_label": "m", "bench_run_id": "orig", "failed": False, "finished": "x"}), encoding="utf-8")
 
     from crucibleforge import providers
 
@@ -107,6 +107,6 @@ def test_failed_recover_does_not_relabel_a_complete_run_as_failed(tmp_path, monk
     monkeypatch.setattr(providers.Provider, "alive", lambda self: True)
     summary = runner.recover_models(cfg, [entry], cases)
     assert summary["m"]["failed"]
-    meta = json.loads((tmp_path / "meta_m.json").read_text())
+    meta = json.loads((tmp_path / "meta_m.json").read_text(encoding="utf-8"))
     assert meta["failed"] is False, meta
     assert meta["bench_run_id"] == "orig"

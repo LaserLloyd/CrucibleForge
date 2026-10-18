@@ -90,7 +90,7 @@ def test_cost_from_price():
 def test_results_dir_follows_config(tmp_path, monkeypatch):
     monkeypatch.delenv("CRUCIBLEFORGE_RESULTS", raising=False)
     dst = tmp_path / "models.yaml"
-    dst.write_text(config.EXAMPLE_CONFIG_PATH.read_text())
+    dst.write_text(config.EXAMPLE_CONFIG_PATH.read_text(encoding="utf-8"), encoding="utf-8")
     config.load_config(dst)
     assert config.results_dir() == tmp_path / "results"
 
@@ -233,7 +233,7 @@ def test_openclaw_import_maps_env_keys_and_prices(tmp_path):
                   "apiKey": "a-literal-secret-value-not-an-env-ref", "models": []},
     }}}
     p = tmp_path / "openclaw.json"
-    p.write_text(json.dumps(oc))
+    p.write_text(json.dumps(oc), encoding="utf-8")
     cfg = {"providers": {}, "models": [], "judge": {"candidates": []}, "defaults": {}}
     added = import_openclaw(cfg, p)
     assert "deepseek" in added["providers"] and "local" not in cfg["providers"]

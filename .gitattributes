@@ -1,0 +1,4 @@
+# Shell scripts and git hooks run under a POSIX shell: a CRLF checkout (Windows
+# core.autocrlf=true) makes bash fail on "\r". Keep them LF everywhere.
+*.sh text eol=lf
+scripts/hooks/* text eol=lf

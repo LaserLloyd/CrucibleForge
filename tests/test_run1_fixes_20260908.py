@@ -15,13 +15,13 @@ def test_v2_start_inherits_routing_from_preexisting_meta(tmp_path, monkeypatch):
     (run_dir / "meta.json").write_text(json.dumps({
         "schema": 1, "id": "r1", "producer": "worker", "kind": "spawn",
         "requester_session": "agent:main:thread-x", "thread_id": None, "task_run_id": "t9",
-        "child_session": "agent:worker:abc", "status": "running"}))
+        "child_session": "agent:worker:abc", "status": "running"}), encoding="utf-8")
     args = types.SimpleNamespace(run_id="r1", cmd="all", models="m", requester=None,
                                  deliver_to=None, task_run_id=None)
     for k in ("CRUCIBLEFORGE_REQUESTER", "CRUCIBLEFORGE_DELIVER_TO", "CRUCIBLEFORGE_TASK_RUN_ID"):
         monkeypatch.delenv(k, raising=False)
     state = cli._v2_start(args)
-    meta = json.loads((run_dir / "meta.json").read_text())
+    meta = json.loads((run_dir / "meta.json").read_text(encoding="utf-8"))
     assert meta["requester_session"] == "agent:main:thread-x"
     assert meta["task_run_id"] == "t9"
     assert meta["child_session"] == "agent:worker:abc"      # extra field rides along
@@ -31,13 +31,13 @@ def test_v2_start_inherits_routing_from_preexisting_meta(tmp_path, monkeypatch):
     args2 = types.SimpleNamespace(run_id="r1", cmd="all", models="m", requester="agent:main:other",
                                   deliver_to="thread-1", task_run_id=None)
     cli._v2_start(args2)
-    meta = json.loads((run_dir / "meta.json").read_text())
+    meta = json.loads((run_dir / "meta.json").read_text(encoding="utf-8"))
     assert meta["requester_session"] == "agent:main:other" and meta["thread_id"] == "thread-1"
     # finish keeps everything
     monkeypatch.setattr(cli, "_v2_report_body", lambda *a, **k: "# r\n")
     cli._v2_finish("all", args2, {}, 0, state | {"requester_session": "agent:main:other",
                                                     "thread_id": "thread-1"})
-    meta = json.loads((run_dir / "meta.json").read_text())
+    meta = json.loads((run_dir / "meta.json").read_text(encoding="utf-8"))
     assert meta["status"] == "done" and meta["child_session"] == "agent:worker:abc"
 
 
@@ -88,7 +88,8 @@ def test_detach_builds_a_transient_unit_without_the_flag_and_without_the_pin(mon
     script = cmd[-1]
     assert "--detach" not in script
     assert "uv run crucibleforge all --models lbl --profile coding --run-id r-9 --yes" in script
-    assert "/nonexistent/env" in script          # sourced inside the unit, not passed as a value
+    # sourced inside the unit, not passed as a value (native separators on Windows)
+    assert str(cli.Path("/nonexistent/env")) in script
     # a run id is minted and appended when the caller gave none
     monkeypatch.setattr(cli, "_resolve_run_id", lambda a: "minted-1")
     args2 = types.SimpleNamespace(cmd="run", models="lbl", run_id=None)

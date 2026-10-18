@@ -63,7 +63,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        # windows-latest: the maintainer's rig is Windows, so the suite must be
+        # green there. Like macOS it has no bubblewrap; the suite grants its OWN
+        # fixtures the unsandboxed opt-in (tests/conftest.py) and the gold-answer
+        # step below passes --allow-unsandboxed explicitly.
+        os: [ubuntu-latest, macos-latest, windows-latest]
     steps:
       - uses: actions/checkout@v6
       - name: Install uv
@@ -95,15 +99,18 @@ jobs:
       # solution is executed against its own tests. A case file edited by hand
       # fails here rather than silently mis-scoring a model.
       - name: Verify every case's gold answer
-        # macOS has no bwrap and never will, so this step executes the repo's
-        # OWN reference solutions unsandboxed — on a disposable runner, with
-        # code that is in this repository and reviewable, not a model's. That
-        # is exactly the deliberate choice --allow-unsandboxed exists for, and
-        # naming it here keeps it visible in the log instead of hidden in a
-        # default. On Linux the flag is absent and the real sandbox is used.
+        # macOS and Windows have no bwrap and never will, so on those legs this
+        # step executes the repo's OWN reference solutions unsandboxed — on a
+        # disposable runner, with code that is in this repository and
+        # reviewable, not a model's. That is exactly the deliberate choice
+        # --allow-unsandboxed exists for, and naming it here keeps it visible in
+        # the log instead of hidden in a default. On Linux the flag is absent and
+        # the real sandbox is used. (bash on every leg: Windows runners default
+        # to PowerShell.)
+        shell: bash
         run: |
-          if [ "${{ runner.os }}" = "macOS" ]; then
-            uv run crucibleforge --allow-unsandboxed cases verify
-          else
+          if [ "${{ runner.os }}" = "Linux" ]; then
             uv run crucibleforge cases verify
+          else
+            uv run crucibleforge --allow-unsandboxed cases verify
           fi

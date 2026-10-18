@@ -46,6 +46,11 @@ def _search_all(pattern: str) -> None:
             pass
 
 
+FORK = "fork" in mp.get_all_start_methods()
+
+
+@pytest.mark.skipif(not FORK, reason="needs the 'fork' start method (POSIX); "
+                    "Windows runs test_check_regexes_are_not_catastrophic_without_fork instead")
 @pytest.mark.parametrize("pattern", _patterns())
 def test_check_regex_is_not_catastrophic(pattern):
     ctx = mp.get_context("fork")
@@ -58,3 +63,47 @@ def test_check_regex_is_not_catastrophic(pattern):
         pytest.fail(f"regex took > {DEADLINE_S}s on adversarial input "
                     f"(catastrophic backtracking): {pattern}")
     assert proc.exitcode == 0
+
+
+def test_check_regexes_are_not_catastrophic_without_fork():
+    """The same guarantee on platforms with no fork() (Windows).
+
+    One persistent ``spawn``-ed worker takes the patterns in turn, so the 2 s
+    deadline measures the regex, not interpreter start-up. A pattern that blows
+    the deadline gets the worker killed and replaced; every offender is reported.
+    """
+    import _regex_worker
+
+    ctx = mp.get_context("spawn")
+    patterns = [p.values[0] for p in _patterns()]
+    assert patterns, "no check patterns found - the cases directory moved?"
+
+    def start():
+        parent, child = ctx.Pipe()
+        proc = ctx.Process(target=_regex_worker.serve, args=(child, ADVERSARIAL), daemon=True)
+        proc.start()
+        child.close()
+        # interpreter start-up is not the regex: wait for the worker's hello
+        assert parent.poll(60) and parent.recv() == "ready", "regex worker did not start"
+        return proc, parent
+
+    proc, conn = start()
+    slow = []
+    try:
+        for pat in patterns:
+            conn.send(pat)
+            if conn.poll(DEADLINE_S):
+                conn.recv()
+                continue
+            slow.append(pat)
+            proc.kill()
+            proc.join()
+            proc, conn = start()
+    finally:
+        if proc.is_alive():
+            conn.send(None)
+            proc.join(5)
+            if proc.is_alive():
+                proc.kill()
+    assert not slow, (f"{len(slow)} regex(es) took > {DEADLINE_S}s on adversarial input "
+                      f"(catastrophic backtracking): {slow[:3]}")
