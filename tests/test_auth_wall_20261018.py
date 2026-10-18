@@ -131,3 +131,33 @@ def test_models_discover_lists_models_when_key_accepted(capsys, monkeypatch):
                             _cfg(sf.url + "/v1", api_key_env="MY_GATEWAY_KEY"))
     out = capsys.readouterr().out
     assert rc == 0 and "2 models on llamacpp" in out
+
+
+# 2026-10-18 second review: a key configured as `api_key:` (literal, or the
+# documented ${VAR} placeholder) is still a key. A 401 then means "rejected",
+# and the variable to fix is the one the placeholder names -- not "add
+# api_key_env: STUDIOFORGE_API_KEY" to a provider that already sends a key.
+
+def test_status_names_a_placeholder_key_that_was_rejected(capsys, monkeypatch):
+    monkeypatch.setenv("MY_GATEWAY_KEY", "wrong")
+    with FakeStudioForge() as sf:
+        sf.route("GET", "/v1/models", 401, {})
+        out = _status(_cfg(sf.url + "/v1", api_key="${MY_GATEWAY_KEY}"), capsys)
+    assert "rejected the API key from $MY_GATEWAY_KEY (HTTP 401)" in out
+    assert "add api_key_env" not in out
+
+
+def test_status_names_an_unset_placeholder_variable(capsys):
+    with FakeStudioForge() as sf:
+        sf.route("GET", "/v1/models", 401, {})
+        out = _status(_cfg(sf.url + "/v1", api_key="${MY_GATEWAY_KEY}"), capsys)
+    assert "reachable, but it wants an API key: set $MY_GATEWAY_KEY (HTTP 401)" in out
+    assert "STUDIOFORGE_API_KEY" not in out
+
+
+def test_status_says_a_literal_key_was_rejected(capsys):
+    with FakeStudioForge() as sf:
+        sf.route("GET", "/v1/models", 403, {})
+        out = _status(_cfg(sf.url + "/v1", api_key="not-a-real-key"), capsys)
+    assert "rejected the API key from api_key in models.yaml (HTTP 403)" in out
+    assert "wants an API key" not in out

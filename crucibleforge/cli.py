@@ -609,9 +609,14 @@ def _auth_wall_note(cfg, p, code: int | None = None) -> str | None:
     code = code or p.auth_wall()
     if code not in (401, 403):
         return None
-    env = (cfg["providers"].get(p.name) or {}).get("api_key_env") or ""
-    if env and p.api_key:
-        return (f"reachable, but it rejected the API key from ${env} "
+    pcfg = cfg["providers"].get(p.name) or {}
+    env = pcfg.get("api_key_env") or ""
+    literal = pcfg.get("api_key")
+    if not env and isinstance(literal, str) and literal.startswith("${") and literal.endswith("}"):
+        env = literal[2:-1]           # `api_key: ${VAR}` names its variable too
+    if p.api_key:
+        source = f"${env}" if env else "api_key in models.yaml"
+        return (f"reachable, but it rejected the API key from {source} "
                 f"(HTTP {code}): check the key")
     name = env or DEFAULT_API_KEY_ENV
     extra = "" if env else f" and add api_key_env: {name} to the provider in models.yaml"
