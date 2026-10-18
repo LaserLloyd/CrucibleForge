@@ -33,8 +33,11 @@ die() { log "FATAL: $*"; exit 1; }
 if [ "$(id -u)" = "0" ]; then
     log "started as root; chown ${DATA_DIR} to ${PUID}:${PGID} and drop privileges"
     if [ "$(id -u app)" != "$PUID" ] || [ "$(id -g app)" != "$PGID" ]; then
-        groupmod -o -g "$PGID" app 2>/dev/null || true
-        usermod -o -u "$PUID" -g "$PGID" app 2>/dev/null || true
+        # Cosmetic only (names the uid "app" in ps/id). Under compose /etc is on
+        # the read-only image filesystem, so this normally fails; nothing below
+        # needs it: setpriv takes numeric ids and HOME is /data.
+        { groupmod -o -g "$PGID" app && usermod -o -u "$PUID" -g "$PGID" app; } 2>/dev/null \
+            || log "note: /etc is read-only; running as uid ${PUID} without a passwd entry"
     fi
     mkdir -p "$DATA_DIR"
     chown "$PUID:$PGID" "$DATA_DIR"
@@ -42,7 +45,10 @@ if [ "$(id -u)" = "0" ]; then
         log "ownership mismatch on existing data: one-time recursive chown"
         chown -R "$PUID:$PGID" "$DATA_DIR"
     fi
-    exec setpriv --reuid="$PUID" --regid="$PGID" --init-groups --inh-caps=-all -- "$0" "$@"
+    # --clear-groups, not --init-groups: --init-groups looks the uid up in
+    # /etc/passwd and aborts ("uid N not found") for any PUID other than 1000,
+    # because the usermod above cannot write the read-only /etc.
+    exec setpriv --reuid="$PUID" --regid="$PGID" --clear-groups --inh-caps=-all -- "$0" "$@"
 fi
 
 # ---- 2. writability --------------------------------------------------------
@@ -95,11 +101,17 @@ if [ ! -f "$CFG" ] && [ -f /app/models.example.yaml ]; then
     # the template's StudioForge entry says 127.0.0.1, the LM Studio one says
     # localhost, and inside a container either one is the container itself
     # (tests/test_deploy_seed.py applies these rules to the real template).
-    sed -e "s|http://localhost:1234/v1|${LLM_BASE_URL}|g" \
-        -e "s|http://127.0.0.1:1234/v1|${LLM_BASE_URL}|g" \
+    # LLM_BASE_URL is escaped for the replacement side: a '&' (query string)
+    # would otherwise insert the matched text, a '|' would end the expression.
+    # Written to a temp file and renamed, so a failed seed never leaves a
+    # partial models.yaml that blocks every later seed.
+    url_sed="$(printf '%s' "$LLM_BASE_URL" | sed 's/[\\|&]/\\&/g')"
+    sed -e "s|http://localhost:1234/v1|${url_sed}|g" \
+        -e "s|http://127.0.0.1:1234/v1|${url_sed}|g" \
         -e 's|http://localhost:|http://host.docker.internal:|g' \
         -e 's|http://127.0.0.1:|http://host.docker.internal:|g' \
-        /app/models.example.yaml > "$CFG"
+        /app/models.example.yaml > "$CFG.seed.$$"
+    mv "$CFG.seed.$$" "$CFG"
     log "seeded $CFG (primary local provider -> ${LLM_BASE_URL})"
 fi
 
