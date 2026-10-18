@@ -96,7 +96,7 @@ def test_readme_says_the_supported_install_is_a_checkout():
     """Finding 2's minimal fix is documentation — if the note goes, the
     packaging gap is silent again."""
     text = (REPO / "README.md").read_text(encoding="utf-8")
-    assert "## Installing" in text
+    assert "## Install" in text
     assert "uv sync" in text
     assert "wheel" in text.lower() and "supported" in text.lower()
 
