@@ -3,7 +3,6 @@ listing + registry + board rows, and does only what is missing."""
 from __future__ import annotations
 
 import argparse
-import json
 
 import pytest
 import yaml

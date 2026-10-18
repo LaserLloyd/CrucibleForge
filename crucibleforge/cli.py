@@ -350,7 +350,7 @@ def _v2_report_body(cmd: str, args, cfg: dict, rc: int, state: dict) -> str:
     try:
         entries = resolve_models(cfg, models_arg)
         labels = [e["name"] for e in entries]
-    except Exception as e:  # noqa: BLE001 — a bad --models must not blank the report
+    except Exception:  # noqa: BLE001 — a bad --models must not blank the report
         # `cfg` is the registry snapshot loaded at process dispatch. A command
         # may register its OWN labels mid-run — bench-all appends new models to
         # models.yaml and then benches them — so a freshly-added name is absent

@@ -135,7 +135,8 @@ def paired(a, b):
             vb = rb["dims"].get(dim)
             if vb is None:
                 continue
-            xs.append(va); ys.append(vb)
+            xs.append(va)
+            ys.append(vb)
             per.setdefault(dim, []).append((va, vb))
     return xs, ys, per
 
@@ -147,7 +148,8 @@ for a in names:
     cells = []
     for b in names:
         if a == b:
-            cells.append("—"); continue
+            cells.append("—")
+            continue
         xs, ys, _ = paired(a, b)
         cells.append(f"{pearson(xs, ys):.2f} / {st.mean(abs(x-y) for x, y in zip(xs, ys)):.2f} / "
                      f"{st.mean(x-y for x, y in zip(xs, ys)):+.2f} (n={len(xs)})")
@@ -165,7 +167,8 @@ for dim in dims:
         _, _, per = paired(n, ref)
         pr = per.get(dim, [])
         if len(pr) < 3:
-            cells.append("-"); continue
+            cells.append("-")
+            continue
         xs, ys = [p[0] for p in pr], [p[1] for p in pr]
         cells.append(f"{pearson(xs, ys):.2f} / {st.mean(abs(x-y) for x, y in pr):.1f} / "
                      f"{st.mean(x-y for x, y in pr):+.1f} (n={len(pr)})")
@@ -174,7 +177,8 @@ for dim in dims:
 P("\n## Identity dim on RPS1 / RPS2 / NMX1 (judge scores) + deterministic identity checks")
 P("| model/case | " + " | ".join(names) + " | det. identity pass |")
 P("|---|" + "---|" * len(names) + "---|")
-set_results_dir(Path(judges[0][1])); config.RESULTS_DIR = Path(judges[0][1])
+set_results_dir(Path(judges[0][1]))
+config.RESULTS_DIR = Path(judges[0][1])
 det = {}
 for l in LABELS:
     for r in report.board_filter(l, cfg):
@@ -230,7 +234,8 @@ for n in names:
             vs = [data[m]["rows"].get(key, {}).get("dims", {}).get(dim) for m in others]
             vs = [v for v in vs if v is not None]
             if len(vs) == len(others) and vs:
-                xs.append(va); ys.append(st.mean(vs))
+                xs.append(va)
+                ys.append(st.mean(vs))
     off = st.mean(x - y for x, y in zip(xs, ys))
     print(f"| {n} (vs {'+'.join(others)}) | {pearson(xs, ys):.2f} | {st.mean(abs(x-y) for x, y in zip(xs, ys)):.2f} | "
           f"{off:+.2f} | {st.mean(abs(x-y-off) for x, y in zip(xs, ys)):.2f} |")
