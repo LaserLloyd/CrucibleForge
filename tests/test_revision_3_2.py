@@ -133,6 +133,7 @@ def test_unload_all_gives_up_instead_of_evicting_a_busy_model(monkeypatch):
     assert "will not evict" in str(ei.value)
 
 
+@pytest.mark.usefixtures("no_management_calls")
 def test_load_model_waits_on_507_retry_after_then_loads(monkeypatch):
     answers = iter([
         {"_status": 507, "_retry_after_s": 10, "_suggestions": ["wait"]},
@@ -281,6 +282,7 @@ def test_provider_expands_env_in_headers(monkeypatch):
         "X-MCP-Pin": "secret-pin", "X-SF-Client": "crucibleforge-judge"}
 
 
+@pytest.mark.usefixtures("no_management_calls")
 def test_switch_model_takes_a_lease_releases_it_and_never_unloads_all(monkeypatch):
     """WP-BENCH FIX-1 note: ``loaded_plan`` here tracks what the mocked
     ``load_model`` actually "loaded" (starts at nothing resident), instead of
@@ -328,6 +330,7 @@ def test_switch_model_takes_a_lease_releases_it_and_never_unloads_all(monkeypatc
     assert p._lease is None
 
 
+@pytest.mark.usefixtures("no_management_calls")
 def test_switch_model_resident_fast_path_skips_lease_and_unload(monkeypatch):
     """WP-BENCH FIX-1: a model that is ALREADY resident, ready, multi-slot,
     and at least as wide as requested is used as-is — no lease, no unload,
@@ -356,6 +359,7 @@ def test_switch_model_resident_fast_path_skips_lease_and_unload(monkeypatch):
     }
 
 
+@pytest.mark.usefixtures("no_management_calls")
 def test_switch_model_resident_fast_path_needs_no_pin(monkeypatch):
     """The fast path is a plain GET /api/status — no X-MCP-Pin required at
     all, unlike a lease or an unload/load (the WP-BENCH audit notes §2.2/RECIPE 1:
@@ -369,6 +373,7 @@ def test_switch_model_resident_fast_path_needs_no_pin(monkeypatch):
     assert p.switch_model("m", 32768) == 0.0 and called == []
 
 
+@pytest.mark.usefixtures("no_management_calls")
 def test_switch_model_resident_fast_path_off_by_flag(monkeypatch):
     """``use_resident: false`` must restore the old always-lease behaviour."""
     monkeypatch.setenv("CRUCIBLEFORGE_TEST_PIN", "pin")
@@ -386,6 +391,7 @@ def test_switch_model_resident_fast_path_off_by_flag(monkeypatch):
     assert p._lease is not None and p._lease["_lease_id"] == "L1"
 
 
+@pytest.mark.usefixtures("no_management_calls")
 @pytest.mark.parametrize("live_plan", [
     {"state": "ready", "ctx_size": 8192, "parallel": 2},     # too narrow
     {"state": "ready", "ctx_size": 32768, "parallel": 1},    # single slot only
@@ -408,6 +414,7 @@ def test_switch_model_resident_fast_path_does_not_fire_when_unsuitable(monkeypat
     assert p._lease is not None and p._lease["_lease_id"] == "L1"
 
 
+@pytest.mark.usefixtures("no_management_calls")
 def test_lease_that_never_loads_the_model_falls_through_to_load_recommended(monkeypatch):
     """A lease can stand with nothing loaded (its load failed silently behind
     a foreign VRAM holder) — the explicit load then gives a structured answer.
@@ -584,9 +591,9 @@ def test_recover_keeps_each_run_id_and_reports_unselectable_jobs(tmp_path, monke
     old.append({"bench_run_id": "r1", "case_id": "GONE", "repeat": 1, "turn": None,
                 "category": "math", "finish_reason": "length", "response": "", "reasoning": "t",
                 "grade": "fail", "metrics": {}})
-    (tmp_path / "transcripts_m.jsonl").write_text("\n".join(json.dumps(r) for r in old) + "\n")
+    (tmp_path / "transcripts_m.jsonl").write_text("\n".join(json.dumps(r) for r in old) + "\n", encoding="utf-8")
     (tmp_path / "meta_m.json").write_text(json.dumps({"failed": False, "bench_run_id": "r2",
-                                                      "profile": None}))
+                                                      "profile": None}), encoding="utf-8")
     monkeypatch.setattr(providers.Provider, "chat", lambda self, mid, msgs, **kw: ChatResult(
         response_text="2", finish_reason="stop", served_model="m"))
     monkeypatch.setattr(providers.Provider, "list_models", lambda self, refresh=False: {"m"})
@@ -596,7 +603,7 @@ def test_recover_keeps_each_run_id_and_reports_unselectable_jobs(tmp_path, monke
     rows = {(r["bench_run_id"], r["case_id"]): r for r in config.load_transcripts("m")}
     assert rows[("r1", "M1")]["grade"] == "pass" and rows[("r2", "M1")]["grade"] == "pass"
     assert rows[("r1", "GONE")]["grade"] == "fail"     # unselectable, untouched
-    meta = json.loads((tmp_path / "meta_m.json").read_text())
+    meta = json.loads((tmp_path / "meta_m.json").read_text(encoding="utf-8"))
     assert meta["bench_run_id"] == "r2" and meta["failed"] is False and meta["recovered"]
 
 
@@ -608,7 +615,7 @@ def test_judge_row_request_rejected_is_recorded_without_reload(tmp_path, monkeyp
              "needs_judge": True, "response": "x" * 10, "prompt": "p"},
             {"bench_run_id": "r", "case_id": "B", "repeat": 1, "turn": None, "rubric": "nsfw",
              "needs_judge": True, "response": "scene", "prompt": "p"}]
-    (tmp_path / "transcripts_m.jsonl").write_text("\n".join(json.dumps(r) for r in rows) + "\n")
+    (tmp_path / "transcripts_m.jsonl").write_text("\n".join(json.dumps(r) for r in rows) + "\n", encoding="utf-8")
 
     class FakeProv:
         type = "openai"
@@ -671,13 +678,13 @@ def test_coverage_flags_judge_mismatch_and_attempted(tmp_path, monkeypatch):
     # model a: judged by the fallback judge K
     a = [_nsfw("N1"), _row("C1"), _row("C2", grade="skipped")]
     a[0]["judge_model"] = "K"
-    (tmp_path / "transcripts_a.jsonl").write_text("\n".join(json.dumps(r) for r in a) + "\n")
-    (tmp_path / "meta_a.json").write_text(json.dumps({"device": "sf", "model_id": "a"}))
+    (tmp_path / "transcripts_a.jsonl").write_text("\n".join(json.dumps(r) for r in a) + "\n", encoding="utf-8")
+    (tmp_path / "meta_a.json").write_text(json.dumps({"device": "sf", "model_id": "a"}), encoding="utf-8")
     # model b: full, primary judge
     b = [_nsfw("N1"), _row("C1"), _row("C2")]
-    (tmp_path / "transcripts_b.jsonl").write_text("\n".join(json.dumps(r) for r in b) + "\n")
+    (tmp_path / "transcripts_b.jsonl").write_text("\n".join(json.dumps(r) for r in b) + "\n", encoding="utf-8")
     (tmp_path / "meta_b.json").write_text(json.dumps({"device": "sf", "model_id": "b",
-                                                      "profile": "bench"}))
+                                                      "profile": "bench"}), encoding="utf-8")
     stats = {l: report.model_stats(l) for l in "ab"}
     assert stats["a"]["coverage"]["judge_mismatch"] is True
     assert stats["a"]["coverage"]["tier"] == 1 and "judged by K" in stats["a"]["coverage"]["status"]
@@ -701,7 +708,7 @@ def test_willingness_counts_empty_rows_as_unwritten(tmp_path, monkeypatch):
     rows[1]["judge"] = {"judge_failed": True, "empty_generation": True, "refused": False,
                         "scores": None}
     rows[1]["response"] = ""
-    (tmp_path / "transcripts_m.jsonl").write_text("\n".join(json.dumps(r) for r in rows) + "\n")
+    (tmp_path / "transcripts_m.jsonl").write_text("\n".join(json.dumps(r) for r in rows) + "\n", encoding="utf-8")
     stats = report.model_stats("m")
     assert stats["nsfw"]["willingness"] == 0.5
 
@@ -725,8 +732,8 @@ def test_model_version_stamp_only_in_notes_and_only_when_real(tmp_path, monkeypa
         "c": {"device": "lmstudio", "model_id": "old"},
     }
     for l, m in metas.items():
-        (tmp_path / f"transcripts_{l}.jsonl").write_text(json.dumps(rows[0]) + "\n")
-        (tmp_path / f"meta_{l}.json").write_text(json.dumps(m))
+        (tmp_path / f"transcripts_{l}.jsonl").write_text(json.dumps(rows[0]) + "\n", encoding="utf-8")
+        (tmp_path / f"meta_{l}.json").write_text(json.dumps(m), encoding="utf-8")
     stats = {l: _report.model_stats(l) for l in "abc"}
     md = _report.render_markdown(["a", "b", "c"], stats, None)
     sc = md.split("## Scorecard")[1].split("## Components")[0]
@@ -740,7 +747,7 @@ def test_model_version_stamp_only_in_notes_and_only_when_real(tmp_path, monkeypa
 def test_half_only_total_is_labelled(tmp_path, monkeypatch):
     monkeypatch.setattr(config, "RESULTS_DIR", tmp_path)
     rows = [_row("C1", cat="coding"), _row("C2", cat="coding", grade="fail")]
-    (tmp_path / "transcripts_m.jsonl").write_text("\n".join(json.dumps(r) for r in rows) + "\n")
+    (tmp_path / "transcripts_m.jsonl").write_text("\n".join(json.dumps(r) for r in rows) + "\n", encoding="utf-8")
     stats = {"m": report.model_stats("m")}
     card = report.scorecard(stats["m"], report.scoring_config(None))
     assert card["half_only"] == "Coding" and set(card["missing"]) >= {"rp", "nsfw", "steer"}
@@ -837,6 +844,9 @@ def test_acquire_judge_lease_returns_none_when_no_judge_candidate(monkeypatch):
 def test_acquire_judge_lease_skips_for_remote_api_judge(monkeypatch):
     """DeepSeek / OpenRouter / etc. — no StudioForge lease system to talk to."""
     monkeypatch.setenv("CRUCIBLEFORGE_TEST_PIN", "pin")
+    # candidate selection probes each provider's liveness; without this stub the
+    # test opened a real TLS connection to api.deepseek.com
+    _stub_provider_alive(monkeypatch)
     cfg = {"providers": {
                 "ds": {"type": "openai", "base_url": "https://api.deepseek.com/v1",
                        "api_key": "k"},

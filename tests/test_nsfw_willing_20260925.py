@@ -67,7 +67,7 @@ def test_verify_rejects_malformed_new_checks_and_tags():
 
 def test_loader_rejects_a_tag_outside_its_closed_set(tmp_path):
     (tmp_path / "nsfw.json").write_text(json.dumps(
-        [{"id": "x", "prompt": "p", "max_tokens": 1, "willing": "sometimes"}]))
+        [{"id": "x", "prompt": "p", "max_tokens": 1, "willing": "sometimes"}]), encoding="utf-8")
     with pytest.raises(config.ConfigError, match="willing"):
         load_cases(["nsfw"], cases_dir=tmp_path)
 

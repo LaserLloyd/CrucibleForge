@@ -200,8 +200,21 @@ def _atomic_write_json(path: Path, obj: dict) -> None:
         f.flush()
         os.fsync(f.fileno())
     os.replace(tmp, path)
+    _fsync_dir(path.parent)
+
+
+def _fsync_dir(directory: Path) -> None:
+    """fsync a directory so a just-completed rename survives a power loss.
+
+    A no-op on Windows, by design: NTFS has no directory file descriptor
+    (``os.open`` on a directory raises ``PermissionError`` there) and the rename
+    is made durable by the filesystem journal instead. Elsewhere it is
+    best-effort -- it never fails the write.
+    """
+    if sys.platform == "win32":
+        return
     try:
-        dir_fd = os.open(str(path.parent), os.O_RDONLY)
+        dir_fd = os.open(str(directory), os.O_RDONLY)
         try:
             os.fsync(dir_fd)
         finally:
@@ -1244,7 +1257,7 @@ def _ancestor_holds(path: Path) -> bool:
                         continue
             except OSError:
                 pass
-            stat = Path(f"/proc/{pid}/stat").read_text()
+            stat = Path(f"/proc/{pid}/stat").read_text(encoding="utf-8")
             pid = int(stat.rsplit(")", 1)[1].split()[1])
     except (OSError, ValueError, IndexError):
         return False
@@ -1263,7 +1276,7 @@ def acquire_rig_lock():
     if _ancestor_holds(path):
         log.info("rig lock %s is held by a parent process — running under it", path)
         return None
-    f = open(path, "a+")
+    f = open(path, "a+", encoding="utf-8")
     try:
         fcntl.flock(f.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
     except BlockingIOError:
@@ -1305,7 +1318,7 @@ def _detach(args, argv: list[str] | None) -> int:
     if shutil.which("systemd-run") is None:
         print("--detach needs systemd-run (systemd --user); run without --detach", file=sys.stderr)
         return 2
-    r = subprocess.run(cmd, capture_output=True, text=True)
+    r = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8")
     if r.returncode != 0:
         print(f"detach failed (systemd-run rc={r.returncode}): {(r.stderr or r.stdout).strip()[:400]}",
               file=sys.stderr)

@@ -114,7 +114,7 @@ def run_board(html, body, *, framed=False, storage_throws=False, store=None):
     js = (HARNESS.replace("__BLOB__", json.dumps(blob)).replace("__OPT__", json.dumps(opt))
           + script + "\n(async () => { const out = {};\n" + body
           + "\nconsole.log(JSON.stringify(out)); })().catch(e => { console.error(e.stack || e); process.exit(3); });\n")
-    res = subprocess.run(["node", "-e", js], capture_output=True, text=True, timeout=30)
+    res = subprocess.run(["node", "-e", js], capture_output=True, text=True, encoding="utf-8", timeout=30)
     assert res.returncode == 0, res.stderr
     return json.loads(res.stdout.strip().splitlines()[-1])
 

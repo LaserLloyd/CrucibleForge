@@ -6,6 +6,44 @@ was ever published as Gauntlet, so there is no migration to do — the entries
 below are kept because the engineering they record is real, not to narrate a
 rename.
 
+## 3.6.0 — Windows and hermetic tests (2026-10-18)
+
+No case, grader or metric changed. `SUITE_VERSION` moves to 3.6.0 and the
+3.5.1 stamp of the same case set (`36a60ec6`) is registered as equivalent in
+`_EQUIVALENT_STAMPS`, so no stored board row goes stale.
+
+- **The test-suite is green on Windows** (it was 120+ failures: a `fork`-only
+  regex-timeout test, the WSL `bash` launcher, case-insensitive paths,
+  directory `fsync`, the POSIX-only rig lock, and text I/O without an
+  encoding). `.github/workflows/ci.yml` now has a `windows-latest` leg.
+  - The regex catastrophic-backtracking guard keeps its `fork` version where
+    fork exists and has a persistent `spawn` worker version for Windows.
+  - Every text read/write names `encoding="utf-8"`, enforced by a static test
+    (`tests/test_windows_portability.py`).
+  - The directory `fsync` after an atomic write is a documented no-op on
+    Windows (`cli._fsync_dir`).
+  - `.gitattributes` keeps `*.sh` and `scripts/hooks/*` LF under
+    `core.autocrlf=true`.
+  - On Windows the rig lock (`results/.rig.lock`) is still not enforced
+    (`flock` is POSIX); one benchmark at a time remains the operator's job.
+    Coding cases still need `bwrap` or `--allow-unsandboxed`.
+- **Hermetic tests.** `tests/_netguard.py` refuses every outbound connection
+  except to ephemeral loopback ports a test opens itself (never :1234 or the
+  other service ports, never a hosted API, never a made-up LAN name), and fails
+  the test that tried even if the code swallowed the error. Removed the real TLS
+  connection to `api.deepseek.com` (`test_revision_3_2.py`), the `rig:1234`
+  lease-release hook that fired at interpreter exit, and the `GET /api/leases`
+  / `POST .../unload` calls to made-up hosts.
+- **StudioForge contract tests** (`tests/contract_studioforge/`): recorded-style
+  fixtures derived from this client's code pin `gpu_leased`, `priority_hold`,
+  `insufficient_vram`, `lease_conflict`, `error.studioforge.retry_after_s`,
+  lease `kind` / `holder_family`, `/api/status`, `load-recommended` and the
+  additive `/v1/models` fields.
+- `models.example.yaml`: the StudioForge example now points at the gateway
+  (`http://127.0.0.1:1234/v1`), not the panel port (8080), and shows
+  `api_key_env`.
+- `SECURITY.md` added.
+
 ## 3.5.1 — public-repo hygiene (2026-10-01)
 
 - **Case files.** One safety probe that no profile ran is removed from

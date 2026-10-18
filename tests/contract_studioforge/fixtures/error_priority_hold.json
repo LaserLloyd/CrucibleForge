@@ -1,0 +1,15 @@
+{
+  "_note": "derived from client code (api.py _parse_priority_hold, studioforge.py _refusal_reason): 503 while a chat/agent-tier model is loading",
+  "http_status": 503,
+  "headers": {"Retry-After": "7"},
+  "body": {
+    "error": {
+      "code": "priority_hold",
+      "message": "a higher-priority model is loading",
+      "studioforge": {
+        "retry_after_s": 7,
+        "priority_hold": {"model_id": "pub/repo/chat-Q5_K_S", "priority": 1}
+      }
+    }
+  }
+}

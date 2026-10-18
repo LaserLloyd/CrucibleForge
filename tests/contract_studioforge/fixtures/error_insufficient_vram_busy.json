@@ -1,0 +1,12 @@
+{
+  "_note": "derived from client code (api.py _busy_models): busy, not full -> wait",
+  "http_status": 507,
+  "headers": {},
+  "body": {
+    "error": {
+      "code": "insufficient_vram",
+      "message": "a resident is mid-request",
+      "studioforge": {"busy_models": [{"model_id": "pub/repo/other-Q4_K_M", "active_requests": 2}], "retry_after_s": 12}
+    }
+  }
+}

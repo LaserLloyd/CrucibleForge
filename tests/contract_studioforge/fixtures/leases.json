@@ -1,0 +1,12 @@
+{
+  "_note": "derived from client code (studioforge.py foreign_render_leases / list_leases, providers.py _refuse_other_bench_lease): GET /api/leases",
+  "response": {
+    "leases": [
+      {"id": "l-render", "holder": "clawforge", "holder_family": "clawforge", "kind": "render", "devices": [0, 1], "model_ids": []},
+      {"id": "l-bench", "holder": "crucibleforge", "holder_family": "crucibleforge", "kind": "benchmark", "devices": [2, 3], "model_ids": ["pub/repo/chat-Q5_K_S"]},
+      {"id": "l-judge", "holder": "crucibleforge-judge", "holder_family": "crucibleforge", "kind": "benchmark", "devices": [2], "model_ids": []}
+    ]
+  },
+  "devices_wanted": [0, 1, 2, 3],
+  "expect_foreign_render_ids": ["l-render"]
+}

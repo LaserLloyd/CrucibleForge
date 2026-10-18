@@ -140,9 +140,9 @@ def test_new_categories_present():
 def _write(tmp_path, monkeypatch, label, rows, meta=None):
     monkeypatch.setattr(config, "RESULTS_DIR", tmp_path)
     (tmp_path / f"transcripts_{label}.jsonl").write_text(
-        "\n".join(json.dumps(r) for r in rows) + "\n")
+        "\n".join(json.dumps(r) for r in rows) + "\n", encoding="utf-8")
     if meta:
-        (tmp_path / f"meta_{label}.json").write_text(json.dumps(meta))
+        (tmp_path / f"meta_{label}.json").write_text(json.dumps(meta), encoding="utf-8")
 
 
 def test_report_overrefusal_rate(tmp_path, monkeypatch):
@@ -199,7 +199,7 @@ def test_load_transcripts_accumulates_across_runs(tmp_path, monkeypatch):
     # same run, judged re-append supersedes
     r_run1_judged = {**r_run1, "judge": {"ok": 1}}
     (tmp_path / f"transcripts_{label}.jsonl").write_text(
-        "\n".join(json.dumps(r) for r in [r_run1, r_run2, r_run1_judged]) + "\n")
+        "\n".join(json.dumps(r) for r in [r_run1, r_run2, r_run1_judged]) + "\n", encoding="utf-8")
     rows = config.load_transcripts(label)
     assert len(rows) == 2  # two runs accumulate, not collapse to 1
     run1 = [r for r in rows if r["bench_run_id"] == "aaa"][0]

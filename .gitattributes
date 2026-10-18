@@ -1,6 +1,7 @@
-# Container files run inside Linux: a Windows checkout must never turn them
-# into CRLF (a CRLF shebang makes the entrypoint fail with "not found").
+# Files that run under a POSIX shell or inside Linux containers must stay LF on
+# every checkout: a CRLF shebang or hook makes bash fail with "not found" / "\r".
 *.sh text eol=lf
+scripts/hooks/* text eol=lf
 Dockerfile text eol=lf
 .dockerignore text eol=lf
 deploy/** text eol=lf

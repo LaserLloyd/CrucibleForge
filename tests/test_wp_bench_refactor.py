@@ -176,6 +176,7 @@ def test_acquire_lease_logs_the_lease_conflict_cause_not_d46(monkeypatch, caplog
     assert any("lease_conflict" in w and "D46" not in w for w in warnings)
 
 
+@pytest.mark.usefixtures("no_management_calls")
 def test_resident_fast_path_fetches_loaded_plan_only_once(monkeypatch):
     """WP-BENCH review M4: the resident fast path used to fetch the live
     plan once for its own ready-check and again inside _remember_plan — two

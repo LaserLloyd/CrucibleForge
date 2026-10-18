@@ -1,0 +1,15 @@
+{
+  "_note": "derived from client code (api.py classify_server_error, studioforge.py _retry_after): chat/load refusal while a lease covers the card",
+  "http_status": 507,
+  "headers": {"Retry-After": "30"},
+  "body": {
+    "error": {
+      "code": "gpu_leased",
+      "message": "the GPUs this request needs are inside a lease",
+      "studioforge": {
+        "retry_after_s": 30,
+        "lease": {"id": "lease-1", "holder": "clawforge", "holder_family": "clawforge", "kind": "render"}
+      }
+    }
+  }
+}

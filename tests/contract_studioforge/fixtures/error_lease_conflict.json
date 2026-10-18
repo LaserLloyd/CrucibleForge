@@ -1,0 +1,6 @@
+{
+  "_note": "derived from client code (studioforge.py _tier_refusal_reason): D46 / lease_conflict 409 carries no retry_after_s and is polled",
+  "http_status": 409,
+  "headers": {},
+  "body": {"error": {"code": "lease_conflict", "message": "lease 9f5 (clawforge) holds CUDA [1]"}}
+}

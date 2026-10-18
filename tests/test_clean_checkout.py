@@ -6,13 +6,13 @@ CI step that re-derives every gold answer exit 2 on every clean runner.
 """
 from __future__ import annotations
 
-import shutil
 import subprocess
 import sys
 from pathlib import Path
 
 import pytest
 
+from _hostenv import posix_bash
 from crucibleforge import cli
 from crucibleforge.config import ConfigError
 
@@ -72,17 +72,20 @@ def test_config_init_without_the_template_is_a_clean_error(monkeypatch, tmp_path
     assert not (tmp_path / "models.yaml").exists()
 
 
-@pytest.mark.skipif(shutil.which("bash") is None, reason="needs bash")
+@pytest.mark.skipif(posix_bash() is None,
+                    reason="needs a POSIX bash (on Windows, Git for Windows' bash; "
+                           "the System32 WSL launcher does not count)")
 def test_queue_script_requires_an_explicit_env_file(tmp_path):
     """No guessing a path under $HOME: the operator names the env file."""
     script = REPO / "scripts" / "queue-overnight.sh"
     env = {"PATH": "/usr/bin:/bin", "HOME": str(tmp_path)}
-    p = subprocess.run(["bash", str(script)], capture_output=True, text=True,
+    bash = posix_bash()
+    p = subprocess.run([bash, str(script)], capture_output=True, text=True, encoding="utf-8",
                        env=env, cwd=str(tmp_path))
     assert p.returncode == 2, p.stdout + p.stderr
     assert "CRUCIBLEFORGE_ENV_FILE" in p.stderr
 
-    p = subprocess.run(["bash", str(script)], capture_output=True, text=True,
+    p = subprocess.run([bash, str(script)], capture_output=True, text=True, encoding="utf-8",
                        env={**env, "CRUCIBLEFORGE_ENV_FILE": str(tmp_path / "nope.env")},
                        cwd=str(tmp_path))
     assert p.returncode == 2

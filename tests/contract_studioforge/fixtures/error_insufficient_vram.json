@@ -1,0 +1,12 @@
+{
+  "_note": "derived from client code (api.py classify_server_error; studioforge.py _fewer_slots_hint): genuinely full = no busy_models and no retry hint = terminal",
+  "http_status": 507,
+  "headers": {},
+  "body": {
+    "error": {
+      "code": "insufficient_vram",
+      "message": "does not fit; reduce parallel from 8 to 7 or shorten ctx",
+      "studioforge": {"suggestions": [{"mode": "all_gpus", "max_ctx_that_fits": 16384}]}
+    }
+  }
+}
