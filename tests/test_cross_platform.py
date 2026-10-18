@@ -19,6 +19,8 @@ from __future__ import annotations
 import builtins
 import json
 import logging
+import os
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -300,9 +302,109 @@ def test_cli_does_not_gate_read_only_commands(monkeypatch):
 def test_bwrap_path_unchanged_when_available(monkeypatch):
     """The fix must not alter the sandboxed command on Linux."""
     monkeypatch.setattr(graders, "_BWRAP", "/usr/bin/bwrap")
+    monkeypatch.setattr(graders, "_BWRAP_PROBES", {"/usr/bin/bwrap": (True, "")})
     cmd = graders._sandbox_cmd("/x/harness.py", "/x")
     assert cmd[0] == "/usr/bin/bwrap"
     assert "--unshare-all" in cmd and "--die-with-parent" in cmd
+
+
+# ------------------------------------------- bwrap present but unable to start
+
+def _fake_bwrap(tmp_path, monkeypatch, exit_code, message=""):
+    """Put a fake ``bwrap`` first on PATH that prints ``message`` to stderr and
+    exits with ``exit_code``; point the graders at it with a fresh probe cache."""
+    if sys.platform == "win32":
+        script = tmp_path / "bwrap.cmd"
+        body = "@echo off\r\n"
+        if message:
+            body += f"echo {message} 1>&2\r\n"
+        body += f"exit /b {exit_code}\r\n"
+        script.write_text(body, encoding="ascii")
+    else:
+        script = tmp_path / "bwrap"
+        body = "#!/bin/sh\n"
+        if message:
+            body += f"echo '{message}' >&2\n"
+        body += f"exit {exit_code}\n"
+        script.write_text(body, encoding="ascii")
+        script.chmod(0o755)
+    monkeypatch.setenv("PATH", str(tmp_path) + os.pathsep + os.environ.get("PATH", ""))
+    found = shutil.which("bwrap")
+    assert found and Path(found).parent == tmp_path
+    monkeypatch.setattr(graders, "_BWRAP", found)
+    monkeypatch.setattr(graders, "_BWRAP_PROBES", {})
+    monkeypatch.setattr(graders, "_warned_no_sandbox", False)
+    return found
+
+
+NAMESPACE_ERROR = "bwrap: No permissions to create new namespace"
+
+
+def test_bwrap_that_cannot_start_is_not_a_sandbox(tmp_path, monkeypatch):
+    _fake_bwrap(tmp_path, monkeypatch, 1, NAMESPACE_ERROR)
+    assert graders.sandbox_available() is False
+
+
+def test_failed_probe_without_the_flag_refuses_with_the_bwrap_error(tmp_path, monkeypatch):
+    _fake_bwrap(tmp_path, monkeypatch, 1, NAMESPACE_ERROR)
+    monkeypatch.setattr(graders, "ALLOW_UNSANDBOXED", False)
+    with pytest.raises(graders.SandboxUnavailable) as e:
+        graders.require_sandbox()
+    text = str(e.value)
+    assert NAMESPACE_ERROR in text
+    assert "cannot start" in text and graders.ALLOW_FLAG in text
+    with pytest.raises(graders.SandboxUnavailable):
+        graders._sandbox_cmd("/x/harness.py", "/x")
+
+
+def test_cli_exits_3_with_the_bwrap_error_when_the_probe_fails(tmp_path, monkeypatch, capsys):
+    from crucibleforge import cli
+    _fake_bwrap(tmp_path, monkeypatch, 1, NAMESPACE_ERROR)
+    monkeypatch.setattr(graders, "ALLOW_UNSANDBOXED", False)
+    monkeypatch.setattr(cli, "load_config", lambda *a, **kw: {"models": [], "providers": {}})
+    with pytest.raises(SystemExit) as e:
+        cli.main(["cases", "verify"])
+    assert e.value.code == 3
+    err = capsys.readouterr().err
+    assert NAMESPACE_ERROR in err and graders.ALLOW_FLAG in err
+
+
+def test_failed_probe_with_the_flag_runs_unsandboxed_and_warns_once(tmp_path, monkeypatch, caplog):
+    _fake_bwrap(tmp_path, monkeypatch, 1, NAMESPACE_ERROR)
+    monkeypatch.setattr(graders, "ALLOW_UNSANDBOXED", True)
+    graders.require_sandbox()   # must not raise
+    with caplog.at_level(logging.WARNING, logger="crucibleforge.graders"):
+        for _ in range(3):
+            cmd = graders._sandbox_cmd("/x/harness.py", "/x")
+    assert cmd == [sys.executable, "-I", "/x/harness.py"]
+    warnings = [r.getMessage() for r in caplog.records if r.levelno >= logging.WARNING]
+    assert len(warnings) == 1, warnings
+    assert "WITHOUT a sandbox" in warnings[0] and NAMESPACE_ERROR in warnings[0]
+
+
+def test_working_bwrap_passes_the_probe_and_keeps_the_sandboxed_command(tmp_path, monkeypatch):
+    found = _fake_bwrap(tmp_path, monkeypatch, 0)
+    monkeypatch.setattr(graders, "ALLOW_UNSANDBOXED", False)
+    assert graders.sandbox_available() is True
+    graders.require_sandbox()   # must not raise
+    cmd = graders._sandbox_cmd("/x/harness.py", "/x")
+    assert cmd[0] == found and "--unshare-all" in cmd
+
+
+def test_probe_runs_once_per_path(tmp_path, monkeypatch):
+    found = _fake_bwrap(tmp_path, monkeypatch, 0)
+    real_run = subprocess.run
+    calls = []
+
+    def counting_run(cmd, *a, **kw):
+        calls.append(cmd)
+        return real_run(cmd, *a, **kw)
+
+    monkeypatch.setattr(subprocess, "run", counting_run)
+    for _ in range(4):
+        graders.sandbox_available()
+    assert len(calls) == 1
+    assert calls[0] == [found, "--unshare-all", "--ro-bind", "/", "/", "true"]
 
 
 # ------------------------------------------------------------- the CI matrix
