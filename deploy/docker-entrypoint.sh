@@ -91,9 +91,14 @@ pre_upgrade_backup
 # ---- 4. first-start seed -----------------------------------------------------
 if [ ! -f "$CFG" ] && [ -f /app/models.example.yaml ]; then
     mkdir -p "$(dirname "$CFG")"
-    # '|' as the sed delimiter: URLs contain '/'.
+    # '|' as the sed delimiter: URLs contain '/'. Both spellings of loopback:
+    # the template's StudioForge entry says 127.0.0.1, the LM Studio one says
+    # localhost, and inside a container either one is the container itself
+    # (tests/test_deploy_seed.py applies these rules to the real template).
     sed -e "s|http://localhost:1234/v1|${LLM_BASE_URL}|g" \
+        -e "s|http://127.0.0.1:1234/v1|${LLM_BASE_URL}|g" \
         -e 's|http://localhost:|http://host.docker.internal:|g' \
+        -e 's|http://127.0.0.1:|http://host.docker.internal:|g' \
         /app/models.example.yaml > "$CFG"
     log "seeded $CFG (primary local provider -> ${LLM_BASE_URL})"
 fi

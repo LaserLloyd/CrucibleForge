@@ -48,8 +48,10 @@ Inside a container `localhost` is the container. The compose file maps
 engines the `host-gateway` entry in the compose file does), and the first start
 rewrites the template's local providers:
 
-* `http://localhost:1234/v1` becomes `$LLM_BASE_URL`
-* every other `http://localhost:PORT` becomes `http://host.docker.internal:PORT`
+* `http://localhost:1234/v1` and `http://127.0.0.1:1234/v1` (the LM Studio and
+  StudioForge-gateway examples) become `$LLM_BASE_URL`
+* every other `http://localhost:PORT` / `http://127.0.0.1:PORT` becomes
+  `http://host.docker.internal:PORT`
 
 An existing `/data/models.yaml` is never touched. To change a provider later,
 edit it in the GUI (Providers), or replace the file in the volume:
