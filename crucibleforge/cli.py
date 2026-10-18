@@ -596,6 +596,28 @@ _LmStudioGuard = _ProviderGuard  # back-compat name (GUI imports it)
 
 # --------------------------------------------------------------- commands
 
+# The documented env var for a StudioForge gateway key (models.example.yaml).
+DEFAULT_API_KEY_ENV = "STUDIOFORGE_API_KEY"
+
+
+def _auth_wall_note(cfg, p, code: int | None = None) -> str | None:
+    """One line when the server answered /models with 401/403, else None.
+
+    ``alive()`` deliberately counts such an answer as reachable (some gateways
+    refuse the listing yet serve completions), so without this note a gateway
+    that wants a key looks plainly UP."""
+    code = code or p.auth_wall()
+    if code not in (401, 403):
+        return None
+    env = (cfg["providers"].get(p.name) or {}).get("api_key_env") or ""
+    if env and p.api_key:
+        return (f"reachable, but it rejected the API key from ${env} "
+                f"(HTTP {code}): check the key")
+    name = env or DEFAULT_API_KEY_ENV
+    extra = "" if env else f" and add api_key_env: {name} to the provider in models.yaml"
+    return f"reachable, but it wants an API key: set ${name}{extra} (HTTP {code})"
+
+
 def cmd_status(args, cfg):
     from .providers import all_providers
     from .judge import select_judge, JudgeError
@@ -625,6 +647,9 @@ def cmd_status(args, cfg):
         pin = f" pin: ${pin_env} ({'set' if live_pin else 'NOT SET'})" if pin_env else ""
         print(f"  {p.name:14s} {p.type:11s} {p.base_url:45s} {state:4s} "
               f"conc={p.concurrency} {key}{keyset}{pin}")
+        wall = _auth_wall_note(cfg, p)
+        if wall:
+            print(f"    {wall}")
         try:
             loaded = p.loaded_models()
         except Exception as e:  # noqa: BLE001 — a missing lms CLI must not kill status
@@ -1141,6 +1166,10 @@ def cmd_models(args, cfg):
         prov = get_provider(cfg, args.provider)
         ids = sorted(prov.list_models(refresh=True))
         if not ids:
+            wall = _auth_wall_note(cfg, prov, prov.auth_wall(probe=True))
+            if wall:
+                print(f"{args.provider}: no model listing: {wall}")
+                return 1
             print(f"{args.provider}: no model listing (endpoint has no /models or key missing)")
             return 1
         known = {m["model_id"] for m in cfg["models"] if m["provider"] == args.provider}
