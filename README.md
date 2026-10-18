@@ -347,7 +347,17 @@ docker compose -f deploy/compose/compose.yml run --rm app cases verify
 docker compose -f deploy/compose/compose.yml run --rm app all --models <label> --fresh --yes
 ```
 
-Details, upgrades and removal: [`docs/deploy/docker.md`](docs/deploy/docker.md).
+**Your data survives updates.** `models.yaml` and `results/` live only in the `crucibleforge-data` volume (the image is
+read-only). `docker compose down` keeps it; **`down -v` deletes it**. A new image version copies the small state files to
+`/data/backups/` on first start. Back up (app stopped):
+
+```bash
+docker compose -f deploy/compose/compose.yml stop app
+docker run --rm -v crucibleforge_crucibleforge-data:/data:ro -v "$PWD":/backup alpine tar czf /backup/crucibleforge-data-$(date +%F).tgz -C /data .
+docker compose -f deploy/compose/compose.yml start app
+```
+
+Restore, bind-mount ownership (`PUID`/`PGID`), upgrades and removal: [`docs/deploy/docker.md`](docs/deploy/docker.md).
 
 ## What it measures
 

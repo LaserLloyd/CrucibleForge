@@ -21,7 +21,7 @@ services:
     hostname: crucibleforge
     restart: unless-stopped
     init: true                      # tini as PID 1: signal forwarding + zombie reaping
-    stop_grace_period: 30s          # a benchmark in flight gets time to release the rig lease
+    stop_grace_period: 60s          # a benchmark in flight gets time to release the rig lease
 
     ports:
       # 8777 is the GUI's own default. Loopback only unless you opt out.
@@ -50,6 +50,14 @@ services:
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
 
+    # Non-root by default. For a bind-mounted DATA_PATH owned by another UID see
+    # compose.puid.yml (starts as root only to chown, then drops to PUID:PGID).
+    user: "${RUN_AS:-1000:1000}"
+    # Everything stateful is on the /data volume; the image filesystem is
+    # read-only so a stray write fails loudly instead of vanishing on update.
+    read_only: true
+    tmpfs:
+      - /tmp
     cap_drop: [ALL]
     security_opt:
       - no-new-privileges:true
@@ -84,4 +92,5 @@ services:
         max-file: "3"
 
 volumes:
+  # `docker compose down` keeps this volume; `down -v` DELETES it.
   crucibleforge-data:

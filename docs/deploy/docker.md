@@ -103,17 +103,76 @@ To use `bwrap` instead, build with `--build-arg WITH_BWRAP=1`, run the
 container under a seccomp profile that allows user namespaces, and set
 `CRUCIBLEFORGE_ALLOW_UNSANDBOXED=0`.
 
-## Data, upgrades, removal
+## Your data, upgrades, backups
+
+**All state is in the `/data` volume** (`crucibleforge-data`, or the host directory
+in `DATA_PATH`): `models.yaml` and `results/` (transcripts, `runs.csv`, reports,
+`crucibleforge.log`). Nothing stateful is written inside the image: its root
+filesystem is mounted read-only (`/tmp` is a tmpfs), so a stray write fails
+loudly instead of disappearing on the next update.
+
+| Command | Effect on your data |
+|---|---|
+| `docker compose ... down` | stops and removes the container; **the volume is kept** |
+| `docker compose ... down -v` | **also deletes the volume: `models.yaml` and every result are gone** |
+| `docker compose ... up -d --build` after `git pull` | new image, same volume: data intact |
+
+The container gets 60 s to stop (`stop_grace_period`). A stop is SIGTERM and exits
+143 by design.
+
+### Upgrades
 
 ```bash
-git pull && docker compose -f deploy/compose/compose.yml up -d --build     # upgrade; /data is kept
-docker compose -f deploy/compose/compose.yml down                          # stop; /data is kept
-docker compose -f deploy/compose/compose.yml down -v                       # stop AND delete results + models.yaml
+git pull
+docker compose -f deploy/compose/compose.yml up -d --build
 ```
 
-A stop sends SIGTERM; the process exits with status 143 by design (the CLI
-turns SIGTERM into `SystemExit(128+15)` so lease-release handlers run), which
-is a normal stop, not a crash.
+On the first start of a new image version the entrypoint copies the small state
+files (`models.yaml`, `models.yaml.bak*`, and the top-level `results/*.csv|json|md`)
+to `/data/backups/<old>-to-<new>-<timestamp>/` and keeps the last 5. Transcripts
+(`transcripts_*.jsonl`, the large files) are not copied: use the volume backup
+below for those. The version compared is `<package version>-<VERSION build arg>`;
+release images set `VERSION`, so pass `--build-arg VERSION=...` (or `VERSION=` in
+`.env`) when building locally if you want a backup on every rebuild.
+
+### Back up and restore the volume
+
+Stop the app first so the copy is consistent. The volume is named
+`<project>_<volume>` = `crucibleforge_crucibleforge-data` (`docker volume ls`).
+
+```bash
+docker compose -f deploy/compose/compose.yml stop app
+docker run --rm -v crucibleforge_crucibleforge-data:/data:ro -v "$PWD":/backup alpine \
+    tar czf /backup/crucibleforge-data-$(date +%F).tgz -C /data .
+docker compose -f deploy/compose/compose.yml start app
+```
+
+Restore (replaces the volume's contents; the app must be down):
+
+```bash
+docker compose -f deploy/compose/compose.yml down
+docker run --rm -v crucibleforge_crucibleforge-data:/data -v "$PWD":/backup alpine \
+    sh -c 'rm -rf /data/* /data/.[!.]* && tar xzf /backup/crucibleforge-data-YYYY-MM-DD.tgz -C /data'
+docker compose -f deploy/compose/compose.yml up -d
+```
+
+(If you use `DATA_PATH` with a host directory, back that directory up with your
+usual tools instead, with the app stopped.)
+
+### Volume permissions (bind mounts)
+
+The image runs as UID/GID 1000. A named volume just works. A bind-mounted
+`DATA_PATH` must be writable by that user; if it is owned by someone else the
+container stops at once with a message saying so. Either `chown 1000:1000` it, or
+let the container fix it and run as your user:
+
+```bash
+PUID=$(id -u) PGID=$(id -g) docker compose \
+    -f deploy/compose/compose.yml -f deploy/compose/compose.puid.yml up -d
+```
+
+That override starts the container as root only to `chown` the data directory and
+drop to `PUID:PGID` (`setpriv`); the app process runs with no capabilities.
 
 ## Image
 

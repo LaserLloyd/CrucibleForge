@@ -104,6 +104,7 @@ ENV PATH="/app/.venv/bin:$PATH" \
     CRUCIBLEFORGE_CONFIG=/data/models.yaml \
     CRUCIBLEFORGE_RESULTS=/data/results \
     HOME=/data \
+    IMAGE_VERSION=${VERSION} \
     XDG_CONFIG_HOME=/data/.config \
     TMPDIR=/data/tmp
 
