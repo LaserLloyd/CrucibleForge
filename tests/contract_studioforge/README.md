@@ -5,10 +5,12 @@ CrucibleForge depends on, using the small JSON fixtures in `fixtures/`.
 
 **Provenance: every fixture is derived from the client code's expectations**
 (what `crucibleforge/api.py` and `crucibleforge/studioforge.py` read and branch
-on), not recorded from a live server. If a StudioForge change breaks one of
-these shapes, the matching test fails visibly in CrucibleForge's CI, and the
-StudioForge change has to be reverted or land together with an updated fixture
-and client.
+on), not recorded from a live server. They pin the CLIENT side: a CrucibleForge
+change that stops reading one of these shapes fails here. CrucibleForge's CI never
+talks to StudioForge, so a StudioForge change that alters a shape is NOT caught
+here unless StudioForge's own tests check these fixtures too (or they are
+re-recorded from a real gateway). When StudioForge changes one of these
+responses, update the fixture and the client together.
 
 | Fixture | What the client depends on |
 |---|---|

@@ -609,9 +609,14 @@ def _auth_wall_note(cfg, p, code: int | None = None) -> str | None:
     code = code or p.auth_wall()
     if code not in (401, 403):
         return None
-    env = (cfg["providers"].get(p.name) or {}).get("api_key_env") or ""
-    if env and p.api_key:
-        return (f"reachable, but it rejected the API key from ${env} "
+    pcfg = cfg["providers"].get(p.name) or {}
+    env = pcfg.get("api_key_env") or ""
+    literal = pcfg.get("api_key")
+    if not env and isinstance(literal, str) and literal.startswith("${") and literal.endswith("}"):
+        env = literal[2:-1]           # `api_key: ${VAR}` names its variable too
+    if p.api_key:
+        source = f"${env}" if env else "api_key in models.yaml"
+        return (f"reachable, but it rejected the API key from {source} "
                 f"(HTTP {code}): check the key")
     name = env or DEFAULT_API_KEY_ENV
     extra = "" if env else f" and add api_key_env: {name} to the provider in models.yaml"
@@ -1614,6 +1619,16 @@ def main(argv=None):
         except graders.SandboxUnavailable as e:
             print(f"sandbox: {e}", file=sys.stderr)
             sys.exit(3)
+        why = graders.unsandboxed_reason()
+        if why:
+            # require_sandbox() passed without a sandbox: the opt-in is in
+            # force. Say so now, on the terminal, before any work starts --
+            # not once in the log at the first coding case hours into a run.
+            # A bwrap that is installed but broken lands here too, which is
+            # easy to mistake for "I have the sandbox, the flag is a no-op".
+            log.warning("%s is in force and there is NO sandbox: %s. Coding cases will "
+                        "execute model-written code as this user, with network access "
+                        "and this user's files readable.", graders.ALLOW_FLAG, why)
 
     handler = {"status": cmd_status, "run": cmd_run, "judge": cmd_judge,
                "recover": cmd_recover, "report": cmd_report, "pairwise": cmd_pairwise, "all": cmd_all,

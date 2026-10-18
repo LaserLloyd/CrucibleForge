@@ -43,6 +43,21 @@ No case, grader or metric changed. `SUITE_VERSION` moves to 3.6.0 and the
   (`http://127.0.0.1:1234/v1`), not the panel port (8080), and shows
   `api_key_env`.
 - `SECURITY.md` added.
+- **Sandbox self-test.** A `bwrap` that is installed but cannot start (a
+  container, user namespaces blocked) is detected up front: the run is refused,
+  or with `--allow-unsandboxed` runs without it and says so on stderr before any
+  work starts. The self-test runs the exact sandbox a graded run uses (so a
+  `bwrap` that cannot mount `/proc` no longer passes it and then fails every
+  coding case), and graded code starts with a minimal environment: no provider
+  API keys, no management PIN, no GUI token. Not a measurement change: a
+  solution that passes in a working sandbox passes the same way.
+- `status` / `models discover` say when a gateway is reachable but answers
+  `/models` with 401/403, naming the variable to set (`api_key_env`, or the
+  `${VAR}` of an `api_key:` placeholder) or that the configured key was rejected.
+- Container: the PUID/PGID override starts for any UID (`setpriv
+  --clear-groups`; `--init-groups` needed a passwd entry the read-only image
+  cannot get); the first-start seed escapes `LLM_BASE_URL` for `sed` and is
+  written atomically.
 
 ## 3.5.1 — public-repo hygiene (2026-10-01)
 

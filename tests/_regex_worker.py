@@ -9,13 +9,15 @@ import re
 
 def serve(conn, adversarial):
     """Say "ready", then receive patterns until None; search each against every
-    adversarial input and reply "done"."""
+    adversarial input and reply "done". A pattern is a string (compiled with
+    re.I | re.M, as session checks are) or a ``(pattern, flags)`` pair."""
     conn.send("ready")
     while True:
-        pattern = conn.recv()
-        if pattern is None:
+        item = conn.recv()
+        if item is None:
             return
-        compiled = re.compile(pattern, re.I | re.M)
+        pattern, flags = item if isinstance(item, tuple) else (item, re.I | re.M)
+        compiled = re.compile(pattern, flags)
         for text in adversarial:
             for _ in compiled.finditer(text):
                 pass

@@ -15,7 +15,12 @@ so the two files cannot drift apart again without this failing.
 from __future__ import annotations
 
 import re
+import subprocess
 from pathlib import Path
+
+import pytest
+
+from _hostenv import posix_bash
 
 ROOT = Path(__file__).resolve().parent.parent
 ENTRYPOINT = ROOT / "deploy" / "docker-entrypoint.sh"
@@ -23,18 +28,20 @@ TEMPLATE = ROOT / "models.example.yaml"
 LLM_BASE_URL = "http://host.docker.internal:1234/v1"      # the compose default
 
 
-def _seed_rules() -> list[tuple[str, str]]:
+def _seed_rules(url: str = LLM_BASE_URL) -> list[tuple[str, str]]:
     """The ``-e 's|FROM|TO|g'`` expressions of the seed step, in script order."""
     text = ENTRYPOINT.read_text(encoding="utf-8")
     block = text.split("first-start seed", 1)[1].split("command + GUI token", 1)[0]
     rules = re.findall(r"""-e\s+["']s\|([^|]+)\|([^|]*)\|g["']""", block)
     assert rules, "no sed rewrite rules found in the seed step"
-    return [(a, b.replace("${LLM_BASE_URL}", LLM_BASE_URL)) for a, b in rules]
+    # ${url_sed} is LLM_BASE_URL escaped for sed; the compose default needs none
+    return [(a, b.replace("${url_sed}", url).replace("${LLM_BASE_URL}", url))
+            for a, b in rules]
 
 
-def _seeded_template() -> str:
+def _seeded_template(url: str = LLM_BASE_URL) -> str:
     out = TEMPLATE.read_text(encoding="utf-8")
-    for src, dst in _seed_rules():
+    for src, dst in _seed_rules(url):
         out = out.replace(src, dst)
     return out
 
@@ -65,4 +72,37 @@ def test_the_studioforge_gateway_entry_takes_llm_base_url():
     urls = _base_urls(_seeded_template())
     assert urls["llamacpp"] == LLM_BASE_URL
     assert urls["lmstudio"] == LLM_BASE_URL
+    assert urls["ollama"] == "http://host.docker.internal:11434/v1"
+
+
+@pytest.mark.skipif(posix_bash() is None, reason="needs a POSIX shell with sed")
+def test_llm_base_url_with_sed_metacharacters_is_seeded_verbatim(tmp_path):
+    """2026-10-18 second review: LLM_BASE_URL went into the sed replacement
+    unescaped -- a '&' re-inserted the matched text and a '|' ended the
+    expression. Runs the script's own escaping line and rewrite rule."""
+    url = "http://gw.example:1234/v1?a=1&b=2|c"
+    escape = next(line.strip() for line in ENTRYPOINT.read_text(encoding="utf-8").splitlines()
+                  if line.strip().startswith('url_sed="'))
+    script = tmp_path / "seed.sh"
+    script.write_text(
+        "set -eu\n"
+        f"{escape}\n"
+        "printf 'base_url: http://127.0.0.1:1234/v1\\n' | "
+        "sed -e \"s|http://127.0.0.1:1234/v1|${url_sed}|g\"\n",
+        encoding="utf-8", newline="\n")
+    out = subprocess.run([posix_bash(), str(script)], capture_output=True, text=True,
+                         encoding="utf-8", env={"PATH": "/usr/bin:/bin", "LLM_BASE_URL": url},
+                         timeout=30)
+    assert out.returncode == 0, out.stderr
+    assert out.stdout.strip() == f"base_url: {url}"
+
+
+def test_an_operators_loopback_llm_base_url_is_kept_verbatim():
+    """With host networking LLM_BASE_URL=http://127.0.0.1:1234/v1 is right. The
+    generic loopback rewrite used to run AFTER the substitution and turned it
+    into host.docker.internal (seen: log said 127.0.0.1:9, file said
+    host.docker.internal:9)."""
+    url = "http://127.0.0.1:9/v1"
+    urls = _base_urls(_seeded_template(url))
+    assert urls["llamacpp"] == url and urls["lmstudio"] == url
     assert urls["ollama"] == "http://host.docker.internal:11434/v1"

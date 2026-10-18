@@ -1,8 +1,9 @@
 """StudioForge contract tests: pin every StudioForge field CrucibleForge reads.
 
 See tests/contract_studioforge/README.md. The fixtures are derived from this
-client's code; a StudioForge change that breaks one must fail HERE, visibly,
-instead of silently changing a benchmark run.
+client's code; a client change that stops honouring one must fail HERE,
+visibly, instead of silently changing a benchmark run. (A StudioForge-side change
+is only caught if StudioForge checks the same fixtures -- see the README.)
 """
 from __future__ import annotations
 
