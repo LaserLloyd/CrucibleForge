@@ -312,6 +312,43 @@ models:
   `~/.openclaw/openclaw.json` (remote providers by default,
   `--include-local` for loopback ones). Literal keys are never copied.
 
+## Run in Docker
+
+No Python, no `uv`, no GPU on the machine that runs CrucibleForge; the models stay on your LLM server.
+
+```bash
+git clone https://github.com/LaserLloyd/CrucibleForge.git && cd CrucibleForge   # scrub-ok: public repo URL  (or: git pull)
+docker compose -f deploy/compose/compose.yml up -d
+docker compose -f deploy/compose/compose.yml logs app      # prints http://127.0.0.1:8777/?token=...  - open it
+```
+
+On the first start `models.yaml` is seeded into the `/data` volume with your local server pointed at
+`host.docker.internal`, so StudioForge or LM Studio running **on the Docker host** is found without editing.
+Optional config goes in `deploy/compose/.env` (copy `.env.example`):
+
+| Variable | Default | |
+|---|---|---|
+| `LLM_BASE_URL` | `http://host.docker.internal:1234/v1` | your local server, as the container sees it (seeds `models.yaml` once) |
+| `CRUCIBLEFORGE_GUI_TOKEN` | empty (random per start) | stable GUI access token |
+| `DEEPSEEK_API_KEY` / `OPENROUTER_API_KEY` / `OPENAI_API_KEY` | empty | hosted providers; names must match `api_key_env` |
+| `CRUCIBLEFORGE_ALLOW_UNSANDBOXED` | `1` | the container is the sandbox for model-written code ([why](docs/deploy/docker.md#coding-cases-and-the-sandbox)) |
+| `BIND_ADDR` / `HOST_PORT` | `127.0.0.1` / `8777` | host side of the port mapping |
+
+| Port | What |
+|---|---|
+| 8777 | web GUI (loopback only unless `BIND_ADDR` says otherwise; a token is required off-loopback) |
+
+The server on the host must listen on an address the container can reach (not only the host's `127.0.0.1`).
+
+Run the CLI inside the same image and volume:
+
+```bash
+docker compose -f deploy/compose/compose.yml run --rm app cases verify
+docker compose -f deploy/compose/compose.yml run --rm app all --models <label> --fresh --yes
+```
+
+Details, upgrades and removal: [`docs/deploy/docker.md`](docs/deploy/docker.md).
+
 ## What it measures
 
 | Category | Grading | Hard tier |

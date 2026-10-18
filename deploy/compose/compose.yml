@@ -1,0 +1,87 @@
+# CrucibleForge - Docker Compose
+#
+#   cp deploy/compose/.env.example deploy/compose/.env     # optional; every value has a default
+#   docker compose -f deploy/compose/compose.yml up -d
+#   docker compose -f deploy/compose/compose.yml logs app  # prints the GUI URL with its access token
+#
+# CLI inside the container (one-off, same volume):
+#   docker compose -f deploy/compose/compose.yml run --rm app status
+#   docker compose -f deploy/compose/compose.yml run --rm app all --models <label> --yes
+name: crucibleforge
+
+services:
+  app:
+    image: ${IMAGE:-crucibleforge:local}
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+      args:
+        VERSION: ${VERSION:-dev}
+    container_name: crucibleforge
+    hostname: crucibleforge
+    restart: unless-stopped
+    init: true                      # tini as PID 1: signal forwarding + zombie reaping
+    stop_grace_period: 30s          # a benchmark in flight gets time to release the rig lease
+
+    ports:
+      # 8777 is the GUI's own default. Loopback only unless you opt out.
+      - "${BIND_ADDR:-127.0.0.1}:${HOST_PORT:-8777}:8777"
+
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      TZ: ${TZ:-UTC}
+      # Where the local LLM server lives, as seen FROM THE CONTAINER. Used once,
+      # to seed /data/models.yaml on first start (edit that file afterwards).
+      LLM_BASE_URL: ${LLM_BASE_URL:-http://host.docker.internal:1234/v1}
+      # Stable GUI token (otherwise a fresh one is printed on every start).
+      CRUCIBLEFORGE_GUI_TOKEN: ${CRUCIBLEFORGE_GUI_TOKEN:-}
+      # Coding cases run model-written code. The app refuses to do that without
+      # bubblewrap, and bubblewrap needs user namespaces that Docker's default
+      # seccomp profile blocks - so inside the container the CONTAINER is the
+      # sandbox (non-root, no capabilities, no-new-privileges, resource limits).
+      # Set to 0 and see docs/deploy/docker.md if you supply your own seccomp
+      # profile that allows bwrap.
+      CRUCIBLEFORGE_ALLOW_UNSANDBOXED: ${CRUCIBLEFORGE_ALLOW_UNSANDBOXED:-1}
+      # Hosted-provider keys: name them in models.yaml (api_key_env) and pass
+      # them through .env. Listed here only so compose forwards them.
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+
+    # Resolve host.docker.internal on Linux engines too (Docker Desktop has it).
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+    volumes:
+      # models.yaml + results/ live here. Set DATA_PATH to a host directory
+      # (owned by UID 1000) to keep them somewhere you can browse.
+      - ${DATA_PATH:-crucibleforge-data}:/data
+
+    healthcheck:
+      start_period: 20s
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+    deploy:
+      resources:
+        limits:
+          memory: ${MEM_LIMIT:-2g}
+          cpus: "${CPU_LIMIT:-2.0}"
+        reservations:
+          memory: ${MEM_RESERVATION:-256m}
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  crucibleforge-data:
