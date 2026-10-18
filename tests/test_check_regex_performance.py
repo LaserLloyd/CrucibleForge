@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 import multiprocessing as mp
+import re
 from pathlib import Path
 
 import pytest
@@ -38,19 +39,37 @@ ADVERSARIAL = [
 TEXTBOOK_CATASTROPHIC = r"^(a+)+$"
 
 
+#: The flags each pattern is compiled with in the product, by where it lives:
+#: session ``checks`` -> session_checks.py (re.I | re.M); the IFEval ``regex``
+#: checks in ``grader_config.checks`` -> graders._check_one (no flags).
+SESSION_FLAGS = re.I | re.M
+GRADER_FLAGS = 0
+
+
 def _patterns():
+    """Every regex a case hands to ``re``: ``(pattern, flags)`` params.
+
+    2026-10-18 (second review): this used to read only the session ``checks``
+    and missed the 17 ``grader_config.checks`` regexes -- graded on the same
+    benchmark threads, under the same GIL, by graders._check_one.
+    """
     out = []
     for f in sorted((REPO / "cases").glob("*.json")):
         for c in json.loads(f.read_text(encoding="utf-8")):
             for k in c.get("checks") or []:
                 if isinstance(k.get("pattern"), str):
-                    out.append(pytest.param(k["pattern"], id=f"{c['id']}:{k['id']}"))
+                    out.append(pytest.param((k["pattern"], SESSION_FLAGS),
+                                            id=f"{c['id']}:{k['id']}"))
+            for i, k in enumerate((c.get("grader_config") or {}).get("checks") or []):
+                if isinstance(k, dict) and isinstance(k.get("pattern"), str):
+                    out.append(pytest.param((k["pattern"], GRADER_FLAGS),
+                                            id=f"{c['id']}:grader-{k.get('id') or i}"))
     return out
 
 
-def _search_all(pattern: str) -> None:
-    import re
-    p = re.compile(pattern, re.I | re.M)
+def _search_all(item) -> None:
+    pattern, flags = item if isinstance(item, tuple) else (item, SESSION_FLAGS)
+    p = re.compile(pattern, flags)
     for s in ADVERSARIAL:
         for _ in p.finditer(s):
             pass
@@ -120,6 +139,8 @@ def test_check_regexes_are_not_catastrophic_without_fork():
     """The same guarantee as the fork version, on platforms with no fork() (Windows)."""
     patterns = [p.values[0] for p in _patterns()]
     assert patterns, "no check patterns found - the cases directory moved?"
+    assert any(flags == GRADER_FLAGS for _, flags in patterns), \
+        "no grader_config.checks regexes collected - the case schema moved?"
     slow = _slow_patterns_spawn(patterns)
     assert not slow, (f"{len(slow)} regex(es) took > {DEADLINE_S}s on adversarial input "
                       f"(catastrophic backtracking): {slow[:3]}")
