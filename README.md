@@ -1,6 +1,6 @@
 # CrucibleForge — an LLM capability benchmark with a real hard tier
 
-LLM benchmark suite with verifiable grading. 261 cases across math, reasoning, coding, tool-use and long-context, 158 of them hard-tier; brute-force verifiers and executed reference solutions instead of vibes; GPU leasing so a benchmark run can't be evicted mid-flight.
+LLM benchmark suite with verifiable grading. 276 cases across math, reasoning, coding, tool-use and long-context, 166 of them hard-tier; brute-force verifiers and executed reference solutions instead of vibes; GPU leasing so a benchmark run can't be evicted mid-flight.
 
 CrucibleForge ranks language models on the things that decide whether a model can
 actually do a job: **hard reasoning and math with verifiable answers, coding
@@ -10,7 +10,7 @@ and speed** — against **any OpenAI-compatible endpoint**: local (LM Studio,
 Ollama, llama.cpp / llama-server, vLLM, StudioForge) or hosted (DeepSeek,
 OpenRouter, OpenAI, Groq, Together, Mistral, Open WebUI …).
 
-* **Hard tier that doesn't ceiling.** 261 cases, **158 of them hard**
+* **Hard tier that doesn't ceiling.** 276 cases, **166 of them hard**
   (`crucibleforge cases list` counts them): competition-style math
   (integer answers, every one re-derived by a brute-force `verify` expression),
   logic/state-tracking puzzles with unique solutions, coding problems whose
@@ -37,7 +37,7 @@ OpenRouter, OpenAI, Groq, Together, Mistral, Open WebUI …).
   read the report, drill into every failed row (prompt, response, reasoning,
   judge note), manage providers/models/judge, discover model ids, test
   connections. Stdlib server + vanilla JS, no CDN, no build step.
-* **Suite revision stamp** on every row (`3.4.0+<hash of the case prompts>` — grading-only `checks` excluded),
+* **Suite revision stamp** on every row (`3.6.0+<hash of the case prompts>` — grading-only `checks` excluded),
   plus a separate **judge fingerprint** and the identity of the judge that
   actually scored each row: the report flags results from a different test set
   or a different judge instead of quietly ranking them side by side.
@@ -77,7 +77,7 @@ Cases that every competent model passes or no model passes stay in the suite
 files but are not in the benchmark. Budgets are not cut: per-category
 `max_tokens`, thinking models ×4 up to 24576.
 
-**Chat** (suite 3.4.0; the full rationale, rubric sources and time budget are
+**Chat** (suite 3.6.0; the full rationale, rubric sources and time budget are
 in [`docs/CHAT.md`](docs/CHAT.md)) — harder, denser rows built from published
 RP / erotica / fiction-judging guides (RP-Bench, EQ-Bench Creative Writing,
 lechmazur's writing benchmark, Fiction.liveBench, Jericho Writers, …):
@@ -230,6 +230,14 @@ variable already in the environment wins.
 
 ## Installing
 
+### Windows
+
+The test suite is green on Windows. Coding cases need `--allow-unsandboxed` because `bwrap` is not available;
+`--detach` is systemd-only; the rig lock (`results/.rig.lock`) is not enforced on Windows. Point the registry at
+the StudioForge **gateway**, `http://127.0.0.1:1234/v1` (the panel on :8080 does not serve `/v1`). For a gateway
+that requires a key, set `api_key_env` in `models.yaml` to the name of the environment variable holding it.
+
+
 **The supported install is a clone plus `uv sync`** — run CrucibleForge from
 the checkout. A wheel/PyPI install is *not* supported yet: the case set
 (`cases/`), the profiles (`profiles/`) and `models.example.yaml` live outside
@@ -375,7 +383,7 @@ Restore, bind-mount ownership (`PUID`/`PGID`), upgrades and removal: [`docs/depl
 | **planning** | judge 0–10 | decomposition / ordering / completeness / verification / risks |
 | **perf** | server `usage` + stream timing | TTFT, gen tok/s (median, min–max), prompt-ingest tok/s, reasoning tokens, load time, viability floor |
 
-The whole suite (261 cases) stays runnable (`run --categories … --profile`
+The whole suite (276 cases) stays runnable (`run --categories … --profile`
 of your own), but the board scores only the `bench` selection above. Speed is
 only comparable between models on the same provider/host.
 
