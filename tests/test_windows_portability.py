@@ -55,6 +55,22 @@ def test_every_text_read_and_write_names_its_encoding():
     assert not offenders, "text I/O without encoding= (cp1252 on Windows):\n" + "\n".join(offenders)
 
 
+def test_scrub_check_survives_a_cp1252_console():
+    """The privacy scanner (and the git hooks that call it) must give a verdict
+    on a default Windows console. 2026-10-18 review: it scanned the tree and then
+    died printing its own check-mark (UnicodeEncodeError, cp1252)."""
+    import os
+    import subprocess
+    import sys
+
+    env = {**os.environ, "PYTHONIOENCODING": "cp1252", "PYTHONUTF8": "0"}
+    p = subprocess.run([sys.executable, str(ROOT / "scripts" / "scrub_check.py"), "--selftest"],
+                       capture_output=True, text=True, encoding="utf-8", errors="replace",
+                       env=env, cwd=str(ROOT))
+    assert "UnicodeEncodeError" not in p.stdout + p.stderr, p.stderr[-800:]
+    assert p.returncode == 0, p.stdout[-800:] + p.stderr[-800:]
+
+
 def test_shell_scripts_are_kept_lf_by_gitattributes():
     attrs = (ROOT / ".gitattributes").read_text(encoding="utf-8")
     assert "*.sh text eol=lf" in attrs and "scripts/hooks/*" in attrs
