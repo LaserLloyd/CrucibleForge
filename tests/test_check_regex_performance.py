@@ -25,7 +25,17 @@ ADVERSARIAL = [
     "w " * 20000,                           # one very long line
     "line of words here\n\n" * 400,         # many paragraphs
     ("word, " * 3000) + "\n" * 5,
+    # 2026-10-18 review: the inputs above never trip a nested quantifier -- the
+    # textbook ``^(a+)+$`` ran them all in 0.5 ms. A long run of one letter that
+    # then fails to match is what makes ``(x+)+``, ``(x|xx)+`` and friends
+    # explode (2^n ways to split the run); 40 letters is minutes.
+    "a" * 40 + "!",
+    ("a" * 40 + "!\n") * 50,
 ]
+
+#: A pattern every regex engine without memoisation takes exponential time on.
+#: The guards below must report it, or they prove nothing (see the meta-tests).
+TEXTBOOK_CATASTROPHIC = r"^(a+)+$"
 
 
 def _patterns():
@@ -65,18 +75,16 @@ def test_check_regex_is_not_catastrophic(pattern):
     assert proc.exitcode == 0
 
 
-def test_check_regexes_are_not_catastrophic_without_fork():
-    """The same guarantee on platforms with no fork() (Windows).
+def _slow_patterns_spawn(patterns: list[str]) -> list[str]:
+    """The patterns in *patterns* that blow DEADLINE_S on the adversarial inputs.
 
-    One persistent ``spawn``-ed worker takes the patterns in turn, so the 2 s
+    One persistent ``spawn``-ed worker takes the patterns in turn, so the
     deadline measures the regex, not interpreter start-up. A pattern that blows
-    the deadline gets the worker killed and replaced; every offender is reported.
+    the deadline gets the worker killed and replaced; every offender is returned.
     """
     import _regex_worker
 
     ctx = mp.get_context("spawn")
-    patterns = [p.values[0] for p in _patterns()]
-    assert patterns, "no check patterns found - the cases directory moved?"
 
     def start():
         parent, child = ctx.Pipe()
@@ -105,5 +113,37 @@ def test_check_regexes_are_not_catastrophic_without_fork():
             proc.join(5)
             if proc.is_alive():
                 proc.kill()
+    return slow
+
+
+def test_check_regexes_are_not_catastrophic_without_fork():
+    """The same guarantee as the fork version, on platforms with no fork() (Windows)."""
+    patterns = [p.values[0] for p in _patterns()]
+    assert patterns, "no check patterns found - the cases directory moved?"
+    slow = _slow_patterns_spawn(patterns)
     assert not slow, (f"{len(slow)} regex(es) took > {DEADLINE_S}s on adversarial input "
                       f"(catastrophic backtracking): {slow[:3]}")
+
+
+def test_the_spawn_guard_really_catches_a_catastrophic_pattern():
+    """A guard that passes everything is worse than none: the textbook
+    ``^(a+)+$`` must be reported, and a harmless neighbour must not."""
+    assert _slow_patterns_spawn([TEXTBOOK_CATASTROPHIC, r"^a+$"]) == [TEXTBOOK_CATASTROPHIC]
+
+
+@pytest.mark.skipif(not FORK, reason="needs the 'fork' start method (POSIX)")
+def test_the_fork_guard_really_catches_a_catastrophic_pattern():
+    """Same proof for the fork version: the child must still be running at the
+    deadline on ``^(a+)+$`` (it is killed), and finish at once on ``^a+$``."""
+    ctx = mp.get_context("fork")
+    proc = ctx.Process(target=_search_all, args=(TEXTBOOK_CATASTROPHIC,))
+    proc.start()
+    proc.join(DEADLINE_S)
+    hung = proc.is_alive()
+    proc.kill()
+    proc.join()
+    assert hung, "the adversarial inputs no longer trip a nested quantifier"
+    ok = ctx.Process(target=_search_all, args=(r"^a+$",))
+    ok.start()
+    ok.join(DEADLINE_S)
+    assert not ok.is_alive() and ok.exitcode == 0
