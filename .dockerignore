@@ -14,6 +14,8 @@ build
 # operator-local, possibly private: never into an image layer
 models.yaml
 models.yaml.bak*
+gui_token
+RESET_LOGIN
 results
 runs
 cases/private

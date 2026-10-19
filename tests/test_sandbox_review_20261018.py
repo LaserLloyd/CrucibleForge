@@ -8,7 +8,7 @@
    (provider API keys, the GUI token). The unsandboxed path has the network.
 3. When the opt-in is in force and there is no working sandbox, the CLI says
    so before any work starts, not once at the first coding case.
-4. Rows stamped 3.5.1 stay on the board under 3.6.0 (same case hash).
+4. Rows stamped 3.5.1 / 3.6.0 stay on the board under 3.7.0 (same case hash).
 
 Fake ``bwrap`` executables only; nothing here creates a namespace.
 """
@@ -146,11 +146,11 @@ def test_cli_is_silent_when_the_sandbox_works(monkeypatch, capsys):
     assert "NO sandbox" not in _run_verify(capsys)
 
 
-# ------------------------------------------- 4. 3.6.0 keeps the 3.5.1 rows
+# ------------------------------------------- 4. 3.7.0 keeps the 3.5.1 / 3.6.0 rows
 
-def test_rows_stamped_3_5_1_are_current_under_3_6_0():
+def test_rows_stamped_3_5_1_and_3_6_0_are_current_under_3_7_0():
     if version.cases_hash() != "36a60ec6":
         pytest.skip("case set moved past 36a60ec6; the equivalence key must move with it")
     revs = version.current_revisions({})
-    assert version.SUITE_VERSION == "3.6.0"
-    assert {"3.6.0+36a60ec6", "3.5.1+36a60ec6", "3.5.0+d2d09bda"} <= revs
+    assert version.SUITE_VERSION == "3.7.0"
+    assert {"3.7.0+36a60ec6", "3.6.0+36a60ec6", "3.5.1+36a60ec6", "3.5.0+d2d09bda"} <= revs

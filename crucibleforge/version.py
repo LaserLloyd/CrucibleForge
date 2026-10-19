@@ -28,7 +28,7 @@ from pathlib import Path
 
 # Bump for notable harness/metric changes (semver). The content-hash tracks
 # test-content changes automatically on top of this.
-SUITE_VERSION = "3.6.0"
+SUITE_VERSION = "3.7.0"
 
 _ROOT = Path(__file__).resolve().parent.parent
 _CASES_DIR = _ROOT / "cases"
@@ -104,6 +104,11 @@ _EQUIVALENT_STAMPS["36a60ec6"] = (_EQUIVALENT_STAMPS["d2d09bda"]
 # port fix. The case set still hashes to 36a60ec6, so the 3.5.1 stamp of that
 # same set means exactly what 3.6.0 means and no stored board row goes stale.
 _EQUIVALENT_STAMPS["36a60ec6"] |= {"3.5.1+36a60ec6"}
+#
+# 3.7.0 (2026-10-19, `gui token show|rotate` + RESET_LOGIN recovery): no case,
+# grader or metric changed. Same case set (36a60ec6), so the 3.6.0 stamp of it
+# means exactly what 3.7.0 means and no stored board row goes stale.
+_EQUIVALENT_STAMPS["36a60ec6"] |= {"3.6.0+36a60ec6"}
 
 
 def _hash_case_file(h, p: Path) -> None:

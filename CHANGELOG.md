@@ -6,8 +6,32 @@ was ever published as Gauntlet, so there is no migration to do — the entries
 below are kept because the engineering they record is real, not to narrate a
 rename.
 
-## Unreleased
+## 3.7.0 — GUI token management and lockout recovery (2026-10-19)
 
+No case, grader or metric changed. `SUITE_VERSION` moves to 3.7.0 with the
+package and the 3.6.0 stamp of the same case set (`36a60ec6`) is registered as
+equivalent in `_EQUIVALENT_STAMPS`, so no stored board row goes stale.
+
+CrucibleForge has no users or passwords; its one login is the GUI access
+token, and until now a lost token meant editing process arguments or compose
+files. New:
+
+- **`crucibleforge gui token show | rotate [--token-stdin]`.** The token is
+  stored in `<data dir>/gui_token` (mode 0600; the data dir is the folder of
+  `models.yaml`, printed on every call). `gui` start-up picks `--token`, then
+  `CRUCIBLEFORGE_GUI_TOKEN`, then the file. The token is never a command-line
+  argument for the new verbs (`--token-stdin` reads it from stdin). They work
+  even when `models.yaml` itself is invalid. Docker form:
+  `docker compose exec app crucibleforge gui token show`.
+- **`<data dir>/RESET_LOGIN` sentinel.** Read once, at `gui` start-up and before
+  the port is bound, by someone with filesystem access to the data dir: an
+  empty file makes a random new token, a file with text uses it. It is deleted
+  first (an undeletable, oversized, symlinked or malformed sentinel is never
+  acted on), so it cannot replay; one log line names the file, never the
+  token. No HTTP endpoint touches it (pinned by a structural test).
+- README "Accounts and lockout recovery" and the Docker docs have copy-paste
+  commands for Windows, macOS, Linux and Docker. `gui_token` and `RESET_LOGIN`
+  are git- and docker-ignored.
 - **GUI "Judge pending rows" uses the benchmark's judge.** `/api/judge` passed
   no judge, so `run_judge` walked `judge.candidates` and scored the rows with
   a model whose verdicts do not count on the board; it now takes the bench

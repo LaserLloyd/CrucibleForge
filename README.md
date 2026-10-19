@@ -49,7 +49,7 @@ OpenRouter, OpenAI, Groq, Together, Mistral, Open WebUI …).
   read the report, drill into every failed row (prompt, response, reasoning,
   judge note), manage providers/models/judge, discover model ids, test
   connections. Stdlib server + vanilla JS, no CDN, no build step.
-* **Suite revision stamp** on every row (`3.6.0+<hash of the case prompts>` — grading-only `checks` excluded),
+* **Suite revision stamp** on every row (`3.7.0+<hash of the case prompts>` — grading-only `checks` excluded),
   plus a separate **judge fingerprint** and the identity of the judge that
   actually scored each row: the report flags results from a different test set
   or a different judge instead of quietly ranking them side by side.
@@ -89,7 +89,7 @@ Cases that every competent model passes or no model passes stay in the suite
 files but are not in the benchmark. Budgets are not cut: per-category
 `max_tokens`, thinking models ×4 up to 24576.
 
-**Chat** (suite 3.6.0; the full rationale, rubric sources and time budget are
+**Chat** (suite 3.7.0; the full rationale, rubric sources and time budget are
 in [`docs/CHAT.md`](docs/CHAT.md)) — harder, denser rows built from published
 RP / erotica / fiction-judging guides (RP-Bench, EQ-Bench Creative Writing,
 lechmazur's writing benchmark, Fiction.liveBench, Jericho Writers, …):
@@ -401,7 +401,7 @@ Optional settings go in `deploy/compose/.env` (copy `.env.example`):
 | Variable | Default | |
 |---|---|---|
 | `LLM_BASE_URL` | `http://host.docker.internal:1234/v1` | your local server as the container sees it (seeds `models.yaml` once; later edit it in the GUI) |
-| `CRUCIBLEFORGE_GUI_TOKEN` | empty (random per start) | stable GUI access token |
+| `CRUCIBLEFORGE_GUI_TOKEN` | empty (`/data/gui_token`, else random per start) | stable GUI access token; lost it? see [Accounts and lockout recovery](#accounts-and-lockout-recovery) |
 | `DEEPSEEK_API_KEY` / `OPENROUTER_API_KEY` / `OPENAI_API_KEY` | empty | hosted providers; names must match `api_key_env` |
 | any other key, e.g. `STUDIOFORGE_API_KEY` | not set | add the line to `.env`, then set `api_key_env: STUDIOFORGE_API_KEY` on that provider in the GUI (Providers) |
 | `CRUCIBLEFORGE_ALLOW_UNSANDBOXED` | `1` | the container is the sandbox for model-written code ([why](docs/deploy/docker.md#coding-cases-and-the-sandbox)) |
@@ -540,6 +540,69 @@ pass one; open the printed URL once and a cookie carries it. State-changing
 calls are same-origin only. The GUI runs the same code paths as the CLI (a
 run is a background thread; **Stop** finishes the in-flight case).
 
+`crucibleforge gui token show|rotate` manage a stored token (`<data dir>/gui_token`); a `RESET_LOGIN` file recovers a lost one —
+see [Accounts and lockout recovery](#accounts-and-lockout-recovery).
+
+## Accounts and lockout recovery
+
+CrucibleForge has **no user accounts and no password database**. Its one login is the **GUI access token**: required when the GUI is
+reachable from another machine, optional on `127.0.0.1`. Provider API keys are not stored by the app at all (`api_key_env` in
+`models.yaml` names an environment variable), so there is nothing to reset for them. The CLI itself has no login.
+
+**Where the token lives.** In the *data directory*, the folder that holds `models.yaml` and `results/`, as `gui_token` (one line, mode 0600).
+`crucibleforge config` prints the path of `models.yaml`; its folder is the data dir. Every `gui token` command prints the data dir it acts on.
+
+| Install | Data dir |
+|---|---|
+| Native, from a clone | the checkout (`./models.yaml`), or `~/.config/crucibleforge/` (`%USERPROFILE%\.config\crucibleforge` on Windows; `$XDG_CONFIG_HOME` is honoured) |
+| Docker Compose | `/data` inside the container: the named volume `crucibleforge-data` (host path: `docker volume inspect crucibleforge_crucibleforge-data`), or your `DATA_PATH` bind mount. On Docker Desktop (Windows, macOS) a named volume lives inside the VM, so use the `exec` commands below rather than the host path |
+
+The GUI picks its token in this order: `--token`, then `CRUCIBLEFORGE_GUI_TOKEN`, then `gui_token`; off-loopback with none of those it
+prints a fresh random one on every start. A token must be 12-256 characters of `A-Z a-z 0-9 . _ ~ -`.
+
+**Show, rotate or set the token** (run from the clone for native installs; add `--config <path>` if you keep `models.yaml` elsewhere):
+
+```bash
+uv run crucibleforge gui token show                       # prints the token and where it comes from
+uv run crucibleforge gui token rotate                     # new random token -> <data dir>/gui_token
+printf '%s\n' 'a-token-you-chose-123' | uv run crucibleforge gui token rotate --token-stdin   # Linux / macOS
+docker compose -f deploy/compose/compose.yml exec app crucibleforge gui token show           # Docker
+docker compose -f deploy/compose/compose.yml exec app crucibleforge gui token rotate         # Docker
+```
+
+```powershell
+uv run crucibleforge gui token show                       # Windows (PowerShell)
+uv run crucibleforge gui token rotate
+'a-token-you-chose-123' | uv run crucibleforge gui token rotate --token-stdin
+```
+
+A running GUI keeps the token it started with: **restart it** (`docker compose -f deploy/compose/compose.yml restart app`, or stop and
+start `crucibleforge gui`) and the old token stops working. A stored token also applies on `127.0.0.1`, so rotating once turns the token on
+there too. If `CRUCIBLEFORGE_GUI_TOKEN` is set (Docker: `deploy/compose/.env`) it wins over the file; change or remove it there instead.
+
+**Locked out, with filesystem access only** (the token is lost and you cannot run a command): create a file named `RESET_LOGIN` in the data
+dir and start (or restart) the GUI. At start-up, before the port is opened, CrucibleForge deletes the file, writes a new token to
+`gui_token` and logs one line (`login reset from RESET_LOGIN: ...`, never the token). An empty file means "make a random token"; a file
+containing text uses that text as the token. A file it cannot use or cannot delete is removed or ignored with a logged reason, never
+acted on twice. Then read the token with `gui token show`, or from the URL the GUI prints at start.
+
+```bash
+cd <data dir> && : > RESET_LOGIN                                   # Linux / macOS (random token)
+printf '%s\n' 'a-token-you-chose-123' > RESET_LOGIN                # Linux / macOS (chosen token)
+docker compose -f deploy/compose/compose.yml exec app sh -c ': > /data/RESET_LOGIN'    # Docker
+docker compose -f deploy/compose/compose.yml restart app
+docker compose -f deploy/compose/compose.yml exec app crucibleforge gui token show
+```
+
+```powershell
+cd <data dir>; New-Item RESET_LOGIN -ItemType File                  # Windows (random token)
+Set-Content -NoNewline RESET_LOGIN 'a-token-you-chose-123'         # Windows (chosen token)
+```
+
+Only `gui_token` is changed. `models.yaml`, `results/`, the case files and every provider setting are kept. The sentinel is read by the
+`crucibleforge gui` start-up code only; no HTTP request can create, read or trigger it (`tests/test_accounts_20261019.py` pins this), so
+a reset needs the ability to write into the data dir, which is the same access as reading the token file.
+
 ## Design notes worth knowing
 
 * **Thinking models** — graders and the judge read the *content* channel,
@@ -650,7 +713,7 @@ scripts/             queue-overnight.sh (reference campaign wrapper),
                      clawforge_comfy.py (free rig VRAM before a phase),
                      scrub_check.py + hooks/ (see Publishing, below)
 docs/OPENCLAW.md     driving CrucibleForge from an agent framework
-CHANGELOG.md         release history (latest: 3.6.0)
+CHANGELOG.md         release history (latest: 3.7.0)
 ```
 
 `uv run pytest` — no network needed. `uv run crucibleforge cases list|verify`.

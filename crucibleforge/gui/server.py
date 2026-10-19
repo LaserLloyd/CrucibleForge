@@ -28,6 +28,12 @@ host REQUIRES a token (auto-generated when omitted). The token is presented
 once as ?token= (sets an HttpOnly SameSite=Strict cookie) or as the
 X-CrucibleForge-Token header. State-changing POSTs additionally require a
 same-origin request (Sec-Fetch-Site / Origin) — fail closed.
+
+The token can also be stored in <data dir>/gui_token (`crucibleforge gui token
+show|rotate`) and reset from the filesystem with a RESET_LOGIN sentinel file
+read once at start (accounts.py). No HTTP endpoint touches either: the token
+can only be changed by someone who can run a command or write a file on the
+machine.
 """
 from __future__ import annotations
 
@@ -46,6 +52,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
+from .. import accounts
 from .. import config as cfgmod
 from ..config import ConfigError, load_cases, load_config, resolve_models, save_config
 from .markdown import md_to_html
@@ -676,6 +683,18 @@ class Handler(BaseHTTPRequestHandler):
 def serve(cfg_path: str | None, host: str = "127.0.0.1", port: int = 8777,
           token: str | None = None, open_browser: bool = True) -> int:
     loopback = host in ("127.0.0.1", "localhost", "::1")
+    # Lockout recovery + the stored token (crucibleforge/accounts.py). Done
+    # here, once, before the socket exists: no request can reach this code.
+    data_dir = accounts.data_dir_for(cfg_path)
+    note = accounts.consume_reset_sentinel(data_dir)
+    if note:
+        log.warning(note)
+        print(note)
+    if not token:
+        token, source = accounts.effective_token(data_dir)
+        if token:
+            where = f"${accounts.ENV_TOKEN}" if source == "env" else str(accounts.token_path(data_dir))
+            print(f"GUI access token from {where} (change it: crucibleforge gui token rotate)")
     if not loopback and not token:
         token = secrets.token_urlsafe(24)
         print("non-loopback bind: generated access token (pass it as ?token=…)")
