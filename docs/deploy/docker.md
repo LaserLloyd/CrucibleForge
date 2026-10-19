@@ -8,11 +8,13 @@ the models run on your LLM server, not in this container.
 ```bash
 git clone https://github.com/LaserLloyd/CrucibleForge.git && cd CrucibleForge   # scrub-ok: public repo URL
 docker compose -f deploy/compose/compose.yml up -d
-docker compose -f deploy/compose/compose.yml logs app       # prints the GUI URL (with its access token)
+docker compose -f deploy/compose/compose.yml logs app       # prints the GUI URL (with its access token on the first start; once a token is stored or set, read it with `exec app crucibleforge gui token show`)
 ```
 
 Open the printed `http://127.0.0.1:8777/?token=...` URL once; a cookie carries
-the token afterwards.
+the token afterwards. Only a token generated on that start appears in the log; one you configured
+(`CRUCIBLEFORGE_GUI_TOKEN`) or stored (`gui token rotate`) is never logged, so read it with
+`docker compose -f deploy/compose/compose.yml exec app crucibleforge gui token show`.
 
 ## Ports
 
@@ -31,7 +33,7 @@ value has a default).
 | Variable | Default | Meaning |
 |---|---|---|
 | `LLM_BASE_URL` | `http://host.docker.internal:1234/v1` | Your local OpenAI-compatible server (StudioForge, LM Studio) **as seen from the container**. Used once, to seed `/data/models.yaml` on the first start. |
-| `CRUCIBLEFORGE_GUI_TOKEN` | empty | Stable GUI access token. Empty = a fresh one is printed on every start. |
+| `CRUCIBLEFORGE_GUI_TOKEN` | empty | Stable GUI access token; wins over `/data/gui_token`. Empty = use `/data/gui_token` if it exists, else a fresh one is printed on every start. See "Accounts and lockout recovery". |
 | `DEEPSEEK_API_KEY`, `OPENROUTER_API_KEY`, `OPENAI_API_KEY` | empty | Hosted-provider keys. The names must match `api_key_env` in `models.yaml`. Keys are never written to `models.yaml`. |
 | `CRUCIBLEFORGE_ALLOW_UNSANDBOXED` | `1` | See "Coding cases and the sandbox". |
 | `BIND_ADDR` / `HOST_PORT` | `127.0.0.1` / `8777` | Host side of the port mapping. |
@@ -40,6 +42,40 @@ value has a default).
 
 Also honoured, unchanged from a native install: `CRUCIBLEFORGE_CONFIG`,
 `CRUCIBLEFORGE_RESULTS`, `CRUCIBLEFORGE_ENV_FILE`, `CRUCIBLEFORGE_NO_PRIVATE`.
+
+## Accounts and lockout recovery
+
+The GUI's access token is the only login (no users, no passwords; provider keys
+are environment variables). Everything stateful is in `/data`, so the token
+lives at `/data/gui_token`, on the same volume as `models.yaml`.
+
+```bash
+export COMPOSE_FILE=deploy/compose/compose.yml    # PowerShell: $env:COMPOSE_FILE = 'deploy/compose/compose.yml'
+docker compose exec app crucibleforge gui token show      # the token, the data dir it used, and its source
+docker compose exec app crucibleforge gui token rotate    # new random token -> /data/gui_token
+printf '%s\n' 'a-token-you-chose-123' | docker compose exec -T app crucibleforge gui token rotate --token-stdin   # PowerShell: 'a-token-you-chose-123' | docker compose exec -T ...
+docker compose restart app                                # a running GUI keeps the token it started with
+```
+
+`exec` runs as the container's user (UID 1000 by default), so the files it
+writes are readable by the app. If `CRUCIBLEFORGE_GUI_TOKEN` is set in
+`deploy/compose/.env` it overrides the file: change it there and run
+`docker compose up -d`.
+
+**Lost the token and cannot read the logs?** Create the sentinel on the volume
+and restart; CrucibleForge consumes it once, before the port opens:
+
+```bash
+docker compose exec app sh -c ': > /data/RESET_LOGIN'     # empty = random new token; or write the token you want into it
+docker compose restart app
+docker compose exec app crucibleforge gui token show
+```
+
+With the container stopped, `docker run --rm -v crucibleforge_crucibleforge-data:/data --user 1000:1000 busybox sh -c ': > /data/RESET_LOGIN'`
+does the same (swap the volume name for your `DATA_PATH` bind mount if you use one). Only `gui_token`
+changes; `models.yaml` and `results/` are kept. No network request can trigger the reset. The pre-upgrade
+backup does not copy `gui_token` (it is a secret: rotate instead of restoring it); the volume backup
+below does include it.
 
 ## Pointing it at StudioForge or LM Studio on the host
 
@@ -106,6 +142,14 @@ whenever it is on `PATH` even when the opt-in is set. So the image:
 To use `bwrap` instead, build with `--build-arg WITH_BWRAP=1`, run the
 container under a seccomp profile that allows user namespaces, and set
 `CRUCIBLEFORGE_ALLOW_UNSANDBOXED=0`.
+
+**Token caveat.** Unsandboxed coding cases run model-written code as the same
+user that owns `/data`, so that code can read `/data/gui_token` and could write
+`/data/RESET_LOGIN` (taking effect at the next restart). The container is the
+boundary: the GUI token protects the GUI, not the data volume. If that matters,
+keep the GUI on loopback, run coding cases only on models you trust, or supply
+a seccomp profile that allows `bwrap` and set `CRUCIBLEFORGE_ALLOW_UNSANDBOXED=0`
+(the sandbox then hides `/data` from graded code).
 
 ## Your data, upgrades, backups
 

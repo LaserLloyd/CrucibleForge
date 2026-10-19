@@ -14,7 +14,8 @@
 #     Docker host. An existing file is never touched.
 #  5. `docker compose run --rm app status` works: a first argument that is not
 #     an executable (or starts with "-") is a crucibleforge subcommand.
-#  6. CRUCIBLEFORGE_GUI_TOKEN, when set, is the GUI's stable access token.
+#  6. CRUCIBLEFORGE_GUI_TOKEN, when set, is the GUI's stable access token (read by the app
+#     from the environment; a stored /data/gui_token is used when it is empty).
 #
 # It does not install, migrate or "repair" anything, and never recursively
 # chowns a healthy volume on every boot.
@@ -130,9 +131,8 @@ fi
 if [ "$#" -eq 0 ] || [ "${1#-}" != "$1" ] || ! command -v "$1" >/dev/null 2>&1; then
     set -- crucibleforge "$@"
 fi
-if [ "${CRUCIBLEFORGE_GUI_TOKEN:-}" != "" ] && [ "${1:-}" = "crucibleforge" ] && [ "${2:-}" = "gui" ]; then
-    set -- "$@" --token "$CRUCIBLEFORGE_GUI_TOKEN"
-fi
+# (CRUCIBLEFORGE_GUI_TOKEN is read by the GUI itself; it is NOT appended to argv,
+# where it would show in `ps` and break `gui token show` with an unknown --token.)
 
 log "data=${DATA_DIR} uid=$(id -u) gid=$(id -g) version=${IMAGE_VERSION:-dev}"
 # exec: the app becomes the process that receives SIGTERM.

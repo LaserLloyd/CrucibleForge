@@ -55,3 +55,9 @@ scripts/bench-all-resume-*.sh
 
 # the compose template is the one .env.* file that ships
 !.env.example
+
+# GUI access token + lockout-recovery sentinel (accounts.py): live in the data dir,
+# which is the checkout itself for a native dev install
+gui_token
+gui_token.tmp.*
+RESET_LOGIN

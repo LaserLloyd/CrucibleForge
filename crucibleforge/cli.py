@@ -1112,6 +1112,57 @@ def cmd_gui(args, cfg):
                  token=args.token, open_browser=not args.no_open)
 
 
+def cmd_gui_token(args) -> int:
+    """`crucibleforge gui token show|rotate` -- the GUI's only credential.
+
+    Works from the config path alone (no models.yaml validation), so it still
+    runs when the registry is broken. The data dir is the folder holding
+    models.yaml; it is printed on every call."""
+    from . import accounts
+    from .config import find_config_path
+    try:
+        cfg_path = find_config_path(args.config)
+    except ConfigError as e:
+        print(f"config error: {e}", file=sys.stderr)
+        return 2
+    data = accounts.data_dir_for(cfg_path)
+    print(f"data dir: {data} (models.yaml: {cfg_path})", file=sys.stderr)
+    if args.token_action == "show":
+        tok, source = accounts.effective_token(data)
+        problem = accounts.stored_token_problem(data)
+        if problem:
+            print(f"warning: {problem}", file=sys.stderr)
+        if not tok:
+            print("no stored GUI token. Loopback (127.0.0.1) needs none; a non-loopback "
+                  "bind prints a fresh one on every start. "
+                  "Make a stable one with: crucibleforge gui token rotate", file=sys.stderr)
+            return 1
+        where = f"${accounts.ENV_TOKEN}" if source == "env" else str(accounts.token_path(data))
+        print(f"token source: {where}", file=sys.stderr)
+        print(tok)
+        return 0
+    chosen = None
+    if args.token_stdin:
+        chosen = sys.stdin.readline().lstrip("\ufeff").strip()
+        if not chosen:
+            print("--token-stdin: nothing on stdin", file=sys.stderr)
+            return 2
+    try:
+        tok = accounts.rotate_token(data, chosen)
+    except (accounts.AccountError, OSError) as e:
+        print(f"cannot write the token: {e}", file=sys.stderr)
+        return 1
+    print(f"wrote {accounts.token_path(data)}", file=sys.stderr)
+    print("restart the GUI for the new token to take effect (the old one stops working then); "
+          "a running GUI keeps the token it started with.", file=sys.stderr)
+    if os.environ.get(accounts.ENV_TOKEN, "").strip():
+        print(f"warning: ${accounts.ENV_TOKEN} is set and takes precedence over this file; "
+              "unset it (Docker: edit deploy/compose/.env) for the rotation to matter.",
+              file=sys.stderr)
+    print(tok)
+    return 0
+
+
 def cmd_config(args, cfg_or_none):
     from .config import find_config_path, save_config
     if args.init:
@@ -1529,8 +1580,18 @@ def main(argv=None):
     p_gui.add_argument("--port", type=int, default=8777)
     p_gui.add_argument("--token", default=None,
                        help="access token (required when binding a non-loopback host; "
-                            "auto-generated if omitted)")
+                            "default: $CRUCIBLEFORGE_GUI_TOKEN, then <data dir>/gui_token, "
+                            "else auto-generated)")
     p_gui.add_argument("--no-open", action="store_true", help="don't open a browser tab")
+    gsub = p_gui.add_subparsers(dest="gui_cmd", metavar="token")
+    p_gtok = gsub.add_parser(
+        "token", help="show / rotate the GUI access token (the only login CrucibleForge has)")
+    gt = p_gtok.add_subparsers(dest="token_action", required=True)
+    gt.add_parser("show", help="print the token the GUI would use, and where it comes from")
+    p_rot = gt.add_parser("rotate", help="write a new token to <data dir>/gui_token and print it")
+    p_rot.add_argument("--token-stdin", action="store_true",
+                       help="read the new token from stdin instead of generating one "
+                            "(12-256 chars of A-Z a-z 0-9 . _ ~ -)")
 
     p_cfg = sub.add_parser("config", help="locate / init / upgrade models.yaml")
     p_cfg.add_argument("--init", nargs="?", const=True, default=False,
@@ -1577,6 +1638,9 @@ def main(argv=None):
     if args.cmd == "config":
         setup_logging()
         sys.exit(cmd_config(args, None) or 0)
+    if args.cmd == "gui" and getattr(args, "gui_cmd", None) == "token":
+        setup_logging()
+        sys.exit(cmd_gui_token(args) or 0)
 
     if args.results:
         os.environ["CRUCIBLEFORGE_RESULTS"] = args.results
