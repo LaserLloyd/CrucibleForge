@@ -6,7 +6,8 @@ API keys are not stored here at all (``api_key_env`` names an environment
 variable). So "accounts" is this one secret, kept in the **data directory** --
 the folder that holds ``models.yaml`` (and ``results/`` next to it):
 
-    <data dir>/gui_token     the stored token, one line, mode 0600
+    <data dir>/gui_token     the stored token, one line, mode 0600 (POSIX; on Windows the
+                             file inherits the folder's ACL: keep the data dir private)
     <data dir>/RESET_LOGIN   recovery sentinel (see consume_reset_sentinel)
 
 Token precedence at ``crucibleforge gui`` start: ``--token`` > the
@@ -22,6 +23,8 @@ from __future__ import annotations
 import os
 import re
 import secrets
+import stat
+import tempfile
 from pathlib import Path
 
 ENV_TOKEN = "CRUCIBLEFORGE_GUI_TOKEN"
@@ -47,7 +50,10 @@ def valid_token(tok: str) -> bool:
 
 def data_dir_for(cfg_path: str | os.PathLike | None) -> Path | None:
     """The data directory: the folder holding models.yaml (None without one)."""
-    return Path(cfg_path).resolve().parent if cfg_path else None
+    # absolute(), not resolve(): config.load_config puts results/ beside the
+    # UNRESOLVED path, and a symlinked models.yaml must not move the token
+    # into whatever repo the link points at.
+    return Path(cfg_path).absolute().parent if cfg_path else None
 
 
 def token_path(data_dir: Path) -> Path:
@@ -60,13 +66,29 @@ def sentinel_path(data_dir: Path) -> Path:
 
 def read_stored_token(data_dir: Path | None) -> str | None:
     """The token in ``<data>/gui_token``, or None when absent/unreadable/invalid."""
+    return _stored(data_dir)[0]
+
+
+def _stored(data_dir: Path | None) -> tuple[str | None, str | None]:
+    """(token, problem): problem is a reason when gui_token EXISTS but is unusable."""
     if data_dir is None:
-        return None
+        return None, None
+    f = token_path(data_dir)
     try:
-        tok = token_path(data_dir).read_text(encoding="utf-8").strip()
-    except OSError:
-        return None
-    return tok if valid_token(tok) else None
+        tok = f.read_text(encoding="utf-8").strip()
+    except FileNotFoundError:
+        return None, None
+    except (OSError, UnicodeError) as e:
+        return None, f"{f} exists but cannot be read ({e.__class__.__name__}); check its owner and mode"
+    if valid_token(tok):
+        return tok, None
+    return None, (f"{f} exists but does not hold a usable token (12-256 characters of "
+                  "A-Z a-z 0-9 . _ ~ -); run `crucibleforge gui token rotate`")
+
+
+def stored_token_problem(data_dir: Path | None) -> str | None:
+    """Why an existing gui_token is being ignored, or None (absent or fine)."""
+    return _stored(data_dir)[1]
 
 
 def write_token(data_dir: Path, tok: str) -> Path:
@@ -75,8 +97,10 @@ def write_token(data_dir: Path, tok: str) -> Path:
         raise AccountError("a token must be 12-256 characters of A-Z a-z 0-9 . _ ~ -")
     data_dir.mkdir(parents=True, exist_ok=True)
     dest = token_path(data_dir)
-    tmp = dest.with_name(f"{TOKEN_FILE}.tmp.{os.getpid()}")
-    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    # mkstemp: unpredictable name, O_EXCL, mode 0600 -- a planted symlink at a
+    # guessable temp name cannot redirect the write.
+    fd, tmp_name = tempfile.mkstemp(dir=data_dir, prefix=f".{TOKEN_FILE}.")
+    tmp = Path(tmp_name)
     try:
         with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as f:
             f.write(tok + "\n")
@@ -130,15 +154,25 @@ def consume_reset_sentinel(data_dir: Path | None, environ=None) -> str | None:
     if data_dir is None:
         return None
     sentinel = sentinel_path(data_dir)
-    if not (sentinel.is_symlink() or sentinel.exists()):
+    try:
+        st = os.lstat(sentinel)
+    except FileNotFoundError:
         return None
-    if sentinel.is_dir() and not sentinel.is_symlink():
+    except OSError as e:
+        return f"{sentinel} could not be inspected ({e.__class__.__name__}); left in place"
+    if stat.S_ISDIR(st.st_mode):
         return f"{sentinel} is a directory; ignored (create an empty FILE named {SENTINEL})"
-    if sentinel.is_symlink():
-        content, problem = None, "is a symlink; not followed"
+    if not stat.S_ISREG(st.st_mode):
+        # symlink, FIFO, device: never opened (a FIFO would hang start-up)
+        content, problem = None, "is not a regular file; not read"
     else:
         try:
-            raw = sentinel.read_bytes()[:_SENTINEL_MAX_BYTES + 1]
+            fd = os.open(sentinel, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
+                         | getattr(os, "O_NONBLOCK", 0))
+            with os.fdopen(fd, "rb") as fh:
+                raw = fh.read(_SENTINEL_MAX_BYTES + 1)
+        except FileNotFoundError:
+            return None     # another start-up consumed it first
         except OSError as e:
             return f"{sentinel} could not be read ({e.__class__.__name__}); left in place"
         if len(raw) > _SENTINEL_MAX_BYTES:
@@ -150,10 +184,12 @@ def consume_reset_sentinel(data_dir: Path | None, environ=None) -> str | None:
                 content, problem = None, "is not valid text"
     try:
         sentinel.unlink()
+    except FileNotFoundError:
+        return None
     except OSError as e:
         # Cannot delete it -> do NOT act on it, or it would replay every start.
         return (f"{sentinel} could not be deleted ({e.__class__.__name__}); "
-                "login NOT reset (fix the permissions on the data dir)")
+                "login NOT reset (fix the permissions on the data dir; on Windows clear the file's read-only attribute)")
     if problem:
         return f"{sentinel} {problem}; deleted, login NOT reset"
     if content and not valid_token(content):

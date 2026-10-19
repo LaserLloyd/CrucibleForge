@@ -34,6 +34,11 @@ files. New:
   generated on that start (off-loopback, none configured); a token from
   `--token`, `CRUCIBLEFORGE_GUI_TOKEN` or `gui_token` is announced by source
   only (container logs outlive the process). `gui token show` prints it.
+  The Docker entrypoint no longer appends `--token $CRUCIBLEFORGE_GUI_TOKEN`
+  to the command line (it showed in `ps` and broke `gui token show`); the GUI
+  reads the variable itself, so a variable in `crucibleforge.local.env` or
+  the shell now also puts a token on the loopback GUI. An existing but
+  unreadable or invalid `gui_token` is reported, not silently ignored.
 - README "Accounts and lockout recovery" and the Docker docs have copy-paste
   commands for Windows, macOS, Linux and Docker. `gui_token` and `RESET_LOGIN`
   are git- and docker-ignored.

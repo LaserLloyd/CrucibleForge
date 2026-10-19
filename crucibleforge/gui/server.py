@@ -23,7 +23,8 @@ Endpoints (JSON unless noted):
   POST /api/providers/test    {name} → alive + first few model ids
   POST /api/judge-candidates  {candidates: [...]} replace list
 
-Security: loopback binding needs no token unless --token is given; any other
+Security: loopback binding needs no token unless --token, $CRUCIBLEFORGE_GUI_TOKEN or a
+stored <data dir>/gui_token exists; any other
 host REQUIRES a token (auto-generated when omitted). The token is presented
 once as ?token= (sets an HttpOnly SameSite=Strict cookie) or as the
 X-CrucibleForge-Token header. State-changing POSTs additionally require a
@@ -691,6 +692,10 @@ def serve(cfg_path: str | None, host: str = "127.0.0.1", port: int = 8777,
         log.warning(note)
         print(note)
     generated = False
+    problem = accounts.stored_token_problem(data_dir)
+    if problem:
+        log.warning(problem)
+        print(f"warning: {problem}")
     if token:
         print("GUI access token given with --token (not logged)")
     else:
@@ -699,6 +704,11 @@ def serve(cfg_path: str | None, host: str = "127.0.0.1", port: int = 8777,
             where = f"${accounts.ENV_TOKEN}" if source == "env" else str(accounts.token_path(data_dir))
             print(f"GUI access token loaded from {where} "
                   "(run `crucibleforge gui token show`)")
+    if token and not accounts.valid_token(token):
+        msg = ("the GUI access token has characters outside A-Z a-z 0-9 . _ ~ - (or is "
+               "shorter than 12); it works as a header but a ?token= URL or cookie may not")
+        log.warning(msg)
+        print(f"warning: {msg}")
     if not loopback and not token:
         token = secrets.token_urlsafe(24)
         generated = True

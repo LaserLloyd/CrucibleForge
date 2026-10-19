@@ -1129,6 +1129,9 @@ def cmd_gui_token(args) -> int:
     print(f"data dir: {data} (models.yaml: {cfg_path})", file=sys.stderr)
     if args.token_action == "show":
         tok, source = accounts.effective_token(data)
+        problem = accounts.stored_token_problem(data)
+        if problem:
+            print(f"warning: {problem}", file=sys.stderr)
         if not tok:
             print("no stored GUI token. Loopback (127.0.0.1) needs none; a non-loopback "
                   "bind prints a fresh one on every start. "
@@ -1140,7 +1143,7 @@ def cmd_gui_token(args) -> int:
         return 0
     chosen = None
     if args.token_stdin:
-        chosen = sys.stdin.readline().strip()
+        chosen = sys.stdin.readline().lstrip("\ufeff").strip()
         if not chosen:
             print("--token-stdin: nothing on stdin", file=sys.stderr)
             return 2
@@ -1577,7 +1580,8 @@ def main(argv=None):
     p_gui.add_argument("--port", type=int, default=8777)
     p_gui.add_argument("--token", default=None,
                        help="access token (required when binding a non-loopback host; "
-                            "auto-generated if omitted)")
+                            "default: $CRUCIBLEFORGE_GUI_TOKEN, then <data dir>/gui_token, "
+                            "else auto-generated)")
     p_gui.add_argument("--no-open", action="store_true", help="don't open a browser tab")
     gsub = p_gui.add_subparsers(dest="gui_cmd", metavar="token")
     p_gtok = gsub.add_parser(

@@ -534,7 +534,7 @@ test-suite too, so a broken test can't silently fail every model.
 
 `crucibleforge gui [--host 127.0.0.1] [--port 8777] [--token …]`
 
-Loopback needs no token. Binding another host (e.g. to reach it over a
+Loopback needs no token unless one is configured (`--token`, `CRUCIBLEFORGE_GUI_TOKEN` or a stored `gui_token`). Binding another host (e.g. to reach it over a
 tailnet) **requires** a token — one is generated and printed if you don't
 pass one; open the printed URL once and a cookie carries it. State-changing
 calls are same-origin only. The GUI runs the same code paths as the CLI (a
@@ -549,7 +549,7 @@ CrucibleForge has **no user accounts and no password database**. Its one login i
 reachable from another machine, optional on `127.0.0.1`. Provider API keys are not stored by the app at all (`api_key_env` in
 `models.yaml` names an environment variable), so there is nothing to reset for them. The CLI itself has no login.
 
-**Where the token lives.** In the *data directory*, the folder that holds `models.yaml` and `results/`, as `gui_token` (one line, mode 0600).
+**Where the token lives.** In the *data directory*, the folder that holds `models.yaml` and `results/`, as `gui_token` (one line, mode 0600 on Linux/macOS; on Windows it inherits the folder's permissions, so keep the data dir in your own profile or lock it down).
 `crucibleforge config` prints the path of `models.yaml`; its folder is the data dir. Every `gui token` command prints the data dir it acts on.
 
 | Install | Data dir |
@@ -560,7 +560,7 @@ reachable from another machine, optional on `127.0.0.1`. Provider API keys are n
 The GUI picks its token in this order: `--token`, then `CRUCIBLEFORGE_GUI_TOKEN`, then `gui_token`; off-loopback with none of those it
 prints a fresh random one on every start. A token must be 12-256 characters of `A-Z a-z 0-9 . _ ~ -`.
 
-**Show, rotate or set the token** (run from the clone for native installs; add `--config <path>` if you keep `models.yaml` elsewhere):
+**Show, rotate or set the token** (run from the clone for native installs; if you keep `models.yaml` elsewhere put `--config <path>` *before* `gui`, e.g. `uv run crucibleforge --config <path> gui token show`):
 
 ```bash
 uv run crucibleforge gui token show                       # prints the token and where it comes from
@@ -574,6 +574,7 @@ docker compose -f deploy/compose/compose.yml exec app crucibleforge gui token ro
 uv run crucibleforge gui token show                       # Windows (PowerShell)
 uv run crucibleforge gui token rotate
 'a-token-you-chose-123' | uv run crucibleforge gui token rotate --token-stdin
+'a-token-you-chose-123' | docker compose -f deploy/compose/compose.yml exec -T app crucibleforge gui token rotate --token-stdin   # Docker
 ```
 
 A running GUI keeps the token it started with: **restart it** (`docker compose -f deploy/compose/compose.yml restart app`, or stop and

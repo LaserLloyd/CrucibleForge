@@ -53,7 +53,7 @@ lives at `/data/gui_token`, on the same volume as `models.yaml`.
 export COMPOSE_FILE=deploy/compose/compose.yml    # PowerShell: $env:COMPOSE_FILE = 'deploy/compose/compose.yml'
 docker compose exec app crucibleforge gui token show      # the token, the data dir it used, and its source
 docker compose exec app crucibleforge gui token rotate    # new random token -> /data/gui_token
-printf '%s\n' 'a-token-you-chose-123' | docker compose exec -T app crucibleforge gui token rotate --token-stdin
+printf '%s\n' 'a-token-you-chose-123' | docker compose exec -T app crucibleforge gui token rotate --token-stdin   # PowerShell: 'a-token-you-chose-123' | docker compose exec -T ...
 docker compose restart app                                # a running GUI keeps the token it started with
 ```
 
@@ -142,6 +142,14 @@ whenever it is on `PATH` even when the opt-in is set. So the image:
 To use `bwrap` instead, build with `--build-arg WITH_BWRAP=1`, run the
 container under a seccomp profile that allows user namespaces, and set
 `CRUCIBLEFORGE_ALLOW_UNSANDBOXED=0`.
+
+**Token caveat.** Unsandboxed coding cases run model-written code as the same
+user that owns `/data`, so that code can read `/data/gui_token` and could write
+`/data/RESET_LOGIN` (taking effect at the next restart). The container is the
+boundary: the GUI token protects the GUI, not the data volume. If that matters,
+keep the GUI on loopback, run coding cases only on models you trust, or supply
+a seccomp profile that allows `bwrap` and set `CRUCIBLEFORGE_ALLOW_UNSANDBOXED=0`
+(the sandbox then hides `/data` from graded code).
 
 ## Your data, upgrades, backups
 

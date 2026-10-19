@@ -201,7 +201,7 @@ def test_sentinel_symlink_is_not_followed(data, tmp_path):
     except (OSError, NotImplementedError):
         pytest.skip("symlinks unavailable here")
     msg = accounts.consume_reset_sentinel(data)
-    assert "symlink" in msg and "NOT reset" in msg
+    assert "not a regular file" in msg and "NOT reset" in msg
     assert not link.is_symlink() and target.exists()    # link removed, target untouched
     assert accounts.read_stored_token(data) is None
 
@@ -370,3 +370,84 @@ def test_the_handlers_never_touch_the_accounts_module():
 def test_token_file_and_sentinel_are_gitignored():
     ignore = (ROOT / ".gitignore").read_text(encoding="utf-8").splitlines()
     assert "gui_token" in ignore and "RESET_LOGIN" in ignore
+
+
+# ------------------------------------------------------------ review round (Opus)
+
+def test_an_unusable_gui_token_file_is_reported_not_ignored(data, monkeypatch, capsys, caplog):
+    (data / "gui_token").write_text("short\n", encoding="utf-8")
+    start(data, monkeypatch)
+    out = capsys.readouterr().out
+    assert "warning:" in out and "does not hold a usable token" in out
+    rc, shown, err = run_cli(data, "show", monkeypatch=monkeypatch, capsys=capsys)
+    assert rc == 1 and "warning:" in err and "gui token rotate" in err
+
+
+def test_a_stored_token_never_reaches_the_log_records(data, monkeypatch, caplog):
+    (data / "gui_token").write_text("secret-token-0123456789\n", encoding="utf-8")
+    (data / "RESET_LOGIN").write_bytes(b"")
+    with caplog.at_level("DEBUG"):
+        app = start(data, monkeypatch)
+    assert app.token and app.token not in caplog.text
+    assert "secret-token-0123456789" not in caplog.text
+
+
+def test_the_sentinel_is_consumed_before_the_socket_is_bound(data, monkeypatch):
+    (data / "RESET_LOGIN").write_bytes(b"")
+    seen = {}
+
+    class Probe(_StopServer):
+        def __init__(self, addr, handler):
+            seen["sentinel_present_at_bind"] = (data / "RESET_LOGIN").exists()
+            seen["token_present_at_bind"] = (data / "gui_token").exists()
+            super().__init__(addr, handler)
+
+    monkeypatch.setattr(gui_server, "ThreadingHTTPServer", Probe)
+    monkeypatch.setattr(gui_server, "Handler", type("H", (), {"app": None}))
+    gui_server.serve(str(data / "models.yaml"), open_browser=False)
+    assert seen == {"sentinel_present_at_bind": False, "token_present_at_bind": True}
+
+
+def test_a_token_with_unsafe_characters_is_warned_about(data, monkeypatch, capsys):
+    start(data, monkeypatch, token="a+b&c#d%e;f=g h")
+    assert "warning:" in capsys.readouterr().out
+
+
+def test_the_data_dir_is_the_unresolved_folder_of_models_yaml(tmp_path):
+    real = tmp_path / "dotfiles"
+    real.mkdir()
+    (real / "models.yaml").write_text("x: 1\n", encoding="utf-8")
+    home = tmp_path / "home"
+    home.mkdir()
+    link = home / "models.yaml"
+    try:
+        link.symlink_to(real / "models.yaml")
+    except (OSError, NotImplementedError):
+        pytest.skip("symlinks unavailable here")
+    assert accounts.data_dir_for(link) == home          # where results/ goes too
+
+
+@pytest.mark.skipif(not POSIX, reason="needs mkfifo")
+def test_a_fifo_sentinel_is_never_opened(data):
+    os.mkfifo(data / "RESET_LOGIN")
+    msg = accounts.consume_reset_sentinel(data)          # would hang if it were opened
+    assert "not a regular file" in msg and "NOT reset" in msg
+    assert not (data / "RESET_LOGIN").exists()
+
+
+def test_write_token_leaves_no_temp_files_behind(data):
+    accounts.write_token(data, "plain-token-0123456789")
+    accounts.write_token(data, "other-token-0123456789")
+    assert sorted(p.name for p in data.iterdir()) == ["gui_token", "models.yaml"]
+
+
+def test_token_stdin_tolerates_a_bom(data, capsys, monkeypatch):
+    rc, out, _ = run_cli(data, "rotate", "--token-stdin", stdin="﻿bom-chosen-token-0123\n",
+                         monkeypatch=monkeypatch, capsys=capsys)
+    assert rc == 0 and out == "bom-chosen-token-0123"
+
+
+def test_docker_entrypoint_does_not_put_the_token_on_argv():
+    ep = (ROOT / "deploy" / "docker-entrypoint.sh").read_text(encoding="utf-8")
+    code = [ln for ln in ep.splitlines() if not ln.lstrip().startswith("#")]
+    assert not any("--token" in ln for ln in code)
