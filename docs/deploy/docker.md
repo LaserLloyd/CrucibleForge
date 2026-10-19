@@ -8,11 +8,13 @@ the models run on your LLM server, not in this container.
 ```bash
 git clone https://github.com/LaserLloyd/CrucibleForge.git && cd CrucibleForge   # scrub-ok: public repo URL
 docker compose -f deploy/compose/compose.yml up -d
-docker compose -f deploy/compose/compose.yml logs app       # prints the GUI URL (with its access token)
+docker compose -f deploy/compose/compose.yml logs app       # prints the GUI URL (with its access token on the first start; once a token is stored or set, read it with `exec app crucibleforge gui token show`)
 ```
 
 Open the printed `http://127.0.0.1:8777/?token=...` URL once; a cookie carries
-the token afterwards.
+the token afterwards. Only a token generated on that start appears in the log; one you configured
+(`CRUCIBLEFORGE_GUI_TOKEN`) or stored (`gui token rotate`) is never logged, so read it with
+`docker compose -f deploy/compose/compose.yml exec app crucibleforge gui token show`.
 
 ## Ports
 

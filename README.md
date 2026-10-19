@@ -584,7 +584,7 @@ there too. If `CRUCIBLEFORGE_GUI_TOKEN` is set (Docker: `deploy/compose/.env`) i
 dir and start (or restart) the GUI. At start-up, before the port is opened, CrucibleForge deletes the file, writes a new token to
 `gui_token` and logs one line (`login reset from RESET_LOGIN: ...`, never the token). An empty file means "make a random token"; a file
 containing text uses that text as the token. A file it cannot use or cannot delete is removed or ignored with a logged reason, never
-acted on twice. Then read the token with `gui token show`, or from the URL the GUI prints at start.
+acted on twice. Then read the token with `gui token show` (a stored token is never written to the log).
 
 ```bash
 cd <data dir> && : > RESET_LOGIN                                   # Linux / macOS (random token)

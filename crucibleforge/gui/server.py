@@ -323,7 +323,7 @@ class Handler(BaseHTTPRequestHandler):
         path = u.path
         if path == "/" or path == "/index.html":
             if not self._authed(q):
-                return self._send(401, b"<h1>401</h1><p>Open the URL printed by <code>crucibleforge gui</code> (it carries the access token).</p>",
+                return self._send(401, b"<h1>401</h1><p>Open the URL printed by <code>crucibleforge gui</code> (it carries the access token), or read the token with <code>crucibleforge gui token show</code>.</p>",
                                   "text/html; charset=utf-8")
             extra = {}
             if self.app.token and q.get("token"):
@@ -690,13 +690,18 @@ def serve(cfg_path: str | None, host: str = "127.0.0.1", port: int = 8777,
     if note:
         log.warning(note)
         print(note)
-    if not token:
+    generated = False
+    if token:
+        print("GUI access token given with --token (not logged)")
+    else:
         token, source = accounts.effective_token(data_dir)
         if token:
             where = f"${accounts.ENV_TOKEN}" if source == "env" else str(accounts.token_path(data_dir))
-            print(f"GUI access token from {where} (change it: crucibleforge gui token rotate)")
+            print(f"GUI access token loaded from {where} "
+                  "(run `crucibleforge gui token show`)")
     if not loopback and not token:
         token = secrets.token_urlsafe(24)
+        generated = True
         print("non-loopback bind: generated access token (pass it as ?token=…)")
     app = App(cfg_path, token, require_token=bool(token))
     Handler.app = app
@@ -704,13 +709,15 @@ def serve(cfg_path: str | None, host: str = "127.0.0.1", port: int = 8777,
     httpd = ThreadingHTTPServer((host, port), Handler)
     httpd.daemon_threads = True
     url = f"http://{host if host != '0.0.0.0' else '127.0.0.1'}:{port}/"
-    if token:
-        url += f"?token={token}"
-    print(f"CrucibleForge GUI: {url}")
+    # A token that was only just generated has no other place to be read from,
+    # so the log carries it. A configured one (flag, env, gui_token) is a
+    # secret the operator already holds: never write it into the log (the
+    # container log outlives the process); `gui token show` prints it.
+    print(f"CrucibleForge GUI: {url + '?token=' + token if generated else url}")
     print(f"config: {app.cfg.get('_path')}   results: {cfgmod.results_dir()}")
     if open_browser and loopback:
         try:
-            webbrowser.open(url)
+            webbrowser.open(url + f"?token={token}" if token else url)
         except Exception:
             pass
     try:

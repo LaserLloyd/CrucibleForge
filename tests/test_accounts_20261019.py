@@ -250,7 +250,8 @@ def test_serve_consumes_the_sentinel_once_and_uses_the_new_token(data, monkeypat
     assert app.token == new and app.require_token     # loopback too: a stored token is honoured
     assert not (data / "RESET_LOGIN").exists()
     out = capsys.readouterr().out
-    assert out.count("login reset from RESET_LOGIN") == 1 and new in out.split("login reset")[1].split("\n", 1)[1]
+    assert out.count("login reset from RESET_LOGIN") == 1
+    assert new not in out                       # a stored token is never logged
     # second start: no sentinel, same token, no second reset line
     app2 = start(data, monkeypatch)
     assert app2.token == new
@@ -267,6 +268,31 @@ def test_serve_token_precedence_flag_then_env_then_file(data, monkeypatch):
     monkeypatch.setenv(accounts.ENV_TOKEN, "env-token-0123456789")
     assert start(data, monkeypatch).token == "env-token-0123456789"
     assert start(data, monkeypatch, token="flag-token-0123456789").token == "flag-token-0123456789"
+
+
+def test_stored_env_and_flag_tokens_are_never_logged(data, monkeypatch, capsys):
+    (data / "gui_token").write_text("file-token-0123456789\n", encoding="utf-8")
+    start(data, monkeypatch)
+    out = capsys.readouterr().out
+    assert "file-token-0123456789" not in out and "?token=" not in out
+    assert f"loaded from {data / 'gui_token'}" in out
+    assert "crucibleforge gui token show" in out
+    monkeypatch.setenv(accounts.ENV_TOKEN, "env-token-0123456789")
+    start(data, monkeypatch)
+    out = capsys.readouterr().out
+    assert "env-token-0123456789" not in out and "?token=" not in out
+    assert f"loaded from ${accounts.ENV_TOKEN}" in out
+    start(data, monkeypatch, token="flag-token-0123456789")
+    out = capsys.readouterr().out
+    assert "flag-token-0123456789" not in out and "?token=" not in out
+
+
+def test_a_freshly_generated_token_is_the_only_one_logged(data, monkeypatch, capsys):
+    app = start(data, monkeypatch, host="0.0.0.0")
+    out = capsys.readouterr().out
+    assert accounts.read_stored_token(data) is None          # not persisted
+    assert f"?token={app.token}" in out                       # the one place to read it
+    assert "loaded from" not in out
 
 
 def test_serve_off_loopback_without_stored_token_still_generates(data, monkeypatch):

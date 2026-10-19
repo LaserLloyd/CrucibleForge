@@ -29,6 +29,11 @@ files. New:
   first (an undeletable, oversized, symlinked or malformed sentinel is never
   acted on), so it cannot replay; one log line names the file, never the
   token. No HTTP endpoint touches it (pinned by a structural test).
+- **A configured or stored token is never written to the log.** The start-up
+  line `CrucibleForge GUI: ...?token=` carries the token only when it was
+  generated on that start (off-loopback, none configured); a token from
+  `--token`, `CRUCIBLEFORGE_GUI_TOKEN` or `gui_token` is announced by source
+  only (container logs outlive the process). `gui token show` prints it.
 - README "Accounts and lockout recovery" and the Docker docs have copy-paste
   commands for Windows, macOS, Linux and Docker. `gui_token` and `RESET_LOGIN`
   are git- and docker-ignored.
