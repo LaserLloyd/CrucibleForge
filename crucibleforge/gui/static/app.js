@@ -63,10 +63,14 @@
          <td class="mono">${p.api_key_env ? esc("$" + p.api_key_env) + (p.key_set ? " ✓" : ' <span class="pill down">not set</span>') : "—"}</td>
          <td>${pill(p.alive)}</td></tr>`).join("");
     const j = STATE.judge;
-    $("#judgeinfo").innerHTML = (j.candidates || []).length
+    const bj = STATE.bench_judge;
+    const benchLine = bj && typeof bj === "object"
+      ? `<div>benchmark judge (bench profile — used for Run and Judge unless you pick one): <span class="mono">${esc(bj.model_id)}</span> <span class="muted">@ ${esc(bj.provider)}</span></div><div class="muted">fallback candidates:</div>`
+      : "";
+    $("#judgeinfo").innerHTML = benchLine + ((j.candidates || []).length
       ? `<ol style="margin:.2rem 0 .2rem 1.2rem">${j.candidates.map(c => `<li class="mono">${esc(c.model_id)} <span class="muted">@ ${esc(c.provider)}${c.thinking ? " · thinking" : ""}</span></li>`).join("")}</ol>
          <span class="muted">temperature ${j.temperature ?? 0.1} · samples ${j.samples ?? 1} · max_tokens ${j.max_tokens ?? "-"}</span>`
-      : `<span class="pill down">no judge candidates</span> — add one on the Models tab.`;
+      : `<span class="pill down">no judge candidates</span> — add one on the Models tab.`);
     const ct = $("#casetable tbody");
     ct.innerHTML = Object.entries(STATE.cases).map(([k, v]) => `<tr><td>${esc(k)}</td><td>${v.total}</td><td>${v.hard}</td><td>${v.smoke}</td></tr>`).join("") +
       `<tr><th>total</th><th>${STATE.n_cases}</th><th>${Object.values(STATE.cases).reduce((a, v) => a + v.hard, 0)}</th><th>${Object.values(STATE.cases).reduce((a, v) => a + v.smoke, 0)}</th></tr>`;
@@ -102,7 +106,7 @@
       $("#profilehint").textContent = p ? p.description : "";
       if (p) { $$("#runcats input").forEach(i => i.checked = p.categories.includes(i.value)); } };
     const js = $("#judgesel"); const cur = js.value;
-    js.innerHTML = `<option value="">auto (first available candidate)</option>` +
+    js.innerHTML = `<option value="">the bench profile's judge</option>` +
       (STATE.judge.candidates || []).map(c => `<option value="${esc(c.provider + ":" + c.model_id)}">${esc(c.model_id)} @ ${esc(c.provider)}</option>`).join("");
     js.value = cur;
     $("#samples").value = STATE.judge.samples ?? 1;

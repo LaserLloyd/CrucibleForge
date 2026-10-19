@@ -6,6 +6,15 @@ was ever published as Gauntlet, so there is no migration to do — the entries
 below are kept because the engineering they record is real, not to narrate a
 rename.
 
+## Unreleased
+
+- **GUI "Judge pending rows" uses the benchmark's judge.** `/api/judge` passed
+  no judge, so `run_judge` walked `judge.candidates` and scored the rows with
+  a model whose verdicts do not count on the board; it now takes the bench
+  profile's judge and budgets, as `crucibleforge judge` does (an explicit pick
+  in the judge menu still wins). The dashboard names the benchmark judge
+  above the fallback candidates.
+
 ## 3.6.0 — Windows and hermetic tests (2026-10-18)
 
 No case, grader or metric changed. `SUITE_VERSION` moves to 3.6.0 and the

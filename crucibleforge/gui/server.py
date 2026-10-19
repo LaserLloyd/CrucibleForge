@@ -210,15 +210,32 @@ class App:
                               "categories": list(pr["cases"].keys())})
             except Exception as e:  # noqa: BLE001
                 profs.append({"name": name, "description": f"invalid: {e}", "n_cases": 0})
+        try:
+            bench_judge = _bench_judge(cfg)[1]
+        except ConfigError:
+            bench_judge = None
         return {"config_path": cfg.get("_path"), "results_dir": str(results),
                 "profiles": profs,
                 "revision": revision(cfg), "providers": provs, "models": models,
-                "judge": cfg["judge"], "categories": cfgmod.CATEGORIES,
+                "judge": cfg["judge"], "bench_judge": bench_judge,
+                "categories": cfgmod.CATEGORIES,
                 "cases": by_cat, "n_cases": len(cases),
                 "results_models": have,
                 "report_exists": (results / "report.md").exists(),
                 "job": JOB.status(),
                 "legacy": bool(cfg.get("_upgraded_from_v2"))}
+
+
+def _bench_judge(cfg: dict):
+    """(cfg with the bench profile's budgets applied, the profile's judge).
+
+    The same choice ``crucibleforge judge`` makes (``cli._apply_profile_arg``):
+    the judge the bench profile names is the only one whose verdicts count on
+    the board; ``judge.candidates`` is just the fallback walk."""
+    from ..profiles import DEFAULT_PROFILE, apply_profile, load_profile, profile_judge
+    prof = load_profile(DEFAULT_PROFILE, cfg)
+    cfg2, _ = apply_profile(prof, cfg)
+    return cfg2, profile_judge(prof)
 
 
 # --------------------------------------------------------------- handler
@@ -484,7 +501,8 @@ class Handler(BaseHTTPRequestHandler):
                                "models": labels, "n_cases": len(cases)})
 
         if path == "/api/judge":
-            cfg = app.reload()
+            cfg, bench_judge = _bench_judge(app.reload())
+            judge_pick = data.get("judge") or bench_judge
             models = data.get("models") or []
             entries = resolve_models(cfg, ",".join(models) if models else None)
             labels = [e["name"] for e in entries] if models else [
@@ -496,7 +514,7 @@ class Handler(BaseHTTPRequestHandler):
                 from ..report import generate
                 r = run_judge(cfg, labels, force=bool(data.get("force")),
                               samples=data.get("samples"),
-                              judge_override=data.get("judge") or None,
+                              judge_override=judge_pick,
                               stop=JOB.stop_event)
                 generate(None)
                 return {"judge": r, "report": "written"}
