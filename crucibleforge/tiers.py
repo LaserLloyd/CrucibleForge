@@ -111,11 +111,11 @@ def custom_scores(prof: dict | None) -> list[dict]:
 
         custom:
           max_rp:
-            label: Max NSFW RP
+            label: My Private Score
             include_in: none        # overall | none | <a category key, e.g. nsfw>
             public: false           # default false: scrubbed from --public
             parts:
-              main: {label: Max RP, max: 10, scoring: [my-private-category]}
+              main: {label: Main, max: 10, scoring: [my-private-category]}
 
     A PRIVATE category (the profile's ``private:`` list) that no custom
     declaration names becomes one automatically (one sub-score worth 10,

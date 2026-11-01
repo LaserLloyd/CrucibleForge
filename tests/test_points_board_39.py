@@ -1,7 +1,7 @@
 """Suite 3.9 points board (the maintainer 2026-10-28): categories Coding/Work, Chat,
 NSFW out of 10 points each (sub-score points), Overall = Coding/Work + Chat,
 ladder packs (+1 point per pack, unlocked at >= 90 % on everything below),
-custom tests (Max NSFW RP never in NSFW/Overall, never public), MAXED,
+custom tests (My Private Score never in NSFW/Overall, never public), MAXED,
 calibration, `pack new`/`pack verify`, and the bootstrap ± / tie groups on
 top. Runs as a clean clone (conftest)."""
 from __future__ import annotations
@@ -201,7 +201,7 @@ def test_custom_include_in_a_category_adds_to_it(tmp_path, monkeypatch):
     assert c["work"] == pytest.approx(11.0) and "(+ Lipogram)" in c["labels"]["work"]
 
 
-# -------------------------------------------------- Max NSFW RP (private)
+# -------------------------------------------------- My Private Score (private)
 
 def _private(tmp_path, monkeypatch, overlay_scoring=True, declared=None):
     cat, ids, lab = "zz-max-rp", ["ZQ1-private-one", "ZQ2-private-two"], "Max Hush RP"
@@ -255,8 +255,8 @@ def test_max_rp_is_its_own_custom_test_never_nsfw_chat_or_overall(tmp_path, monk
 
 
 def test_a_declared_custom_test_replaces_the_automatic_one(tmp_path, monkeypatch):
-    decl = {"maxrp": {"label": "My Max RP", "include_in": "none",
-                      "parts": {"main": {"label": "Max RP", "max": 6, "scoring": ["zz-max-rp"]}}}}
+    decl = {"maxrp": {"label": "My Main", "include_in": "none",
+                      "parts": {"main": {"label": "Main", "max": 6, "scoring": ["zz-max-rp"]}}}}
     env, cat, ids, lab, rows = _private(tmp_path, monkeypatch, overlay_scoring=False, declared=decl)
     prof = profiles.load_profile("bench", env.cfg)
     keys = [d["key"] for d in tiers.scores(prof)]

@@ -174,7 +174,7 @@ def test_default_layout_main_then_components_and_filters():
 def test_chooser_add_remove_reorder_drag_and_filters_follow_the_columns():
     out = run_board(board(), r"""
       pickFilter('c:NSFW', 70); el('thead').fire('click', {target: th('c:NSFW')});
-      out.sortedBy = el('thead').innerHTML.includes('data-k="c:NSFW" scope="col" class="side-chat" aria-sort="descending"');
+      out.sortedBy = el('thead').innerHTML.includes('data-k="c:NSFW" scope="col" tabindex="0" class="side-chat" aria-sort="descending"');
       tick('c:NSFW', false);                         // remove NSFW: its filter and its sort go too
       tick('suite', false);                          // (3.8.0 default column) out of the way
       out.afterRemove = heads().slice(6); out.filters1 = filterRow(); out.order1 = order();
@@ -243,7 +243,8 @@ def test_state_round_trip_through_a_fake_dispatch_parent():
     assert out["beforeDebounce"] == 0 and out["sets"] == ["*"]    # one debounced set
     assert out["state"] == {"version": 2, "columns": ["notes", "c:RP"], "sortKey": "tok_s", "sortDir": -1,
                             "filters": {"c:RP": 50, "chat": 10}, "text": "", "benched": True,
-                            "expanded": ["m0"], "view": "table"}
+                            "expanded": ["m0"], "view": "table",
+                            "classes": [], "leans": [], "current": False, "where": ""}
 
 
 @needs_node
@@ -294,3 +295,100 @@ def test_phone_table_cards_toggle_is_persisted():
     # the phone table scrolls inside its box, never the page
     assert re.search(r"\.wrap\{[^}]*overflow-x:auto", phone) and "overflow-x:hidden" in phone
     assert ".viewtog" in phone and "min-height:44px" in phone
+
+
+# ------------------------------------------------------------ 2026-11 board redesign: chips, sections, keyboard sort
+
+def chip_rows():
+    base = rows()
+    extra = [dict(class_="S", lean="balanced", old=False, hosted=True),
+             dict(class_="A", lean="chat-leaning", old=False, hosted=False),
+             dict(class_=None, lean=None, old=True, hosted=False)]
+    for r, e in zip(base, extra):
+        r["class"], r["lean"], r["old"], r["hosted"] = e["class_"], e["lean"], e["old"], e["hosted"]
+        r["points_cell"] = "Coding 5.0 = Func 3.0 (set 1) + Tools 2.0; Chat 4.0 = Deep RP 4.0"
+    return base
+
+
+@needs_node
+def test_quick_chips_filter_rows_and_are_saved():
+    out = run_board(board(rows=chip_rows()), r"""
+      const chip = id => el('chips').fire('click', {target: {closest: s => (s === '[data-chip]' ? {dataset: {chip: id}} : null)}});
+      out.chips = keys('chips', 'data-chip');
+      chip('class:S'); out.s = order(); chip('class:A'); out.sa = order(); chip('class:S'); chip('class:A');
+      chip('lean:chat-leaning'); out.lean = order(); chip('lean:chat-leaning');
+      chip('current'); out.current = order(); chip('current');
+      chip('where:hosted'); out.hosted = order(); chip('where:local'); out.local = order(); chip('where:local'); out.nowhere = order();
+      el('benched').checked = true; el('benched').fire('change', {target: el('benched')}); out.ranked = order();
+      chip('class:S'); await wait(400); out.saved = saved();
+      el('clearAll').fire('click'); out.cleared = order(); out.count = el('count').innerHTML;
+    """)
+    assert out["chips"] == ["class:S", "class:A", "lean:balanced", "lean:chat-leaning", "current",
+                            "where:hosted", "where:local"]
+    assert out["s"] == "m0" and out["sa"] == "m0,m1"
+    assert out["lean"] == "m1" and out["current"] == "m0,m1"
+    assert out["hosted"] == "m0" and out["local"] == "m1,m2" and out["nowhere"] == "m0,m1,m2"
+    assert out["ranked"] == "m0,m1,m2"
+    assert out["saved"]["classes"] == ["S"] and out["saved"]["benched"] is True
+    assert out["cleared"] == "m0,m1,m2" and out["count"].startswith("3 of 3 models")
+
+
+@needs_node
+def test_chips_are_restored_and_unknown_chip_values_dropped():
+    st = {"version": 2, "columns": [], "sortKey": "rank", "sortDir": 1, "filters": {}, "text": "",
+          "benched": False, "expanded": [], "view": "table", "classes": ["A", "Z"], "leans": ["bogus"],
+          "current": True, "where": "local"}
+    out = run_board(board(rows=chip_rows()), "out.order = order();",
+                    store={"crucibleforge-board-layout": json.dumps(st)})
+    assert out["order"] == "m1"                                  # A + current suite + local
+    out = run_board(board(), "out.chips = keys('chips', 'data-chip');")
+    assert out["chips"] == []                                    # rows without class/lean/old/hosted: no chips
+
+
+@needs_node
+def test_head_sorts_from_the_keyboard_and_points_show_in_the_expander():
+    out = run_board(board(rows=chip_rows()), r"""
+      const key = (k, name) => el('thead').fire('keydown', {key: name, preventDefault() {}, target: th(k)});
+      key('tok_s', 'Enter'); out.tok = order(); key('tok_s', 'Tab'); out.same = order();
+      key('tok_s', ' '); out.tok2 = order();
+      el('tbody').fire('click', {target: {closest: s => (s === '[data-toggle]' ? {dataset: {toggle: 'm0'}} : null)}});
+      out.pts = el('tbody').innerHTML.includes('Points breakdown') && el('tbody').innerHTML.includes('<li>Chat 4.0 = Deep RP 4.0</li>');
+      out.tabindex = el('thead').innerHTML.includes('tabindex="0"');
+    """)
+    assert out["tok"] == "m1,m2,m0" and out["same"] == out["tok"] and out["tok2"] == "m0,m2,m1"
+    assert out["pts"] and out["tabindex"]
+
+
+def test_sections_under_the_table_and_one_closed_more_detail():
+    html = render_html(chip_rows(), "sub", components=COMPS, footer=["long footnote"],
+                       legend=["how"], versus=["a beats b"], ladder=["a: Coding set 1"])
+    tail = html.split("<footer>", 1)[1]
+    assert tail.index("Who beats whom") < tail.index("Ladder packs") < tail.index("How to read this") < tail.index("More detail")
+    assert tail.count("<details") == 1 and "<details class=\"more\">" in tail and " open" not in tail.split("<summary>")[0]
+    assert "long footnote" in tail.split("<summary>", 1)[1]       # the long text only lives inside More detail
+    bare = render_html(chip_rows(), "sub", components=COMPS, footer=["x"])
+    assert "Who beats whom" not in bare and "Ladder packs" not in bare
+    assert "expandAll" not in html and "Expand all" not in html
+
+
+def test_html_ladder_lines_from_the_points_breakdown():
+    from crucibleforge import report
+    got = report.html_ladder([
+        {"label": "a", "points_cell": "Coding 11.2 = Func 5.1±0.2 (set 1) + Tools 3.3 (set 2); Chat 8.0 = X 2.0; NSFW 9.8 = Unc 2.8 (set 1) MAXED"},
+        {"label": "b", "points_cell": "Coding - = Func -"}, {"label": "c", "points_cell": None}])
+    assert got == ["a: Coding set 2, NSFW set 1 (maxed)"]
+    assert report.HTML_LEGEND and all("private" not in x.lower() for x in report.HTML_LEGEND)
+
+
+@needs_node
+def test_point_scores_get_point_sized_minimum_steps():
+    rs = chip_rows()
+    for r in rs:
+        r["s"] = {"overall": r["overall"]}
+    out = run_board(board(rows=rs), r"""
+      out.html = el('filtersRow').innerHTML;
+    """)
+    over = out["html"].split('data-f="overall"', 1)[1].split("</select>", 1)[0]
+    assert '<option value="18"' in over and '<option value="90"' not in over
+    comp = out["html"].split('data-f="c:RP"', 1)[1].split("</select>", 1)[0]
+    assert '<option value="90"' in comp                          # components stay on 0-100

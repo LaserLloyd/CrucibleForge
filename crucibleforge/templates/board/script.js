@@ -28,6 +28,13 @@ const SIDE_LABEL = {}; SIDES.forEach(x => { SIDE_LABEL[x.key] = x.label; });
 const SCORE_COLS = MAIN.filter(c => c.kind === 'num' && c.key !== 'rank' && c.key !== 'tok_s');
 const TEXT_COLS = new Set(['label', 'class', 'lean', 'suite', 'date', 'notes', 'judge', 'coverage', 'provider', 'tiers_cell', 'raw_cell', 'vs_above', 'points_cell']);
 const LABELS = new Set(rows.map(r => r.label));
+// quick-filter chips are built from the rows: only values that exist are offered
+const CLASS_ORDER = ['S', 'A', 'B', 'C'];
+const CLASSES = CLASS_ORDER.filter(c => rows.some(r => r.class === c))
+  .concat([...new Set(rows.map(r => r.class).filter(c => c && !CLASS_ORDER.includes(c)))]);
+const LEANS = [...new Set(rows.map(r => r.lean).filter(Boolean))];
+const HAS_OLD = rows.some(r => r.old);
+const HAS_WHERE = rows.some(r => r.hosted === true) && rows.some(r => r.hosted === false);
 const STATE_VERSION = 2;                  // bump = every saved layout resets (2: Suite column)
 const STORE_KEY = 'crucibleforge-board-layout';
 const BRIDGE = 'dispatch:tool-state';
@@ -35,7 +42,8 @@ const MAX_STATE = 16 * 1024;
 
 function defaults() {
   return {columns: COMPS.map(c => 'c:' + c.label).concat(['suite']), sortKey: 'rank', sortDir: 1,
-          filters: {}, text: '', benched: false, expanded: [], view: 'table'};
+          filters: {}, text: '', benched: false, expanded: [], view: 'table',
+          classes: [], leans: [], current: false, where: ''};
 }
 let S = defaults();
 let expanded = new Set();
@@ -85,12 +93,19 @@ function sanitize(raw) {
   d.benched = raw.benched === true;
   if (Array.isArray(raw.expanded)) d.expanded = raw.expanded.filter(l => typeof l === 'string' && LABELS.has(l));
   if (raw.view === 'table' || raw.view === 'cards') d.view = raw.view;
+  // quick chips (optional keys: a layout saved before they existed still loads)
+  const pick = (a, ok) => Array.isArray(a) ? a.filter(x => typeof x === 'string' && ok.includes(x)) : [];
+  d.classes = pick(raw.classes, CLASSES);
+  d.leans = pick(raw.leans, LEANS);
+  d.current = raw.current === true && HAS_OLD;
+  if ((raw.where === 'hosted' || raw.where === 'local') && HAS_WHERE) d.where = raw.where;
   return d;
 }
 function serialize() {
   return {version: STATE_VERSION, columns: S.columns.slice(), sortKey: S.sortKey, sortDir: S.sortDir,
           filters: Object.assign({}, S.filters), text: S.text, benched: S.benched,
-          expanded: [...expanded], view: S.view};
+          expanded: [...expanded], view: S.view, classes: S.classes.slice(), leans: S.leans.slice(),
+          current: S.current, where: S.where};
 }
 const framed = (() => { try { return window.parent !== window; } catch (e) { return true; } })();
 let saveTimer = null, touched = false, bridgeHeard = false;
@@ -125,6 +140,7 @@ function applyState(st) {
   filtersOpen = Object.keys(S.filters).length > 0;
   $('filter').value = S.text;
   $('benched').checked = S.benched;
+  renderChips();
   renderFilters();
   renderChooser();
   render();
@@ -143,6 +159,10 @@ function compare(a, b) {
 }
 function passes(r) {
   if (S.benched && !isNum(r.overall)) return false;
+  if (S.classes.length && !S.classes.includes(r.class)) return false;
+  if (S.leans.length && !S.leans.includes(r.lean)) return false;
+  if (S.current && r.old) return false;
+  if (S.where && r.hosted !== (S.where === 'hosted')) return false;
   if (S.text) {
     const f = S.text.toLowerCase();
     if (!(r.label.toLowerCase().includes(f) || String(r.model_id || '').toLowerCase().includes(f)
@@ -171,7 +191,9 @@ function detail(r) {
     return inner ? '<div class="group wide"><h4>' + esc(SIDE_LABEL[s] || s) +
       ' components — click one to sort every row by it</h4><div class="comp-grid">' + inner + '</div></div>' : '';
   }).join('');
-  return '<div class="detail">' + groups +
+  const pts = r.points_cell ? '<div class="group wide"><h4>Points breakdown</h4><ul class="pts">' +
+    r.points_cell.split('; ').map(x => '<li>' + esc(x) + '</li>').join('') + '</ul></div>' : '';
+  return '<div class="detail">' + pts + groups +
     '<div class="group wide"><h4>Notes</h4><div class="meta-line">' + esc(r.notes || 'none') + '</div></div>' +
     '<div class="group"><h4>Run date</h4><div class="meta-line">' + esc(r.date || '–') + '</div></div>' +
     metaGroups(r) + '</div>';
@@ -211,7 +233,7 @@ function th(k) {
   const c = colOf(k);
   const on = S.sortKey === k;
   const cls = c.side ? 'side-' + c.side : (MAIN_BY[k] ? 'main-col' : 'extra-col');
-  return '<th data-k="' + esc(k) + '" scope="col" class="' + cls + (k === 'label' ? ' label' : '') + '" aria-sort="' +
+  return '<th data-k="' + esc(k) + '" scope="col" tabindex="0" class="' + cls + (k === 'label' ? ' label' : '') + '" aria-sort="' +
     (on ? (S.sortDir === 1 ? 'ascending' : 'descending') : 'none') + '"' +
     (c.side ? ' title="' + esc(SIDE_LABEL[c.side] || c.side) + ' component"' : '') + '>' + esc(c.label) +
     ' <span class="arrow">' + (on ? (S.sortDir === 1 ? '▲' : '▼') : '⇅') + '</span></th>';
@@ -283,19 +305,78 @@ function render() {
   $('viewCards').setAttribute('aria-pressed', String(S.view === 'cards'));
   $('colsBtn').setAttribute('aria-expanded', String(colsOpen));
   $('colsPanel').classList.toggle('open', colsOpen);
-  $('count').innerHTML = data.length + ' of ' + rows.length + ' models' +
-    '<span class="desk-only"> · click any column to sort · ▸ shows every component, notes, run date and judge</span>';
+  const ranked = data.filter(r => isNum(r.overall)).length;
+  $('count').innerHTML = data.length + ' of ' + rows.length + ' models · ' + ranked + ' ranked' +
+    '<span class="desk-only"> · click a column head (or Enter on it) to sort · ▸ opens points, components, notes and judge</span>';
+  syncChips();
+  $('clearAll').disabled = !anyFilter();
+}
+
+// ------------------------------------------------------------ quick chips
+// Class / Lean (several may be on: any of them), Current suite, Hosted | Local.
+// None on = no restriction. Built once per layout; render() only syncs the flags.
+function chipOn(id) {
+  if (id.startsWith('class:')) return S.classes.includes(id.slice(6));
+  if (id.startsWith('lean:')) return S.leans.includes(id.slice(5));
+  if (id === 'current') return S.current;
+  return S.where === id.slice(6);
+}
+function chipBtn(id, label, title) {
+  return '<button type="button" class="chip-btn" data-chip="' + esc(id) + '" aria-pressed="' + chipOn(id) + '"' +
+    (title ? ' title="' + esc(title) + '"' : '') + '>' + esc(label) + '</button>';
+}
+function renderChips() {
+  const grp = (name, items) => items ? '<span class="chip-group"><span class="chip-lbl">' + name + '</span>' + items + '</span>' : '';
+  $('chips').innerHTML =
+    grp('Class', CLASSES.map(c => chipBtn('class:' + c, c)).join('')) +
+    grp('Lean', LEANS.map(l => chipBtn('lean:' + l, l)).join('')) +
+    grp('Show', (HAS_OLD ? chipBtn('current', 'Current suite', 'hide rows from an older suite') : '') +
+      (HAS_WHERE ? chipBtn('where:hosted', 'Hosted API', 'models run through a paid API') +
+        chipBtn('where:local', 'Local rig', 'models run on the rig') : ''));
+}
+function syncChips() {
+  const box = $('chips');
+  if (!box.querySelectorAll) return;
+  box.querySelectorAll('[data-chip]').forEach(b => b.setAttribute('aria-pressed', String(chipOn(b.dataset.chip))));
+}
+function toggleIn(a, v) { const i = a.indexOf(v); if (i < 0) a.push(v); else a.splice(i, 1); }
+function onChipClick(e) {
+  const b = e.target && e.target.closest ? e.target.closest('[data-chip]') : null;
+  if (!b) return;
+  const id = b.dataset.chip;
+  if (id.startsWith('class:')) toggleIn(S.classes, id.slice(6));
+  else if (id.startsWith('lean:')) toggleIn(S.leans, id.slice(5));
+  else if (id === 'current') S.current = !S.current;
+  else S.where = S.where === id.slice(6) ? '' : id.slice(6);
+  render(); save();
+}
+function anyFilter() {
+  return !!(S.text || S.benched || S.classes.length || S.leans.length || S.current || S.where ||
+            Object.keys(S.filters).length);
+}
+function clearAll() {
+  S.text = ''; S.benched = false; S.classes = []; S.leans = []; S.current = false; S.where = ''; S.filters = {};
+  $('filter').value = ''; $('benched').checked = false;
+  renderFilters(); render(); save();
 }
 
 // ------------------------------------------------------------ filters row
 // Rebuilt only when the column set changes (never while typing): Chat, Coding
 // and Overall always, then one per chosen numeric column, in column order.
+// The headline scores are points (Overall /20, the others /10; a ladder pack can pass 10),
+// so their minimum-score steps are points too; components stay on 0-100.
+const POINTS = rows.some(r => r.s);
+function stepsFor(k) {
+  if (!POINTS || !MAIN_BY[k] || MAIN_BY[k].kind !== 'num') return THRESHOLDS;
+  return k === 'overall' ? [8, 10, 12, 14, 16, 18] : [4, 5, 6, 7, 8, 9];
+}
 function filterChip(k) {
   const c = colOf(k);
   const v = S.filters[k];
-  const custom = isNum(v) && !THRESHOLDS.includes(v);
-  const opts = '<option value="">any</option>' + THRESHOLDS.map(t =>
-    '<option value="' + t + '"' + (v === t ? ' selected' : '') + '>' + (t < 100 ? '≥' : '') + t + '</option>').join('') +
+  const steps = stepsFor(k);
+  const custom = isNum(v) && !steps.includes(v);
+  const opts = '<option value="">any</option>' + steps.map(t =>
+    '<option value="' + t + '"' + (v === t ? ' selected' : '') + '>' + (t < 100 || steps !== THRESHOLDS ? '≥' : '') + t + '</option>').join('') +
     '<option value="custom" disabled' + (custom ? ' selected' : '') + '>custom</option>';
   return '<div class="comp-filter ' + (c.side ? 'side-' + c.side : 'main') + (k in S.filters ? ' is-active' : '') +
     '" data-f="' + esc(k) + '" role="group" aria-label="minimum ' + esc(c.label) + '">' +
@@ -305,7 +386,7 @@ function filterChip(k) {
     'placeholder="__" value="' + (isNum(v) ? v : '') + '" aria-label="minimum ' + esc(c.label) + ', any number"></div>';
 }
 function renderFilters() {
-  $('filtersRow').innerHTML = '<span class="flabel">Filter by element →</span>' +
+  $('filtersRow').innerHTML = '<span class="flabel">Minimum score →</span>' +
     filterKeys(S.columns).map(filterChip).join('') +
     '<button type="button" data-act="clear" title="Clear every element filter">Clear</button>';
 }
@@ -334,7 +415,7 @@ function onFilterInput(e) {
   const n = raw === '' ? null : Number(raw);
   if (n !== null && (!isFinite(n) || n < 0)) return;
   const sel = chip.querySelector('select');
-  if (sel) sel.value = n === null ? '' : (THRESHOLDS.includes(n) ? String(n) : 'custom');
+  if (sel) sel.value = n === null ? '' : (stepsFor(chip.dataset.f).includes(n) ? String(n) : 'custom');
   setFilter(chip, chip.dataset.f, n);
 }
 function onFilterClick(e) {
@@ -445,8 +526,8 @@ function resetLayout() {
 function init() {
   $('filter').addEventListener('input', e => { S.text = e.target.value; render(); save(); });
   $('benched').addEventListener('change', e => { S.benched = !!e.target.checked; render(); save(); });
-  $('expandAll').addEventListener('click', () => { rows.forEach(r => expanded.add(r.label)); render(); save(); });
-  $('collapseAll').addEventListener('click', () => { expanded.clear(); render(); save(); });
+  $('chips').addEventListener('click', onChipClick);
+  $('clearAll').addEventListener('click', clearAll);
   $('sortSel').addEventListener('change', e => { S.sortKey = e.target.value; S.sortDir = defaultDir(S.sortKey); render(); save(); });
   $('sortDir').addEventListener('click', () => { S.sortDir = -S.sortDir; render(); save(); });
   $('filtersBtn').addEventListener('click', () => { filtersOpen = !filtersOpen; render(); });
@@ -467,6 +548,16 @@ function init() {
   cl.addEventListener('drop', onDrop);
   cl.addEventListener('dragend', onDragEnd);
   $('thead').addEventListener('click', onHeadClick);
+  $('thead').addEventListener('keydown', e => {                 // sortable by keyboard: Enter / Space on a head
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    const h = e.target && e.target.closest ? e.target.closest('th[data-k]') : null;
+    if (!h) return;
+    e.preventDefault();
+    const k = h.dataset.k;
+    sortBy(k);
+    const again = document.querySelector ? document.querySelector('th[data-k="' + k.replace(/"/g, '') + '"]') : null;
+    if (again && again.focus) again.focus();                    // render() rebuilt the head: keep the keyboard place
+  });
   $('tbody').addEventListener('click', onListClick);
   $('cards').addEventListener('click', onListClick);
   applyState(sanitize(loadLocal()));

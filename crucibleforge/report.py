@@ -3628,6 +3628,9 @@ def html_rows(labels: list[str], stats: dict) -> list[dict]:
         out.append({
             "rank": i, "label": l, "model_id": meta.get("model_id"),
             "provider": meta.get("provider") or meta.get("device"),
+            # hosted API vs local rig (None = unknown, never filtered as hosted)
+            "hosted": (meta.get("provider_type") or meta.get("provider")) not in LOCAL_PROVIDER_TYPES
+            if (meta.get("provider_type") or meta.get("provider")) else None,
             "chat": c["chat"], "coding": c["coding"], "overall": c["total"],
             # suite 3.9: Reason score and the tier reached per score
             "reason": c.get("reason"),
@@ -3679,6 +3682,35 @@ def _hs(s: dict, key: str) -> dict | None:
     return out
 
 
+#: the short "how to read this" under the HTML board (4.0 headline boards)
+HTML_LEGEND = [
+    "Score /20 = Coding /10 + Chat /10. NSFW /10 is shown separately and never counted in Score.",
+    "± = half of the 90 % interval of a bootstrap over the cases. A rank like \"3=\" means statistically tied with the model above.",
+    "Ladder packs are bonus question sets worth 1 point each, unlocked by ≥ 90 % on the level below, so a category can pass 10. "
+    "(set n) = the highest level scored.",
+    "Rows marked old come from an older suite and are awaiting a re-run; a dash = not measured; Room = the score with the end-of-run retry.",
+]
+
+#: model that run on this rig / box rather than through a paid API
+LOCAL_PROVIDER_TYPES = {"studioforge", "lmstudio", "llamacpp", "ollama", "vllm", "local"}
+
+
+def html_ladder(rows: list[dict]) -> list[str]:
+    """Ladder-pack status per model, from each row's points breakdown:
+    "deepseek-flash: Coding set 1, Chat set 1, NSFW set 1 (maxed)"."""
+    out = []
+    for r in rows:
+        parts = []
+        for seg in (r.get("points_cell") or "").split("; "):
+            sets = [int(n) for n in re.findall(r"\(set (\d+)\)", seg)]
+            m = re.match(r"([A-Za-z][\w ]*?) [\d-]", seg)
+            if sets and m:
+                parts.append(f"{m.group(1)} set {max(sets)}" + (" (maxed)" if "MAXED" in seg else ""))
+        if parts:
+            out.append(f"{r['label']}: " + ", ".join(parts))
+    return out
+
+
 def html_components(stats: dict, cfg: dict | None = None) -> list[dict]:
     """The component columns of the HTML board, in report.md order:
     ``[{label, side: "chat"|"coding"}]``."""
@@ -3717,16 +3749,19 @@ def render_report_html(labels: list[str], stats: dict, cfg: dict | None = None,
     subtitle = " · ".join(x for x in (
         f"{len(labels)} models", *_suite_head({l: stats[l] for l in labels}, cfg),
         f"judge {judge}" if judge and judge != "-" else None) if x)
-    footer = []
+    footer, legend, versus, ladder = [], [], [], []
     if labels:
         footer.append(scorecard_footnote(_cards(labels, stats, cfg), cfg, markdown=False))
     if any(stats[l].get("headline") for l in labels):
         from . import tiers as _tiers
         footer.append(headline_footnote(_tiers.scores(_tier_profile(cfg))).strip("*").replace("**", ""))
         footer.append(class_footnote(_tier_profile(cfg)).strip("*"))
-        footer += ["Who is better: " + stats[l]["headline"]["vs_above"]["text"]
-                   for l in rank_labels(labels, stats)
-                   if (stats[l].get("headline") or {}).get("vs_above")]
+        # the board proper: short sections under the table; the long footnotes
+        # above stay behind the closed "More detail" block
+        legend = HTML_LEGEND + [class_footnote(_tier_profile(cfg)).strip("*")]
+        versus = [stats[l]["headline"]["vs_above"]["text"] for l in rank_labels(labels, stats)
+                  if (stats[l].get("headline") or {}).get("vs_above")]
+        ladder = html_ladder(html_rows(labels, stats))
     footer += [line.strip("*") for line in (archived_note or "").splitlines()]
     footer.append(" · ".join(x for x in (
         f"Suite revision {', '.join(revs or [_current_revision(cfg) or '?'])}"
@@ -3738,7 +3773,7 @@ def render_report_html(labels: list[str], stats: dict, cfg: dict | None = None,
                        components=html_components({l: stats[l] for l in labels}, cfg),
                        footer=footer,
                        forbidden=(_hidden(cfg) or {}).get("terms"),
-                       scores=scores, sides=sides)
+                       scores=scores, sides=sides, legend=legend, versus=versus, ladder=ladder)
 
 
 # ------------------------------------------------------------- generate

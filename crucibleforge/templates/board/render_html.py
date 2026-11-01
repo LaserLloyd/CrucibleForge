@@ -118,12 +118,34 @@ def columns(comps: list[dict], headline: bool = False,
     return main, extra
 
 
+def _below(footer, legend, versus, ladder) -> str:
+    """Everything under the table: short sections, then one closed
+    "More detail" block holding the long footnotes."""
+    esc = html.escape
+
+    def section(cls, title, lines):
+        lines = [x for x in (lines or []) if x]
+        if not lines:
+            return ""
+        return (f'<section class="{cls}"><h2>{esc(title)}</h2><ul>'
+                + "".join(f"<li>{esc(scrub(x))}</li>" for x in lines) + "</ul></section>")
+    more = "".join(f"<p>{esc(scrub(line))}</p>" for line in (footer or []) if line)
+    return ("<footer>" + section("versus", "Who beats whom", versus)
+            + section("ladder", "Ladder packs", ladder)
+            + section("legend", "How to read this", legend)
+            + (f'<details class="more"><summary>More detail</summary>{more}</details>' if more else "")
+            + "</footer>")
+
+
 def render_html(rows: list[dict], subtitle: str = "",
                 components: list[dict] | None = None,
                 footer: list[str] | None = None,
                 forbidden: list[str] | None = None,
                 scores: list[dict] | None = None,
-                sides: list[dict] | None = None) -> str:
+                sides: list[dict] | None = None,
+                legend: list[str] | None = None,
+                versus: list[str] | None = None,
+                ladder: list[str] | None = None) -> str:
     """The full HTML document.
 
     ``rows``: ``report.html_rows`` shape. ``components``: ordered
@@ -167,14 +189,14 @@ def render_html(rows: list[dict], subtitle: str = "",
               '<div class="m-sort m-only"><label class="m-lbl" for="sortSel">Sort</label>'
               f'<select id="sortSel" aria-label="sort by">{sort_opts}</select>'
               '<button id="sortDir" type="button" aria-label="sort direction">Top first</button></div>'
-              '<button id="filtersBtn" class="m-only" type="button" aria-expanded="false" '
+              '<button id="filtersBtn" type="button" aria-expanded="false" '
               'aria-controls="filtersRow">Filters</button>')
     chooser = ('<section class="cols-panel" id="colsPanel" aria-label="choose columns">'
                '<div class="cols-head"><strong>Right-hand columns</strong>'
                '<span class="muted">tick to show · drag or ↑↓ to order · saved for you</span>'
                '<button id="colsDone" type="button">Done</button></div>'
                '<ol class="cols-list" id="colsList"></ol></section>')
-    foot = "".join(f"<p>{esc(scrub(line))}</p>" for line in (footer or []) if line)
+    below = _below(footer, legend, versus, ladder)
     payload = data_json({"rows": rows, "components": comps, "thresholds": THRESHOLDS,
                          "main": main, "extra": extra, "sides": sides})
     page = (
@@ -185,22 +207,23 @@ def render_html(rows: list[dict], subtitle: str = "",
         f"<style>{CSS}</style></head><body data-view=\"table\">"
         "<header><h1>CrucibleForge — Chat &amp; Coding</h1>"
         f'<div class="meta">{esc(scrub(subtitle))}</div>'
-        '<div class="toolbar"><input id="filter" type="search" placeholder="filter model / provider…" '
-        'aria-label="filter models">'
+        '<div class="toolbar"><input id="filter" type="search" placeholder="search model / provider…" '
+        'aria-label="search models">'
         f'{mobile}'
-        '<button id="expandAll" type="button">Expand all</button>'
-        '<button id="collapseAll" type="button">Collapse all</button>'
-        '<label class="benched"><input type="checkbox" id="benched"> benched only</label>'
+        '<label class="benched"><input type="checkbox" id="benched"> ranked only</label>'
         '<button id="colsBtn" type="button" aria-expanded="false" aria-controls="colsPanel">⚙ Columns</button>'
+        '<button id="clearAll" type="button" title="Clear the search, the chips and the score filters">'
+        'Clear filters</button>'
         '<button id="resetLayout" type="button" title="Back to the default columns, sort and filters">'
         'Reset layout</button></div>'
+        '<div class="chips" id="chips" role="group" aria-label="quick filters"></div>'
         f'{chooser}'
         '<div class="filters-row" id="filtersRow"></div>'
         f'<div class="meta" id="count">{len(rows)} models</div>'
         "</header>"
         '<div class="wrap"><table><thead id="thead"></thead><tbody id="tbody"></tbody></table></div>'
         '<div class="cards" id="cards"></div>'
-        f"<footer>{foot}</footer>"
+        f"{below}"
         f'<script type="application/json" id="board-data">{payload}</script>'
         f"<script>{JS}</script></body></html>"
     )

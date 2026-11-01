@@ -89,3 +89,21 @@ localStorage path, unknown-column drop / version reset, and the phone toggle.
 `tests/test_board_mobile.py` checks the card layout, the phone controls and
 the media query, and drives Sort / direction / Filters / Details to prove one
 state feeds both layouts.
+
+
+## 2026-11 redesign (lite 4.0)
+
+- **Quick chips** under the search box: Class (S/A/B/C as present), Lean, and
+  Show (Current suite, Hosted API | Local rig) — only values that exist in the
+  rows are offered; none on = no restriction; **ranked only** and **Clear
+  filters** next to them. Saved with the layout (`classes`, `leans`,
+  `current`, `where`; older saved layouts still load).
+- The per-column minimum-score row is behind **Filters** (closed by default);
+  headline scores (points) get point-sized steps (Overall ≥ 8…18, the others
+  ≥ 4…9), components stay on 0-100.
+- Column heads are keyboard-sortable (Tab, Enter / Space). The ▸ expander now
+  opens with the per-score **Points breakdown**. Expand/Collapse all are gone.
+- Under the table: **Who beats whom**, **Ladder packs**, **How to read this**
+  (all from `report.py`, empty = left out), then ONE closed **More detail**
+  block holding the long footnotes (scorecard, headline, class, archive note,
+  suite revision, judge, render time).
