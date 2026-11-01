@@ -201,7 +201,15 @@ def test_load_cases_materializes_generated_and_min_context():
 
 def test_case_set_verifies_clean():
     cases = config.load_cases()
-    bad = [(c["id"], verify_cases._check(c)) for c in cases if verify_cases._check(c)]
+    from crucibleforge.codebank import Unsupported
+    bad = []
+    for c in cases:
+        try:
+            errs = verify_cases._check(c)
+        except Unsupported:          # Windows / no node: those cases cannot run here
+            continue
+        if errs:
+            bad.append((c["id"], errs))
     assert not bad, bad
 
 

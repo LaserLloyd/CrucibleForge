@@ -25,6 +25,9 @@ import pytest
 from crucibleforge import config, runner, stopflag
 from crucibleforge.api import ChatResult
 
+# POSIX signal semantics (SIGTERM -> exit 143): on Windows send_signal(SIGTERM) is TerminateProcess
+needs_posix_signals = pytest.mark.skipif(sys.platform == "win32", reason="POSIX SIGTERM semantics")
+
 ROOT = Path(__file__).resolve().parent.parent
 
 
@@ -109,7 +112,7 @@ def _sigterm_and_time(proc, chats, n_chats):
     deadline = time.time() + 60
     while len(chats) < n_chats and time.time() < deadline and proc.poll() is None:
         time.sleep(0.1)
-    assert len(chats) >= n_chats, proc.communicate(timeout=5)[0].decode()[-3000:]
+    assert len(chats) >= n_chats, proc.communicate(timeout=5)[0].decode("utf-8", "replace")[-3000:]
     time.sleep(0.5)
     t0 = time.time()
     proc.send_signal(signal.SIGTERM)
@@ -119,10 +122,11 @@ def _sigterm_and_time(proc, chats, n_chats):
         proc.kill()
         out, _ = proc.communicate()
         pytest.fail("the process did not end within 20 s of SIGTERM (it hung):\n"
-                    + out.decode()[-3000:])
-    return time.time() - t0, proc.returncode, out.decode()
+                    + out.decode("utf-8", "replace")[-3000:])
+    return time.time() - t0, proc.returncode, out.decode("utf-8", "replace")
 
 
+@needs_posix_signals
 def test_sigterm_with_workers_stuck_on_a_dead_host_exits_fast_and_marks_stopped(tmp_path):
     """Workers blocked mid-request (the rig stopped answering): SIGTERM ends
     the process in seconds through the normal path (the watchdog's 25 s grace
@@ -141,6 +145,7 @@ def test_sigterm_with_workers_stuck_on_a_dead_host_exits_fast_and_marks_stopped(
     assert meta["finished"] and meta["error"] == "stopped (SIGTERM)"
 
 
+@needs_posix_signals
 def test_sigterm_with_the_main_thread_blocked_ends_by_the_watchdog(tmp_path):
     """thinking: auto -> the main thread itself is blocked in the thinking
     probe on the hung server; the watchdog ends the process after the grace

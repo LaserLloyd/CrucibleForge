@@ -12,6 +12,8 @@ import json
 import re
 import shutil
 import subprocess
+import tempfile
+from pathlib import Path
 
 import pytest
 
@@ -114,7 +116,11 @@ def run_board(html, body, *, framed=False, storage_throws=False, store=None):
     js = (HARNESS.replace("__BLOB__", json.dumps(blob)).replace("__OPT__", json.dumps(opt))
           + script + "\n(async () => { const out = {};\n" + body
           + "\nconsole.log(JSON.stringify(out)); })().catch(e => { console.error(e.stack || e); process.exit(3); });\n")
-    res = subprocess.run(["node", "-e", js], capture_output=True, text=True, encoding="utf-8", timeout=30)
+    # a file, not `node -e`: the page is ~100 KB and Windows caps a command line at 32 KB
+    with tempfile.TemporaryDirectory() as td:
+        f = Path(td) / "board_run.js"
+        f.write_text(js, encoding="utf-8")
+        res = subprocess.run(["node", str(f)], capture_output=True, text=True, encoding="utf-8", timeout=30)
     assert res.returncode == 0, res.stderr
     return json.loads(res.stdout.strip().splitlines()[-1])
 

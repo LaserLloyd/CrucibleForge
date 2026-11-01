@@ -536,6 +536,25 @@ class NodeMissing(Unsupported):
     """A node-runner case or snippet was asked for but no node is on PATH."""
 
 
+_BASH_MAJOR: list = []
+
+
+def bash_major() -> int | None:
+    """Major version of the ``bash`` on PATH (macOS ships 3.2), None when absent."""
+    if not _BASH_MAJOR:
+        major = None
+        b = shutil.which("bash")
+        if b:
+            try:
+                out = subprocess.run([b, "-c", "echo ${BASH_VERSINFO[0]}"], capture_output=True,
+                                     text=True, timeout=10).stdout.strip()
+                major = int(out)
+            except (OSError, ValueError, subprocess.SubprocessError):
+                major = None
+        _BASH_MAJOR.append(major)
+    return _BASH_MAJOR[0]
+
+
 def posix_runner() -> bool:
     """The code-bank child runner needs POSIX ``resource`` + ``SIGALRM``."""
     return os.name != "nt"
@@ -596,6 +615,8 @@ def run_groups(tree: dict[str, str], hidden: dict[str, str], groups: list[dict],
     if not posix_runner():
         raise Unsupported("the code bank needs a POSIX host (resource limits and SIGALRM)")
     _g.require_sandbox()
+    if any(name.endswith(".sh") for name in tree) and (bash_major() or 0) < 4:
+        raise Unsupported("this case's shell scripts need bash 4 or newer on PATH (macOS ships 3.2)")
     needs_node = any(g.get("runner") == "node" for g in groups)
     node = node_path() if needs_node else None
     if needs_node and not node:

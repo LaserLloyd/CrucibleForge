@@ -16,7 +16,9 @@ rename.
   unsandboxed container, where it ran for 25+ minutes).
 - macOS: the code-bank child no longer dies on `RLIMIT_AS` (best-effort limits) and `derive_gold` has an
   unsandboxed path like the grader; Windows reports code-bank cases as `SKIP` (the runner needs POSIX
-  `resource`/`SIGALRM`). CI runs the tests with `-n auto`.
+  `resource`/`SIGALRM`). The bash-script cases report `SKIP` under bash older than 4 (macOS ships 3.2). `tzdata` is a Windows
+  dependency (zoneinfo has no system database there). Windows test fixes: the board tests pass the page to node
+  as a file (the command line was over 32 KB) and the SIGTERM tests are POSIX-only. CI runs the tests with `-n auto`.
 - `SECURITY.md` names GitHub private vulnerability reporting as the contact.
 - No case content or suite hash change.
 
