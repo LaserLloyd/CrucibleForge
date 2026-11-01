@@ -68,9 +68,23 @@ def _pick_studioforge_canary(cfg: dict, prov: Provider, selected_ids: list[str])
     return candidates[0][1]
 
 
-def _probe(prov: Provider, model_id: str, extra_body: dict | None = None) -> None:
+def _probe_sampler(cfg: dict, entry: dict | None) -> dict:
+    """The sampler the run itself will send, so the probe never asks for one
+    the model refuses: under the "as deployed" regime (3.8.0) that is none at
+    all (or the entry's pinned ``sampler:``) — kimi-k3 rejects any temperature
+    but 1 and failed the old fixed temperature=0 probe (2026-10-25)."""
+    if ((cfg or {}).get("defaults") or {}).get("regime") == "deployed":
+        from .runner import resolve_sampler
+        s, _ = resolve_sampler(cfg, entry or {})
+        return {"temperature": s.get("temperature"), "top_p": s.get("top_p")}
+    return {"temperature": 0.0}
+
+
+def _probe(prov: Provider, model_id: str, extra_body: dict | None = None,
+           sampler: dict | None = None) -> None:
     prov.chat(model_id, [{"role": "user", "content": "Hi"}],
-              max_tokens=4, temperature=0.0, seed=42, extra_body=extra_body or {})
+              max_tokens=4, seed=42, extra_body=extra_body or {},
+              **(sampler if sampler is not None else {"temperature": 0.0}))
 
 
 def check_link_health(cfg: dict, entries: list[dict]) -> None:
@@ -93,18 +107,19 @@ def check_link_health(cfg: dict, entries: list[dict]) -> None:
             if not canary:
                 log.warning("link check: no %s canary model found; skipping probe", pname)
                 continue
-            probes = [(canary, {})]
+            probes = [(canary, {}, _probe_sampler(cfg, None))]
         else:
-            probes = [(e["model_id"], dict(e.get("extra_body") or {})) for e in ents]
+            probes = [(e["model_id"], dict(e.get("extra_body") or {}), _probe_sampler(cfg, e))
+                      for e in ents]
 
-        for model_id, extra in probes:
+        for model_id, extra, sampler in probes:
             try:
-                _probe(prov, model_id, extra)
+                _probe(prov, model_id, extra, sampler)
             except (TransportError, WrongModelError) as e1:
                 log.warning("link check: %s/%s probe failed (%s); retrying once",
                             pname, model_id, str(e1)[:120])
                 try:
-                    _probe(prov, model_id, extra)
+                    _probe(prov, model_id, extra, sampler)
                 except (TransportError, WrongModelError) as e2:
                     raise SystemExit(
                         f"provider {pname}: data channel down or model {model_id!r} "

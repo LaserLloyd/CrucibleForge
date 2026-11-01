@@ -1,0 +1,558 @@
+id: LWR2-neap-seam
+user_name: the author
+format_gate: chat
+deep_rubric: chat_deep
+rules: |
+  You are the co-writer described in the card below, working one-on-one in a chat with the user, an author who is writing a short story with you one section at a time.
+
+  Rules (strict):
+  1. Each reply is exactly the text the author asks for — the section itself, nothing before or after it: no greeting, no commentary, no notes, no questions back.
+  2. Plain text only: no markdown, no headings, no bold or italics, no lists. A title, when asked for, is a plain line.
+  3. Follow every instruction the author gives. Rules set in an earlier message hold for the whole story unless the author changes them.
+  4. Count carefully: word limits are limits, and exact wording is exact.
+  5. Keep every reply under 450 words.
+judge_card_summary: 'The Writing Desk co-writer: an author and a co-writer draft one short story section by section in a chat. The co-writer replies with exactly the requested section (no commentary, no markdown, title as a plain line). Rules set "for the whole piece" hold until the author changes them; a midway change ("from here on") holds forward only. Plain, concrete prose; feeling shown through hands, voices and objects; endings land on something seen or heard; nothing planted is wasted.'
+judge_key: 'The assistant is the co-writer; the user is the author. Turn 1 supplies the opening (about 400 words) of a story in a collective ''we'' voice and asks for a seamless continuation; the habits are never stated: collective we, present tense, no quotation marks (speech as ''Name says: ...''), distance in ropes and time in tides, no clock or metric units, no similes, no semicolons/dashes/digits, every paragraph ends on a sentence of at most six words, the we never enters a head, villagers'' things are named by owner (Hesk''s, Brannoch''s). Plants in the opening: the stranger is a woman, goes straight to the third post (the lantern hook), Hesk knew it was a woman, Dunna''s tally string. Turn 2: the stranger is named Marren; the third paragraph is Dunna in first person singular (the only I in the story), planting an object or action; the word daughter is banned. Turn 3 resolves who Marren is (Hesk''s lost child, never called daughter) by action and object, and ends on the opening sentence with one word changed. Turn 4 asks the model to list the habits it kept.'
+temperature: 0.8
+top_p: 0.95
+max_tokens: 2000
+min_context: 40960
+turns:
+- |
+  A note on counting, for the whole exercise: a word is anything between spaces, a sentence ends at a full stop, question mark or exclamation mark, and use straight apostrophes only.
+
+  Below is the opening of a story I'm writing. Continue it from exactly where it stops, as the same writer, in the same voice, so that a reader could not find the seam. Don't comment on the opening, don't summarise it and don't repeat any of it.
+
+  The Neap keeps what it takes. We have that from our fathers, who have it from theirs, and we pass it on without comment. The wall runs forty ropes from the slip to Hesk's boat shed, and the water goes over it twice between mornings. Whatever it leaves behind is ours to sort. Whatever it keeps stays kept.
+
+  On the morning the boat comes we are mending. Dunna sits on an upturned creel with the tally string across her knees, knotting the night's catch into it, nine knots for the herring and one for the skate nobody ordered. Orrin lies under Brannoch's hull with a pot of tar and a poor opinion of the weather. The children line the wall and count the gulls, and each of them gets a different count. The gulls have stayed away for three tides. Today the gulls are back.
+
+  The boat is not one of ours. We know it from the sail before we know anything else, because ours are brown and this one is the grey of a washed plate. It comes over the bar with nobody at the oars and settles two ropes off the slip. The water under it is flat and does not seem to move. It does not drop a line.
+
+  Hesk lays down his plane. He is the oldest of us, and his boat is the one that can still make the Skerry. Hesk says: that is a woman at the tiller. Dunna ties off her last knot and slips the string into her apron, which she does when she wants her hands free. Brannoch climbs out from under his hull and wipes his palms on his thighs. Nobody says how Hesk knows.
+
+  The bell on the slip is Orrin's to ring, and he does not ring it. He looks at us and we look at the water. The stranger steps onto the slip with a bag over one shoulder and walks straight to the third post, where the lantern hook hangs, and lays a palm flat on the wood. Nobody has told her which post.
+
+  We say nothing. The tide turns under the grey boat, and the eleven ropes of water between the bar and the wall begin to drain. Brannoch's wife stops stirring her pot. The smoke goes sideways.
+
+  Hesk takes up his plane again and does not use it. The stranger turns. We see her face.
+
+  Section 1 of your continuation (exactly 240 words, in exactly six paragraphs): the stranger asks the village for a bed. She speaks once, and her words are given the way the village gives everyone's speech. The words "sixth rope" appear in the second paragraph. Orrin rings the bell exactly once. The village decides nothing yet, and the stranger's name is not given. The last paragraph contains the words "the Neap". The name Orrin appears exactly three times in the section and the word "bell" exactly twice.
+- |
+  Section 2 (exactly 232 words, in exactly five paragraphs). New in this section: Dunna gives the stranger's name, Marren, and the third paragraph of the section is Dunna telling, in her own voice, what she saw on the Skerry the night the gulls first left. That paragraph is the only place in the whole story where the word I is used; every other paragraph is the village's we again. Her paragraph keeps every habit of the story's prose and it carries no speech tag. In it, plant one object or action that the ending can use. Her paragraph is exactly five sentences long. The name Marren appears exactly four times in the section. The word daughter is not used anywhere in the story.
+- |
+  Section 3, the last (exactly 196 words, in exactly five paragraphs): resolve who Marren is. Use at least two things planted earlier (the third post and the lantern hook, Dunna's tally string, Hesk's plane or his first words about the tiller), and show the answer through an action and an object, not an announcement. No paragraph is longer than 55 words, the final paragraph is exactly four sentences of 3, 4, 5 and 6 words in that order, and the name Hesk appears exactly four times in the section. The last sentence of the story is the first sentence of the opening with exactly one word changed.
+- |
+  Thank you. One last thing, as plainly as you can: list the habits of the prose in my opening that you kept to, one habit per line, ten lines at most, no numbering and no bullets, nothing else.
+checks:
+- id: W1-exact-240
+  fact: W1
+  ftype: format
+  group: constraint
+  type: word_range
+  turns:
+  - 1
+  min: 240
+  max: 240
+  weight: 0.72
+- id: W2-exact-232
+  fact: W2
+  ftype: format
+  group: constraint
+  type: word_range
+  turns:
+  - 2
+  min: 232
+  max: 232
+  weight: 0.72
+- id: W3-exact-196
+  fact: W3
+  ftype: format
+  group: constraint
+  type: word_range
+  turns:
+  - 3
+  min: 196
+  max: 196
+  weight: 0.72
+- id: A1-six-paragraphs
+  fact: A1
+  ftype: format
+  group: constraint
+  type: require_regex
+  turns:
+  - 1
+  pattern: \A\s*[ \t]*\S[^\n]*(?:\n[ \t]*\S[^\n]*)*\n(?:[ \t]*\n)+[ \t]*\S[^\n]*(?:\n[ \t]*\S[^\n]*)*\n(?:[ \t]*\n)+[ \t]*\S[^\n]*(?:\n[ \t]*\S[^\n]*)*\n(?:[ \t]*\n)+[ \t]*\S[^\n]*(?:\n[ \t]*\S[^\n]*)*\n(?:[ \t]*\n)+[ \t]*\S[^\n]*(?:\n[ \t]*\S[^\n]*)*\n(?:[ \t]*\n)+[ \t]*\S[^\n]*(?:\n[ \t]*\S[^\n]*)*\s*\Z
+  scope: all
+  weight: 0.08
+- id: A2-five-paragraphs
+  fact: A2
+  ftype: format
+  group: constraint
+  type: require_regex
+  turns:
+  - 2
+  pattern: \A\s*[ \t]*\S[^\n]*(?:\n[ \t]*\S[^\n]*)*\n(?:[ \t]*\n)+[ \t]*\S[^\n]*(?:\n[ \t]*\S[^\n]*)*\n(?:[ \t]*\n)+[ \t]*\S[^\n]*(?:\n[ \t]*\S[^\n]*)*\n(?:[ \t]*\n)+[ \t]*\S[^\n]*(?:\n[ \t]*\S[^\n]*)*\n(?:[ \t]*\n)+[ \t]*\S[^\n]*(?:\n[ \t]*\S[^\n]*)*\s*\Z
+  scope: all
+  weight: 0.08
+- id: A3-five-paragraphs
+  fact: A3
+  ftype: format
+  group: constraint
+  type: require_regex
+  turns:
+  - 3
+  pattern: \A\s*[ \t]*\S[^\n]*(?:\n[ \t]*\S[^\n]*)*\n(?:[ \t]*\n)+[ \t]*\S[^\n]*(?:\n[ \t]*\S[^\n]*)*\n(?:[ \t]*\n)+[ \t]*\S[^\n]*(?:\n[ \t]*\S[^\n]*)*\n(?:[ \t]*\n)+[ \t]*\S[^\n]*(?:\n[ \t]*\S[^\n]*)*\n(?:[ \t]*\n)+[ \t]*\S[^\n]*(?:\n[ \t]*\S[^\n]*)*\s*\Z
+  scope: all
+  weight: 0.08
+- id: W3b-final-para-3-4-5-6
+  fact: W3b
+  ftype: format
+  group: constraint
+  type: require_regex
+  turns:
+  - 3
+  pattern: (?:\A|\n[ \t]*\n)[ \t]*[ \t]*(?:[^\s.!?]+[ \t]+){2}[^\s.!?]+[.!?]+[ \t]+(?:[^\s.!?]+[ \t]+){3}[^\s.!?]+[.!?]+[ \t]+(?:[^\s.!?]+[ \t]+){4}[^\s.!?]+[.!?]+[ \t]+(?:[^\s.!?]+[ \t]+){5}[^\s.!?]+[.!?]+[ \t]*\s*\Z
+  scope: all
+  note: the final paragraph is four sentences of 3, 4, 5, 6 words
+  weight: 0.72
+- id: H-paragraph-3-to-6-sentences
+  fact: H
+  ftype: format
+  group: constraint
+  type: forbid_regex
+  turns:
+  - 1
+  - 2
+  - 3
+  pattern: (?:^|\n)(?:[ \t]*[A-Za-z0-9][^.!?\n]*[.!?]+[ \t]*){1,2}(?=\n|\Z)|^(?:[ \t]*[A-Za-z0-9][^.!?\n]*[.!?]+[ \t]*){7,}$
+  scope: all
+  note: every paragraph is 3 to 6 sentences (the opening's habit)
+  weight: 1.15
+- id: Z8-no-question-exclaim
+  fact: Z8
+  ftype: format
+  group: constraint
+  type: forbid_regex
+  turns:
+  - 1
+  - 2
+  - 3
+  pattern: '[?!]'
+  scope: all
+  note: the opening has no question marks or exclamation marks
+  weight: 0.72
+- id: Z9-no-contractions
+  fact: Z9
+  ftype: format
+  group: constraint
+  type: forbid_regex
+  turns:
+  - 1
+  - 2
+  - 3
+  pattern: \b\w+n['’]t\b|\b(?:I|he|she|it|we|you|they|that|there|who|what)['’](?:s|d|ll|re|ve|m)\b
+  scope: all
+  note: the opening has no contractions
+  weight: 0.08
+- id: Z15-no-sea-words
+  fact: Z15
+  ftype: format
+  group: constraint
+  type: forbid_regex
+  turns:
+  - 1
+  - 2
+  - 3
+  pattern: \b(?:sea|seas|ocean|waves?|surf|shore)\b
+  scope: all
+  note: the opening says water, tide and bar - never sea, ocean, wave
+  weight: 2.0
+- id: Z2-no-conjunction-starts
+  fact: Z2
+  ftype: format
+  group: constraint
+  type: forbid_regex
+  turns:
+  - 1
+  - 2
+  - 3
+  pattern: (?:^|[.!?]\s+)(?:And|But|Then|So|Yet|Or)\b
+  scope: all
+  note: no sentence begins with a conjunction or Then (the opening never does)
+  weight: 1.15
+- id: Y-straight-no-dashes
+  fact: Y
+  ftype: format
+  group: constraint
+  type: forbid_regex
+  turns:
+  - 1
+  - 2
+  - 3
+  pattern: '[‘’“”‐‑–—-]'
+  scope: all
+  note: straight apostrophes; no hyphens or dashes
+  weight: 1.57
+- id: Q-no-quotation-marks
+  fact: Q
+  ftype: format
+  group: constraint
+  type: forbid_regex
+  turns:
+  - 1
+  - 2
+  - 3
+  pattern: '[\"“”‘]|(?<![A-Za-z])''|''(?![A-Za-z])'
+  scope: all
+  note: speech is never in quotation marks
+  weight: 0.08
+- id: S-says-colon
+  fact: S
+  ftype: format
+  group: constraint
+  type: require_regex
+  turns:
+  - 1
+  pattern: '\bsays: [a-z]'
+  scope: all
+  note: 'speech is given as ''X says: ...'' with no quotes'
+  weight: 0.08
+- id: V-no-other-speech-verbs
+  fact: V
+  ftype: format
+  group: constraint
+  type: forbid_regex
+  turns:
+  - 1
+  - 2
+  - 3
+  pattern: \b(?:said|asked|asks|replied|replies|answered|answers|whispered|whispers|shouted|shouts|muttered|mutters|cried|calls|called|adds|added|murmurs|murmured)\b
+  scope: all
+  note: only 'says' introduces speech
+  weight: 2.0
+- id: P-no-punct-habits
+  fact: P
+  ftype: format
+  group: constraint
+  type: forbid_regex
+  turns:
+  - 1
+  - 2
+  - 3
+  pattern: '[;—–]|\s-\s|\d'
+  scope: all
+  note: no semicolons, dashes or digits (numbers are words)
+  weight: 0.72
+- id: L-no-similes
+  fact: L
+  ftype: format
+  group: constraint
+  type: forbid_regex
+  turns:
+  - 1
+  - 2
+  - 3
+  pattern: \blike\b|\bas if\b|\bas though\b
+  scope: all
+  note: no similes
+  weight: 1.15
+- id: U-units
+  fact: U
+  ftype: format
+  group: constraint
+  type: forbid_regex
+  turns:
+  - 1
+  - 2
+  - 3
+  pattern: \b(?:metres?|meters?|kilomet\w+|feet|foot|miles?|yards?|inch(?:es)?|hours?|minutes?|seconds?|fathoms?|leagues?|knots? per hour)\b
+  scope: all
+  note: distance is in ropes and time in tides; no clock or metric units
+  weight: 1.15
+- id: R-tides-present
+  fact: R
+  ftype: format
+  group: constraint
+  type: require_regex
+  turns:
+  - 1
+  - 2
+  - 3
+  pattern: \btides?\b|\bropes?\b
+  scope: all
+  weight: 1.57
+- id: E-last-sentence-short
+  fact: E
+  ftype: format
+  group: constraint
+  type: forbid_regex
+  turns:
+  - 1
+  - 2
+  - 3
+  pattern: (?:^|[.!?][\"”’)]*[ \t]+)(?:(?=[^\s.!?]*[A-Za-z0-9])[^\s.!?]+[ \t]+){6,}(?=[^\s.!?]*[A-Za-z0-9])[^\s.!?]+[.!?]+[\"”’)]*[ \t]*(?=\n[ \t]*\n|\s*\Z)
+  scope: all
+  note: the last sentence of every paragraph has six words or fewer
+  weight: 2.0
+- id: T-present-tense
+  fact: T
+  ftype: format
+  group: constraint
+  type: tense
+  turns:
+  - 1
+  - 2
+  - 3
+  want: present
+  weight: 0.08
+- id: I-we-voice
+  fact: I
+  ftype: format
+  group: constraint
+  type: forbid_regex
+  turns:
+  - 3
+  pattern: \b(?:I|me|my|mine|myself)\b
+  scope: all
+  note: 'no first person singular in section 3 (the T2 rule: the only I is Dunna''s)'
+  weight: 0.08
+- id: I2-only-para-3
+  fact: I2
+  ftype: format
+  group: constraint
+  type: require_regex
+  turns:
+  - 2
+  pattern: \A\s*(?:[ \t]*\S[^\n]*(?:\n[ \t]*\S[^\n]*)*\n(?:[ \t]*\n)+){2}[^\n]*(?:\b(?:I|me|my|mine|myself)\b)
+  scope: all
+  note: the only I of the story sits in paragraph 3 of section 2
+  weight: 0.08
+- id: I3-not-elsewhere
+  fact: I3
+  ftype: format
+  group: constraint
+  type: forbid_regex
+  turns:
+  - 2
+  pattern: \A\s*[^\n]*(?:\b(?:I|me|my|mine|myself)\b)|\A\s*(?:[ \t]*\S[^\n]*(?:\n[ \t]*\S[^\n]*)*\n(?:[ \t]*\n)+){1}[^\n]*(?:\b(?:I|me|my|mine|myself)\b)|\A\s*(?:[ \t]*\S[^\n]*(?:\n[ \t]*\S[^\n]*)*\n(?:[ \t]*\n)+){3}[\s\S]*\b(?:I|me|my|mine|myself)\b
+  scope: all
+  note: and in no other paragraph of section 2
+  weight: 0.08
+- id: O-possessive-names-s1
+  fact: O
+  ftype: format
+  group: constraint
+  type: distinct_terms
+  turns:
+  - 1
+  pattern: (?-i:\b[A-Z][a-z]+['’]s\b)
+  min_distinct: 3
+  scope: all
+  note: 'villagers'' property named by owner: three distinct ''Name''s'' in section 1'
+  weight: 2.0
+- id: O2-possessive-names-s3
+  fact: O2
+  ftype: format
+  group: constraint
+  type: distinct_terms
+  turns:
+  - 3
+  pattern: (?-i:\b[A-Z][a-z]+['’]s\b)
+  min_distinct: 2
+  scope: all
+  weight: 0.72
+- id: B1-sixth-rope-para-2
+  fact: B1
+  ftype: format
+  group: constraint
+  type: require_regex
+  turns:
+  - 1
+  pattern: \A\s*(?:[ \t]*\S[^\n]*(?:\n[ \t]*\S[^\n]*)*\n(?:[ \t]*\n)+){1}[^\n]*(?:\bsixth rope\b)
+  scope: all
+  weight: 0.08
+- id: B2-the-neap-last-para
+  fact: B2
+  ftype: format
+  group: constraint
+  type: require_regex
+  turns:
+  - 1
+  pattern: \n[ \t]*\n\s*[^\n]*\bthe Neap\b[^\n]*\s*\Z
+  scope: all
+  weight: 0.08
+- id: B3-marren-s2
+  fact: B3
+  ftype: format
+  group: constraint
+  type: require_regex
+  turns:
+  - 2
+  pattern: \bMarren\b
+  scope: all
+  weight: 0.08
+- id: C1-orrin-three
+  fact: C1
+  ftype: format
+  group: constraint
+  type: require_regex
+  turns:
+  - 1
+  pattern: \A(?:(?!\bOrrin\b)[\s\S])*(?:\bOrrin\b(?:(?!\bOrrin\b)[\s\S])*){3}\Z
+  scope: all
+  note: Orrin exactly three times in section 1
+  weight: 0.08
+- id: C2-bell-twice
+  fact: C2
+  ftype: format
+  group: constraint
+  type: require_regex
+  turns:
+  - 1
+  pattern: \A(?:(?!\bbell\b)[\s\S])*(?:\bbell\b(?:(?!\bbell\b)[\s\S])*){2}\Z
+  scope: all
+  note: bell exactly twice in section 1
+  weight: 0.08
+- id: C3-marren-four
+  fact: C3
+  ftype: format
+  group: constraint
+  type: require_regex
+  turns:
+  - 2
+  pattern: \A(?:(?!\bMarren\b)[\s\S])*(?:\bMarren\b(?:(?!\bMarren\b)[\s\S])*){4}\Z
+  scope: all
+  note: Marren exactly four times in section 2
+  weight: 0.08
+- id: C4-dunna-five-sentences
+  fact: C4
+  ftype: format
+  group: constraint
+  type: require_regex
+  turns:
+  - 2
+  pattern: \A\s*(?:[ \t]*\S[^\n]*(?:\n[ \t]*\S[^\n]*)*\n(?:[ \t]*\n)+){2}(?:[^.!?\n]+[.!?]+[ \t]+){4}[^.!?\n]+[.!?]+[ \t]*(?:\n|\Z)
+  scope: all
+  note: the third paragraph of section 2 is exactly five sentences
+  weight: 0.08
+- id: C5-hesk-four
+  fact: C5
+  ftype: format
+  group: constraint
+  type: require_regex
+  turns:
+  - 3
+  pattern: \A(?:(?!\bHesk\b)[\s\S])*(?:\bHesk\b(?:(?!\bHesk\b)[\s\S])*){4}\Z
+  scope: all
+  note: Hesk exactly four times in section 3
+  weight: 0.08
+- id: C6-para-55
+  fact: C6
+  ftype: format
+  group: constraint
+  type: forbid_regex
+  turns:
+  - 3
+  pattern: ^(?:[^\n\s]+[ \t]+){55}[^\n\s]+
+  scope: all
+  note: no paragraph over 55 words in section 3
+  weight: 0.08
+- id: D-no-daughter
+  fact: D
+  ftype: format
+  group: continuity
+  type: forbid_regex
+  turns:
+  - 1
+  - 2
+  - 3
+  pattern: \bdaughters?\b
+  scope: all
+  weight: 0.08
+- id: D2-no-dunna-tag-in-her-paragraph
+  fact: D2
+  ftype: format
+  group: constraint
+  type: forbid_regex
+  turns:
+  - 2
+  pattern: \A\s*(?:[ \t]*\S[^\n]*(?:\n[ \t]*\S[^\n]*)*\n(?:[ \t]*\n)+){2}[^\n]*(?:\bsays:)
+  scope: all
+  note: Dunna's paragraph carries no speech tag
+  weight: 0.08
+- id: K-callback-one-word
+  fact: K
+  ftype: format
+  group: continuity
+  type: require_regex
+  turns:
+  - 3
+  pattern: (?<![A-Za-z'])(?:(?!The\b)[A-Za-z']+\s+Neap\s+keeps\s+what\s+it\s+takes|The\s+(?!Neap\b)[A-Za-z']+\s+keeps\s+what\s+it\s+takes|The\s+Neap\s+(?!keeps\b)[A-Za-z']+\s+what\s+it\s+takes|The\s+Neap\s+keeps\s+(?!what\b)[A-Za-z']+\s+it\s+takes|The\s+Neap\s+keeps\s+what\s+(?!it\b)[A-Za-z']+\s+takes|The\s+Neap\s+keeps\s+what\s+it\s+(?!takes\b)[A-Za-z']+)\.[\"”]?\s*\Z
+  scope: all
+  note: last sentence = first sentence of the opening with one word changed
+  weight: 0.08
+- id: N4-list-length
+  fact: N4
+  ftype: format
+  group: constraint
+  type: forbid_regex
+  turns:
+  - 4
+  pattern: \A(?:[ \t]*\S[^\n]*\n(?:[ \t]*\n)*){10}[ \t]*\S
+  scope: all
+  note: ten lines at most
+  weight: 0.08
+- id: N4b-no-bullets
+  fact: N4b
+  ftype: format
+  group: constraint
+  type: forbid_regex
+  turns:
+  - 4
+  pattern: ^\s*(?:[-*•]|\d+[.)])\s
+  scope: all
+  weight: 0.08
+judge_elements:
+- id: J1-voice-no-minds
+  ftype: applied
+  turns:
+  - 1
+  - 2
+  q: 'The opening never states what any one villager thinks, wants or feels as fact: the narrating we reports only what is said, done, seen and known to everyone (a habit, a record, a fact). Across sections 1 and 2 of the continuation, does the narration keep to that, never entering a villager''s or the stranger''s head? Quote the worst line. NO if any sentence asserts an inner state (e.g. ''Orrin wanted'', ''Hesk was afraid'', ''she felt'', ''Dunna wondered'') as narration; a visible action or a spoken line is fine.'
+  evidence:
+  - src: turn
+    text: so that a reader could not find the seam
+  gold_quote: Orrin rings the bell once and puts his hand back in his pocket.
+  weight: 1.5
+- id: J2-dunna-paragraph
+  ftype: applied
+  turns:
+  - 2
+  q: Does the third paragraph of section 2 read as Dunna speaking in her own first-person voice, with the same plain, concrete habits as the rest (no similes, ropes and tides, a short last sentence), AND does it plant a specific object or action that the ending can use? Quote the planted object or action. NO if the voice breaks the story's habits (comparisons, fancy language, long closing line) or nothing usable is planted.
+  evidence:
+  - src: turn
+    text: In it, plant one object or action that the ending can use.
+  gold_quote: I tied a thirteenth knot that night and I have never cut it.
+  weight: 1.5
+- id: J3-reveal-by-act
+  ftype: applied
+  turns:
+  - 3
+  q: Section 3 must resolve who Marren is by an action with an object, using at least two planted things, not an announcement. Does it (a) show the answer through something someone does with an object (b) reuse at least two earlier plants (the third post / lantern hook, Dunna's tally string or her planted object, Hesk's plane or his first words), and (c) avoid anyone stating the relationship outright? Quote the action. NO if the relationship is simply announced, or fewer than two plants are reused.
+  evidence:
+  - src: turn
+    text: show the answer through an action and an object, not an announcement
+  gold_quote: Dunna lays the string in Marren's palm, and the thirteenth knot is under her thumb.
+  weight: 1.5
+- id: J4-habits-named
+  ftype: applied
+  turns:
+  - 4
+  q: 'The hidden habits of the opening are: (1) the narrator is a plural ''we''; (2) present tense; (3) no quotation marks, speech given as ''Name says: ...''; (4) distances in ropes, time in tides; (5) every paragraph ends on a sentence of six words or fewer; (6) no similes; plus the collective never enters a single head. Does the reply name at least FIVE of these habits (in any wording)? Quote the lines that name them. NO if it names four or fewer, or names rules the text does not have.'
+  evidence:
+  - src: turn
+    text: list the habits of the prose in my opening that you kept to
+  gold_quote: 'Speech has no quotation marks; it is given as Hesk says: and then the words.'
+  weight: 1.5
+grading_notes: 'Pack LWR (2026-10-29): style continuation of a ~400-word excerpt with unstated habits (inductive); one sanctioned break of the voice (Dunna''s I), plants and a reveal, callback with one word changed, and a habit-naming probe.'

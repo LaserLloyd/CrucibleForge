@@ -19,6 +19,8 @@ from dataclasses import dataclass, field
 
 import httpx
 
+from . import stopflag
+
 log = logging.getLogger(__name__)
 
 MAX_TRANSPORT_RETRIES = 3
@@ -41,9 +43,25 @@ PRIORITY_HOLD_POLL_S = 15.0
 # and corrupt tool-call JSON, instruction-following output and code. We strip
 # them at the API boundary so every consumer (graders, judge, transcripts)
 # sees only the actual response.
+# gemma4 speaks a channel dialect: ``<|channel>thought`` … ``<channel|>``
+# (the opener's channel name and its newline are part of the tag).
 _THINK_TAGS = re.compile(
-    r"<think>|</think>|<\|thinking\|>|<\|/thinking\|>|</\|thinking\|>|\(think\)",
+    r"<think>|</think>|<\|thinking\|>|<\|/thinking\|>|</\|thinking\|>|\(think\)"
+    r"|<\|channel>[a-z_]*\n?|<channel\|>",
     re.IGNORECASE)
+
+
+def _close_tags(tag: str) -> tuple[str, ...] | None:
+    """Closing delimiters for an opening tag (lower-cased), None for a closer."""
+    if tag == "<think>":
+        return ("</think>",)
+    if tag == "<|thinking|>":
+        # qwen3's close token renders as `<|/thinking|>` in some templates
+        # and `</|thinking|>` in others — accept both
+        return ("<|/thinking|>", "</|thinking|>")
+    if tag.startswith("<|channel>"):
+        return ("<channel|>",)
+    return None
 
 
 def split_thinking(text: str) -> tuple[str, str]:
@@ -73,9 +91,8 @@ def split_thinking(text: str) -> tuple[str, str]:
                 break
             think.append(text[m.end():close.start()])
             pos = close.end()
-        elif tag in ("<think>", "<|thinking|>"):
+        elif (close_tags := _close_tags(tag)):
             out.append(text[pos:m.start()])
-            close_tags = ("</think>",) if tag == "<think>" else ("<|/thinking|>", "</|thinking|>")
             ends = [e for e in (text.find(c, m.end()) for c in close_tags) if e >= 0]
             if not ends:
                 think.append(text[m.end():])
@@ -93,8 +110,8 @@ def strip_thinking_tags(text: str) -> str:
     """Remove thinking blocks from a completion before any parsing.
 
     Handles deepseek/qwen `<think>...</think>`, qwen3 `<|thinking|>...`
-    `<|/thinking|>` and gemma `(think) ... (think)` (same delimiter opens and
-    closes). A truncated, unclosed opening tag drops the remainder — an
+    `<|/thinking|>`, gemma `(think) ... (think)` (same delimiter opens and
+    closes) and gemma4 `<|channel>thought ... <channel|>`. A truncated, unclosed opening tag drops the remainder — an
     unfinished thinking block is reasoning, never an answer. Stray closing
     tags (`</think>` with no opener) are dropped as bare tokens. Idempotent.
     """
@@ -115,11 +132,8 @@ def strip_thinking_tags(text: str) -> str:
             if not close:
                 break  # unclosed: reasoning runs to the end of the text
             pos = close.end()
-        elif tag in ("<think>", "<|thinking|>"):
+        elif (close_tags := _close_tags(tag)):
             out.append(text[pos:m.start()])
-            # qwen3's close token renders as `<|/thinking|>` in some templates
-            # and `</|thinking|>` in others — accept both
-            close_tags = ("</think>",) if tag == "<think>" else ("<|/thinking|>", "</|thinking|>")
             ends = [e for e in (text.find(c, m.end()) for c in close_tags) if e >= 0]
             if not ends:
                 break  # unclosed: drop the remainder
@@ -147,6 +161,19 @@ class RowTimeout(TransportError):
     """The request passed its total wall-clock ceiling (``max_wall_s``) —
     used for judge calls, whose per-row budget keeps one looping verdict from
     holding the judge phase. Not retried."""
+
+
+class Aborted(TransportError):
+    """The process is stopping (SIGTERM -> stopflag.ABORT): the request was
+    not started, or its stream was dropped between chunks. Never retried;
+    the runner records no row for it (the job stays pending)."""
+
+
+class WindowClosed(TransportError):
+    """The run's time window closed (``bench-all --until``: ``deadline``
+    passed) while the request was in flight or before it started. Never
+    retried; like ``Aborted`` the caller records no row for it — the job
+    stays pending for the next run (review B1)."""
 
 
 class RequestRejected(TransportError):
@@ -408,7 +435,8 @@ def _merge_tool_call_deltas(raw_deltas: list[dict]) -> list[dict]:
 
 
 def stream_chat(base_url: str, api_key: str, model: str, messages: list[dict], *,
-                max_tokens: int, temperature: float = 0.0, top_p: float = 1.0,
+                max_tokens: int, temperature: float | None = 0.0,
+                top_p: float | None = 1.0,
                 seed: int = 42, tools: list | None = None,
                 response_format: dict | None = None,
                 reasoning_format: str | None = None,
@@ -418,7 +446,8 @@ def stream_chat(base_url: str, api_key: str, model: str, messages: list[dict], *
                 verify_model: bool = True,
                 timeout: float = 900.0,
                 stall_s: float | None = None,
-                max_wall_s: float | None = None) -> ChatResult:
+                max_wall_s: float | None = None,
+                deadline: float | None = None) -> ChatResult:
     """One streaming chat completion with timing + real token usage.
 
     reasoning_format (llama.cpp server param, e.g. "deepseek") forces CoT
@@ -436,17 +465,23 @@ def stream_chat(base_url: str, api_key: str, model: str, messages: list[dict], *
     stall_s: raise StreamStalled when the server sends nothing for this long
     (a generous safety net for stuck connections — it never cuts a model
     that is still producing). max_wall_s: raise RowTimeout past this total.
+    deadline: an absolute ``time.time()``; past it the request is dropped
+    with WindowClosed (the run's time window, not this row's fault).
     """
     body: dict = {
         "model": model,
         "messages": messages,
         "max_tokens": max_tokens,
-        "temperature": temperature,
-        "top_p": top_p,
         "seed": seed,
         "stream": True,
         "stream_options": {"include_usage": True},
     }
+    # None = "as deployed": the server's / vendor's own sampler applies, the
+    # way every production client on this box calls the model (suite 3.8.0)
+    if temperature is not None:
+        body["temperature"] = temperature
+    if top_p is not None:
+        body["top_p"] = top_p
     if priority is not None:
         body["priority"] = int(priority)
     if tools:
@@ -467,7 +502,10 @@ def stream_chat(base_url: str, api_key: str, model: str, messages: list[dict], *
     first_tok_t = last_tok_t = None
     t0 = time.perf_counter()
 
-    read_timeout = min(x for x in (timeout, stall_s, max_wall_s) if x)
+    if deadline and time.time() >= deadline:
+        raise WindowClosed("the run's time window closed: request not started")
+    window_s = (max(1.0, deadline - time.time()) + 1.0) if deadline else None
+    read_timeout = min(x for x in (timeout, stall_s, max_wall_s, window_s) if x)
     try:
         with httpx.Client(timeout=httpx.Timeout(read_timeout, connect=15)) as http:
             hdrs = {"Content-Type": "application/json", **(headers or {})}
@@ -486,60 +524,83 @@ def stream_chat(base_url: str, api_key: str, model: str, messages: list[dict], *
                     raise classify_server_error(resp.status_code, err,
                                                 resp.headers.get("Retry-After"))
                 buffer = ""
-                saw_sse = False
+                st = {"sse": False, "done": False, "usage": {}}
+
+                def _line(line: str) -> None:
+                    nonlocal first_tok_t, last_tok_t
+                    line = line.strip()
+                    if not line.startswith("data: "):
+                        return
+                    st["sse"] = True
+                    data_str = line[6:]
+                    if data_str == "[DONE]":
+                        st["done"] = True
+                        return
+                    try:
+                        data = json.loads(data_str)
+                    except json.JSONDecodeError:
+                        return
+                    if data.get("error"):
+                        raise classify_server_error(
+                            None, f"server error: {json.dumps(data['error'])[:2000]}")
+                    if data.get("model"):
+                        r.served_model = data["model"]
+                    if data.get("usage"):
+                        st["usage"] = data["usage"]
+                    now = time.perf_counter()
+                    for choice in data.get("choices", []):
+                        delta = choice.get("delta", {})
+                        content = delta.get("content")
+                        if content:
+                            if first_tok_t is None:
+                                first_tok_t = now
+                            text_parts.append(content)
+                            last_tok_t = now
+                        reasoning = delta.get("reasoning_content") or delta.get("reasoning")
+                        if reasoning:
+                            if first_tok_t is None:
+                                first_tok_t = now
+                            reasoning_parts.append(reasoning)
+                            last_tok_t = now
+                        if delta.get("tool_calls"):
+                            if first_tok_t is None:
+                                first_tok_t = now
+                            last_tok_t = now
+                            raw_tool_deltas.extend(delta["tool_calls"])
+                        if choice.get("finish_reason"):
+                            r.finish_reason = choice["finish_reason"]
+
                 for raw_chunk in resp.iter_text():
+                    if stopflag.ABORT.is_set():
+                        raise Aborted("stopping: stream dropped")
                     if max_wall_s and time.perf_counter() - t0 > max_wall_s:
                         raise RowTimeout(f"request exceeded its {max_wall_s:.0f}s wall-clock ceiling")
+                    if deadline and time.time() >= deadline:
+                        raise WindowClosed("the run's time window closed: request dropped")
                     buffer += raw_chunk
                     while "\n" in buffer:
                         line, buffer = buffer.split("\n", 1)
-                        line = line.strip()
-                        if not line.startswith("data: "):
-                            continue
-                        saw_sse = True
-                        data_str = line[6:]
-                        if data_str == "[DONE]":
-                            continue
-                        try:
-                            data = json.loads(data_str)
-                        except json.JSONDecodeError:
-                            continue
-                        if data.get("error"):
-                            raise classify_server_error(
-                                None, f"server error: {json.dumps(data['error'])[:2000]}")
-                        if data.get("model"):
-                            r.served_model = data["model"]
-                        if data.get("usage"):
-                            usage = data["usage"]
-                        now = time.perf_counter()
-                        for choice in data.get("choices", []):
-                            delta = choice.get("delta", {})
-                            content = delta.get("content")
-                            if content:
-                                if first_tok_t is None:
-                                    first_tok_t = now
-                                text_parts.append(content)
-                                last_tok_t = now
-                            reasoning = delta.get("reasoning_content") or delta.get("reasoning")
-                            if reasoning:
-                                if first_tok_t is None:
-                                    first_tok_t = now
-                                reasoning_parts.append(reasoning)
-                                last_tok_t = now
-                            if delta.get("tool_calls"):
-                                if first_tok_t is None:
-                                    first_tok_t = now
-                                last_tok_t = now
-                                raw_tool_deltas.extend(delta["tool_calls"])
-                            if choice.get("finish_reason"):
-                                r.finish_reason = choice["finish_reason"]
-                if not saw_sse:
+                        _line(line)
+                if buffer.strip():
+                    # a last ``data:`` line without its newline (review N1)
+                    _line(buffer)
+                usage = st["usage"]
+                if not st["sse"]:
                     # server answered 200 with a non-SSE body (error JSON)
                     raise TransportError("no SSE data in 200 response")
+                if not r.finish_reason and not usage and not (
+                        st["done"] and (text_parts or reasoning_parts or raw_tool_deltas)):
+                    # the server closed the stream before saying it was done:
+                    # whatever arrived is a fragment, not the model's answer
+                    # (2026-10-29: an empty MiniMax row was scored 0). A
+                    # ``[DONE]`` after content IS the server saying so (N1).
+                    raise TransportError("stream dropped before a finish_reason or usage")
     except (WrongModelError, TransportError):
         raise  # RequestRejected is a TransportError
     except httpx.ReadTimeout as e:
         waited = time.perf_counter() - t0
+        if deadline and time.time() >= deadline:
+            raise WindowClosed("the run's time window closed: request dropped") from e
         if max_wall_s and waited >= max_wall_s * 0.99:
             raise RowTimeout(f"request exceeded its {max_wall_s:.0f}s wall-clock ceiling") from e
         if stall_s:
@@ -612,10 +673,12 @@ def stream_chat_retried(base_url: str, api_key: str, model: str, messages: list[
     attempt = 0
     while attempt < MAX_TRANSPORT_RETRIES:
         attempt += 1
+        if stopflag.ABORT.is_set():
+            raise Aborted("stopping: request not started")
         try:
             return stream_chat(base_url, api_key, model, messages, **kwargs)
         except (WrongModelError, RequestRejected, GenerationRejected, VramExhausted,
-                StreamStalled, RowTimeout):
+                StreamStalled, RowTimeout, Aborted, WindowClosed):
             # retrying an identical bad request / bad generation / full VRAM
             # cannot succeed, and a stalled or over-budget row must not cost
             # the run its ceiling three times over
@@ -635,7 +698,8 @@ def stream_chat_retried(base_url: str, api_key: str, model: str, messages: list[
                 raise
             log.info("priority hold by %s, waiting %.0fs (%.0fs of %.0fs budget spent)",
                      e.holder(), wait, held_s, PRIORITY_HOLD_WAIT_S)
-            time.sleep(wait)
+            if stopflag.sleep(wait, time.sleep):
+                raise Aborted("stopping: priority-hold wait abandoned") from e
             held_s += wait
             attempt -= 1
         except TransportError as e:
@@ -647,7 +711,8 @@ def stream_chat_retried(base_url: str, api_key: str, model: str, messages: list[
                     wait = max(wait, min(float(e.retry_after_s), 120.0))
                 log.warning("transport retry %d/%d in %.1fs: %s",
                             attempt, MAX_TRANSPORT_RETRIES, wait, str(e)[:300])
-                time.sleep(wait)
+                if stopflag.sleep(wait, time.sleep):
+                    raise Aborted("stopping: transport retry abandoned") from e
     assert last_err is not None
     raise last_err
 

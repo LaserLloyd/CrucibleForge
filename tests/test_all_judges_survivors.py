@@ -33,6 +33,10 @@ def phases(monkeypatch):
 
     monkeypatch.setattr(cli, "cmd_judge", fake_judge)
     monkeypatch.setattr(cli, "cmd_report", fake_report)
+    # suite 3.9: the tier-2/3 phases are one more phase of `all` (tested in
+    # tests/test_tiers_39.py); stubbed like the others
+    monkeypatch.setattr(cli, "_tier_phases", lambda args, cfg, labels: 0)
+    monkeypatch.setattr(cli, "_ladder_phases", lambda args, cfg, labels: 0)
     return calls
 
 

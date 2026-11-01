@@ -1,0 +1,23 @@
+id: CB-A6-jobq-retry
+category: codebank
+family: fix
+difficulty: hard
+max_tokens: 8192
+allowed_paths: ["jobq/*.py"]
+new_paths: []
+pythonpath: ["."]
+issue: |
+  The photo-backup service can't be shut down cleanly: on SIGTERM the
+  service cancels its jobs, but jobs inside run_with_retry keep going, and
+  the shutdown path that calls JobRunner.stop() crashes with
+  CancelledError instead of reporting which jobs were cut off. We also saw
+  it retry a ValueError from a bad config three times, with waits of 1, 2
+  and 4 seconds.
+
+  Make jobq follow README.md exactly.
+groups:
+  - {id: cancel, file: test_cancel.py, kind: f2p, why: "README: cancellation never retried or wrapped, during fn or during sleep; fn not called again"}
+  - {id: retry_on, file: test_retry_on.py, kind: f2p, why: "README: only instances of retry_on retried; any other exception (incl. BaseException) propagates unchanged"}
+  - {id: backoff, file: test_backoff.py, kind: f2p, why: "README: d = min(max_delay, base*2**(k-1)); jitter(d) applied to that d; RetryError.attempts = calls, __cause__ = last"}
+  - {id: runner, file: test_runner.py, kind: f2p, why: "README JobRunner: stop() -> run returns normally, 'cancelled' for unfinished jobs (started or not), no task left pending"}
+  - {id: existing, file: test_existing.py, kind: p2p, why: "unchanged: eventual success value; runner limit and result/error mapping"}

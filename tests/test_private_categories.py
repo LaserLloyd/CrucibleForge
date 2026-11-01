@@ -70,12 +70,12 @@ def private_env(tmp_path, monkeypatch):
 def _write_rows(env, label="m-one"):
     cfg = env["cfg"]
     _, cases = profiles.apply_profile(profiles.load_profile("bench", cfg), cfg)
-    pub = next(c for c in cases if c["category"] == "coding")
+    pub = next(c for c in cases if c["category"] == "tooluse")   # 4.0: coding (CL) may be empty
     dims = RUBRICS[env["rubric"]]["dims"]
     rev = version.revision(cfg)
     base = {"profile": "bench", "bench_revision": rev, "bench_run_id": "r1",
             "ts": "2026-09-28T00:00:00+00:00", "repeat": 1, "model_label": label}
-    rows = [{**base, "category": "coding", "case_id": pub["id"], "grade": "pass"}]
+    rows = [{**base, "category": "tooluse", "case_id": pub["id"], "grade": "pass"}]
     for cid in IDS:
         rows.append({**base, "category": CAT, "case_id": cid, "needs_judge": True,
                      "rubric": env["rubric"], "response": "text",
@@ -93,7 +93,11 @@ def test_overlay_merges_into_the_public_profile(private_env):
     prof = profiles.load_profile("bench", private_env["cfg"])
     assert prof["private"] == [CAT]
     assert prof["cases"][CAT] == IDS and "coding" in prof["cases"]
-    assert prof["scoring"]["chat"][CAT] == 10 and prof["scoring"]["chat"]["rp"] == 20
+    # the public categories survive the merge untouched (suite 3.9: Coding/Work,
+    # Chat, NSFW with point sub-scores); the overlay's weight is kept as written
+    pub = yaml.safe_load((REPO / "profiles" / "bench.yaml").read_text(encoding="utf-8"))
+    assert prof["scoring"]["chat"][CAT] == 10
+    assert prof["scores"] == pub["scores"]
     _, cases = profiles.apply_profile(prof, private_env["cfg"])
     assert {c["id"] for c in cases if c["category"] == CAT} == set(IDS)
 

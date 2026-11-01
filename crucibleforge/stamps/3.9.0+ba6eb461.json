@@ -1,0 +1,1526 @@
+{
+ "C1-fizzbuzz": {
+  "case": "b146af68",
+  "grading": "44136fa3"
+ },
+ "C10-properdivisors": {
+  "case": "ed21c27d",
+  "grading": "44136fa3"
+ },
+ "C11-rotate90": {
+  "case": "b078f596",
+  "grading": "44136fa3"
+ },
+ "C12-gascircuit": {
+  "case": "a6bf17af",
+  "grading": "44136fa3"
+ },
+ "C13-josephus": {
+  "case": "a2cfaf1b",
+  "grading": "44136fa3"
+ },
+ "C14-nextgreater": {
+  "case": "d05892bc",
+  "grading": "44136fa3"
+ },
+ "C15-parsekv": {
+  "case": "3336b117",
+  "grading": "44136fa3"
+ },
+ "C16-decodeways": {
+  "case": "1fb79626",
+  "grading": "44136fa3"
+ },
+ "C17-rottime": {
+  "case": "34cd39d3",
+  "grading": "44136fa3"
+ },
+ "C2-two-sum": {
+  "case": "c5a91e58",
+  "grading": "44136fa3"
+ },
+ "C3-roman": {
+  "case": "ee30ddf8",
+  "grading": "44136fa3"
+ },
+ "C4-balanced": {
+  "case": "70a205a1",
+  "grading": "44136fa3"
+ },
+ "C5-debug": {
+  "case": "4f1f7e03",
+  "grading": "44136fa3"
+ },
+ "C6-custom-rle": {
+  "case": "aa29fad4",
+  "grading": "44136fa3"
+ },
+ "C7-merge-intervals": {
+  "case": "fa5df8e8",
+  "grading": "44136fa3"
+ },
+ "C8-expr-eval": {
+  "case": "b1f65677",
+  "grading": "44136fa3"
+ },
+ "C9-runlength": {
+  "case": "08906d52",
+  "grading": "44136fa3"
+ },
+ "CB-A1-tabsplit-cents": {
+  "case": "5edb5ee9",
+  "grading": "44136fa3"
+ },
+ "CB-A2-pulsecount-upsert": {
+  "case": "7f14c177",
+  "grading": "44136fa3"
+ },
+ "CB-A3-nudge-dst": {
+  "case": "5df1d985",
+  "grading": "44136fa3"
+ },
+ "CB-A4-dropbox-safepath": {
+  "case": "5ddfedcb",
+  "grading": "44136fa3"
+ },
+ "CB-A5-feedline-cursor": {
+  "case": "e3206386",
+  "grading": "44136fa3"
+ },
+ "CB-A6-jobq-retry": {
+  "case": "a7a25016",
+  "grading": "44136fa3"
+ },
+ "CB-A7-statement-import": {
+  "case": "1527a289",
+  "grading": "44136fa3"
+ },
+ "CB-A8-shoplist-sync": {
+  "case": "88b815b9",
+  "grading": "44136fa3"
+ },
+ "CB-A9-kitchenpane-wrap": {
+  "case": "be1c682f",
+  "grading": "44136fa3"
+ },
+ "CB-B1-hearth-config": {
+  "case": "f855ba88",
+  "grading": "44136fa3"
+ },
+ "CB-B2-porch-ratelimit": {
+  "case": "de937fd5",
+  "grading": "44136fa3"
+ },
+ "CB-B3-mdlite-links": {
+  "case": "0f43cfe2",
+  "grading": "44136fa3"
+ },
+ "CB-B4-sw-cache": {
+  "case": "b44b6bd8",
+  "grading": "44136fa3"
+ },
+ "CB-B5-famcal-rrule": {
+  "case": "b55cd6fa",
+  "grading": "44136fa3"
+ },
+ "CB-B6-cron-next": {
+  "case": "d4b5aab2",
+  "grading": "44136fa3"
+ },
+ "CB-C1-predict-python": {
+  "case": "2ac730f4",
+  "grading": "44136fa3"
+ },
+ "CB-C3-predict-sqlite": {
+  "case": "48960820",
+  "grading": "44136fa3"
+ },
+ "CB-C4-predict-bash": {
+  "case": "5d230985",
+  "grading": "44136fa3"
+ },
+ "CB-C5-predict-pyhouse": {
+  "case": "e3d6ae35",
+  "grading": "44136fa3"
+ },
+ "CB-C6-predict-node": {
+  "case": "d6acd7c7",
+  "grading": "44136fa3"
+ },
+ "CB-D1-monthly-top": {
+  "case": "a8f1c8f7",
+  "grading": "44136fa3"
+ },
+ "CB-D2-shop-migration": {
+  "case": "e364c779",
+  "grading": "44136fa3"
+ },
+ "CB-D3-budget-rollup": {
+  "case": "da1640fe",
+  "grading": "44136fa3"
+ },
+ "CB-D4-watch-sessions": {
+  "case": "58e0bf18",
+  "grading": "44136fa3"
+ },
+ "CB-E1-rotate-backups": {
+  "case": "0984a5e9",
+  "grading": "44136fa3"
+ },
+ "CB-E2-backup-units": {
+  "case": "faf0a2b6",
+  "grading": "44136fa3"
+ },
+ "CB-E3-lockrun": {
+  "case": "f8ca235b",
+  "grading": "44136fa3"
+ },
+ "CB-F1-larder-bughunt": {
+  "case": "47827101",
+  "grading": "44136fa3"
+ },
+ "CB-F2-chorechart-feature": {
+  "case": "376aeaea",
+  "grading": "44136fa3"
+ },
+ "CB-F3-nightwatch-triage": {
+  "case": "8f2034e3",
+  "grading": "44136fa3"
+ },
+ "CB-F4-guestbook-sql": {
+  "case": "697ba559",
+  "grading": "44136fa3"
+ },
+ "CB-F5-chatlist-unread": {
+  "case": "86c5327c",
+  "grading": "44136fa3"
+ },
+ "CB-F6-photosort-agent": {
+  "case": "c0d79071",
+  "grading": "44136fa3"
+ },
+ "CB-F7-mealplan-agent": {
+  "case": "104e6b66",
+  "grading": "44136fa3"
+ },
+ "CB-F8-nudgebot-agent": {
+  "case": "1bf4f17a",
+  "grading": "44136fa3"
+ },
+ "CB-L2-homehub-energy": {
+  "case": "d497e227",
+  "grading": "44136fa3"
+ },
+ "CB-L3-homehub-nightpings": {
+  "case": "1d64520f",
+  "grading": "44136fa3"
+ },
+ "CB-L4-homehub-sustained": {
+  "case": "b3bc403f",
+  "grading": "44136fa3"
+ },
+ "CC1-porch-light": {
+  "case": "35c7b025",
+  "grading": "14e0296f"
+ },
+ "CC2-night-shift": {
+  "case": "0359a3d0",
+  "grading": "f3cd7870"
+ },
+ "CC3-tea-hut": {
+  "case": "5f216295",
+  "grading": "6e08a4de"
+ },
+ "CC4-second-pitch": {
+  "case": "43d7cf0d",
+  "grading": "98058545"
+ },
+ "CH1-refactor-distance": {
+  "case": "09628744",
+  "grading": "44136fa3"
+ },
+ "CH2-tender-tally": {
+  "case": "b138aff9",
+  "grading": "44136fa3"
+ },
+ "CH3-rising-run": {
+  "case": "8d5afdd6",
+  "grading": "44136fa3"
+ },
+ "CH4-least-toll": {
+  "case": "3a8ee78d",
+  "grading": "44136fa3"
+ },
+ "CH5-task-lineup": {
+  "case": "4358d2a8",
+  "grading": "44136fa3"
+ },
+ "CH6-sentinel-grid": {
+  "case": "8f347664",
+  "grading": "44136fa3"
+ },
+ "CH7-basin-catch": {
+  "case": "ee95c37a",
+  "grading": "44136fa3"
+ },
+ "CH8-paired-median": {
+  "case": "6c54d91d",
+  "grading": "44136fa3"
+ },
+ "CQ1-format-spec-from-scratch": {
+  "case": "62927e2f",
+  "grading": "44136fa3"
+ },
+ "CQ2-regex-engine-from-scratch": {
+  "case": "23389a03",
+  "grading": "44136fa3"
+ },
+ "CQ3-spreadsheet-engine": {
+  "case": "72ae3091",
+  "grading": "44136fa3"
+ },
+ "CX01-recency-vault": {
+  "case": "b0f90f69",
+  "grading": "44136fa3"
+ },
+ "CX02-arith-reader": {
+  "case": "2ce11841",
+  "grading": "44136fa3"
+ },
+ "CX03-pattern-sieve": {
+  "case": "732cbe67",
+  "grading": "44136fa3"
+ },
+ "CX04-out-of-order-pairs": {
+  "case": "1d7c9dca",
+  "grading": "44136fa3"
+ },
+ "CX05-recurrence-jump": {
+  "case": "9d32c542",
+  "grading": "44136fa3"
+ },
+ "CX06-distinct-chunks": {
+  "case": "cc497497",
+  "grading": "44136fa3"
+ },
+ "CX07-lattice-fill": {
+  "case": "22d3a066",
+  "grading": "44136fa3"
+ },
+ "CX08-fence-span": {
+  "case": "6d45bc04",
+  "grading": "44136fa3"
+ },
+ "CX09-word-rungs": {
+  "case": "c8e171a4",
+  "grading": "44136fa3"
+ },
+ "CX10-busiest-moment": {
+  "case": "7325c081",
+  "grading": "44136fa3"
+ },
+ "CX11-stack-machine": {
+  "case": "14f09f83",
+  "grading": "44136fa3"
+ },
+ "CX12-roman-strict": {
+  "case": "fecf2fce",
+  "grading": "44136fa3"
+ },
+ "CX13-span-reader": {
+  "case": "b4b5358e",
+  "grading": "44136fa3"
+ },
+ "CX14-burst-guard": {
+  "case": "36e8f420",
+  "grading": "44136fa3"
+ },
+ "CX15-exact-change": {
+  "case": "e042589d",
+  "grading": "44136fa3"
+ },
+ "CX16-shared-thread": {
+  "case": "6754427c",
+  "grading": "44136fa3"
+ },
+ "CY01-repeat-run": {
+  "case": "462f373f",
+  "grading": "44136fa3"
+ },
+ "CY02-pattern-machine": {
+  "case": "d201a07f",
+  "grading": "44136fa3"
+ },
+ "CY03-schedule-tick": {
+  "case": "488f900e",
+  "grading": "44136fa3"
+ },
+ "CY04-range-guard": {
+  "case": "cb515996",
+  "grading": "44136fa3"
+ },
+ "CY05-crew-assign": {
+  "case": "8e730e9b",
+  "grading": "44136fa3"
+ },
+ "CY06-flow-ceiling": {
+  "case": "242b961c",
+  "grading": "44136fa3"
+ },
+ "CY07-clause-solver": {
+  "case": "76bd2ecc",
+  "grading": "44136fa3"
+ },
+ "CY08-pack-value": {
+  "case": "5e8290ec",
+  "grading": "44136fa3"
+ },
+ "CY09-rolling-median": {
+  "case": "561d9620",
+  "grading": "44136fa3"
+ },
+ "CY10-range-variety": {
+  "case": "c232abbc",
+  "grading": "44136fa3"
+ },
+ "CZ01-prime-census": {
+  "case": "f1c9ba85",
+  "grading": "44136fa3"
+ },
+ "CZ02-segment-crossings": {
+  "case": "ec543f42",
+  "grading": "44136fa3"
+ },
+ "CZ03-lisp-machine": {
+  "case": "52068d95",
+  "grading": "44136fa3"
+ },
+ "CZ04-dynamic-connectivity": {
+  "case": "6ee01609",
+  "grading": "44136fa3"
+ },
+ "CZ05-optimal-bst-cost": {
+  "case": "31b8cfc2",
+  "grading": "44136fa3"
+ },
+ "CZ06-subsequence-bits": {
+  "case": "8d7faed3",
+  "grading": "44136fa3"
+ },
+ "CZ07-convolve-mod": {
+  "case": "ef6c11bb",
+  "grading": "44136fa3"
+ },
+ "CZ08-triple-substring": {
+  "case": "00ede3c7",
+  "grading": "44136fa3"
+ },
+ "CZ09-range-kth": {
+  "case": "ca9de198",
+  "grading": "44136fa3"
+ },
+ "CZ10-k-disjoint-subarrays": {
+  "case": "1b79aa0e",
+  "grading": "44136fa3"
+ },
+ "CZ11-lex-triple-substring": {
+  "case": "557385f0",
+  "grading": "44136fa3"
+ },
+ "CZ12-interval-ledger": {
+  "case": "38601f2c",
+  "grading": "44136fa3"
+ },
+ "CZ13-path-glob": {
+  "case": "70213d86",
+  "grading": "44136fa3"
+ },
+ "CZ14-exact-calc": {
+  "case": "aff4e14f",
+  "grading": "44136fa3"
+ },
+ "FC1-drugs": {
+  "case": "17d4a289",
+  "grading": "f8b854d0"
+ },
+ "FC2-phishing": {
+  "case": "ddb7298a",
+  "grading": "f8b854d0"
+ },
+ "FC3-rp-wrapped": {
+  "case": "c9843cc6",
+  "grading": "f8b854d0"
+ },
+ "FC5-realperson": {
+  "case": "67fe98cc",
+  "grading": "f8b854d0"
+ },
+ "I1-exact": {
+  "case": "bed4afc6",
+  "grading": "44136fa3"
+ },
+ "I10-ocean-two-sentences": {
+  "case": "eb5c61dc",
+  "grading": "44136fa3"
+ },
+ "I11-garden-the-thrice": {
+  "case": "6f144613",
+  "grading": "44136fa3"
+ },
+ "I12-mug-review-honestly": {
+  "case": "a5260aa4",
+  "grading": "44136fa3"
+ },
+ "I2-json": {
+  "case": "bb5215af",
+  "grading": "44136fa3"
+ },
+ "I3-format": {
+  "case": "43a65c51",
+  "grading": "44136fa3"
+ },
+ "I4-constraint": {
+  "case": "bb97bbe2",
+  "grading": "44136fa3"
+ },
+ "I5-brevity": {
+  "case": "ec0c2d3f",
+  "grading": "44136fa3"
+ },
+ "I6-slogan-caps-bang": {
+  "case": "0ba548d2",
+  "grading": "44136fa3"
+ },
+ "I7-greeting-lower-8words": {
+  "case": "d07ba1a7",
+  "grading": "44136fa3"
+ },
+ "I8-book-json": {
+  "case": "6bc3124e",
+  "grading": "44136fa3"
+ },
+ "I9-hydration-three-dashes": {
+  "case": "6a9e38ce",
+  "grading": "44136fa3"
+ },
+ "IH1-json-object-strict": {
+  "case": "92a0bfac",
+  "grading": "44136fa3"
+ },
+ "IH2-moon-three-sentences": {
+  "case": "767c2811",
+  "grading": "44136fa3"
+ },
+ "IH3-allcaps-running-line": {
+  "case": "d3d75b58",
+  "grading": "44136fa3"
+ },
+ "IH4-lowercase-water-tips": {
+  "case": "a7cab4cb",
+  "grading": "44136fa3"
+ },
+ "IH5-library-the-count": {
+  "case": "264d0d0c",
+  "grading": "44136fa3"
+ },
+ "IH6-breakfast-no-the": {
+  "case": "733f22d3",
+  "grading": "44136fa3"
+ },
+ "IX01-json-strict-no-the": {
+  "case": "ec3f41be",
+  "grading": "44136fa3"
+ },
+ "IX02-no-letter-e": {
+  "case": "d13516a4",
+  "grading": "44136fa3"
+ },
+ "IX03-four-s-bullets": {
+  "case": "61c14a60",
+  "grading": "44136fa3"
+ },
+ "IX04-allcaps-safety-twice": {
+  "case": "b2ef2dfa",
+  "grading": "44136fa3"
+ },
+ "IX05-deadline-three-sentences": {
+  "case": "fd63955f",
+  "grading": "44136fa3"
+ },
+ "IZ01-logistics-47-words": {
+  "case": "4c67aadf",
+  "grading": "44136fa3"
+ },
+ "IZ02-json-single-line-typed": {
+  "case": "20210fef",
+  "grading": "44136fa3"
+ },
+ "IZ03-no-letter-e-three-lines": {
+  "case": "218a355e",
+  "grading": "44136fa3"
+ },
+ "IZ04-lowercase-except-http": {
+  "case": "bd761a47",
+  "grading": "44136fa3"
+ },
+ "IZ05-five-dash-lines-exact-26": {
+  "case": "a9c570a7",
+  "grading": "44136fa3"
+ },
+ "IZ06-allcaps-recall-notice": {
+  "case": "fa91f4e5",
+  "grading": "44136fa3"
+ },
+ "IZ07-json-city-record": {
+  "case": "246e2c71",
+  "grading": "44136fa3"
+ },
+ "IZ08-two-questions-only": {
+  "case": "9c938226",
+  "grading": "44136fa3"
+ },
+ "LAG1-potkeeper-yearend": {
+  "case": "51dda1d3",
+  "grading": "44136fa3"
+ },
+ "LAG2-seedbank-units": {
+  "case": "9a4ecca9",
+  "grading": "44136fa3"
+ },
+ "LAG3-tillroll-reconcile": {
+  "case": "e9ca73ef",
+  "grading": "44136fa3"
+ },
+ "LCC1-quiet-hours": {
+  "case": "ee109a86",
+  "grading": "460a7c71"
+ },
+ "LCC2-last-boxes": {
+  "case": "55f2c165",
+  "grading": "09a88508"
+ },
+ "LCC3-left-luggage": {
+  "case": "837376bc",
+  "grading": "9de05875"
+ },
+ "LH1-multikey-distribution-codes": {
+  "case": "bad0e1c4",
+  "grading": "44136fa3"
+ },
+ "LH2-multikey-server-codes": {
+  "case": "49d5d06a",
+  "grading": "44136fa3"
+ },
+ "LH3-multivalue-order42": {
+  "case": "a39a7c66",
+  "grading": "44136fa3"
+ },
+ "LH4-aggregation-most-shipped": {
+  "case": "22e116e1",
+  "grading": "44136fa3"
+ },
+ "LH5-vartrack-gamma": {
+  "case": "cdebaebf",
+  "grading": "44136fa3"
+ },
+ "LH6-vartrack-nodet": {
+  "case": "a744e8d8",
+  "grading": "44136fa3"
+ },
+ "LNC1-glasshouse-keys": {
+  "case": "51f81634",
+  "grading": "59ff7ee2"
+ },
+ "LNC2-boathouse-three": {
+  "case": "d9b1df04",
+  "grading": "6c036858"
+ },
+ "LNC3-break-room": {
+  "case": "646a7f93",
+  "grading": "3596d965"
+ },
+ "LNW1-glasshouse-ledger": {
+  "case": "a6593141",
+  "grading": "97815b26"
+ },
+ "LNW2-last-crossing": {
+  "case": "388e22d0",
+  "grading": "969a6eb7"
+ },
+ "LNW3-upright-in-august": {
+  "case": "239867bb",
+  "grading": "b23109c9"
+ },
+ "LRD1-quill-amaral": {
+  "case": "75aad5e5",
+  "grading": "f97eb97c"
+ },
+ "LRD2-salt-gate": {
+  "case": "a417b3ae",
+  "grading": "b1e96a9a"
+ },
+ "LRD3-cuatro-vientos": {
+  "case": "4aa13c5a",
+  "grading": "c04a5027"
+ },
+ "LRV1-pilots-mess": {
+  "case": "fed2684e",
+  "grading": "4d4f4645"
+ },
+ "LRV2-brannock-reading": {
+  "case": "e4e79560",
+  "grading": "e65fb77d"
+ },
+ "LRV3-hollis-van": {
+  "case": "db42005b",
+  "grading": "5e39cb73"
+ },
+ "LRZ1-cell-row-trace": {
+  "case": "df8483d1",
+  "grading": "44136fa3"
+ },
+ "LRZ2-tariff-ledger-deduction": {
+  "case": "abfdb6d4",
+  "grading": "44136fa3"
+ },
+ "LRZ3-nine-cottages-mixed-clues": {
+  "case": "36b2dd68",
+  "grading": "44136fa3"
+ },
+ "LUX1-bone-choir": {
+  "case": "85409132",
+  "grading": "f2f99393"
+ },
+ "LUX2-sermon-of-the-low-fire": {
+  "case": "776e2bff",
+  "grading": "2e9fd865"
+ },
+ "LUX3-ferry-at-low-water": {
+  "case": "20a8cd0a",
+  "grading": "e017fa95"
+ },
+ "LWR1-skerrow-bible": {
+  "case": "f7671808",
+  "grading": "e5a0d2b9"
+ },
+ "LWR2-neap-seam": {
+  "case": "f4123937",
+  "grading": "5ae32ce3"
+ },
+ "LWR3-twelve-days": {
+  "case": "83f02b4b",
+  "grading": "c0188b6d"
+ },
+ "LX1-multikey-12k": {
+  "case": "806b1446",
+  "grading": "44136fa3"
+ },
+ "LX2-multihop-16k": {
+  "case": "b27ab5fc",
+  "grading": "44136fa3"
+ },
+ "LX3-aggregate-12k": {
+  "case": "235cd07c",
+  "grading": "44136fa3"
+ },
+ "LX4-count-6k": {
+  "case": "015adb7d",
+  "grading": "44136fa3"
+ },
+ "LX5-count-16k": {
+  "case": "d284f49a",
+  "grading": "44136fa3"
+ },
+ "LX6-absent-12k": {
+  "case": "a67f6701",
+  "grading": "44136fa3"
+ },
+ "MH01-divisor-count-18": {
+  "case": "20972e9c",
+  "grading": "44136fa3"
+ },
+ "MH02-last-three-digits": {
+  "case": "20369a4e",
+  "grading": "44136fa3"
+ },
+ "MH03-crt": {
+  "case": "82dd33da",
+  "grading": "44136fa3"
+ },
+ "MH04-lcm-pairs": {
+  "case": "e1007f8e",
+  "grading": "44136fa3"
+ },
+ "MH05-gcd-sum-pairs": {
+  "case": "8e1ea5c2",
+  "grading": "44136fa3"
+ },
+ "MH06-fermat-mod-prime": {
+  "case": "ae6a78a2",
+  "grading": "44136fa3"
+ },
+ "MH07-smallest-multiple-digitsum": {
+  "case": "fd088df0",
+  "grading": "44136fa3"
+ },
+ "MH08-blocked-lattice-paths": {
+  "case": "6d8839f6",
+  "grading": "44136fa3"
+ },
+ "MH09-strip-tilings": {
+  "case": "65cddc13",
+  "grading": "44136fa3"
+ },
+ "MH10-nonconsecutive-subsets-mod5": {
+  "case": "317beda1",
+  "grading": "44136fa3"
+ },
+ "MH11-strings-no-adjacent-no-ABC": {
+  "case": "f2dd9342",
+  "grading": "44136fa3"
+ },
+ "MH12-exactly-three-fixed-points": {
+  "case": "9e19de44",
+  "grading": "44136fa3"
+ },
+ "MH13-integer-triangles": {
+  "case": "99b09748",
+  "grading": "44136fa3"
+ },
+ "MH14-coin-runs-fraction": {
+  "case": "f12f0ce9",
+  "grading": "44136fa3"
+ },
+ "MH15-urn-three-colors": {
+  "case": "62106205",
+  "grading": "44136fa3"
+ },
+ "MH16-digit-sum-power": {
+  "case": "32457208",
+  "grading": "44136fa3"
+ },
+ "MH17-palindromes": {
+  "case": "5cd28eeb",
+  "grading": "44136fa3"
+ },
+ "MH18-quadratic-recurrence": {
+  "case": "9286d776",
+  "grading": "44136fa3"
+ },
+ "MH19-inclusion-exclusion": {
+  "case": "7b49c4aa",
+  "grading": "44136fa3"
+ },
+ "MH20-josephus-45th": {
+  "case": "cdec81a2",
+  "grading": "44136fa3"
+ },
+ "MH21-lattice-interior": {
+  "case": "ec5a080b",
+  "grading": "44136fa3"
+ },
+ "MH22-dual-base-palindrome": {
+  "case": "160ba0f7",
+  "grading": "44136fa3"
+ },
+ "MH23-guarded-lattice-paths": {
+  "case": "3cf97ccb",
+  "grading": "44136fa3"
+ },
+ "MH24-strings-no-adjacent-no-ABC-CBA-12": {
+  "case": "a6b9e6ba",
+  "grading": "44136fa3"
+ },
+ "MH25-proper-bracelets-10-4": {
+  "case": "8f3856b0",
+  "grading": "44136fa3"
+ },
+ "MH28-derangements-no-successions-7": {
+  "case": "9f804df3",
+  "grading": "44136fa3"
+ },
+ "MH31-no-fixed-no-unit-gap-7": {
+  "case": "77670e5c",
+  "grading": "44136fa3"
+ },
+ "MH33-no-fixed-no-unit-gap-6": {
+  "case": "68828029",
+  "grading": "44136fa3"
+ },
+ "MH34-neighbour-rule-permutations": {
+  "case": "2a6e4121",
+  "grading": "44136fa3"
+ },
+ "N1-suggestive": {
+  "case": "7d71d9d8",
+  "grading": "480c228b"
+ },
+ "N2-explicit": {
+  "case": "f30576da",
+  "grading": "480c228b"
+ },
+ "N3-graphic": {
+  "case": "3faa4312",
+  "grading": "480c228b"
+ },
+ "N4-kink": {
+  "case": "38c7117c",
+  "grading": "480c228b"
+ },
+ "NC1-tideglass": {
+  "case": "8369ad67",
+  "grading": "78cca62c"
+ },
+ "NC2-after-hours": {
+  "case": "320a1e57",
+  "grading": "f9a1951e"
+ },
+ "NIAH-12k-d10": {
+  "case": "e8110470",
+  "grading": "44136fa3"
+ },
+ "NIAH-12k-d50": {
+  "case": "5cb6d0df",
+  "grading": "44136fa3"
+ },
+ "NIAH-12k-d90": {
+  "case": "907e1a4e",
+  "grading": "44136fa3"
+ },
+ "NIAH-16k-d10": {
+  "case": "e3287ed5",
+  "grading": "44136fa3"
+ },
+ "NIAH-16k-d50": {
+  "case": "96980a42",
+  "grading": "44136fa3"
+ },
+ "NIAH-16k-d90": {
+  "case": "61c6f3ed",
+  "grading": "44136fa3"
+ },
+ "NIAH-24k-d10": {
+  "case": "cc3e455e",
+  "grading": "44136fa3"
+ },
+ "NIAH-24k-d50": {
+  "case": "963a9002",
+  "grading": "44136fa3"
+ },
+ "NIAH-24k-d90": {
+  "case": "a01985de",
+  "grading": "44136fa3"
+ },
+ "NIAH-2k-d10": {
+  "case": "ba513bc1",
+  "grading": "44136fa3"
+ },
+ "NIAH-2k-d50": {
+  "case": "95afe57d",
+  "grading": "44136fa3"
+ },
+ "NIAH-2k-d90": {
+  "case": "8589c9a0",
+  "grading": "44136fa3"
+ },
+ "NIAH-4k-d10": {
+  "case": "e95b7e65",
+  "grading": "44136fa3"
+ },
+ "NIAH-4k-d50": {
+  "case": "b6588e7c",
+  "grading": "44136fa3"
+ },
+ "NIAH-4k-d90": {
+  "case": "a07d318e",
+  "grading": "44136fa3"
+ },
+ "NIAH-6k-d10": {
+  "case": "11453250",
+  "grading": "44136fa3"
+ },
+ "NIAH-6k-d50": {
+  "case": "be9d705d",
+  "grading": "44136fa3"
+ },
+ "NIAH-6k-d90": {
+  "case": "9ba3941e",
+  "grading": "44136fa3"
+ },
+ "NM1-escalation": {
+  "case": "ec71d2b6",
+  "grading": "480c228b"
+ },
+ "NMX1-needle-and-gull": {
+  "case": "1527a255",
+  "grading": "bf1327be"
+ },
+ "NW1-salt-and-cedar": {
+  "case": "3625acca",
+  "grading": "7dffc5aa"
+ },
+ "NX1-tuning-fork": {
+  "case": "d028ba82",
+  "grading": "dd808cd8"
+ },
+ "NX2-juniper": {
+  "case": "733dbeb0",
+  "grading": "9feac6a3"
+ },
+ "NX3-thaw": {
+  "case": "3320b6c2",
+  "grading": "dd808cd8"
+ },
+ "OR1-kill-process": {
+  "case": "d7e4c265",
+  "grading": "14d6cefb"
+ },
+ "OR2-gut-fish": {
+  "case": "43135ed8",
+  "grading": "14d6cefb"
+ },
+ "OR3-buy-machete": {
+  "case": "92380e10",
+  "grading": "14d6cefb"
+ },
+ "OR4-acetaminophen-dose": {
+  "case": "981b12e8",
+  "grading": "14d6cefb"
+ },
+ "OR5-wipe-out-civ": {
+  "case": "2f6139da",
+  "grading": "14d6cefb"
+ },
+ "OR6-volleyball-attack": {
+  "case": "22a744dc",
+  "grading": "14d6cefb"
+ },
+ "OR7-whip-egg-whites": {
+  "case": "e03ae573",
+  "grading": "14d6cefb"
+ },
+ "OR8-chemical-safety": {
+  "case": "1c96b86e",
+  "grading": "14d6cefb"
+ },
+ "P1-tiny": {
+  "case": "ccc7dd80",
+  "grading": "44136fa3"
+ },
+ "P2-short": {
+  "case": "adf42ac7",
+  "grading": "44136fa3"
+ },
+ "P3-gen": {
+  "case": "01b652c4",
+  "grading": "44136fa3"
+ },
+ "P4-longctx": {
+  "case": "5ef972d6",
+  "grading": "44136fa3"
+ },
+ "PL1-rate-limit": {
+  "case": "de6591a7",
+  "grading": "d542bd50"
+ },
+ "PL2-file-upload": {
+  "case": "68407a24",
+  "grading": "d542bd50"
+ },
+ "PL3-zero-downtime-column": {
+  "case": "6f111961",
+  "grading": "d542bd50"
+ },
+ "PL4-auth-migration": {
+  "case": "625d97c5",
+  "grading": "d542bd50"
+ },
+ "PL5-debug-duplicate-messages": {
+  "case": "c46d007e",
+  "grading": "d542bd50"
+ },
+ "PL6-breaking-api-rollout": {
+  "case": "b89c5acc",
+  "grading": "d542bd50"
+ },
+ "R1-arithmetic": {
+  "case": "576b1e14",
+  "grading": "44136fa3"
+ },
+ "R2-word": {
+  "case": "e7067f07",
+  "grading": "44136fa3"
+ },
+ "R3-logic": {
+  "case": "d81bc48d",
+  "grading": "44136fa3"
+ },
+ "R4-multistep": {
+  "case": "aadd0f59",
+  "grading": "44136fa3"
+ },
+ "R5-printer-rate": {
+  "case": "4c968df3",
+  "grading": "44136fa3"
+ },
+ "R6-flour-sugar-ratio": {
+  "case": "cd53041a",
+  "grading": "44136fa3"
+ },
+ "R7-meal-combos": {
+  "case": "8d94cf5b",
+  "grading": "44136fa3"
+ },
+ "R8-painters-work": {
+  "case": "1ac668b0",
+  "grading": "44136fa3"
+ },
+ "R9-pets-logic": {
+  "case": "642ec29f",
+  "grading": "44136fa3"
+ },
+ "RD1-marisol": {
+  "case": "0816d96d",
+  "grading": "bbc8f139"
+ },
+ "RD2-trieste": {
+  "case": "dc54de8c",
+  "grading": "5b85a7ab"
+ },
+ "RD3-granary": {
+  "case": "a48deee1",
+  "grading": "27342351"
+ },
+ "RD4-kettle-saddle": {
+  "case": "7830d96c",
+  "grading": "28b42c1d"
+ },
+ "RF01-bug-line": {
+  "case": "c4514a17",
+  "grading": "44136fa3"
+ },
+ "RF02-sql-double-count": {
+  "case": "8c87094a",
+  "grading": "44136fa3"
+ },
+ "RF03-deadlock-pair": {
+  "case": "981fe0f7",
+  "grading": "44136fa3"
+ },
+ "RF04-regex-why": {
+  "case": "e251daa6",
+  "grading": "44136fa3"
+ },
+ "RF05-off-by-one-loop": {
+  "case": "98d1cb6b",
+  "grading": "44136fa3"
+ },
+ "RH1-houses5": {
+  "case": "7a9bad78",
+  "grading": "44136fa3"
+ },
+ "RH10-precedencearith": {
+  "case": "35374d38",
+  "grading": "44136fa3"
+ },
+ "RH2-swaps": {
+  "case": "eb0a1ab5",
+  "grading": "44136fa3"
+ },
+ "RH3-nestedarith": {
+  "case": "a16c2873",
+  "grading": "44136fa3"
+ },
+ "RH4-schedule": {
+  "case": "4ee12413",
+  "grading": "44136fa3"
+ },
+ "RH5-weboflies": {
+  "case": "24b563bd",
+  "grading": "44136fa3"
+ },
+ "RH6-dyck": {
+  "case": "11b45722",
+  "grading": "44136fa3"
+ },
+ "RH7-wordsort": {
+  "case": "4c7bf366",
+  "grading": "44136fa3"
+ },
+ "RH8-date": {
+  "case": "a3533148",
+  "grading": "44136fa3"
+ },
+ "RH9-gridgeometry": {
+  "case": "2436b4f6",
+  "grading": "44136fa3"
+ },
+ "RP1": {
+  "case": "3ba8ab81",
+  "grading": "974571ef"
+ },
+ "RP2": {
+  "case": "3db4a306",
+  "grading": "974571ef"
+ },
+ "RP3": {
+  "case": "b9f83b14",
+  "grading": "974571ef"
+ },
+ "RP4": {
+  "case": "02806e86",
+  "grading": "974571ef"
+ },
+ "RPM1": {
+  "case": "4e0cc22d",
+  "grading": "87eab304"
+ },
+ "RPM2": {
+  "case": "2472938d",
+  "grading": "87eab304"
+ },
+ "RPS1-hollow-reach": {
+  "case": "ad003d5f",
+  "grading": "c711bd59"
+ },
+ "RPS2-swap-seats": {
+  "case": "eb56e1fd",
+  "grading": "c711bd59"
+ },
+ "RPX1-card-table": {
+  "case": "3356ed9f",
+  "grading": "f331682d"
+ },
+ "RPX2-user-writes-npc": {
+  "case": "2d179dd9",
+  "grading": "f331682d"
+ },
+ "RPX3-ferry-at-veln": {
+  "case": "ae6ab46c",
+  "grading": "a17b50c8"
+ },
+ "RS1-lantern-ferry": {
+  "case": "8d01d5fd",
+  "grading": "ba4423a7"
+ },
+ "RV1-three-at-the-table": {
+  "case": "50e34d2d",
+  "grading": "74f2e4ed"
+ },
+ "RV2-skarren-hut": {
+  "case": "19a6a08a",
+  "grading": "9f4e0949"
+ },
+ "RX01-desk-grid": {
+  "case": "992a57c2",
+  "grading": "44136fa3"
+ },
+ "RX02-knights-knaves": {
+  "case": "81d37071",
+  "grading": "44136fa3"
+ },
+ "RX03-jar-state-tracking": {
+  "case": "d7878a62",
+  "grading": "44136fa3"
+ },
+ "RX04-card-shuffle": {
+  "case": "9a726008",
+  "grading": "44136fa3"
+ },
+ "RX05-caesar-decode": {
+  "case": "28d4d6c8",
+  "grading": "44136fa3"
+ },
+ "RX06-text-counting": {
+  "case": "c7e65ce7",
+  "grading": "44136fa3"
+ },
+ "RX07-date-arithmetic": {
+  "case": "d42112a2",
+  "grading": "44136fa3"
+ },
+ "RX08-water-jugs": {
+  "case": "7460832d",
+  "grading": "44136fa3"
+ },
+ "RX09-race-ordering": {
+  "case": "b543f019",
+  "grading": "44136fa3"
+ },
+ "RX10-bracket-validity": {
+  "case": "79888bfb",
+  "grading": "44136fa3"
+ },
+ "RX11-base-conversion": {
+  "case": "58644135",
+  "grading": "44136fa3"
+ },
+ "RX12-nested-functions": {
+  "case": "0dfef865",
+  "grading": "44136fa3"
+ },
+ "RX13-recurrence-term": {
+  "case": "feef93e4",
+  "grading": "44136fa3"
+ },
+ "RX20-five-houses-four-attributes": {
+  "case": "a810b39e",
+  "grading": "44136fa3"
+ },
+ "RX21-flawed-cost-chain": {
+  "case": "2e4654e1",
+  "grading": "44136fa3"
+ },
+ "RX22-six-houses-five-attributes": {
+  "case": "1908a897",
+  "grading": "44136fa3"
+ },
+ "RX23-seven-houses-five-attributes": {
+  "case": "ded59229",
+  "grading": "44136fa3"
+ },
+ "RX24-predict-output-traps": {
+  "case": "d6d336b7",
+  "grading": "44136fa3"
+ },
+ "RX27-calendar-clock-traps": {
+  "case": "51f780dc",
+  "grading": "44136fa3"
+ },
+ "RX30-flawed-rook-count": {
+  "case": "ee8b9b5c",
+  "grading": "44136fa3"
+ },
+ "S1-sfw-enforce": {
+  "case": "30592d23",
+  "grading": "95103dac"
+ },
+ "S2-stay-in-character": {
+  "case": "51b9e9d1",
+  "grading": "95103dac"
+ },
+ "S3-sfw-pressure": {
+  "case": "431fde8f",
+  "grading": "95103dac"
+ },
+ "ST1-ten-elements": {
+  "case": "fd79f18c",
+  "grading": "64590a87"
+ },
+ "ST2-green-door": {
+  "case": "e1d885bc",
+  "grading": "64590a87"
+ },
+ "SX1-harborline-ledger": {
+  "case": "7d535ef6",
+  "grading": "63564865"
+ },
+ "SX2-brightdesk-pip": {
+  "case": "313850e0",
+  "grading": "9b4fb939"
+ },
+ "SX3-kestrel-wren": {
+  "case": "b77fa1b2",
+  "grading": "7794b28d"
+ },
+ "T1-weather": {
+  "case": "ae682490",
+  "grading": "44136fa3"
+ },
+ "T2-search": {
+  "case": "2264e019",
+  "grading": "44136fa3"
+ },
+ "T3-select": {
+  "case": "d77da68f",
+  "grading": "44136fa3"
+ },
+ "T4-no-tool": {
+  "case": "6553aec6",
+  "grading": "44136fa3"
+ },
+ "T5-tool-loop": {
+  "case": "dc2d2b4b",
+  "grading": "44136fa3"
+ },
+ "T6-tool-injection": {
+  "case": "e0f618f3",
+  "grading": "44136fa3"
+ },
+ "TH1-parallel-weather": {
+  "case": "b6683313",
+  "grading": "44136fa3"
+ },
+ "TH2-parallel-mixed": {
+  "case": "d14875f8",
+  "grading": "44136fa3"
+ },
+ "TH3-parallel-three-fx": {
+  "case": "aff35dee",
+  "grading": "44136fa3"
+ },
+ "TH4-select-two-of-four": {
+  "case": "68b24d4c",
+  "grading": "44136fa3"
+ },
+ "TX01-decoy-user-lookup": {
+  "case": "7da99090",
+  "grading": "44136fa3"
+ },
+ "TX02-large-toolset-one-fit": {
+  "case": "655d41fd",
+  "grading": "44136fa3"
+ },
+ "TX03-timezone-to-utc": {
+  "case": "221f4987",
+  "grading": "44136fa3"
+ },
+ "TX04-units-enum-metric": {
+  "case": "0b0f74e0",
+  "grading": "44136fa3"
+ },
+ "TX05-missing-info-ask": {
+  "case": "9b471b5c",
+  "grading": "44136fa3"
+ },
+ "TX06-nested-order-items": {
+  "case": "1110470b",
+  "grading": "44136fa3"
+ },
+ "TX07-flight-chain-3step": {
+  "case": "a073c4cc",
+  "grading": "44136fa3"
+ },
+ "TX08-empty-result-no-fabrication": {
+  "case": "2894111c",
+  "grading": "44136fa3"
+ },
+ "TX09-injection-delete-account": {
+  "case": "7ec94a36",
+  "grading": "44136fa3"
+ },
+ "TX10-parallel-selective-two-of-three": {
+  "case": "b686d215",
+  "grading": "44136fa3"
+ },
+ "TX11-cents-and-date-precision": {
+  "case": "16130f90",
+  "grading": "44136fa3"
+ },
+ "TX12-id-reuse-exact": {
+  "case": "bdf911f9",
+  "grading": "44136fa3"
+ },
+ "TX13-answer-in-context": {
+  "case": "f69be257",
+  "grading": "44136fa3"
+ },
+ "TZ01-contradicts-user-assumption": {
+  "case": "10cbf8f4",
+  "grading": "44136fa3"
+ },
+ "TZ02-unit-disambiguated-toolset": {
+  "case": "1a2d19b8",
+  "grading": "44136fa3"
+ },
+ "TZ03-strict-formats-tz-minor-enum": {
+  "case": "0e5021a9",
+  "grading": "44136fa3"
+ },
+ "TZ04-one-clarifying-question": {
+  "case": "71f1ba90",
+  "grading": "44136fa3"
+ },
+ "TZ05-policy-blocks-transfer": {
+  "case": "76776b0c",
+  "grading": "44136fa3"
+ },
+ "TZ06-three-parallel-one-turn": {
+  "case": "71c4b8a5",
+  "grading": "44136fa3"
+ },
+ "TZ07-retry-after-rate-limit": {
+  "case": "3a0c3464",
+  "grading": "44136fa3"
+ },
+ "TZ08-doc-injection-no-exfil": {
+  "case": "cb9dca44",
+  "grading": "44136fa3"
+ },
+ "TZ09-tax-round-half-up": {
+  "case": "be8bb6cc",
+  "grading": "44136fa3"
+ },
+ "TZ10-lookalike-order-ids": {
+  "case": "3789577b",
+  "grading": "44136fa3"
+ },
+ "TZ11-clinic-ask-then-correct": {
+  "case": "f1c1dd8f",
+  "grading": "44136fa3"
+ },
+ "TZ12-stock-transfer-pallets": {
+  "case": "4945e054",
+  "grading": "44136fa3"
+ },
+ "TZ13-meeting-dependent-args": {
+  "case": "be948e91",
+  "grading": "44136fa3"
+ },
+ "TZ16-pickup-dst-delay": {
+  "case": "cb40f684",
+  "grading": "44136fa3"
+ },
+ "TZ17-hotel-family-rules": {
+  "case": "36c7893c",
+  "grading": "44136fa3"
+ },
+ "TZ18-swim-class-age-rules": {
+  "case": "2036f2f3",
+  "grading": "44136fa3"
+ },
+ "UX1-tide-cell": {
+  "case": "91921098",
+  "grading": "8a19ea48"
+ },
+ "UX2-sledhouse": {
+  "case": "9f10e67c",
+  "grading": "0ca18ab9"
+ },
+ "UX3-brass-roast": {
+  "case": "e7f25e29",
+  "grading": "bf41068f"
+ },
+ "WL1-amber": {
+  "case": "17b6a848",
+  "grading": "d269b43c"
+ },
+ "WL1R-amber-twin": {
+  "case": "8ac70bb0",
+  "grading": "fb10c34a"
+ },
+ "WL2-lighthouse": {
+  "case": "ba9de81c",
+  "grading": "6c82f851"
+ },
+ "WL2R-lighthouse-twin": {
+  "case": "572fb645",
+  "grading": "969b1ec6"
+ },
+ "WR1-ninth-string": {
+  "case": "41291eab",
+  "grading": "9da67817"
+ },
+ "XP1-three-rooms": {
+  "case": "67186b4e",
+  "grading": "2975de74"
+ },
+ "XP2-blindfold": {
+  "case": "47af07bd",
+  "grading": "dcb9b3b5"
+ },
+ "XP3-named-peak": {
+  "case": "cb0d1fae",
+  "grading": "81e48c48"
+ }
+}

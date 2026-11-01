@@ -121,3 +121,22 @@ def _allow_unsandboxed_in_tests(monkeypatch, request):
         return
     monkeypatch.setattr(graders, "ALLOW_UNSANDBOXED", True)
     monkeypatch.setattr(graders, "_warned_no_sandbox", True)  # keep the log quiet
+
+
+_PROFILES_38 = _ROOT / "tests" / "fixtures" / "profiles-3.8"
+
+
+@pytest.fixture
+def bench_38(monkeypatch):
+    """The frozen suite-3.8.0 benchmark profile (tests/fixtures/profiles-3.8/
+    bench.yaml: two headlines, no tiers) in place of profiles/bench.yaml.
+
+    Board, escalation and report tests written against the 3.8 case set
+    (RX02, IZ01, ST1, CZ02 in tier 1, Chat/Coding only) test the MECHANISM,
+    which 3.9 did not change; they keep their fixtures by running against
+    the profile they were written for. 3.9's own profile is tested in
+    tests/test_tiers_39.py."""
+    from crucibleforge import profiles, report
+    monkeypatch.setattr(profiles, "_dirs", lambda cfg=None: [_PROFILES_38])
+    monkeypatch.setattr(report, "_PROFILE_LABELS", None)
+    return _PROFILES_38

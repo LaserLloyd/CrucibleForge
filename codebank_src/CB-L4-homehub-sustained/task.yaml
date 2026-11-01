@@ -1,0 +1,18 @@
+id: CB-L4-homehub-sustained
+category: codebank_long
+family: feature
+difficulty: hard
+max_tokens: 8192
+allowed_paths: ["homehub/*.py", "homehub/*/*.py"]
+new_paths: []
+pythonpath: ["."]
+issue: |
+  Implement "sustained conditions" as described in the last section of
+  README.md ("Wanted in this release"). Everything that works today must
+  keep working. For changes in long files, SEARCH/REPLACE blocks are fine.
+groups:
+  - {id: parse, file: test_parse.py, kind: f2p, why: "README: 'for DURATION' after a comparison (parse_duration forms); not after 'time in', a group or a bare name; malformed duration -> ValueError"}
+  - {id: sustain, file: test_sustain.py, kind: f2p, why: "README: true after continuous DURATION, clock starts at first true evaluation, resets on false; fires on events or via Hub.tick -> engine.check; rising edge"}
+  - {id: noshortcut, file: test_noshortcut.py, kind: f2p, why: "README: every for-comparison tracked on every evaluation of its rule, no short-cut (and/or)"}
+  - {id: cooldown_tick, file: test_cooldown_tick.py, kind: f2p, why: "README: check() uses the same rising-edge and cooldown rules; only rules with a for-comparison are checked"}
+  - {id: existing, file: test_existing.py, kind: p2p, why: "plain rules, quiet-hours summary via tick, energy unchanged"}

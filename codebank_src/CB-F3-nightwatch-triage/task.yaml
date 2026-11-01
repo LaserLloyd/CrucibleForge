@@ -1,0 +1,19 @@
+id: CB-F3-nightwatch-triage
+category: codeagent
+family: agent
+difficulty: hard
+max_tokens: 4096
+allowed_paths: ["nightwatch/*.py", "config/nightwatch.toml"]
+new_paths: []
+pythonpath: ["."]
+issue: |
+  The nightly nightwatch job has failed every night since the 2.0 update,
+  and before that it raised STALE alarms for backups that were fine. The
+  service log is available as "nightwatch". Find out what is wrong and fix
+  it so nightwatch behaves as README.md describes, on this box and on the
+  other households' boxes.
+groups:
+  - {id: oldkey, file: test_oldkey.py, kind: f2p, why: "README: old key max_age_h read when new absent, new wins, warning text on stderr, default 26, non-positive/non-number -> config error; shipped config loads"}
+  - {id: tz, file: test_tz.py, kind: f2p, why: "README: times compared as real instants, local zone must not change any result (log: 19 h old shown as 28 h)"}
+  - {id: job, file: test_job.py, kind: f2p, why: "README: run() report line + exit 0 with an old-key config in Asia/Tokyo"}
+  - {id: existing, file: test_existing.py, kind: p2p, why: "README exit codes 1 (stale/missing) and 2 (bad folder); report format"}

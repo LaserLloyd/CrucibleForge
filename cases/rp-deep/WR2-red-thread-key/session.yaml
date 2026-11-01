@@ -1,0 +1,429 @@
+id: WR2-red-thread-key
+user_name: the author
+format_gate: chat
+deep_rubric: chat_deep
+rules: 'You are the co-writer described in the card below, working one-on-one in a chat with the user, an author
+  who is writing a short story with you one section at a time.
+
+
+  Rules (strict):
+
+  1. Each reply is exactly the text the author asks for — the section itself, nothing before or after it: no greeting,
+  no commentary, no notes, no questions back.
+
+  2. Plain text only: no markdown, no headings, no bold or italics, no lists. A title, when asked for, is a plain
+  line.
+
+  3. Follow every instruction the author gives. Rules set in an earlier message hold for the whole story unless
+  the author changes them.
+
+  4. Count carefully: word limits and word counts are exact, and exact wording is exact.
+
+  5. Keep every reply under 450 words.
+
+  '
+judge_card_summary: 'The Writing Desk co-writer: an author and a co-writer draft one short story section by section
+  in a chat. The co-writer replies with exactly the requested section (no commentary, no markdown, title as a plain
+  line). Rules set "for the whole piece" hold until the author changes them; a midway change holds forward only
+  and is absorbed into the story without comment. Plain, concrete prose; people rarely say what they mean, the weight
+  sits in what they do with their hands and what they leave unsaid; endings on something seen or heard; nothing
+  planted is wasted.
+
+  '
+judge_key: 'The assistant is the co-writer; the user is the author. The story so far is the assistant''s replies,
+  one section per turn. Whole-piece rules from turn 1: third person, present tense; main character Odile Marsh,
+  52, night cleaner at a bus depot; a banned-word list; no word ending in the letters l-y; no sentence begins with
+  a pronoun; every pair of quotation marks holds exactly six words (five from the turn-3 note). Section 1 plants
+  a brass key on a red thread and gives its tag ONE specific detail. Turn 3 note, forward only: the driver Piet
+  becomes Pieta, a woman (she/her), with no explanation in the text; quotation marks now hold exactly five words.
+  Sections 2 and 3 have sentences of 11 words or fewer; each paragraph of section 2 ends on a four-letter word.'
+temperature: 0.8
+top_p: 0.95
+max_tokens: 2000
+min_context: 40960
+turns:
+- 'Let''s write a short story together, one section per message. Ground rules for the whole piece: third person,
+  present tense; the main character is Odile Marsh, 52, a night cleaner at a bus depot. Never use these words anywhere
+  in the story: always, never, perhaps, seemed, tired, quiet, alone, silence, silent. No word anywhere in the story
+  may end in the letters l-y: not only, not family, not early, not fly. No sentence may begin with a pronoun (she,
+  he, it, they, her, his, its, their, them); that holds for sentences inside quotation marks too. Whenever anyone
+  speaks, each pair of quotation marks holds exactly six words, no more and no fewer.
+
+
+  Section 1 (110-140 words, the title included): put the story''s title on the first line by itself, four words
+  at most, then begin the section with exactly this sentence: At 2:10 the last bus of the night noses into Depot
+  Nine, and Odile is already waiting with the bucket. In the lost-property cage she finds one small object that
+  seems unimportant: a brass key on a loop of red thread. Give the key''s tag one specific, unusual detail (a number,
+  a mark or a word on it), mention it, don''t explain it. The driver, Piet, is still in his cab. The last section
+  will turn on that detail. No dialogue in this section.
+
+  '
+- 'Section 2 (140-180 words): exactly three paragraphs. Odile mops the bus while Piet watches her from the doors,
+  and the two of them talk. Piet must say this line, word for word, inside his quotation marks: Bay six went under
+  in March. Odile does not ask about the key at any point and does not say aloud that she wants to know; show that
+  she does by what she does with her hands and the bucket. Present tense, and the six-word rule for every pair of
+  quotation marks still holds. In sections 2 and 3, every sentence is 11 words or fewer (a quoted line and the tag
+  after it count as one sentence). Each of the three paragraphs of section 2 ends on a word of exactly four letters.
+
+  '
+- 'Author''s note before section 3, two changes from here to the end: (1) Piet is now Pieta, a woman, the night
+  driver; use she and her for Pieta from here on, and don''t explain the change. (2) Every pair of quotation marks
+  now holds exactly five words, not six. Don''t go back and fix earlier sections; write forward.
+
+
+  Section 3 (80-110 words), still present tense, and the 11-word sentence limit still holds: Pieta walks Odile out
+  to the old wash bay at the back of the depot, where the floor is still stained to knee height. Only the final
+  sentence of the section may begin with the word The, and that final sentence is exactly this: The hose is still
+  coiled where the water stopped.
+
+  '
+checks:
+- id: TL-title-and-first-sentence
+  fact: TL
+  ftype: format
+  group: constraint
+  type: require_regex
+  turns:
+  - 1
+  scope: all
+  pattern: \A\s*(?:\S+[ \t]+){0,3}\S+[ \t]*\n\s*At 2:10 the last bus of the night noses into Depot Nine, and Odile
+    is already waiting with the bucket\.
+  note: a title line of at most four words, then the exact opening sentence
+  weight: 0.15
+- id: W1-length-s1
+  fact: W1
+  ftype: format
+  group: constraint
+  type: word_range
+  turns:
+  - 1
+  min: 110
+  max: 140
+  weight: 0.1
+- id: W2-length-s2
+  fact: W2
+  ftype: format
+  group: constraint
+  type: word_range
+  turns:
+  - 2
+  min: 140
+  max: 180
+  weight: 0.1
+- id: W3-length-s3
+  fact: W3
+  ftype: format
+  group: constraint
+  type: word_range
+  turns:
+  - 3
+  min: 80
+  max: 110
+  weight: 0.1
+- id: B1-banned-words
+  fact: B1
+  ftype: format
+  group: constraint
+  type: forbid_regex
+  turns:
+  - 1
+  - 2
+  - 3
+  scope: all
+  pattern: \b(?:always|never|perhaps|seemed|tired|quiet|alone|silen(?:ce|t))\b
+  weight: 0.15
+- id: L1-no-word-ending-ly
+  fact: L1
+  ftype: format
+  group: constraint
+  type: forbid_regex
+  turns:
+  - 1
+  - 2
+  - 3
+  scope: all
+  pattern: \b[A-Za-z]+ly\b
+  note: no word ends in l-y anywhere (only, family, early, fly, ...), title and blurb included
+  weight: 0.75
+- id: Q2-six-word-quotes
+  fact: Q2
+  ftype: format
+  group: constraint
+  type: forbid_regex
+  turns:
+  - 1
+  - 2
+  scope: all
+  pattern: \A(?:[^"“”]*["“](?:[^\s"“”]+\s+){5}[^\s"“”]+["”])*[^"“”]*["“](?!(?:[^\s"“”]+\s+){5}[^\s"“”]+["”])[^"“”\n]*["”]
+  note: every pair of quotation marks holds exactly six words (turns 1-2)
+  weight: 0.75
+- id: X2-exact-line
+  fact: X2
+  ftype: format
+  group: constraint
+  type: require_regex
+  turns:
+  - 2
+  scope: all
+  pattern: 'Bay six went under in March[.,]'
+  weight: 0.15
+- id: P2-three-paragraphs
+  fact: P2
+  ftype: format
+  group: constraint
+  type: require_regex
+  turns:
+  - 2
+  scope: all
+  pattern: \A\s*\S[^\n]*(?:\n[ \t]*\S[^\n]*)*(?:\n[ \t]*\n\s*\S[^\n]*(?:\n[ \t]*\S[^\n]*)*){2}\s*\Z
+  note: exactly three blank-line-separated paragraphs
+  weight: 0.25
+  pruned: '4.0 fix: all-pass on the 2026-10-31 board, half weight'
+- id: T1-present-tense
+  fact: T1
+  ftype: format
+  group: constraint
+  type: tense
+  turns:
+  - 1
+  - 2
+  - 3
+  want: present
+  weight: 0.15
+- id: R3-piet-gone
+  fact: R3
+  ftype: correction
+  group: continuity
+  type: forbid_regex
+  turns:
+  - 3
+  scope: all
+  pattern: \bPiet\b
+  note: the old name is gone from the turn-3 note on (Pieta is not Piet)
+  weight: 0.2
+- id: H3-she-not-he
+  fact: H3
+  ftype: correction
+  group: continuity
+  type: forbid_regex
+  turns:
+  - 3
+  scope: all
+  pattern: \b(?:he|him|his|himself)\b
+  note: 'Pieta is a woman: no masculine pronoun after the note'
+  weight: 0.2
+- id: N3-pieta-used
+  fact: N3
+  ftype: correction
+  group: continuity
+  type: require_regex
+  turns:
+  - 3
+  scope: all
+  pattern: \bPieta\b
+  weight: 0.1
+- id: Q3-five-word-quotes
+  fact: Q3
+  ftype: correction
+  group: continuity
+  type: forbid_regex
+  turns:
+  - 3
+  scope: all
+  pattern: \A(?:[^"“”]*["“](?:[^\s"“”]+\s+){4}[^\s"“”]+["”])*[^"“”]*["“](?!(?:[^\s"“”]+\s+){4}[^\s"“”]+["”])[^"“”\n]*["”]
+  note: from the turn-3 note every pair of quotation marks holds exactly five words
+  weight: 1
+- id: S3-only-last-sentence-starts-The
+  fact: S3
+  ftype: format
+  group: constraint
+  type: forbid_regex
+  turns:
+  - 3
+  scope: all
+  pattern: (?:\A|[.!?]["”]?\s+)The\b(?! hose is still coiled where the water stopped\.)
+  weight: 0.375
+  pruned: '4.0 fix: all-pass on the 2026-10-31 board, half weight'
+- id: L3-fixed-last-line
+  fact: L3
+  ftype: format
+  group: constraint
+  type: require_regex
+  turns:
+  - 3
+  scope: all
+  pattern: (?:^|[.!?]\s+)The hose is still coiled where the water stopped\.\s*\Z
+  weight: 0.15
+- id: NP1-no-pronoun-sentence-start
+  fact: NP1
+  ftype: format
+  group: constraint
+  type: forbid_regex
+  turns:
+  - 1
+  - 2
+  - 3
+  scope: all
+  pattern: (?:\A|[.!?]["”]?\s+|\n|["“])(?:she|he|it|they|her|his|its|their|them)\b
+  note: 'whole piece: no sentence (inside quotation marks too) begins with a pronoun'
+  weight: 0.5
+  pruned: '4.0 fix: all-pass on the 2026-10-31 board, half weight'
+- id: SL2-sentences-11-words
+  fact: SL2
+  ftype: format
+  group: constraint
+  type: forbid_regex
+  turns:
+  - 2
+  - 3
+  scope: all
+  pattern: (?:(?=[^\s.!?…]*[A-Za-z0-9])[^\s.!?…]+[ \t]+(?:[—–-]+[ \t]+)?){11}(?=[^\s.!?…]*[A-Za-z0-9])[^\s.!?…]+
+  note: a run of 12 words with no sentence end = a sentence over 11 words
+  weight: 0.375
+  pruned: '4.0 fix: all-pass on the 2026-10-31 board, half weight'
+- id: E2-paragraphs-end-on-four-letters
+  fact: E2
+  ftype: format
+  group: constraint
+  type: forbid_regex
+  turns:
+  - 2
+  scope: all
+  pattern: \b(?:[A-Za-z]{1,3}|[A-Za-z]{5,})[.!?]["”]?[ \t]*(?:\n[ \t]*\n|\s*\Z)
+  note: a paragraph ends on a word that is not exactly four letters
+  weight: 0.375
+  pruned: '4.0 fix: all-pass on the 2026-10-31 board, half weight'
+- id: DQ1-no-dialogue-s1
+  fact: DQ
+  ftype: format
+  group: constraint
+  type: forbid_regex
+  turns:
+  - 1
+  scope: all
+  pattern: '["“”]'
+  note: 'section 1 has no dialogue (the author said so)'
+  weight: 0.25
+  pruned: '4.0 fix: all-pass on the 2026-10-31 board, half weight'
+- id: KQ2-odile-does-not-ask
+  fact: KQ
+  ftype: correction
+  group: continuity
+  type: forbid_regex
+  turns:
+  - 2
+  - 3
+  scope: all
+  pattern: '["“][^"”\n]*(?:\?[^"”\n]*\b(?:key|tag|thread)\b|\b(?:key|tag|thread)\b[^"”\n]*\?)[^"”\n]*["”]'
+  note: 'nobody asks about the key, the tag or the thread aloud'
+  weight: 0.375
+  pruned: '4.0 fix: all-pass on the 2026-10-31 board, half weight'
+- id: KT3-key-in-last-section
+  fact: KT
+  ftype: callback
+  group: continuity
+  type: require_regex
+  turns:
+  - 3
+  scope: all
+  pattern: '\b(?:key|thread|tag)\b'
+  note: 'the planted object is still in the last section'
+  weight: 1
+- id: BY3-bay-six-comes-back
+  fact: BY
+  ftype: callback
+  group: continuity
+  type: require_regex
+  turns:
+  - 3
+  scope: all
+  pattern: '\bbay six\b|\bMarch\b|\bwent under\b|\bflood\w*'
+  note: 'Piet''s line about bay six (March, went under) comes back in the wash-bay section'
+  weight: 2
+- id: SP1-no-stock-phrases
+  fact: SP
+  ftype: format
+  group: constraint
+  type: forbid_regex
+  turns:
+  - 1
+  - 2
+  - 3
+  scope: all
+  pattern: '\b(?:time (?:stood|stopped) still|let out a (?:long |slow |shaky )?breath|breath (?:I|he|she|we) (?:had not|hadn''t|didn''t|did not) (?:known|realise\w*|realize\w*)|dust motes?|hung (?:thick|heavy) in the air|hanging in the air|(?:heavy|deafening|pregnant) silence|silence (?:fell|hung|stretched|settled)|a (?:mix|mixture) of|memories (?:flooded|came flooding|washed|danced)|the weight of (?:years|the past|memory|memories|loss|it all)|ghost of a|like a ghost|something (?:shifted|stirred|broke|passed) (?:in|between|across)|(?:a )?shiver (?:ran|went|crept) (?:down|up|through)|eyes (?:glistened|brimmed|welled|misted)|a lifetime of|whispered secrets|stories untold|tapestry|symphony of|for what (?:felt|seemed) like (?:hours|forever|an eternity|ages)|the air (?:was|is) (?:thick|heavy)|breath hitch\w*|heart (?:pounds|pounded|raced|races|hammers|hammered|skipped|skips|sank|sinks)|dust (?:dance[sd]?|dancing)|shadows? (?:danced|dance|dances|stretch\w*) (?:across|along|over))\b'
+  note: 'no stock phrase from a short list of worn-out fiction clichés'
+  weight: 1
+- id: OP1-openers-vary
+  fact: OP
+  ftype: format
+  group: constraint
+  type: forbid_regex
+  turns:
+  - 2
+  - 3
+  scope: all
+  pattern: '(?:\A|[.!?]["”]?\s+)["“]?(\w+)\b(?:[\s\S]*?[.!?]["”]?\s+["“]?\1\b){4}'
+  note: 'no word opens five sentences of one section'
+  weight: 1
+  scored: false
+  pruned: '4.0 fix: not in the author''s brief / unreachable, kept as diagnostic'
+judge_elements:
+- id: S2-wanting-shown-in-hands
+  ftype: applied
+  turns:
+  - 2
+  q: The author asked that Odile never ask about the key and never say she wants to know, but that her wish to know
+    SHOW in what she does with her hands and the bucket. Does section 2 show her interest in the key through a specific
+    physical action with the key, the tag or the cleaning things (not in a spoken question, not in narration saying
+    she wonders or wants to know)? Quote the line. NO if she asks about the key, says she is curious, or the narration
+    tells her thoughts about it instead of showing an action.
+  evidence:
+  - src: turn
+    text: Odile does not ask about the key at any point and does not say aloud that she wants to know; show that
+      she does by what she does with her hands and the bucket.
+  gold_quote: Odile takes out the key to wipe mud off its tag.
+  weight: 1.5
+  pruned: '4.0 fix: all-pass on the 2026-10-31 board, half weight'
+- id: A3-change-absorbed-silently
+  ftype: applied
+  turns:
+  - 3
+  q: The author's note changed the driver Piet into Pieta, a woman, and said not to explain the change. Does section
+    3 simply present Pieta as the night driver, with she and her, and without ANY sentence that points at, explains
+    or reconciles the change (no 'formerly Piet', 'now called', 'had changed her name', 'the new driver', no mention
+    that the driver was once a man)? Quote Pieta's first appearance. NO if the text comments on the change in any
+    way, or leaves the driver unnamed.
+  evidence:
+  - src: turn
+    text: Piet is now Pieta, a woman, the night driver; use she and her for Pieta from here on, and don't explain
+      the change.
+  gold_quote: Pieta leads Odile through a side door to the wash bay.
+  weight: 1
+  pruned: '4.0 fix: all-pass on the 2026-10-31 board, half weight'
+- id: TG3-tag-detail-acted-on
+  ftype: applied
+  turns:
+  - 1
+  - 3
+  q: 'Two parts, both required. (a) Turn 1: the specific detail on the key''s tag (a number, mark or word). (b) Turn 3: a character DOES something with that same detail in the wash bay: reads it out, matches it to a locker, door, hook, pipe or number, counts to it, or tries the key. Your quote must be the section-3 line that repeats the detail AND shows the doing. YES only if (a) and (b) both hold. NO (empty quote) if section 3 never repeats the detail, or only mentions the tag or key in passing, or the detail is merely on the page (a shadow falling across it, a hand resting on it) and nobody does anything with it.'
+  evidence:
+  - src: turn
+    text: 'Give the key''s tag one specific, unusual detail (a number, a mark or a word on it), mention it, don''t explain it.'
+  gold_quote: 'counts the lockers to six'
+  weight: 6
+  scored: false
+  pruned: '4.0 fix: not in the author''s brief / unreachable, kept as diagnostic'
+- id: TK2-both-speak
+  ftype: applied
+  turns:
+  - 2
+  q: 'The author wanted the two of them to TALK. Quote ONE line that Odile herself says aloud in section 2: inside quotation marks and spoken by Odile (not by Piet). YES only if such a line exists. NO (empty quote) if only Piet speaks in quotation marks, or if Odile''s words are only described without quotation marks.'
+  evidence:
+  - src: turn
+    text: 'Odile mops the bus while Piet watches her from the doors, and the two of them talk.'
+  gold_quote: 'Rain keeps floors wet, Piet, sorry'
+  weight: 2
+  pruned: '4.0 fix: weight capped so one judge verdict is worth at most ~10% of the case'
+grading_notes: ' 4.0 lite (time budget, 2026-10-31): cut to its first 3 turns (plant, the hands-not-words scene,
+  the silent retcon); sections 4-6 left with their checks and elements; the two craft elements keep half of the
+  case weight. 4.0 lite saturation fix (2026-10-31, grading only, prompts unchanged): WR2 scored 1.0 for most models. New checks DQ1 (no dialogue in section 1), KQ2 (nobody asks about the key), KT3 (key/thread/tag back in section 3), BY3 (bay six / March comes back), SP1 (stock phrases), OP1 (sentence-opener variety); new judge elements TG3 (the tag''s detail is acted on in section 3) and TK2 (Odile speaks too); S2/A3 weights lowered. Re-grade only (re-judge rows with --force).'

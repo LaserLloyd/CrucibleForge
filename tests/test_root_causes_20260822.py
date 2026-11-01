@@ -235,8 +235,11 @@ def test_generation_rejected_scores_case_fail_and_run_continues(tmp_path, monkey
 
 def test_consecutive_transport_errors_abort_model(tmp_path, monkeypatch):
     monkeypatch.setattr(config, "RESULTS_DIR", tmp_path)
+    # serial (concurrency 1) so exactly N rows are written before the abort;
+    # since 3.9 an openai provider without a concurrency runs 8 wide
     cfg = {"defaults": {"context_length": 4096, "repeats": {}},
-           "providers": {"fake": {"type": "openai", "base_url": "http://127.0.0.1:9/v1"}},
+           "providers": {"fake": {"type": "openai", "base_url": "http://127.0.0.1:9/v1",
+                                  "concurrency": 1}},
            "judge": {"candidates": []}, "models": []}
     entry = {"name": "m", "model_id": "m", "provider": "fake", "thinking": False}
     from crucibleforge import providers

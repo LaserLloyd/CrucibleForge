@@ -1,0 +1,22 @@
+id: CB-D1-monthly-top
+category: codebank
+family: sql
+difficulty: hard
+max_tokens: 8192
+min_sqlite: "3.25"
+answer: "block:sql"
+answer_path: answer.sql
+allowed_paths: []
+new_paths: []
+pythonpath: ["."]
+system: |
+  You are a senior engineer who writes SQL for SQLite (version 3.25 or newer: window functions and CTEs are available). You cannot run queries here.
+
+  Answer with the query in one fenced ```sql block (a single statement). A short explanation before it is fine.
+issue: |
+  Write the report query described in README.md.
+groups:
+  - {id: sample, file: test_sample.py, kind: f2p, why: "README sample table"}
+  - {id: ties, file: test_ties.py, kind: f2p, why: "README: ties give one row per customer sorted by name; months bounded 2026-01..06; columns month, customer, net_cents"}
+  - {id: empty, file: test_empty.py, kind: f2p, why: "README: every month present; no positive net -> NULL/0 row; pending never counts; zero spend is not above zero"}
+  - {id: refunds, file: test_refunds.py, kind: f2p, why: "README: refunds count in refunded_at month on any order of the customer; randomised shops vs reference"}

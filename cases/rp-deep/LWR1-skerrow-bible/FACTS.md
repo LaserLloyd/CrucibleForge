@@ -1,0 +1,74 @@
+# LWR1-skerrow-bible - graded items (one grader per fact), Chat / Creative writing ladder pack set-1
+
+6 author turns; format_gate chat, deep_rubric chat_deep. Weights: hidden-habit and stacked-rule items carry more weight than the explicit counts (see PACK.md).
+
+Deterministic facts (session_checks):
+- TL-title-opening [format/require_regex, t1, w=0.08]: a title of at most four words, then the exact opening sentence
+- W1-exact-204 [format/word_range, t1, w=0.08]: exactly 204 words, title included
+- A1-paragraph-sentences [format/require_regex, t1, w=0.08]: title, then three paragraphs of three sentences
+- L1-last-sentence [format/require_regex, t1, w=0.08]
+- N1-numeral-steps [format/require_regex, t1, w=0.08]
+- C1-capitals-terns [format/require_regex, t1, w=0.08]: clues 9 and 11 planted in section 1
+- P1-place-time [format/require_regex, t1, w=0.08]
+- A2-paragraph-sentences [format/require_regex, t2, w=0.72]: four paragraphs of 3, 2, 4, 3 sentences
+- S2a-sentence-2-six-words [format/require_regex, t2, w=0.08]
+- S2b-sentence-5-nine-words [format/require_regex, t2, w=0.08]
+- S2c-sentence-8-twelve-words [format/require_regex, t2, w=0.08]
+- S2d-sentence-11-fifteen-words [format/require_regex, t2, w=0.08]
+- W2-exact-126 [format/word_range, t2, w=0.72]: 5+6+...+16 = 126 words
+- F2-pattern-in-para-2 [format/require_regex, t2, w=0.08]: three flashes / twenty seconds, written out, in paragraph 2
+- G2-pattern-only-para-2 [format/forbid_regex, t2, w=0.08]: the lamp pattern appears in no other paragraph
+- H2-pennant-para-3 [format/require_regex, t2, w=0.08]
+- T2-toast [format/require_regex, t2, w=0.08]
+- K2-basket-twice [format/require_regex, t2, w=0.08]: the word basket exactly twice
+- W3-exact-160 [format/word_range, t3, w=0.72]
+- Q3-two-quoted-lines [format/require_regex, t3, w=0.72]: exactly two quoted spans
+- E3-teapot-geraniums [format/require_regex, t3, w=0.08]
+- O3-foghorn-last [format/require_regex, t3, w=0.08]: the final sentence contains foghorn
+- R1-fair-play-words [format/forbid_regex, t1,t2,t3, w=0.72]: no reveal words before section 4
+- B1-banned-words [format/forbid_regex, t1,t2,t3,t4,t5, w=0.08]
+- U2-no-The-sentence-start [format/forbid_regex, t2,t3,t4,t5, w=0.72]: from section 2 on no sentence begins with The (the dictated sentence may return)
+- U3-nine-letters [format/forbid_regex, t3,t4,t5, w=0.72]: from section 3 on no word over nine letters
+- U4-no-ly [format/forbid_regex, t4,t5, w=0.08]: from section 4 on no word ending in ly
+- S2-ramp-all-twelve [format/require_regex, t2, w=0.72]: every sentence n has n+4 words, in paragraphs of 3, 2, 4, 3
+- H1-no-pronoun-start [format/forbid_regex, t1,t2,t3,t4,t5, w=2.0]: house style: no sentence begins with a pronoun
+- H2-digits-only-authorised [format/forbid_regex, t1,t2,t3,t4,t5, w=0.08]: house style: numbers are words (only the bible numerals may be digits)
+- HD-no-question-exclaim [format/forbid_regex, t1,t2,t3,t4,t5, w=0.08]: house style: no question or exclamation marks in narration
+- HF-no-contractions [format/forbid_regex, t1,t2,t3,t4,t5, w=0.08]: house style: no contractions in narration
+- HG-no-conjunction-start [format/forbid_regex, t1,t2,t3,t4,t5, w=0.08]: house style: no sentence begins with a conjunction
+- HE2-weather-first-s2 [format/require_regex, t2, w=1.15]: house style: a section opens on the weather (section 2)
+- HE3-weather-first-s3 [format/require_regex, t3, w=1.57]: house style: a section opens on the weather (section 3)
+- HE4-weather-first-s4 [format/require_regex, t4, w=0.08]: house style: a section opens on the weather (section 4)
+- HE5-weather-first-s5 [format/require_regex, t5, w=1.57]: house style: a section opens on the weather (section 5)
+- HT2-clock-time-s2 [format/require_regex, t2, w=2.0]: house style: a clock time is given in words (o'clock / half past)
+- HT3-clock-time-s3 [format/require_regex, t3, w=2.0]: house style: a clock time is given in words (o'clock / half past)
+- HT4-clock-time-s4 [format/require_regex, t4, w=2.0]: house style: a clock time is given in words (o'clock / half past)
+- HT5-clock-time-s5 [format/require_regex, t5, w=2.0]: house style: a clock time is given in words (o'clock / half past)
+- H3-no-like [format/forbid_regex, t1,t2,t3,t4,t5, w=0.08]: house style: no 'like' similes
+- Y1-straight-no-hyphens [format/forbid_regex, t1,t2,t3,t4,t5,t6, w=0.72]: straight quotes only; no hyphens or dashes
+- V1-no-first-person [format/forbid_regex, t1,t2,t3,t4,t5, w=0.08]: no first person outside quoted speech
+- T1-past-tense [format/tense, t1,t2,t3,t4,t5, w=0.08]
+- W4-exact-240 [format/word_range, t4, w=0.08]
+- A4-three-paragraphs [format/require_regex, t4, w=0.08]
+- O4-odile-logbook-february [format/require_regex, t4, w=0.08]
+- C4-two-clues-recalled [format/require_regex, t4, w=0.08]: at least two of terns / capitals / toast / teapot named again
+- D4-one-quoted-line [format/require_regex, t4, w=0.08]: exactly one quoted span
+- G4-gannet-31-93 [format/require_regex, t4, w=1.57]: the three bible changes show up in section 4
+- X4-old-values-gone [format/forbid_regex, t4,t5, w=0.08]: boat, age and steps changed by the note
+- W5-exact-100 [format/word_range, t5, w=1.15]
+- A5-paragraph-sentences [format/require_regex, t5, w=1.57]: three paragraphs of 2, 2, 1 sentences
+- Z5-last-para-14-words [format/require_regex, t5, w=0.72]: final paragraph = one sentence of exactly 14 words
+- F5-pattern-last-para [format/require_regex, t5, w=0.08]
+- K5-callback-one-word [format/require_regex, t5, w=0.72]: last sentence of section 1 returns with exactly one word changed
+- E5-no-named-feeling [format/forbid_regex, t5, w=0.08]
+- S6-recap-length [format/word_range, t6, w=0.08]
+- M6-recap-values [format/require_all, t6, w=0.08]: old and new value of each of the three bible changes
+- N6-recap-no-extras [format/forbid_regex, t6, w=0.72]: only the three changed facts are listed
+
+Judge elements (chat_deep fact groups, quote required):
+- J1-clues-plain [t1,t2, w=1.0]: In sections 1 and 2 the clues (block-capital unsigned notes, the tern-bordered handkerchief, the smoke that smells of toast) must be planted as plain detail. Check three things and quote the lines: (a) all three clues are on the page, (b) Corran or the narration never comments on what they might mean, and (c) the narration never calls the keeper he, him or his and never says or implies Corran has seen the keeper. NO if a clue is missing, explained, or the narration misleads (a he/him for the keeper, a glimpse of the keeper).
+- J2-reveal-by-object [t3,t4, w=1.0]: Section 3 plants the teapot of geraniums; section 4 must then reveal the secret THROUGH the logbook written in two hands (an object shown on the page: e.g. a copperplate hand that stops at a dated entry and block capitals that go on). Quote the line that shows the two hands. NO if the reveal is delivered by speech, by narration simply stating what happened, or if the logbook does not show two hands.
+- J3-clues-recast [t4, w=1.0]: Does section 4 recall at least two of the earlier clues by their specific detail (terns, capitals, toast, teapot) AND recast each one, saying or showing what it was for or meant in Odile's secret (not just naming it again)? Quote the two lines. NO if fewer than two are recalled with their detail, or if they are only listed.
+- J4-pov-odile [t4, w=1.0]: Section 4 must be close third on Odile only. Does the narration give Odile's perceptions or thoughts and never enter Corran's head (no Corran thinking, wondering, knowing or feeling anything the narration states as fact)? Quote any line that breaks this; if none, quote a line that shows her point of view. NO if the narration reports what Corran thinks or feels.
+- J5-no-reply-s3 [t3, w=1.0]: In section 3 Corran calls up twice and nobody answers aloud. Does the section stay silent on the tower side (no spoken reply, no voice, no humming, no words from the keeper, not even faint)? Quote the line that shows the silence, or the line that breaks it. NO if anything from the tower speaks or hums.
+- J6-hands-and-image [t5, w=1.0]: The last section shows Odile's feeling only through what she does with her hands, and its final sentence is a concrete image (something seen or heard), not a lesson or a statement of what it meant. Quote the line with her hands and the final sentence. NO if the feeling is told, or the section closes on a moral or reflection.

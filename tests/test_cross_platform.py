@@ -165,6 +165,30 @@ def test_config_save_load_round_trip_declares_utf8(tmp_path, encoding_police):
     assert loaded["models"][0]["notes"] == NON_ASCII
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="POSIX file modes")
+def test_save_config_with_literal_api_key_is_mode_0600(tmp_path):
+    import stat
+    cfg = _minimal_cfg(["m"])
+    cfg["providers"]["p"]["api_key"] = "not-a-real-key"
+    dst = tmp_path / "models.yaml"
+    config.save_config(cfg, dst)
+    assert stat.S_IMODE(dst.stat().st_mode) == 0o600
+    # an existing 0600 file is never loosened by a later key-less save
+    cfg["providers"]["p"].pop("api_key")
+    config.save_config(cfg, dst)
+    assert stat.S_IMODE(dst.stat().st_mode) == 0o600
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="POSIX file modes")
+def test_save_config_without_keys_keeps_the_existing_mode(tmp_path):
+    import stat
+    dst = tmp_path / "models.yaml"
+    dst.write_text("{}", encoding="utf-8")
+    dst.chmod(0o640)
+    config.save_config(_minimal_cfg(["m"]), dst)
+    assert stat.S_IMODE(dst.stat().st_mode) == 0o640
+
+
 def test_run_meta_round_trip_declares_utf8(tmp_path, monkeypatch, encoding_police):
     """``_write_meta`` reads the existing meta back before merging, so a
     non-ASCII server error recorded on one pass has to survive the read on the

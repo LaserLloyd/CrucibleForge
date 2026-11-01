@@ -6,7 +6,7 @@ from crucibleforge import cli, report
 
 def _capture(monkeypatch):
     seen = []
-    monkeypatch.setattr(report, "generate", lambda models, write=True: seen.append(models) or "")
+    monkeypatch.setattr(report, "generate", lambda models, write=True, **kw: seen.append(models) or "")
     monkeypatch.setattr(report, "scorecard_section", lambda md: "")
     return seen
 

@@ -1,0 +1,14 @@
+[Unit]
+Description=hearth web UI
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/home/alex/.local/bin/hearth-web --port 8095
+EnvironmentFile=-%h/.config/hearth/web.env
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

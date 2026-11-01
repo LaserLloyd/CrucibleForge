@@ -463,16 +463,16 @@
   "id": "RX13-recurrence-term",
   "difficulty": "hard",
   "system": "Reason step by step, then end your reply with a single final line 'Answer: <value>' containing only the final answer.",
-  "prompt": "A sequence of integers is defined by a_1 = 3, a_2 = 7, and a_n = 2*a_(n-1) + 3*a_(n-2) - n for every n >= 3. Find the remainder when a_30 is divided by 10000. Give an integer between 0 and 9999.",
+  "prompt": "A sequence of integers is defined by a_1 = 3, a_2 = 7, and a_n = 2*a_(n-1) + 3*a_(n-2) - n for every n >= 3. Find the remainder when a_1000 is divided by 10000. Give an integer between 0 and 9999.",
   "temperature": 0.0,
-  "max_tokens": 4096,
+  "max_tokens": 6144,
   "grader": "numeric",
   "grader_config": {
-   "answer": 5079,
+   "answer": 4001,
    "tolerance": 0.001
   },
   "verify": {
-   "python": "__import__('functools').reduce(lambda p,n: (p[1], (2*p[1]+3*p[0]-n)%10000), range(3,31), (3,7))[1]"
+   "python": "__import__('functools').reduce(lambda p,n: (p[1], (2*p[1]+3*p[0]-n)%10000), range(3,1001), (3,7))[1]"
   }
  },
  {
@@ -550,12 +550,12 @@
     "id": "RX20-five-houses-four-attributes",
     "difficulty": "hard",
     "system": "Reason step by step, then end your reply with a single final line 'Answer: <value>' containing only the final answer.",
-    "prompt": "Five houses stand in a row, numbered 1 to 5 from left to right. In each house lives one person, and the five people are Ines, Kofi, Maren, Teodor and Yusra. Each person drinks exactly one drink (horchata, kombucha, kvass, lassi, mate), keeps exactly one pet (axolotl, ferret, gecko, parrot, tortoise) and has exactly one trade (bookbinder, cartographer, farrier, glazier, luthier). No two people share a drink, a pet or a trade. \"Next to each other\" means in adjacent houses; \"to the left\" means a lower house number.\n1. Yusra and the tortoise owner live next to each other.\n2. The horchata drinker and Yusra live next to each other.\n3. The cartographer and Teodor live next to each other.\n4. Kofi lives somewhere to the left of the gecko owner.\n5. Teodor and the axolotl owner live next to each other.\n6. Yusra lives somewhere to the left of the horchata drinker.\n7. The tortoise owner lives somewhere to the left of the luthier.\n8. The luthier and the kombucha drinker live next to each other.\n9. The ferret owner lives somewhere to the left of the cartographer.\n10. Maren and the bookbinder live next to each other.\n11. The lassi drinker lives somewhere to the left of the bookbinder.\n12. The bookbinder and the axolotl owner live next to each other.\n13. The ferret owner and the mate drinker live next to each other.\n14. Kofi and the gecko owner live next to each other.\n15. The axolotl owner and Ines live next to each other.\n16. Ines lives somewhere to the left of the farrier.\nExactly one arrangement satisfies every clue. Give the full arrangement as 20 words on the Answer line: the five names in house order 1-5, then the five drinks in house order, then the pets, then the trades (each in house order 1-5), separated by single spaces, singular (for example: Answer: Ines Kofi Maren Teodor Yusra horchata kombucha kvass lassi mate axolotl ferret gecko parrot tortoise bookbinder cartographer farrier glazier luthier).",
+    "prompt": "Five houses stand in a row, numbered 1 to 5 from left to right. In each house lives one person, and the five people are Astrid, Bruno, Celia, Dario and Esme. Each person drinks exactly one drink (cider, kefir, oolong, sherbet, tonic), keeps exactly one pet (beagle, canary, hamster, iguana, rabbit) and has exactly one trade (baker, cooper, mason, potter, weaver). No two people share a drink, a pet or a trade. \"Next to each other\" means in adjacent houses; \"to the left\" means a lower house number; \"exactly one house between\" means their house numbers differ by 2.\n1. There is exactly one house between Astrid and the potter.\n2. Astrid lives somewhere to the left of the tonic drinker.\n3. The oolong drinker and the weaver live next to each other.\n4. The rabbit owner and the sherbet drinker live next to each other.\n5. There is exactly one house between the hamster owner and the baker.\n6. The mason lives somewhere to the left of the rabbit owner.\n7. The sherbet drinker and Esme live next to each other.\n8. The cooper and Bruno live next to each other.\n9. Dario and the sherbet drinker do not live next to each other, and are not the same person.\n10. There is exactly one house between the cooper and the iguana owner.\n11. The hamster owner lives somewhere to the left of the weaver.\n12. There is exactly one house between Celia and the baker.\n13. The kefir drinker and the rabbit owner live next to each other.\n14. Dario and the potter live next to each other.\n15. The canary owner and the tonic drinker do not live next to each other, and are not the same person.\n16. The rabbit owner lives somewhere to the left of the potter.\nExactly one arrangement satisfies every clue. Give the full arrangement as 20 words on the Answer line: the five names in house order 1-5, then the five drinks in house order, then the pets, then the trades (each in house order 1-5), separated by single spaces, singular (for example: Answer: Astrid Bruno Celia Dario Esme cider kefir oolong sherbet tonic beagle canary hamster iguana rabbit baker cooper mason potter weaver).",
     "temperature": 0.0,
     "max_tokens": 4096,
     "grader": "exact",
     "grader_config": {
-      "answer": "kofi yusra ines maren teodor kombucha lassi horchata mate kvass tortoise gecko ferret axolotl parrot glazier luthier bookbinder cartographer farrier",
+      "answer": "celia astrid bruno esme dario kefir cider sherbet oolong tonic hamster rabbit canary iguana beagle mason cooper baker potter weaver",
       "elements": "positions",
       "element_labels": [
         "name@1",
@@ -581,7 +581,7 @@
       ]
     },
     "verify": {
-      "python": "(lambda P5: (lambda s: s[0] if len(s)==1 else 'NOT UNIQUE: %d' % len(s))([' '.join(N+D+P+J) for N in P5(['Ines', 'Kofi', 'Maren', 'Teodor', 'Yusra']) for P in P5(['axolotl', 'ferret', 'gecko', 'tortoise', 'parrot']) if abs(N.index('Yusra')-P.index('tortoise'))==1 if N.index('Kofi')<P.index('gecko') if abs(N.index('Teodor')-P.index('axolotl'))==1 if abs(N.index('Kofi')-P.index('gecko'))==1 if abs(P.index('axolotl')-N.index('Ines'))==1 for J in P5(['glazier', 'cartographer', 'luthier', 'farrier', 'bookbinder']) if abs(J.index('cartographer')-N.index('Teodor'))==1 if P.index('tortoise')<J.index('luthier') if P.index('ferret')<J.index('cartographer') if abs(N.index('Maren')-J.index('bookbinder'))==1 if abs(J.index('bookbinder')-P.index('axolotl'))==1 if N.index('Ines')<J.index('farrier') for D in P5(['kvass', 'mate', 'horchata', 'kombucha', 'lassi']) if abs(D.index('horchata')-N.index('Yusra'))==1 if N.index('Yusra')<D.index('horchata') if abs(J.index('luthier')-D.index('kombucha'))==1 if D.index('lassi')<J.index('bookbinder') if abs(P.index('ferret')-D.index('mate'))==1]))(__import__('itertools').permutations)"
+      "python": "(lambda P5: (lambda s: s[0] if len(s)==1 else 'NOT UNIQUE: %d' % len(s))([' '.join(N+D+P+J) for N in P5(['Astrid', 'Bruno', 'Celia', 'Dario', 'Esme']) for P in P5(['beagle', 'canary', 'hamster', 'iguana', 'rabbit']) for J in P5(['baker', 'cooper', 'mason', 'potter', 'weaver']) if abs(N.index('Astrid')-J.index('potter'))==2 if abs(P.index('hamster')-J.index('baker'))==2 if J.index('mason')<P.index('rabbit') if abs(J.index('cooper')-N.index('Bruno'))==1 if abs(J.index('cooper')-P.index('iguana'))==2 if P.index('hamster')<J.index('weaver') if abs(N.index('Celia')-J.index('baker'))==2 if abs(N.index('Dario')-J.index('potter'))==1 if P.index('rabbit')<J.index('potter') for D in P5(['cider', 'kefir', 'oolong', 'sherbet', 'tonic']) if N.index('Astrid')<D.index('tonic') if abs(D.index('oolong')-J.index('weaver'))==1 if abs(P.index('rabbit')-D.index('sherbet'))==1 if abs(D.index('sherbet')-N.index('Esme'))==1 if abs(N.index('Dario')-D.index('sherbet'))>1 if abs(D.index('kefir')-P.index('rabbit'))==1 if abs(P.index('canary')-D.index('tonic'))>1]))(__import__('itertools').permutations)"
     }
   },
   {
@@ -607,6 +607,183 @@
     },
     "verify": {
       "python": "(lambda S, F: (lambda bad, C: ' '.join(map(str, bad + [C[bad[0]], C[3], C[4], C[8], C[10]])) if len(bad) == 2 else 'NOT EXACTLY TWO FLAWS: %r' % bad)([k for k in range(1, 11) if F[k](S) != S[k]], (lambda C: [C.update({k: F[k](C)}) for k in range(1, 11)] and C)({})))({1: 22, 2: 44, 3: 49, 4: 245, 5: 7200, 6: 27, 7: 135, 8: 1516, 9: 0, 10: 9096}, {1: lambda v: -(-180 // 8), 2: lambda v: 2 * v[1], 3: lambda v: v[2] - (-v[2] // 10), 4: lambda v: 5 * v[3], 5: lambda v: 180 * 40, 6: lambda v: 180 * 15 // 100, 7: lambda v: 5 * v[6], 8: lambda v: (v[5] + v[7]) * 20 // 100, 9: lambda v: 0, 10: lambda v: v[5] + v[7] + v[4] + v[8] - v[9]})"
+    }
+  },
+  {
+    "id": "RX22-six-houses-five-attributes",
+    "difficulty": "hard",
+    "system": "Reason step by step, then end your reply with a single final line 'Answer: <value>' containing only the final answer.",
+    "prompt": "Six houses stand in a row, numbered 1 to 6 from left to right. In each house lives one person, and the six people are Fenna, Gideon, Hale, Ilsa, Joren and Kesta. Each person grows exactly one fruit (apricot, damson, fig, medlar, quince, rowan), owns exactly one tool (adze, awl, chisel, gimlet, plane, rasp), keeps exactly one bird (heron, jay, lark, owl, robin, wren) and has a front door of exactly one colour (amber, cobalt, jade, ochre, plum, slate). No two people share a fruit, a tool, a bird or a door colour. \"Next to each other\" means in adjacent houses; \"to the left\" means a lower house number; \"exactly one house between\" means their house numbers differ by 2.\n1. The owner of the chisel is also Gideon.\n2. The person with the jade door and the owner of the chisel live next to each other.\n3. The apricot grower is not the owner of the rasp.\n4. The person who keeps the owl lives somewhere to the left of the person with the jade door.\n5. The person who keeps the robin and the quince grower live next to each other.\n6. Fenna and the person who keeps the lark live next to each other.\n7. The person who keeps the jay is also the rowan grower.\n8. The person who keeps the wren and Fenna do not live next to each other, and are not the same person.\n9. The owner of the adze lives somewhere to the left of the person with the ochre door.\n10. The person who keeps the robin is also the person with the plum door.\n11. The owner of the awl and the person who keeps the heron live next to each other.\n12. The owner of the rasp and the quince grower live next to each other.\n13. There is exactly one house between the person with the ochre door and the person who keeps the robin.\n14. The fig grower and the person who keeps the robin live next to each other.\n15. The apricot grower lives somewhere to the left of the owner of the plane.\n16. The person who keeps the wren and the apricot grower do not live next to each other, and are not the same person.\n17. The person who keeps the wren and the rowan grower do not live next to each other, and are not the same person.\n18. There is exactly one house between the owner of the gimlet and Hale.\n19. The owner of the awl lives somewhere to the left of the fig grower.\n20. The person with the slate door and the apricot grower live next to each other.\n21. The medlar grower is also the person who keeps the lark.\n22. The person who keeps the robin lives somewhere to the left of Ilsa.\n23. Kesta and the person who keeps the robin live next to each other.\n24. There is exactly one house between the person who keeps the owl and Kesta.\n25. The person with the cobalt door and Fenna do not live next to each other, and are not the same person.\nExactly one arrangement satisfies every clue. Give the full arrangement as 30 words on the Answer line: the 6 names in house order 1-6, then the 6 fruits in house order, then the tools, then the birds, then the door colours (each in house order 1-6), separated by single spaces, singular, door colours as the bare colour word (for example: Answer: Fenna Gideon Hale Ilsa Joren Kesta ...).",
+    "temperature": 0.0,
+    "max_tokens": 6144,
+    "grader": "exact",
+    "grader_config": {
+      "answer": "hale fenna kesta joren gideon ilsa medlar rowan quince apricot fig damson adze rasp gimlet awl chisel plane lark jay heron robin owl wren amber ochre slate plum cobalt jade",
+      "elements": "positions",
+      "element_labels": [
+        "name@1",
+        "name@2",
+        "name@3",
+        "name@4",
+        "name@5",
+        "name@6",
+        "fruit@1",
+        "fruit@2",
+        "fruit@3",
+        "fruit@4",
+        "fruit@5",
+        "fruit@6",
+        "tool@1",
+        "tool@2",
+        "tool@3",
+        "tool@4",
+        "tool@5",
+        "tool@6",
+        "bird@1",
+        "bird@2",
+        "bird@3",
+        "bird@4",
+        "bird@5",
+        "bird@6",
+        "door@1",
+        "door@2",
+        "door@3",
+        "door@4",
+        "door@5",
+        "door@6"
+      ]
+    },
+    "verify": {
+      "python": "(lambda P: (lambda s: s[0] if len(s)==1 else 'NOT UNIQUE: %d' % len(s))([' '.join(N+F+T+B+D) for F in P(['apricot', 'damson', 'fig', 'medlar', 'quince', 'rowan']) for B in P(['heron', 'jay', 'lark', 'owl', 'robin', 'wren']) if abs(B.index('robin')-F.index('quince'))==1 if B.index('jay')==F.index('rowan') if abs(F.index('fig')-B.index('robin'))==1 if abs(B.index('wren')-F.index('apricot'))>1 if abs(B.index('wren')-F.index('rowan'))>1 if F.index('medlar')==B.index('lark') for N in P(['Fenna', 'Gideon', 'Hale', 'Ilsa', 'Joren', 'Kesta']) if abs(N.index('Fenna')-B.index('lark'))==1 if abs(B.index('wren')-N.index('Fenna'))>1 if B.index('robin')<N.index('Ilsa') if abs(N.index('Kesta')-B.index('robin'))==1 if abs(B.index('owl')-N.index('Kesta'))==2 for T in P(['adze', 'awl', 'chisel', 'gimlet', 'plane', 'rasp']) if T.index('chisel')==N.index('Gideon') if F.index('apricot')!=T.index('rasp') if abs(T.index('awl')-B.index('heron'))==1 if abs(T.index('rasp')-F.index('quince'))==1 if F.index('apricot')<T.index('plane') if abs(T.index('gimlet')-N.index('Hale'))==2 if T.index('awl')<F.index('fig') for D in P(['amber', 'cobalt', 'jade', 'ochre', 'plum', 'slate']) if abs(D.index('jade')-T.index('chisel'))==1 if B.index('owl')<D.index('jade') if T.index('adze')<D.index('ochre') if B.index('robin')==D.index('plum') if abs(D.index('ochre')-B.index('robin'))==2 if abs(D.index('slate')-F.index('apricot'))==1 if abs(D.index('cobalt')-N.index('Fenna'))>1]))(lambda xs: [list(p) for p in __import__('itertools').permutations(xs)])"
+    }
+  },
+  {
+    "id": "RX23-seven-houses-five-attributes",
+    "difficulty": "hard",
+    "system": "Reason step by step, then end your reply with a single final line 'Answer: <value>' containing only the final answer.",
+    "prompt": "Seven houses stand in a row, numbered 1 to 7 from left to right. In each house lives one person, and the seven people are Albin, Brisa, Corran, Delphine, Emrys, Farah and Gunnel. Each person grows exactly one fruit (bilberry, cloudberry, currant, gooseberry, lingonberry, mulberry, sloe), owns exactly one tool (auger, bodkin, drawknife, froe, mallet, scythe, spokeshave), keeps exactly one bird (curlew, dunlin, gannet, kestrel, puffin, shrike, teal) and has a front door of exactly one colour (brick, cream, indigo, mustard, olive, rust, sage). No two people share a fruit, a tool, a bird or a door colour. \"Next to each other\" means in adjacent houses; \"to the left\" means a lower house number; \"exactly one house between\" means their house numbers differ by 2.\n1. Delphine is the person with the cream door.\n2. The person with the olive door lives somewhere to the left of Farah.\n3. There is exactly one house between the gooseberry grower and the person who keeps the dunlin.\n4. There is exactly one house between the owner of the spokeshave and the person with the brick door.\n5. The person who keeps the gannet and Corran do not live next to each other, and are not the same person.\n6. Brisa is the sloe grower.\n7. The person with the sage door lives somewhere to the left of the owner of the froe.\n8. The bilberry grower lives somewhere to the left of Corran.\n9. Farah is not the person who keeps the kestrel.\n10. The person who keeps the curlew and the owner of the spokeshave live next to each other.\n11. Albin and the owner of the mallet live next to each other.\n12. There is exactly one house between the person who keeps the shrike and the cloudberry grower.\n13. The person with the sage door is not the owner of the auger.\n14. The owner of the mallet is not the mulberry grower.\n15. The person with the mustard door and the bilberry grower live next to each other.\n16. There is exactly one house between the person with the sage door and the lingonberry grower.\n17. Gunnel is the currant grower.\n18. The person who keeps the curlew is not the bilberry grower.\n19. The person who keeps the curlew is not the owner of the auger.\n20. There is exactly one house between the owner of the bodkin and the currant grower.\n21. Emrys is the mulberry grower.\n22. Emrys and the gooseberry grower do not live next to each other, and are not the same person.\n23. The owner of the froe and the gooseberry grower live next to each other.\n24. There is exactly one house between the person who keeps the curlew and Brisa.\n25. The owner of the auger is not the bilberry grower.\n26. The cloudberry grower and the person who keeps the teal live next to each other.\n27. The mulberry grower and the owner of the drawknife do not live next to each other, and are not the same person.\n28. The person with the olive door lives somewhere to the left of the person who keeps the teal.\n29. The cloudberry grower and the person with the brick door do not live next to each other, and are not the same person.\n30. The person who keeps the dunlin and Delphine do not live next to each other, and are not the same person.\n31. The owner of the auger lives somewhere to the left of the person with the olive door.\n32. The person with the mustard door and Emrys do not live next to each other, and are not the same person.\n33. There is exactly one house between the owner of the mallet and Gunnel.\n34. The cloudberry grower and the owner of the spokeshave do not live next to each other, and are not the same person.\n35. The person who keeps the kestrel and Albin do not live next to each other, and are not the same person.\n36. The owner of the bodkin is also the cloudberry grower.\n37. The person with the rust door is not the mulberry grower.\nExactly one arrangement satisfies every clue. Give the full arrangement as 35 words on the Answer line: the 7 names in house order 1-7, then the 7 fruits in house order, then the tools, then the birds, then the door colours (each in house order 1-7), separated by single spaces, singular, door colours as the bare colour word (for example: Answer: Albin Brisa Corran Delphine Emrys Farah Gunnel ...).",
+    "temperature": 0.0,
+    "max_tokens": 6144,
+    "grader": "exact",
+    "grader_config": {
+      "answer": "emrys albin brisa corran gunnel farah delphine mulberry bilberry sloe lingonberry currant gooseberry cloudberry scythe spokeshave mallet auger froe drawknife bodkin curlew gannet puffin dunlin shrike teal kestrel indigo sage mustard brick olive rust cream",
+      "elements": "positions",
+      "element_labels": [
+        "name@1",
+        "name@2",
+        "name@3",
+        "name@4",
+        "name@5",
+        "name@6",
+        "name@7",
+        "fruit@1",
+        "fruit@2",
+        "fruit@3",
+        "fruit@4",
+        "fruit@5",
+        "fruit@6",
+        "fruit@7",
+        "tool@1",
+        "tool@2",
+        "tool@3",
+        "tool@4",
+        "tool@5",
+        "tool@6",
+        "tool@7",
+        "bird@1",
+        "bird@2",
+        "bird@3",
+        "bird@4",
+        "bird@5",
+        "bird@6",
+        "bird@7",
+        "door@1",
+        "door@2",
+        "door@3",
+        "door@4",
+        "door@5",
+        "door@6",
+        "door@7"
+      ]
+    },
+    "verify": {
+      "python": "(lambda P: (lambda s: s[0] if len(s)==1 else 'NOT UNIQUE: %d' % len(s))([' '.join(N+F+T+B+D) for N in P(['Albin', 'Brisa', 'Corran', 'Delphine', 'Emrys', 'Farah', 'Gunnel']) for F in P(['bilberry', 'cloudberry', 'currant', 'gooseberry', 'lingonberry', 'mulberry', 'sloe']) if N.index('Brisa')==F.index('sloe') if F.index('bilberry')<N.index('Corran') if N.index('Gunnel')==F.index('currant') if N.index('Emrys')==F.index('mulberry') if abs(N.index('Emrys')-F.index('gooseberry'))>1 for T in P(['auger', 'bodkin', 'drawknife', 'froe', 'mallet', 'scythe', 'spokeshave']) if abs(N.index('Albin')-T.index('mallet'))==1 if T.index('mallet')!=F.index('mulberry') if abs(T.index('bodkin')-F.index('currant'))==2 if abs(T.index('froe')-F.index('gooseberry'))==1 if T.index('auger')!=F.index('bilberry') if abs(F.index('mulberry')-T.index('drawknife'))>1 if abs(T.index('mallet')-N.index('Gunnel'))==2 if abs(F.index('cloudberry')-T.index('spokeshave'))>1 if T.index('bodkin')==F.index('cloudberry') for D in P(['brick', 'cream', 'indigo', 'mustard', 'olive', 'rust', 'sage']) if N.index('Delphine')==D.index('cream') if D.index('olive')<N.index('Farah') if abs(T.index('spokeshave')-D.index('brick'))==2 if D.index('sage')<T.index('froe') if D.index('sage')!=T.index('auger') if abs(D.index('mustard')-F.index('bilberry'))==1 if abs(D.index('sage')-F.index('lingonberry'))==2 if abs(F.index('cloudberry')-D.index('brick'))>1 if T.index('auger')<D.index('olive') if abs(D.index('mustard')-N.index('Emrys'))>1 if D.index('rust')!=F.index('mulberry') for B in P(['curlew', 'dunlin', 'gannet', 'kestrel', 'puffin', 'shrike', 'teal']) if abs(F.index('gooseberry')-B.index('dunlin'))==2 if abs(B.index('gannet')-N.index('Corran'))>1 if N.index('Farah')!=B.index('kestrel') if abs(B.index('curlew')-T.index('spokeshave'))==1 if abs(B.index('shrike')-F.index('cloudberry'))==2 if B.index('curlew')!=F.index('bilberry') if B.index('curlew')!=T.index('auger') if abs(B.index('curlew')-N.index('Brisa'))==2 if abs(F.index('cloudberry')-B.index('teal'))==1 if D.index('olive')<B.index('teal') if abs(B.index('dunlin')-N.index('Delphine'))>1 if abs(B.index('kestrel')-N.index('Albin'))>1]))(lambda xs: [list(p) for p in __import__('itertools').permutations(xs)])"
+    }
+  },
+  {
+    "id": "RX24-predict-output-traps",
+    "difficulty": "hard",
+    "system": "Reason step by step, then end your reply with a single final line 'Answer: <value>' containing only the final answer.",
+    "prompt": "Here is a complete Python 3.12 program. Work out exactly what it prints, without running it. Every print call prints a single value, so the program prints 10 lines.\n\n```python\nimport re\nfrom itertools import groupby\n\norder = sorted([\"b2\", \"B10\", \"a7\", \"A3\"], key=lambda s: s[0].lower())\nprint(\"\".join(s[1:] for s in order) + str(\"aaaa\".count(\"aa\")))\n\nruns = [k for k, _ in groupby(\"aabccbaab\")]\nprint(len(runs) * 10 + len(re.findall(r\"a*\", \"baab\")))\n\ntags = [\"b1\", \"a2\", \"B3\", \"A4\"]\nranked = sorted(tags, key=str.lower) + sorted(tags, key=lambda t: t[0].lower(), reverse=True)\nprint(\"\".join(t[1] for t in ranked))\n\nslot = [0, 0, 0]\nfor slot[1] in range(4):\n    pass\nfor k in range(3):\n    pass\nprint(sum(slot) * 10 + k)\n\nkinds = {0, False, 0.0, \"\", None, 1, True, 1.0}\nprint(len(kinds) * 10 + len(\"straße\".upper()) - len(\"straße\"))\n\nbox = ([1],)\nview = box\nbox += ([2],)\ntry:\n    view[0] += [3]\nexcept TypeError:\n    pass\nprint(len(box) * 100 + len(view) * 10 + len(box[0]))\n\nhead, *middle, tail = \"parallel\"\nprint(len(middle) * 10 + middle.count(\"l\"))\n\nkeys = {1: \"a\", 1.0: \"b\", True: \"c\"}\nprint(str(max(3, 3.0)) + str(min(3.0, 3)).replace(\".\", \"\") + str(list(keys)[0]) + keys[1])\n\nbase = [1, 2]\nalias = base\nbase = base + [3]\nalias += [4]\nprint(len(base) * 10 + len(alias) + alias[-1])\n\nprint(int(all([])) * 100 + int(any([])) * 10 + int(bool(\"0\")))\n```\n\nGive the 10 printed values in order on the Answer line, separated by single spaces (for example: Answer: 1 2 3 4 5 6 7 8 9 10).",
+    "temperature": 0.0,
+    "max_tokens": 6144,
+    "grader": "exact",
+    "grader_config": {
+      "answer": "732102 64 24131324 32 41 212 62 3301c 37 101",
+      "elements": "positions",
+      "element_labels": [
+        "line1",
+        "line2",
+        "line3",
+        "line4",
+        "line5",
+        "line6",
+        "line7",
+        "line8",
+        "line9",
+        "line10"
+      ]
+    },
+    "verify": {
+      "python": "(lambda o: [exec('import re\\nfrom itertools import groupby\\n\\norder = sorted([\"b2\", \"B10\", \"a7\", \"A3\"], key=lambda s: s[0].lower())\\nprint(\"\".join(s[1:] for s in order) + str(\"aaaa\".count(\"aa\")))\\n\\nruns = [k for k, _ in groupby(\"aabccbaab\")]\\nprint(len(runs) * 10 + len(re.findall(r\"a*\", \"baab\")))\\n\\ntags = [\"b1\", \"a2\", \"B3\", \"A4\"]\\nranked = sorted(tags, key=str.lower) + sorted(tags, key=lambda t: t[0].lower(), reverse=True)\\nprint(\"\".join(t[1] for t in ranked))\\n\\nslot = [0, 0, 0]\\nfor slot[1] in range(4):\\n    pass\\nfor k in range(3):\\n    pass\\nprint(sum(slot) * 10 + k)\\n\\nkinds = {0, False, 0.0, \"\", None, 1, True, 1.0}\\nprint(len(kinds) * 10 + len(\"straße\".upper()) - len(\"straße\"))\\n\\nbox = ([1],)\\nview = box\\nbox += ([2],)\\ntry:\\n    view[0] += [3]\\nexcept TypeError:\\n    pass\\nprint(len(box) * 100 + len(view) * 10 + len(box[0]))\\n\\nhead, *middle, tail = \"parallel\"\\nprint(len(middle) * 10 + middle.count(\"l\"))\\n\\nkeys = {1: \"a\", 1.0: \"b\", True: \"c\"}\\nprint(str(max(3, 3.0)) + str(min(3.0, 3)).replace(\".\", \"\") + str(list(keys)[0]) + keys[1])\\n\\nbase = [1, 2]\\nalias = base\\nbase = base + [3]\\nalias += [4]\\nprint(len(base) * 10 + len(alias) + alias[-1])\\n\\nprint(int(all([])) * 100 + int(any([])) * 10 + int(bool(\"0\")))\\n', {'print': lambda *a: o.append(' '.join(map(str, a)))})] and ' '.join(o))([])"
+    }
+  },
+  {
+    "id": "RX27-calendar-clock-traps",
+    "difficulty": "hard",
+    "system": "Reason step by step, then end your reply with a single final line 'Answer: <value>' containing only the final answer.",
+    "prompt": "Answer six short questions. Use the Gregorian calendar throughout.\n(a) 1 January 2100 is a Friday. On which day of the week is 1 March 2100?\n(b) How many months of the year 2100 have a Friday the 13th?\n(c) A patient takes a tablet every 30 hours, the first one at 06:00 on Monday 4 January 2027. On which day of the week is the 12th tablet taken?\n(d) How many days are there from 1 February 2096 to 1 March 2096, counting both of those dates?\n(e) In New York, clocks go forward one hour on Sunday 14 March 2027: at 02:00 local time they jump straight to 03:00. A machine is switched on at 01:30 local time that morning and switched off at 04:30 local time the same morning. For how many minutes did it run?\n(f) In ISO 8601 week numbering (weeks start on Monday; week 1 of a year is the week containing that year's first Thursday), what is the week number of the week that contains Friday 1 January 2027?\nOn the Answer line give the six answers in order (a) to (f), separated by single spaces: weekdays as the bare English day name, counts as digits only (for example: Answer: tuesday 3 sunday 31 150 2).",
+    "temperature": 0.0,
+    "max_tokens": 6144,
+    "grader": "exact",
+    "grader_config": {
+      "answer": "monday 1 monday 30 120 53",
+      "elements": "positions",
+      "element_labels": [
+        "a-weekday-1mar2100",
+        "b-friday13-2100",
+        "c-tablet-weekday",
+        "d-days-inclusive-2096",
+        "e-dst-minutes",
+        "f-iso-week"
+      ]
+    },
+    "verify": {
+      "python": "(lambda D,Z: ' '.join(map(str,[D.date(2100,3,1).strftime('%A').lower(), sum(D.date(2100,m,13).weekday()==4 for m in range(1,13)), (D.datetime(2027,1,4,6)+D.timedelta(hours=30*11)).strftime('%A').lower(), (D.date(2096,3,1)-D.date(2096,2,1)).days+1, int((D.datetime(2027,3,14,4,30,tzinfo=Z('America/New_York'))-D.datetime(2027,3,14,1,30,tzinfo=Z('America/New_York')).astimezone(D.timezone.utc)).total_seconds()//60), D.date(2027,1,1).isocalendar()[1]])))(__import__('datetime'), __import__('zoneinfo').ZoneInfo)"
+    }
+  },
+  {
+    "id": "RX30-flawed-rook-count",
+    "difficulty": "hard",
+    "system": "Reason step by step, then end your reply with a single final line 'Answer: <value>' containing only the final answer.",
+    "prompt": "A student was asked: how many permutations (p1, p2, p3, p4, p5) of the numbers 1 to 5 have no fixed point (pi is never equal to i) and no succession (a succession is a place where a number is immediately followed by the next larger number, p(i+1) = pi + 1)? The student wrote:\nStep 1. A fixed point means pi = i, and a succession at position i means p(i+1) = pi + 1.\nStep 2. A succession is therefore the same thing as an entry that is one more than its position, so the succession condition forbids pi = i + 1 for i = 1, 2, 3, 4.\nStep 3. On a 5 x 5 board (row = position, column = value) the forbidden cells are (i, i) for i = 1 to 5 and (i, i + 1) for i = 1 to 4, which is 9 cells.\nStep 4. These 9 cells form a staircase, so the numbers of ways to place k non-attacking rooks on them are r0..r5 = 1, 9, 28, 35, 15, 1.\nStep 5. By inclusion-exclusion, the count is 120 - 9(24) + 28(6) - 35(2) + 15(1) - 1(1) = 16.\nCheck the working. On the Answer line give six whole numbers, digits only, separated by single spaces: (a) the number of the first step that is wrong; (b) how many of the permutations the student's Steps 3 to 5 actually count (those with no pi = i and no pi = i + 1) nevertheless contain a succession; (c) the correct answer to the original question; (d) how many permutations that satisfy the original question are left out of the student's set; (e) the correct answer to the same question for the numbers 1 to 4 instead of 1 to 5; (f) how many permutations of 1 to 5 have no fixed point and no place where a number is immediately followed by the next SMALLER number (p(i+1) = pi - 1) (for example: Answer: 3 5 20 7 2 9).",
+    "temperature": 0.0,
+    "max_tokens": 6144,
+    "grader": "exact",
+    "grader_config": {
+      "answer": "2 11 14 9 4 20",
+      "elements": "positions",
+      "element_labels": [
+        "a-first-wrong-step",
+        "b-student-set-with-succession",
+        "c-correct-n5",
+        "d-valid-missed",
+        "e-correct-n4",
+        "f-no-fixed-no-descent-by-one-n5"
+      ]
+    },
+    "verify": {
+      "python": "(lambda P: (lambda V,S,A: ' '.join(map(str,[2, sum(S(p) and not V(p) for p in A), sum(map(V,A)), sum(V(p) and not S(p) for p in A), sum(1 for p in P(range(1,5)) if all(p[i]!=i+1 for i in range(4)) and all(p[i+1]!=p[i]+1 for i in range(3))), sum(1 for p in A if all(p[i]!=i+1 for i in range(5)) and all(p[i+1]!=p[i]-1 for i in range(4)))])))(lambda p: all(p[i]!=i+1 for i in range(5)) and all(p[i+1]!=p[i]+1 for i in range(4)), lambda p: all(p[i]!=i+1 for i in range(5)) and all(p[i]!=i+2 for i in range(4)), list(P(range(1,6)))))(__import__('itertools').permutations)"
     }
   }
 ]

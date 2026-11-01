@@ -1,0 +1,23 @@
+id: CB-D2-shop-migration
+category: codebank
+family: sql
+difficulty: hard
+max_tokens: 8192
+min_sqlite: "3.26"
+answer: "block:sql"
+answer_path: migrations/0004_price_cents.sql
+allowed_paths: []
+new_paths: []
+pythonpath: ["."]
+system: |
+  You are a senior engineer who writes SQLite schema migrations. You cannot run anything here.
+
+  Answer with the complete migration script in one fenced ```sql block. A short explanation before it is fine.
+issue: |
+  Write migrations/0004_price_cents.sql as described in README.md. It runs
+  once on every household's real shop database, so it must not lose data or
+  break anything that depends on the products table.
+groups:
+  - {id: shape, file: test_shape.py, kind: f2p, why: "README v4 products table (types, NOT NULL, default, CHECK), user_version 4; unique index, trigger and view (new columns) recreated"}
+  - {id: data, file: test_data.py, kind: f2p, why: "README: price rounded to nearest cent, NULL sku -> SKU-id, currency EUR, ids kept, order_items untouched"}
+  - {id: fk, file: test_fk.py, kind: f2p, why: "README: order_items FK to products(id) RESTRICT still there and enforced; foreign_key_check clean; no leftover tables. Runner: autocommit + foreign_keys=ON + executescript"}

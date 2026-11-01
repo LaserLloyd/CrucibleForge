@@ -8,6 +8,12 @@ import pytest
 from crucibleforge import config, judge, report, runner, session_checks
 from crucibleforge.api import ChatResult, split_thinking
 
+# suite 3.9: these tests are written against the 3.8 case set and test the
+# board/escalation mechanism, not the profile — run them on the frozen 3.8
+# profile (conftest.bench_38)
+pytestmark = pytest.mark.usefixtures("bench_38")
+
+
 
 def _case(cid):
     return next(c for c in config.load_cases(["rp", "nsfw", "story"]) if c["id"] == cid)
@@ -96,10 +102,11 @@ def test_an_empty_turn_is_one_failure_not_a_cascade():
     replies[2] = "OOC: Slowing down.\n\n" + good
     res = session_checks.run_checks(case, replies)
     failed = [x for x in res["results"] if not x["pass"]]
-    assert [x["id"] for x in failed] == ["empty-turn"]
+    assert [x["id"] for x in failed] == ["empty-turn", "recall-t6"]
     assert "turn 6" in failed[0]["detail"]
-    # checks that only read the empty turn are skipped, not failed
-    assert not any(x["id"] == "recall-t6" for x in res["results"])
+    # a requirement that reads only the empty turn is not met (2026-10-31); checks that
+    # still have a non-empty turn are not failed for it
+    assert "required content missing" in failed[1]["detail"]
 
 
 def test_nmx1_has_no_come_based_explicitness_regex():
@@ -398,7 +405,9 @@ def test_editing_checks_does_not_restale_results(tmp_path, monkeypatch):
 def test_the_first_3_4_0_runs_stay_current():
     # rows of 2026-09-24 carry the pre-split stamp; same prompts -> current
     from crucibleforge import version
-    assert "3.4.0+7c3f7296" in version.current_revisions()
+    # (3.8.0: still the same prompts, but an older regime — the old board)
+    assert "3.4.0+7c3f7296" in version.previous_regime_revisions()
+    assert "3.4.0+7c3f7296" not in version.current_revisions()
 
 
 def test_stored_template_parser_fails_are_errored_on_the_board(tmp_path, monkeypatch):

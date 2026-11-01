@@ -1,0 +1,22 @@
+id: CB-F8-nudgebot-agent
+category: codeagent
+family: agent
+difficulty: hard
+max_tokens: 4096
+allowed_paths: ["nudgebot/*.py"]
+new_paths: ["nudgebot/*.py"]
+pythonpath: ["."]
+per_test_timeout_s: 60
+group_timeout_s: 120
+issue: |
+  The family has been complaining about nudgebot since the clocks changed:
+  late reminders, a pile of old nudges after the NAS restarted, the wrong
+  person on dishes. The service log (nudge.log) has the details and their
+  notes. Fix nudgebot so it follows README.md.
+groups:
+  - {id: schedule, file: test_schedule.py, kind: f2p, why: "README Schedule: local wall time across DST, calendar-day steps, gap -> first minute after, repeated -> first, strictly after, last_due None before start"}
+  - {id: quiet, file: test_quiet.py, kind: f2p, why: "README Quiet hours: wrap past midnight, start in / end out, end on the right date, end time inside a DST gap"}
+  - {id: dispatch, file: test_dispatch.py, kind: f2p, why: "README Dispatch + Rotation: only latest after downtime, posted once, waits for quiet end, rotation advances only on posts, removed member via the saved roster (wrapping), members at posting time"}
+  - {id: state, file: test_state.py, kind: f2p, why: "README State: exact round trip with aware datetimes, missing file, no repeat after restart, failed save keeps the previous file"}
+  - {id: sim, file: test_sim.py, kind: f2p, why: "whole README: 12 random households x 900 ticks with restarts and member changes vs the reference"}
+  - {id: existing, file: test_existing.py, kind: p2p, why: "basic daily flow, Nudge shape, period_days"}

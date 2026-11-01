@@ -1,0 +1,199 @@
+# The single benchmark, suite 3.9 "basic + tiers" (2026-10-28, PLAN
+# the 3.9 plan): Tier 1 for every model, Tier 2/3 unlocked per score.
+name: bench
+# A local, git-ignored profiles/bench.private.yaml may add PRIVATE components
+# (cases in cases/private/, their weight, label and budgets) on top of this
+# file — they count on the local board and are scrubbed from every public
+# artifact (`crucibleforge report --public`). README "Private categories".
+description: "3.9: Code / Reason / Chat; Tier 1 for every model, Tier 2/3 unlocked per score (max 200)"
+# Judge (2026-09-24 comparison of 8 judge runs on the same 65 chat rows): the
+# Gemma-4-31B heretic Q8 reproduces the former 122B judge's verdicts (per-dim
+# MAD 0.73, offset -0.05, Chat within 2.1, same bottom-two) on the two 5090s
+# only, ~4x faster per row, canary 46 s. Was Qwen3.5-122B-A10B heretic v2
+# Q5_K_M (all four cards). Rows judged by the 122B must be re-judged
+# (`judge --models all --force`) — the board flags mixed judges.
+judge:
+  provider: studioforge
+  model_id: llmfan46/gemma-4-31B-it-uncensored-heretic-GGUF/gemma-4-31B-it-uncensored-heretic-Q8_0
+  context_length: 16384
+  thinking: true
+# 3.8.0 "as deployed" (2026-10-24, runner.REGIME_DEPLOYED): the model is
+# measured the way its maker says to run it — chat-template default thinking,
+# the maker's RECOMMENDED sampler (`recommended_samplers` below; a registry
+# entry may pin its own `sampler:`; no rule = nothing sent), the SAME budget for rig and hosted models (provider
+# overrides ignored), a 16k floor for thinking models so short chat cases do
+# not starve them, and NO thinking-off retry: an answer that never arrives
+# scores as missing. Sampled answers vary, so the deterministic categories run
+# 3 repeats (one case flip used to move Coding ~11 points).
+regime: deployed
+thinking_max_tokens_factor: 4
+thinking_max_tokens_cap: 24576
+thinking_max_tokens_floor: 16384
+reasoning_overflow_recovery: false
+# Escalation round ("Room" column, 2026-10-25, runner.DEFAULT_ESCALATION_RUNGS):
+# after a run, every job whose answer ran out of the 24576 budget (thinking
+# model, finish=length) is re-run at 65536, and what still runs out at 131072,
+# the model reloaded with a wider context (fewer slots). Those rows never count
+# on the board (same budget for everyone); Room = Overall with them swapped in.
+# Maintainer: "smaller context with an increased retry round for anything that
+# doesn't have enough". [] turns it off.
+escalation_rungs: [65536, 131072]
+# The maker's (or fine-tuner's) published sampler, first match wins (regex on
+# "<provider>:<model_id>" or the label; runner.resolve_sampler). Maintainer
+# 2026-10-25: "make sure we're using the recommended settings for all models".
+# Why rules at all: llama-server takes temp/top_p/top_k from a GGUF's
+# general.sampling.* keys (llama.cpp PR #17120) but none of these files sets
+# min_p, so its built-in min_p 0.05 stayed on where Qwen/Gemma recommend 0, and
+# Qwen's presence_penalty has no GGUF key. Values a card does not state are left
+# to the GGUF/server, except min_p 0 for families whose maker publishes a
+# transformers config (transformers has no min_p). Hosted APIs fix or ignore
+# their sampler: nothing is sent. No rule (Noromaid, Celeste, Cydonia, SmolVLM,
+# gemma-2-2b: their cards state nothing) = the server's defaults, stamped
+# "default". Sources checked 2026-10-25.
+recommended_samplers:
+  - id: api-vendor-fixed
+    match: '^(deepseek|minimax|moonshot):'
+    sampler: {}
+    source: https://api-docs.deepseek.com/guides/thinking_mode https://platform.minimax.io/docs/api-reference/text-openai-api https://platform.kimi.ai/docs/guide/kimi-k3-quickstart
+  - id: readyart-dark-scarlett
+    match: 'Dark(er)?-Scarlett'
+    sampler: {temperature: 1.0, top_p: 0.92, top_k: 20, min_p: 0.0}
+    source: https://huggingface.co/ReadyArt/Dark-Scarlett-27B-v3.0-GGUF
+  - id: readyart-gemma4
+    match: 'ReadyArt/(Omega-Arsenal|Swish|Wicked-Tutu)'
+    sampler: {temperature: 1.0, top_p: 0.92, top_k: 64, min_p: 0.0}
+    source: https://huggingface.co/ReadyArt/Swish-31B-Final-GGUF
+  - id: loki-scotoma
+    match: 'Loki-Scotoma'
+    sampler: {temperature: 1.0, min_p: 0.02, top_p: 1.0, top_k: 0}
+    source: https://huggingface.co/CrucibleLab/Gemma-4-31B-Loki-Scotoma-V2.0-Swa-4096-GGUF
+  - id: split-untied
+    match: 'Split-Untied'
+    sampler: {temperature: 1.0, min_p: 0.03, top_p: 1.0, top_k: 0, repeat_penalty: 1.0, dry_multiplier: 0.8}
+    source: https://huggingface.co/Blazed-Forge/Split-Untied-31B
+  - id: artemis
+    match: 'Artemis-31B'
+    sampler: {temperature: 1.0, min_p: 0.08, top_p: 1.0, top_k: 0, repeat_penalty: 1.06}
+    source: https://huggingface.co/Abiray/Artemis-31B-v1.2-GGUF
+  - id: orion
+    match: 'Orion-26B'
+    sampler: {temperature: 0.9, top_p: 0.95, top_k: 64, min_p: 0.0}
+    source: https://huggingface.co/TheDrummer/Orion-26B-A4B-v1.1 (temp) + google/gemma-4 base
+  - id: joyfox-thinking
+    match: 'JoyFox'
+    sampler: {temperature: 1.0, top_p: 0.95, top_k: 20, min_p: 0.0, presence_penalty: 1.5}
+    source: https://huggingface.co/joyfox/JoyFox-Qwen3.6-35B-A3B-RP-Aggressive
+  - id: qwen3-moe-thinking
+    match: 'Qwen3\.5-122B|Qwen3\.6-35B'
+    sampler: {temperature: 1.0, top_p: 0.95, top_k: 20, min_p: 0.0, presence_penalty: 1.5}
+    source: https://huggingface.co/Qwen/Qwen3.5-122B-A10B https://huggingface.co/Qwen/Qwen3.6-35B-A3B
+  - id: qwen3-thinking
+    match: 'Qwen3\.[68]|JAX-XORTRON'
+    sampler: {temperature: 1.0, top_p: 0.95, top_k: 20, min_p: 0.0, presence_penalty: 0.0}
+    source: https://huggingface.co/Qwen/Qwen3.8-27B https://huggingface.co/Qwen/Qwen3.6-27B
+  - id: ling-thinking
+    match: 'Ling-3\.0'
+    sampler: {temperature: 0.6, top_p: 0.95, top_k: 20, min_p: 0.0}
+    source: https://huggingface.co/trohrbaugh/Ling-3.0-flash-heretic
+  - id: laguna
+    match: 'Laguna-S'
+    sampler: {temperature: 1.0, top_p: 1.0, top_k: 20, min_p: 0.0}
+    source: https://huggingface.co/poolside/Laguna-S-2.1
+  - id: deepseek-r1-distill
+    match: 'DeepSeek-R1-0528-Qwen3-8B'
+    sampler: {temperature: 0.6, top_p: 0.95, min_p: 0.0}
+    source: https://huggingface.co/deepseek-ai/DeepSeek-R1-0528-Qwen3-8B
+  - id: hy-mt2
+    match: 'Hy-MT2'
+    sampler: {temperature: 0.7, top_p: 1.0, top_k: 0, min_p: 0.0, repeat_penalty: 1.0}
+    source: https://huggingface.co/tencent/Hy-MT2-30B-A3B
+  - id: qwen2.5-vl
+    match: 'Qwen2\.5-VL'
+    sampler: {temperature: 0.0, repeat_penalty: 1.05}
+    source: https://huggingface.co/Qwen/Qwen2.5-VL-7B-Instruct (generation_config, greedy)
+  - id: qwen2.5
+    match: 'Qwen2\.5-'
+    sampler: {temperature: 0.7, top_p: 0.8, top_k: 20, min_p: 0.0, repeat_penalty: 1.1}
+    source: https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct (generation_config)
+  - id: gemma4
+    match: 'gemma-4|Goetia|Spectre|Broken-Tutu'
+    sampler: {temperature: 1.0, top_p: 0.95, top_k: 64, min_p: 0.0}
+    source: https://huggingface.co/google/gemma-4-31B-it
+# reasoning-overflow recovery (re-ask the answer with thinking off) is skipped
+# for these categories: 0 of 85 math recoveries ever produced a pass.
+no_recovery: [math]
+# Code bank (codebank/codeagent and the long tier): every bank row gets ONE
+# budget, 65,536 tokens, clamped so prompt + budget fits the context the model
+# is served at (runner.bank_budget) — the regime the bank was built and
+# piloted under (the maintainer 2026-10-28). Bank rows never escalate. Every other row
+# keeps the board regime above (x4, cap 24576, floor 16384, escalation).
+bank_budget: 65536
+# Load floor (3.9): a model is loaded at least at this context (never below
+# its registry context). rpdeep cases need 40960 (min_context) — at the rig's
+# usual 32768 every rig model would otherwise skip RD1 (Fable final review,
+# blocker 6). It changes no budget; it can cost the rig a parallel slot.
+# A round that runs code-bank rows loads at bank_budget + 8192 = 73,728
+# (runner.bank_context), so every bank row gets the full 65,536 on the rig too
+# (2026-10-28, "don't decrease context or thinking cap").
+context_floor: 40960
+# Repeats (the maintainer 2026-10-28): code-bank fix/feature and math 1, every other
+# deterministic category 2, Chat 1. ``case_repeats`` overrides one case.
+repeats: {perf: 1, rp: 1, rpdeep: 1, nsfw: 1, story: 1, steer: 1, coding: 2, codebank: 1,
+          codeagent: 2, tooluse: 2, instruct: 2, reasoning: 2, math: 1}
+case_repeats: {CB-C3-predict-sqlite: 1}
+max_tokens: {rp: 2000, rpdeep: 2000, nsfw: 2000, story: 3000, steer: 768, coding: 6144,
+             tooluse: 1024, instruct: 768, reasoning: 4096, math: 4096}
+# Tier 1 = the basic suite (STEP1 Task 2: Spearman vs full 3.8
+# Code 0.953, Reason 0.967, Chat 0.969). Removed items stay in the case files.
+cases:
+  perf: [P1-tiny, P2-short, P3-gen, P4-longctx]
+  # ---- Code (deterministic) ----
+  coding: [CZ05-optimal-bst-cost]
+  codebank: [CB-D4-watch-sessions, CB-B5-famcal-rrule, CB-B6-cron-next, CB-C3-predict-sqlite]
+  codeagent: [CB-F1-larder-bughunt, CB-F3-nightwatch-triage]
+  tooluse: [TZ06-three-parallel-one-turn, TZ11-clinic-ask-then-correct,
+            TZ13-meeting-dependent-args]
+  instruct: [IZ03-no-letter-e-three-lines]
+  # ---- Reason (deterministic) ----
+  reasoning: [RX13-recurrence-term, RX20-five-houses-four-attributes]
+  math: [MH06-fermat-mod-prime, MH11-strings-no-adjacent-no-ABC]
+  # ---- Chat (judged + checks); the private component comes from bench.private.yaml ----
+  rp: [RPS1-hollow-reach]
+  rpdeep: [RD1-marisol]          # fact groups judged at samples=1, no craft chunks (judge.DEEP_*)
+  nsfw: [NX2-juniper, NMX1-needle-and-gull, XP3-named-peak, WL2-lighthouse, WL2R-lighthouse-twin]
+  story: [ST2-green-door]
+  steer: [SX1-harborline-ledger, SX2-brightdesk-pip]
+# Weights of the three scores (0-100 each per tier). Chat = PLAN §3 (rp 25 =
+# RPS1 10 + rpdeep 15; nsfw 30 = scene+ERP 15, peak 5, willing 10; story 10;
+# steer 10). Code: programs 20, bank 15, agent 10, tools 10, instruct 5, and
+# the long tier (T3 only) 15/10. Reason pools reasoning + math.
+# models.yaml `scoring:` still overrides this block.
+scoring:
+  chat: {rp: 10, rpdeep: 15, nsfw: 15, explicit_peak: 5, willing: 10, story: 10, steer: 10}
+  coding: {coding: 20, codebank: 15, codeagent: 10, tooluse: 10, instruct: 5,
+           codebank_long: 15, codeagent_long: 10}
+  reason: {reasoning: 100}
+# ---- Tiers (PLAN §4, crucibleforge/tiers.py) ----
+# Score = T1 + 0.5*T2 + 0.5*T3 (max 200). A tier not unlocked scores 0;
+# "n/a (ctx)" when the context cannot serve it (scores 0, labelled).
+tiers:
+  gates:
+    t2: {code: 75, reason: 80, chat: 75}   # on T1; Reason 80 = 5/6 rows; Chat 75 provisional until RD1 is scored
+    t3: {code: 60, reason: 60, chat: 60}   # on T2
+  t2:
+    code:
+      coding: [CZ02-segment-crossings, CZ01-prime-census, CZ03-lisp-machine, CZ11-lex-triple-substring]
+      codebank: [CB-E3-lockrun, CB-A8-shoplist-sync]
+      codeagent: [CB-F8-nudgebot-agent]
+    reason:
+      # RX20-hard (six attributes) is retired and not in any case file — not wired
+      math: [MH16-digit-sum-power, MH22-dual-base-palindrome]
+    chat:
+      rpdeep: [RD2-trieste, RD3-granary]
+  t3:
+    context: 73728
+    code:
+      codebank_long: [CB-L2-homehub-energy, CB-L4-homehub-sustained]
+      codeagent_long: [CB-L3-homehub-nightpings]
+    # reason: escalated-budget math — not built; chat: rpdeep long case — not built
+  repeats: {t2: 1, t3: 1}

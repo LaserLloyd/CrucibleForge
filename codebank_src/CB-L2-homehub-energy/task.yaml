@@ -1,0 +1,30 @@
+id: CB-L2-homehub-energy
+category: codebank_long
+family: fix
+difficulty: hard
+max_tokens: 8192
+allowed_paths: ["homehub/*.py", "homehub/*/*.py"]
+new_paths: []
+pythonpath: ["."]
+issue: |
+  The dashboard's daily energy chart for the TV plug does not match the
+  electricity bill. Reports from the household:
+
+  * Use between midnight and 01:00 shows up on the previous day.
+  * Since the clocks changed in March the peak price seems to apply an hour
+    or two off.
+  * After last Saturday's power cut the chart showed a big negative number.
+  * Our monthly sums are a few cents higher than the supplier's.
+  * At half past midnight the chart doesn't have a bar for the new day yet.
+
+  Find the causes and fix them so energy accounting follows the rules in
+  the module docstrings and README.md. For a large file, SEARCH/REPLACE
+  blocks are fine.
+groups:
+  - {id: reset, file: test_reset.py, kind: f2p, why: "energy docstring: a lower reading means a reset; the new reading is the consumption; same-instant readings: later wins"}
+  - {id: split, file: test_split.py, kind: f2p, why: "energy docstring: energy spread evenly over the interval, split at window edges and local midnight (incl. a window crossing midnight)"}
+  - {id: local, file: test_local.py, kind: f2p, why: "README + energy docstring: windows and daily totals in the house zone (DST), the zone argument"}
+  - {id: rounding, file: test_rounding.py, kind: f2p, why: "energy docstring: exact per day, rounded half-up once per day"}
+  - {id: api, file: test_api.py, kind: f2p, why: "api docstring: the N local days ending today in the house zone (issue: no bar for the new day at 00:30)"}
+  - {id: existing, file: test_existing.py, kind: p2p, why: "rules engine, notifier, scheduler unchanged"}
+smoke: true

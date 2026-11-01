@@ -1,0 +1,7 @@
+2026-04-01T07:12:03Z photosort: phone=ana 41 imported, 3 duplicates, 0 ignored
+2026-04-01T07:12:03Z photosort: duplicate IMG_0412.jpg (already in catalog)
+2026-04-01T07:12:03Z photosort: duplicate IMG_0413.jpg (already in catalog)
+2026-04-01T07:12:03Z photosort: duplicate IMG_0414.jpg (already in catalog)
+2026-04-01T08:30:44Z note (Ben): IMG_0412-0414 are NOT duplicates. They are new photos from Ana's new phone, which restarted its numbering; the old ones with those names were from 2024.
+2026-04-02T19:05:10Z note (Ana): our Tokyo-trip photos from the evening of March 31 are in the 2026/03 folder, but the ones I took right after midnight on April 1 (Berlin time, +02:00) are also in 2026/03. They belong in 2026/04.
+2026-04-02T19:07:00Z note (Ben): careful, the catalog on the NAS was created by release 1; please don't make me re-import 30,000 photos.

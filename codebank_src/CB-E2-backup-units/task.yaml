@@ -1,0 +1,17 @@
+id: CB-E2-backup-units
+category: codebank
+family: config
+difficulty: medium
+max_tokens: 6144
+allowed_paths: []
+new_paths: ["systemd/hearth-backup.service", "systemd/hearth-backup.timer"]
+pythonpath: ["."]
+issue: |
+  Write the two unit files the "Request: nightly backup" section of
+  README.md asks for.
+groups:
+  - {id: service, file: test_service.py, kind: f2p, why: "README: run-to-completion (oneshot) with the exact command, no restarts, 2 h limit (TimeoutStartSec/TimeoutSec; RuntimeMaxSec does nothing for oneshot), no [Install] in the service"}
+  - {id: env, file: test_env.py, kind: f2p, why: "README: optional env file (leading '-') at %h/.config/hearth/backup.env"}
+  - {id: deps, file: test_deps.py, kind: f2p, why: "README: wait for network-online (Wants + After, house style), OnFailure=hearth-alert@%n.service"}
+  - {id: priority, file: test_priority.py, kind: f2p, why: "README: Nice=10, idle I/O class"}
+  - {id: timer, file: test_timer.py, kind: f2p, why: "README: 02:30 local daily (accepted spellings verified with systemd-analyze calendar), Persistent (catch up after boot), timer enabled via timers.target"}

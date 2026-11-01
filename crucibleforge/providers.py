@@ -134,6 +134,10 @@ class Provider:
     _lease: dict | None = field(default=None, repr=False)
     _keepalive: threading.Thread | None = field(default=None, repr=False)
     _plans: dict = field(default_factory=dict, repr=False)
+    # True once this run loaded or leased anything on the rig: a run that
+    # never touched it (hosted models only) restores nothing (2026-10-29: an
+    # API-only run reloaded an embedder the nightly had evicted, at 02:37)
+    _touched: bool = field(default=False, repr=False)
     _status_cache: tuple = field(default=(0.0, None), repr=False)
     # HTTP status of the last GET /models probe (None = no answer / not probed)
     last_probe_status: int | None = field(default=None, repr=False)
@@ -173,6 +177,17 @@ class Provider:
             # for the judge phase (passed in by the caller).
             h.setdefault("X-SF-Client", client_name or studioforge.LEASE_HOLDER)
         return h
+
+    def model_capabilities(self, model_id: str) -> set[str]:
+        """What the server advertises for ``model_id`` (StudioForge:
+        ``capabilities`` in /v1/models, e.g. {"tools", "thinking"}). Empty for
+        other providers or an unknown model; a listing error propagates."""
+        if self.type != "studioforge":
+            return set()
+        for m in studioforge.list_models_full(self.base_url, self.api_key):
+            if m.get("id") == model_id:
+                return {str(c) for c in (m.get("capabilities") or [])}
+        return set()
 
     def list_models(self, refresh: bool = False) -> set[str]:
         """Model ids the provider says it serves. Empty set means "unknown /
@@ -243,6 +258,7 @@ class Provider:
         ones), then make sure it serves the registry context. Without a
         lease: unload idle residents (never a serving one) and load at the
         registry context via load-recommended."""
+        self._touched = True
         if self.type == "lmstudio":
             return lms.switch_model(model_id, context_length)
         if self.type == "studioforge":
@@ -283,6 +299,10 @@ class Provider:
                     and int(live.get("parallel") or 1) > 1
                     and int(live.get("ctx_size") or 0) >= wanted)
         if ready:
+            if self.lease:
+                studioforge.release_stale_leases(self.base_url, self.api_key,
+                                                 self.mgmt_headers(), studioforge.LEASE_HOLDER,
+                                                 model_id, (self._lease or {}).get("_lease_id"))
             self._refuse_other_bench_lease(model_id, live)
             self._remember_plan(model_id, live=live)
         return ready
@@ -318,6 +338,10 @@ class Provider:
         if self._lease and self._lease.get("_model_id") != model_id:
             self.release_lease()
         if self._lease is None:
+            # a crashed run's lease for this model (STEP4: 92fa55704e1e) is
+            # released first, never stacked under a second one
+            studioforge.release_stale_leases(self.base_url, self.api_key, hdrs,
+                                             studioforge.LEASE_HOLDER, model_id)
             devices = self.claim_devices(model_id)
             try:
                 lease = studioforge.acquire_lease(
@@ -335,6 +359,9 @@ class Provider:
                 raise
             lease["_model_id"] = model_id
             self._lease = lease
+            # a lease can evict residents (force_evict): they are restored
+            # even when the phase fails before any load (review S5)
+            self._touched = True
             atexit.register(self.release_lease)
             self._start_keepalive()
         # A lease names the model but its load is the server's own business:
@@ -384,16 +411,44 @@ class Provider:
                                            daemon=True)
         self._keepalive.start()
 
-    def claim_devices(self, model_id: str) -> list[int]:
+    def claim_devices(self, model_id: str, exclude=()) -> list[int]:
         """The cards a lease for ``model_id`` should name, bench-first style:
         ``lease_devices_preferred`` when the planner says the model fits
         there empty, else ``lease_devices`` (or every card). Then, if a
         foreign RENDER lease stands on those cards, vacate it through
-        ClawForge and remember to resume it on release."""
+        ClawForge and remember to resume it on release. ``exclude``: cards
+        never named, whatever the config or the planner says (the judge's
+        GPU 3 rule, judge.JUDGE_NEVER_DEVICES)."""
+        exclude = {int(d) for d in exclude or ()}
         hdrs = self.mgmt_headers()
-        fallback = list(self.lease_devices or studioforge.gpu_indices(self.base_url, self.api_key, hdrs))
+        try:
+            busy = studioforge.foreign_held_devices(
+                studioforge.list_leases(self.base_url, self.api_key, hdrs),
+                vacatable_render=bool(self.clawforge_mcp))
+        except studioforge.StudioForgeError as e:
+            log.warning("lease list unavailable (%s) — cannot see other holders' cards", e)
+            busy = set()
+        if self.lease_devices:
+            fallback = list(self.lease_devices)
+        else:
+            try:
+                fallback = studioforge.gpu_indices(self.base_url, self.api_key, hdrs)
+            except studioforge.StudioForgeError:
+                if not self.lease_devices_preferred:
+                    raise
+                fallback = list(self.lease_devices_preferred)
+        preferred = self.lease_devices_preferred
+        if exclude:
+            fallback = [d for d in fallback if int(d) not in exclude]
+            if preferred:
+                preferred = [d for d in preferred if int(d) not in exclude] or None
+            if not fallback:
+                raise studioforge.StudioForgeError(
+                    f"no card left for {model_id.rsplit('/', 1)[-1]} once {sorted(exclude)} "
+                    f"are excluded", status=409)
         devices = studioforge.choose_lease_devices(self.base_url, self.api_key, hdrs, model_id,
-                                                   self.lease_devices_preferred, fallback)
+                                                   preferred, fallback, busy=busy)
+        devices = [d for d in devices if int(d) not in exclude]
         if studioforge.vacate_render_leases(self.base_url, self.api_key, hdrs, devices,
                                             self.clawforge_mcp):
             self._vacated_render = True
@@ -538,7 +593,23 @@ class Provider:
             return
         if self.type == "studioforge":
             self.release_lease()
-            if not self.restore_residents:
+            if not self.restore_residents or not self._touched:
+                return
+            from . import stopflag
+            if stopflag.ABORT.is_set():
+                # stopping (SIGTERM): reloading the residents is many slow
+                # calls to a rig that may not even answer (the stop that hung,
+                # 2026-10-28) — the rig's own pin reconciler brings pinned
+                # residents back. But the models THIS run loaded are unloaded
+                # (one short call each, no waiting for idle: the run is over):
+                # a stopped bench-all left its model resident and the next
+                # judge lease was refused 409 (2026-10-31).
+                before = {r["model_id"] for r in (state or [])}
+                ours = [m for m in self._plans if m not in before]
+                if ours:
+                    studioforge.unload_models(self.base_url, self.api_key,
+                                              self.mgmt_headers(), ours)
+                log.warning("stopping — %s residents are not restored by this run", self.name)
                 return
             before = {r["model_id"] for r in (state or [])}
             # models WE loaded that were not resident before: unload them so
@@ -630,13 +701,21 @@ def _resolve_key(p: dict) -> str:
     return str(key)
 
 
+#: Requests in flight at once for a hosted (OpenAI-compatible) API when its
+#: models.yaml entry names no ``concurrency`` (suite 3.9: was 4 everywhere;
+#: STEP4's MiniMax T1 ran 45 row-minutes at 4 wide in 21.6 min, its long
+#: poles 3-6 min). Override per provider: ``providers.<name>.concurrency``.
+API_DEFAULT_CONCURRENCY = 8
+
+
 def get_provider(cfg: dict, name: str) -> Provider:
     key = (id(cfg), name)
     if key in _CACHE:
         return _CACHE[key][1]
     p = provider_of(cfg, name)
     ptype = p.get("type", "openai")
-    conc_raw = p.get("concurrency", 1 if ptype != "studioforge" else "auto")
+    conc_raw = p.get("concurrency", API_DEFAULT_CONCURRENCY if ptype == "openai"
+                     else 1 if ptype != "studioforge" else "auto")
     conc_auto = str(conc_raw).lower() == "auto"
     prov = Provider(
         name=name, type=ptype, base_url=str(p["base_url"]).rstrip("/"),

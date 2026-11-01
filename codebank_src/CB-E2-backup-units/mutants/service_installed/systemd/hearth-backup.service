@@ -1,0 +1,16 @@
+[Unit]
+Description=hearth nightly backup
+Wants=network-online.target
+After=network-online.target
+OnFailure=hearth-alert@%n.service
+
+[Service]
+Type=oneshot
+ExecStart=/home/alex/.local/bin/hearth-backup --quiet
+EnvironmentFile=-%h/.config/hearth/backup.env
+TimeoutStartSec=2h
+Nice=10
+IOSchedulingClass=idle
+
+[Install]
+WantedBy=default.target

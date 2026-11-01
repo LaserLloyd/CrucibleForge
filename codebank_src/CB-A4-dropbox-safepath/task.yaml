@@ -1,0 +1,22 @@
+id: CB-A4-dropbox-safepath
+category: codebank
+family: fix
+difficulty: hard
+max_tokens: 8192
+allowed_paths: ["dropbox/*.py"]
+new_paths: []
+pythonpath: ["."]
+issue: |
+  Security report: a device on the guest Wi-Fi uploaded to
+  "/files/....//....//etc/cron.d/x" and the file landed outside the drop
+  folder. Another upload with "%2e%2e" in the path did the same.
+
+  Fix the path handling so the drop follows the path rules in README.md
+  exactly. Legitimate uploads that work today must keep working, and the
+  API responses must not change.
+groups:
+  - {id: traversal, file: test_traversal.py, kind: f2p, why: "README path rules: decode once, / and \\ separators, .. resolved, result strictly inside root; API: 400 unsafe path, touches nothing"}
+  - {id: symlink, file: test_symlink.py, kind: f2p, why: "README: inside root after following symlinks that already exist (incl. a sibling dir sharing the root's name prefix)"}
+  - {id: names, file: test_names.py, kind: f2p, why: "README: decoded exactly once, legal names incl. dots/spaces/non-ASCII, . and empty segments ignored, backslash = separator"}
+  - {id: nul_root, file: test_nul_root.py, kind: f2p, why: "README: NUL never allowed; the root itself is not a file; UnsafePath is a ValueError ('unsafe path')"}
+  - {id: app, file: test_app.py, kind: p2p, why: "README routes unchanged: 201/200/404/405/400 bodies, query ignored, overwrite"}

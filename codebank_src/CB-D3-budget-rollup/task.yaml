@@ -1,0 +1,22 @@
+id: CB-D3-budget-rollup
+category: codebank
+family: sql
+difficulty: hard
+max_tokens: 8192
+min_sqlite: "3.25"
+answer: "block:sql"
+answer_path: answer.sql
+allowed_paths: []
+new_paths: []
+pythonpath: ["."]
+system: |
+  You are a senior engineer who writes SQL for SQLite (version 3.25 or newer: window functions and recursive CTEs are available). You cannot run queries here.
+
+  Answer with the query in one fenced ```sql block (a single statement using the named parameter :month). A short explanation before it is fine.
+issue: |
+  Write the monthly roll-up query described in README.md.
+groups:
+  - {id: sample, file: test_sample.py, kind: f2p, why: "README sample table"}
+  - {id: carry, file: test_carry.py, kind: f2p, why: "README carry-over: previous calendar month (across a year), unused total (incl. descendants), overspent carries nothing, budget only last month -> NULL"}
+  - {id: tree, file: test_tree.py, kind: f2p, why: "README: any depth, totals incl. all descendants, refunds count, path order, over strictly greater"}
+  - {id: random, file: test_random.py, kind: f2p, why: "whole README: 40 random households x 3 months vs a reference query"}

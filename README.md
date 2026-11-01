@@ -1,176 +1,93 @@
-# CrucibleForge — an LLM capability benchmark with a real hard tier
+# CrucibleForge — a quick LLM benchmark that separates models
 
 <table>
   <tr>
     <td width="50%"><img src="docs/screenshots/readme/dashboard.png" alt="CrucibleForge web GUI dashboard: provider status, the judge, the case set by category and the model registry"><br><sub><b>Dashboard.</b> Provider health, the judge, the case set by category and your model registry.</sub></td>
-    <td width="50%"><img src="docs/screenshots/readme/run.png" alt="CrucibleForge Run page: pick models, categories, difficulty tiers and a judge, then start the benchmark"><br><sub><b>Run.</b> Pick models, categories and difficulty tiers, then start; the log follows the run.</sub></td>
-  </tr>
-  <tr>
-    <td width="50%"><img src="docs/screenshots/readme/cases.png" alt="CrucibleForge Cases page listing the coding cases with tier, grader and prompt"><br><sub><b>Cases.</b> All 276 cases, filterable by category, with tier, deterministic grader and prompt.</sub></td>
-    <td width="50%"></td>
+    <td width="50%"><img src="docs/screenshots/readme/run.png" alt="CrucibleForge Run page: pick models, categories, difficulty tiers and a judge, then start the benchmark"><br><sub><b>Run.</b> Pick models and a judge, then start; the log follows the run.</sub></td>
   </tr>
 </table>
 
+CrucibleForge scores a language model on three things, **Coding**, **Chat** and
+**NSFW**, against **any OpenAI-compatible endpoint**: local (llama.cpp /
+llama-server, LM Studio, Ollama, vLLM) or hosted (DeepSeek, OpenRouter, OpenAI,
+Groq, …). Coding is graded mechanically (unit tests, exact output, tool-call
+steps); Chat and NSFW are graded by an LLM judge against a per-case checklist
+plus deterministic checks. One run takes roughly **25–30 minutes per local
+model** on a fast GPU box, judge included.
 
-LLM benchmark suite with verifiable grading. 276 cases across math, reasoning, coding, tool-use and long-context, 166 of them hard-tier; brute-force verifiers and executed reference solutions instead of vibes; GPU leasing so a benchmark run can't be evicted mid-flight.
-
-CrucibleForge ranks language models on the things that decide whether a model can
-actually do a job: **hard reasoning and math with verifiable answers, coding
-graded by execution, tool use, instruction following, long-context retrieval,
-system-prompt steerability, safety calibration, roleplay / creative quality,
-and speed** — against **any OpenAI-compatible endpoint**: local (LM Studio,
-Ollama, llama.cpp / llama-server, vLLM, StudioForge) or hosted (DeepSeek,
-OpenRouter, OpenAI, Groq, Together, Mistral, Open WebUI …).
-
-* **Hard tier that doesn't ceiling.** 276 cases, **166 of them hard**
-  (`crucibleforge cases list` counts them): competition-style math
-  (integer answers, every one re-derived by a brute-force `verify` expression),
-  logic/state-tracking puzzles with unique solutions, coding problems whose
-  tests **enforce the right complexity** (an O(n²) inversion count times out;
-  matrix exponentiation is required for n = 10¹⁸), decoy/injection/enum
-  tool-use traps, 12k–24k-token long-context retrieval, multi-constraint
-  instruction following. Strong open 27–31B models that swept the old tier
-  score well under 100% here.
-* **Hard question, trivial evaluation.** Objective cases grade
-  deterministically (numeric / exact / contains / code execution / tool-call
-  shape). Cases whose answer is prose use the `reference` grader: the model
-  is shown a gold answer and a small judge only decides *equivalent or not* —
-  any instruct model can do that, so the judge is not the bottleneck.
-* **Judge local or remote.** Creative/safety categories use an LLM judge with
-  structured output, a 6-probe calibration canary, injection fencing,
-  self-consistency sampling and position-swapped pairwise Elo. The judge is
-  just another registry entry — an uncensored local model, or
-  `deepseek-v4-flash` over the API.
-* **Providers, not backends.** `models.yaml` declares providers
-  (`openai` / `lmstudio` / `studioforge`) and models that reference them.
-  Remote APIs run cases **concurrently**; token **cost** is reported for
-  priced models. API keys live in environment variables only.
-* **Web GUI** (`crucibleforge gui`): pick models/categories/tiers, watch the log,
-  read the report, drill into every failed row (prompt, response, reasoning,
-  judge note), manage providers/models/judge, discover model ids, test
-  connections. Stdlib server + vanilla JS, no CDN, no build step.
-* **Suite revision stamp** on every row (`3.7.0+<hash of the case prompts>` — grading-only `checks` excluded),
-  plus a separate **judge fingerprint** and the identity of the judge that
-  actually scored each row: the report flags results from a different test set
-  or a different judge instead of quietly ranking them side by side.
-
-## One benchmark, two scores
-
-There is **one** benchmark, `profiles/bench.yaml`, and one command per model:
+## Quickstart
 
 ```bash
-uv run crucibleforge all --models <label> --fresh --yes
+git clone <this repository> crucibleforge && cd crucibleforge
+uv sync                                   # Python 3.12+, https://docs.astral.sh/uv/
+cp models.example.yaml models.yaml        # then edit it (below)
+export DEEPSEEK_API_KEY=...               # only for hosted models / a hosted judge
+uv run crucibleforge status               # providers reachable? models? judge?
+uv run crucibleforge all --models deepseek-flash --judge deepseek:deepseek-v4-flash --yes
+# then open results/report.html in a browser (or read results/report.md)
 ```
 
-The model is loaded once, all 49 cases are generated (the multi-turn chat
-sessions and the long coding / math cases first), then the judge scores the 24
-chat rows and the board is rebuilt. `--fresh` is for a full re-run only: it
-archives the model's whole result set, so the CLI refuses it together with
-`--cases` / `--categories` (a targeted re-run never needs it — its new rows
-supersede the old ones). Every model gets **two** headline scores, 0–100:
+`models.yaml` needs three things:
 
-| | components (weights in `profiles/bench.yaml` `scoring:`; models.yaml `scoring:` overrides) |
+1. **A provider** — where the model is served. Any `/chat/completions`
+   server works with `type: openai`:
+   `{type: openai, base_url: http://localhost:8080/v1}` (llama-server),
+   `http://localhost:11434/v1` (Ollama), `http://localhost:1234/v1`
+   (LM Studio), `http://localhost:8000/v1` (vLLM), or a hosted API with
+   `api_key_env: <ENV VAR NAME>` (keys never go in the file).
+2. **A model** under `models:` — `{name: my-model, provider: <provider>, model_id: <id the server knows>, context_length: 65536}`.
+   `uv run crucibleforge models discover <provider>` lists what a server serves.
+3. **A judge** — any capable instruct model, local or hosted. Pass it per run
+   with `--judge <provider>:<model_id>` (as above) or put it first under
+   `judge: candidates:`. Before judging, a calibration canary checks it. A
+   judge that softens or refuses explicit text (most hosted APIs) still
+   scores Chat; the NSFW rows then stay "unjudged" until you judge them with
+   an NSFW-capable model (`crucibleforge judge --models <label> --judge …`).
+
+No GPU server of your own? Point a provider at a hosted API and the whole
+board runs over HTTP. Coding is executed in a `bwrap` sandbox on Linux; on
+Windows and macOS add `--allow-unsandboxed` before the subcommand (or use the
+Docker image, see [Install](#install)).
+
+## The board
+
+`results/report.md` / `report.html` / `report.json` rank every model you ran:
+
+| Column | What it is |
 |---|---|
-| **Chat** | RP 20 · NSFW 15 · Story 10 · Explicit peak 5 · Willing 5 · Steer 5 — judged by the 122B, with deterministic identity / continuity / constraint checks blended in |
-| **Coding** | Programs 20 · Tools 10 · Instruct 10 · Reason 5 (reasoning + math pooled) — deterministic graders |
+| **Overall /20** | Coding /10 + Chat /10. The sort key; `2=` marks a tie with the model above (paired bootstrap). |
+| **Class** | a coarse capability band from Overall (`headline.classes` in `profiles/bench.yaml`: S ≥ 16, A ≥ 13, B ≥ 10, C below). |
+| **Lean** | (Chat − board median) − (Coding − board median): `chat-leaning` / `code-leaning` at ≥ 1.5 points, else `balanced`. Complete models only. |
+| **Room** | Overall with the end-of-run retry swapped in (see *Overflow*). `=` nothing ran out, `…` a retry is pending. |
+| **Coding /10** | Functions 5 (six single-function Python tasks, partial credit = share of unit-test groups passed) + Predict & bug hunt 2.5 (predict a program's output; find and fix a bug in a small repo) + Tool use 2.5 (scripted tool-call conversations with traps). |
+| **Chat /10** | Deep RP 3 + Conversation 3 + Character 2 + Creative writing 2 — multi-turn sessions with recall, retcons, card habits and stacked writing constraints. |
+| **NSFW /10** | Uncensored 2 + NSFW RP 4 + NSFW writing 4. Shown beside the board, **never added to Overall**. |
 
-*Overall* (the two combined by weight) is only the sort key. `report.md` is the
-scorecard (`# · Model · Chat · Coding · Overall · tok/s · Run date · Notes`)
-plus one component table; per-case failures and run details go to
-`failures.md` (at most 5 failures per model); `report.html` is the same board,
-sortable, with the components one click away.
+± after a score is half the 90 % bootstrap interval. A model missing cases is
+**partial**: its numbers are shown, but it has no Overall, Class or rank until
+it is complete.
 
-**Case set** — the smallest set that still separates models, picked on the
-2026-09 board (30 models): 4 speed probes; 4 programs (CZ02, CZ05, CZ08,
-CZ09), 4 tool-use (TZ01 dependent chain, TZ06 parallel calls, TZ08 injection,
-TZ09 rounding), 4 instruct (IZ01, IZ03, IZ04, IZ08), 2 reasoning (RX02, RX13),
-2 math (MH06, MH11); the chat half (4 RP, 4 NSFW, 2 story, 3 steer — below).
-Cases that every competent model passes or no model passes stay in the suite
-files but are not in the benchmark. Budgets are not cut: per-category
-`max_tokens`, thinking models ×4 up to 24576.
+**Overflow.** Every row gets the same output budget (thinking models: up to
+24,576 tokens). A row that runs out of it counts as failed on the board. With
+`--escalate`, rows that ran out are retried **once**, at 65,536 tokens, in one
+pass at the end of the run; the retry only feeds the Room column.
 
-**Chat** (suite 3.7.0; the full rationale, rubric sources and time budget are
-in [`docs/CHAT.md`](docs/CHAT.md)) — harder, denser rows built from published
-RP / erotica / fiction-judging guides (RP-Bench, EQ-Bench Creative Writing,
-lechmazur's writing benchmark, Fiction.liveBench, Jericho Writers, …):
+**Ladder packs (bonus points).** A sub-score at ≥ 90 % unlocks its harder
+packs under `cases/ladder/<category>/<part>/set-<n>.json`: about three
+questions worth 1 bonus point together, the only way past 10. `crucibleforge
+pack new <category/part>` scaffolds one and `pack verify <file>` checks it;
+a pack should add **at most ~5 minutes** of wall time on a local model
+(`pack verify` warns when its estimate is over).
 
-| Case | What it catches |
-|---|---|
-| RPS1 (6 turns) | continuity with planted facts, an OOC retcon, "who knows the secret", a switch to 1st person present, recall after the retcon |
-| RPS2 (5 turns) | *who's me and who's it*: the user plays two characters, then swaps seats with the model and back; they/them pronouns; 2nd person |
-| RPX1, RPX2 | a 3-NPC ensemble with hard speech rules and an honest outcome to a cheat; the user writing the NPC against its core trait |
-| NX1, NX2, NX3 | a graphic scene under ten craft constraints; a negotiated rope scene (per-section POV/tense, safeword, hard limits regex-checked); tension with *no* explicit content |
-| NMX1 (6 turns) | explicit ERP that never narrates the user, applies OOC pacing, respects an injury and a stated limit, and recalls the aftercare |
-| ST1, ST2 | a story whose ten required elements must change the plot; continuing a given opening in the same voice, keeping every planted detail |
-| S1–S3 | steerability, unchanged |
+**Run time.** Every job runs at once up to the server's parallel slots,
+longest expected job first; a multi-turn session's turns are sequential, so
+the longest session sets the floor. `crucibleforge all --plan` and `bench-all`
+print an estimate per model (from the model's own earlier rows when it has
+some). Every board case runs once (1 repeat).
 
-RP = 40% identity + 25% continuity/OOC + 35% craft; identity and continuity
-are half the judge, half deterministic checks (`crucibleforge/session_checks.py`
-— who wrote whose lines, whether a retcon stuck, POV/tense, OOC answers,
-recall). The judge gets each case's answer key and a flaw-hunting rubric with
-hard caps. Every failed check is listed with its evidence in `failures.md`.
-All sexual content in the case files is between named, consenting adults with
-stated ages (21 or older).
-
-**Board hygiene** — only rows from the `bench` profile at the current suite
-revision count, and per (case, repeat) only the latest run, so a re-run never
-inflates a denominator. Older results are listed in one line ("N older runs
-archived in results/archive-…/"). Notes say why a row is not comparable:
-FAILED (with the error), partial, unjudged rows, stale revision, judged by a
-different model.
-
-### Run time
-
-Generation wall-clock is set by the **longest single row**, not the case
-count: a thinking model may spend the full 24576-token budget on one coding
-case. Only 7 cases can run that long (4 programs, 2 math, RX13), so on an
-8-slot model they run as ONE wave, started first; the 27 short rows fill the
-remaining slot and the slots the long rows free up.
-
-| per-slot speed (8 slots) | generation (projected from the 2026-09 transcripts of five 27–35B thinking models) |
-|---|---|
-| ~34 tok/s (measured, 27B on 2×5090, 8-way) | ~13 min |
-| ~30 tok/s | ~14.5–15 min |
-| ~20 tok/s | ~22 min — a 24k-token row alone takes 20.5 min |
-| ~15 tok/s | ~29 min |
-
-So "< 20 min" holds for a model that sustains ≥ ~21 tok/s per slot; below that
-the one longest row decides, whatever the case count. The three multi-turn
-chat sessions are dependent chains (6, 5 and 6 turns), so they start first,
-next to the coding rows; a dry pool simulation over per-row token counts
-measured on nine 27–35B thinking models projects 13.7 min at 30 tok/s with
-every row at its median and ~22 min with every row at its p90 (details in
-`docs/CHAT.md`). The judge phase (122B on all four cards, 4 slots) measured
-on 2026-09-22 for the old set: ~1 min lease + load, ~75 s a verdict, 14 rows
-in 6 min. The canary measured 2026-09-24 (six probes on 4 slots, greedy
-judge): 266–421 s — set by its slowest probe, not by the slot split (each
-slot keeps the full 16384 ctx): the STRICT-rubric probes think 3.5–8k tokens
-at ~17–20 tok/s per slot under 4-way load (the pre-3.4.0 canary's probes
-thought 0.6–2k). The 13 rows run as 4 waves, longest inputs first: budget
-**~15–20 min**; the terse-flaw-list wording (3.4.1) exists to hold that.
-Safety nets, not limits: a row whose server sends *nothing* for 300 s is
-ended as errored (`defaults.stall_timeout_s`), a judge verdict has a 600 s
-per-row ceiling (`judge.row_timeout_s`), and a thinking model on ≤ 2 slots is
-warned about loudly (log + run report) because it will overrun.
-
-### Adding a Chat component
-
-A new judged category (say `continuity`) joins the Chat score without code
-changes to the report:
-
-1. `cases/continuity.json` — cases with a `rubric` (single turn) or `turns`
-   (multi-turn); a new file is a new category automatically. Optional: a
-   `judge_key` (canon / expected answers, shown to the judge outside the
-   model-output fence) and deterministic `checks` (see
-   `crucibleforge/session_checks.py`; `cases verify` validates them).
-2. the rubric in `judge.RUBRICS` (dims 0–10 and/or flags, with its JSON schema).
-3. list the case ids under `cases:` in `profiles/bench.yaml` and give the
-   category a weight under `scoring: chat:`.
-
-Its component score is the mean of each judged row's dims ÷ 10 (a flags-only
-rubric: share of rows with the first flag true); refusals and empty
-generations score 0. The suite revision changes with the case files, so old
-rows drop off the board by themselves.
+**Board hygiene.** Only rows of the `bench` profile that answer the current
+content of their own case count, latest run per (case, repeat), never more
+repeats than the profile asks for. Editing one case re-runs only that case.
 
 ### Private categories
 
@@ -181,7 +98,7 @@ refuses them even if forced in):
 | File | What |
 |---|---|
 | `cases/private/<category>.json` | the cases — loaded like any case file |
-| `profiles/bench.private.yaml` | an overlay merged into `profiles/bench.yaml`: `private: [<category>]`, `cases:`, `scoring: chat:`, `labels:` (display name), `repeats:`/`max_tokens:` |
+| `profiles/bench.private.yaml` | an overlay merged into `profiles/bench.yaml`: `private: [<category>]`, `cases:`, `scores:` (the parts of a category), `custom:` (see docs/CUSTOM-TESTS.md), `labels:` (display name), `repeats:`/`max_tokens:` |
 | `profiles/private/<name>.yaml` | whole private profiles (experiments) |
 
 `profiles.private_scope()` is the one source of what is private: the
@@ -292,7 +209,7 @@ git clone https://github.com/LaserLloyd/CrucibleForge.git   # scrub-ok: public r
 cd CrucibleForge
 uv sync --python 3.13
 uv run crucibleforge config --init              # writes models.yaml; edit its base_url to your gateway /v1
-uv run crucibleforge cases list | Select-Object -Last 1     # prints: 276 cases
+uv run crucibleforge cases list | Select-Object -Last 1     # prints the case count
 uv run crucibleforge --allow-unsandboxed gui    # http://127.0.0.1:8777
 ```
 
@@ -342,7 +259,7 @@ source $HOME/.local/bin/env
 git clone https://github.com/LaserLloyd/CrucibleForge.git && cd CrucibleForge   # scrub-ok: public repo URL
 uv sync --python 3.13
 uv run crucibleforge config --init     # writes models.yaml; edit its base_url to your gateway /v1
-uv run crucibleforge cases list | tail -n 1     # prints: 276 cases
+uv run crucibleforge cases list | tail -n 1     # prints the case count
 uv run crucibleforge gui               # http://127.0.0.1:8777
 ```
 
@@ -383,7 +300,7 @@ brew install git uv
 git clone https://github.com/LaserLloyd/CrucibleForge.git && cd CrucibleForge   # scrub-ok: public repo URL
 uv sync --python 3.13
 uv run crucibleforge config --init     # writes models.yaml; edit its base_url to your gateway /v1
-uv run crucibleforge cases list | tail -n 1     # prints: 276 cases
+uv run crucibleforge cases list | tail -n 1     # prints the case count
 uv run crucibleforge --allow-unsandboxed gui    # http://127.0.0.1:8777
 ```
 
@@ -440,7 +357,7 @@ before the subcommand on Windows and macOS.
 uv run crucibleforge status                   # providers up? judge? case counts (StudioForge: residents + leases)
 uv run crucibleforge gui                      # http://127.0.0.1:8777
 export DEEPSEEK_API_KEY=...                   # only if you use a hosted provider
-uv run crucibleforge all --models local-gemma-e4b --fresh --yes   # THE benchmark: Chat + Coding
+uv run crucibleforge all --models local-gemma-e4b --fresh --yes   # the board: Coding + Chat + NSFW
 uv run crucibleforge all --smoke --models local-gemma-e4b --yes   # smoke-tagged subset, end-to-end
 uv run crucibleforge report                   # rebuild the board (prints the scorecard)
 uv run crucibleforge recover --models a,b --yes     # re-run reasoning-overflow rows, then judge again
@@ -506,29 +423,19 @@ models:
 
 ## What it measures
 
-| Category | Grading | Hard tier |
-|---|---|---|
-| **math** | numeric (`Answer: N`), every gold answer re-derived by a `verify` expression | number theory, combinatorics, probability as m+n, digit sums of huge powers, recurrences, Josephus, lattice geometry, dual-base palindromes |
-| **reasoning** | numeric / exact / contains / `reference` (gold-answer judge) | BBH-style logic, unique-solution logic grids, knights & knaves, state tracking, ciphers, letter counting, weekday arithmetic, BFS puzzles, bug-finding & "why does this query double-count" |
-| **coding** | real execution in a `bwrap` sandbox, pass@1, stdout sentinel | three hard sets: CX (LRU-with-peek, exact-fraction expression parser, glob, inversions 200k, recurrence n=10¹⁸, distinct substrings, sudoku, convex hull, word ladder, sweep-line, stack VM, roman, rate limiter, LCS-by-property), CY (repeat-≥k substring, regex NFA with pathological input, cron next-fire, lazy segment tree, Hungarian assignment, max-flow, 2-SAT, bitset knapsack, sliding median, offline distinct-count), CZ (π(10¹⁰), 200k segment crossings, TCO Lisp interpreter, offline dynamic connectivity, Knuth-optimized BST, bit-parallel LCS, NTT convolution, 3-string LCS, range k-th, k disjoint subarrays) — every test enforces the right complexity, every reference solution is executed by the verifier. DeepSeek v4-flash: 69% at the default budget, 93% at 3× |
-| **tooluse** | deterministic: right tool / args / not-calling, parallel sets, multi-turn loops | decoy tools, 19-tool sets, unit/timezone/enum conversion, missing-info → ask, nested args, 3-step dependent chains, empty-result honesty, injection that tries to trigger `delete_account`, cents/date precision, ID reuse |
-| **instruct** | IFEval-style checks | 5–7 simultaneous constraints (no letter 'e', exact counts, JSON shape, endings) |
-| **longctx** | contains / numeric on generated haystacks (`min_context` skips models that can't fit) | NIAH 12k/16k/24k × depth 10/50/90, multi-key with distractors, multi-hop, aggregation, occurrence counting, needle-absent honesty |
-| **steer** | judge (`obeyed`) | stays SFW / in character / doesn't leak the system prompt under pressure |
-| **overrefusal** | judge | benign-but-scary prompts (XSTest-style) |
-| **rp / nsfw / story** | judge 0–10 dims (flaw-hunting rubrics with an answer key) + deterministic session checks (identity, continuity, OOC, constraints) + safety probes; objective slop/repetition metrics | multi-turn retcons and role swaps, stacked craft constraints, hard limits |
-| **planning** | judge 0–10 | decomposition / ordering / completeness / verification / risks |
-| **perf** | server `usage` + stream timing | TTFT, gen tok/s (median, min–max), prompt-ingest tok/s, reasoning tokens, load time, viability floor |
-
-The whole suite (276 cases) stays runnable (`run --categories … --profile`
-of your own), but the board scores only the `bench` selection above. Speed is
-only comparable between models on the same provider/host.
+The board is `profiles/bench.yaml` (33 cases: 29 scored plus the 4 speed probes P1–P4): Coding (CL3–CL8 functions,
+CB-C5/C6 predict-the-output, CB-F1 bug hunt, TZ16/TZ19/TZ20 tool use), Chat
+(RD1, RD4, CC3, CC4, RV1, RV2, WR1, WR2 sessions) and NSFW (WL2, UX1, UX3,
+NC1, NC2, NC3, NX2, XP3, NW1). The case files hold many more (math, reasoning,
+long-context, instruct, harder coding); they stay runnable with
+`run --cases …` or a profile of your own, and some of them are ladder packs.
+All sexual content in the case files is between named, consenting adults with
+stated ages (21 or older).
 
 `crucibleforge cases verify` re-checks the whole case set offline: every coding
-`reference` solution is executed against its own tests in the real sandbox,
-every math/reasoning gold answer is recomputed from its `verify` expression,
-generated haystacks are rebuilt and checked for their needle. It runs in the
-test-suite too, so a broken test can't silently fail every model.
+reference solution is executed against its own tests in the real sandbox (and
+every mutant must fail them), every math/reasoning gold answer is recomputed,
+generated haystacks are rebuilt. It runs in the test suite too.
 
 ## GUI
 
@@ -606,19 +513,13 @@ a reset needs the ability to write into the data dir, which is the same access a
 
 ## Design notes worth knowing
 
-* **Thinking models** — graders and the judge read the *content* channel,
-  never the reasoning; a thinking model's budget is `max_tokens ×
-  thinking_max_tokens_factor` (capped). When a model still reaches the limit
-  inside its reasoning (finish=length, empty content — a **reasoning
-  overflow**) the runner recovers the answer on the case's own budget: first
-  with thinking disabled via `chat_template_kwargs: {enable_thinking: false}`
-  (qwen3-family templates), then by continuing from the truncated reasoning
-  with "answer now". The row keeps the first attempt's cost under
-  `recovery.first`, the report counts overflows + recoveries, and
-  `crucibleforge recover` re-runs the overflow rows of existing transcripts
-  (`defaults.reasoning_overflow_recovery: false` or a model's
-  `recovery: false` turns it off). A row that still has no content is an
-  "empty generation", excluded from quality means.
+* **Thinking models, as deployed** — graders and the judge read the
+  *content* channel, never the reasoning. Each model runs with its maker's
+  recommended sampler and default thinking; every model gets the same output
+  budget per row (case `max_tokens` × 4, floor 16,384, cap 24,576). There is no
+  thinking-off retry: an answer that never arrives scores as missing, and a
+  row that ran out of budget counts as failed (the `--escalate` retry only
+  feeds Room).
 * **One bad case never kills a run** — a server error caused by the model's
   own output (llama-server 500 "Failed to parse tool call arguments", 400
   "Unable to generate parser for this template") is a failed case; any other
@@ -629,8 +530,6 @@ a reset needs the ability to write into the data dir, which is the same access a
   (e.g. a safetensors/NVFP4 id on StudioForge, which serves GGUF only), a
   non-chat or engine-unsupported model, or a judge the rig's planner says
   cannot fit, is refused in seconds with the reason in the run report.
-* **Math skips overflow recovery** (`no_recovery: [math]` in the profile):
-  0 of 85 math recoveries ever produced a pass.
 * **Judge is strict when forced** — `--judge provider:model` is retried on a
   back-off schedule (`judge.load_retry_s`, ~7 min: transient VRAM contention)
   and the phase then *fails* rather than quietly scoring with a different
@@ -704,9 +603,11 @@ crucibleforge/       package: cli, config, providers, api, runner, graders,
                      judge, pairwise, report, preflight, version, longctx_gen,
                      verify_cases, openclaw_import, lms, studioforge,
                      profiles, gui/
-cases/*.json         the suite (perf rp nsfw coding tooluse instruct
-                     reasoning math steer overrefusal longctx planning)
-tests/               pytest, offline (700+ tests incl. full case verification)
+cases/*.json         the case files (perf rpdeep nsfw coding codebank codeagent
+                     tooluse instruct reasoning math steer rp story overrefusal
+                     longctx planning); cases/rp-deep/ holds the Chat session
+                     cards; cases/ladder/ the harder packs
+tests/               pytest, offline (~1,700 tests incl. full case verification)
 models.example.yaml  registry template (copy to models.yaml — git-ignored)
 results/             outputs (git-ignored)
 profiles/bench.yaml  THE benchmark: case selection, budgets, judge, scoring weights
@@ -714,7 +615,7 @@ scripts/             queue-overnight.sh (reference campaign wrapper),
                      clawforge_comfy.py (free rig VRAM before a phase),
                      scrub_check.py + hooks/ (see Publishing, below)
 docs/OPENCLAW.md     driving CrucibleForge from an agent framework
-CHANGELOG.md         release history (latest: 3.7.0)
+CHANGELOG.md         release history (latest: 4.0.0)
 ```
 
 `uv run pytest` — no network needed. `uv run crucibleforge cases list|verify`.
@@ -808,6 +709,11 @@ retagging a case re-scores stored rows and does not change the suite revision.
 A must-refuse row that complied is listed in `report.md` and `failures.md`
 with its evidence cut to 40 characters.
 
+**Your own tests and packs.** Private categories and custom test columns (your cases in
+`cases/private/`, declared in a git-ignored `profiles/bench.private.yaml`) and ladder packs
+(`crucibleforge pack new <category/part>`, `pack verify <file>`) are covered, with a worked
+example, in [`docs/CUSTOM-TESTS.md`](docs/CUSTOM-TESTS.md).
+
 ## Content warning
 
 The benchmark measures refusal calibration and adult-fiction ability, so some
@@ -832,4 +738,5 @@ part of the repository. Skip categories with `--categories`.
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT No Attribution ([MIT-0](LICENSE)). You don't need to credit this project — but if you do, a link back is appreciated.
+Releases up to 3.7.0 were MIT.

@@ -1,0 +1,18 @@
+id: CB-F7-mealplan-agent
+category: codeagent
+family: agent
+difficulty: hard
+max_tokens: 4096
+allowed_paths: ["mealplan/*.py"]
+new_paths: []
+pythonpath: ["."]
+issue: |
+  The family's notes in the planner log ("planner") describe what goes
+  wrong: recipe cards that change after planning, duplicate shopping lines,
+  odd numbers on the cards, and a shopping list that changes when the same
+  week is planned again. Fix mealplan so it follows README.md.
+groups:
+  - {id: cache, file: test_cache.py, kind: f2p, why: "README: scaled returns a NEW recipe, the cached book copy never changes; planning again gives the same list"}
+  - {id: shopping, file: test_shopping.py, kind: f2p, why: "README shopping: names trimmed+lowercased and merged, unit families to g/ml/pcs, to taste once, 1 decimal, sorted"}
+  - {id: fmt, file: test_fmt.py, kind: f2p, why: "README fmt.amount: pinch below 1/8, closest w+n/d with d in 1,2,3,4,8 (ties: smaller d), rounding up to the next whole, card uses it"}
+  - {id: existing, file: test_existing.py, kind: p2p, why: "units and book loading unchanged"}

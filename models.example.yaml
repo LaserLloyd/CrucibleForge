@@ -12,7 +12,7 @@
 #   type: studioforge  llama.cpp multi-model server; loads the server's recommended
 #                      placement profile (parallel slots) and runs that many
 #                      requests at once (concurrency: auto)
-#   concurrency: N     parallel requests for remote APIs (local servers: 1)
+#   concurrency: N     parallel requests for remote APIs (default 8; local servers: 1)
 #   verify_model:      fail if the server answers from a different model id
 #                      (default true for lmstudio/studioforge, false for openai)
 #   headers: {...}     extra HTTP headers (e.g. OpenRouter's HTTP-Referer); ${ENV}
@@ -67,7 +67,7 @@ providers:
     type: openai
     base_url: https://api.deepseek.com/v1
     api_key_env: DEEPSEEK_API_KEY
-    concurrency: 4
+    concurrency: 8
     # A remote API with a 1M context may lift the thinking budget the profile
     # sizes for a 32768-token local server (remote providers only):
     thinking_max_tokens_cap: 65536
@@ -76,13 +76,13 @@ providers:
     type: openai
     base_url: https://openrouter.ai/api/v1
     api_key_env: OPENROUTER_API_KEY
-    concurrency: 4
+    concurrency: 8
     headers: {HTTP-Referer: "https://github.com/your/crucibleforge", X-Title: "crucibleforge"}
   openai:
     type: openai
     base_url: https://api.openai.com/v1
     api_key_env: OPENAI_API_KEY
-    concurrency: 4
+    concurrency: 8
   openwebui:                      # Open WebUI exposes an OpenAI-compatible API under /api
     type: openai
     base_url: http://localhost:3000/api
@@ -97,9 +97,15 @@ defaults:
   # multiplied by this factor (capped) so the answer is not cut off.
   thinking_max_tokens_factor: 4
   thinking_max_tokens_cap: 32768
+  # StudioForge serves thoughts inline in `content` unless a request asks for
+  # a reasoning_format. For every rig model that advertises the "thinking"
+  # capability the bench requests this one (a model's own extra_body value,
+  # even `none`, wins; null switches it off).
+  rig_reasoning_format: deepseek
   # A thinking model that STILL hits the cap inside its reasoning (no content)
   # gets its answer recovered on the case budget (thinking disabled, then a
-  # continuation). Off = score the empty reply. Per model: recovery: false
+  # continuation). Off = score the empty reply. Per model: recovery: false.
+  # The bench profile (3.8.0, regime: deployed) turns it OFF for the board.
   reasoning_overflow_recovery: true
   # Safety net for a STUCK connection: a row whose server sends nothing at all
   # for this many seconds is ended as errored (never cuts a model that is still
@@ -169,10 +175,14 @@ models:
 
   - name: deepseek-flash
     provider: deepseek
-    model_id: deepseek-v4-flash
+    # the API's canonical id since 2026-10 (`deepseek-v4-flash` and
+    # `deepseek-chat` are aliases it resolves to this; GET /v1/models lists it)
+    model_id: deepseek-flash
     context_length: 131072
     price: {input: 0.14, output: 0.28}
     thinking: auto          # reasoning model → ×4 completion budget once detected
+    # 3.8.0 benches with the model's DEFAULT sampler (nothing sent). Pin one
+    # only where production pins it, e.g. sampler: {temperature: 0.3}
     tags: [remote, cheap]
 
   - name: deepseek-pro

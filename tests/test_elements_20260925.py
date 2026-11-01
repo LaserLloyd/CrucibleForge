@@ -71,6 +71,9 @@ class _Ctx:
     def call(self, messages, **kw):
         return self.results.pop(0)
 
+    def budget(self, max_tokens):
+        return max_tokens
+
     def recover_for(self, case):
         return False
 
@@ -274,6 +277,15 @@ def test_new_cases_elements_are_wellformed():
 
 
 def test_old_stamps_stay_current_after_the_new_cases():
-    revs = version.current_revisions()
+    # 3.8.0 (2026-10-24): a new measurement regime — these stamps are no
+    # longer CURRENT; they are the old board, shown marked until re-run
+    revs = version.previous_regime_revisions()
     assert {"3.4.0+0d6e0ad1", "3.4.0+7c3f7296"} <= revs
-    assert version.cases_hash() in version._EQUIVALENT_STAMPS
+    assert not revs & version.current_revisions()
+    # 3.9.0 (2026-10-28): a new test set and SUITE_VERSION — nothing earlier
+    # is declared equivalent (the 3.8 "rpdeep adds a category" entry was the
+    # pre-bump stopgap and is gone); 3.8.0 rows are the old board
+    assert "3.8.0+36a60ec6" in revs
+    # 3.10.0 (D1): + the frozen per-case snapshot stamp of the 3.9.0 board
+    assert version.current_revisions() == {version.revision(), version.legacy_revision(),
+                                           "3.9.0+ba6eb461"}

@@ -1,0 +1,18 @@
+id: CB-F4-guestbook-sql
+category: codeagent
+family: agent
+difficulty: hard
+max_tokens: 4096
+allowed_paths: ["guestbook/*.py"]
+new_paths: []
+pythonpath: ["."]
+issue: |
+  Guests report that signing the book as "O'Brien" gives an error page, and
+  searching for "50%" shows almost every entry. The service log is
+  "guestbook". Fix these, and make sure the whole contract in README.md
+  holds: this page is open to anyone on the flat's Wi-Fi.
+groups:
+  - {id: quotes, file: test_quotes.py, kind: f2p, why: "README: add_entry stores any text exactly (quotes, backslashes, %, emoji, newlines); injection impossible"}
+  - {id: search, file: test_search.py, kind: f2p, why: "README search: literal substring, ASCII case-insensitive, %/_/\\ not special, newest first, limit, empty q -> []"}
+  - {id: html, file: test_html.py, kind: f2p, why: "README: pages escape all user-supplied text (& < > \" ') incl. the search query"}
+  - {id: existing, file: test_existing.py, kind: p2p, why: "README: validation 400s, 303 on post, 20 per page, list order"}

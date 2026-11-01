@@ -1,0 +1,103 @@
+id: CB-C5-predict-pyhouse
+category: codebank
+family: predict
+difficulty: hard
+max_tokens: 4096
+issue: |
+  These snippets come from the household services' Python helpers (shopping
+  list, money, reminders, tags). Each one is runnable as shown. Say exactly
+  what each prints.
+snippets:
+- title: shared basket
+  lang: python
+  code: |
+    class Basket:
+        items = []
+        count = 0
+
+        def add(self, thing):
+            self.items.append(thing)
+            self.count += 1
+
+    a, b = Basket(), Basket()
+    a.add("milk")
+    b.add("eggs")
+    b.add("tea")
+    Basket.count = 10
+    print(a.items, a.count, b.count, Basket.count, Basket().count)
+- title: grouping receipts
+  lang: python
+  code: |
+    from itertools import groupby
+
+    rows = ["milk:2", "milk:1", "eggs:6", "milk:3"]
+    saved = list(groupby(rows, key=lambda r: r.split(":")[0]))
+    print([(k, len(list(g))) for k, g in saved])
+    print({k: sum(int(r.split(":")[1]) for r in g) for k, g in groupby(rows, key=lambda r: r[:4])})
+- title: splitting the bill
+  lang: python
+  code: |
+    print(-7 // 2, -7 % 3, 7 % -3, divmod(-7, 2), int(-3.7), -3.7 // 1, round(-2.5), round(3.5))
+    print(f"{3.14159:.2}", f"{1234.5:.2}", f"{'abcdef':.3}", f"{0.000123:.1}", f"{100:.1e}")
+- title: late reminders
+  lang: python
+  code: |
+    from datetime import datetime, timedelta
+
+    late = timedelta(minutes=-90)
+    print(late, abs(late), late // timedelta(hours=1), late.seconds, late.total_seconds())
+    a = datetime(2026, 3, 29, 3, 30)
+    b = datetime(2026, 3, 29, 1, 30)
+    print(a - b, (b - a).days, (b - a).seconds)
+- title: pantry views
+  lang: python
+  code: |
+    d = {"milk": 2, "eggs": 6}
+    ks = d.keys()
+    d["tea"] = 1
+    del d["milk"]
+    print(list(ks), ks & {"tea", "jam"}, d.items() >= {("eggs", 6)})
+    print("banana".strip("ab"), "www.shop.com".lstrip("w."), "list.txt.txt".removesuffix(".txt"), "a,b,,c,".split(",")[-2:], " a  b ".split(" "))
+- title: running total
+  lang: python
+  code: |
+    def ticker():
+        total = 0
+        try:
+            while True:
+                x = yield total
+                if x is None:
+                    break
+                total += x
+        finally:
+            print("closed", total)
+        return total
+
+    g = ticker()
+    print(next(g), g.send(3), g.send(4))
+    try:
+        g.send(None)
+    except StopIteration as e:
+        print("done", e.value)
+    h = ticker()
+    next(h)
+    h.send(5)
+    del h
+    print("end")
+- title: tag counts
+  lang: python
+  code: |
+    from collections import Counter
+
+    c = Counter("abracadabra")
+    d = Counter(a=6, z=1)
+    print(c.most_common(3), c - d, d - c)
+    c.subtract(d)
+    print(c["a"], c["z"], len(c), +c == c)
+- title: chore leaderboard
+  lang: python
+  code: |
+    rows = [("ana", 2), ("ben", 1), ("cy", 2), ("dee", 1)]
+    print([n for n, _ in sorted(rows, key=lambda r: r[1], reverse=True)])
+    print([n for n, _ in sorted(rows, key=lambda r: r[1])[::-1]])
+    print(max(rows, key=lambda r: r[1])[0], min(rows, key=lambda r: -r[1])[0], sorted(["b10", "a2", "B1", "a10"]))

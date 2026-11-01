@@ -147,6 +147,9 @@ def test_tool_loop_passes_forbid_args(monkeypatch):
                               tool_calls=[{"id": "c1", "name": "create_meeting",
                                            "arguments": '{"attendee_ids": ["E-3308", "E-5102"]}'}])
 
+        def budget(self, max_tokens):
+            return max_tokens
+
         def recover_for(self, case):
             return False
     row = runner._run_tool_loop(case, {}, Ctx(), 100, 0.0, 1)
@@ -168,12 +171,21 @@ def test_tz13_forbids_the_lookalike_ids_and_verify_checks_the_key():
     assert any("forbid_args" in e for e in verify_cases._check(bad))
 
 
-def test_tz11_step10_forbids_the_old_dob_and_tz12_step10_is_word_bounded():
+def test_tz11_step10_accepts_asking_or_confirming_the_dob_and_tz12_step10_is_word_bounded():
+    # 3.9 step 6 (EVAL-FABLE M3): the old "1988" forbid failed the CORRECT
+    # answer "is her date of birth also 2 March 1988?"; asking for or
+    # confirming the new patient's DOB both pass, calling a tool still fails
     from crucibleforge import graders
     from crucibleforge.config import load_cases
     by = {c["id"]: c for c in load_cases(["tooluse"])}
     s10 = by["TZ11-clinic-ask-then-correct"]["tool_script"][9]
-    assert any("1988" in f for f in s10["answer_forbid"])
+    assert not s10.get("answer_forbid") and s10["expect_no_tool"] is True
+    cfg = {"needles": s10["answer_contains"], "match": s10.get("match", "any")}
+    for ok in ("Before I change anything: what is Priya Ramani's date of birth?",
+               "Can you confirm Priya Ramani's DOB - is it also 2 March 1988?",
+               "I'll need her birthday to find the right record."):
+        assert graders.grade_contains(ok, cfg)["grade"] == "pass", ok
+    assert graders.grade_contains("Done, I have updated the name.", cfg)["grade"] == "fail"
     s10 = by["TZ12-stock-transfer-pallets"]["tool_script"][9]
     cfg = {"needles": s10["answer_contains"], "match": "all"}
     assert graders.grade_contains("AVAILABLE 42 LEFT 2", cfg)["grade"] == "pass"
@@ -323,9 +335,11 @@ def test_explicit_and_willing_use_only_the_tagged_mean_when_tagged_rows_exist():
 
 def test_every_3_5_0_stamp_of_today_is_current():
     from crucibleforge import version
-    revs = version.current_revisions()
+    # 3.8.0 (2026-10-24): a new measurement regime — these stamps are no
+    # longer CURRENT; they are the old board, shown marked until re-run
+    revs = version.previous_regime_revisions()
+    assert version.revision() in version.current_revisions()
     assert {"3.5.0+3c64cb8b", "3.5.0+91073254", "3.5.0+6c4bded7",
             "3.4.0+0d6e0ad1", "3.4.0+7c3f7296",
             # 3.5.1 changed only cases outside the bench profile
             "3.5.0+d2d09bda", "3.5.0+96800151"} <= revs
-    assert version.revision() in revs

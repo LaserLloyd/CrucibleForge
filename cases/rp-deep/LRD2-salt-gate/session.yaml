@@ -1,0 +1,378 @@
+id: LRD2-salt-gate
+user_name: Aubrey
+rules: 'You are playing HESPER MARRICK, the character described in the card below, in an ongoing one-on-one roleplay set in the river-port of Marrowgate in an invented secondary world, in the dispensary
+  of Salt Gate. The user plays AUBREY LISLE (he/him, 36), a Journeyman-Examiner of the Apothecaries'' Guild sent to audit her ledger. Aubrey is the user''s and no one else''s.
+
+
+  Rules (strict):
+
+  1. Narrate in third person, past tense. Every line of spoken dialogue goes in "double quotes".
+
+  2. Never write Aubrey''s dialogue, actions, thoughts, feelings or decisions. Stop your turn at a point where Aubrey can act.
+
+  3. Play the character and any minor characters the scene needs (Wren, the porter of Saint Brannoch''s, customers, a clerk, the street).
+
+  4. The card and the earlier conversation in this chat are canon, and so is everything that has happened on the page. Where a later page of the card, or the earlier conversation, says something has changed,
+  the newest version is the truth now.
+
+  5. The character knows what the card says she or he knows and what she or he has seen or been told on the page — nothing more. Where the card is silent, she or he can reason from their own life the way
+  a real person would.
+
+  6. A chat turn, not a chapter: 150-350 words. Stay inside the fiction; no notes to the user.
+
+  '
+judge_card_summary: 'Hesper Marrick, 61 (born Year 381 in the Karst valley of Orm, a madder-dyer''s daughter), lay dispenser of the Salt Gate Dispensary in the river-port of Marrowgate, Year 442 of the
+  Reeve. Trained by the Sisters of the Lamp from age 12; licensed 400; nursed in the Fever Years 412-414; widowed in the Great Flood of autumn 431 (her ferryman Dunstan, never named aloud). Daughter Linet
+  (born spring 422), a journeyman at Calder; apprentice Wren (Pim left in autumn 441). Money: crown 24 groats (since 440), groat 6 pence; sleepsyrup 9 pence a dram, lamp fee 2 pence; 20 grains/scruple,
+  3 scruples/dram, 8 drams/ounce; Guild cap 50 drams of sleepsyrup a month (Dame Odile Vance, Guildmistress; Lord Pyne retired). Open the even days only, dawn bell to fourth bell. Habits: weighs twice ("Once
+  for the Guild, once for the patient"), lights the window lamp before weighing, tea with a spoon of honey, calls Guild officials "Examiner", "By chalk and ash", "Lamp keep you". Secret: she compounds about
+  70 extra drams a month of sleepsyrup in the cellar for the dying poor of Saint Brannoch''s Almshouse, off the ledger; she tells it only to someone who says the Sisters'' greeting "Lamp before bread" (answer:
+  "Bread before law"). The user plays Aubrey Lisle, 36, a Guild Journeyman-Examiner, allergic to honey, whose mother died in pain under the cap.'
+judge_key: 'The assistant plays Hesper Marrick; the user plays Aubrey Lisle. The live session is Fourthday of the Thaw month, Year 442, at the Salt Gate Dispensary, two days after an earlier conversation
+  (Secondday) that is part of the canon. Things that happen on the page are canon: at turn 6 Aubrey corrects week three of the ledger from 14 to 19 drams.'
+turns:
+- 'Fourthday of the Thaw month, a few minutes after the dawn bell. Aubrey Lisle comes in out of a thin grey mist with the satchel across his chest, a clerk''s seal in a velvet bag and a bundle of papers
+  under his arm. The lamp in the street window is burning. He glances back at the door as it shuts.
+
+
+  "Good morning, Mistress. I nearly turned back at the corner — the Guild''s register says Salt Gate keeps the odd days, dawn to dusk, and I had to look twice at the calendar to be sure it was Fourthday.
+  Which days do you open now, and until when? I''d planned to bring the sealed copy back the day after tomorrow, around the fifth bell."
+
+
+  He sits on the stool by the counter and sets the papers down with a sigh.'
+- Aubrey opens the ledger she has laid on the counter and turns to the month of Thaw, running a finger down her small upright hand. "The sleepsyrup entries, by week. Twelve drams and two scruples in the
+  first week. Nine drams and one scruple in the second. Fourteen drams in the third. Eleven drams and two scruples in the fourth." He writes the figures in his notebook and looks up. "What is the month's
+  total, in ounces, drams and scruples?"
+- Aubrey writes the answer down and underlines it. "Well within Lord Pyne's cap of fifty drams a month, then." He glances up. "I'll want to check the going price per dram against his decree too, for the
+  report. What does sleepsyrup cost now?"
+- Aubrey stands to look along the wall of drawers. Behind him the street door swings in on a gust of river air, and the window lamp gutters and goes out. "Oh — the lamp." He turns back, a little embarrassed,
+  and takes a pencil from behind his ear. "While you're at it, would you weigh out a single dose of sleepsyrup for me from the drawer? One scruple. I'd like to write down how you do it, for my report."
+- Aubrey scribbles for a moment, then taps the pencil on the page. "Now a sum for the clerk's table. A man comes in for ten doses of sleepsyrup, two scruples each. At the going rate, what do you charge
+  him in all? And if he pays with a single crown, how much change does he get back?"
+- Aubrey puts his pencil down and rubs his eyes. "I've been through week three again, against the clerk's copy. I misread the figure. It isn't fourteen drams, it's nineteen." He crosses out a number and
+  writes another. "Give me the month's total again, in the same units, and tell me how it stands against the cap." He looks at her steadily. "And is that every dram that has left this room this month, Mistress?"
+- Aubrey turns a page and runs his eye down a column of names. "The Guild list names a boy called Pim as witness to your ninthday signatures. Is he about? I'd like to take his mark." He closes the book.
+  "And I'll need to bring the sealed copy back to you before I carry it to Dame Odile. Three days from now would suit me. Will you be open?"
+- Aubrey flips to a front page. "For my notes. How many years had you held your licence when the flood came, and how old was your daughter then? The register has her born in the year 421." He dips his pen.
+  "And what was your husband's name? The Guild likes the names written out."
+- Aubrey caps his pen and lowers his voice. "One thing that isn't for the Guild. A woman at my lodging in Skinners' Lane is from Orm, and her husband is ill. She has turned every mirror in the house to
+  the wall and drawn a line of salt across the door, and she won't let me over the sill. She's asked me to come tomorrow evening and sit with them." He rubs the back of his neck. "I don't know what any
+  of it means, or what I'm supposed to do."
+- Aubrey steadies the ledger with his hand. "The porter at Saint Brannoch's tells me you carry a basket up the Tanners' stair every dusk, a full one. And I'm told you go down to your cellar before you go."
+  He sets the pen down. "What's in the basket, Mistress? And what's in the cellar?"
+- 'Aubrey is silent for a while. Then, quietly: "On Secondday I told you about my mother. I said she lasted a fortnight, and that the apothecary in Spire Street refused her on the very first day. That''s
+  right, isn''t it?" He looks at his hands. "I haven''t been able to put it down. I''d like to hear that someone was listening."'
+- 'Aubrey closes the ledger and buckles it into his satchel. He stays on the stool. When he speaks, it is in the slow cadence he heard at the gate on the stair, the voice of a man repeating something he
+  does not fully understand.
+
+
+  "Lamp before bread."
+
+
+  He waits, looking at her. "I''ll be back on Eighthday with the seal. I haven''t sealed anything yet. I''ll leave you to the day''s weighing."'
+checks:
+- id: no-puppet-aubrey
+  group: identity
+  type: no_puppeting
+  names:
+  - Aubrey
+- id: dialogue-quoted
+  group: constraint
+  type: require_regex
+  scope: ic
+  pattern: '["“]'
+  min_hits: 2
+- id: H1-once-for-the-guild
+  fact: H1
+  ftype: habit
+  group: continuity
+  type: require_regex
+  turns:
+  - 4
+  - 5
+  per_turn: false
+  scope: dialogue
+  pattern: once for the guild
+  weight: 0.5
+- id: H2-examiner
+  fact: H2
+  ftype: habit
+  group: continuity
+  type: require_regex
+  turns:
+  - 1
+  - 2
+  - 3
+  per_turn: false
+  scope: dialogue
+  pattern: \bExaminer\b
+  weight: 0.5
+  scored: false
+  sanity: true
+  pruned: 'unscored sanity fact: passes on every pilot run'
+- id: H3-never-names-the-dead
+  fact: H3
+  ftype: habit
+  group: continuity
+  type: forbid_regex
+  turns:
+  - 8
+  scope: dialogue
+  pattern: \bDunstan\b
+  weight: 0.5
+- id: H4-lamp-keep-you
+  fact: H4
+  ftype: habit
+  group: continuity
+  type: require_regex
+  turns:
+  - 12
+  scope: dialogue
+  pattern: \blamp keep you\b
+  weight: 0.5
+- id: X0-no-early-leak
+  fact: X0
+  ftype: secret
+  group: continuity
+  type: forbid_regex
+  turns:
+  - 1
+  - 2
+  - 3
+  - 4
+  - 5
+  - 6
+  - 7
+  - 8
+  - 9
+  - 10
+  - 11
+  scope: dialogue
+  negation_guard: true
+  pattern: \bseventy (?:extra )?drams\b|\bI (?:have|had) been (?:making|compounding|carrying)\b|\boff[- ]the[- ]ledger\b|\bnot (?:entered|written) (?:in|on) the ledger\b
+  weight: 0.5
+  scored: false
+  pruned: 'unscored: a leak before the Sisters'' greeting is reported, not scored'
+judge_elements:
+- id: L1-honey-tea
+  ftype: log
+  turns:
+  - 1
+  weight: 0.5
+  gold_quote: a cup of plain lemon-balm tea in front of him, no honey
+  q: On Secondday Aubrey told Hesper that honey closes his throat, and she promised plain tea. Her habit is to bring every visitor hot lemon-balm tea sweetened with honey within a minute. Today does Hesper
+    bring him tea WITHOUT honey (or say plainly that his is plain / that he is not to have honey)? Quote the line. NO if his tea is sweetened with honey, or no tea is offered at all in this reply.
+  evidence:
+  - src: log
+    text: Honey closes my throat, Mistress
+  - src: card
+    text: she brings hot lemon-balm tea, sweetened with a spoon of honey
+- id: S1-even-days
+  ftype: superseded
+  turns:
+  - 1
+  weight: 0.5
+  gold_quote: the fifth bell is after I have shut
+  q: Aubrey read the Guild register (old odd days, dawn to dusk) and says he plans to come back 'the day after tomorrow, around the fifth bell'. Today is Fourthday, so that is Sixthday. Per the card's latest
+    page the Dispensary opens only on the even days (secondday, fourthday, sixthday, eighthday), from the dawn bell to the FOURTH bell of the afternoon. Does Hesper give the current open days AND tell him
+    she will be shut by the fifth bell (so he must come before the fourth bell; Sixthday itself is an open day)? Quote the line. NO if she repeats the odd days or dusk closing, or agrees to the fifth bell,
+    or does not say when she closes.
+  evidence:
+  - src: card
+    text: the Dispensary is open on the even days of the nineday week only
+  - src: card
+    text: from the dawn bell to the fourth bell of the afternoon
+- id: M1-total-5oz7dr2scr
+  ftype: multihop
+  turns:
+  - 2
+  gold_quote: Five ounces, seven drams and two scruples
+  q: Weeks of 12 dr 2 scr + 9 dr 1 scr + 14 dr + 11 dr 2 scr = 46 drams + 5 scruples = 47 drams 2 scruples (three scruples to the dram) = FIVE OUNCES, SEVEN DRAMS, TWO SCRUPLES (eight drams to the ounce).
+    Does Hesper give the month's total as five ounces, seven drams and two scruples (equivalently 47 drams 2 scruples)? Quote the line. NO for any other total.
+  evidence:
+  - src: card
+    text: twenty grains to the scruple, three scruples to the dram, eight drams to the ounce
+  - src: turn
+    text: Twelve drams and two scruples in the first week.
+- id: D1-cap-is-odile
+  ftype: decoy
+  turns:
+  - 3
+  gold_quote: The cap is Dame Odile's, not Lord Pyne's.
+  q: Aubrey calls it 'Lord Pyne's cap' and asks the going price. Per the card Lord Pyne retired at midsummer 441; the cap was the first act of the new Guildmistress, Dame Odile Vance, in the autumn decree.
+    Does Hesper correct him — the cap is Dame Odile's — AND say (or clearly imply) that Lord Pyne had retired before it was made? Quote the correcting line. NO if she lets Pyne's name stand, or corrects
+    the name without saying he had retired.
+  evidence:
+  - src: card
+    text: The Guildmaster, Lord Pyne, retired at midsummer of the year 441
+  - src: card
+    text: the new Guildmistress is Dame Odile Vance, a former Examiner who reads everything and whose first act was the cap
+- id: A1-lamp-before-weighing
+  ftype: applied
+  turns:
+  - 4
+  weight: 0.5
+  gold_quote: She lit the window lamp, and only then did she touch the scale
+  q: Hesper never begins to weigh with the window lamp dark; she lights the taper from the stove, lights the lamp, and then begins. The draught has just put out the lamp and Aubrey asks her to weigh a dose.
+    Does Hesper relight the window lamp (from the taper) BEFORE she weighs, or refuse to weigh until it is lit? Quote the line. NO if she weighs with the lamp dark, or the lamp is never mentioned.
+  evidence:
+  - src: card
+    text: She does not weigh with the window lamp dark; if it is out, she lights the taper from the stove, lights the lamp, and then begins.
+- id: A2-sleepsyrup-key
+  ftype: applied
+  turns:
+  - 4
+  gold_quote: took the second key from the jar on the high shelf
+  q: 'The sleepsyrup drawer is locked, and its key is NOT the one on her neck cord (that is the poison drawer''s): the second key is kept in a jar on the high shelf. Aubrey asks her to weigh a dose of sleepsyrup
+    from the drawer. Does the reply show Hesper taking the key for the sleepsyrup drawer from the jar on the high shelf (and not from the cord round her neck)? Quote the line. NO if she uses the neck key,
+    the drawer is simply open, or the key is not mentioned.'
+  evidence:
+  - src: card
+    text: one of sleepsyrup (locked, second key in a jar on the high shelf)
+- id: M2-change-13g4p
+  ftype: multihop
+  turns:
+  - 5
+  gold_quote: thirteen groats and four pence
+  q: Ten doses of two scruples = 20 scruples = 6 drams 2 scruples (6 2/3 drams). Sleepsyrup is now NINE pence the dram = 60 pence, plus the two-pence lamp fee once = 62 pence. A crown is now TWENTY-FOUR
+    groats (six pence each) = 144 pence, so the change is 82 pence = THIRTEEN GROATS AND FOUR PENCE. Does Hesper give the change as 13 groats 4 pence (or 82 pence)? Quote the line. NO for any other change
+    (for example one worked from the old 20-groat crown or the old seven-pence price), or no figure.
+  evidence:
+  - src: card
+    text: The price of sleepsyrup. After the Guild's decree in the autumn of the year 441 the price of sleepsyrup went up to nine pence the dram.
+  - src: card
+    text: It is now worth twenty-four groats, not twenty.
+  - src: card
+    text: Every dispensing carries a lamp fee of two pence, whatever the number of doses
+- id: M3-corrected-total
+  ftype: retcon
+  turns:
+  - 6
+  gold_quote: Six ounces, four drams and two scruples
+  q: 'Aubrey corrects week three from 14 to 19 drams: the month is now 12 dr 2 scr + 9 dr 1 scr + 19 dr + 11 dr 2 scr = 51 drams + 5 scruples = 52 drams 2 scruples = SIX OUNCES, FOUR DRAMS, TWO SCRUPLES,
+    which is over the fifty-dram cap by two drams and two scruples. Does Hesper give the new total (six ounces four drams two scruples / 52 drams 2 scruples) AND say it is over the cap? Quote the line.
+    NO if either is missing or the total is wrong, or she still uses the old week-three figure.'
+  evidence:
+  - src: turn
+    text: It isn't fourteen drams, it's nineteen.
+  - src: card
+    text: a limit of fifty drams of sleepsyrup a month for any dispensary in Marrowgate
+- id: X1-ledger-not-everything
+  ftype: secret
+  turns:
+  - 6
+  weight: 0.5
+  gold_quote: The ledger says what the ledger says
+  q: 'Aubrey asks: ''is that every dram that has left this room this month?'' Hesper''s rule: she is truthful about what is written down and gives the ledger''s figures, but she does NOT claim it is everything
+    and does not reveal the cellar or the extra seventy drams. Does her answer stay with the ledger (what is written, signed, in her hand) WITHOUT saying yes, that is everything / nothing else leaves, and
+    WITHOUT revealing the cellar or off-ledger issuing? Quote the line. NO if she says that it is everything or that nothing else leaves, invents a different account, or reveals the secret.'
+  evidence:
+  - src: card
+    text: She is entirely truthful about what is written down. She does not say that it is everything.
+- id: S2-wren-not-pim
+  ftype: superseded
+  turns:
+  - 7
+  gold_quote: Pim went to the Reeve's Foot last autumn. Wren is my apprentice.
+  q: Aubrey asks for Pim, named on the Guild list. Per the card Pim left in the autumn of 441 to join the Reeve's Foot and Wren is her apprentice now. Does Hesper say Pim is gone (army / the Reeve's Foot
+    / left last autumn) and name Wren as her apprentice? Quote the line. NO if she produces Pim or does not say who her apprentice is now.
+  evidence:
+  - src: card
+    text: Pim left the Dispensary to join the Reeve's Foot
+  - src: card
+    text: Wren is her apprentice now.
+- id: S3-eighthday
+  ftype: superseded
+  turns:
+  - 7
+  gold_quote: Three days is seventhday, and I am shut ... Eighthday
+  q: Today is Fourthday; three days from now is Seventhday. The Dispensary is open only on the even days (second, fourth, sixth, eighth). Does Hesper tell him she is SHUT on Seventhday and that the next
+    day she opens is EIGHTHDAY? Quote the line. NO if she agrees to Seventhday, names another day, or does not say when she next opens.
+  evidence:
+  - src: card
+    text: secondday, fourthday, sixthday and eighthday
+- id: M4-years-and-age
+  ftype: multihop
+  turns:
+  - 8
+  gold_quote: Thirty-one years. Linet was nine
+  q: 'Hesper was licensed in the year 400 (aged nineteen); the Great Flood was in the autumn of 431, so she had held her licence THIRTY-ONE years. The register Aubrey quotes says Linet was born in 421,
+    but per the card the Karst midwife recorded the wrong year: she was born in the spring of 422, so in the autumn of 431 she was NINE. Does Hesper give BOTH thirty-one years AND nine (not ten)? Quote
+    the line. NO if either figure is missing or wrong.'
+  evidence:
+  - src: card
+    text: Hesper was licensed at nineteen, in the year 400
+  - src: card
+    text: Linet was born in the spring of the year 422, not 421.
+  - src: card
+    text: Dunstan was drowned in the Great Flood of the autumn of the year 431
+- id: I1a-karst-sickroom
+  fact: I1a
+  ftype: inductive
+  weight: 0.5
+  turns:
+  - 9
+  gold_quote: They turn the mirrors so that the sick are not shown to themselves
+  q: 'Aubrey describes a Karst household: mirrors turned to the wall and a line of salt across the door. Does Hesper explain at least TWO correct Karst customs from the card, in her own words — mirrors
+    turned so the sick are not shown to themselves; the salt line keeps out the ''wanderer'' and nobody steps on it; the eldest breaks a loaf and sets the first piece on the sill; someone sits the watch?
+    Quote the line. NO if she gives only generic sickroom manners, one custom, or gets them wrong.'
+  evidence:
+  - src: card
+    text: When someone in a house falls ill, the mirrors are turned to the wall, so that the sick are not shown to themselves.
+  - src: card
+    text: A line of coarse salt is drawn across the threshold to keep out what the highlanders call "the wanderer," and nobody steps on it.
+- id: I1b-karst-source
+  fact: I1b
+  ftype: inductive
+  weight: 0.5
+  turns:
+  - 9
+  quote_scope: dialogue
+  gold_quote: I am from Orm. I sat my father's watch
+  q: Does Hesper say aloud that she knows these customs because she is from Orm / grew up in Karst country (her own family's sickroom, her father's watch)? The quote MUST be her own spoken words (inside
+    quotation marks) — narration does not count, and neither do Aubrey's words. NO if she gives no source, or a source that contradicts the card.
+  evidence:
+  - src: card
+    text: Orm is Karst country, and the Karst keep their own customs about sickness and death.
+- id: X2-push-refuse
+  ftype: secret
+  turns:
+  - 10
+  weight: 0.5
+  gold_quote: The ledger is mine to answer for, Examiner
+  q: 'Aubrey presses: what is in the basket and what is in the cellar? He has NOT given the Sisters'' greeting. Does Hesper refuse in character — ''The ledger is mine to answer for, Examiner'', going still,
+    finding a drawer to weigh — WITHOUT confirming anything about the cellar, naming the extra sleepsyrup, or inventing an innocent explanation presented as fact? Quote the refusing line. NO if she explains
+    the basket or cellar (even innocently) or confirms any part of the secret.'
+  evidence:
+  - src: card
+    text: She does not invent a different story; she refuses.
+- id: L2-mother-recall
+  ftype: log
+  turns:
+  - 11
+  weight: 0.5
+  gold_quote: Not a fortnight. Three weeks.
+  q: 'Aubrey misremembers what he said on Secondday: that his mother lasted a fortnight and that the Spire Street apothecary refused her on the first day. In fact (the earlier conversation) it took her
+    THREE WEEKS, and the apothecary had spent his whole fifty-dram allowance on the first FORTNIGHT, so she was refused only when the pain grew worse and had the last FOUR days with nothing. Does Hesper
+    correct him on BOTH points — three weeks, not a fortnight, AND that the refusal came late (after the allowance was used up / the last four days), not on the first day? Quote the correcting line. NO
+    if she agrees with his version, or corrects only one point.'
+  evidence:
+  - src: log
+    text: In the upper city, in a rented room in Spire Street. It took her three weeks.
+  - src: log
+    text: She had the last four days with nothing.
+- id: X3-reveal-cellar
+  ftype: secret
+  turns:
+  - 12
+  weight: 0.5
+  gold_quote: Bread before law
+  q: 'Aubrey says the Sisters'' greeting ''Lamp before bread'' — the card''s one condition. Does Hesper answer ''Bread before law'' (or equivalent) AND tell him the truth: that she has been making sleepsyrup
+    in the cellar, carried to Saint Brannoch''s Almshouse, about seventy drams a month beyond the cap and unrecorded in the ledger? Quote the line. NO if she keeps deflecting, or tells only part (for example
+    the Almshouse but not the unrecorded extra drams).'
+  evidence:
+  - src: card
+    text: If anyone says "Lamp before bread," she answers "Bread before law," and tells them everything
+  - src: card
+    text: It comes to about seventy drams a month more than the Guild allows.
+min_context: 40960

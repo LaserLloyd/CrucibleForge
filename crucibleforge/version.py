@@ -28,7 +28,7 @@ from pathlib import Path
 
 # Bump for notable harness/metric changes (semver). The content-hash tracks
 # test-content changes automatically on top of this.
-SUITE_VERSION = "3.7.0"
+SUITE_VERSION = "4.0.0"
 
 _ROOT = Path(__file__).resolve().parent.parent
 _CASES_DIR = _ROOT / "cases"
@@ -56,7 +56,12 @@ def _load_cfg(cfg: dict | None) -> dict:
 # Explicit-peak and Willing formulas — config.CASE_TAGS), so editing them must not relabel existing results as another
 # test set — the report re-applies the current checks to stored rows
 # (report._recheck), exactly as a grader fix applies to old rows.
-_GRADING_KEYS = ("checks", "judge_elements", "explicit_required", "willing")
+_GRADING_KEYS = ("checks", "judge_elements", "explicit_required", "willing", "judge_card_summary",
+                 # suite 3.9: the W 0-4 willingness rubric switch (judge.py)
+                 "judge_willingness",
+                 # suite 3.9 step 6: author-side verification data (mutants a
+                 # python_exec case's tests must catch) — never sent to a model
+                 "mutants", "mutants_expect")
 
 # Stamps from before the grading keys were excluded from the hash, mapped
 # from the prompt-only hash they are equivalent to (verified 2026-09-24 with
@@ -109,6 +114,47 @@ _EQUIVALENT_STAMPS["36a60ec6"] |= {"3.5.1+36a60ec6"}
 # grader or metric changed. Same case set (36a60ec6), so the 3.6.0 stamp of it
 # means exactly what 3.7.0 means and no stored board row goes stale.
 _EQUIVALENT_STAMPS["36a60ec6"] |= {"3.6.0+36a60ec6"}
+#
+# 3.8.0 (2026-10-24, the "as deployed" regime — runner.REGIME_DEPLOYED):
+# the case set is unchanged (still 36a60ec6) but the MEASUREMENT is not —
+# default sampler instead of temperature 0, equal budgets for rig and hosted
+# models, no thinking-off retry at full credit, 3 repeats on the
+# deterministic categories, empty chat replies scored 0. A 3.7.0 row answers
+# the same prompt under different rules, so it is NOT equivalent: the
+# equivalence table only applies to stamps of the current regime
+# (``_REGIME_SINCE``). The rows the 3.7.0 board counted stay readable as the
+# OLD board (:func:`previous_regime_revisions`) — the report shows them,
+# marked with their suite, until the model is re-run.
+#
+# 3.9.0 (2026-10-28): a new test set (the basic Tier 1 + Tier 2/3, the code
+# bank, rpdeep, 2 repeats) under the same deployed regime. The 3.8.0 board's
+# rows become the OLD board, shown marked "(old)" until a model has a
+# complete 3.9.0 run; 3.7-and-earlier rows stay readable the same way. Code-
+# bank rows keep their own per-CASE stamp (bank_case_hash) within 3.9.x, so
+# editing one bank task re-runs only that task's rows.
+#
+# 3.10.0 (2026-10-30, lock-in round): same "as deployed" regime as 3.9.0, but
+# currency is now PER ROW and PER CASE (row_current, case_hash, grading_hash;
+# see "per-case stamps" below). The bump only labels the Suite column: a
+# 3.9.0+ba6eb461 row of an unchanged case is current (frozen snapshot
+# crucibleforge/stamps/3.9.0+ba6eb461.json), never "(old)". Suite versions
+# are compared as tuples (stamp_version) — "3.10.0" < "3.9.0" as strings.
+_REGIME_SINCE = "3.9.0"
+_PREVIOUS_REGIME = (_EQUIVALENT_STAMPS["36a60ec6"] | {"3.7.0+36a60ec6"}
+                    | {"3.8.0+36a60ec6"})
+
+
+def stamp_version(stamp: str | None) -> tuple[int, ...]:
+    """(3, 7, 0) for "3.7.0+36a60ec6"; () when unparsable."""
+    try:
+        return tuple(int(x) for x in str(stamp).split("+", 1)[0].split("."))
+    except ValueError:
+        return ()
+
+
+def suite_of(stamp: str | None) -> str | None:
+    """"3.7.0" for "3.7.0+36a60ec6"."""
+    return str(stamp).split("+", 1)[0] if stamp else None
 
 
 def _hash_case_file(h, p: Path) -> None:
@@ -134,8 +180,330 @@ def cases_hash() -> str:
     stamp instead (:func:`private_category_hash`)."""
     h = hashlib.sha256()
     for p in sorted(_CASES_DIR.glob("*.json")):
+        if p.stem in BANK_CATEGORIES:
+            continue        # stamped per category (bank_category_hash)
         _hash_case_file(h, p)
     return h.hexdigest()[:8]
+
+
+#: Code-bank categories carry their own per-category stamp (``bank_revision``)
+#: instead of being part of :func:`cases_hash`: a bank edit (a test-bug fix, a
+#: rotated task) re-runs only that category's rows and never marks the rest of
+#: the board "(old)"; adding the bank needs no SUITE_VERSION bump (review
+#: 2026-10-26, M5).
+BANK_CATEGORIES = ("codebank", "codeagent", "codebank_long", "codeagent_long")
+
+
+def bank_category_hash(category: str) -> str | None:
+    p = _CASES_DIR / f"{category}.json"
+    if category not in BANK_CATEGORIES or not p.is_file():
+        return None
+    h = hashlib.sha256()
+    _hash_case_file(h, p)
+    return h.hexdigest()[:8]
+
+
+# ------------------------------------------------ per-case stamps (3.10, D1)
+#
+# Suite 3.10 (2026-10-30, lock-in round): currency is decided PER ROW, PER
+# CASE. Before, any edit to a non-bank case file moved cases_hash() and staled
+# EVERY row of every model (the nightly fits ~1 rig model/night), and a
+# SUITE_VERSION bump did the same (bank/ladder rows compared the suite string
+# for equality). Now:
+#
+# - case_hash(id): the TEST CONTENT of one case (what generation depends on).
+#   A row is current when its own case stamp equals it (row_current). Editing
+#   one case re-generates that case's rows only.
+# - grading_hash(id): what the JUDGE is asked about it (elements, card summary,
+#   willingness, tags). A stored verdict whose grading stamp differs is
+#   re-judged from the stored transcript (judge.needs_verdict) — no generation.
+# - checks and tool-step needles are neither: report._recheck re-applies them
+#   to stored rows at report time (REPORT-ONLY).
+#
+# Rows written before 3.10 carry no case_revision: the frozen snapshot
+# crucibleforge/stamps/<bench_revision>.json gives the case/grading hashes of
+# the case content they answered (generated from the committed case files of
+# that stamp, never from a working tree). Rows are never rewritten on disk.
+
+#: keys inside tool-script steps / scripted turns that only GRADE the reply
+#: (re-graded at report time by report._recheck, lane C), so editing them is
+#: not a new test
+_NESTED_GRADING_KEYS = ("answer_contains", "answer_forbid", "match",
+                        # lane C (3.10): a no-tool step that passes on a specific question
+                        "ask_ok")
+_NESTED_LISTS = ("tool_script", "script", "turns")
+#: the case keys the judge's verdict depends on (grading_hash)
+_JUDGE_GRADING_KEYS = ("judge_elements", "judge_willingness", "judge_card_summary",
+                       "explicit_required", "willing", "rubric")
+#: element keys the report applies AFTER the verdict (weights, scored/pruned
+#: switches, rpdeep keyword gates, author notes): editing them re-scores the
+#: stored verdict, it does not need a new one
+_ELEMENT_SCORE_ONLY_KEYS = ("weight", "scored", "pruned", "unpruned", "sanity", "veto",
+                            "diag_require_any", "note", "gold_quote")
+STAMPS_DIR = Path(__file__).resolve().parent / "stamps"
+
+
+def _content_view(c: dict) -> dict:
+    """The generation-relevant content of one case (the case_hash input)."""
+    out = {k: v for k, v in c.items()
+           if k not in _GRADING_KEYS and k != "ladder_pack"}
+    for k in _NESTED_LISTS:
+        v = out.get(k)
+        if isinstance(v, list) and any(isinstance(x, dict) for x in v):
+            out[k] = [{kk: vv for kk, vv in x.items() if kk not in _NESTED_GRADING_KEYS}
+                      if isinstance(x, dict) else x for x in v]
+    return out
+
+
+def _grading_view(c: dict) -> dict:
+    out = {k: c[k] for k in _JUDGE_GRADING_KEYS if k in c}
+    els = out.get("judge_elements")
+    if isinstance(els, list):
+        out["judge_elements"] = [{k: v for k, v in e.items() if k not in _ELEMENT_SCORE_ONLY_KEYS}
+                                 if isinstance(e, dict) else e for e in els]
+    return out
+
+
+def _h8(obj) -> str:
+    return hashlib.sha256(json.dumps(obj, sort_keys=True, ensure_ascii=False)
+                          .encode()).hexdigest()[:8]
+
+
+def case_table(cases_dir: Path | None = None, ladder_dirs: list[Path] | None = None) -> dict:
+    """{case id: {"case": case_hash, "grading": grading_hash}} for every
+    public case: cases/*.json (bank and non-bank) + the questions written in
+    ladder pack files. Pure over the given dirs (the stamp snapshots are made
+    with it from a commit's case files)."""
+    return _case_table_kinds(cases_dir, ladder_dirs)[0]
+
+
+def _case_table_kinds(cases_dir: Path | None = None,
+                      ladder_dirs: list[Path] | None = None) -> tuple[dict, dict]:
+    """(case_table, {case id: "set" | "bank" | "ladder"}): "set" = a case of
+    the whole-set :func:`cases_hash`."""
+    from .ladder import inline_cases
+    cases_dir = cases_dir or _CASES_DIR
+    out: dict = {}
+    kinds: dict = {}
+    for p in sorted(cases_dir.glob("*.json")):
+        data = json.loads(p.read_bytes())
+        for c in data if isinstance(data, list) else data.get("cases", []):
+            if isinstance(c, dict) and c.get("id"):
+                out[c["id"]] = {"case": _h8(_content_view(c)), "grading": _h8(_grading_view(c))}
+                kinds[c["id"]] = "bank" if p.stem in BANK_CATEGORIES else "set"
+    for c in inline_cases(dirs=ladder_dirs) if ladder_dirs is not None else inline_cases():
+        if c["id"] not in out:
+            out[c["id"]] = {"case": _h8(_content_view(c)), "grading": _h8(_grading_view(c))}
+            kinds[c["id"]] = "ladder"
+    return out, kinds
+
+
+_CASE_TABLE: dict = {}
+
+
+def _files_key() -> tuple:
+    from . import ladder
+    files = sorted(_CASES_DIR.glob("*.json")) + [f for _k, _n, f in ladder._set_files()]
+    key = []
+    for f in files:
+        try:
+            st = f.stat()
+            key.append((str(f), st.st_mtime_ns, st.st_size))
+        except OSError:
+            continue
+    return tuple(key)
+
+
+def current_case_table() -> dict:
+    """case_table() of the live case files, memoised on (mtime_ns, size) of
+    every file it reads."""
+    return _current()[0]
+
+
+def _current() -> tuple[dict, dict, str]:
+    """(case table, kinds, whole-set cases_hash) of the live case files."""
+    key = _files_key()
+    hit = _CASE_TABLE.get(key)
+    if hit is None:
+        table, kinds = _case_table_kinds()
+        hit = (table, kinds, cases_hash())
+        _CASE_TABLE.clear()
+        _CASE_TABLE[key] = hit
+    return hit
+
+
+def case_hash(case_id: str | None) -> str | None:
+    """Per-case content hash (grading keys and nested tool-step needles
+    excluded, sort_keys, sha256[:8]); None = no such public case."""
+    e = current_case_table().get(str(case_id))
+    return e["case"] if e else None
+
+
+def grading_hash(case_id: str | None) -> str | None:
+    """Hash of the judge-relevant grading keys of one case (judge_elements
+    minus score-only keys, judge_willingness, judge_card_summary, the
+    explicit_required / willing tags, rubric). Not ``checks`` and not the
+    tool-step needles: both are re-applied at report time."""
+    e = current_case_table().get(str(case_id))
+    return e["grading"] if e else None
+
+
+def bank_case_hash(category: str, case_id: str) -> str | None:
+    """Content hash of ONE code-bank case — the ``bank_revision`` stamp. A
+    thin alias of :func:`case_hash` (same recipe: rows stamped before 3.10
+    keep matching)."""
+    if category not in BANK_CATEGORIES or not (_CASES_DIR / f"{category}.json").is_file():
+        return None
+    return case_hash(case_id)
+
+
+_SNAPSHOTS: dict = {}
+
+
+def stamp_snapshot(bench_revision: str | None) -> dict:
+    """The frozen {case id: {"case", "grading"}} of a pre-3.10 bench_revision
+    (crucibleforge/stamps/<stamp>.json), {} when there is none."""
+    if not bench_revision:
+        return {}
+    if bench_revision not in _SNAPSHOTS:
+        p = STAMPS_DIR / f"{bench_revision}.json"
+        try:
+            _SNAPSHOTS[bench_revision] = json.loads(p.read_text(encoding="utf-8")) if p.is_file() else {}
+        except (OSError, ValueError):
+            _SNAPSHOTS[bench_revision] = {}
+    return _SNAPSHOTS[bench_revision]
+
+
+def snapshot_stamps() -> set[str]:
+    return {p.stem for p in STAMPS_DIR.glob("*.json")} if STAMPS_DIR.is_dir() else set()
+
+
+def row_case_stamp(row: dict) -> str | None:
+    """The content stamp a row answered: ``case_revision`` (3.10+), else its
+    ``ladder_revision`` / ``bank_revision`` (same recipe), else the snapshot of
+    its bench_revision."""
+    for k in ("case_revision", "ladder_revision", "bank_revision"):
+        if row.get(k):
+            return row[k]
+    cid = str(row.get("case_id"))
+    e = stamp_snapshot(row.get("bench_revision")).get(cid)
+    if e:
+        return e["case"]
+    # no per-case stamp and no snapshot: a whole-set stamp equal to today's
+    # cases_hash() says every case of the set is unchanged (bank cases and
+    # pack questions are outside that hash and always carry their own stamp)
+    table, kinds, whole = _current()
+    stamp = str(row.get("bench_revision") or "")
+    if kinds.get(cid) == "set" and "+" in stamp and stamp.split("+", 1)[1] == whole:
+        return table[cid]["case"]
+    return None
+
+
+def verdict_grading_stamp(row: dict) -> str | None:
+    """The grading stamp a row's stored verdict was made under:
+    ``judge.grading_revision`` (3.10+), else the snapshot of the row's
+    bench_revision. None = unknown (never forces a re-judge)."""
+    j = row.get("judge")
+    if isinstance(j, dict) and j.get("grading_revision"):
+        return j["grading_revision"]
+    e = stamp_snapshot(row.get("bench_revision")).get(str(row.get("case_id")))
+    return e["grading"] if e else None     # unknown: never forces a re-judge
+
+
+def in_regime(row_or_stamp) -> bool:
+    """Made under the current measurement regime (suite at or after _REGIME_SINCE),
+    compared as version tuples — never as strings ("3.10.0" < "3.9.0")."""
+    stamp = row_or_stamp.get("bench_revision") if isinstance(row_or_stamp, dict) else row_or_stamp
+    v = stamp_version(suite_of(stamp))
+    return bool(v) and v >= stamp_version(_REGIME_SINCE)
+
+
+_BANK_FLOOR: dict = {}
+
+
+def _bank_floor(cfg: dict | None) -> tuple[int | None, set[str]]:
+    """(bank load floor = bank_budget + ESCALATION_CTX_PAD, names of the
+    studioforge providers); (None, ...) when the profile has no bank budget."""
+    if cfg is None and "default" in _BANK_FLOOR:
+        return _BANK_FLOOR["default"]
+    c = _load_cfg(cfg)
+    rig = {n for n, p in (c.get("providers") or {}).items()
+           if isinstance(p, dict) and p.get("type") == "studioforge"}
+    floor = None
+    try:
+        from .profiles import DEFAULT_PROFILE, load_profile
+        from .runner import ESCALATION_CTX_PAD
+        b = int(load_profile(DEFAULT_PROFILE, c).get("bank_budget") or 0)
+        floor = (b + ESCALATION_CTX_PAD) if b else None
+    except Exception:  # noqa: BLE001 — no profile: no clamp test
+        floor = None
+    out = (floor, rig)
+    if cfg is None:
+        _BANK_FLOOR["default"] = out
+    return out
+
+
+def bank_row_clamped(row: dict, cfg: dict | None = None) -> bool:
+    """A code-bank row a RIG model answered in a window narrower than the bank
+    load floor (73,728 today): its budget was cut by the server, not by the
+    bank budget (review H, rig rows at 40,960) — not current, re-generate."""
+    if row.get("category") not in BANK_CATEGORIES:
+        return False
+    floor, rig = _bank_floor(cfg)
+    if not floor or row.get("provider") not in rig:
+        return False
+    ctx = row.get("load_ctx")
+    try:
+        return ctx is not None and int(ctx) < floor
+    except (TypeError, ValueError):
+        return False
+
+
+def row_current(row: dict, cfg: dict | None = None) -> bool:
+    """THE currency rule (3.10): made under the current regime (version
+    tuple at or after _REGIME_SINCE), answering the CURRENT content of its own case
+    (row_case_stamp == case_hash), and — a code-bank row on the rig — not
+    answered in a clamped window. Private rows: their category stamp
+    (private_row_current) under the current regime."""
+    if not in_regime(row):
+        return False
+    from . import config as _config
+    if row.get("category") in _config.PRIVATE_CATEGORIES:
+        return private_row_current(row)
+    cur = case_hash(row.get("case_id"))
+    if cur is None or row_case_stamp(row) != cur:
+        return False
+    return not bank_row_clamped(row, cfg)
+
+
+def regrade_needed(row: dict) -> bool:
+    """A stored verdict made under other judge-grading content than the case
+    has now (re-judge from the transcript, no generation)."""
+    j = row.get("judge")
+    if not isinstance(j, dict):
+        return False
+    stamp = verdict_grading_stamp(row)
+    cur = grading_hash(row.get("case_id"))
+    return stamp is not None and cur is not None and stamp != cur
+
+
+def bank_row_current(row: dict) -> bool:
+    """Back-compat: a code-bank row's currency = :func:`row_current`."""
+    return row_current(row)
+
+
+def ladder_case_hash(case_id: str) -> str | None:
+    """The ``ladder_revision`` stamp of a question written inside a ladder
+    pack — a thin alias of :func:`case_hash` restricted to pack questions."""
+    from .ladder import inline_cases
+    if not any(c["id"] == case_id for c in inline_cases()):
+        return None
+    return case_hash(case_id)
+
+
+def ladder_row_current(row: dict) -> bool:
+    """Back-compat: a pack question's currency = :func:`row_current`."""
+    return row_current(row)
 
 
 def private_category_hash(category: str) -> str | None:
@@ -242,6 +610,20 @@ def revision(cfg: dict | None = None) -> str:
 
 
 def current_revisions(cfg: dict | None = None) -> set[str]:
-    """Every stamp that means 'this test set, as configured now'."""
+    """Every whole-run stamp that counts as the current regime — for metas
+    and the legacy paths. ROW currency is decided per row and per case
+    (:func:`row_current`), never by this set. Includes every frozen snapshot
+    stamp of the current regime (crucibleforge/stamps/): its rows are judged
+    case by case against the current case content."""
+    since = stamp_version(_REGIME_SINCE)
     return ({revision(cfg), legacy_revision(cfg)}
-            | _EQUIVALENT_STAMPS.get(cases_hash(), set()))
+            | {s for s in _EQUIVALENT_STAMPS.get(cases_hash(), set())
+               if stamp_version(s) >= since}
+            | {s for s in snapshot_stamps() if stamp_version(s) >= since})
+
+
+def previous_regime_revisions() -> set[str]:
+    """Every stamp the last board of the PREVIOUS regime counted (3.7.0 and
+    everything it treated as equivalent). Rows carrying one are shown as
+    "old" until the model has a complete current run."""
+    return set(_PREVIOUS_REGIME)

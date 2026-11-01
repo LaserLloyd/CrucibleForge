@@ -1,0 +1,7 @@
+2026-08-03T19:22:10Z guestbook[311]: POST / 500
+2026-08-03T19:22:10Z guestbook[311]: Traceback (most recent call last):
+2026-08-03T19:22:10Z guestbook[311]:   File "guestbook/entries.py", line 16, in add_entry
+2026-08-03T19:22:10Z guestbook[311]: sqlite3.OperationalError: near "Brien": syntax error
+2026-08-04T08:01:55Z guestbook[311]: GET /?q=50%25 200 (31 results)
+2026-08-05T21:40:02Z guestbook[311]: POST / 500
+2026-08-05T21:40:02Z guestbook[311]: sqlite3.OperationalError: near "s": syntax error

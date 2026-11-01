@@ -1,0 +1,53 @@
+id: CB-C4-predict-bash
+category: codebank
+family: predict
+difficulty: hard
+max_tokens: 4096
+issue: |
+  These snippets come from the home server's shell scripts. Each one is
+  runnable as shown (bash 5, in an empty directory). Say exactly what each
+  prints.
+snippets:
+  - title: file names
+    lang: bash
+    code: |
+      f="/var/mnt/backup/home server.2026-10-25.tar.zst"
+      echo "${f##*/}" "${f%.*}" "${f%%.*}" "${f#*.}"
+  - title: counting lines in a loop
+    lang: bash
+    code: |
+      n=0
+      printf 'a\nb\nc\n' | while read -r line; do n=$((n + 1)); done
+      echo "pipe n=$n"
+      while read -r line; do n=$((n + 1)); done < <(printf 'a\nb\n')
+      echo "redirect n=$n"
+  - title: zero-padded hours
+    lang: bash
+    code: |
+      for h in 07 08 10; do
+        if (( h + 1 > 9 )) 2>/dev/null; then echo "$h late"; else echo "$h early-or-error"; fi
+      done
+  - title: errexit in a condition
+    lang: bash
+    code: |
+      set -e
+      check() { false; echo "after false"; }
+      if check; then echo "check ok"; fi
+      check || echo "fallback"
+      echo end
+  - title: patterns and regexes
+    lang: bash
+    code: |
+      s="backup-2026.tar"
+      [[ $s == backup-* ]] && echo glob1
+      [[ $s == "backup-*" ]] && echo glob2
+      [[ $s =~ ^backup-[0-9]+\.tar$ ]] && echo re1
+      re='^backup-[0-9]+.tar$'; [[ $s =~ $re ]] && echo re2
+      [[ $s =~ "$re" ]] && echo re3
+      echo done
+  - title: reading a config line
+    lang: bash
+    code: |
+      printf 'path=C:\\temp\\new  \n' > cfg
+      IFS= read -r a < cfg; read b < cfg; read -r c < cfg
+      echo "[$a] [$b] [$c]"

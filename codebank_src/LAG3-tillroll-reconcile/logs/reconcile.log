@@ -1,0 +1,9 @@
+2026-10-26T21:02:11+01:00 tillroll[4410]: reconcile: bank.csv 1,204 lines, receipts.csv 1,262 receipts (2026-09)
+2026-10-26T21:02:12+01:00 tillroll[4410]: reconcile 0.8s, report 0.1s
+2026-10-27T20:40:03+01:00 tillroll[5127]: reconcile: bank.csv 3,377 lines, receipts.csv 3,519 receipts (2026-07..2026-09)
+2026-10-27T20:40:09+01:00 tillroll[5127]: reconcile 5.9s, report 0.7s
+2026-10-28T22:15:40+01:00 tillroll[6032]: reconcile: bank.csv 151,882 lines, receipts.csv 158,406 receipts (2025-11..2026-10, card terminal + online shop)
+2026-10-29T07:58:13+01:00 tillroll[6032]: killed by user (SIGTERM) after 9h42m, still in reconcile
+2026-10-29T08:05:51+01:00 note (Mirela): the year-end run never finished. Dana (accountant) needs the match list and the report by Friday and diffs them line by line against her copy of the old output for the months she already checked, so nothing may change except the speed.
+2026-10-29T08:12:30+01:00 note (Mirela): reminder, the web till numbers its receipts from 1 like the two shop tills, and the front till repeats a row after every crash (the copy comes right after it in the export). Dana books both copies, so they must stay two receipts.
+2026-10-29T08:20:02+01:00 note (Mirela): the slowest part last year was the Christmas market weekend: about 12,000 sales a day off our 40-item price list, and the bank books lots of card-less lines there that are not one or two receipts at all.

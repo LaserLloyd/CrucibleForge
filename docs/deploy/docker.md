@@ -228,6 +228,14 @@ Built `FROM ghcr.io/astral-sh/uv:python3.13-trixie-slim` and run on
 `python:3.13-slim-trixie` (same interpreter at the same path, uv not in the
 runtime image), non-root UID 1000, `/data` volume, tini via `init: true`,
 `HEALTHCHECK` on the GUI port. Tagged releases are published as
-`ghcr.io/laserlloyd/crucibleforge:<version>` with a CycloneDX SBOM, SHA256SUMS,
+`ghcr.io/laserlloyd/crucibleforge:<version>` with a CycloneDX SBOM, SHA256SUMS, <!-- scrub-ok: public GHCR image path, the project's own handle -->
 a cosign keyless signature and build-provenance attestation (see
 `.github/workflows/containers.yml`).
+
+## Rollback
+
+Pin the previous release image as the `app` service's `image:` in
+`deploy/compose/compose.yml`, then run
+`docker compose -f deploy/compose/compose.yml up -d`. State backups from each
+upgrade are in `/data/backups/`. The image is
+`ghcr.io/laserlloyd/crucibleforge:<version>`. <!-- scrub-ok: published image name -->

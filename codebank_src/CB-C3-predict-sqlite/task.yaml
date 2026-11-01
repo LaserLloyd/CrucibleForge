@@ -1,0 +1,68 @@
+id: CB-C3-predict-sqlite
+category: codebank
+family: predict
+difficulty: hard
+max_tokens: 4096
+issue: |
+  These snippets come from the household services' SQLite code (Python's
+  sqlite3 module). Each one is runnable as shown. Say exactly what each
+  prints.
+snippets:
+  - title: who has no chores
+    lang: python
+    code: |
+      import sqlite3
+      db = sqlite3.connect(":memory:")
+      db.executescript("""
+      CREATE TABLE people (id INTEGER PRIMARY KEY, name TEXT);
+      CREATE TABLE chores (person_id INTEGER, chore TEXT, done INTEGER);
+      INSERT INTO people VALUES (1, 'Ana'), (2, 'Ben'), (3, 'Cy');
+      INSERT INTO chores VALUES (1, 'dishes', 1), (1, 'bins', 0), (2, 'laundry', 1);
+      """)
+      a = db.execute("SELECT p.name, count(c.chore) FROM people p LEFT JOIN chores c ON c.person_id = p.id AND c.done = 0 GROUP BY p.id ORDER BY p.id").fetchall()
+      b = db.execute("SELECT p.name, count(c.chore) FROM people p LEFT JOIN chores c ON c.person_id = p.id WHERE c.done = 0 GROUP BY p.id ORDER BY p.id").fetchall()
+      print(a)
+      print(b)
+  - title: averages and types
+    lang: python
+    code: |
+      import sqlite3
+      db = sqlite3.connect(":memory:")
+      db.execute("CREATE TABLE r (stars INTEGER, note TEXT)")
+      db.executemany("INSERT INTO r VALUES (?, ?)", [(5, "a"), (4, None), (None, "c"), ("3", "d")])
+      print(db.execute("SELECT avg(stars), sum(stars) / count(stars), count(*), count(note), typeof(max(stars)) FROM r").fetchone())
+  - title: sorting a feed with missing dates
+    lang: python
+    code: |
+      import sqlite3
+      db = sqlite3.connect(":memory:")
+      db.execute("CREATE TABLE f (id INTEGER, due TEXT)")
+      db.executemany("INSERT INTO f VALUES (?, ?)", [(1, "2026-10-03"), (2, None), (3, "2026-9-30"), (4, "2026-10-10")])
+      print([r[0] for r in db.execute("SELECT id FROM f ORDER BY due DESC")])
+      print([r[0] for r in db.execute("SELECT id FROM f WHERE due < '2026-10-05' ORDER BY id")])
+  - title: building labels
+    lang: python
+    code: |
+      import sqlite3
+      db = sqlite3.connect(":memory:")
+      row = db.execute("SELECT 'Ana' || ' ' || NULL, coalesce(NULL, '') || 'x', substr('pantry', 2, 3), 7 / 2, 7 / 2.0, '10' + 5, 'abc' < 'abd'").fetchone()
+      print(row)
+  - title: counting an upsert
+    lang: python
+    code: |
+      import sqlite3
+      db = sqlite3.connect(":memory:")
+      db.execute("CREATE TABLE c (day TEXT PRIMARY KEY, n INTEGER)")
+      for day in ["mon", "tue", "mon", "mon"]:
+          cur = db.execute("INSERT INTO c VALUES (?, 1) ON CONFLICT(day) DO UPDATE SET n = n + 1", (day,))
+      cur2 = db.execute("UPDATE c SET n = n * 10 WHERE n > 1")
+      print(cur2.rowcount, db.execute("SELECT * FROM c ORDER BY day").fetchall(), db.total_changes)
+  - title: distinct tags
+    lang: python
+    code: |
+      import sqlite3
+      db = sqlite3.connect(":memory:")
+      db.execute("CREATE TABLE t (tag TEXT)")
+      db.executemany("INSERT INTO t VALUES (?)", [("Photo",), ("photo",), (None,), ("photo ",), (None,)])
+      print(db.execute("SELECT count(DISTINCT tag), count(DISTINCT lower(tag)), count(*) - count(tag) FROM t").fetchone())
+      print(db.execute("SELECT tag FROM t WHERE tag = 'photo' COLLATE NOCASE ORDER BY rowid").fetchall())

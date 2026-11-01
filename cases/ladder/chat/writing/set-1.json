@@ -1,0 +1,3100 @@
+{
+ "level": 1,
+ "budget": 65536,
+ "note": "3.10 Chat pack (2026-10-29), Creative writing: three long co-writing briefs with stacked, checkable constraints - a 20-fact story bible with a fair-play twist and cumulative lexical rules (LWR1), a seamless continuation of a long excerpt whose habits are never stated (LWR2), and an epistolary exchange under a post-delay knowledge rule with exact counts (LWR3).",
+ "cases": [
+  {
+   "id": "LWR1-skerrow-bible",
+   "system": "You are the co-writer described in the card below, working one-on-one in a chat with the user, an author who is writing a short story with you one section at a time.\n\nRules (strict):\n1. Each reply is exactly the text the author asks for \u2014 the section itself, nothing before or after it: no greeting, no commentary, no notes, no questions back.\n2. Plain text only: no markdown, no headings, no bold or italics, no lists. A title, when asked for, is a plain line.\n3. Follow every instruction the author gives. Rules set in an earlier message hold for the whole story unless the author changes them.\n4. Count carefully: word limits are limits, and exact wording is exact.\n5. Keep every reply under 450 words.\n\nWRITING DESK \u2014 CO-WRITER CARD\n\nThe Writing Desk is a chat where an author drafts a piece of short fiction with a co-writer, one section at a time. The author decides what the story is; the co-writer writes it.\n\nThe co-writer's job. The author sends the brief for the next section in a message. The co-writer replies with that section and nothing else: no greeting, no \"Here is\", no notes on choices made, no offer to revise, no question back. The author will say so if something needs changing.\n\nThe author's rules. Rules the author sets for \"the whole piece\" hold for every later section until the author changes them. When the author changes something midway (\"from here on ...\"), the change holds from that point forward, and earlier sections are left as they are. Exact wording the author supplies is used exactly, punctuation included. Word limits are limits: the co-writer counts.\n\nCraft. The co-writer writes plain, concrete prose: specific objects, specific sounds, people doing things. Feeling is shown in what people do with their hands, their voices and the things around them. Endings land on something that can be seen or heard, not on a lesson. Nothing planted in a story is wasted.\n\nFormat. Plain text only. No markdown of any kind: no headings, no bold, no italics, no bullet points. A title, when the author asks for one, is a plain line on its own.",
+   "history": [],
+   "turns": [
+    "Let's write a short story together, one section per message. I'm giving you the story bible first. Every line of it is true in the story and has to stay consistent in every section.\n\nSTORY BIBLE\n1. Place: Skerrow Light, a lighthouse tower on a bare rock three miles off the coast of Maun island.\n2. Time: October 1931.\n3. The tower has 91 steps.\n4. The lamp shows three flashes every twenty seconds.\n5. The foghorn has been broken since March.\n6. Corran Voe, 29, runs the supply boat Marigold out of Maun harbour and delivers to the rock on alternate Tuesdays.\n7. On paper the keeper is Aldous Pryce, 62. In seven months on this run Corran has never once seen the keeper.\n8. Stores go up from the boat in a hoist basket cranked up from the gallery; the empty basket comes down with a note in it.\n9. The notes are in pencil, in block capitals, on the backs of old paraffin receipts, and they are never signed.\n10. The order is nearly always a sack of flour, two cans of paraffin and a tin of Harrow's Navy Cut tobacco.\n11. It is paid for in exact coins knotted into a handkerchief of white linen with a border of tiny embroidered terns.\n12. Pennant, a grey cat with one eye, is the only living thing Corran ever sees on the rock. She sits on the gallery rail.\n13. The smoke from the tower's stovepipe smells of toast, never of pipe tobacco.\n14. On the gallery sill stands a cracked teapot of red geraniums.\n15. The tower door at the foot is green and always shut.\n16. The only landing is a stone stage with one iron ring.\n17. The boat's engine is a single-cylinder Kelvin that coughs on the second beat.\n18. Corran lodges with his sister Netta, a baker's wife in Maun.\n19. The harbourmaster, Mr. Dunbar, pays Corran eleven shillings a run.\n20. In its whole life the light has never once failed.\n\nTHE SECRET (the reader must not learn it before section 4): Aldous Pryce died in February. His daughter Odile, 24, has kept the light alone ever since and signs nothing, so that the Board goes on paying \"A. Pryce\". Corran has been serving her for months without knowing. Facts 9, 11, 13 and 14 are the clues.\n\nRULES FOR THE WHOLE PIECE\n- Typing and counting: straight quotes and apostrophes only, no hyphens or dashes anywhere. A word is anything between spaces (numerals count as words). A sentence ends at a full stop, question mark or exclamation mark, so avoid abbreviations with full stops.\n- Close third person on Corran, past tense, until I say otherwise. Outside quoted speech the narration never uses I, me, my, we, us or our.\n- Plain text. The title goes on the first line of section 1 only, four words at most.\n- Never use any form of \"seem\", and never use somehow, suddenly, almost, quite, \"as if\" or \"as though\".\n- Fair play: until section 4 the words daughter, died, dead, death, funeral, grave, widow and Odile do not appear at all. The narration may refer to the keeper only as \"the keeper\" or \"Pryce\", never with he, him or his, and may never say or imply that Corran has seen the keeper. Plant the clues as plain detail; Corran never comments on what they might mean.\n\nHOUSE STYLE: this is the page of my draft that comes just before your section 1. Write the way it is written.\n\nRain came down on Maun harbour from four o'clock until after dark. Tenders slapped at the quay. Dunbar locked his office, shook the key twice, and went up the hill to supper. Men on the quay looked at the sky once and went home; there was nothing in it to read. By seven the lamps along the breakwater stood in their own halos, one after another, lit by no hand that Corran could see.\n\nNetta's oven was the only warm thing in the town. Bread came out of it in the old order, loaves first, then rolls, then the dark rye nobody paid for. Corran took a rye and ate it standing, with his back to the glass. Tuesday was a day away and the boat was ready.\n\nSection 1 (exactly 204 words, the title included, in three paragraphs of three sentences each after the title): begin with exactly this sentence: \"On alternate Tuesdays, Corran Voe brought the Marigold in under the lee of Skerrow Light.\" Establish the place, the month and year, and the island by name, and state the number of steps once, as a numeral. Plant clues 9 and 11 (the word \"capitals\" and the word \"terns\" must both appear). The last sentence of the section is exactly: The basket went up, and the basket came down.",
+    "New rule from section 2 on: no sentence in the story begins with the word \"The\" (the two exact sentences I dictate in section 1 are the only exceptions, and the dictated closing sentence of section 1 may be reused in section 5).\n\nSection 2: exactly twelve sentences in four paragraphs of 3, 2, 4 and 3 sentences, and sentence number n has exactly n+4 words (so 5 words, then 6, then 7, up to 16 words in the twelfth). The lamp's pattern (three flashes, every twenty seconds, written out like that) goes in paragraph 2 and nowhere else. Pennant appears in paragraph 3. Plant clue 13: the word \"toast\" must appear. The word \"basket\" appears exactly twice in the section. Still Corran's close third, past tense.",
+    "New rule from section 3 on: no word of more than nine letters, names included.\n\nSection 3 (exactly 160 words): Corran calls up the tower twice, so there are exactly two quoted lines in the section, both his; nobody answers aloud. Plant clue 14: the words \"teapot\" and \"geraniums\" must both appear. The section's final sentence contains the word \"foghorn\".",
+    "Author's note before section 4. Four changes from here to the end of the story; earlier sections stay as they are, so write forward:\n(1) The point of view moves to Odile Pryce, the keeper: close third on her, still past tense. Corran is seen and heard only as she sees and hears him, and the narration never enters his head.\n(2) His boat is the Gannet, not the Marigold.\n(3) Corran is 31, not 29.\n(4) The tower has 93 steps, not 91.\n\nNew rule from section 4 on, besides the note: no word ending in \"ly\".\n\nSection 4 (exactly 240 words, in exactly three paragraphs): the reveal. A fog has come down and the foghorn is dead, so Corran climbs the tower for the first time. Show the truth through an object: the keeper's logbook, which is in two hands. Name Odile. The month February must appear. At least two of the four clues (capitals, terns, toast, teapot) are recalled here by their specific detail and recast by what is now known. Exactly one line of quoted speech in the section, and it is Corran's.",
+    "Section 5, the last one (exactly 100 words): exactly three paragraphs of 2, 2 and 1 sentences. The final paragraph is a single sentence of exactly 14 words and it contains the phrases \"three flashes\" and \"twenty seconds\". Somewhere in the section bring back the last sentence of section 1 with exactly one word changed. Keep every change from my note. Stay with Odile; show her feeling only through what she does with her hands.",
+    "Thanks. Last thing, for the next co-writer: in no more than 60 words, plain sentences, nothing else, list every fact of the bible that I changed during the story, giving the old value and the new one."
+   ],
+   "temperature": 0.8,
+   "top_p": 0.95,
+   "max_tokens": 2000,
+   "rubric": "rp_deep",
+   "judge_key": "The assistant is the co-writer; the user is the author. The story so far is the assistant's replies, one section per turn. Bible: Skerrow Light, October 1931, 91 steps, lamp three flashes every twenty seconds, foghorn broken since March, supply boat Marigold run by Corran Voe (29), keeper on paper Aldous Pryce (62), never seen; hoist basket, pencilled block-capital unsigned notes, Harrow's Navy Cut, coins knotted in a tern-bordered handkerchief, one-eyed cat Pennant, smoke that smells of toast, teapot of geraniums. SECRET: Aldous died in February; his daughter Odile (24) keeps the light under his name. Clues 9, 11, 13, 14 must be planted as plain detail in sections 1-3 with fair play (no reveal words, the keeper never called he/him, never seen) and the reveal in section 4 comes through a two-handed logbook. From section 4 the POV is close third on Odile, the boat is the Gannet, Corran is 31, the tower has 93 steps. Section 5 echoes the last sentence of section 1 with one word changed and ends on a 14-word sentence. Turn 6 asks for a recap of exactly the three bible changes (boat, age, steps).",
+   "judge_card_summary": "The Writing Desk co-writer: an author and a co-writer draft one short story section by section in a chat. The co-writer replies with exactly the requested section (no commentary, no markdown, title as a plain line). Rules set \"for the whole piece\" hold until the author changes them; a midway change (\"from here on\") holds forward only. Plain, concrete prose; feeling shown through hands, voices and objects; endings land on something seen or heard; nothing planted is wasted.",
+   "user_name": "the author",
+   "min_context": 40960,
+   "checks": [
+    {
+     "id": "TL-title-opening",
+     "fact": "TL",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "require_regex",
+     "turns": [
+      1
+     ],
+     "pattern": "\\A\\s*(?:\\S+[ \\t]+){0,3}\\S+[ \\t]*\\n\\s*On alternate Tuesdays, Corran Voe brought the Marigold in under the lee of Skerrow Light\\.",
+     "scope": "all",
+     "note": "a title of at most four words, then the exact opening sentence",
+     "weight": 0.08
+    },
+    {
+     "id": "W1-exact-204",
+     "fact": "W1",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "word_range",
+     "turns": [
+      1
+     ],
+     "min": 204,
+     "max": 204,
+     "note": "exactly 204 words, title included",
+     "weight": 0.08
+    },
+    {
+     "id": "A1-paragraph-sentences",
+     "fact": "A1",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "require_regex",
+     "turns": [
+      1
+     ],
+     "pattern": "\\A\\s*[^\\n.!?]+\\n(?:[ \\t]*\\n)+(?:[ \\t]*[A-Za-z0-9\\\"'(][^.!?\\n]*[.!?]+[\\\"')]*[ \\t]*){3}\\n(?:[ \\t]*\\n)+(?:[ \\t]*[A-Za-z0-9\\\"'(][^.!?\\n]*[.!?]+[\\\"')]*[ \\t]*){3}\\n(?:[ \\t]*\\n)+(?:[ \\t]*[A-Za-z0-9\\\"'(][^.!?\\n]*[.!?]+[\\\"')]*[ \\t]*){3}\\s*\\Z",
+     "scope": "all",
+     "note": "title, then three paragraphs of three sentences",
+     "weight": 0.08
+    },
+    {
+     "id": "L1-last-sentence",
+     "fact": "L1",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "require_regex",
+     "turns": [
+      1
+     ],
+     "pattern": "(?:^|[.!?]\\s+)The basket went up, and the basket came down\\.[\\\"\u201d]?\\s*\\Z",
+     "scope": "all",
+     "weight": 0.08
+    },
+    {
+     "id": "N1-numeral-steps",
+     "fact": "N1",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "require_regex",
+     "turns": [
+      1
+     ],
+     "pattern": "\\b91\\b",
+     "scope": "all",
+     "weight": 0.08
+    },
+    {
+     "id": "C1-capitals-terns",
+     "fact": "C1",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "require_regex",
+     "turns": [
+      1
+     ],
+     "pattern": "\\A(?=[\\s\\S]*\\bcapitals\\b)(?=[\\s\\S]*\\bterns\\b)",
+     "scope": "all",
+     "note": "clues 9 and 11 planted in section 1",
+     "weight": 0.08
+    },
+    {
+     "id": "P1-place-time",
+     "fact": "P1",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "require_regex",
+     "turns": [
+      1
+     ],
+     "pattern": "\\A(?=[\\s\\S]*\\bMaun\\b)(?=[\\s\\S]*\\bOctober 1931\\b)(?=[\\s\\S]*\\bSkerrow\\b)",
+     "scope": "all",
+     "weight": 0.08
+    },
+    {
+     "id": "A2-paragraph-sentences",
+     "fact": "A2",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "require_regex",
+     "turns": [
+      2
+     ],
+     "pattern": "\\A\\s*(?:[ \\t]*[A-Za-z0-9\\\"'(][^.!?\\n]*[.!?]+[\\\"')]*[ \\t]*){3}\\n(?:[ \\t]*\\n)+(?:[ \\t]*[A-Za-z0-9\\\"'(][^.!?\\n]*[.!?]+[\\\"')]*[ \\t]*){2}\\n(?:[ \\t]*\\n)+(?:[ \\t]*[A-Za-z0-9\\\"'(][^.!?\\n]*[.!?]+[\\\"')]*[ \\t]*){4}\\n(?:[ \\t]*\\n)+(?:[ \\t]*[A-Za-z0-9\\\"'(][^.!?\\n]*[.!?]+[\\\"')]*[ \\t]*){3}\\s*\\Z",
+     "scope": "all",
+     "note": "four paragraphs of 3, 2, 4, 3 sentences",
+     "weight": 0.72
+    },
+    {
+     "id": "S2a-sentence-2-six-words",
+     "fact": "S2a",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "require_regex",
+     "turns": [
+      2
+     ],
+     "pattern": "\\A\\s*(?:[ \\t]*[A-Za-z0-9\\\"'(][^.!?]*[.!?]+[\\\"')]*\\s*){1}[ \\t]*(?:[^\\s.!?]+[ \\t]+){5}[^\\s.!?]+[.!?]+",
+     "scope": "all",
+     "weight": 0.08
+    },
+    {
+     "id": "S2b-sentence-5-nine-words",
+     "fact": "S2b",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "require_regex",
+     "turns": [
+      2
+     ],
+     "pattern": "\\A\\s*(?:[ \\t]*[A-Za-z0-9\\\"'(][^.!?]*[.!?]+[\\\"')]*\\s*){4}[ \\t]*(?:[^\\s.!?]+[ \\t]+){8}[^\\s.!?]+[.!?]+",
+     "scope": "all",
+     "weight": 0.08
+    },
+    {
+     "id": "S2c-sentence-8-twelve-words",
+     "fact": "S2c",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "require_regex",
+     "turns": [
+      2
+     ],
+     "pattern": "\\A\\s*(?:[ \\t]*[A-Za-z0-9\\\"'(][^.!?]*[.!?]+[\\\"')]*\\s*){7}[ \\t]*(?:[^\\s.!?]+[ \\t]+){11}[^\\s.!?]+[.!?]+",
+     "scope": "all",
+     "weight": 0.08
+    },
+    {
+     "id": "S2d-sentence-11-fifteen-words",
+     "fact": "S2d",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "require_regex",
+     "turns": [
+      2
+     ],
+     "pattern": "\\A\\s*(?:[ \\t]*[A-Za-z0-9\\\"'(][^.!?]*[.!?]+[\\\"')]*\\s*){10}[ \\t]*(?:[^\\s.!?]+[ \\t]+){14}[^\\s.!?]+[.!?]+",
+     "scope": "all",
+     "weight": 0.08
+    },
+    {
+     "id": "W2-exact-126",
+     "fact": "W2",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "word_range",
+     "turns": [
+      2
+     ],
+     "min": 126,
+     "max": 126,
+     "note": "5+6+...+16 = 126 words",
+     "weight": 0.72
+    },
+    {
+     "id": "F2-pattern-in-para-2",
+     "fact": "F2",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "require_regex",
+     "turns": [
+      2
+     ],
+     "pattern": "\\A\\s*(?:[ \\t]*\\S[^\\n]*(?:\\n[ \\t]*\\S[^\\n]*)*\\n(?:[ \\t]*\\n)+){1}[^\\n]*(?:three flashes[^\\n]*\\btwenty seconds\\b|\\btwenty seconds\\b[^\\n]*three flashes)",
+     "scope": "all",
+     "note": "three flashes / twenty seconds, written out, in paragraph 2",
+     "weight": 0.08
+    },
+    {
+     "id": "G2-pattern-only-para-2",
+     "fact": "G2",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "forbid_regex",
+     "turns": [
+      2
+     ],
+     "pattern": "\\A\\s*[^\\n]*(?:three flashes|twenty seconds)|\\A\\s*(?:[ \\t]*\\S[^\\n]*(?:\\n[ \\t]*\\S[^\\n]*)*\\n(?:[ \\t]*\\n)+){2}[^\\n]*(?:three flashes|twenty seconds)|\\A\\s*(?:[ \\t]*\\S[^\\n]*(?:\\n[ \\t]*\\S[^\\n]*)*\\n(?:[ \\t]*\\n)+){3}[^\\n]*(?:three flashes|twenty seconds)",
+     "scope": "all",
+     "note": "the lamp pattern appears in no other paragraph",
+     "weight": 0.08
+    },
+    {
+     "id": "H2-pennant-para-3",
+     "fact": "H2",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "require_regex",
+     "turns": [
+      2
+     ],
+     "pattern": "\\A\\s*(?:[ \\t]*\\S[^\\n]*(?:\\n[ \\t]*\\S[^\\n]*)*\\n(?:[ \\t]*\\n)+){2}[^\\n]*(?:\\bPennant\\b)",
+     "scope": "all",
+     "weight": 0.08
+    },
+    {
+     "id": "T2-toast",
+     "fact": "T2",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "require_regex",
+     "turns": [
+      2
+     ],
+     "pattern": "\\btoast\\b",
+     "scope": "all",
+     "weight": 0.08
+    },
+    {
+     "id": "K2-basket-twice",
+     "fact": "K2",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "require_regex",
+     "turns": [
+      2
+     ],
+     "pattern": "\\A(?:(?!\\bbasket\\b)[\\s\\S])*(?:\\bbasket\\b(?:(?!\\bbasket\\b)[\\s\\S])*){2}\\Z",
+     "scope": "all",
+     "note": "the word basket exactly twice",
+     "weight": 0.08
+    },
+    {
+     "id": "W3-exact-160",
+     "fact": "W3",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "word_range",
+     "turns": [
+      3
+     ],
+     "min": 160,
+     "max": 160,
+     "weight": 0.72
+    },
+    {
+     "id": "Q3-two-quoted-lines",
+     "fact": "Q3",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "require_regex",
+     "turns": [
+      3
+     ],
+     "pattern": "\\A(?:[^\\\"\u201c\u201d]*[\\\"\u201c][^\\\"\u201d\u201c\\n]{2,}[\\\"\u201d]){2}[^\\\"\u201c\u201d]*\\Z",
+     "scope": "all",
+     "note": "exactly two quoted spans",
+     "weight": 0.72
+    },
+    {
+     "id": "E3-teapot-geraniums",
+     "fact": "E3",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "require_regex",
+     "turns": [
+      3
+     ],
+     "pattern": "\\A(?=[\\s\\S]*\\bteapot\\b)(?=[\\s\\S]*\\bgeraniums\\b)",
+     "scope": "all",
+     "weight": 0.08
+    },
+    {
+     "id": "O3-foghorn-last",
+     "fact": "O3",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "require_regex",
+     "turns": [
+      3
+     ],
+     "pattern": "\\bfoghorn\\b[^.!?]*[.!?][\\\"\u201d\u2019]?\\s*\\Z",
+     "scope": "all",
+     "note": "the final sentence contains foghorn",
+     "weight": 0.08
+    },
+    {
+     "id": "R1-fair-play-words",
+     "fact": "R1",
+     "ftype": "format",
+     "group": "continuity",
+     "type": "forbid_regex",
+     "turns": [
+      1,
+      2,
+      3
+     ],
+     "pattern": "\\b(?:daughter|died|dead|death|funeral|grave|widow|Odile)\\b",
+     "scope": "all",
+     "note": "no reveal words before section 4",
+     "weight": 0.72
+    },
+    {
+     "id": "B1-banned-words",
+     "fact": "B1",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "forbid_regex",
+     "turns": [
+      1,
+      2,
+      3,
+      4,
+      5
+     ],
+     "pattern": "\\b(?:seem\\w*|somehow|suddenly|almost|quite|as if|as though)\\b",
+     "scope": "all",
+     "weight": 0.08
+    },
+    {
+     "id": "U2-no-The-sentence-start",
+     "fact": "U2",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "forbid_regex",
+     "turns": [
+      2,
+      3,
+      4,
+      5
+     ],
+     "pattern": "(?:^|[.!?][\\\"')]*\\s+)The\\b(?!\\s+basket went up, and the basket came down)",
+     "scope": "all",
+     "note": "from section 2 on no sentence begins with The (the dictated sentence may return)",
+     "weight": 0.72
+    },
+    {
+     "id": "U3-nine-letters",
+     "fact": "U3",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "forbid_regex",
+     "turns": [
+      3,
+      4,
+      5
+     ],
+     "pattern": "\\b[A-Za-z]{10,}\\b",
+     "scope": "all",
+     "note": "from section 3 on no word over nine letters",
+     "weight": 0.72
+    },
+    {
+     "id": "U4-no-ly",
+     "fact": "U4",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "forbid_regex",
+     "turns": [
+      4,
+      5
+     ],
+     "pattern": "\\b\\w+ly\\b",
+     "scope": "all",
+     "note": "from section 4 on no word ending in ly",
+     "weight": 0.08
+    },
+    {
+     "id": "S2-ramp-all-twelve",
+     "fact": "S2",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "require_regex",
+     "turns": [
+      2
+     ],
+     "pattern": "\\A\\s*(?:[ \t]*(?:[^\\s.!?]+[ \\t]+){4}[^\\s.!?]+[.!?]+[ \\t]*[ \t]*(?:[^\\s.!?]+[ \\t]+){5}[^\\s.!?]+[.!?]+[ \\t]*[ \t]*(?:[^\\s.!?]+[ \\t]+){6}[^\\s.!?]+[.!?]+[ \\t]*)\\n(?:[ \\t]*\\n)+(?:[ \t]*(?:[^\\s.!?]+[ \\t]+){7}[^\\s.!?]+[.!?]+[ \\t]*[ \t]*(?:[^\\s.!?]+[ \\t]+){8}[^\\s.!?]+[.!?]+[ \\t]*)\\n(?:[ \\t]*\\n)+(?:[ \t]*(?:[^\\s.!?]+[ \\t]+){9}[^\\s.!?]+[.!?]+[ \\t]*[ \t]*(?:[^\\s.!?]+[ \\t]+){10}[^\\s.!?]+[.!?]+[ \\t]*[ \t]*(?:[^\\s.!?]+[ \\t]+){11}[^\\s.!?]+[.!?]+[ \\t]*[ \t]*(?:[^\\s.!?]+[ \\t]+){12}[^\\s.!?]+[.!?]+[ \\t]*)\\n(?:[ \\t]*\\n)+(?:[ \t]*(?:[^\\s.!?]+[ \\t]+){13}[^\\s.!?]+[.!?]+[ \\t]*[ \t]*(?:[^\\s.!?]+[ \\t]+){14}[^\\s.!?]+[.!?]+[ \\t]*[ \t]*(?:[^\\s.!?]+[ \\t]+){15}[^\\s.!?]+[.!?]+[ \\t]*)\\s*\\Z",
+     "scope": "all",
+     "note": "every sentence n has n+4 words, in paragraphs of 3, 2, 4, 3",
+     "weight": 0.72
+    },
+    {
+     "id": "H1-no-pronoun-start",
+     "fact": "HA",
+     "ftype": "format",
+     "group": "continuity",
+     "type": "forbid_regex",
+     "turns": [
+      1,
+      2,
+      3,
+      4,
+      5
+     ],
+     "pattern": "(?:^|[.!?][\\\"')]*\\s+)(?:He|She|It|They|We|I|You|His|Her|Its|Their|This|That|There|These|Those)\\b",
+     "scope": "narration",
+     "note": "house style: no sentence begins with a pronoun",
+     "weight": 2.0
+    },
+    {
+     "id": "H2-digits-only-authorised",
+     "fact": "HB",
+     "ftype": "format",
+     "group": "continuity",
+     "type": "forbid_regex",
+     "turns": [
+      1,
+      2,
+      3,
+      4,
+      5
+     ],
+     "pattern": "\\b(?!(?:91|93|1931|29|31)\\b)\\d+\\b",
+     "scope": "all",
+     "note": "house style: numbers are words (only the bible numerals may be digits)",
+     "weight": 0.08
+    },
+    {
+     "id": "HD-no-question-exclaim",
+     "fact": "HD",
+     "ftype": "format",
+     "group": "continuity",
+     "type": "forbid_regex",
+     "turns": [
+      1,
+      2,
+      3,
+      4,
+      5
+     ],
+     "pattern": "[?!]",
+     "scope": "narration",
+     "note": "house style: no question or exclamation marks in narration",
+     "weight": 0.08
+    },
+    {
+     "id": "HF-no-contractions",
+     "fact": "HF",
+     "ftype": "format",
+     "group": "continuity",
+     "type": "forbid_regex",
+     "turns": [
+      1,
+      2,
+      3,
+      4,
+      5
+     ],
+     "pattern": "\\b\\w+n['\u2019]t\\b|\\b(?:he|she|it|we|they|that|there|who|what)['\u2019](?:s|d|ll|re|ve|m)\\b",
+     "scope": "narration",
+     "note": "house style: no contractions in narration",
+     "weight": 0.08
+    },
+    {
+     "id": "HG-no-conjunction-start",
+     "fact": "HG",
+     "ftype": "format",
+     "group": "continuity",
+     "type": "forbid_regex",
+     "turns": [
+      1,
+      2,
+      3,
+      4,
+      5
+     ],
+     "pattern": "(?:^|[.!?][\\\"')]*\\s+)(?:And|But|Then|So|Yet|Or)\\b",
+     "scope": "narration",
+     "note": "house style: no sentence begins with a conjunction",
+     "weight": 0.08
+    },
+    {
+     "id": "HE2-weather-first-s2",
+     "fact": "HE2",
+     "ftype": "format",
+     "group": "continuity",
+     "type": "require_regex",
+     "turns": [
+      2
+     ],
+     "pattern": "\\A\\s*[^.!?]*\\b(?:rain|wind|gale|fog|frost|snow|mist|sleet|squall|storm|drizzle|cloud|haze|swell|sun|sunlight|hail|thunder|breeze)\\w*\\b",
+     "scope": "all",
+     "note": "house style: a section opens on the weather (section 2)",
+     "weight": 1.15
+    },
+    {
+     "id": "HE3-weather-first-s3",
+     "fact": "HE3",
+     "ftype": "format",
+     "group": "continuity",
+     "type": "require_regex",
+     "turns": [
+      3
+     ],
+     "pattern": "\\A\\s*[^.!?]*\\b(?:rain|wind|gale|fog|frost|snow|mist|sleet|squall|storm|drizzle|cloud|haze|swell|sun|sunlight|hail|thunder|breeze)\\w*\\b",
+     "scope": "all",
+     "note": "house style: a section opens on the weather (section 3)",
+     "weight": 1.57
+    },
+    {
+     "id": "HE4-weather-first-s4",
+     "fact": "HE4",
+     "ftype": "format",
+     "group": "continuity",
+     "type": "require_regex",
+     "turns": [
+      4
+     ],
+     "pattern": "\\A\\s*[^.!?]*\\b(?:rain|wind|gale|fog|frost|snow|mist|sleet|squall|storm|drizzle|cloud|haze|swell|sun|sunlight|hail|thunder|breeze)\\w*\\b",
+     "scope": "all",
+     "note": "house style: a section opens on the weather (section 4)",
+     "weight": 0.08
+    },
+    {
+     "id": "HE5-weather-first-s5",
+     "fact": "HE5",
+     "ftype": "format",
+     "group": "continuity",
+     "type": "require_regex",
+     "turns": [
+      5
+     ],
+     "pattern": "\\A\\s*[^.!?]*\\b(?:rain|wind|gale|fog|frost|snow|mist|sleet|squall|storm|drizzle|cloud|haze|swell|sun|sunlight|hail|thunder|breeze)\\w*\\b",
+     "scope": "all",
+     "note": "house style: a section opens on the weather (section 5)",
+     "weight": 1.57
+    },
+    {
+     "id": "HT2-clock-time-s2",
+     "fact": "HT2",
+     "ftype": "format",
+     "group": "continuity",
+     "type": "require_regex",
+     "turns": [
+      2
+     ],
+     "pattern": "\\b(?:o'clock|half past|quarter (?:past|to))",
+     "scope": "all",
+     "note": "house style: a clock time is given in words (o'clock / half past)",
+     "weight": 2.0
+    },
+    {
+     "id": "HT3-clock-time-s3",
+     "fact": "HT3",
+     "ftype": "format",
+     "group": "continuity",
+     "type": "require_regex",
+     "turns": [
+      3
+     ],
+     "pattern": "\\b(?:o'clock|half past|quarter (?:past|to))",
+     "scope": "all",
+     "note": "house style: a clock time is given in words (o'clock / half past)",
+     "weight": 2.0
+    },
+    {
+     "id": "HT4-clock-time-s4",
+     "fact": "HT4",
+     "ftype": "format",
+     "group": "continuity",
+     "type": "require_regex",
+     "turns": [
+      4
+     ],
+     "pattern": "\\b(?:o'clock|half past|quarter (?:past|to))",
+     "scope": "all",
+     "note": "house style: a clock time is given in words (o'clock / half past)",
+     "weight": 2.0
+    },
+    {
+     "id": "HT5-clock-time-s5",
+     "fact": "HT5",
+     "ftype": "format",
+     "group": "continuity",
+     "type": "require_regex",
+     "turns": [
+      5
+     ],
+     "pattern": "\\b(?:o'clock|half past|quarter (?:past|to))",
+     "scope": "all",
+     "note": "house style: a clock time is given in words (o'clock / half past)",
+     "weight": 2.0
+    },
+    {
+     "id": "H3-no-like",
+     "fact": "HC",
+     "ftype": "format",
+     "group": "continuity",
+     "type": "forbid_regex",
+     "turns": [
+      1,
+      2,
+      3,
+      4,
+      5
+     ],
+     "pattern": "\\blike\\b",
+     "scope": "all",
+     "note": "house style: no 'like' similes",
+     "weight": 0.08
+    },
+    {
+     "id": "Y1-straight-no-hyphens",
+     "fact": "Y1",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "forbid_regex",
+     "turns": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6
+     ],
+     "pattern": "[\u2018\u2019\u201c\u201d\u2010\u2011\u2013\u2014-]",
+     "scope": "all",
+     "note": "straight quotes only; no hyphens or dashes",
+     "weight": 0.72
+    },
+    {
+     "id": "V1-no-first-person",
+     "fact": "V1",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "forbid_regex",
+     "turns": [
+      1,
+      2,
+      3,
+      4,
+      5
+     ],
+     "pattern": "\\b(?:I|me|my|mine|myself|we|us|our|ours)\\b",
+     "scope": "narration",
+     "note": "no first person outside quoted speech",
+     "weight": 0.08
+    },
+    {
+     "id": "T1-past-tense",
+     "fact": "T1",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "tense",
+     "turns": [
+      1,
+      2,
+      3,
+      4,
+      5
+     ],
+     "want": "past",
+     "weight": 0.08
+    },
+    {
+     "id": "W4-exact-240",
+     "fact": "W4",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "word_range",
+     "turns": [
+      4
+     ],
+     "min": 240,
+     "max": 240,
+     "weight": 0.08
+    },
+    {
+     "id": "A4-three-paragraphs",
+     "fact": "A4",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "require_regex",
+     "turns": [
+      4
+     ],
+     "pattern": "\\A\\s*[ \\t]*\\S[^\\n]*(?:\\n[ \\t]*\\S[^\\n]*)*\\n(?:[ \\t]*\\n)+[ \\t]*\\S[^\\n]*(?:\\n[ \\t]*\\S[^\\n]*)*\\n(?:[ \\t]*\\n)+[ \\t]*\\S[^\\n]*(?:\\n[ \\t]*\\S[^\\n]*)*\\s*\\Z",
+     "scope": "all",
+     "weight": 0.08
+    },
+    {
+     "id": "O4-odile-logbook-february",
+     "fact": "O4",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "require_regex",
+     "turns": [
+      4
+     ],
+     "pattern": "\\A(?=[\\s\\S]*\\bOdile\\b)(?=[\\s\\S]*\\blogbook\\b)(?=[\\s\\S]*\\bFebruary\\b)",
+     "scope": "all",
+     "weight": 0.08
+    },
+    {
+     "id": "C4-two-clues-recalled",
+     "fact": "C4",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "require_regex",
+     "turns": [
+      4
+     ],
+     "pattern": "\\A(?:(?=[\\s\\S]*\\bterns\\b)(?=[\\s\\S]*\\bcapitals\\b)|(?=[\\s\\S]*\\bterns\\b)(?=[\\s\\S]*\\btoast\\b)|(?=[\\s\\S]*\\bterns\\b)(?=[\\s\\S]*\\bteapot\\b)|(?=[\\s\\S]*\\bcapitals\\b)(?=[\\s\\S]*\\btoast\\b)|(?=[\\s\\S]*\\bcapitals\\b)(?=[\\s\\S]*\\bteapot\\b)|(?=[\\s\\S]*\\btoast\\b)(?=[\\s\\S]*\\bteapot\\b))",
+     "scope": "all",
+     "note": "at least two of terns / capitals / toast / teapot named again",
+     "weight": 0.08
+    },
+    {
+     "id": "D4-one-quoted-line",
+     "fact": "D4",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "require_regex",
+     "turns": [
+      4
+     ],
+     "pattern": "\\A(?=[\\s\\S]*?[\\\"\u201c][^\\\"\u201d\\n]{2,}[\\\"\u201d])(?![\\s\\S]*?[\\\"\u201c][^\\\"\u201d\\n]*[\\\"\u201d][\\s\\S]*?[\\\"\u201c])",
+     "scope": "all",
+     "note": "exactly one quoted span",
+     "weight": 0.08
+    },
+    {
+     "id": "G4-gannet-31-93",
+     "fact": "G4",
+     "ftype": "format",
+     "group": "continuity",
+     "type": "require_regex",
+     "turns": [
+      4
+     ],
+     "pattern": "\\A(?=[\\s\\S]*\\bGannet\\b)(?=[\\s\\S]*\\b31\\b)(?=[\\s\\S]*\\b93\\b)",
+     "scope": "all",
+     "note": "the three bible changes show up in section 4",
+     "weight": 1.57
+    },
+    {
+     "id": "X4-old-values-gone",
+     "fact": "X4",
+     "ftype": "format",
+     "group": "continuity",
+     "type": "forbid_regex",
+     "turns": [
+      4,
+      5
+     ],
+     "pattern": "\\bMarigold\\b|\\b29\\b|\\b91\\b|\\bninety-one\\b",
+     "scope": "all",
+     "note": "boat, age and steps changed by the note",
+     "weight": 0.08
+    },
+    {
+     "id": "W5-exact-100",
+     "fact": "W5",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "word_range",
+     "turns": [
+      5
+     ],
+     "min": 100,
+     "max": 100,
+     "weight": 1.15
+    },
+    {
+     "id": "A5-paragraph-sentences",
+     "fact": "A5",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "require_regex",
+     "turns": [
+      5
+     ],
+     "pattern": "\\A\\s*(?:[ \\t]*[A-Za-z0-9\\\"'(][^.!?\\n]*[.!?]+[\\\"')]*[ \\t]*){2}\\n(?:[ \\t]*\\n)+(?:[ \\t]*[A-Za-z0-9\\\"'(][^.!?\\n]*[.!?]+[\\\"')]*[ \\t]*){2}\\n(?:[ \\t]*\\n)+(?:[ \\t]*[A-Za-z0-9\\\"'(][^.!?\\n]*[.!?]+[\\\"')]*[ \\t]*){1}\\s*\\Z",
+     "scope": "all",
+     "note": "three paragraphs of 2, 2, 1 sentences",
+     "weight": 1.57
+    },
+    {
+     "id": "Z5-last-para-14-words",
+     "fact": "Z5",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "require_regex",
+     "turns": [
+      5
+     ],
+     "pattern": "(?:\\A|\\n[ \\t]*\\n)\\s*(?:(?=[^\\s.!?]*[A-Za-z0-9])[^\\s.!?]+\\s+(?:[\u2014\u2013-]+\\s+)?){13}(?=[^\\s.!?]*[A-Za-z0-9])[^\\s.!?]+[.!]?[\\\"\u201d]?\\s*\\Z",
+     "scope": "all",
+     "note": "final paragraph = one sentence of exactly 14 words",
+     "weight": 0.72
+    },
+    {
+     "id": "F5-pattern-last-para",
+     "fact": "F5",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "require_regex",
+     "turns": [
+      5
+     ],
+     "pattern": "\\n[ \\t]*\\n\\s*(?=[^\\n]*three flashes)(?=[^\\n]*twenty seconds)[^\\n]*\\s*\\Z",
+     "scope": "all",
+     "weight": 0.08
+    },
+    {
+     "id": "K5-callback-one-word",
+     "fact": "K5",
+     "ftype": "format",
+     "group": "continuity",
+     "type": "require_regex",
+     "turns": [
+      5
+     ],
+     "pattern": "(?<![A-Za-z'])(?:(?!The\\b)[A-Za-z']+\\s+basket\\s+went\\s+up,\\s+and\\s+the\\s+basket\\s+came\\s+down|The\\s+(?!basket\\b)[A-Za-z']+\\s+went\\s+up,\\s+and\\s+the\\s+basket\\s+came\\s+down|The\\s+basket\\s+(?!went\\b)[A-Za-z']+\\s+up,\\s+and\\s+the\\s+basket\\s+came\\s+down|The\\s+basket\\s+went\\s+(?!up\\b)[A-Za-z']+,\\s+and\\s+the\\s+basket\\s+came\\s+down|The\\s+basket\\s+went\\s+up,\\s+(?!and\\b)[A-Za-z']+\\s+the\\s+basket\\s+came\\s+down|The\\s+basket\\s+went\\s+up,\\s+and\\s+(?!the\\b)[A-Za-z']+\\s+basket\\s+came\\s+down|The\\s+basket\\s+went\\s+up,\\s+and\\s+the\\s+(?!basket\\b)[A-Za-z']+\\s+came\\s+down|The\\s+basket\\s+went\\s+up,\\s+and\\s+the\\s+basket\\s+(?!came\\b)[A-Za-z']+\\s+down|The\\s+basket\\s+went\\s+up,\\s+and\\s+the\\s+basket\\s+came\\s+(?!down\\b)[A-Za-z']+)\\.",
+     "scope": "all",
+     "note": "last sentence of section 1 returns with exactly one word changed",
+     "weight": 0.72
+    },
+    {
+     "id": "E5-no-named-feeling",
+     "fact": "E5",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "forbid_regex",
+     "turns": [
+      5
+     ],
+     "pattern": "\\b(?:sad\\w*|grie\\w*|sorrow\\w*|tears?|cr(?:y|ied|ies|ying)|wept|weep\\w*|lonel\\w*|afraid|fear\\w*|relie\\w*|angr\\w*|love[sd]?|happy|joy\\w*|ache[sd]?|longing|miss(?:ed|es)?)\\b",
+     "scope": "all",
+     "weight": 0.08
+    },
+    {
+     "id": "S6-recap-length",
+     "fact": "S6",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "word_range",
+     "turns": [
+      6
+     ],
+     "min": 12,
+     "max": 60,
+     "scope": "all",
+     "weight": 0.08
+    },
+    {
+     "id": "M6-recap-values",
+     "fact": "M6",
+     "ftype": "format",
+     "group": "continuity",
+     "type": "require_all",
+     "turns": [
+      6
+     ],
+     "scope": "all",
+     "needles": [
+      [
+       "Marigold"
+      ],
+      [
+       "Gannet"
+      ],
+      [
+       "29"
+      ],
+      [
+       "31"
+      ],
+      [
+       "91"
+      ],
+      [
+       "93"
+      ]
+     ],
+     "note": "old and new value of each of the three bible changes",
+     "weight": 0.08
+    },
+    {
+     "id": "N6-recap-no-extras",
+     "fact": "N6",
+     "ftype": "format",
+     "group": "continuity",
+     "type": "forbid_regex",
+     "turns": [
+      6
+     ],
+     "pattern": "\\bAldous\\b|\\bPryce\\b|\\bPennant\\b|\\bKelvin\\b|\\bNetta\\b|\\bDunbar\\b|\\bshillings\\b",
+     "scope": "all",
+     "note": "only the three changed facts are listed",
+     "weight": 0.72
+    }
+   ],
+   "judge_elements": [
+    {
+     "id": "J1-clues-plain",
+     "ftype": "applied",
+     "turns": [
+      1,
+      2
+     ],
+     "q": "In sections 1 and 2 the clues (block-capital unsigned notes, the tern-bordered handkerchief, the smoke that smells of toast) must be planted as plain detail. Check three things and quote the lines: (a) all three clues are on the page, (b) Corran or the narration never comments on what they might mean, and (c) the narration never calls the keeper he, him or his and never says or implies Corran has seen the keeper. NO if a clue is missing, explained, or the narration misleads (a he/him for the keeper, a glimpse of the keeper).",
+     "evidence": [
+      {
+       "src": "turn",
+       "text": "Plant the clues as plain detail; Corran never comments on what they might mean."
+      }
+     ],
+     "gold_quote": "A note, in capitals, on the back of a receipt: FLOUR. TWO PARAFFIN. NAVY CUT.",
+     "weight": 1.0,
+     "fact": "J1"
+    },
+    {
+     "id": "J2-reveal-by-object",
+     "ftype": "applied",
+     "turns": [
+      3,
+      4
+     ],
+     "q": "Section 3 plants the teapot of geraniums; section 4 must then reveal the secret THROUGH the logbook written in two hands (an object shown on the page: e.g. a copperplate hand that stops at a dated entry and block capitals that go on). Quote the line that shows the two hands. NO if the reveal is delivered by speech, by narration simply stating what happened, or if the logbook does not show two hands.",
+     "evidence": [
+      {
+       "src": "turn",
+       "text": "Show the truth through an object: the keeper's logbook, which is in two hands."
+      }
+     ],
+     "gold_quote": "The entries stopped in copperplate on the eleventh of February and went on in block capitals.",
+     "weight": 1.0,
+     "fact": "J2"
+    },
+    {
+     "id": "J3-clues-recast",
+     "ftype": "applied",
+     "turns": [
+      4
+     ],
+     "q": "Does section 4 recall at least two of the earlier clues by their specific detail (terns, capitals, toast, teapot) AND recast each one, saying or showing what it was for or meant in Odile's secret (not just naming it again)? Quote the two lines. NO if fewer than two are recalled with their detail, or if they are only listed.",
+     "evidence": [
+      {
+       "src": "turn",
+       "text": "At least two of the four clues (capitals, terns, toast, teapot) are recalled here by their specific detail and recast by what is now known."
+      }
+     ],
+     "gold_quote": "The toast was hers; the tobacco went into the stove to make the smoke honest.",
+     "weight": 1.0,
+     "fact": "J3"
+    },
+    {
+     "id": "J4-pov-odile",
+     "ftype": "applied",
+     "turns": [
+      4
+     ],
+     "q": "Section 4 must be close third on Odile only. Does the narration give Odile's perceptions or thoughts and never enter Corran's head (no Corran thinking, wondering, knowing or feeling anything the narration states as fact)? Quote any line that breaks this; if none, quote a line that shows her point of view. NO if the narration reports what Corran thinks or feels.",
+     "evidence": [
+      {
+       "src": "turn",
+       "text": "close third on her, still past tense. Corran is seen and heard only as she sees and hears him, and the narration never enters his head."
+      }
+     ],
+     "gold_quote": "She watched him read, and watched his mouth go flat.",
+     "weight": 1.0,
+     "fact": "J4"
+    },
+    {
+     "id": "J5-no-reply-s3",
+     "ftype": "applied",
+     "turns": [
+      3
+     ],
+     "q": "In section 3 Corran calls up twice and nobody answers aloud. Does the section stay silent on the tower side (no spoken reply, no voice, no humming, no words from the keeper, not even faint)? Quote the line that shows the silence, or the line that breaks it. NO if anything from the tower speaks or hums.",
+     "evidence": [
+      {
+       "src": "turn",
+       "text": "nobody answers aloud"
+      }
+     ],
+     "gold_quote": "Only the wind came back down the stairwell.",
+     "weight": 1.0,
+     "fact": "J5"
+    },
+    {
+     "id": "J6-hands-and-image",
+     "ftype": "applied",
+     "turns": [
+      5
+     ],
+     "q": "The last section shows Odile's feeling only through what she does with her hands, and its final sentence is a concrete image (something seen or heard), not a lesson or a statement of what it meant. Quote the line with her hands and the final sentence. NO if the feeling is told, or the section closes on a moral or reflection.",
+     "evidence": [
+      {
+       "src": "turn",
+       "text": "show her feeling only through what she does with her hands"
+      }
+     ],
+     "gold_quote": "Her thumb pressed the cold crank handle, and the lamp swung round three flashes in twenty seconds.",
+     "weight": 1.0,
+     "fact": "J6"
+    }
+   ],
+   "format_gate": "chat",
+   "deep_rubric": "chat_deep",
+   "category": "rpdeep"
+  },
+  {
+   "id": "LWR2-neap-seam",
+   "system": "You are the co-writer described in the card below, working one-on-one in a chat with the user, an author who is writing a short story with you one section at a time.\n\nRules (strict):\n1. Each reply is exactly the text the author asks for \u2014 the section itself, nothing before or after it: no greeting, no commentary, no notes, no questions back.\n2. Plain text only: no markdown, no headings, no bold or italics, no lists. A title, when asked for, is a plain line.\n3. Follow every instruction the author gives. Rules set in an earlier message hold for the whole story unless the author changes them.\n4. Count carefully: word limits are limits, and exact wording is exact.\n5. Keep every reply under 450 words.\n\nWRITING DESK \u2014 CO-WRITER CARD\n\nThe Writing Desk is a chat where an author drafts a piece of short fiction with a co-writer, one section at a time. The author decides what the story is; the co-writer writes it.\n\nThe co-writer's job. The author sends the brief for the next section in a message. The co-writer replies with that section and nothing else: no greeting, no \"Here is\", no notes on choices made, no offer to revise, no question back. The author will say so if something needs changing.\n\nThe author's rules. Rules the author sets for \"the whole piece\" hold for every later section until the author changes them. When the author changes something midway (\"from here on ...\"), the change holds from that point forward, and earlier sections are left as they are. Exact wording the author supplies is used exactly, punctuation included. Word limits are limits: the co-writer counts.\n\nCraft. The co-writer writes plain, concrete prose: specific objects, specific sounds, people doing things. Feeling is shown in what people do with their hands, their voices and the things around them. Endings land on something that can be seen or heard, not on a lesson. Nothing planted in a story is wasted.\n\nFormat. Plain text only. No markdown of any kind: no headings, no bold, no italics, no bullet points. A title, when the author asks for one, is a plain line on its own.",
+   "history": [],
+   "turns": [
+    "A note on counting, for the whole exercise: a word is anything between spaces, a sentence ends at a full stop, question mark or exclamation mark, and use straight apostrophes only.\n\nBelow is the opening of a story I'm writing. Continue it from exactly where it stops, as the same writer, in the same voice, so that a reader could not find the seam. Don't comment on the opening, don't summarise it and don't repeat any of it.\n\nThe Neap keeps what it takes. We have that from our fathers, who have it from theirs, and we pass it on without comment. The wall runs forty ropes from the slip to Hesk's boat shed, and the water goes over it twice between mornings. Whatever it leaves behind is ours to sort. Whatever it keeps stays kept.\n\nOn the morning the boat comes we are mending. Dunna sits on an upturned creel with the tally string across her knees, knotting the night's catch into it, nine knots for the herring and one for the skate nobody ordered. Orrin lies under Brannoch's hull with a pot of tar and a poor opinion of the weather. The children line the wall and count the gulls, and each of them gets a different count. The gulls have stayed away for three tides. Today the gulls are back.\n\nThe boat is not one of ours. We know it from the sail before we know anything else, because ours are brown and this one is the grey of a washed plate. It comes over the bar with nobody at the oars and settles two ropes off the slip. The water under it is flat and does not seem to move. It does not drop a line.\n\nHesk lays down his plane. He is the oldest of us, and his boat is the one that can still make the Skerry. Hesk says: that is a woman at the tiller. Dunna ties off her last knot and slips the string into her apron, which she does when she wants her hands free. Brannoch climbs out from under his hull and wipes his palms on his thighs. Nobody says how Hesk knows.\n\nThe bell on the slip is Orrin's to ring, and he does not ring it. He looks at us and we look at the water. The stranger steps onto the slip with a bag over one shoulder and walks straight to the third post, where the lantern hook hangs, and lays a palm flat on the wood. Nobody has told her which post.\n\nWe say nothing. The tide turns under the grey boat, and the eleven ropes of water between the bar and the wall begin to drain. Brannoch's wife stops stirring her pot. The smoke goes sideways.\n\nHesk takes up his plane again and does not use it. The stranger turns. We see her face.\n\nSection 1 of your continuation (exactly 240 words, in exactly six paragraphs): the stranger asks the village for a bed. She speaks once, and her words are given the way the village gives everyone's speech. The words \"sixth rope\" appear in the second paragraph. Orrin rings the bell exactly once. The village decides nothing yet, and the stranger's name is not given. The last paragraph contains the words \"the Neap\". The name Orrin appears exactly three times in the section and the word \"bell\" exactly twice.",
+    "Section 2 (exactly 232 words, in exactly five paragraphs). New in this section: Dunna gives the stranger's name, Marren, and the third paragraph of the section is Dunna telling, in her own voice, what she saw on the Skerry the night the gulls first left. That paragraph is the only place in the whole story where the word I is used; every other paragraph is the village's we again. Her paragraph keeps every habit of the story's prose and it carries no speech tag. In it, plant one object or action that the ending can use. Her paragraph is exactly five sentences long. The name Marren appears exactly four times in the section. The word daughter is not used anywhere in the story.",
+    "Section 3, the last (exactly 196 words, in exactly five paragraphs): resolve who Marren is. Use at least two things planted earlier (the third post and the lantern hook, Dunna's tally string, Hesk's plane or his first words about the tiller), and show the answer through an action and an object, not an announcement. No paragraph is longer than 55 words, the final paragraph is exactly four sentences of 3, 4, 5 and 6 words in that order, and the name Hesk appears exactly four times in the section. The last sentence of the story is the first sentence of the opening with exactly one word changed.",
+    "Thank you. One last thing, as plainly as you can: list the habits of the prose in my opening that you kept to, one habit per line, ten lines at most, no numbering and no bullets, nothing else."
+   ],
+   "temperature": 0.8,
+   "top_p": 0.95,
+   "max_tokens": 2000,
+   "rubric": "rp_deep",
+   "judge_key": "The assistant is the co-writer; the user is the author. Turn 1 supplies the opening (about 400 words) of a story in a collective 'we' voice and asks for a seamless continuation; the habits are never stated: collective we, present tense, no quotation marks (speech as 'Name says: ...'), distance in ropes and time in tides, no clock or metric units, no similes, no semicolons/dashes/digits, every paragraph ends on a sentence of at most six words, the we never enters a head, villagers' things are named by owner (Hesk's, Brannoch's). Plants in the opening: the stranger is a woman, goes straight to the third post (the lantern hook), Hesk knew it was a woman, Dunna's tally string. Turn 2: the stranger is named Marren; the third paragraph is Dunna in first person singular (the only I in the story), planting an object or action; the word daughter is banned. Turn 3 resolves who Marren is (Hesk's lost child, never called daughter) by action and object, and ends on the opening sentence with one word changed. Turn 4 asks the model to list the habits it kept.",
+   "judge_card_summary": "The Writing Desk co-writer: an author and a co-writer draft one short story section by section in a chat. The co-writer replies with exactly the requested section (no commentary, no markdown, title as a plain line). Rules set \"for the whole piece\" hold until the author changes them; a midway change (\"from here on\") holds forward only. Plain, concrete prose; feeling shown through hands, voices and objects; endings land on something seen or heard; nothing planted is wasted.",
+   "user_name": "the author",
+   "min_context": 40960,
+   "checks": [
+    {
+     "id": "W1-exact-240",
+     "fact": "W1",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "word_range",
+     "turns": [
+      1
+     ],
+     "min": 240,
+     "max": 240,
+     "weight": 0.72
+    },
+    {
+     "id": "W2-exact-232",
+     "fact": "W2",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "word_range",
+     "turns": [
+      2
+     ],
+     "min": 232,
+     "max": 232,
+     "weight": 0.72
+    },
+    {
+     "id": "W3-exact-196",
+     "fact": "W3",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "word_range",
+     "turns": [
+      3
+     ],
+     "min": 196,
+     "max": 196,
+     "weight": 0.72
+    },
+    {
+     "id": "A1-six-paragraphs",
+     "fact": "A1",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "require_regex",
+     "turns": [
+      1
+     ],
+     "pattern": "\\A\\s*[ \\t]*\\S[^\\n]*(?:\\n[ \\t]*\\S[^\\n]*)*\\n(?:[ \\t]*\\n)+[ \\t]*\\S[^\\n]*(?:\\n[ \\t]*\\S[^\\n]*)*\\n(?:[ \\t]*\\n)+[ \\t]*\\S[^\\n]*(?:\\n[ \\t]*\\S[^\\n]*)*\\n(?:[ \\t]*\\n)+[ \\t]*\\S[^\\n]*(?:\\n[ \\t]*\\S[^\\n]*)*\\n(?:[ \\t]*\\n)+[ \\t]*\\S[^\\n]*(?:\\n[ \\t]*\\S[^\\n]*)*\\n(?:[ \\t]*\\n)+[ \\t]*\\S[^\\n]*(?:\\n[ \\t]*\\S[^\\n]*)*\\s*\\Z",
+     "scope": "all",
+     "weight": 0.08
+    },
+    {
+     "id": "A2-five-paragraphs",
+     "fact": "A2",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "require_regex",
+     "turns": [
+      2
+     ],
+     "pattern": "\\A\\s*[ \\t]*\\S[^\\n]*(?:\\n[ \\t]*\\S[^\\n]*)*\\n(?:[ \\t]*\\n)+[ \\t]*\\S[^\\n]*(?:\\n[ \\t]*\\S[^\\n]*)*\\n(?:[ \\t]*\\n)+[ \\t]*\\S[^\\n]*(?:\\n[ \\t]*\\S[^\\n]*)*\\n(?:[ \\t]*\\n)+[ \\t]*\\S[^\\n]*(?:\\n[ \\t]*\\S[^\\n]*)*\\n(?:[ \\t]*\\n)+[ \\t]*\\S[^\\n]*(?:\\n[ \\t]*\\S[^\\n]*)*\\s*\\Z",
+     "scope": "all",
+     "weight": 0.08
+    },
+    {
+     "id": "A3-five-paragraphs",
+     "fact": "A3",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "require_regex",
+     "turns": [
+      3
+     ],
+     "pattern": "\\A\\s*[ \\t]*\\S[^\\n]*(?:\\n[ \\t]*\\S[^\\n]*)*\\n(?:[ \\t]*\\n)+[ \\t]*\\S[^\\n]*(?:\\n[ \\t]*\\S[^\\n]*)*\\n(?:[ \\t]*\\n)+[ \\t]*\\S[^\\n]*(?:\\n[ \\t]*\\S[^\\n]*)*\\n(?:[ \\t]*\\n)+[ \\t]*\\S[^\\n]*(?:\\n[ \\t]*\\S[^\\n]*)*\\n(?:[ \\t]*\\n)+[ \\t]*\\S[^\\n]*(?:\\n[ \\t]*\\S[^\\n]*)*\\s*\\Z",
+     "scope": "all",
+     "weight": 0.08
+    },
+    {
+     "id": "W3b-final-para-3-4-5-6",
+     "fact": "W3b",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "require_regex",
+     "turns": [
+      3
+     ],
+     "pattern": "(?:\\A|\\n[ \\t]*\\n)[ \\t]*[ \\t]*(?:[^\\s.!?]+[ \\t]+){2}[^\\s.!?]+[.!?]+[ \\t]+(?:[^\\s.!?]+[ \\t]+){3}[^\\s.!?]+[.!?]+[ \\t]+(?:[^\\s.!?]+[ \\t]+){4}[^\\s.!?]+[.!?]+[ \\t]+(?:[^\\s.!?]+[ \\t]+){5}[^\\s.!?]+[.!?]+[ \\t]*\\s*\\Z",
+     "scope": "all",
+     "note": "the final paragraph is four sentences of 3, 4, 5, 6 words",
+     "weight": 0.72
+    },
+    {
+     "id": "H-paragraph-3-to-6-sentences",
+     "fact": "H",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "forbid_regex",
+     "turns": [
+      1,
+      2,
+      3
+     ],
+     "pattern": "(?:^|\\n)(?:[ \\t]*[A-Za-z0-9][^.!?\\n]*[.!?]+[ \\t]*){1,2}(?=\\n|\\Z)|^(?:[ \\t]*[A-Za-z0-9][^.!?\\n]*[.!?]+[ \\t]*){7,}$",
+     "scope": "all",
+     "note": "every paragraph is 3 to 6 sentences (the opening's habit)",
+     "weight": 1.15
+    },
+    {
+     "id": "Z8-no-question-exclaim",
+     "fact": "Z8",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "forbid_regex",
+     "turns": [
+      1,
+      2,
+      3
+     ],
+     "pattern": "[?!]",
+     "scope": "all",
+     "note": "the opening has no question marks or exclamation marks",
+     "weight": 0.72
+    },
+    {
+     "id": "Z9-no-contractions",
+     "fact": "Z9",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "forbid_regex",
+     "turns": [
+      1,
+      2,
+      3
+     ],
+     "pattern": "\\b\\w+n['\u2019]t\\b|\\b(?:I|he|she|it|we|you|they|that|there|who|what)['\u2019](?:s|d|ll|re|ve|m)\\b",
+     "scope": "all",
+     "note": "the opening has no contractions",
+     "weight": 0.08
+    },
+    {
+     "id": "Z15-no-sea-words",
+     "fact": "Z15",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "forbid_regex",
+     "turns": [
+      1,
+      2,
+      3
+     ],
+     "pattern": "\\b(?:sea|seas|ocean|waves?|surf|shore)\\b",
+     "scope": "all",
+     "note": "the opening says water, tide and bar - never sea, ocean, wave",
+     "weight": 2.0
+    },
+    {
+     "id": "Z2-no-conjunction-starts",
+     "fact": "Z2",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "forbid_regex",
+     "turns": [
+      1,
+      2,
+      3
+     ],
+     "pattern": "(?:^|[.!?]\\s+)(?:And|But|Then|So|Yet|Or)\\b",
+     "scope": "all",
+     "note": "no sentence begins with a conjunction or Then (the opening never does)",
+     "weight": 1.15
+    },
+    {
+     "id": "Y-straight-no-dashes",
+     "fact": "Y",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "forbid_regex",
+     "turns": [
+      1,
+      2,
+      3
+     ],
+     "pattern": "[\u2018\u2019\u201c\u201d\u2010\u2011\u2013\u2014-]",
+     "scope": "all",
+     "note": "straight apostrophes; no hyphens or dashes",
+     "weight": 1.57
+    },
+    {
+     "id": "Q-no-quotation-marks",
+     "fact": "Q",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "forbid_regex",
+     "turns": [
+      1,
+      2,
+      3
+     ],
+     "pattern": "[\\\"\u201c\u201d\u2018]|(?<![A-Za-z])'|'(?![A-Za-z])",
+     "scope": "all",
+     "note": "speech is never in quotation marks",
+     "weight": 0.08
+    },
+    {
+     "id": "S-says-colon",
+     "fact": "S",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "require_regex",
+     "turns": [
+      1
+     ],
+     "pattern": "\\bsays: [a-z]",
+     "scope": "all",
+     "note": "speech is given as 'X says: ...' with no quotes",
+     "weight": 0.08
+    },
+    {
+     "id": "V-no-other-speech-verbs",
+     "fact": "V",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "forbid_regex",
+     "turns": [
+      1,
+      2,
+      3
+     ],
+     "pattern": "\\b(?:said|asked|asks|replied|replies|answered|answers|whispered|whispers|shouted|shouts|muttered|mutters|cried|calls|called|adds|added|murmurs|murmured)\\b",
+     "scope": "all",
+     "note": "only 'says' introduces speech",
+     "weight": 2.0
+    },
+    {
+     "id": "P-no-punct-habits",
+     "fact": "P",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "forbid_regex",
+     "turns": [
+      1,
+      2,
+      3
+     ],
+     "pattern": "[;\u2014\u2013]|\\s-\\s|\\d",
+     "scope": "all",
+     "note": "no semicolons, dashes or digits (numbers are words)",
+     "weight": 0.72
+    },
+    {
+     "id": "L-no-similes",
+     "fact": "L",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "forbid_regex",
+     "turns": [
+      1,
+      2,
+      3
+     ],
+     "pattern": "\\blike\\b|\\bas if\\b|\\bas though\\b",
+     "scope": "all",
+     "note": "no similes",
+     "weight": 1.15
+    },
+    {
+     "id": "U-units",
+     "fact": "U",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "forbid_regex",
+     "turns": [
+      1,
+      2,
+      3
+     ],
+     "pattern": "\\b(?:metres?|meters?|kilomet\\w+|feet|foot|miles?|yards?|inch(?:es)?|hours?|minutes?|seconds?|fathoms?|leagues?|knots? per hour)\\b",
+     "scope": "all",
+     "note": "distance is in ropes and time in tides; no clock or metric units",
+     "weight": 1.15
+    },
+    {
+     "id": "R-tides-present",
+     "fact": "R",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "require_regex",
+     "turns": [
+      1,
+      2,
+      3
+     ],
+     "pattern": "\\btides?\\b|\\bropes?\\b",
+     "scope": "all",
+     "weight": 1.57
+    },
+    {
+     "id": "E-last-sentence-short",
+     "fact": "E",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "forbid_regex",
+     "turns": [
+      1,
+      2,
+      3
+     ],
+     "pattern": "(?:^|[.!?][\\\"\u201d\u2019)]*[ \\t]+)(?:(?=[^\\s.!?]*[A-Za-z0-9])[^\\s.!?]+[ \\t]+){6,}(?=[^\\s.!?]*[A-Za-z0-9])[^\\s.!?]+[.!?]+[\\\"\u201d\u2019)]*[ \\t]*(?=\\n[ \\t]*\\n|\\s*\\Z)",
+     "scope": "all",
+     "note": "the last sentence of every paragraph has six words or fewer",
+     "weight": 2.0
+    },
+    {
+     "id": "T-present-tense",
+     "fact": "T",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "tense",
+     "turns": [
+      1,
+      2,
+      3
+     ],
+     "want": "present",
+     "weight": 0.08
+    },
+    {
+     "id": "I-we-voice",
+     "fact": "I",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "forbid_regex",
+     "turns": [
+      3
+     ],
+     "pattern": "\\b(?:I|me|my|mine|myself)\\b",
+     "scope": "all",
+     "note": "no first person singular in section 3 (the T2 rule: the only I is Dunna's)",
+     "weight": 0.08
+    },
+    {
+     "id": "I2-only-para-3",
+     "fact": "I2",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "require_regex",
+     "turns": [
+      2
+     ],
+     "pattern": "\\A\\s*(?:[ \\t]*\\S[^\\n]*(?:\\n[ \\t]*\\S[^\\n]*)*\\n(?:[ \\t]*\\n)+){2}[^\\n]*(?:\\b(?:I|me|my|mine|myself)\\b)",
+     "scope": "all",
+     "note": "the only I of the story sits in paragraph 3 of section 2",
+     "weight": 0.08
+    },
+    {
+     "id": "I3-not-elsewhere",
+     "fact": "I3",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "forbid_regex",
+     "turns": [
+      2
+     ],
+     "pattern": "\\A\\s*[^\\n]*(?:\\b(?:I|me|my|mine|myself)\\b)|\\A\\s*(?:[ \\t]*\\S[^\\n]*(?:\\n[ \\t]*\\S[^\\n]*)*\\n(?:[ \\t]*\\n)+){1}[^\\n]*(?:\\b(?:I|me|my|mine|myself)\\b)|\\A\\s*(?:[ \\t]*\\S[^\\n]*(?:\\n[ \\t]*\\S[^\\n]*)*\\n(?:[ \\t]*\\n)+){3}[\\s\\S]*\\b(?:I|me|my|mine|myself)\\b",
+     "scope": "all",
+     "note": "and in no other paragraph of section 2",
+     "weight": 0.08
+    },
+    {
+     "id": "O-possessive-names-s1",
+     "fact": "O",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "distinct_terms",
+     "turns": [
+      1
+     ],
+     "pattern": "(?-i:\\b[A-Z][a-z]+['\u2019]s\\b)",
+     "min_distinct": 3,
+     "scope": "all",
+     "note": "villagers' property named by owner: three distinct 'Name's' in section 1",
+     "weight": 2.0
+    },
+    {
+     "id": "O2-possessive-names-s3",
+     "fact": "O2",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "distinct_terms",
+     "turns": [
+      3
+     ],
+     "pattern": "(?-i:\\b[A-Z][a-z]+['\u2019]s\\b)",
+     "min_distinct": 2,
+     "scope": "all",
+     "weight": 0.72
+    },
+    {
+     "id": "B1-sixth-rope-para-2",
+     "fact": "B1",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "require_regex",
+     "turns": [
+      1
+     ],
+     "pattern": "\\A\\s*(?:[ \\t]*\\S[^\\n]*(?:\\n[ \\t]*\\S[^\\n]*)*\\n(?:[ \\t]*\\n)+){1}[^\\n]*(?:\\bsixth rope\\b)",
+     "scope": "all",
+     "weight": 0.08
+    },
+    {
+     "id": "B2-the-neap-last-para",
+     "fact": "B2",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "require_regex",
+     "turns": [
+      1
+     ],
+     "pattern": "\\n[ \\t]*\\n\\s*[^\\n]*\\bthe Neap\\b[^\\n]*\\s*\\Z",
+     "scope": "all",
+     "weight": 0.08
+    },
+    {
+     "id": "B3-marren-s2",
+     "fact": "B3",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "require_regex",
+     "turns": [
+      2
+     ],
+     "pattern": "\\bMarren\\b",
+     "scope": "all",
+     "weight": 0.08
+    },
+    {
+     "id": "C1-orrin-three",
+     "fact": "C1",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "require_regex",
+     "turns": [
+      1
+     ],
+     "pattern": "\\A(?:(?!\\bOrrin\\b)[\\s\\S])*(?:\\bOrrin\\b(?:(?!\\bOrrin\\b)[\\s\\S])*){3}\\Z",
+     "scope": "all",
+     "note": "Orrin exactly three times in section 1",
+     "weight": 0.08
+    },
+    {
+     "id": "C2-bell-twice",
+     "fact": "C2",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "require_regex",
+     "turns": [
+      1
+     ],
+     "pattern": "\\A(?:(?!\\bbell\\b)[\\s\\S])*(?:\\bbell\\b(?:(?!\\bbell\\b)[\\s\\S])*){2}\\Z",
+     "scope": "all",
+     "note": "bell exactly twice in section 1",
+     "weight": 0.08
+    },
+    {
+     "id": "C3-marren-four",
+     "fact": "C3",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "require_regex",
+     "turns": [
+      2
+     ],
+     "pattern": "\\A(?:(?!\\bMarren\\b)[\\s\\S])*(?:\\bMarren\\b(?:(?!\\bMarren\\b)[\\s\\S])*){4}\\Z",
+     "scope": "all",
+     "note": "Marren exactly four times in section 2",
+     "weight": 0.08
+    },
+    {
+     "id": "C4-dunna-five-sentences",
+     "fact": "C4",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "require_regex",
+     "turns": [
+      2
+     ],
+     "pattern": "\\A\\s*(?:[ \\t]*\\S[^\\n]*(?:\\n[ \\t]*\\S[^\\n]*)*\\n(?:[ \\t]*\\n)+){2}(?:[^.!?\\n]+[.!?]+[ \\t]+){4}[^.!?\\n]+[.!?]+[ \\t]*(?:\\n|\\Z)",
+     "scope": "all",
+     "note": "the third paragraph of section 2 is exactly five sentences",
+     "weight": 0.08
+    },
+    {
+     "id": "C5-hesk-four",
+     "fact": "C5",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "require_regex",
+     "turns": [
+      3
+     ],
+     "pattern": "\\A(?:(?!\\bHesk\\b)[\\s\\S])*(?:\\bHesk\\b(?:(?!\\bHesk\\b)[\\s\\S])*){4}\\Z",
+     "scope": "all",
+     "note": "Hesk exactly four times in section 3",
+     "weight": 0.08
+    },
+    {
+     "id": "C6-para-55",
+     "fact": "C6",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "forbid_regex",
+     "turns": [
+      3
+     ],
+     "pattern": "^(?:[^\\n\\s]+[ \\t]+){55}[^\\n\\s]+",
+     "scope": "all",
+     "note": "no paragraph over 55 words in section 3",
+     "weight": 0.08
+    },
+    {
+     "id": "D-no-daughter",
+     "fact": "D",
+     "ftype": "format",
+     "group": "continuity",
+     "type": "forbid_regex",
+     "turns": [
+      1,
+      2,
+      3
+     ],
+     "pattern": "\\bdaughters?\\b",
+     "scope": "all",
+     "weight": 0.08
+    },
+    {
+     "id": "D2-no-dunna-tag-in-her-paragraph",
+     "fact": "D2",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "forbid_regex",
+     "turns": [
+      2
+     ],
+     "pattern": "\\A\\s*(?:[ \\t]*\\S[^\\n]*(?:\\n[ \\t]*\\S[^\\n]*)*\\n(?:[ \\t]*\\n)+){2}[^\\n]*(?:\\bsays:)",
+     "scope": "all",
+     "note": "Dunna's paragraph carries no speech tag",
+     "weight": 0.08
+    },
+    {
+     "id": "K-callback-one-word",
+     "fact": "K",
+     "ftype": "format",
+     "group": "continuity",
+     "type": "require_regex",
+     "turns": [
+      3
+     ],
+     "pattern": "(?<![A-Za-z'])(?:(?!The\\b)[A-Za-z']+\\s+Neap\\s+keeps\\s+what\\s+it\\s+takes|The\\s+(?!Neap\\b)[A-Za-z']+\\s+keeps\\s+what\\s+it\\s+takes|The\\s+Neap\\s+(?!keeps\\b)[A-Za-z']+\\s+what\\s+it\\s+takes|The\\s+Neap\\s+keeps\\s+(?!what\\b)[A-Za-z']+\\s+it\\s+takes|The\\s+Neap\\s+keeps\\s+what\\s+(?!it\\b)[A-Za-z']+\\s+takes|The\\s+Neap\\s+keeps\\s+what\\s+it\\s+(?!takes\\b)[A-Za-z']+)\\.[\\\"\u201d]?\\s*\\Z",
+     "scope": "all",
+     "note": "last sentence = first sentence of the opening with one word changed",
+     "weight": 0.08
+    },
+    {
+     "id": "N4-list-length",
+     "fact": "N4",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "forbid_regex",
+     "turns": [
+      4
+     ],
+     "pattern": "\\A(?:[ \\t]*\\S[^\\n]*\\n(?:[ \\t]*\\n)*){10}[ \\t]*\\S",
+     "scope": "all",
+     "note": "ten lines at most",
+     "weight": 0.08
+    },
+    {
+     "id": "N4b-no-bullets",
+     "fact": "N4b",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "forbid_regex",
+     "turns": [
+      4
+     ],
+     "pattern": "^\\s*(?:[-*\u2022]|\\d+[.)])\\s",
+     "scope": "all",
+     "weight": 0.08
+    }
+   ],
+   "judge_elements": [
+    {
+     "id": "J1-voice-no-minds",
+     "ftype": "applied",
+     "turns": [
+      1,
+      2
+     ],
+     "q": "The opening never states what any one villager thinks, wants or feels as fact: the narrating we reports only what is said, done, seen and known to everyone (a habit, a record, a fact). Across sections 1 and 2 of the continuation, does the narration keep to that, never entering a villager's or the stranger's head? Quote the worst line. NO if any sentence asserts an inner state (e.g. 'Orrin wanted', 'Hesk was afraid', 'she felt', 'Dunna wondered') as narration; a visible action or a spoken line is fine.",
+     "evidence": [
+      {
+       "src": "turn",
+       "text": "so that a reader could not find the seam"
+      }
+     ],
+     "gold_quote": "Orrin rings the bell once and puts his hand back in his pocket.",
+     "weight": 1.5,
+     "fact": "J1"
+    },
+    {
+     "id": "J2-dunna-paragraph",
+     "ftype": "applied",
+     "turns": [
+      2
+     ],
+     "q": "Does the third paragraph of section 2 read as Dunna speaking in her own first-person voice, with the same plain, concrete habits as the rest (no similes, ropes and tides, a short last sentence), AND does it plant a specific object or action that the ending can use? Quote the planted object or action. NO if the voice breaks the story's habits (comparisons, fancy language, long closing line) or nothing usable is planted.",
+     "evidence": [
+      {
+       "src": "turn",
+       "text": "In it, plant one object or action that the ending can use."
+      }
+     ],
+     "gold_quote": "I tied a thirteenth knot that night and I have never cut it.",
+     "weight": 1.5,
+     "fact": "J2"
+    },
+    {
+     "id": "J3-reveal-by-act",
+     "ftype": "applied",
+     "turns": [
+      3
+     ],
+     "q": "Section 3 must resolve who Marren is by an action with an object, using at least two planted things, not an announcement. Does it (a) show the answer through something someone does with an object (b) reuse at least two earlier plants (the third post / lantern hook, Dunna's tally string or her planted object, Hesk's plane or his first words), and (c) avoid anyone stating the relationship outright? Quote the action. NO if the relationship is simply announced, or fewer than two plants are reused.",
+     "evidence": [
+      {
+       "src": "turn",
+       "text": "show the answer through an action and an object, not an announcement"
+      }
+     ],
+     "gold_quote": "Dunna lays the string in Marren's palm, and the thirteenth knot is under her thumb.",
+     "weight": 1.5,
+     "fact": "J3"
+    },
+    {
+     "id": "J4-habits-named",
+     "ftype": "applied",
+     "turns": [
+      4
+     ],
+     "q": "The hidden habits of the opening are: (1) the narrator is a plural 'we'; (2) present tense; (3) no quotation marks, speech given as 'Name says: ...'; (4) distances in ropes, time in tides; (5) every paragraph ends on a sentence of six words or fewer; (6) no similes; plus the collective never enters a single head. Does the reply name at least FIVE of these habits (in any wording)? Quote the lines that name them. NO if it names four or fewer, or names rules the text does not have.",
+     "evidence": [
+      {
+       "src": "turn",
+       "text": "list the habits of the prose in my opening that you kept to"
+      }
+     ],
+     "gold_quote": "Speech has no quotation marks; it is given as Hesk says: and then the words.",
+     "weight": 1.5,
+     "fact": "J4"
+    }
+   ],
+   "format_gate": "chat",
+   "deep_rubric": "chat_deep",
+   "category": "rpdeep"
+  },
+  {
+   "id": "LWR3-twelve-days",
+   "system": "You are the co-writer described in the card below, working one-on-one in a chat with the user, an author who is writing a short story with you one section at a time.\n\nRules (strict):\n1. Each reply is exactly the text the author asks for \u2014 the section itself, nothing before or after it: no greeting, no commentary, no notes, no questions back.\n2. Plain text only: no markdown, no headings, no bold or italics, no lists. A title, when asked for, is a plain line.\n3. Follow every instruction the author gives. Rules set in an earlier message hold for the whole story unless the author changes them.\n4. Count carefully: word limits are limits, and exact wording is exact.\n5. Keep every reply under 450 words.\n\nWRITING DESK \u2014 CO-WRITER CARD\n\nThe Writing Desk is a chat where an author drafts a piece of short fiction with a co-writer, one section at a time. The author decides what the story is; the co-writer writes it.\n\nThe co-writer's job. The author sends the brief for the next section in a message. The co-writer replies with that section and nothing else: no greeting, no \"Here is\", no notes on choices made, no offer to revise, no question back. The author will say so if something needs changing.\n\nThe author's rules. Rules the author sets for \"the whole piece\" hold for every later section until the author changes them. When the author changes something midway (\"from here on ...\"), the change holds from that point forward, and earlier sections are left as they are. Exact wording the author supplies is used exactly, punctuation included. Word limits are limits: the co-writer counts.\n\nCraft. The co-writer writes plain, concrete prose: specific objects, specific sounds, people doing things. Feeling is shown in what people do with their hands, their voices and the things around them. Endings land on something that can be seen or heard, not on a lesson. Nothing planted in a story is wasted.\n\nFormat. Plain text only. No markdown of any kind: no headings, no bold, no italics, no bullet points. A title, when the author asks for one, is a plain line on its own.",
+   "history": [],
+   "turns": [
+    "Let's write an exchange of letters, one letter per message. The two correspondents: Perpetua Rudd, 61, a seed-saver in Aberfeld in the Scottish Borders, and Devadas Nair, called Dev, 47, who keeps a spice garden in Wayanad in Kerala. They have never met; Perpetua wrote first.\n\nTheir voices, from the first postcards they exchanged before this correspondence (match them; they are how these two write):\n\nAberfeld, 19 January\n\nDear Sir or Madam,\n\nSeed lists reached me this week. Mine are enclosed, forty packets in all. Frost has kept the beds hard since Christmas, so sowing waits. Please send what you hold of purple sprouting broccoli, in any quantity.\n\nYours in seed,\nPerpetua\n\nWayanad, 2 February\n\nDear Friend,\n\nRain came early to the hills this year, friend, and the pepper vines are glad of it. Your list is a fine one. Two of my varieties I will not part with; the rest I send gladly. Tell me which you want, and I will pack them in banana paper.\n\nWith rain and respect,\nDev\n\nLAYOUT OF EVERY LETTER (plain text, nothing before or after it): line 1 is the place and the date, as in \"Aberfeld, 3 March\"; a blank line; the greeting; a blank line; the body paragraphs, each one a single line of text, separated by blank lines; a blank line; the closing line; the name on the next line. Nothing else, except a P.S. when I ask for one.\nPERPETUA'S LETTERS: greeting \"Dear Dev,\"; exactly three body paragraphs; closing \"Yours in seed,\" then \"Perpetua\"; exactly 168 words in all; she never uses a contraction; no sentence of hers is longer than 22 words.\nDEV'S LETTERS: greeting \"Dear Perpetua,\"; exactly four body paragraphs; closing \"With rain and respect,\" then \"Dev\"; exactly 196 words in all; he uses at least two contractions in every letter.\nNEW RULE from letter 3 on, for both writers: the word \"the\" does not appear in a letter at all. NEW RULE from letter 5 on, besides that: the word \"and\" does not appear either.\nEVERY LETTER asks exactly one question, so exactly one question mark in it, and its body paragraphs hold a fixed number of sentences: Perpetua's three hold 3, 4 and 2; Dev's four hold 3, 4, 3 and 2.\nCOUNTING AND TYPING: a word is anything between spaces and counts wherever it stands, from the place line to the name (and the P.S. when there is one); a sentence ends at a full stop, question mark or exclamation mark, so no abbreviations with full stops except in \"P.S.\"; straight quotes and apostrophes only; no hyphens or dashes anywhere.\n\nTHE POST: anything enclosed with a letter (seed packets, say) goes as parcel post and arrives 20 days after the date written on the letter, not 12; the letter itself is read on arrival as below. A letter takes 12 days to reach the other writer, counted from the date written on it, and is read the day it arrives. A writer knows only what is in letters that had already arrived by the date of the letter being written, so a letter must not mention, answer or react to anything from a letter that has not reached its writer yet. A writer who has had no reply simply has none. Whenever a writer has received letters, the FIRST sentence of the letter (the opening sentence of its first body paragraph) gives the day and month on which each of them arrived. From a writer's second letter on, the LAST sentence of the second body paragraph says how long ago that writer's own previous letter was posted, in the form \"N days\" with N as a numeral.\n\nLetter 1, Perpetua to Dev, dated 3 March. She introduces herself in a sentence. A hard frost has split the north pane of her greenhouse. She encloses thirty seeds of Heron's Beak kale. Her one question: how deep does he sow ash gourd, and does he soak the seed?",
+    "Letter 2, Dev to Perpetua, dated 16 March. He thanks her for the kale she says she is sending. The well went brackish in the early heat. He answers her question: ash gourd goes two fingers deep, after an overnight soak in rice water. His one question: does kale bolt in a Scottish spring, and what does she do with the tops?",
+    "Letter 3, Perpetua to Dev, dated 24 March. Her neighbour's goats got into the trial bed. Her soil is six degrees. She says plainly that no reply from him has come yet. Her one question: does he save seed from the first fruit or from the last?",
+    "Letter 4, Dev to Perpetua, dated 30 March. The kale seed has reached him, and he has planted it in shade; he gives the day and month it arrived. The first showers came early. His one question: may he send her cardamom seed, and how does it cross the border without trouble from customs?",
+    "Author's note, from here on: the monsoon is slowing the post. A letter dated 1 April or later takes 14 days to arrive, not 12. Letters already posted keep their 12.\n\nLetter 5, Perpetua to Dev, dated 2 April. She answers his question about bolting: kale bolts in May, and she fries the tops in butter. The pane is mended, but a late snow has buried the kale. On 1 April she soaked twelve ash gourd seeds overnight in rice water, as he said. Her one question: should she try rice water on the kale seed too?",
+    "Letter 6, Dev to Perpetua, dated 8 April. He answers her question: he saves seed from the middle of the vine, never from the first fruit. Hearing of the goats and her six degrees, he corrects what he told her in March: an overnight soak is too long for soil that cold, and four hours is enough. His kale germinated in four days. His one question: is it true that the sun in Scotland sets after nine in summer?",
+    "Letter 7, Perpetua to Dev, dated 25 April. She answers his question about customs: the botanic garden in Edinburgh can issue a plant health certificate for the cardamom exchange. She answers his question about the sun: in late June it sets near half past nine. She works out, in the letter, what his correction means for the twelve seeds she soaked on 1 April, and what she will do with the next batch; she says how long before his correction reached her she soaked them, in the form \"N days\". Her one question is about his kale. After her name, add a P.S. of exactly one sentence that gives, as a numeral, the number of days his letter of 8 April spent in the post."
+   ],
+   "temperature": 0.8,
+   "top_p": 0.95,
+   "max_tokens": 2000,
+   "rubric": "rp_deep",
+   "judge_key": "The assistant is the co-writer; the user is the author. Seven letters between Perpetua Rudd (Aberfeld, Scotland, writes plainly, no contractions) and Dev Nair (Wayanad, Kerala, uses contractions), one per turn, alternating P, D, P, D, P, D, P, dated 3 Mar, 16 Mar, 24 Mar, 30 Mar, 2 Apr, 8 Apr, 25 Apr. Post takes 12 days from the date on a letter (14 days for letters dated 1 April or later, per the author's note at turn 5). Parcel post (anything enclosed) takes 20 days: the kale seed enclosed with L1 reaches Dev on 23 March, so L2 (16 Mar) cannot say it has arrived and L4 (30 Mar) must say 23 March. Arrival dates: L1 15 Mar; L2 28 Mar; L3 5 Apr; L4 11 Apr; L5 16 Apr; L6 22 Apr. So L3 knows nothing from Dev; L4 knows only L1; L5 knows L2 only; L6 knows L1 and L3; L7 knows L2, L4, L6. Dev's March advice (soak ash gourd overnight in rice water) is corrected in L6 (four hours, because of her six-degree soil); Perpetua soaked twelve seeds overnight on 1 April, before the correction reached her on 22 April; L7 must reconcile that and its P.S. gives 14 (days in the post).",
+   "judge_card_summary": "The Writing Desk co-writer: an author and a co-writer draft one short story section by section in a chat. The co-writer replies with exactly the requested section (no commentary, no markdown, title as a plain line). Rules set \"for the whole piece\" hold until the author changes them; a midway change (\"from here on\") holds forward only. Plain, concrete prose; feeling shown through hands, voices and objects; endings land on something seen or heard; nothing planted is wasted.",
+   "user_name": "the author",
+   "min_context": 40960,
+   "checks": [
+    {
+     "id": "F1-layout",
+     "fact": "F1",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "require_regex",
+     "turns": [
+      1
+     ],
+     "pattern": "\\A\\s*Aberfeld,\\ 3\\ March[ \\t]*\\n(?:[ \\t]*\\n)+Dear\\ Dev,[ \\t]*\\n(?:[ \\t]*\\n)+[ \\t]*\\S[^\\n]*(?:\\n[ \\t]*\\S[^\\n]*)*\\n(?:[ \\t]*\\n)+[ \\t]*\\S[^\\n]*(?:\\n[ \\t]*\\S[^\\n]*)*\\n(?:[ \\t]*\\n)+[ \\t]*\\S[^\\n]*(?:\\n[ \\t]*\\S[^\\n]*)*\\n(?:[ \\t]*\\n)+Yours\\ in\\ seed,[ \\t]*\\n[ \\t]*Perpetua[ \\t]*\\s*\\Z",
+     "scope": "all",
+     "note": "letter 1: exact layout, 3 body paragraphs",
+     "weight": 0.08
+    },
+    {
+     "id": "W1-exact-168",
+     "fact": "W1",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "word_range",
+     "turns": [
+      1
+     ],
+     "min": 168,
+     "max": 168,
+     "weight": 0.08
+    },
+    {
+     "id": "B1-paragraph-sentences",
+     "fact": "B1",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "require_regex",
+     "turns": [
+      1
+     ],
+     "pattern": "\\A\\s*Aberfeld,\\ 3\\ March[ \\t]*\\n(?:[ \\t]*\\n)+Dear\\ Dev,[ \\t]*\\n(?:[ \\t]*\\n)+(?:[ \\t]*[A-Za-z0-9\\\"'(][^.!?\\n]*[.!?]+[\\\"')]*[ \\t]*){3}\\n(?:[ \\t]*\\n)+(?:[ \\t]*[A-Za-z0-9\\\"'(][^.!?\\n]*[.!?]+[\\\"')]*[ \\t]*){4}\\n(?:[ \\t]*\\n)+(?:[ \\t]*[A-Za-z0-9\\\"'(][^.!?\\n]*[.!?]+[\\\"')]*[ \\t]*){2}\\n(?:[ \\t]*\\n)+Yours\\ in\\ seed,[ \\t]*\\n[ \\t]*Perpetua[ \\t]*\\s*\\Z",
+     "scope": "all",
+     "note": "letter 1: body paragraphs hold [3, 4, 2] sentences",
+     "weight": 0.72
+    },
+    {
+     "id": "Q1-one-question",
+     "fact": "Q1",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "require_regex",
+     "turns": [
+      1
+     ],
+     "pattern": "\\A[^?]*\\?[^?]*\\Z",
+     "scope": "all",
+     "weight": 0.08
+    },
+    {
+     "id": "C1-content",
+     "fact": "C1",
+     "ftype": "format",
+     "group": "continuity",
+     "type": "require_regex",
+     "turns": [
+      1
+     ],
+     "pattern": "\\A(?=[\\s\\S]*\\bfrost\\b)(?=[\\s\\S]*\\bpane\\b)(?=[\\s\\S]*Heron['\u2019]s Beak)(?=[\\s\\S]*\\bthirty\\b)(?=[\\s\\S]*\\bash gourd\\b)",
+     "scope": "all",
+     "note": "letter 1: the author's beats are on the page",
+     "weight": 0.08
+    },
+    {
+     "id": "HA1-no-I-start",
+     "fact": "HA1",
+     "ftype": "format",
+     "group": "continuity",
+     "type": "forbid_regex",
+     "turns": [
+      1
+     ],
+     "pattern": "(?:^|[.!?][\\\"')]*\\s+|\\n[ \\t]*\\n)I\\b(?!\\.)",
+     "scope": "all",
+     "note": "voice sample: no sentence of either writer begins with I",
+     "weight": 2.0
+    },
+    {
+     "id": "HB1-no-exclamation",
+     "fact": "HB1",
+     "ftype": "format",
+     "group": "continuity",
+     "type": "forbid_regex",
+     "turns": [
+      1
+     ],
+     "pattern": "!",
+     "scope": "all",
+     "note": "voice sample: no exclamation marks",
+     "weight": 0.08
+    },
+    {
+     "id": "HC1-no-semicolon",
+     "fact": "HC1",
+     "ftype": "format",
+     "group": "continuity",
+     "type": "forbid_regex",
+     "turns": [
+      1
+     ],
+     "pattern": ";",
+     "scope": "all",
+     "note": "Perpetua never uses a semicolon (voice sample)",
+     "weight": 0.08
+    },
+    {
+     "id": "V1-no-contractions",
+     "fact": "V1",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "forbid_regex",
+     "turns": [
+      1
+     ],
+     "pattern": "\\b(?:\\w+n['\u2019]t|I['\u2019](?:m|ve|ll|d)|(?:it|that|there|here|what|who|he|she|let|you|we|they)['\u2019](?:s|re|ve|ll|d))\\b",
+     "scope": "all",
+     "note": "Perpetua never uses a contraction",
+     "weight": 0.08
+    },
+    {
+     "id": "S1-sentence-22",
+     "fact": "S1",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "forbid_regex",
+     "turns": [
+      1
+     ],
+     "pattern": "(?:(?=[^\\s.!?]*[A-Za-z0-9])[^\\s.!?]+[ \\t]+){22}(?=[^\\s.!?]*[A-Za-z0-9])[^\\s.!?]+",
+     "scope": "all",
+     "note": "no sentence over 22 words",
+     "weight": 0.08
+    },
+    {
+     "id": "F2-layout",
+     "fact": "F2",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "require_regex",
+     "turns": [
+      2
+     ],
+     "pattern": "\\A\\s*Wayanad,\\ 16\\ March[ \\t]*\\n(?:[ \\t]*\\n)+Dear\\ Perpetua,[ \\t]*\\n(?:[ \\t]*\\n)+[ \\t]*\\S[^\\n]*(?:\\n[ \\t]*\\S[^\\n]*)*\\n(?:[ \\t]*\\n)+[ \\t]*\\S[^\\n]*(?:\\n[ \\t]*\\S[^\\n]*)*\\n(?:[ \\t]*\\n)+[ \\t]*\\S[^\\n]*(?:\\n[ \\t]*\\S[^\\n]*)*\\n(?:[ \\t]*\\n)+[ \\t]*\\S[^\\n]*(?:\\n[ \\t]*\\S[^\\n]*)*\\n(?:[ \\t]*\\n)+With\\ rain\\ and\\ respect,[ \\t]*\\n[ \\t]*Dev[ \\t]*\\s*\\Z",
+     "scope": "all",
+     "note": "letter 2: exact layout, 4 body paragraphs",
+     "weight": 0.72
+    },
+    {
+     "id": "W2-exact-196",
+     "fact": "W2",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "word_range",
+     "turns": [
+      2
+     ],
+     "min": 196,
+     "max": 196,
+     "weight": 0.72
+    },
+    {
+     "id": "B2-paragraph-sentences",
+     "fact": "B2",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "require_regex",
+     "turns": [
+      2
+     ],
+     "pattern": "\\A\\s*Wayanad,\\ 16\\ March[ \\t]*\\n(?:[ \\t]*\\n)+Dear\\ Perpetua,[ \\t]*\\n(?:[ \\t]*\\n)+(?:[ \\t]*[A-Za-z0-9\\\"'(][^.!?\\n]*[.!?]+[\\\"')]*[ \\t]*){3}\\n(?:[ \\t]*\\n)+(?:[ \\t]*[A-Za-z0-9\\\"'(][^.!?\\n]*[.!?]+[\\\"')]*[ \\t]*){4}\\n(?:[ \\t]*\\n)+(?:[ \\t]*[A-Za-z0-9\\\"'(][^.!?\\n]*[.!?]+[\\\"')]*[ \\t]*){3}\\n(?:[ \\t]*\\n)+(?:[ \\t]*[A-Za-z0-9\\\"'(][^.!?\\n]*[.!?]+[\\\"')]*[ \\t]*){2}\\n(?:[ \\t]*\\n)+With\\ rain\\ and\\ respect,[ \\t]*\\n[ \\t]*Dev[ \\t]*\\s*\\Z",
+     "scope": "all",
+     "note": "letter 2: body paragraphs hold [3, 4, 3, 2] sentences",
+     "weight": 1.57
+    },
+    {
+     "id": "Q2-one-question",
+     "fact": "Q2",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "require_regex",
+     "turns": [
+      2
+     ],
+     "pattern": "\\A[^?]*\\?[^?]*\\Z",
+     "scope": "all",
+     "weight": 0.08
+    },
+    {
+     "id": "C2-content",
+     "fact": "C2",
+     "ftype": "format",
+     "group": "continuity",
+     "type": "require_regex",
+     "turns": [
+      2
+     ],
+     "pattern": "\\A(?=[\\s\\S]*\\bbrackish\\b)(?=[\\s\\S]*\\btwo fingers\\b)(?=[\\s\\S]*\\brice water\\b)(?=[\\s\\S]*\\bovernight\\b)(?=[\\s\\S]*\\bkale\\b)(?=[\\s\\S]*\\bbolt)",
+     "scope": "all",
+     "note": "letter 2: the author's beats are on the page",
+     "weight": 0.08
+    },
+    {
+     "id": "K2-no-unreceived",
+     "fact": "K2",
+     "ftype": "format",
+     "group": "continuity",
+     "type": "forbid_regex",
+     "turns": [
+      2
+     ],
+     "pattern": "\\b(?:goats?|six degrees|first fruit|snow\\w*|butter|mended|1 April|23 March)\\b",
+     "scope": "all",
+     "note": "letter 2: nothing from a letter that has not arrived yet",
+     "weight": 0.72
+    },
+    {
+     "id": "D2-arrival-dates",
+     "fact": "D2",
+     "ftype": "format",
+     "group": "continuity",
+     "type": "require_regex",
+     "turns": [
+      2
+     ],
+     "pattern": "\\A\\s*[^\\n]+\\n(?:[ \\t]*\\n)+[^\\n]+\\n(?:[ \\t]*\\n)+[ \\t]*(?=[^.!?\\n]*15\\ March\\b)",
+     "scope": "all",
+     "note": "letter 2: first sentence of paragraph 1 gives the arrival dates ['15 March']",
+     "weight": 0.72
+    },
+    {
+     "id": "HA2-no-I-start",
+     "fact": "HA2",
+     "ftype": "format",
+     "group": "continuity",
+     "type": "forbid_regex",
+     "turns": [
+      2
+     ],
+     "pattern": "(?:^|[.!?][\\\"')]*\\s+|\\n[ \\t]*\\n)I\\b(?!\\.)",
+     "scope": "all",
+     "note": "voice sample: no sentence of either writer begins with I",
+     "weight": 2.0
+    },
+    {
+     "id": "HB2-no-exclamation",
+     "fact": "HB2",
+     "ftype": "format",
+     "group": "continuity",
+     "type": "forbid_regex",
+     "turns": [
+      2
+     ],
+     "pattern": "!",
+     "scope": "all",
+     "note": "voice sample: no exclamation marks",
+     "weight": 0.08
+    },
+    {
+     "id": "HC2-one-semicolon",
+     "fact": "HC2",
+     "ftype": "format",
+     "group": "continuity",
+     "type": "require_regex",
+     "turns": [
+      2
+     ],
+     "pattern": "\\A[^;]*;[^;]*\\Z",
+     "scope": "all",
+     "note": "Dev uses exactly one semicolon per letter (voice sample)",
+     "weight": 1.57
+    },
+    {
+     "id": "V2-two-contractions",
+     "fact": "V2",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "require_regex",
+     "turns": [
+      2
+     ],
+     "pattern": "\\b(?:\\w+n['\u2019]t|I['\u2019](?:m|ve|ll|d)|(?:it|that|there|here|what|who|he|she|let|you|we|they)['\u2019](?:s|re|ve|ll|d))\\b",
+     "min_hits": 2,
+     "per_turn": true,
+     "scope": "all",
+     "note": "Dev uses at least two contractions",
+     "weight": 1.15
+    },
+    {
+     "id": "F3-layout",
+     "fact": "F3",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "require_regex",
+     "turns": [
+      3
+     ],
+     "pattern": "\\A\\s*Aberfeld,\\ 24\\ March[ \\t]*\\n(?:[ \\t]*\\n)+Dear\\ Dev,[ \\t]*\\n(?:[ \\t]*\\n)+[ \\t]*\\S[^\\n]*(?:\\n[ \\t]*\\S[^\\n]*)*\\n(?:[ \\t]*\\n)+[ \\t]*\\S[^\\n]*(?:\\n[ \\t]*\\S[^\\n]*)*\\n(?:[ \\t]*\\n)+[ \\t]*\\S[^\\n]*(?:\\n[ \\t]*\\S[^\\n]*)*\\n(?:[ \\t]*\\n)+Yours\\ in\\ seed,[ \\t]*\\n[ \\t]*Perpetua[ \\t]*\\s*\\Z",
+     "scope": "all",
+     "note": "letter 3: exact layout, 3 body paragraphs",
+     "weight": 0.08
+    },
+    {
+     "id": "W3-exact-168",
+     "fact": "W3",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "word_range",
+     "turns": [
+      3
+     ],
+     "min": 168,
+     "max": 168,
+     "weight": 0.72
+    },
+    {
+     "id": "B3-paragraph-sentences",
+     "fact": "B3",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "require_regex",
+     "turns": [
+      3
+     ],
+     "pattern": "\\A\\s*Aberfeld,\\ 24\\ March[ \\t]*\\n(?:[ \\t]*\\n)+Dear\\ Dev,[ \\t]*\\n(?:[ \\t]*\\n)+(?:[ \\t]*[A-Za-z0-9\\\"'(][^.!?\\n]*[.!?]+[\\\"')]*[ \\t]*){3}\\n(?:[ \\t]*\\n)+(?:[ \\t]*[A-Za-z0-9\\\"'(][^.!?\\n]*[.!?]+[\\\"')]*[ \\t]*){4}\\n(?:[ \\t]*\\n)+(?:[ \\t]*[A-Za-z0-9\\\"'(][^.!?\\n]*[.!?]+[\\\"')]*[ \\t]*){2}\\n(?:[ \\t]*\\n)+Yours\\ in\\ seed,[ \\t]*\\n[ \\t]*Perpetua[ \\t]*\\s*\\Z",
+     "scope": "all",
+     "note": "letter 3: body paragraphs hold [3, 4, 2] sentences",
+     "weight": 0.72
+    },
+    {
+     "id": "Q3-one-question",
+     "fact": "Q3",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "require_regex",
+     "turns": [
+      3
+     ],
+     "pattern": "\\A[^?]*\\?[^?]*\\Z",
+     "scope": "all",
+     "weight": 0.08
+    },
+    {
+     "id": "C3-content",
+     "fact": "C3",
+     "ftype": "format",
+     "group": "continuity",
+     "type": "require_regex",
+     "turns": [
+      3
+     ],
+     "pattern": "\\A(?=[\\s\\S]*\\bgoats\\b)(?=[\\s\\S]*\\bsix degrees\\b)(?=[\\s\\S]*\\bfirst fruit\\b)",
+     "scope": "all",
+     "note": "letter 3: the author's beats are on the page",
+     "weight": 0.72
+    },
+    {
+     "id": "K3-no-unreceived",
+     "fact": "K3",
+     "ftype": "format",
+     "group": "continuity",
+     "type": "forbid_regex",
+     "turns": [
+      3
+     ],
+     "pattern": "\\b(?:brackish|rice water|two fingers|bolt\\w*|tops|showers?|customs|cardamom|germinat\\w*|four hours|15 March|28 March|23 March)\\b",
+     "scope": "all",
+     "note": "letter 3: nothing from a letter that has not arrived yet",
+     "weight": 1.15
+    },
+    {
+     "id": "N3-days-since-own",
+     "fact": "N3",
+     "ftype": "format",
+     "group": "continuity",
+     "type": "require_regex",
+     "turns": [
+      3
+     ],
+     "pattern": "\\A\\s*[^\\n]+\\n(?:[ \\t]*\\n)+[^\\n]+\\n(?:[ \\t]*\\n)+[ \\t]*\\S[^\\n]*(?:\\n[ \\t]*\\S[^\\n]*)*\\n(?:[ \\t]*\\n)+[ \\t]*(?:[^\\n]*[.!?][ \\t]+)?[^.!?\\n]*\\b21 days\\b[^.!?\\n]*[.!?][\\\"\u201d]?[ \\t]*(?:\\n|\\Z)",
+     "scope": "all",
+     "note": "letter 3: last sentence of paragraph 2 says '21 days'",
+     "weight": 0.72
+    },
+    {
+     "id": "HA3-no-I-start",
+     "fact": "HA3",
+     "ftype": "format",
+     "group": "continuity",
+     "type": "forbid_regex",
+     "turns": [
+      3
+     ],
+     "pattern": "(?:^|[.!?][\\\"')]*\\s+|\\n[ \\t]*\\n)I\\b(?!\\.)",
+     "scope": "all",
+     "note": "voice sample: no sentence of either writer begins with I",
+     "weight": 1.57
+    },
+    {
+     "id": "HB3-no-exclamation",
+     "fact": "HB3",
+     "ftype": "format",
+     "group": "continuity",
+     "type": "forbid_regex",
+     "turns": [
+      3
+     ],
+     "pattern": "!",
+     "scope": "all",
+     "note": "voice sample: no exclamation marks",
+     "weight": 0.08
+    },
+    {
+     "id": "HC3-no-semicolon",
+     "fact": "HC3",
+     "ftype": "format",
+     "group": "continuity",
+     "type": "forbid_regex",
+     "turns": [
+      3
+     ],
+     "pattern": ";",
+     "scope": "all",
+     "note": "Perpetua never uses a semicolon (voice sample)",
+     "weight": 0.08
+    },
+    {
+     "id": "V3-no-contractions",
+     "fact": "V3",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "forbid_regex",
+     "turns": [
+      3
+     ],
+     "pattern": "\\b(?:\\w+n['\u2019]t|I['\u2019](?:m|ve|ll|d)|(?:it|that|there|here|what|who|he|she|let|you|we|they)['\u2019](?:s|re|ve|ll|d))\\b",
+     "scope": "all",
+     "note": "Perpetua never uses a contraction",
+     "weight": 0.08
+    },
+    {
+     "id": "S3-sentence-22",
+     "fact": "S3",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "forbid_regex",
+     "turns": [
+      3
+     ],
+     "pattern": "(?:(?=[^\\s.!?]*[A-Za-z0-9])[^\\s.!?]+[ \\t]+){22}(?=[^\\s.!?]*[A-Za-z0-9])[^\\s.!?]+",
+     "scope": "all",
+     "note": "no sentence over 22 words",
+     "weight": 0.08
+    },
+    {
+     "id": "F4-layout",
+     "fact": "F4",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "require_regex",
+     "turns": [
+      4
+     ],
+     "pattern": "\\A\\s*Wayanad,\\ 30\\ March[ \\t]*\\n(?:[ \\t]*\\n)+Dear\\ Perpetua,[ \\t]*\\n(?:[ \\t]*\\n)+[ \\t]*\\S[^\\n]*(?:\\n[ \\t]*\\S[^\\n]*)*\\n(?:[ \\t]*\\n)+[ \\t]*\\S[^\\n]*(?:\\n[ \\t]*\\S[^\\n]*)*\\n(?:[ \\t]*\\n)+[ \\t]*\\S[^\\n]*(?:\\n[ \\t]*\\S[^\\n]*)*\\n(?:[ \\t]*\\n)+[ \\t]*\\S[^\\n]*(?:\\n[ \\t]*\\S[^\\n]*)*\\n(?:[ \\t]*\\n)+With\\ rain\\ and\\ respect,[ \\t]*\\n[ \\t]*Dev[ \\t]*\\s*\\Z",
+     "scope": "all",
+     "note": "letter 4: exact layout, 4 body paragraphs",
+     "weight": 0.72
+    },
+    {
+     "id": "W4-exact-196",
+     "fact": "W4",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "word_range",
+     "turns": [
+      4
+     ],
+     "min": 196,
+     "max": 196,
+     "weight": 0.72
+    },
+    {
+     "id": "B4-paragraph-sentences",
+     "fact": "B4",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "require_regex",
+     "turns": [
+      4
+     ],
+     "pattern": "\\A\\s*Wayanad,\\ 30\\ March[ \\t]*\\n(?:[ \\t]*\\n)+Dear\\ Perpetua,[ \\t]*\\n(?:[ \\t]*\\n)+(?:[ \\t]*[A-Za-z0-9\\\"'(][^.!?\\n]*[.!?]+[\\\"')]*[ \\t]*){3}\\n(?:[ \\t]*\\n)+(?:[ \\t]*[A-Za-z0-9\\\"'(][^.!?\\n]*[.!?]+[\\\"')]*[ \\t]*){4}\\n(?:[ \\t]*\\n)+(?:[ \\t]*[A-Za-z0-9\\\"'(][^.!?\\n]*[.!?]+[\\\"')]*[ \\t]*){3}\\n(?:[ \\t]*\\n)+(?:[ \\t]*[A-Za-z0-9\\\"'(][^.!?\\n]*[.!?]+[\\\"')]*[ \\t]*){2}\\n(?:[ \\t]*\\n)+With\\ rain\\ and\\ respect,[ \\t]*\\n[ \\t]*Dev[ \\t]*\\s*\\Z",
+     "scope": "all",
+     "note": "letter 4: body paragraphs hold [3, 4, 3, 2] sentences",
+     "weight": 1.57
+    },
+    {
+     "id": "Q4-one-question",
+     "fact": "Q4",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "require_regex",
+     "turns": [
+      4
+     ],
+     "pattern": "\\A[^?]*\\?[^?]*\\Z",
+     "scope": "all",
+     "weight": 0.08
+    },
+    {
+     "id": "C4-content",
+     "fact": "C4",
+     "ftype": "format",
+     "group": "continuity",
+     "type": "require_regex",
+     "turns": [
+      4
+     ],
+     "pattern": "\\A(?=[\\s\\S]*\\bshowers\\b)(?=[\\s\\S]*\\bcustoms\\b)(?=[\\s\\S]*\\bcardamom\\b)(?=[\\s\\S]*\\bshade\\b)(?=[\\s\\S]*\\b23 March\\b)",
+     "scope": "all",
+     "note": "letter 4: the author's beats are on the page",
+     "weight": 0.72
+    },
+    {
+     "id": "K4-no-unreceived",
+     "fact": "K4",
+     "ftype": "format",
+     "group": "continuity",
+     "type": "forbid_regex",
+     "turns": [
+      4
+     ],
+     "pattern": "\\b(?:goats?|six degrees|first fruit|snow\\w*|butter|mended|germinat\\w*|1 April|four hours|5 April)\\b",
+     "scope": "all",
+     "note": "letter 4: nothing from a letter that has not arrived yet",
+     "weight": 0.72
+    },
+    {
+     "id": "D4-arrival-dates",
+     "fact": "D4",
+     "ftype": "format",
+     "group": "continuity",
+     "type": "require_regex",
+     "turns": [
+      4
+     ],
+     "pattern": "\\A\\s*[^\\n]+\\n(?:[ \\t]*\\n)+[^\\n]+\\n(?:[ \\t]*\\n)+[ \\t]*(?=[^.!?\\n]*15\\ March\\b)",
+     "scope": "all",
+     "note": "letter 4: first sentence of paragraph 1 gives the arrival dates ['15 March']",
+     "weight": 0.72
+    },
+    {
+     "id": "N4-days-since-own",
+     "fact": "N4",
+     "ftype": "format",
+     "group": "continuity",
+     "type": "require_regex",
+     "turns": [
+      4
+     ],
+     "pattern": "\\A\\s*[^\\n]+\\n(?:[ \\t]*\\n)+[^\\n]+\\n(?:[ \\t]*\\n)+[ \\t]*\\S[^\\n]*(?:\\n[ \\t]*\\S[^\\n]*)*\\n(?:[ \\t]*\\n)+[ \\t]*(?:[^\\n]*[.!?][ \\t]+)?[^.!?\\n]*\\b14 days\\b[^.!?\\n]*[.!?][\\\"\u201d]?[ \\t]*(?:\\n|\\Z)",
+     "scope": "all",
+     "note": "letter 4: last sentence of paragraph 2 says '14 days'",
+     "weight": 1.57
+    },
+    {
+     "id": "HA4-no-I-start",
+     "fact": "HA4",
+     "ftype": "format",
+     "group": "continuity",
+     "type": "forbid_regex",
+     "turns": [
+      4
+     ],
+     "pattern": "(?:^|[.!?][\\\"')]*\\s+|\\n[ \\t]*\\n)I\\b(?!\\.)",
+     "scope": "all",
+     "note": "voice sample: no sentence of either writer begins with I",
+     "weight": 2.0
+    },
+    {
+     "id": "HB4-no-exclamation",
+     "fact": "HB4",
+     "ftype": "format",
+     "group": "continuity",
+     "type": "forbid_regex",
+     "turns": [
+      4
+     ],
+     "pattern": "!",
+     "scope": "all",
+     "note": "voice sample: no exclamation marks",
+     "weight": 0.08
+    },
+    {
+     "id": "HC4-one-semicolon",
+     "fact": "HC4",
+     "ftype": "format",
+     "group": "continuity",
+     "type": "require_regex",
+     "turns": [
+      4
+     ],
+     "pattern": "\\A[^;]*;[^;]*\\Z",
+     "scope": "all",
+     "note": "Dev uses exactly one semicolon per letter (voice sample)",
+     "weight": 2.0
+    },
+    {
+     "id": "V4-two-contractions",
+     "fact": "V4",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "require_regex",
+     "turns": [
+      4
+     ],
+     "pattern": "\\b(?:\\w+n['\u2019]t|I['\u2019](?:m|ve|ll|d)|(?:it|that|there|here|what|who|he|she|let|you|we|they)['\u2019](?:s|re|ve|ll|d))\\b",
+     "min_hits": 2,
+     "per_turn": true,
+     "scope": "all",
+     "note": "Dev uses at least two contractions",
+     "weight": 0.72
+    },
+    {
+     "id": "F5-layout",
+     "fact": "F5",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "require_regex",
+     "turns": [
+      5
+     ],
+     "pattern": "\\A\\s*Aberfeld,\\ 2\\ April[ \\t]*\\n(?:[ \\t]*\\n)+Dear\\ Dev,[ \\t]*\\n(?:[ \\t]*\\n)+[ \\t]*\\S[^\\n]*(?:\\n[ \\t]*\\S[^\\n]*)*\\n(?:[ \\t]*\\n)+[ \\t]*\\S[^\\n]*(?:\\n[ \\t]*\\S[^\\n]*)*\\n(?:[ \\t]*\\n)+[ \\t]*\\S[^\\n]*(?:\\n[ \\t]*\\S[^\\n]*)*\\n(?:[ \\t]*\\n)+Yours\\ in\\ seed,[ \\t]*\\n[ \\t]*Perpetua[ \\t]*\\s*\\Z",
+     "scope": "all",
+     "note": "letter 5: exact layout, 3 body paragraphs",
+     "weight": 0.72
+    },
+    {
+     "id": "W5-exact-168",
+     "fact": "W5",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "word_range",
+     "turns": [
+      5
+     ],
+     "min": 168,
+     "max": 168,
+     "weight": 0.08
+    },
+    {
+     "id": "B5-paragraph-sentences",
+     "fact": "B5",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "require_regex",
+     "turns": [
+      5
+     ],
+     "pattern": "\\A\\s*Aberfeld,\\ 2\\ April[ \\t]*\\n(?:[ \\t]*\\n)+Dear\\ Dev,[ \\t]*\\n(?:[ \\t]*\\n)+(?:[ \\t]*[A-Za-z0-9\\\"'(][^.!?\\n]*[.!?]+[\\\"')]*[ \\t]*){3}\\n(?:[ \\t]*\\n)+(?:[ \\t]*[A-Za-z0-9\\\"'(][^.!?\\n]*[.!?]+[\\\"')]*[ \\t]*){4}\\n(?:[ \\t]*\\n)+(?:[ \\t]*[A-Za-z0-9\\\"'(][^.!?\\n]*[.!?]+[\\\"')]*[ \\t]*){2}\\n(?:[ \\t]*\\n)+Yours\\ in\\ seed,[ \\t]*\\n[ \\t]*Perpetua[ \\t]*\\s*\\Z",
+     "scope": "all",
+     "note": "letter 5: body paragraphs hold [3, 4, 2] sentences",
+     "weight": 1.15
+    },
+    {
+     "id": "Q5-one-question",
+     "fact": "Q5",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "require_regex",
+     "turns": [
+      5
+     ],
+     "pattern": "\\A[^?]*\\?[^?]*\\Z",
+     "scope": "all",
+     "weight": 0.08
+    },
+    {
+     "id": "C5-content",
+     "fact": "C5",
+     "ftype": "format",
+     "group": "continuity",
+     "type": "require_regex",
+     "turns": [
+      5
+     ],
+     "pattern": "\\A(?=[\\s\\S]*\\bMay\\b)(?=[\\s\\S]*\\bbutter\\b)(?=[\\s\\S]*\\btops\\b)(?=[\\s\\S]*\\bsnow\\b)(?=[\\s\\S]*\\bmended\\b)(?=[\\s\\S]*\\b1 April\\b)(?=[\\s\\S]*\\brice water\\b)(?=[\\s\\S]*\\btwelve\\b)",
+     "scope": "all",
+     "note": "letter 5: the author's beats are on the page",
+     "weight": 0.08
+    },
+    {
+     "id": "K5-no-unreceived",
+     "fact": "K5",
+     "ftype": "format",
+     "group": "continuity",
+     "type": "forbid_regex",
+     "turns": [
+      5
+     ],
+     "pattern": "\\b(?:showers?|customs|cardamom|germinat\\w*|four hours|middle of the vine|Edinburgh|11 April|16 April|22 April)\\b",
+     "scope": "all",
+     "note": "letter 5: nothing from a letter that has not arrived yet",
+     "weight": 0.72
+    },
+    {
+     "id": "D5-arrival-dates",
+     "fact": "D5",
+     "ftype": "format",
+     "group": "continuity",
+     "type": "require_regex",
+     "turns": [
+      5
+     ],
+     "pattern": "\\A\\s*[^\\n]+\\n(?:[ \\t]*\\n)+[^\\n]+\\n(?:[ \\t]*\\n)+[ \\t]*(?=[^.!?\\n]*28\\ March\\b)",
+     "scope": "all",
+     "note": "letter 5: first sentence of paragraph 1 gives the arrival dates ['28 March']",
+     "weight": 0.08
+    },
+    {
+     "id": "N5-days-since-own",
+     "fact": "N5",
+     "ftype": "format",
+     "group": "continuity",
+     "type": "require_regex",
+     "turns": [
+      5
+     ],
+     "pattern": "\\A\\s*[^\\n]+\\n(?:[ \\t]*\\n)+[^\\n]+\\n(?:[ \\t]*\\n)+[ \\t]*\\S[^\\n]*(?:\\n[ \\t]*\\S[^\\n]*)*\\n(?:[ \\t]*\\n)+[ \\t]*(?:[^\\n]*[.!?][ \\t]+)?[^.!?\\n]*\\b9 days\\b[^.!?\\n]*[.!?][\\\"\u201d]?[ \\t]*(?:\\n|\\Z)",
+     "scope": "all",
+     "note": "letter 5: last sentence of paragraph 2 says '9 days'",
+     "weight": 1.15
+    },
+    {
+     "id": "HA5-no-I-start",
+     "fact": "HA5",
+     "ftype": "format",
+     "group": "continuity",
+     "type": "forbid_regex",
+     "turns": [
+      5
+     ],
+     "pattern": "(?:^|[.!?][\\\"')]*\\s+|\\n[ \\t]*\\n)I\\b(?!\\.)",
+     "scope": "all",
+     "note": "voice sample: no sentence of either writer begins with I",
+     "weight": 1.57
+    },
+    {
+     "id": "HB5-no-exclamation",
+     "fact": "HB5",
+     "ftype": "format",
+     "group": "continuity",
+     "type": "forbid_regex",
+     "turns": [
+      5
+     ],
+     "pattern": "!",
+     "scope": "all",
+     "note": "voice sample: no exclamation marks",
+     "weight": 0.08
+    },
+    {
+     "id": "HC5-no-semicolon",
+     "fact": "HC5",
+     "ftype": "format",
+     "group": "continuity",
+     "type": "forbid_regex",
+     "turns": [
+      5
+     ],
+     "pattern": ";",
+     "scope": "all",
+     "note": "Perpetua never uses a semicolon (voice sample)",
+     "weight": 0.72
+    },
+    {
+     "id": "V5-no-contractions",
+     "fact": "V5",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "forbid_regex",
+     "turns": [
+      5
+     ],
+     "pattern": "\\b(?:\\w+n['\u2019]t|I['\u2019](?:m|ve|ll|d)|(?:it|that|there|here|what|who|he|she|let|you|we|they)['\u2019](?:s|re|ve|ll|d))\\b",
+     "scope": "all",
+     "note": "Perpetua never uses a contraction",
+     "weight": 0.08
+    },
+    {
+     "id": "S5-sentence-22",
+     "fact": "S5",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "forbid_regex",
+     "turns": [
+      5
+     ],
+     "pattern": "(?:(?=[^\\s.!?]*[A-Za-z0-9])[^\\s.!?]+[ \\t]+){22}(?=[^\\s.!?]*[A-Za-z0-9])[^\\s.!?]+",
+     "scope": "all",
+     "note": "no sentence over 22 words",
+     "weight": 0.08
+    },
+    {
+     "id": "F6-layout",
+     "fact": "F6",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "require_regex",
+     "turns": [
+      6
+     ],
+     "pattern": "\\A\\s*Wayanad,\\ 8\\ April[ \\t]*\\n(?:[ \\t]*\\n)+Dear\\ Perpetua,[ \\t]*\\n(?:[ \\t]*\\n)+[ \\t]*\\S[^\\n]*(?:\\n[ \\t]*\\S[^\\n]*)*\\n(?:[ \\t]*\\n)+[ \\t]*\\S[^\\n]*(?:\\n[ \\t]*\\S[^\\n]*)*\\n(?:[ \\t]*\\n)+[ \\t]*\\S[^\\n]*(?:\\n[ \\t]*\\S[^\\n]*)*\\n(?:[ \\t]*\\n)+[ \\t]*\\S[^\\n]*(?:\\n[ \\t]*\\S[^\\n]*)*\\n(?:[ \\t]*\\n)+With\\ rain\\ and\\ respect,[ \\t]*\\n[ \\t]*Dev[ \\t]*\\s*\\Z",
+     "scope": "all",
+     "note": "letter 6: exact layout, 4 body paragraphs",
+     "weight": 1.15
+    },
+    {
+     "id": "W6-exact-196",
+     "fact": "W6",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "word_range",
+     "turns": [
+      6
+     ],
+     "min": 196,
+     "max": 196,
+     "weight": 1.15
+    },
+    {
+     "id": "B6-paragraph-sentences",
+     "fact": "B6",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "require_regex",
+     "turns": [
+      6
+     ],
+     "pattern": "\\A\\s*Wayanad,\\ 8\\ April[ \\t]*\\n(?:[ \\t]*\\n)+Dear\\ Perpetua,[ \\t]*\\n(?:[ \\t]*\\n)+(?:[ \\t]*[A-Za-z0-9\\\"'(][^.!?\\n]*[.!?]+[\\\"')]*[ \\t]*){3}\\n(?:[ \\t]*\\n)+(?:[ \\t]*[A-Za-z0-9\\\"'(][^.!?\\n]*[.!?]+[\\\"')]*[ \\t]*){4}\\n(?:[ \\t]*\\n)+(?:[ \\t]*[A-Za-z0-9\\\"'(][^.!?\\n]*[.!?]+[\\\"')]*[ \\t]*){3}\\n(?:[ \\t]*\\n)+(?:[ \\t]*[A-Za-z0-9\\\"'(][^.!?\\n]*[.!?]+[\\\"')]*[ \\t]*){2}\\n(?:[ \\t]*\\n)+With\\ rain\\ and\\ respect,[ \\t]*\\n[ \\t]*Dev[ \\t]*\\s*\\Z",
+     "scope": "all",
+     "note": "letter 6: body paragraphs hold [3, 4, 3, 2] sentences",
+     "weight": 2.0
+    },
+    {
+     "id": "Q6-one-question",
+     "fact": "Q6",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "require_regex",
+     "turns": [
+      6
+     ],
+     "pattern": "\\A[^?]*\\?[^?]*\\Z",
+     "scope": "all",
+     "weight": 0.08
+    },
+    {
+     "id": "C6-content",
+     "fact": "C6",
+     "ftype": "format",
+     "group": "continuity",
+     "type": "require_regex",
+     "turns": [
+      6
+     ],
+     "pattern": "\\A(?=[\\s\\S]*\\bmiddle\\b)(?=[\\s\\S]*\\bfour hours\\b)(?=[\\s\\S]*\\bgoats\\b)(?=[\\s\\S]*\\bsix degrees\\b)(?=[\\s\\S]*\\bgerminated\\b)(?=[\\s\\S]*\\bnine\\b)",
+     "scope": "all",
+     "note": "letter 6: the author's beats are on the page",
+     "weight": 1.57
+    },
+    {
+     "id": "K6-no-unreceived",
+     "fact": "K6",
+     "ftype": "format",
+     "group": "continuity",
+     "type": "forbid_regex",
+     "turns": [
+      6
+     ],
+     "pattern": "\\b(?:snow\\w*|butter|mended|1 April|twelve|2 April|16 April)\\b",
+     "scope": "all",
+     "note": "letter 6: nothing from a letter that has not arrived yet",
+     "weight": 1.15
+    },
+    {
+     "id": "D6-arrival-dates",
+     "fact": "D6",
+     "ftype": "format",
+     "group": "continuity",
+     "type": "require_regex",
+     "turns": [
+      6
+     ],
+     "pattern": "\\A\\s*[^\\n]+\\n(?:[ \\t]*\\n)+[^\\n]+\\n(?:[ \\t]*\\n)+[ \\t]*(?=[^.!?\\n]*15\\ March\\b)(?=[^.!?\\n]*5\\ April\\b)",
+     "scope": "all",
+     "note": "letter 6: first sentence of paragraph 1 gives the arrival dates ['15 March', '5 April']",
+     "weight": 1.57
+    },
+    {
+     "id": "N6-days-since-own",
+     "fact": "N6",
+     "ftype": "format",
+     "group": "continuity",
+     "type": "require_regex",
+     "turns": [
+      6
+     ],
+     "pattern": "\\A\\s*[^\\n]+\\n(?:[ \\t]*\\n)+[^\\n]+\\n(?:[ \\t]*\\n)+[ \\t]*\\S[^\\n]*(?:\\n[ \\t]*\\S[^\\n]*)*\\n(?:[ \\t]*\\n)+[ \\t]*(?:[^\\n]*[.!?][ \\t]+)?[^.!?\\n]*\\b9 days\\b[^.!?\\n]*[.!?][\\\"\u201d]?[ \\t]*(?:\\n|\\Z)",
+     "scope": "all",
+     "note": "letter 6: last sentence of paragraph 2 says '9 days'",
+     "weight": 1.57
+    },
+    {
+     "id": "HA6-no-I-start",
+     "fact": "HA6",
+     "ftype": "format",
+     "group": "continuity",
+     "type": "forbid_regex",
+     "turns": [
+      6
+     ],
+     "pattern": "(?:^|[.!?][\\\"')]*\\s+|\\n[ \\t]*\\n)I\\b(?!\\.)",
+     "scope": "all",
+     "note": "voice sample: no sentence of either writer begins with I",
+     "weight": 2.0
+    },
+    {
+     "id": "HB6-no-exclamation",
+     "fact": "HB6",
+     "ftype": "format",
+     "group": "continuity",
+     "type": "forbid_regex",
+     "turns": [
+      6
+     ],
+     "pattern": "!",
+     "scope": "all",
+     "note": "voice sample: no exclamation marks",
+     "weight": 0.08
+    },
+    {
+     "id": "HC6-one-semicolon",
+     "fact": "HC6",
+     "ftype": "format",
+     "group": "continuity",
+     "type": "require_regex",
+     "turns": [
+      6
+     ],
+     "pattern": "\\A[^;]*;[^;]*\\Z",
+     "scope": "all",
+     "note": "Dev uses exactly one semicolon per letter (voice sample)",
+     "weight": 1.57
+    },
+    {
+     "id": "V6-two-contractions",
+     "fact": "V6",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "require_regex",
+     "turns": [
+      6
+     ],
+     "pattern": "\\b(?:\\w+n['\u2019]t|I['\u2019](?:m|ve|ll|d)|(?:it|that|there|here|what|who|he|she|let|you|we|they)['\u2019](?:s|re|ve|ll|d))\\b",
+     "min_hits": 2,
+     "per_turn": true,
+     "scope": "all",
+     "note": "Dev uses at least two contractions",
+     "weight": 1.15
+    },
+    {
+     "id": "F7-layout",
+     "fact": "F7",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "require_regex",
+     "turns": [
+      7
+     ],
+     "pattern": "\\A\\s*Aberfeld,\\ 25\\ April[ \\t]*\\n(?:[ \\t]*\\n)+Dear\\ Dev,[ \\t]*\\n(?:[ \\t]*\\n)+[ \\t]*\\S[^\\n]*(?:\\n[ \\t]*\\S[^\\n]*)*\\n(?:[ \\t]*\\n)+[ \\t]*\\S[^\\n]*(?:\\n[ \\t]*\\S[^\\n]*)*\\n(?:[ \\t]*\\n)+[ \\t]*\\S[^\\n]*(?:\\n[ \\t]*\\S[^\\n]*)*\\n(?:[ \\t]*\\n)+Yours\\ in\\ seed,[ \\t]*\\n[ \\t]*Perpetua[ \\t]*\\n[ \\t]*\\n\\s*P\\.S\\.[^\\n]+\\s*\\Z",
+     "scope": "all",
+     "note": "letter 7: exact layout, 3 body paragraphs",
+     "weight": 0.72
+    },
+    {
+     "id": "W7-exact-168",
+     "fact": "W7",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "word_range",
+     "turns": [
+      7
+     ],
+     "min": 168,
+     "max": 168,
+     "weight": 2.0
+    },
+    {
+     "id": "B7-paragraph-sentences",
+     "fact": "B7",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "require_regex",
+     "turns": [
+      7
+     ],
+     "pattern": "\\A\\s*Aberfeld,\\ 25\\ April[ \\t]*\\n(?:[ \\t]*\\n)+Dear\\ Dev,[ \\t]*\\n(?:[ \\t]*\\n)+(?:[ \\t]*[A-Za-z0-9\\\"'(][^.!?\\n]*[.!?]+[\\\"')]*[ \\t]*){3}\\n(?:[ \\t]*\\n)+(?:[ \\t]*[A-Za-z0-9\\\"'(][^.!?\\n]*[.!?]+[\\\"')]*[ \\t]*){4}\\n(?:[ \\t]*\\n)+(?:[ \\t]*[A-Za-z0-9\\\"'(][^.!?\\n]*[.!?]+[\\\"')]*[ \\t]*){2}\\n(?:[ \\t]*\\n)+Yours\\ in\\ seed,[ \\t]*\\n[ \\t]*Perpetua[ \\t]*\\n[ \\t]*\\n\\s*P\\.S\\.[^\\n]+\\s*\\Z",
+     "scope": "all",
+     "note": "letter 7: body paragraphs hold [3, 4, 2] sentences",
+     "weight": 1.57
+    },
+    {
+     "id": "Q7-one-question",
+     "fact": "Q7",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "require_regex",
+     "turns": [
+      7
+     ],
+     "pattern": "\\A[^?]*\\?[^?]*\\Z",
+     "scope": "all",
+     "weight": 0.08
+    },
+    {
+     "id": "C7-content",
+     "fact": "C7",
+     "ftype": "format",
+     "group": "continuity",
+     "type": "require_regex",
+     "turns": [
+      7
+     ],
+     "pattern": "\\A(?=[\\s\\S]*\\bEdinburgh\\b)(?=[\\s\\S]*\\bcertificate\\b)(?=[\\s\\S]*\\bhalf past nine\\b|\\bnine thirty\\b|\\b9[.:]30\\b)(?=[\\s\\S]*\\bfour hours\\b)(?=[\\s\\S]*\\b1 April\\b)(?=[\\s\\S]*\\btwelve\\b)",
+     "scope": "all",
+     "note": "letter 7: the author's beats are on the page",
+     "weight": 1.15
+    },
+    {
+     "id": "D7-arrival-dates",
+     "fact": "D7",
+     "ftype": "format",
+     "group": "continuity",
+     "type": "require_regex",
+     "turns": [
+      7
+     ],
+     "pattern": "\\A\\s*[^\\n]+\\n(?:[ \\t]*\\n)+[^\\n]+\\n(?:[ \\t]*\\n)+[ \\t]*(?=[^.!?\\n]*28\\ March\\b)(?=[^.!?\\n]*11\\ April\\b)(?=[^.!?\\n]*22\\ April\\b)",
+     "scope": "all",
+     "note": "letter 7: first sentence of paragraph 1 gives the arrival dates ['28 March', '11 April', '22 April']",
+     "weight": 0.72
+    },
+    {
+     "id": "N7-days-since-own",
+     "fact": "N7",
+     "ftype": "format",
+     "group": "continuity",
+     "type": "require_regex",
+     "turns": [
+      7
+     ],
+     "pattern": "\\A\\s*[^\\n]+\\n(?:[ \\t]*\\n)+[^\\n]+\\n(?:[ \\t]*\\n)+[ \\t]*\\S[^\\n]*(?:\\n[ \\t]*\\S[^\\n]*)*\\n(?:[ \\t]*\\n)+[ \\t]*(?:[^\\n]*[.!?][ \\t]+)?[^.!?\\n]*\\b23 days\\b[^.!?\\n]*[.!?][\\\"\u201d]?[ \\t]*(?:\\n|\\Z)",
+     "scope": "all",
+     "note": "letter 7: last sentence of paragraph 2 says '23 days'",
+     "weight": 1.57
+    },
+    {
+     "id": "HA7-no-I-start",
+     "fact": "HA7",
+     "ftype": "format",
+     "group": "continuity",
+     "type": "forbid_regex",
+     "turns": [
+      7
+     ],
+     "pattern": "(?:^|[.!?][\\\"')]*\\s+|\\n[ \\t]*\\n)I\\b(?!\\.)",
+     "scope": "all",
+     "note": "voice sample: no sentence of either writer begins with I",
+     "weight": 1.15
+    },
+    {
+     "id": "HB7-no-exclamation",
+     "fact": "HB7",
+     "ftype": "format",
+     "group": "continuity",
+     "type": "forbid_regex",
+     "turns": [
+      7
+     ],
+     "pattern": "!",
+     "scope": "all",
+     "note": "voice sample: no exclamation marks",
+     "weight": 0.08
+    },
+    {
+     "id": "HC7-no-semicolon",
+     "fact": "HC7",
+     "ftype": "format",
+     "group": "continuity",
+     "type": "forbid_regex",
+     "turns": [
+      7
+     ],
+     "pattern": ";",
+     "scope": "all",
+     "note": "Perpetua never uses a semicolon (voice sample)",
+     "weight": 2.0
+    },
+    {
+     "id": "V7-no-contractions",
+     "fact": "V7",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "forbid_regex",
+     "turns": [
+      7
+     ],
+     "pattern": "\\b(?:\\w+n['\u2019]t|I['\u2019](?:m|ve|ll|d)|(?:it|that|there|here|what|who|he|she|let|you|we|they)['\u2019](?:s|re|ve|ll|d))\\b",
+     "scope": "all",
+     "note": "Perpetua never uses a contraction",
+     "weight": 0.08
+    },
+    {
+     "id": "S7-sentence-22",
+     "fact": "S7",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "forbid_regex",
+     "turns": [
+      7
+     ],
+     "pattern": "(?:(?=[^\\s.!?]*[A-Za-z0-9])[^\\s.!?]+[ \\t]+){22}(?=[^\\s.!?]*[A-Za-z0-9])[^\\s.!?]+",
+     "scope": "all",
+     "note": "no sentence over 22 words",
+     "weight": 0.08
+    },
+    {
+     "id": "N7b-twentyone-days",
+     "fact": "N7b",
+     "ftype": "format",
+     "group": "continuity",
+     "type": "require_regex",
+     "turns": [
+      7
+     ],
+     "pattern": "\\b21 days\\b",
+     "scope": "all",
+     "note": "1 April to 22 April = 21 days",
+     "weight": 0.08
+    },
+    {
+     "id": "P7-ps-fourteen",
+     "fact": "P7",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "require_regex",
+     "turns": [
+      7
+     ],
+     "pattern": "\\nP\\.S\\.[^\\n]*\\b14\\b[^\\n]*\\Z",
+     "scope": "all",
+     "note": "the P.S. gives 14 (days in the post, 8 to 22 April)",
+     "weight": 0.08
+    },
+    {
+     "id": "P7b-ps-one-sentence",
+     "fact": "P7b",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "forbid_regex",
+     "turns": [
+      7
+     ],
+     "pattern": "\\nP\\.S\\.[^\\n]*[.!?][^\\n]*[A-Za-z0-9][^\\n]*[.!?]\\s*\\Z",
+     "scope": "all",
+     "note": "the P.S. is one sentence",
+     "weight": 0.08
+    },
+    {
+     "id": "U3-no-the",
+     "fact": "U3",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "forbid_regex",
+     "turns": [
+      3,
+      4,
+      5,
+      6,
+      7
+     ],
+     "pattern": "\\bthe\\b",
+     "scope": "all",
+     "note": "from letter 3 on no 'the'",
+     "weight": 1.15
+    },
+    {
+     "id": "U5-no-and",
+     "fact": "U5",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "forbid_regex",
+     "turns": [
+      5,
+      6,
+      7
+     ],
+     "pattern": "\\band\\b(?! respect)",
+     "scope": "all",
+     "note": "from letter 5 on no 'and'",
+     "weight": 1.15
+    },
+    {
+     "id": "Y-straight-no-hyphens",
+     "fact": "Y",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "forbid_regex",
+     "turns": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7
+     ],
+     "pattern": "[\u2018\u2019\u201c\u201d\u2010\u2011\u2013\u2014-]",
+     "scope": "all",
+     "note": "straight quotes; no hyphens or dashes",
+     "weight": 0.08
+    },
+    {
+     "id": "X-no-ps-elsewhere",
+     "fact": "X",
+     "ftype": "format",
+     "group": "constraint",
+     "type": "forbid_regex",
+     "turns": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6
+     ],
+     "pattern": "^\\s*P\\.S\\.",
+     "scope": "all",
+     "weight": 0.08
+    }
+   ],
+   "judge_elements": [
+    {
+     "id": "J1-waiting-vs-received",
+     "ftype": "applied",
+     "turns": [
+      3,
+      5
+     ],
+     "q": "Perpetua's letter 3 (turn 3, dated 24 March) must read as written by someone who has had NO reply: she says so and uses nothing from Dev's replies. Her letter 5 (turn 5, dated 2 April) must treat Dev's letter of 16 March as received (it arrived on 28 March) and answer its question about bolting, without reacting to anything from his letter of 30 March. Quote the line in letter 3 that shows she has no reply, and the line in letter 5 that answers him. NO if letter 3 says or implies she knows anything from Dev, or letter 5 does not use his March letter, or letter 5 reacts to the later one.",
+     "evidence": [
+      {
+       "src": "turn",
+       "text": "A writer who has had no reply simply has none."
+      }
+     ],
+     "gold_quote": "I have had no word from you yet, so I cannot say whether the seed reached you.",
+     "weight": 1.5,
+     "fact": "J1"
+    },
+    {
+     "id": "J0-parcel-lag",
+     "ftype": "applied",
+     "turns": [
+      2,
+      4
+     ],
+     "q": "Enclosures travel as parcel post and arrive 20 days after the letter's date. Dev's letter 2 (turn 2, dated 16 March) must treat the kale seed as NOT yet arrived: it is only something Perpetua says she is sending (it reaches him on 23 March). His letter 4 (turn 4, dated 30 March) must say it has arrived, on 23 March, and that he planted it. Quote the line in letter 2 about the kale and the line in letter 4 about its arrival. NO if letter 2 says or implies the seed is already in his hands (thanks for the seeds that arrived, planted, packet received), or letter 4 gives a date other than 23 March.",
+     "evidence": [
+      {
+       "src": "turn",
+       "text": "anything enclosed with a letter (seed packets, say) goes as parcel post and arrives 20 days after the date written on the letter"
+      }
+     ],
+     "gold_quote": "You write that kale seed is on its way, and I will watch the post for it.",
+     "weight": 1.5,
+     "fact": "J0"
+    },
+    {
+     "id": "J2-dev-correction",
+     "ftype": "applied",
+     "turns": [
+      4,
+      6
+     ],
+     "q": "Dev's letter 4 (turn 4, 30 March) must not know Perpetua's letter 3 (it reaches him on 5 April). His letter 6 (turn 6, 8 April) must answer letter 3's question (first fruit or last) and must connect the correction to her cold soil: he shortens the soak because of the six degrees she reported. Quote the correction line. NO if letter 4 reacts to her goats or soil, or letter 6 changes the soak without giving the cold soil as the reason, or does not answer the first-fruit question.",
+     "evidence": [
+      {
+       "src": "turn",
+       "text": "Hearing of the goats and her six degrees, he corrects what he told her in March"
+      }
+     ],
+     "gold_quote": "With soil at six degrees, an overnight soak is too long, so give the seed four hours.",
+     "weight": 1.5,
+     "fact": "J2"
+    },
+    {
+     "id": "J3-reconcile",
+     "ftype": "applied",
+     "turns": [
+      7
+     ],
+     "q": "Letter 7 must reconcile the overnight soak of 1 April with Dev's correction that reached her on 22 April: it says (a) her twelve seeds were soaked overnight BEFORE the correction could have reached her, and (b) what follows for those seeds and for the next batch (a concrete decision, e.g. she will watch those twelve, and soak the next batch four hours). Quote the line. NO if she simply obeys the correction as if she had it on 1 April, ignores the twelve seeds, or gives no decision.",
+     "evidence": [
+      {
+       "src": "turn",
+       "text": "She works out, in the letter, what his correction means for the twelve seeds she soaked on 1 April, and what she will do with the next batch"
+      }
+     ],
+     "gold_quote": "Your correction reached me on 22 April, three weeks after I soaked the twelve, so those seeds must take their chance.",
+     "weight": 1.5,
+     "fact": "J3"
+    },
+    {
+     "id": "J4-post-arithmetic",
+     "ftype": "applied",
+     "turns": [
+      5,
+      7
+     ],
+     "q": "Check the post arithmetic. Letter 5 (dated 2 April) must say Dev's letter of 16 March arrived on 28 March. Letter 7 (dated 25 April) must give the arrival dates of his three letters: 16 March letter on 28 March, 30 March letter on 11 April, 8 April letter on 22 April (14 days, after the author's note). Quote the sentence in each. NO if any of the four dates is wrong or missing.",
+     "evidence": [
+      {
+       "src": "turn",
+       "text": "gives the day and month on which each of them arrived"
+      }
+     ],
+     "gold_quote": "Your letters reached me on 28 March, 11 April and 22 April.",
+     "weight": 1.5,
+     "fact": "J4"
+    }
+   ],
+   "format_gate": "chat",
+   "deep_rubric": "chat_deep",
+   "category": "rpdeep"
+  }
+ ]
+}

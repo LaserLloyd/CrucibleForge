@@ -6,6 +6,367 @@ was ever published as Gauntlet, so there is no migration to do — the entries
 below are kept because the engineering they record is real, not to narrate a
 rename.
 
+## 4.0.0 — "lite": simple, quick, differentiating (2026-10-31)
+
+- **Board: Overall /20 = Coding /10 + Chat /10.** NSFW /10 stays beside it, never added. Coding =
+  Functions 5 (the new CL3–CL8 single-function set, partial credit per unit test; CL1/CL2 cut for time) + Predict + bug hunt
+  2.5 (CB-C3/C5/C6, CB-F1) + Tool use 2.5 (TZ16, TZ19, TZ20). CZ12/CZ13, RX24/RX27 and MH28/31/33 left
+  the board (case files kept); the Reasoning sub-score is gone. Chat and NSFW unchanged. Part keys stay
+  `code`/`reasoning`/`agentic`, so the ladder packs keep attaching (bonus points above /10, unchanged).
+- **Class and Lean columns** (report.md / report.html / report.json): Class = a coarse band from
+  Overall (`headline.classes`: S ≥ 16, A ≥ 13, B ≥ 10, C below); Lean = (Chat − board median) −
+  (Coding − board median), chat-/code-leaning at ≥ 1.5 (`headline.lean_gap`), else balanced.
+- **Overflow rule (3.8's, restated):** `escalation_on_board: false` — a row that ran out of the board
+  budget counts as failed on the board even after its retry; the points board shows a Room column
+  (Overall with the retry swapped in).
+- **Time budget:** NMX1 (near ceiling), WL2R (WL2's twin), UX2 and CB-C3 (noisy) left the board;
+  tooluse/codeagent 1 repeat. The planner times a model from its own stored rows
+  (`estimate.measured_speed`; 3.9 rounds reproduced within 0–7 %). `pack verify` warns when a pack's
+  planner estimate is over 5 minutes.
+- **One retry pass instead of per-model escalation.** `escalation_rungs: [65536]`; `bench-all
+  --escalate` re-runs every out-of-budget row once, at that rung, in one pass after every model's
+  single run; the ladder round no longer escalates inline. The plan prints the pass's time estimate.
+- **Code-review round:** stored repeats above the profile's count leave the board; hosted models
+  short of cases are reported as "hosted rows pending" and keep the nightly rebuild open; Lean only for
+  complete models; private case ids are counted, never named, in plan lines and run reports; a
+  first-in-queue model longer than the window starts and runs to the cut; jobs start
+  longest-expected-first; Room ignores re-runs above the top rung.
+- **WR1 / WR2 three turns:** WR1 keeps old turns 1, 4, 5 (plant, retcon, payoff); WR2 its first three.
+- **README** rewritten for 4.0 with a quickstart (any OpenAI-compatible server or an API key).
+- **Runtime levers:** one rig load at 73,728 (`run_plan.split_rig_rounds: false`); RV1 10→5, RV2 10→6,
+  CC3 10→6, CC4 11→6 turns by merging adjacent user turns (every check and judge element kept and
+  re-pointed; gold/foil fixtures rewritten); WR1/WR2 unchanged (per-section anchored checks). The
+  planner scales a measured session by its turn count and times an unmeasured one from its family.
+  CL3–CL8 (coding lane) are on the board; CL1/CL2 stay in the case file.
+- Merged lane A (NSFW grading fixes) and lane C (TZ19/TZ20, stepgrade, LAG1). Coding `repeats` 1 (the
+  CQ pack questions keep 2). Tests run in parallel: `uv run pytest -n 8` (pytest-xdist dev dependency).
+
+**Release and hygiene fixes (November 2026 review; GitHub issues #2, #4, #5, #7, #9, #10, #15):**
+
+- **Licence: MIT No Attribution (MIT-0).** You can use, copy, change and ship CrucibleForge with no
+  conditions; no copyright notice has to be kept. You don't need to credit this project — but if you do,
+  a link back is appreciated. `LICENSE`, `pyproject.toml` (`MIT-0`), the Docker image label and the
+  README say so. Releases up to 3.7.0 were MIT.
+- **The first ladder packs:** one harder pack per sub-score (Work: agentic, code, reasoning; Chat: deep
+  RP set-2, conversation, character, writing; NSFW: uncensored, NSFW RP, NSFW writing set-2). The
+  questions are written inline in their `cases/ladder/<category>/<part>/set-<n>.json` files, not in
+  `cases/*.json`, so the suite hash stays `ba6eb461`. `pack verify` no longer counts a pack's own
+  inline questions as duplicates and does not hold multi-turn sessions to the single-answer
+  judge-size estimate. NSFW-writing set-2 answers are capped at 3000 tokens so the judge reads them
+  whole, and the adult-content guard test also scans inline NSFW pack questions.
+- **The run report's Result line reads the points board** instead of the pre-3.9 Chat/Coding keys.
+- **`models.yaml` is written with mode 0600** when it holds a literal `api_key`.
+- **Git hooks find `python3`, `python` or `py`**, so they run on Windows and minimal Linux images.
+- **`.python-version` pins 3.13** for `uv`.
+- **Windows test collection** no longer fails on the POSIX-only `fcntl` import.
+- **`SECURITY.md`** documents that the shipped Docker setup runs model-written code unsandboxed
+  inside the container, and that a provider's `force_evict: true` is a standing policy.
+- **Docs:** `docs/CHAT.md`, `docs/OPENCLAW.md` and the three September snapshot notes say which
+  release they describe. The compose file and Docker docs gain a note on the GUI URL's port and a rollback recipe.
+- The judge canary names its participants as adults; maintainer-local notes are gone from comments.
+
+## 3.10.0 — lock-in round: harness (2026-10-30)
+
+- **Currency is per row and per case.** A row counts when it was made under the current regime (suite
+  version compared as a tuple, so 3.10.0 > 3.9.0) and answers the current content of ITS case
+  (`version.case_hash`). Editing one question re-runs only that question's rows; the SUITE_VERSION bump
+  to 3.10.0 re-runs nothing. Rows from before 3.10 are matched case by case through a frozen snapshot
+  (`crucibleforge/stamps/3.9.0+ba6eb461.json`); rows on disk are never rewritten.
+- **Grading edits re-judge, they do not re-generate.** A change to a case's judge elements, card
+  summary, willingness switch or metric tags (`version.grading_hash`), or a policy asking a row for more
+  judge samples, re-judges the stored transcript in the next `judge` / nightly run. Check and tool-step
+  needle edits apply at report time. `bench-all` prints, per model, what it would regenerate and what it
+  would only re-judge.
+- **Rig code-bank rows served below the 73,728 bank window are re-run** (their answers were cut by the
+  server, not by the bank budget).
+- **A sub-score with an excluded row says so:** "partial (n excluded)" on the points board and in
+  report.json (`headline.excluded`), never MAXED. The nightly already retries unparsable verdicts once.
+- **Ladder:** the easy leftover packs (NSFW writing set 1, Deep RP set 1) sit on the same level as the
+  hard pack beside them, so they no longer gate it. A pack holds at least 3 questions unless it says
+  `"allow_small": true` with an `"allow_small_reason"`. A broken pack file is skipped with an error instead
+  of taking down the case set, the board or `bench-all`; `cases verify` reports it.
+- **Creative writing:** a second standard session, WR2 (co-writing, craft elements at half its weight);
+  WR1's three craft elements now carry half of WR1's weight.
+- **Same-family judge warning** reads the registry (`family:`, `arch:` — `bench-all` records the rig's
+  architecture when it registers a model) and model ids, never the label. The board footnote says which
+  sub-scores rest on one or two cases (their ± is the bootstrap floor).
+
+## 3.9.0 — review fixes (2026-10-29)
+
+- **`bench-all --until` is a hard end, judge included:** each model is admitted only if its estimated
+  generation fits; the judge reserve comes from the estimate (`--judge-reserve-min` is the floor); rows
+  in flight at the stop get 10 minutes, then they are dropped and stay pending. The judge stops before
+  the cut, and on SIGTERM, without reloading. An `--until` more than 14 h away is refused, so a day run
+  launched after its end time doesn't run until tomorrow.
+- **bench-all runs due ladder packs**, and a due pack keeps the nightly from marking itself done.
+- **Failed means failed everywhere:** errored jobs, judged ones included, and jobs that ran out with no
+  finished re-run score 0. Sessions count as one unit in Efficiency and in errored n/N.
+- **Partial runs are not extrapolated:** Overall shows "-", the model is unranked, and a "partial (n/N
+  cases)" note appears.
+- **The public board never reads private ladder packs.**
+- **The judge lease never names GPU 3.** A judge or model lease marks the rig touched, so evicted
+  residents are restored. An API-only run never reloads a rig resident.
+- **A stream dropped before a finish_reason or usage is a transport failure, not an answer.** SSE
+  edge cases are fixed.
+- **`--first` runs the models in the order given.**
+
+## 3.9.0 — Chat re-calibrated (step 9, 2026-10-29)
+
+MiniMax-M3 scored Chat 7.8/10 on the step-6 set (Deep RP 0.61, Conversation 0.79, Character 0.88,
+Creative writing 0.90). The standard Chat set is rebuilt so it lands near half marks (measured over
+3-6 samples per item: Deep RP ~0.49, Conversation ~0.55, Character ~0.56, Creative writing ~0.51).
+All new cards, logs and sessions are original (MIT-0); every character is an adult.
+
+- **Deep RP:** RD1 + new **RD4-kettle-saddle** — a ~4,500-word character card AND a ~1,300-word card
+  for the user's own character; late, indirect needles, date arithmetic across two pages, inductive
+  items (the inference + its source said aloud), user-card facts the scene must apply unprompted
+  (diet, colour-blindness, a hated nickname), two user misrememberings to correct. RS1 retired.
+- **Conversation:** new **CC3-tea-hut** (a 4,000-word, eight-session prior chat log) and
+  **CC4-second-pitch** (stale "notes on you" + a 2,800-word log + live budget tracking): combined
+  recall, contradiction traps, log-only pushback, unprompted callbacks, a format switch held to the
+  end. CC1, CC2 retired.
+- **Character:** RV1 tightened (line-end rule, a narrated tell, two callbacks, an in-voice correction;
+  10 turns) + new **RV2-skarren-hut** (four tagged voices with per-line rules, a secret behind a
+  password, a liar's tell, a pair not on speaking terms). SX1, SX2 retired; the SX3 pack retired (aced).
+- **Creative writing:** now an rpdeep co-writing session, **WR1-ninth-string** (five sections + a
+  logline; stacked deterministic constraints that collide — word windows, banned words, two
+  acrostics, a seven-letter word limit and tense switch from an author's note, two retcons, exact
+  counts — plus quoted elements). The story rubric's judge craft dims (3/4 of a story row) gave every
+  competent story ~0.9, so ST2 is retired and so is the ST1 pack (MiniMax also ran out of budget on it).
+- **Packs:** chat/deep_rp set 1 (RD2, RD3) kept (MiniMax ~0.55, not aced); no Conversation,
+  Character or Writing pack.
+
+## 3.9.0 — Coding/Work re-calibrated (step 8, 2026-10-29)
+
+The reference model (MiniMax-M3) scored Coding/Work 0.90 / 0.97 / 0.86 on the step-6 set; the
+standard Work set is rebuilt from trap items so it lands near half marks (measured: Agentic ~0.60,
+Code ~0.62, Reasoning ~0.59). Bigger-but-plain items (larger grids, longer strings, bigger n) did
+not move it; subtle traps did. All new items are original (MIT-0) with verified keys.
+
+- **Agentic:** CB-F1 + three new tool scripts **TZ16** (pickup across the DST change), **TZ17**
+  (hotel family rules), **TZ18** (swim-class age rules) — ask-before-acting, someone else's contact
+  details, a refuse-and-call-nothing turn, an injected instruction, local time. F8, TZ06, TZ11 retired.
+- **Code:** predict-output bank tasks CB-C3 + new **CB-C5** (Python) and **CB-C6** (Node); programs
+  **CZ12** (interval ledger) and **CZ13** (path glob) with test groups + mutants (CZ14 exact
+  calculator is a verified spare). CZ05, CZ02, D4, B5, B6 retired.
+- **Reasoning:** **RX24** (predict a short program's 10 printed values), **RX27** (calendar/clock
+  traps), **MH33/MH31/MH28** (permutations under neighbour rules). RX30, MH25, MH34 are verified
+  spares. RX13, RX22, MH06, MH11, MH23 retired.
+- **Work packs:** all removed — every pack question was aced or only lost by running out of tokens;
+  none harder than the new standard level survived.
+
+## 3.9.0 — question content (step 6, 2026-10-29)
+
+The standard level is rebuilt to about one case per sub-score point, with partial
+credit inside every case. Written from scratch (MIT-0); no text or data from other
+benchmarks.
+
+- **Coding/Work.** Agentic: F1 + **F8** (replaces F3, saturated), TZ06 (the user
+  prompt no longer orders a sequence) and TZ11 (step 10 accepts asking for or
+  confirming the new patient's DOB; the "1988" forbid failed correct answers).
+  `tool_parallel` scores one element per expected call plus the call count. TZ13
+  and TZ12 parked; IZ03 out (off-construct). Code: bank D4/B5/B6/C3 + programs
+  CZ05 and **CZ02**, both with `test_groups` (and the pack programs CZ08/CZ09/CZ11);
+  `mutants` + `mutants_expect` are verified by `cases verify`. Reasoning: RX13,
+  **RX22** (6 houses x 5 attributes, 30 positional elements), MH06, MH11, **MH23**
+  (guarded lattice paths); budgets 6144 (x4 = the 24,576 cap); RX20 leaves the
+  standard set.
+- **Chat = companion quality.** Deep RP: RD1 + **RS1** (state tracking + retcon);
+  Conversation: **CC1**, **CC2** (memory, tone, honest pushback, corrections,
+  callbacks — `format_gate: chat`, `deep_rubric: chat_deep`); Character: SX1, SX2
+  (the subjective `no-giveaway-hints` element replaced) + **RV1** (three voices,
+  per-speaker `speaker:<Name>` checks, a secret); Creative writing: ST2. The rpdeep
+  format gate now fails only "no dialogue at all" (an `*action*` reply with spoken
+  words passes). RPS1 out.
+- **NSFW (never in Overall).** Uncensored: WL2, **WL2R re-keyed as engagement**
+  (it no longer asks for a working plan; practical steps break the card), **UX1-UX3**
+  (villain cruelty, graphic horror, profane roast) — W 0-4 rung x card checks.
+  NSFW RP: NMX1, **NC1** (ERP ladder), **NC2** (sexting); NSFW writing: NX2, XP3,
+  **NW1** — all scored by the new `nsfw_gated` component (engagement x heat
+  delivered x card checks). Adult ages stated in every card.
+- **Packs:** work/reasoning (RX23 7x5, MH22, MH24), work/agentic (L3 + F6), chat/
+  character (SX3), chat/writing (ST1), nsfw/nsfw_writing (XP1 + XP2); work/code L2 =
+  CZ11 + E3. A pack scores with its sub-score's components.
+- Every new or changed judged case has gold and foil fixtures
+  (`tests/fixtures/content39/`, `cases/rp-deep/<id>/fixtures/`) and a verbatim
+  `gold_quote` per judge element (tests/test_content_39.py).
+
+## 3.9.0 — basic suite + tiers (2026-10-28)
+
+Fewer questions, not less room: the same deployed regime (x4 thinking budget,
+cap 24,576, floor 16,384, escalation retry, recommended samplers, the Gemma-4-31B
+judge), on the items that separate models per minute of rig time. Every model
+runs Tier 1; Tier 2 and Tier 3 unlock per score, so a strong model keeps
+climbing and the board shows how far it got.
+
+- **Three scores: Code, Reason, Chat.** Reason (reasoning + math, pooled) is its
+  own score (`scoring.reason`). Each score = T1 + 0.5 x T2 + 0.5 x T3, max 200;
+  Overall = their mean. The board shows the tier reached ("125.0 (T2)") and a
+  Tiers table (T1 / T2 / T3 per score). A tier not unlocked scores 0; "n/a (ctx)"
+  = the model's context cannot serve that tier (0, labelled); "pending" =
+  unlocked, not run or judged yet.
+- **Tier 1 (basic):** program CZ05, code bank D4/B5/B6 + the C3 predict
+  quiz, agent F1/F3, tools TZ06/11/13, instruct IZ03; reasoning RX13/RX20,
+  math MH06/MH11; Chat RPS1, rpdeep RD1, NX2, NMX1, XP3, WL2/WL2R, ST2, SX1/SX2
+  (+ the private component). The cut items stay in the case files.
+- **Gates (`tiers.gates`):** T2 at Code >= 75, Reason >= 80 (5 of the
+  6 T1 Reason rows), Chat >= 75 on T1; T3 at >= 60 on T2. T2: CZ01/02/03, the new
+  CZ11, bank E3/A8, agent F8, MH16/MH22, rpdeep
+  RD2/RD3. T3 (loaded at 73,728 ctx): the code bank's long tier L2/L3/L4.
+  `all` runs T1, judges, then the unlocked T2, then T3 (`--no-tiers` skips);
+  `all --plan` prints every row, repeat, budget and tier list without calling
+  a model.
+- **Code bank** (codebank/codeagent + long tier) and **rpdeep** (deep-lore RP,
+  fact groups judged at one sample, no craft chunks) join the board. Bank rows
+  get ONE 65,536-token budget clamped to the served window (`bank_budget`) and
+  never escalate; they keep a per-case stamp within 3.9.x.
+- **Repeats:** 2 on deterministic items, 1 on code-bank fix/feature tasks and
+  math (`case_repeats` overrides one case), 1 on Chat and on Tier 2/3.
+- **`context_floor: 40960`:** a model is loaded at least at this context (rpdeep
+  needs it); a context is never reduced. A round that runs code-bank rows loads
+  at 73,728 (`bank_budget` + 8,192), so rig models get the full 65,536 on every
+  bank row too.
+- **Hardened (MiniMax-M3 aced them at the old wording):** RX13 asks a_1000
+  instead of a_30 (closed form, the divide-by-16 trap); RX20 is a new 5 x 4
+  puzzle that mixes "exactly one house between" and "not next to" clues into
+  next/left-of; MH11 forbids both ABC and ABD. Same budgets, same outputs.
+- **Removed from Tier 1 (saturated):** CZ08, CZ09 and TZ01. MiniMax-M3 passed
+  them on every pooled run and two hardening rounds each did not change that.
+  They stay in the case files, unchanged, so their stored rows stay comparable.
+- **New T2 program CZ11-lex-triple-substring:** CZ08's task, but it returns the
+  longest common substring itself, ties broken by the lexicographically smallest
+  (a suffix automaton with first positions). MiniMax-M3 ran out of the 24,576
+  board budget on both trial rows; the escalation retry covers that.
+- 3.8.0 rows are now the old board, shown "(old)" until a model's 3.9.0 run is
+  complete.
+
+## 3.8.0 — measure models as deployed (2026-10-24)
+
+A review of the bench asked whether the board measures typical performance.
+It did not: every coding and steer case ran at temperature 0 (vendors advise
+against greedy decoding for thinking models, and no production client sends
+it), hosted APIs got a 65k thinking budget where rig models got 24k, and a
+thinking run that ran out of budget was silently re-asked with thinking OFF and
+graded at full credit (71% of the rig thinkers' Programs rows, 47% of Instruct;
+those retries passed Instruct 34% of the time against 83% for real thinking
+rows). The profile now declares `regime: deployed`:
+
+- **Sampler:** no `temperature`/`top_p` is sent for the model under test — the
+  server's or vendor's default applies, as for every production client. A
+  registry entry may pin `sampler: {temperature, top_p}` where production does.
+  The judge is unchanged (temperature 0).
+- **Thinking:** the chat template's default (unchanged — the bench never sent
+  a thinking switch on the first try).
+- **Budget:** the profile's cap (24576) for every provider; per-provider
+  overrides are ignored. A thinking model gets at least
+  `thinking_max_tokens_floor` (16384) so short chat cases do not starve it.
+- **No thinking-off retry** (`reasoning_overflow_recovery: false`): an answer
+  that never arrives is scored as missing, and the report counts them.
+- **Empty chat replies score 0** on every judged dimension (they were dropped
+  from the averages, which rewarded running out of budget). Rows of older
+  suites keep their old rule.
+- **3 repeats** for programs, tools, instruct, reasoning and math: with
+  sampling, one row per case was a coin flip (one Programs case moved Coding
+  ~11 points).
+- **Regime stamp:** every row and meta carries `regime`, `reasoning_format`,
+  `thinking` and `sampler`.
+
+`SUITE_VERSION` 3.8.0 is deliberately NOT equivalent to the 3.4.0–3.7.0 stamps
+of the same case set: those rows answered the same prompts under different
+rules. **The board keeps them, marked:** a model whose 3.8.0 run is not yet
+complete and judged shows its previous values with "(old)" in the new **Suite**
+column (report.md and report.html; old rows are dimmed) and "re-run n/m cases"
+in Notes. `bench-all` plans only from current rows, counts a case done only
+when every repeat is there, ignores errors of older suites when capping
+retries, and takes `--until HH:MM` / `--judge-reserve-min` to fit a nightly
+window (generation stops cooperatively, the judge and both boards still run,
+the rest waits for the next night).
+
+### Recommended sampler per model (2026-10-25)
+
+- "As deployed" now means the maker's recommended sampler, not "send nothing":
+  `profiles/bench.yaml` `recommended_samplers` (first regex match on
+  `<provider>:<model_id>` or the label; a registry `sampler:` still wins).
+  Each rule names its source (model card / vendor docs). Why: llama-server
+  takes temp/top_p/top_k from a GGUF's `general.sampling.*` keys, but no file
+  on the rig sets `min_p`, so its built-in 0.05 ran where Qwen and Gemma say 0,
+  and Qwen's `presence_penalty` has no GGUF key at all. Fine-tune cards that
+  publish their own values (Dark-Scarlett, ReadyArt Gemma, Split-Untied,
+  Artemis, Loki-Scotoma, Orion, JoyFox) get them. Hosted APIs fix or ignore
+  their sampler (DeepSeek thinking mode, MiniMax, Kimi): nothing is sent, so
+  the 3.8.0 API rows stay current. Rows stamp `sampler` with the rule id.
+- The link-check probe, the thinking probe and the perf warm-up send the run's
+  sampler instead of `temperature=0` — kimi-k3 refuses any temperature but 1
+  and aborted before its first case.
+
+### Review fixes (Fable review, 2026-10-25)
+
+- **Tool cases ran off-sampler.** The tool loop never passed the model's `top_p`, so every tool
+  request went out with the API default 1.0 instead of the model's recommended value (or none).
+  Kimi refuses anything but 0.95: 18 of its 21 tool rows errored and were left out, so its Tools 100
+  rested on 3 rows. Tool rows now send the same sampler as every other row and stamp the budget they
+  really sent. Every model's Tools number may move on its next run; the Kimi rows need a re-run.
+- **The escalation round converges.** A rung the rig cannot serve (a refusal that the context does
+  not fit) is given up at once, a rung that fails twice since the model's last board run likewise
+  (`runner.blocked_rungs`; a STOP or window edge does not count). `bench-all`'s plan, `escalate` and
+  the Room "pending" count all use the highest rung still open, so the nightly's done-check can no
+  longer stay open forever. Escalated rows still waiting for the judge keep Room marked "…".
+- **Old values rank below current ones.** A model still on pre-3.8 values ("(old)") used to be
+  ranked by its old Overall against 3.8 numbers; the regimes are not comparable, so old rows now sit
+  under every current row.
+- **Orphaned run reports.** A run killed without SIGTERM left its report "running" forever. Reports
+  now record the pid and host; the next run marks one whose process is gone as failed.
+- **New board notes:** replies stuck in the reasoning channel (finished without closing the think
+  block) are counted apart from answers that ran out of budget, and a model served with a context
+  smaller than its output budget gets a warning (gemma-26b-qat: 8192).
+- Room's footnote says the wide reload may drop the KV cache to q8_0.
+
+### Escalation round and the Room column (2026-10-25)
+
+The board budget (24576 output tokens) is the same for every model, so it
+measures "solves it within 24k". A long thinker that needs 60k tokens on a hard
+program scored 0 there, and running a whole bench at 128k costs slots: 6
+instead of 8 for a 27B, and only one of 120 jobs needed it on one model
+(21 on another).
+
+- After a run, every job whose answer ran out of budget (thinking model,
+  `finish=length`) is re-run at 65536 tokens, and whatever still runs out at
+  131072. The model is reloaded with a context wide enough for the rung, so
+  fewer parallel slots, and only for those jobs. Profile key:
+  `escalation_rungs` (bench: `[65536, 131072]`; `[]` = off).
+- Those rows carry `budget_rung` and never count on the board.
+  `board_filter(..., with_rungs=True)` is the Room view: the newest run of
+  each job, an escalation included.
+- report.md gets a **Room** column after Overall: Overall with the escalated
+  jobs swapped in. `=` means nothing ran out; `…` means a re-run is still
+  pending. The HTML board offers it in the column chooser.
+- Runs by default in `all` and `bench-all`, between generation and the judge,
+  inside the `--until` window; skip it with `--no-escalate`. A standalone
+  `crucibleforge escalate [--models] [--rungs]` exists too. The bench-all plan
+  prints `> escalate …`, and the nightly isn't done until that's empty.
+- An escalation failure is logged and noted but doesn't change the run's exit
+  code (the board run itself is complete). A rung the rig can't serve wide
+  enough is refused, never cut short.
+- Fix: a re-run whose timestamp matched the earlier run's (one-second
+  resolution) lost the "newest run" tie. Ties now go to the row written later.
+
+### Also in 3.8.0
+- **Thinking models on the rig always get their reasoning separated.**
+  StudioForge launches models with `--reasoning-format none`, so thoughts
+  arrive inline in `content`; the bench only coped when a registry entry set
+  `extra_body.reasoning_format` or it knew the model's tag dialect. Three
+  gemma4 models (`<|channel>thought … <channel|>`) had neither: the tags
+  leaked into graded answers, the models were never classified as thinking
+  (no ×4 budget) and most rows truncated, so Programs/Instruct/Reason read 0.
+  Now (1) the runner requests `reasoning_format` (`defaults.rig_reasoning_format`,
+  default `deepseek`) for every rig model whose listing says `thinking`;
+  (2) `api._THINK_TAGS` understands gemma4's channel dialect (including the
+  empty channel `enable_thinking: false` still emits on the recovery rung);
+  (3) `bench-all` registers gemma4 rig models with the flag; (4) any
+  special-token marker (`<|…>`, `<…|>`) that still reaches an answer is
+  counted and written to the model's meta as a warning — its scores measure a
+  parsing gap, not the model.
+
 ## 3.7.0 — GUI token management and lockout recovery (2026-10-19)
 
 No case, grader or metric changed. `SUITE_VERSION` moves to 3.7.0 with the
@@ -55,6 +416,10 @@ No case, grader or metric changed. `SUITE_VERSION` moves to 3.6.0 and the
 3.5.1 stamp of the same case set (`36a60ec6`) is registered as equivalent in
 `_EQUIVALENT_STAMPS`, so no stored board row goes stale.
 
+- **Docker image and Compose setup** (2026-10-18): `Dockerfile`, `deploy/compose/` and
+  `docs/deploy/docker.md` — a read-only, non-root image with no capabilities, an entrypoint and
+  healthcheck, user data on a volume that survives image updates, `PUID`/`PGID` for bind mounts, and
+  the GUI on port 8777.
 - **The test-suite is green on Windows** (it was 120+ failures: a `fork`-only
   regex-timeout test, the WSL `bash` launcher, case-insensitive paths,
   directory `fsync`, the POSIX-only rig lock, and text I/O without an

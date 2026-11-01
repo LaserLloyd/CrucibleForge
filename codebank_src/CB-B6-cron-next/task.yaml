@@ -1,0 +1,20 @@
+id: CB-B6-cron-next
+category: codebank
+family: feature
+difficulty: hard
+max_tokens: 8192
+allowed_paths: ["cronplan/*.py"]
+new_paths: ["cronplan/*.py"]
+pythonpath: ["."]
+per_test_timeout_s: 30
+group_timeout_s: 60
+issue: |
+  Implement cronplan.cron.parse and cronplan.cron.next_fire as specified in
+  docs/cron.md. The dashboard's "next run" column depends on it; every
+  rule in the spec will be checked, including clock changes.
+groups:
+  - {id: parse, file: test_parse.py, kind: f2p, why: "spec: fields, ranges, steps, names, L/W/#/? only where allowed, ValueError otherwise"}
+  - {id: specials, file: test_specials.py, kind: f2p, why: "spec: L, nW never leaving the month / no run if day missing, d#n, dL, DOM-or-DOW rule"}
+  - {id: zones, file: test_zones.py, kind: f2p, why: "spec: local wall time; gap never matches; repeated time only first occurrence; strictly after; 5-year ValueError"}
+  - {id: random, file: test_random.py, kind: f2p, why: "whole spec: 210 random expressions in 3 zones vs a minute-scan oracle"}
+  - {id: existing, file: test_existing.py, kind: p2p, why: "package imports"}

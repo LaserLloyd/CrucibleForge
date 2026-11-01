@@ -1,0 +1,27 @@
+id: LAG1-potkeeper-yearend
+category: codeagent_long
+family: agent
+difficulty: hard
+max_tokens: 4096
+allowed_paths: ["potkeeper/*.py"]
+new_paths: []
+pythonpath: ["."]
+issue: |
+  Ana: "I bought two coffees at Kaffeeklatsch on 3 December, same price, both
+  are on the bank statement, but after `potkeeper import` only one is in the
+  ledger." The service log is "potkeeper".
+
+  We close the 2026 books next weekend. Ben's dad, an accountant, will check
+  the year-end settle-up, the budgets and the reports cent by cent. Last week
+  we agreed new year-end rules with him and wrote them into README.md
+  ("Household" with weight changes during the year, and "Year-end": shares
+  rounded once per year, settle-up with as few transfers as possible); the
+  code does not do that yet. The rest of the code was written in a hurry.
+  So: fix the import bug, implement the agreed year-end, and go over
+  everything else in potkeeper against README.md (it is the contract; where
+  the code and the README disagree, the README is right).
+groups:
+  - {id: audit_input, file: test_audit_input.py, kind: f2p, why: "README Import (the reported bug: per-key counts, FIRST min(k,n) rows skipped, memos/ids in file order; BOM ignored) + Amounts (ASCII digits only) + Payees (casefold; EVERY run of whitespace incl. tab/NBSP, code collapses spaces only) + Category rules (equal length -> FIRST rule; max((len, n, cat)) picks the last) + Recurring/Budgets/Ledger: add_months wrong for results in December (y + m//12), until inclusive, yearly 29 Feb back in leap years (code steps from the previous date and drifts to 28 Feb), random occurrences vs oracle; v1 keyed-by-id file starts at highest id + 1 (max() of string keys: '9' > '12'), between() inclusive. One merged group: a single missed defect fails the whole input audit"}
+  - {id: audit_money, file: test_audit_money.py, kind: f2p, why: "README Reports/Amounts/Export/Budgets/Goals/Splitting: month inclusive, by_category ties by name ascending AND every category with a transaction listed (code drops categories netting to 0), format_cents sign of -0.01..-0.99, CSV \\n, overspend carried + cap_months, goal months inclusive + round UP (round(x+0.5) is banker's), largest-remainder split (code does cumulative rounding). One merged group"}
+  - {id: yearend, file: test_yearend.py, kind: f2p, why: "README Household + Year-end as one feature: weight changes from their date (inclusive), same date in file order, validation; exact yearly fractions with the weights in effect on each date, ONE largest-remainder rounding per year, random vs oracle; settle: fewest transfers + the exact canonical partition vs a brute-force oracle; end to end incl. `potkeeper year-end --json`"}
+  - {id: existing, file: test_existing.py, kind: p2p, why: "format_cents (positive), household validation, CLI import/categorise/month/year-end, tags, export JSON, API"}

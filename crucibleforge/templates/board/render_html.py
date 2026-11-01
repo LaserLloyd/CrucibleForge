@@ -77,16 +77,41 @@ def _components(rows: list[dict], components: list[dict] | None) -> list[dict]:
 #: fixed left-hand columns (always shown, in this order)
 MAIN_COLUMNS = [("rank", "#", "num"), ("label", "Model", "text"), ("chat", "Chat", "num"),
                 ("coding", "Coding", "num"), ("overall", "Overall", "num"), ("tok_s", "tok/s", "num")]
+#: suite 3.9: with the headline (rows carry ``s``) the cells show S ± m on the
+#: rough scale (report.HEADLINE_FOOTNOTE) and "Overall" reads "Score"; sorting
+#: and the element filters keep using the raw % (same order)
+HEADLINE_LABELS = {"overall": "Score", "coding": "Code"}
 #: choosable right-hand columns besides the components (key, header, kind)
-INFO_COLUMNS = [("date", "Run date", "text"), ("notes", "Notes", "text"), ("judge", "Judge", "text"),
-                ("coverage", "Coverage", "text"), ("provider", "Provider", "text")]
+INFO_COLUMNS = [("suite", "Suite", "text"), ("date", "Run date", "text"), ("notes", "Notes", "text"), ("judge", "Judge", "text"),
+                ("coverage", "Coverage", "text"), ("provider", "Provider", "text"),
+                ("room_cell", "Room", "text"),
+                # suite 3.9: the Reason score and the tier reached per score
+                ("reason", "Reason", "num"), ("tiers_cell", "Tiers", "text"),
+                # suite 3.9 headline: the raw % behind S, and the paired verdict
+                ("raw_cell", "Raw %", "text"), ("vs_above", "vs above", "text"),
+                ("points_cell", "Points", "text")]
 
 
-def columns(comps: list[dict]) -> tuple[list[dict], list[dict]]:
+def columns(comps: list[dict], headline: bool = False,
+            scores: list[dict] | None = None) -> tuple[list[dict], list[dict]]:
     """``(main, extra)`` column specs baked into the page. ``extra`` is what
     the ⚙ Columns chooser offers: every component (the default right-hand
-    set, in scoring order), then the run-info columns."""
-    main = [{"key": k, "label": t, "kind": kind} for k, t, kind in MAIN_COLUMNS]
+    set, in scoring order), then the run-info columns. ``scores`` = a
+    profile's declared scores ``[{key, label}]`` (key = the row's data key):
+    the main columns are then # · Model · Score · <each score> · tok/s."""
+    if scores:
+        main = ([{"key": "rank", "label": "#", "kind": "num"},
+                 {"key": "label", "label": "Model", "kind": "text"},
+                 {"key": "overall", "label": "Score", "kind": "num"},
+                 # 4.0: capability class (from Overall) and the Chat/Coding lean
+                 {"key": "class", "label": "Class", "kind": "text"},
+                 {"key": "lean", "label": "Lean", "kind": "text"}]
+                + [{"key": x["key"], "label": x["label"], "kind": "num"} for x in scores]
+                + [{"key": "tok_s", "label": "tok/s", "kind": "num"}])
+    else:
+        main = [{"key": k, "label": t, "kind": kind} for k, t, kind in MAIN_COLUMNS]
+    if headline and not scores:
+        main = [{**c, "label": HEADLINE_LABELS.get(c["key"], c["label"])} for c in main]
     extra = [{"key": f"c:{c['label']}", "label": c["label"], "kind": "num", "side": c["side"],
               "group": f"{c['side'].title()} component"} for c in comps]
     extra += [{"key": k, "label": t, "kind": kind, "group": "Run info"} for k, t, kind in INFO_COLUMNS]
@@ -96,7 +121,9 @@ def columns(comps: list[dict]) -> tuple[list[dict], list[dict]]:
 def render_html(rows: list[dict], subtitle: str = "",
                 components: list[dict] | None = None,
                 footer: list[str] | None = None,
-                forbidden: list[str] | None = None) -> str:
+                forbidden: list[str] | None = None,
+                scores: list[dict] | None = None,
+                sides: list[dict] | None = None) -> str:
     """The full HTML document.
 
     ``rows``: ``report.html_rows`` shape. ``components``: ordered
@@ -120,13 +147,14 @@ def render_html(rows: list[dict], subtitle: str = "",
         comps = [c for c in comps if c["label"].lower() not in bad]
         rows = [{**r, "components": {k: v for k, v in (r.get("components") or {}).items()
                                      if k.lower() not in bad}} for r in rows]
-    main, extra = columns(comps)
+    main, extra = columns(comps, headline=any(r.get("s") for r in rows), scores=scores)
+    sides = sides or [{"key": "chat", "label": "Chat"}, {"key": "coding", "label": "Coding"}]
     esc = html.escape
     # phone Sort select (the table headers sort too): every sortable key
     sort_opts = '<optgroup label="Headline">' + "".join(
         f'<option value="{c["key"]}">{esc("Rank" if c["key"] == "rank" else c["label"])}</option>'
         for c in main) + "</optgroup>"
-    for side, title in (("chat", "Chat components"), ("coding", "Coding components")):
+    for side, title in ((x["key"], f"{x['label']} components") for x in sides):
         grp = "".join(f'<option value="c:{esc(c["label"])}">{esc(c["label"])}</option>'
                       for c in comps if c["side"] == side)
         if grp:
@@ -148,7 +176,7 @@ def render_html(rows: list[dict], subtitle: str = "",
                '<ol class="cols-list" id="colsList"></ol></section>')
     foot = "".join(f"<p>{esc(scrub(line))}</p>" for line in (footer or []) if line)
     payload = data_json({"rows": rows, "components": comps, "thresholds": THRESHOLDS,
-                         "main": main, "extra": extra})
+                         "main": main, "extra": extra, "sides": sides})
     page = (
         '<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">'
         '<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">'

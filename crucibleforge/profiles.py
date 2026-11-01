@@ -75,7 +75,8 @@ def _dirs(cfg: dict | None) -> list[Path]:
 
 
 #: overlay keys merged per entry (everything else in an overlay replaces)
-_MERGE_KEYS = ("cases", "repeats", "max_tokens", "labels")
+_MERGE_KEYS = ("cases", "repeats", "case_repeats", "max_tokens", "labels", "part_cases",
+               "custom")
 
 
 def _merge_overlay(prof: dict, over: dict, name: str) -> dict:
@@ -136,26 +137,57 @@ def private_scope(cfg: dict | None = None, name: str = DEFAULT_PROFILE) -> dict:
         except ConfigError:
             pass    # listed private but no file here: its NAME is still hidden
     labels = {v for k, v in (prof.get("labels") or {}).items() if k in cats and v}
+    # private ladder packs (cases/private/ladder): their question ids are
+    # private whatever category they name (review S4); the set paths are
+    # terms too
+    paths: set[str] = set()
+    try:
+        from .ladder import private_pack_terms
+        pack_ids, paths = private_pack_terms()
+        ids |= pack_ids
+    except Exception:  # noqa: BLE001 — no private ladder readable: nothing to add
+        pass
     return {"categories": cats, "case_ids": ids, "labels": labels,
-            "terms": sorted(cats | ids | labels, key=len, reverse=True)}
+            "terms": sorted(cats | ids | labels | paths, key=len, reverse=True)}
 
 
 def apply_profile(prof: dict, cfg: dict, smoke: bool = False) -> tuple[dict, list[dict]]:
     """Return (cfg with profile budgets applied, selected cases in profile order)."""
     cfg2 = copy.deepcopy(cfg)
     d = cfg2.setdefault("defaults", {})
-    for k in ("thinking_max_tokens_factor", "thinking_max_tokens_cap", "min_tok_per_s"):
+    for k in ("thinking_max_tokens_factor", "thinking_max_tokens_cap", "min_tok_per_s",
+              # the "as deployed" regime (suite 3.8.0, runner.REGIME_DEPLOYED)
+              "regime", "thinking_max_tokens_floor", "reasoning_overflow_recovery",
+              "recommended_samplers", "escalation_rungs",
+              # code bank: one generous output budget for every row (runner.bank_budget)
+              "bank_budget",
+              # code bank: tasks that still run but are not scored (anchors)
+              "bank_anchors",
+              # 3.9: the context every model is loaded at, at least (runner)
+              "context_floor",
+              # 3.9: how `all` runs a model (runner.run_plan: round split,
+              # one budget, escalation wall cap)
+              "run_plan"):
         if k in prof:
             d[k] = prof[k]
     if prof.get("repeats"):
         d["repeats"] = {**d.get("repeats", {}), **prof["repeats"]}
     if "no_recovery" in prof:
         d["no_recovery"] = list(prof.get("no_recovery") or [])
-    cats = list(prof["cases"].keys())
-    all_cases = {c["id"]: c for c in load_cases(cats)}
+    selected = _select(prof, prof["cases"], smoke)
+    cfg2["_profile"] = prof["name"]
+    return cfg2, selected
+
+
+def _select(prof: dict, mapping: dict, smoke: bool = False) -> list[dict]:
+    """The cases of ``{category: [ids]}`` in profile order, each a copy with
+    the profile's per-category ``max_tokens`` and per-case ``case_repeats``
+    (``repeats`` on the case, read by config.repeats_for) applied."""
+    all_cases = {c["id"]: c for c in load_cases(list(mapping.keys()))}
+    per_case = prof.get("case_repeats") or {}
     selected: list[dict] = []
-    for cat, ids in prof["cases"].items():
-        for cid in ids:
+    for cat, ids in mapping.items():
+        for cid in ids or []:
             c = all_cases.get(cid)
             if c is None:
                 raise ConfigError(f"profile {prof['name']}: unknown case id {cid!r} in {cat}")
@@ -167,9 +199,38 @@ def apply_profile(prof: dict, cfg: dict, smoke: bool = False) -> tuple[dict, lis
             mt = (prof.get("max_tokens") or {}).get(cat)
             if mt:
                 c["max_tokens"] = int(mt)
+            if cid in per_case:
+                c["repeats"] = int(per_case[cid])
             selected.append(c)
-    cfg2["_profile"] = prof["name"]
-    return cfg2, selected
+    return selected
+
+
+def tier_cases(prof: dict, tier: int, scores=None, smoke: bool = False) -> list[dict]:
+    """Tier 2/3 cases (``tiers:`` block, crucibleforge/tiers.py) of the given
+    scores (default: all), each stamped ``tier`` and ``tier_score``, run
+    ``tiers.repeats.t<n>`` times, and — when the tier names a ``context`` —
+    needing that context (``min_context``: a model that cannot be served at it
+    skips the case, "n/a (ctx)")."""
+    from . import tiers as _tiers
+    lists = _tiers.tier_lists(prof, tier)
+    ctx = _tiers.tier_context(prof, tier)
+    out = []
+    for score, mapping in lists.items():
+        if scores is not None and score not in scores:
+            continue
+        for c in _select(prof, mapping, smoke):
+            c.update(tier=tier, tier_score=score, repeats=_tiers.tier_repeats(prof, tier))
+            if ctx:
+                c["min_context"] = max(int(c.get("min_context") or 0), ctx)
+            out.append(c)
+    return out
+
+
+def all_tier_cases(prof: dict, smoke: bool = False) -> list[dict]:
+    """Tier 1 + every tier-2/3 case (escalation, the board's case ids)."""
+    from . import tiers as _tiers
+    return _select(prof, prof["cases"], smoke) + [
+        c for t in _tiers.TIERS for c in tier_cases(prof, t, smoke=smoke)]
 
 
 def profile_judge(prof: dict) -> dict | str | None:

@@ -1,0 +1,19 @@
+id: CB-E1-rotate-backups
+category: codebank
+family: fix
+difficulty: hard
+max_tokens: 8192
+allowed_paths: ["rotate.sh"]
+new_paths: []
+pythonpath: ["."]
+issue: |
+  rotate.sh deleted last night's backup of "home server" and kept a week-old
+  one, a dry run on the NAS deleted files, and when the backup drive was not
+  mounted the timer reported success. Fix the script so it does exactly what
+  README.md says.
+groups:
+  - {id: names, file: test_names.py, kind: f2p, why: "README: prefix = all before the last two dash fields (spaces/dashes/dots), non-matching files and subfolders untouched"}
+  - {id: order, file: test_order.py, kind: f2p, why: "README: newest by name stamp not mtime; output lines in byte-wise order of file names"}
+  - {id: dryrun, file: test_dryrun.py, kind: f2p, why: "README: --dry-run prints 'would delete', deletes nothing; options in any position"}
+  - {id: args, file: test_args.py, kind: f2p, why: "README: exit 2 + usage on stderr for bad args (no DIR, unknown option, N not whole >= 1); exit 3 when DIR is not a directory; nothing on stdout"}
+  - {id: existing, file: test_existing.py, kind: p2p, why: "README: default keep 3, --keep N, 'deleted <name>' lines, empty dir -> no output"}

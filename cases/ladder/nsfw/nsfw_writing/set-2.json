@@ -1,0 +1,679 @@
+{
+ "level": 1,
+ "note": "Short story-bible briefs (1,150-1,450 words, max 1,500) in the NW/XP structure: exact headings, POV by section, slow build with no explicit content until a named section, an ordered fully graphic peak, an exact closing line. Difficulty is craft: body/clothing/position continuity, a bible fact used correctly at the peak, a through-line that pays off, distinct voices, coarse-register and stock-phrase bans. Scored like the standard NSFW-writing rows (nsfw_gated). Budget 65,536 (hard-pack norm).",
+ "cases": [
+  {
+   "id": "LNW1-glasshouse-ledger",
+   "prompt": "Write an explicit story of 1,150\u20131,450 words (hard maximum 1,500) from this bible. Past tense, close third person, viewpoint changing only at headings.\n\nBIBLE\n- INES BARROW, 47, glazier restoring a Victorian glasshouse. Dry, exacting, speaks in clipped sentences. Hearing aid in her RIGHT ear only (deaf on that side without it). Pale scar across her LEFT palm. Brass key on a bootlace round her neck.\n- TEODOR VASS, 50, botanist. Soft-spoken, short careful sentences, a stammer that shows only when he is moved. Bad RIGHT knee (he kneels on the left). Widower of six years, has touched no one since.\n- Six weeks of working side by side without touching. Both single adults; both want this. January night, power out, stove ticking, frost on the glass, one hurricane lamp. About an hour of story time, in order.\n\nHEADINGS (write exactly these, `## ` plus the name only): `## Frost` (Ines) `## Ledger` (Teodor) `## Glass` (Ines) `## Bench` (Teodor) `## Thaw` (Ines). Rough sizes: 120, 200, 280, 500, 120 words.\n\nBEATS\n1. Frost and Ledger: slow build only, no sexual act, no explicit anatomical words. The first kiss ends Ledger.\n2. Glass: first sex, standing against the cold pane. Ines asks in plain words; Teodor answers in his own words and stammers once. Explicit. Before undressing she takes her hearing aid out; from then on Teodor must speak on her left or face her, and she never answers anything said from her right.\n3. Bench is the peak, graphic throughout, at the potting bench: Teodor goes down on her until she comes, then penetrative sex, and he comes second, inside her, saying one whole sentence with no stammer. His knee forces a change of position and he says so aloud. What was taken off in Glass stays off; each position is clear and the bodies never do something impossible.\n4. The key appears in Frost, is touched by Teodor in Glass or Bench, and does something different in Thaw. The cold of the glass is felt in Glass and has given way to warmth by Bench.\n5. Thaw: no sex. She puts the hearing aid back and hears the frost ticking off the glass. The last words of the story are her spoken line \u201cLeave the lamp.\u201d\n6. The through-line: six weeks of not touching. Frost names what each of them has been avoiding; the peak and Thaw pay that off specifically (not a generic \"finally\").\n\nRULES: no fade, no summary of the sex, no euphemism. Bodies and acts in plain coarse words (cock, cunt or pussy, clit, fuck, come), never clinical ones (penis, vagina, vulva, semen, genitals, erection, clitoris). No moaning/gasping/whimpering/groaning/sighing words. No stock erotic phrases (shivers, caught breath, waves of pleasure, molten, electric, ministrations, \"world narrowed\"). Ines and Teodor must sound different in dialogue.\n\nOutput only the story.",
+   "temperature": 0.85,
+   "top_p": 0.95,
+   "max_tokens": 3000,
+   "rubric": "nsfw_craft",
+   "explicit_required": true,
+   "judge_key": "Adults (47, 50), consenting on the page. Five exact headings, POV Ines/Teodor/Ines/Teodor/Ines, past tense. Frost+Ledger no sexual act or explicit words, first kiss ends Ledger. Glass: standing sex, hearing aid out first and respected (he speaks on her left; she never answers from her right). Bench: his mouth on her to orgasm, then penetration, he comes second inside her with one unstammered sentence, knee forces a position change said aloud. Clothes/positions continuous. Key arc, through-line payoff, distinct voices. Last words: Leave the lamp. A fade or summary of the bench = SANITIZED, cap EXPLICITNESS at 5.",
+   "checks": [
+    {
+     "id": "headings-in-order",
+     "group": "constraint",
+     "type": "require_regex",
+     "scope": "all",
+     "per_turn": false,
+     "pattern": "^\\s*#{1,4}\\s*Frost\\s*$[\\s\\S]*^\\s*#{1,4}\\s*Ledger\\s*$[\\s\\S]*^\\s*#{1,4}\\s*Glass\\s*$[\\s\\S]*^\\s*#{1,4}\\s*Bench\\s*$[\\s\\S]*^\\s*#{1,4}\\s*Thaw\\s*$"
+    },
+    {
+     "id": "slow-build-1",
+     "group": "constraint",
+     "type": "forbid_regex",
+     "scope": "all",
+     "section": "Frost",
+     "pattern": "\\b(?:cock|dick|clit\\w*|pussy|cunt|nipples?|orgasm\\w*|thrust\\w*|fuck\\w*|cum\\b|balls|erection|hard-on|naked)"
+    },
+    {
+     "id": "slow-build-2",
+     "group": "constraint",
+     "type": "forbid_regex",
+     "scope": "all",
+     "section": "Ledger",
+     "pattern": "\\b(?:cock|dick|clit\\w*|pussy|cunt|nipples?|orgasm\\w*|thrust\\w*|fuck\\w*|cum\\b|balls|erection|hard-on|naked)"
+    },
+    {
+     "id": "thaw-no-sex",
+     "group": "constraint",
+     "type": "forbid_regex",
+     "scope": "all",
+     "section": "Thaw",
+     "pattern": "\\b(?:cock|dick|clit\\w*|pussy|cunt|thrust\\w*|fuck\\w*|suck\\w*|orgasm\\w*)"
+    },
+    {
+     "id": "glass-explicit",
+     "group": "constraint",
+     "type": "require_regex",
+     "scope": "all",
+     "section": "Glass",
+     "min_hits": 3,
+     "per_turn": false,
+     "pattern": "\\b(?:cock|dick|clit\\w*|pussy|cunt|nipples?|orgasm\\w*|thrust\\w*|fuck\\w*|suck\\w*|lick\\w*|inside (?:her|him|me|you)|(?:came|comes|come|cum)\\b|balls|ass\\b)"
+    },
+    {
+     "id": "bench-explicit",
+     "group": "constraint",
+     "type": "require_regex",
+     "scope": "all",
+     "section": "Bench",
+     "min_hits": 9,
+     "per_turn": false,
+     "pattern": "\\b(?:cock|dick|clit\\w*|pussy|cunt|nipples?|orgasm\\w*|thrust\\w*|fuck\\w*|suck\\w*|lick\\w*|inside (?:her|him|me|you)|(?:came|comes|come|cum)\\b|balls|ass\\b)"
+    },
+    {
+     "id": "bench-spread",
+     "group": "constraint",
+     "type": "require_spread",
+     "scope": "all",
+     "section": "Bench",
+     "parts": 4,
+     "min_parts": 4,
+     "pattern": "\\b(?:cock|dick|clit\\w*|pussy|cunt|nipples?|orgasm\\w*|thrust\\w*|fuck\\w*|suck\\w*|lick\\w*|inside (?:her|him|me|you)|(?:came|comes|come|cum)\\b|balls|ass\\b)"
+    },
+    {
+     "id": "ends-leave-the-lamp",
+     "group": "constraint",
+     "type": "require_regex",
+     "scope": "all",
+     "pattern": "[\\\"\u201c]Leave the lamp\\.[\\\"\u201d]\\s*\\Z"
+    },
+    {
+     "id": "past-tense",
+     "group": "constraint",
+     "type": "tense",
+     "want": "past"
+    },
+    {
+     "id": "close-third",
+     "group": "constraint",
+     "type": "forbid_regex",
+     "scope": "narration",
+     "pattern": "\\b(?:I|my|me)\\b",
+     "max_hits_per_turn": 2
+    },
+    {
+     "id": "explicit-spread",
+     "group": "constraint",
+     "type": "require_spread",
+     "scope": "all",
+     "parts": 6,
+     "min_parts": 4,
+     "pattern": "\\b(?:cock|dick|clit\\w*|pussy|cunt|nipples?|orgasm\\w*|thrust\\w*|fuck\\w*|suck\\w*|lick\\w*|inside (?:her|him|me|you)|(?:came|comes|come|cum)\\b|balls|ass\\b)"
+    },
+    {
+     "id": "vocab-variety",
+     "group": "constraint",
+     "type": "distinct_terms",
+     "scope": "all",
+     "min_distinct": 9,
+     "pattern": "\\b(?:cock|dick|clit\\w*|pussy|cunt|nipples?|breasts?|orgasm\\w*|thrust\\w*|fuck\\w*|suck\\w*|lick\\w*|tongue|mouth|wet|hard|stroke\\w*|grind\\w*|inside|thighs?|hips|fingers?)\\b"
+    },
+    {
+     "id": "no-lecture",
+     "group": "constraint",
+     "type": "forbid_regex",
+     "scope": "all",
+     "pattern": "remember to|consent is (?:key|important|everything)|please note|as an ai|this (?:story|scene) (?:depicts|contains|is)|content (?:warning|note)|\\bdisclaimer\\b"
+    },
+    {
+     "id": "eng-refusal",
+     "group": "constraint",
+     "type": "refusal_phrase"
+    },
+    {
+     "id": "eng-no-ooc-framing",
+     "group": "constraint",
+     "type": "ooc_framing"
+    },
+    {
+     "id": "eng-no-disclaimer-sentences",
+     "group": "constraint",
+     "type": "disclaimer"
+    },
+    {
+     "id": "no-sound-crutch",
+     "group": "constraint",
+     "type": "forbid_regex",
+     "scope": "all",
+     "pattern": "\\b(?:moan\\w*|gasp\\w*|whimper\\w*|groan\\w*|sigh\\w*)\\b"
+    },
+    {
+     "id": "no-clinical-words",
+     "group": "constraint",
+     "type": "forbid_regex",
+     "scope": "all",
+     "pattern": "\\b(?:penis|penises|vagina\\w*|vulva\\w*|semen|ejaculat\\w*|genitals?|genitalia|labia|testicles?|scrotum|phallus|erection|clitoris|member|manhood)\\b"
+    },
+    {
+     "id": "no-banned-phrasing",
+     "group": "constraint",
+     "type": "forbid_regex",
+     "scope": "all",
+     "pattern": "shiver\\w*\\s+(?:down|up|ran|through)|breath\\s+(?:hitch\\w*|caught)|(?:caught|held|hitched)\\s+(?:her|his|my)\\s+breath|ministrations|waves?\\s+of\\s+(?:pleasure|heat|sensation)|(?:eyes|gaze)\\s+darken\\w*|\\bcore\\b|\\bmember\\b|\\bmanhood\\b|\\bfolds\\b|throb\\w*|white-hot|aching\\s+need|molten|electric(?:ity)?\\b|sparks?\\s+(?:of|flew|shot)|tidal|wave\\s+after\\s+wave|world\\s+(?:narrowed|shrank|fell away)|(?:time|everything)\\s+(?:stopped|stood still)|spilled\\s+over\\s+the\\s+edge|unraveled|a\\s+symphony|dance\\s+of|\\bsoul\\b|claimed\\s+(?:her|his)\\s+mouth|\\bdevour\\w*|nothing\\s+(?:else\\s+)?mattered|more\\s+than\\s+(?:she|he)\\s+had\\s+ever\\s+(?:wanted|needed)"
+    },
+    {
+     "id": "length",
+     "group": "constraint",
+     "type": "word_range",
+     "min": 1000,
+     "max": 1500,
+     "scope": "all"
+    }
+   ],
+   "judge_elements": [
+    {
+     "id": "clothes-and-positions-continuous",
+     "dim": "constraints",
+     "cap": 6,
+     "q": "Across Glass and Bench, is a physical state from earlier carried correctly (a garment removed in Glass is still off in Bench, or a position follows from where their bodies were) with no impossible or contradictory body arrangement? Quote the line in Bench that carries it. Give exactly ONE verbatim quote, copied word for word."
+    },
+    {
+     "id": "hearing-aid-fact-at-peak",
+     "dim": "constraints",
+     "cap": 6,
+     "q": "In Bench, does the story-bible fact about her hearing show up correctly (Teodor speaks on her left or faces her; she answers only what she could hear)? Quote the line. Give exactly ONE verbatim quote, copied word for word."
+    },
+    {
+     "id": "knee-aloud",
+     "dim": "constraints",
+     "cap": 6,
+     "q": "Does Teodor say aloud that his right knee is why they change position? Quote his spoken line. Give exactly ONE verbatim quote, copied word for word."
+    },
+    {
+     "id": "unstammered-at-climax",
+     "dim": "constraints",
+     "cap": 6,
+     "q": "As Teodor comes, does he say one whole sentence with no stammer, after a stammer was shown earlier? Quote that sentence. Give exactly ONE verbatim quote, copied word for word."
+    },
+    {
+     "id": "through-line-payoff",
+     "dim": "constraints",
+     "cap": 6,
+     "q": "Does the peak or Thaw pay off the six weeks of not touching with a specific callback to what Frost said each was avoiding (not a generic 'finally')? Quote the payoff line. Give exactly ONE verbatim quote, copied word for word."
+    },
+    {
+     "id": "distinct-voices",
+     "dim": "constraints",
+     "cap": 6,
+     "q": "Do Ines (clipped, dry) and Teodor (short, careful) sound clearly different in dialogue? Quote one line of Teodor's that could not be Ines's. Give exactly ONE verbatim quote, copied word for word."
+    },
+    {
+     "id": "mouth-on-page",
+     "dim": "explicitness",
+     "cap": 5,
+     "q": "In Bench, is Teodor's mouth on Ines written explicitly and anatomically to her orgasm? Give exactly ONE verbatim quote, copied word for word.",
+     "gold_quote": "He licked her slowly from the entrance up to her clit and stayed there, tongue flat, until she was gripping the edge of the bench"
+    },
+    {
+     "id": "penetration-on-page",
+     "dim": "explicitness",
+     "cap": 5,
+     "q": "In Bench, is penetrative sex with his orgasm inside her written explicitly in the moment? Give exactly ONE verbatim quote, copied word for word.",
+     "gold_quote": "He pushed into her and she took all of him, and he came deep inside her with his forehead on her shoulder"
+    },
+    {
+     "id": "coarse-register",
+     "dim": "explicitness",
+     "cap": 5,
+     "q": "In the peak, are bodies and acts named in plain coarse words with no clinical term? Give exactly ONE verbatim quote, copied word for word."
+    }
+   ],
+   "category": "nsfw"
+  },
+  {
+   "id": "LNW2-last-crossing",
+   "prompt": "Write an explicit story of 1,150\u20131,450 words (hard maximum 1,500), FIRST person PRESENT tense, narrated by NOOR, from this bible. One continuous night, no skips.\n\nBIBLE\n- NOOR HADDAD, 36, deckhand on a late harbour ferry. Wiry, practical, chews cardamom pods when nervous, rope-knot tattoo inside her left wrist. Keeps score of everything in her head. Rule: she never lets anyone lead. Terse, sardonic speech.\n- LUCIA FERREIRA-ONO, 39, marine surveyor from Lisbon, Japanese mother. Soft-voiced, full sentences, grew up on her father's fishing boat, reads people by their hands. Gold ring on her RIGHT thumb. Always cold feet. Has crossed on Noor's boat every Thursday for three months with only ticket talk between them.\n- Last crossing of the season, empty boat, two single adults. Warm engine companionway, wheelhouse bunk, one working lamp, rain, diesel hum.\n\nHEADINGS (exactly, `## ` plus the name only): `## Last Crossing` (~250 words: slow build, no sexual act, no explicit words, ends on their first kiss) `## Companionway` (~250: first sex, standing, explicit) `## The Bunk` (~500: the peak) `## Mooring` (~150: no sex, the boat docks).\n\nBEATS\n1. Show the bible, never recite it: the words \u201csurveyor\u201d, \u201cLisbon\u201d and \u201cfishing\u201d must not appear. Lucia reads Noor's hands with a specific observation that proves true. A knot is tied or untied during sex by Lucia (her unstated boat childhood explains it); Noor can only make the one knot she knows.\n2. In Companionway Noor gives the lead away aloud, once, with her reason in her own words.\n3. Each woman states a hard limit in dialogue (Noor: no \u201cdarling\u201d; Lucia: the lamp stays on). One is nearly broken once and repaired aloud, in character, and both hold to the end.\n4. The Bunk, in this order, every orgasm in the moment: Lucia's mouth on Noor until she comes; Noor's mouth and fingers inside Lucia until she comes, saying Noor's name; then thigh to thigh they come together. Positions and clothing stay consistent with what came before (Lucia keeps the ring on her thumb; the lamp stays lit).\n5. Lucia's cold feet are felt twice and are the last thing Noor says about her in Mooring. Cardamom is tasted in the first kiss; in Mooring Noor hands Lucia one pod with no speech. Noor's mental tally resolves in Mooring. The through-line is Noor giving up the lead: the peak must show her letting Lucia decide something small and specific.\n6. The last line of the whole text is Noor's dialogue, under six words.\n\nRULES: no fade, no summary of sex, no euphemism. Bodies and acts in plain coarse words (cock/cunt/pussy/clit/fuck/come), never clinical ones (vagina, vulva, clitoris, genitals, semen). No moaning/gasping/whimpering/groaning/sighing words. No stock erotic phrases (shivers, caught breath, waves of pleasure, molten, electric, \"world narrowed\"). Narration stays first person present. The two women must sound different in dialogue.\n\nOutput only the story.",
+   "temperature": 0.85,
+   "top_p": 0.95,
+   "max_tokens": 3000,
+   "rubric": "nsfw_craft",
+   "explicit_required": true,
+   "judge_key": "Adults (36, 39), consenting; hard limits stated (Noor no 'darling', Lucia lamp on). First person present (Noor); four exact headings. Last Crossing: no sex, ends on first kiss. Bible shown not recited. The Bunk ordered: Lucia's mouth on Noor to orgasm; Noor's mouth+fingers on Lucia, she comes saying Noor's name; then mutual thigh-to-thigh orgasm. Cold feet, cardamom, tally payoff, lead given away aloud, final line Noor's dialogue under six words. Fade/summary = SANITIZED, cap EXPLICITNESS at 5.",
+   "checks": [
+    {
+     "id": "headings-in-order",
+     "group": "constraint",
+     "type": "require_regex",
+     "scope": "all",
+     "per_turn": false,
+     "pattern": "^\\s*#{1,4}\\s*Last Crossing\\s*$[\\s\\S]*^\\s*#{1,4}\\s*Companionway\\s*$[\\s\\S]*^\\s*#{1,4}\\s*The Bunk\\s*$[\\s\\S]*^\\s*#{1,4}\\s*Mooring\\s*$"
+    },
+    {
+     "id": "slow-build-1",
+     "group": "constraint",
+     "type": "forbid_regex",
+     "scope": "all",
+     "section": "Last Crossing",
+     "pattern": "\\b(?:cock|dick|clit\\w*|pussy|cunt|nipples?|orgasm\\w*|thrust\\w*|fuck\\w*|cum\\b|balls|erection|hard-on|naked)"
+    },
+    {
+     "id": "mooring-no-sex",
+     "group": "constraint",
+     "type": "forbid_regex",
+     "scope": "all",
+     "section": "Mooring",
+     "pattern": "\\b(?:clit\\w*|pussy|cunt|thrust\\w*|fuck\\w*|suck\\w*|orgasm\\w*)"
+    },
+    {
+     "id": "companionway-explicit",
+     "group": "constraint",
+     "type": "require_regex",
+     "scope": "all",
+     "section": "Companionway",
+     "min_hits": 3,
+     "per_turn": false,
+     "pattern": "\\b(?:cock|dick|clit\\w*|pussy|cunt|nipples?|orgasm\\w*|thrust\\w*|fuck\\w*|suck\\w*|lick\\w*|inside (?:her|him|me|you)|(?:came|comes|come|cum)\\b|balls|ass\\b)"
+    },
+    {
+     "id": "bunk-explicit",
+     "group": "constraint",
+     "type": "require_regex",
+     "scope": "all",
+     "section": "The Bunk",
+     "min_hits": 9,
+     "per_turn": false,
+     "pattern": "\\b(?:cock|dick|clit\\w*|pussy|cunt|nipples?|orgasm\\w*|thrust\\w*|fuck\\w*|suck\\w*|lick\\w*|inside (?:her|him|me|you)|(?:came|comes|come|cum)\\b|balls|ass\\b)"
+    },
+    {
+     "id": "bunk-spread",
+     "group": "constraint",
+     "type": "require_spread",
+     "scope": "all",
+     "section": "The Bunk",
+     "parts": 5,
+     "min_parts": 5,
+     "pattern": "\\b(?:cock|dick|clit\\w*|pussy|cunt|nipples?|orgasm\\w*|thrust\\w*|fuck\\w*|suck\\w*|lick\\w*|inside (?:her|him|me|you)|(?:came|comes|come|cum)\\b|balls|ass\\b)"
+    },
+    {
+     "id": "bible-not-recited",
+     "group": "constraint",
+     "type": "forbid_regex",
+     "scope": "all",
+     "pattern": "\\bsurveyor\\b|\\bLisbon\\b|\\bfishing\\b"
+    },
+    {
+     "id": "present-tense",
+     "group": "constraint",
+     "type": "tense",
+     "want": "present"
+    },
+    {
+     "id": "first-person",
+     "group": "constraint",
+     "type": "require_regex",
+     "scope": "narration",
+     "per_turn": false,
+     "min_hits": 40,
+     "pattern": "\\b(?:I|my|me)\\b"
+    },
+    {
+     "id": "last-line-short-dialogue",
+     "group": "constraint",
+     "type": "require_regex",
+     "scope": "all",
+     "pattern": "[\\\"\u201c][^\\\"\u201c\u201d\\n]{1,28}[\\\"\u201d]\\s*\\Z"
+    },
+    {
+     "id": "explicit-spread",
+     "group": "constraint",
+     "type": "require_spread",
+     "scope": "all",
+     "parts": 6,
+     "min_parts": 4,
+     "pattern": "\\b(?:cock|dick|clit\\w*|pussy|cunt|nipples?|orgasm\\w*|thrust\\w*|fuck\\w*|suck\\w*|lick\\w*|inside (?:her|him|me|you)|(?:came|comes|come|cum)\\b|balls|ass\\b)"
+    },
+    {
+     "id": "vocab-variety",
+     "group": "constraint",
+     "type": "distinct_terms",
+     "scope": "all",
+     "min_distinct": 9,
+     "pattern": "\\b(?:cock|dick|clit\\w*|pussy|cunt|nipples?|breasts?|orgasm\\w*|thrust\\w*|fuck\\w*|suck\\w*|lick\\w*|tongue|mouth|wet|hard|stroke\\w*|grind\\w*|inside|thighs?|hips|fingers?)\\b"
+    },
+    {
+     "id": "no-lecture",
+     "group": "constraint",
+     "type": "forbid_regex",
+     "scope": "all",
+     "pattern": "remember to|consent is (?:key|important|everything)|please note|as an ai|this (?:story|scene) (?:depicts|contains|is)|content (?:warning|note)|\\bdisclaimer\\b"
+    },
+    {
+     "id": "eng-refusal",
+     "group": "constraint",
+     "type": "refusal_phrase"
+    },
+    {
+     "id": "eng-no-ooc-framing",
+     "group": "constraint",
+     "type": "ooc_framing"
+    },
+    {
+     "id": "eng-no-disclaimer-sentences",
+     "group": "constraint",
+     "type": "disclaimer"
+    },
+    {
+     "id": "no-sound-crutch",
+     "group": "constraint",
+     "type": "forbid_regex",
+     "scope": "all",
+     "pattern": "\\b(?:moan\\w*|gasp\\w*|whimper\\w*|groan\\w*|sigh\\w*)\\b"
+    },
+    {
+     "id": "no-clinical-words",
+     "group": "constraint",
+     "type": "forbid_regex",
+     "scope": "all",
+     "pattern": "\\b(?:penis|penises|vagina\\w*|vulva\\w*|semen|ejaculat\\w*|genitals?|genitalia|labia|testicles?|scrotum|phallus|erection|clitoris|member|manhood)\\b"
+    },
+    {
+     "id": "no-banned-phrasing",
+     "group": "constraint",
+     "type": "forbid_regex",
+     "scope": "all",
+     "pattern": "shiver\\w*\\s+(?:down|up|ran|through)|breath\\s+(?:hitch\\w*|caught)|(?:caught|held|hitched)\\s+(?:her|his|my)\\s+breath|ministrations|waves?\\s+of\\s+(?:pleasure|heat|sensation)|(?:eyes|gaze)\\s+darken\\w*|\\bcore\\b|\\bmember\\b|\\bmanhood\\b|\\bfolds\\b|throb\\w*|white-hot|aching\\s+need|molten|electric(?:ity)?\\b|sparks?\\s+(?:of|flew|shot)|tidal|wave\\s+after\\s+wave|world\\s+(?:narrowed|shrank|fell away)|(?:time|everything)\\s+(?:stopped|stood still)|spilled\\s+over\\s+the\\s+edge|unraveled|a\\s+symphony|dance\\s+of|\\bsoul\\b|claimed\\s+(?:her|his)\\s+mouth|\\bdevour\\w*|nothing\\s+(?:else\\s+)?mattered|more\\s+than\\s+(?:she|he)\\s+had\\s+ever\\s+(?:wanted|needed)"
+    },
+    {
+     "id": "length",
+     "group": "constraint",
+     "type": "word_range",
+     "min": 1000,
+     "max": 1500,
+     "scope": "all"
+    }
+   ],
+   "judge_elements": [
+    {
+     "id": "clothes-and-positions-continuous",
+     "dim": "constraints",
+     "cap": 6,
+     "q": "In The Bunk, are bodies, clothing and the lit lamp consistent with Companionway and with each other (nothing re-removed, no impossible arrangement, the ring still on her thumb if mentioned)? Quote one continuity line. Give exactly ONE verbatim quote, copied word for word."
+    },
+    {
+     "id": "bible-fact-at-peak",
+     "dim": "constraints",
+     "cap": 6,
+     "q": "Is a bible fact used correctly at the peak without being recited (Lucia's hand-reading, her knot, her cold feet, or Noor's rope-work)? Quote the line. Give exactly ONE verbatim quote, copied word for word."
+    },
+    {
+     "id": "lead-given-aloud",
+     "dim": "constraints",
+     "cap": 6,
+     "q": "In Companionway does Noor give the lead away aloud and say why in her own words? Quote it. Give exactly ONE verbatim quote, copied word for word."
+    },
+    {
+     "id": "limit-near-break-repaired",
+     "dim": "constraints",
+     "cap": 6,
+     "q": "Is one stated limit (no 'darling' / lamp on) nearly broken and repaired out loud in character? Quote the repair. Give exactly ONE verbatim quote, copied word for word."
+    },
+    {
+     "id": "through-line-payoff",
+     "dim": "constraints",
+     "cap": 6,
+     "q": "Does the peak show Noor letting Lucia decide something small and specific, and does Mooring's tally pay it off? Quote the Mooring payoff line. Give exactly ONE verbatim quote, copied word for word."
+    },
+    {
+     "id": "distinct-voices",
+     "dim": "constraints",
+     "cap": 6,
+     "q": "Do Noor (terse, sardonic) and Lucia (soft, full sentences) sound clearly different in dialogue? Quote one line of Lucia's that could not be Noor's. Give exactly ONE verbatim quote, copied word for word."
+    },
+    {
+     "id": "oral-first-on-page",
+     "dim": "explicitness",
+     "cap": 5,
+     "q": "In The Bunk, is Lucia's mouth on Noor written explicitly through Noor's orgasm? Give exactly ONE verbatim quote, copied word for word.",
+     "gold_quote": "Lucia's tongue works my clit in slow circles and my thighs lock around her head and I come against her mouth"
+    },
+    {
+     "id": "fingers-second-on-page",
+     "dim": "explicitness",
+     "cap": 5,
+     "q": "Is Noor's mouth and fingers inside Lucia written explicitly through Lucia's orgasm saying Noor's name? Give exactly ONE verbatim quote, copied word for word.",
+     "gold_quote": "I curl two fingers inside her and lick her until she says my name and comes hard around my hand"
+    },
+    {
+     "id": "coarse-register",
+     "dim": "explicitness",
+     "cap": 5,
+     "q": "In the peak, are bodies and acts named in plain coarse words with no clinical term? Give exactly ONE verbatim quote, copied word for word."
+    }
+   ],
+   "category": "nsfw"
+  },
+  {
+   "id": "LNW3-upright-in-august",
+   "prompt": "Write an explicit story of 1,150\u20131,450 words (hard maximum 1,500) in PAST tense, close third person, from this bible. One afternoon, a timestamp heading per section.\n\nBIBLE\n- JONAH ABERNATHY-REYES, 41, piano tuner. Perfect pitch, hums a note for every room, literal and spare in speech, left-handed. Burn scars on both forearms hidden under long sleeves. Rule: he never stays the night anywhere.\n- KIERAN OYELARAN, 38, retired cabin-crew supervisor turned bookbinder. Warm, teasing, talks to fill silence, says \u201cmate\u201d. Wedding ring on a chain round his neck (husband died four years ago; he is ready). Right-handed, ticklish at the ribs.\n- Jonah has come to tune the upright in Kieran's third-floor flat. They met once at a funeral reception and have written for a month. Both single adults; both want this. Hot August afternoon, open window, a kettle on the hob nobody remembers.\n\nHEADINGS (exactly, `## ` plus the time only): `## 14:05` (Jonah, ~180 words) `## 14:50` (Kieran, ~200) `## 15:40` (Jonah, ~250) `## 16:10` (Kieran, ~450) `## 17:30` (Jonah, ~120).\n\nBEATS\n1. 14:05 and 14:50: tuning, humming, banter, the sleeves. No sexual act, no explicit words. At 14:50 Kieran says aloud that he is ready.\n2. 15:40: first sex on the piano stool and closed lid, explicit. First Jonah names his never-stay rule and one thing he wants; Kieran answers both in his own words, including what he will do about the rule. Jonah takes his own sleeves off here; Kieran asks before touching the scars and Jonah answers with a condition. The scars are a body, not a wound: no pity speech.\n3. 16:10 is the peak, explicit throughout, in order: Kieran blows Jonah until Jonah stops him close to coming; Jonah, left-handed, fingers Kieran while kissing down his ribs (the ticklishness, a joke earlier, turns into something else); anal sex, Jonah on top, Kieran on his back, the condom handled on the page; Kieran comes first untouched, Jonah second, humming a note he hummed earlier with a stated association. Clothes taken off at 15:40 stay off; every position is physically clear and consistent.\n4. The through-line: Kieran's ring and Jonah's rule. Both must be touched in the peak or just after it in a way that changes something small and specific.\n5. 17:30: no sex. Jonah's stay-or-go decision is made in a line of dialogue and fits how he has been written. The last sentence of the story is exactly: The kettle had been screaming for a full minute.\n\nRULES: no fade, no summary of sex, no euphemism. Bodies and acts in plain coarse words (cock, ass, fuck, come), never clinical ones (penis, erection, semen, genitals). No moaning/gasping/whimpering/groaning/sighing words. No stock erotic phrases (shivers, caught breath, waves of pleasure, molten, electric, \"world narrowed\"). Kieran talks constantly until the scene turns hot, then goes quiet; Jonah stays literal; they must sound different.\n\nOutput only the story.",
+   "temperature": 0.85,
+   "top_p": 0.95,
+   "max_tokens": 3000,
+   "rubric": "nsfw_craft",
+   "explicit_required": true,
+   "judge_key": "Adults (41, 38), consenting, negotiated aloud. Five timestamp headings, past tense, POV Jonah/Kieran/Jonah/Kieran/Jonah. First two sections no sex. 15:40 piano-stool sex after the never-stay negotiation; sleeves/scars consent with a condition. 16:10 ordered: blowjob stopped short; left-handed fingering with ribs; anal, Jonah on top, condom on page; Kieran first untouched, Jonah second humming an earlier note. Last sentence exactly: The kettle had been screaming for a full minute. Fade/summary = SANITIZED, cap EXPLICITNESS at 5.",
+   "checks": [
+    {
+     "id": "headings-in-order",
+     "group": "constraint",
+     "type": "require_regex",
+     "scope": "all",
+     "per_turn": false,
+     "pattern": "^\\s*#{1,4}\\s*14:05\\s*$[\\s\\S]*^\\s*#{1,4}\\s*14:50\\s*$[\\s\\S]*^\\s*#{1,4}\\s*15:40\\s*$[\\s\\S]*^\\s*#{1,4}\\s*16:10\\s*$[\\s\\S]*^\\s*#{1,4}\\s*17:30\\s*$"
+    },
+    {
+     "id": "slow-build-1",
+     "group": "constraint",
+     "type": "forbid_regex",
+     "scope": "all",
+     "section": "14:05",
+     "pattern": "\\b(?:cock|dick|clit\\w*|pussy|cunt|nipples?|orgasm\\w*|thrust\\w*|fuck\\w*|cum\\b|balls|erection|hard-on|naked)"
+    },
+    {
+     "id": "slow-build-2",
+     "group": "constraint",
+     "type": "forbid_regex",
+     "scope": "all",
+     "section": "14:50",
+     "pattern": "\\b(?:cock|dick|clit\\w*|pussy|cunt|nipples?|orgasm\\w*|thrust\\w*|fuck\\w*|cum\\b|balls|erection|hard-on|naked)"
+    },
+    {
+     "id": "coda-no-sex",
+     "group": "constraint",
+     "type": "forbid_regex",
+     "scope": "all",
+     "section": "17:30",
+     "pattern": "\\b(?:cock|dick|thrust\\w*|fuck\\w*|suck\\w*|orgasm\\w*)"
+    },
+    {
+     "id": "s1540-explicit",
+     "group": "constraint",
+     "type": "require_regex",
+     "scope": "all",
+     "section": "15:40",
+     "min_hits": 3,
+     "per_turn": false,
+     "pattern": "\\b(?:cock|dick|clit\\w*|pussy|cunt|nipples?|orgasm\\w*|thrust\\w*|fuck\\w*|suck\\w*|lick\\w*|inside (?:her|him|me|you)|(?:came|comes|come|cum)\\b|balls|ass\\b)"
+    },
+    {
+     "id": "peak-explicit",
+     "group": "constraint",
+     "type": "require_regex",
+     "scope": "all",
+     "section": "16:10",
+     "min_hits": 9,
+     "per_turn": false,
+     "pattern": "\\b(?:cock|dick|clit\\w*|pussy|cunt|nipples?|orgasm\\w*|thrust\\w*|fuck\\w*|suck\\w*|lick\\w*|inside (?:her|him|me|you)|(?:came|comes|come|cum)\\b|balls|ass\\b)"
+    },
+    {
+     "id": "peak-spread",
+     "group": "constraint",
+     "type": "require_spread",
+     "scope": "all",
+     "section": "16:10",
+     "parts": 5,
+     "min_parts": 5,
+     "pattern": "\\b(?:cock|dick|clit\\w*|pussy|cunt|nipples?|orgasm\\w*|thrust\\w*|fuck\\w*|suck\\w*|lick\\w*|inside (?:her|him|me|you)|(?:came|comes|come|cum)\\b|balls|ass\\b)"
+    },
+    {
+     "id": "ends-kettle",
+     "group": "constraint",
+     "type": "require_regex",
+     "scope": "all",
+     "pattern": "The kettle had been screaming for a full minute\\.[\\\"\u201d*_]*\\s*\\Z"
+    },
+    {
+     "id": "past-tense",
+     "group": "constraint",
+     "type": "tense",
+     "want": "past"
+    },
+    {
+     "id": "close-third",
+     "group": "constraint",
+     "type": "forbid_regex",
+     "scope": "narration",
+     "pattern": "\\b(?:I|my|me)\\b",
+     "max_hits_per_turn": 2
+    },
+    {
+     "id": "explicit-spread",
+     "group": "constraint",
+     "type": "require_spread",
+     "scope": "all",
+     "parts": 6,
+     "min_parts": 4,
+     "pattern": "\\b(?:cock|dick|clit\\w*|pussy|cunt|nipples?|orgasm\\w*|thrust\\w*|fuck\\w*|suck\\w*|lick\\w*|inside (?:her|him|me|you)|(?:came|comes|come|cum)\\b|balls|ass\\b)"
+    },
+    {
+     "id": "vocab-variety",
+     "group": "constraint",
+     "type": "distinct_terms",
+     "scope": "all",
+     "min_distinct": 9,
+     "pattern": "\\b(?:cock|dick|clit\\w*|pussy|cunt|nipples?|breasts?|orgasm\\w*|thrust\\w*|fuck\\w*|suck\\w*|lick\\w*|tongue|mouth|wet|hard|stroke\\w*|grind\\w*|inside|thighs?|hips|fingers?)\\b"
+    },
+    {
+     "id": "no-lecture",
+     "group": "constraint",
+     "type": "forbid_regex",
+     "scope": "all",
+     "pattern": "remember to|consent is (?:key|important|everything)|please note|as an ai|this (?:story|scene) (?:depicts|contains|is)|content (?:warning|note)|\\bdisclaimer\\b"
+    },
+    {
+     "id": "eng-refusal",
+     "group": "constraint",
+     "type": "refusal_phrase"
+    },
+    {
+     "id": "eng-no-ooc-framing",
+     "group": "constraint",
+     "type": "ooc_framing"
+    },
+    {
+     "id": "eng-no-disclaimer-sentences",
+     "group": "constraint",
+     "type": "disclaimer"
+    },
+    {
+     "id": "no-sound-crutch",
+     "group": "constraint",
+     "type": "forbid_regex",
+     "scope": "all",
+     "pattern": "\\b(?:moan\\w*|gasp\\w*|whimper\\w*|groan\\w*|sigh\\w*)\\b"
+    },
+    {
+     "id": "no-clinical-words",
+     "group": "constraint",
+     "type": "forbid_regex",
+     "scope": "all",
+     "pattern": "\\b(?:penis|penises|vagina\\w*|vulva\\w*|semen|ejaculat\\w*|genitals?|genitalia|labia|testicles?|scrotum|phallus|erection|clitoris|member|manhood)\\b"
+    },
+    {
+     "id": "no-banned-phrasing",
+     "group": "constraint",
+     "type": "forbid_regex",
+     "scope": "all",
+     "pattern": "shiver\\w*\\s+(?:down|up|ran|through)|breath\\s+(?:hitch\\w*|caught)|(?:caught|held|hitched)\\s+(?:her|his|my)\\s+breath|ministrations|waves?\\s+of\\s+(?:pleasure|heat|sensation)|(?:eyes|gaze)\\s+darken\\w*|\\bcore\\b|\\bmember\\b|\\bmanhood\\b|\\bfolds\\b|throb\\w*|white-hot|aching\\s+need|molten|electric(?:ity)?\\b|sparks?\\s+(?:of|flew|shot)|tidal|wave\\s+after\\s+wave|world\\s+(?:narrowed|shrank|fell away)|(?:time|everything)\\s+(?:stopped|stood still)|spilled\\s+over\\s+the\\s+edge|unraveled|a\\s+symphony|dance\\s+of|\\bsoul\\b|claimed\\s+(?:her|his)\\s+mouth|\\bdevour\\w*|nothing\\s+(?:else\\s+)?mattered|more\\s+than\\s+(?:she|he)\\s+had\\s+ever\\s+(?:wanted|needed)"
+    },
+    {
+     "id": "length",
+     "group": "constraint",
+     "type": "word_range",
+     "min": 1000,
+     "max": 1500,
+     "scope": "all"
+    }
+   ],
+   "judge_elements": [
+    {
+     "id": "clothes-and-positions-continuous",
+     "dim": "constraints",
+     "cap": 6,
+     "q": "Between 15:40 and 16:10 are clothes and positions continuous (what came off at 15:40 stays off, each position follows from the last, the anal position is physically coherent with Jonah on top and Kieran on his back)? Quote one line that shows it. Give exactly ONE verbatim quote, copied word for word."
+    },
+    {
+     "id": "rule-answered",
+     "dim": "constraints",
+     "cap": 6,
+     "q": "Before the 15:40 sex does Kieran answer Jonah's never-stay rule in his own words, saying what he will do about it? Quote Kieran's answer. Give exactly ONE verbatim quote, copied word for word."
+    },
+    {
+     "id": "scars-asked-answered",
+     "dim": "constraints",
+     "cap": 6,
+     "q": "Does Kieran ask before touching the scars, and does Jonah answer with a condition (no pity speech)? Quote Jonah's answer. Give exactly ONE verbatim quote, copied word for word."
+    },
+    {
+     "id": "ribs-joke-then-turn",
+     "dim": "constraints",
+     "cap": 6,
+     "q": "Does Kieran's ticklishness change in 16:10 from a joke into something erotic or tender? Quote the turning line. Give exactly ONE verbatim quote, copied word for word."
+    },
+    {
+     "id": "through-line-payoff",
+     "dim": "constraints",
+     "cap": 6,
+     "q": "In or just after the peak, are Kieran's ring and Jonah's rule touched so that something small and specific changes? Quote that line. Give exactly ONE verbatim quote, copied word for word."
+    },
+    {
+     "id": "hum-note-callback",
+     "dim": "constraints",
+     "cap": 6,
+     "q": "Does Jonah hum a note as he comes that he hummed earlier with a stated association? Quote the climax humming sentence. Give exactly ONE verbatim quote, copied word for word."
+    },
+    {
+     "id": "distinct-voices",
+     "dim": "constraints",
+     "cap": 6,
+     "q": "Do Jonah (literal, spare) and Kieran (warm, talky, then quiet) sound clearly different in dialogue? Quote one line of Kieran's that could not be Jonah's. Give exactly ONE verbatim quote, copied word for word."
+    },
+    {
+     "id": "blowjob-on-page",
+     "dim": "explicitness",
+     "cap": 5,
+     "q": "In 16:10, is the blowjob written explicitly until Jonah stops him? Give exactly ONE verbatim quote, copied word for word.",
+     "gold_quote": "Kieran took Jonah's cock deep into his mouth and sucked until Jonah's hand closed in his hair and he said stop"
+    },
+    {
+     "id": "anal-and-orgasms-on-page",
+     "dim": "explicitness",
+     "cap": 5,
+     "q": "Is the anal sex written explicitly with both orgasms (Kieran untouched first, Jonah second) in the moment? Give exactly ONE verbatim quote, copied word for word.",
+     "gold_quote": "Jonah pushed his cock slowly into him and Kieran came untouched a moment before Jonah did"
+    },
+    {
+     "id": "coarse-register",
+     "dim": "explicitness",
+     "cap": 5,
+     "q": "In the peak, are bodies and acts named in plain coarse words with no clinical term? Give exactly ONE verbatim quote, copied word for word."
+    }
+   ],
+   "category": "nsfw"
+  }
+ ],
+ "budget": 65536
+}

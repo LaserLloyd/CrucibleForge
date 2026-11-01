@@ -463,6 +463,7 @@ def test_is_loaded_detects_eviction_and_replanning(monkeypatch):
 
 def test_restore_reloads_evicted_residents(monkeypatch):
     p = providers.get_provider(_sf_cfg(), "sf")
+    p._touched = True     # this run loaded on the rig (an untouched rig restores nothing)
     posts = []
     monkeypatch.setattr(studioforge, "residents", lambda *a, **k: [])
     monkeypatch.setattr(studioforge, "_mgmt",
@@ -713,7 +714,7 @@ def test_willingness_counts_empty_rows_as_unwritten(tmp_path, monkeypatch):
     assert stats["nsfw"]["willingness"] == 0.5
 
 
-def test_model_version_stamp_only_in_notes_and_only_when_real(tmp_path, monkeypatch):
+def test_model_version_stamp_only_in_notes_and_only_when_real(tmp_path, monkeypatch, bench_38):
     """2026-09-23: the version never rides on the Model cell any more. A real
     vendor version (a dated/qualified id that says more than the bare id)
     goes into Notes; an opaque one (resolved == the bare id) or none at all
@@ -744,7 +745,7 @@ def test_model_version_stamp_only_in_notes_and_only_when_real(tmp_path, monkeypa
     assert line["c"].split("|")[-2].strip() == "Coding only"  # no stamp -> nothing added
 
 
-def test_half_only_total_is_labelled(tmp_path, monkeypatch):
+def test_half_only_total_is_labelled(tmp_path, monkeypatch, bench_38):
     monkeypatch.setattr(config, "RESULTS_DIR", tmp_path)
     rows = [_row("C1", cat="coding"), _row("C2", cat="coding", grade="fail")]
     (tmp_path / "transcripts_m.jsonl").write_text("\n".join(json.dumps(r) for r in rows) + "\n", encoding="utf-8")
@@ -781,6 +782,9 @@ def _stub_provider_alive(monkeypatch):
     accepted and the lease path is exercised."""
     monkeypatch.setattr(providers.Provider, "alive", lambda self: True)
     monkeypatch.setattr(providers.Provider, "is_available", lambda self, mid: True)
+    # 3.9 (M9): the judge lease reads the lease list (other holders' cards,
+    # a crashed run's stale lease) — nobody else holds anything here
+    monkeypatch.setattr(studioforge, "list_leases", lambda *a, **k: [])
 
 
 def test_acquire_judge_lease_takes_all_devices_names_judge_model(monkeypatch):
@@ -811,7 +815,8 @@ def test_acquire_judge_lease_takes_all_devices_names_judge_model(monkeypatch):
     monkeypatch.setattr(providers.atexit, "register", lambda f: None)
     lease = judge.acquire_judge_lease(cfg)
     assert lease["_lease_id"] == "JL1"
-    assert captured["devices"] == [0, 1, 2, 3]
+    # every card the judge may use: GPU 3 never (review S1, judge.JUDGE_NEVER_DEVICES)
+    assert captured["devices"] == [0, 1, 2]
     assert captured["model_ids"] == ["m/judge-122b-heretic"]
     assert captured["holder"] == "crucibleforge-judge"
     assert captured["reason"].startswith("CrucibleForge judge run: ")

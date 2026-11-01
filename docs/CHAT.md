@@ -1,5 +1,9 @@
 # CrucibleForge — the Chat section (suite 3.4.0)
 
+> **Historical.** This document describes the 3.4–3.5 Chat section. The 3.9 points board
+> (Chat /10 as Deep RP, Conversation, Character and Creative writing) is in
+> [`CUSTOM-TESTS.md`](CUSTOM-TESTS.md) and `profiles/bench.yaml`.
+
 The Chat half of the benchmark: what each case measures, how it is scored,
 where the criteria come from, and what it costs in run time. Installed
 2026-09-23; the cases live in `cases/rp.json`, `cases/nsfw.json` and
@@ -223,6 +227,8 @@ identity ≤ 4 or the batch aborts — and the `explicit` probe scores on `nsfw_
 run concurrently on the judge's slots.
 
 ## 7. Scoring: how it feeds Chat
+
+> Pre-3.9 weights; the 3.9 board scores Chat in points (see `CUSTOM-TESTS.md` and `profiles/bench.yaml`).
 
 Weights (`profiles/bench.yaml` `scoring: chat:`): **RP 20 · NSFW 15 · Story 10 · Explicit peak
 5 · Willing 5 · Steer 5**. A component that was not measured is dropped and the rest renormalised.

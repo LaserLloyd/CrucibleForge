@@ -1,0 +1,17 @@
+id: CB-B1-hearth-config
+category: codebank
+family: feature
+difficulty: hard
+max_tokens: 8192
+allowed_paths: ["hearth/*.py"]
+new_paths: ["hearth/*.py"]
+pythonpath: ["."]
+issue: |
+  Implement config format v2 as specified in docs/config-v2.md, in
+  hearth/config.py. Release-1 (v1) files and settings must keep loading.
+groups:
+  - {id: v2, file: test_v2.py, kind: f2p, why: "spec: cfg shape, defaults, v2 keys; v1 names in a v2 file are unknown keys"}
+  - {id: v1compat, file: test_v1compat.py, kind: f2p, why: "spec: v1 mapping incl. backup defaults, deprecation warning once, unknown keys (any table, top-level too) sorted after it"}
+  - {id: env, file: test_env.py, kind: f2p, why: "spec: env > file > default, int/bool conversion, HEARTH_PORT alias loses to HEARTH_HTTP_PORT, bad env value errors"}
+  - {id: errors, file: test_errors.py, kind: f2p, why: "spec: all errors collected, sorted by path, ConfigError is ValueError, target required when enabled, bool not int, unsupported version, toml error"}
+  - {id: existing, file: test_existing.py, kind: p2p, why: "release-1 behaviour: v1 values, HEARTH_PORT, FileNotFoundError, bad port -> ValueError, os.environ default"}

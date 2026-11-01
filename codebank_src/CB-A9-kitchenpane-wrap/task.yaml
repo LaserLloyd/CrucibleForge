@@ -1,0 +1,23 @@
+id: CB-A9-kitchenpane-wrap
+category: codebank
+family: fix
+difficulty: hard
+max_tokens: 8192
+allowed_paths: ["kitchenpane/*.py"]
+new_paths: ["kitchenpane/*.py"]
+pythonpath: ["."]
+per_test_timeout_s: 30
+group_timeout_s: 60
+issue: |
+  Bug report from the kitchen display (40 columns): notes with Japanese
+  names or emoji run off the right edge, and when a coloured alert wraps,
+  the colour bleeds into the next notes or is lost on the continuation
+  lines. docs/wrap.md is the spec the display team signed off; make
+  kitchenpane.wrap.wrap follow it exactly. The pane's bullet layout must
+  keep working.
+groups:
+  - {id: columns, file: test_columns.py, kind: f2p, why: "spec Columns: W/F = 2, Mn/Me/Cf = 0 riding on the base, lone zero-width cluster, width < 2 ValueError"}
+  - {id: colours, file: test_colours.py, kind: f2p, why: "spec Colours: active style reopened at each line start, ESC[0m at each line end while active, both reset forms, carry across paragraphs, SGR attachment"}
+  - {id: long, file: test_long_words.py, kind: f2p, why: "spec rules 1-4: long word starts a new line, whole clusters per piece, fill continues, paragraphs/spaces"}
+  - {id: random, file: test_random.py, kind: f2p, why: "whole spec: 400 random notes vs the reference, plus the width bound"}
+  - {id: existing, file: test_existing.py, kind: p2p, why: "ASCII wrapping and the pane's bullets keep working"}

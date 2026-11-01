@@ -5,4 +5,19 @@
 # the difference is exploitable: stage a secret, tidy the working copy, commit.
 set -e
 cd "$(git rev-parse --show-toplevel)"
-exec python3 scripts/scrub_check.py --staged
+
+# Find a working Python >= 3.12 (python3 is absent on many Windows installs;
+# the Windows Store stub exists but fails the version probe, so it is skipped).
+PY=
+for cand in python3 python "py -3"; do
+    # shellcheck disable=SC2086
+    if $cand -c "import sys; sys.exit(0 if sys.version_info >= (3, 12) else 1)" >/dev/null 2>&1; then
+        PY=$cand
+        break
+    fi
+done
+if [ -z "$PY" ]; then
+    echo "$(basename "$0"): no working Python >= 3.12 found (tried python3, python, py -3)" >&2
+    exit 1
+fi
+exec $PY scripts/scrub_check.py --staged

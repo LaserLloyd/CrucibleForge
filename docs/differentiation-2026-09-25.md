@@ -1,5 +1,7 @@
 # Differentiation round, 2026-09-25 (suite 3.5.0)
 
+> Snapshot from 2026-09-25, pre-3.9; kept as history.
+
 The request: several sections were maxed out by most of the board. Add questions
 that separate models, each testing at least 5 things, with a pass or fail recorded
 for every element. This note covers Steer, Tools, Reason and RP first; the NSFW / Willing half

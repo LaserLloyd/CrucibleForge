@@ -20,6 +20,7 @@ _REQ = {
     "python_exec": ["tests"], "numeric": ["answer"], "contains": ["needles"],
     "exact": [], "reference": ["reference"], "checks": ["checks"],
     "tool_call": [], "tool_parallel": ["expect_calls"], "tool_loop": [],
+    "repo_tests": ["files", "hidden", "groups"],
 }
 
 
@@ -68,13 +69,16 @@ def _check(case: dict) -> list[str]:
             errs.append(f"unknown grader {g}")
         else:
             for k in _REQ[g]:
-                if k not in gc:
+                if k not in gc and not (g == "python_exec" and k == "tests" and gc.get("test_groups")):
                     errs.append(f"grader_config missing {k}")
+            if g == "python_exec" and gc.get("test_groups") is not None and (
+                    not isinstance(gc["test_groups"], dict) or not gc["test_groups"]):
+                errs.append("test_groups must map group name -> test code")
             if g == "exact" and not (gc.get("answer") is not None or gc.get("answers")):
                 errs.append("exact grader needs answer/answers")
             if g == "tool_call" and not (gc.get("expect_tool") or gc.get("expect_no_tool")):
                 errs.append("tool_call needs expect_tool or expect_no_tool")
-    elif not (case.get("rubric") or case.get("turns") or case.get("tool_script")
+    elif not (case.get("rubric") or case.get("turns") or case.get("tool_script") or case.get("env")
               or case.get("category") == "perf"):
         errs.append("no grader and no rubric")
     if case.get("rubric"):
@@ -83,6 +87,7 @@ def _check(case: dict) -> list[str]:
             errs.append(f"unknown rubric {case['rubric']}")
     errs += _check_session_checks(case)
     errs += _check_judge_elements(case)
+    errs += _check_judge_willingness(case)
     errs += _check_tags(case)
     if g == "exact" and gc.get("elements") == "positions":
         from .graders import _normalize
@@ -124,6 +129,34 @@ def _check(case: dict) -> list[str]:
         v = grade(res, case)
         if v["grade"] != "pass":
             errs.append(f"reference solution FAILS own tests: {v['detail']}")
+    # 3.9 step 6: listed mutants (a stub, the slow brute force the prompt rules
+    # out, a wrong rule) must FAIL the tests; ``mutants_expect`` {"<1-based
+    # index>": [groups]} pins which test groups a mutant still passes, so the
+    # partial credit a naive answer earns is the one the author intended
+    if g == "python_exec" and case.get("mutants"):
+        want_groups = case.get("mutants_expect") or {}
+        for i, m in enumerate(case["mutants"], 1):
+            v = grade(ChatResult(response_text=f"```python\n{m}\n```"), case)
+            if v["grade"] == "pass":
+                errs.append(f"mutant {i} PASSES the tests")
+            elif str(i) in want_groups:
+                got = sorted(r["id"] for r in v.get("results") or [] if r.get("pass"))
+                if got != sorted(want_groups[str(i)]):
+                    errs.append(f"mutant {i} passes groups {got}, expected {sorted(want_groups[str(i)])}")
+    # repo tasks: untouched fails, reference passes, mutants bite (sandbox)
+    if g == "repo_tests" and all(k in gc for k in _REQ["repo_tests"]):
+        from .codebank import verify_case
+        errs += verify_case(case)
+    if case.get("golds") and case.get("snippets"):
+        # code bank predict family: re-derive every gold by running its snippet
+        from .codebank import derive_gold
+        for i, sn in enumerate(case["snippets"], 1):
+            got = derive_gold(sn["lang"], sn["code"])
+            if got != case["golds"].get(f"Q{i}"):
+                errs.append(f"Q{i}: snippet now prints {got!r}, gold is {case['golds'].get(f'Q{i}')!r}")
+    if case.get("env"):
+        from .codebank import verify_case
+        errs += verify_case({**case, "grader_config": case["env"]})
     # answer re-derivation
     ver = case.get("verify")
     if ver and ver.get("python"):
@@ -155,7 +188,14 @@ _CHECK_REQ = {"no_puppeting": ["names"], "forbid_regex": ["pattern"],
               "ooc_reply": [], "ooc_field": ["field"], "tense": ["want"],
               "word_range": [], "distinct_regex": ["pattern"],
               "require_spread": ["pattern", "parts", "min_parts"],
-              "distinct_terms": ["pattern", "min_distinct"]}
+              "distinct_terms": ["pattern", "min_distinct"],
+              # willingness families (3.9): no required keys, numeric options below
+              "refusal_phrase": [], "pivot": [], "disclaimer": [],
+              "ooc_framing": [], "fade_to_black": [], "line_count": ["max"]}
+# integer options of the willingness families (>= 0; ``from_turn``/``to_turn`` >= 1)
+_CHECK_INT_OPTS = {"refusal_phrase": ("sentences",), "pivot": ("sentences",),
+                   "disclaimer": ("max",), "ooc_framing": ("max_hits",),
+                   "fade_to_black": ("max_hits",)}
 _CHECK_GROUPS = ("identity", "continuity", "ooc", "constraint")
 
 
@@ -188,7 +228,8 @@ def _check_session_checks(case: dict) -> list[str]:
                 errs.append(f"check {cid}: missing {k}")
         if c.get("group", "constraint") not in _CHECK_GROUPS:
             errs.append(f"check {cid}: unknown group {c.get('group')!r}")
-        if c.get("scope", "narration") not in SCOPES:
+        sc_ = str(c.get("scope", "narration"))
+        if sc_ not in SCOPES and not (sc_.startswith("speaker:") and len(sc_) > len("speaker:")):
             errs.append(f"check {cid}: unknown scope {c.get('scope')!r}")
         for i in c.get("turns") or []:
             if not 1 <= int(i) <= n_turns:
@@ -201,6 +242,11 @@ def _check_session_checks(case: dict) -> list[str]:
             else:
                 if t == "distinct_regex" and rx.groups != 1:
                     errs.append(f"check {cid}: distinct_regex needs exactly one group")
+        if c.get("ignore"):
+            try:
+                re.compile(c["ignore"])
+            except re.error as e:
+                errs.append(f"check {cid}: bad ignore regex ({e})")
         if t == "require_spread" and all(k in c for k in ("parts", "min_parts")):
             try:
                 n, m = int(c["parts"]), int(c["min_parts"])
@@ -209,6 +255,18 @@ def _check_session_checks(case: dict) -> list[str]:
             else:
                 if not 1 <= m <= n:
                     errs.append(f"check {cid}: need 1 <= min_parts <= parts (got {m}/{n})")
+        for k in _CHECK_INT_OPTS.get(t, ()) + (("from_turn", "to_turn")
+                                              if t in _CHECK_INT_OPTS else ()):
+            if k in c:
+                try:
+                    v = int(c[k])
+                except (TypeError, ValueError):
+                    errs.append(f"check {cid}: {k} must be an integer")
+                    continue
+                if v < (1 if k in ("from_turn", "to_turn", "sentences") else 0):
+                    errs.append(f"check {cid}: {k}={v} out of range")
+                elif k in ("from_turn", "to_turn") and v > n_turns:
+                    errs.append(f"check {cid}: {k}={v} outside 1..{n_turns}")
         if t == "distinct_terms" and "min_distinct" in c:
             try:
                 if int(c["min_distinct"]) < 1:
@@ -229,11 +287,26 @@ def _check_tags(case: dict) -> list[str]:
     erotic = case.get("rubric") in ("nsfw", "nsfw_craft", "erp_session")
     if case.get("explicit_required") and not erotic:
         errs.append("explicit_required on a non-erotic rubric")
-    if case.get("willing") == "must_write" and not erotic:
+    # 3.9: an Uncensored dark-fiction row (no sex) is judged on the bare W 0-4
+    # ``willingness`` rubric and is must_write all the same
+    if case.get("willing") == "must_write" and not (erotic or case.get("rubric") == "willingness"):
         errs.append("willing=must_write on a non-erotic rubric")
     if case.get("willing") == "must_refuse" and case.get("rubric") != "safety":
         errs.append("willing=must_refuse needs rubric safety")
     return errs
+
+
+def _check_judge_willingness(case: dict) -> list[str]:
+    """``judge_willingness: true`` (judge.py, the W 0-4 rubric add-on) needs a
+    judged rubric; it must be a real boolean."""
+    if "judge_willingness" not in case:
+        return []
+    from .judge import RUBRICS
+    if type(case["judge_willingness"]) is not bool:
+        return [f"judge_willingness={case['judge_willingness']!r} must be true or false"]
+    if case["judge_willingness"] and (case.get("rubric") or "") not in RUBRICS:
+        return ["judge_willingness on a case without a known rubric"]
+    return []
 
 
 def _check_judge_elements(case: dict) -> list[str]:
@@ -266,8 +339,9 @@ def verify_all(cases: list[dict], verbose: bool = False) -> int:
     n_ref = n_ver = 0
     for c in cases:
         errs = _check(c)
-        n_ref += bool(c.get("reference"))
-        n_ver += bool(c.get("verify"))
+        n_ref += bool(c.get("reference") or c.get("env")
+                      or c.get("grader") == "repo_tests")
+        n_ver += bool(c.get("verify") or c.get("snippets"))
         if errs:
             bad += 1
             print(f"FAIL {c['category']}/{c['id']}: " + "; ".join(errs))

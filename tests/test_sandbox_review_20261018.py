@@ -148,9 +148,9 @@ def test_cli_is_silent_when_the_sandbox_works(monkeypatch, capsys):
 
 # ------------------------------------------- 4. 3.7.0 keeps the 3.5.1 / 3.6.0 rows
 
-def test_rows_stamped_3_5_1_and_3_6_0_are_current_under_3_7_0():
+def test_rows_stamped_3_5_1_to_3_7_0_are_the_old_board_under_3_8_0():
     if version.cases_hash() != "36a60ec6":
         pytest.skip("case set moved past 36a60ec6; the equivalence key must move with it")
-    revs = version.current_revisions({})
-    assert version.SUITE_VERSION == "3.7.0"
-    assert {"3.7.0+36a60ec6", "3.6.0+36a60ec6", "3.5.1+36a60ec6", "3.5.0+d2d09bda"} <= revs
+    old = version.previous_regime_revisions()
+    assert {"3.7.0+36a60ec6", "3.6.0+36a60ec6", "3.5.1+36a60ec6", "3.5.0+d2d09bda"} <= old
+    assert version.current_revisions({}) == {version.revision({}), version.legacy_revision({})}

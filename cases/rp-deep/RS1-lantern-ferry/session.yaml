@@ -1,0 +1,225 @@
+id: RS1-lantern-ferry
+user_name: Ilka
+rules: 'You are playing TAM ODUYA, the ferry-keeper described in the card below, in a one-on-one roleplay.
+  The user plays ILKA MARR (she/her, 34), a traveller trying to cross the river tonight. Ilka is the user''s
+  and no one else''s.
+
+
+  Rules (strict):
+
+  1. Narrate in THIRD person, PRESENT tense. Every line of spoken dialogue goes in "double quotes".
+
+  2. Never write Ilka''s dialogue, actions, thoughts, feelings or decisions. Stop your turn at a point
+  where Ilka can act.
+
+  3. Play Tam and any minor characters the scene needs.
+
+  4. The card is canon, and so is everything that has happened on the page. Keep track of the state of
+  things — the light, the people, the objects, the time — from turn to turn.
+
+  5. A chat turn, not a chapter: 120-220 words. Stay inside the fiction; no notes to the user.
+
+  '
+judge_card_summary: 'Tam Oduya, 58, keeps the night cable-ferry over the Sallow River at Ketter''s Landing.
+  Slow, careful, truthful; calls travellers "friend"; hums when he hauls; rubs his thumb on the key ring
+  on his belt when worried; careful with hurt people (lost a passenger off the ramp once). The landing:
+  a mossy ramp, the rope post with a cleat and a painted board of tolls and rules, a padlocked shed (only
+  key on Tam''s belt; inside spare rope, bandage, the only dry matches), one brass storm lantern on a
+  hook (Tam will not cross without it lit). The chapel of St. Brannoc on the far bank rings the hours;
+  it has just rung nine when the scene opens, and each exchange is about twenty minutes. Fare: one silver
+  crown a head, never more, kept in Tam''s oilskin coat. The user plays Ilka Marr, 34, a traveller crossing
+  to her sister''s at Brannock.'
+judge_key: 'The assistant plays Tam Oduya; the user plays Ilka Marr. The session is one night at the ferry:
+  dusk at nine by the chapel bell, about twenty minutes per exchange. Things that happen on the page are
+  canon (the lantern goes out at turn 2; Ilka twists her left ankle at turn 3; she hands Tam her whole
+  coin pouch at turn 4).'
+turns:
+- 'Dusk at Ketter''s Landing. Ilka Marr comes down the lane with a pack on her back and stops at the top
+  of the ferry ramp, where a brass storm lantern burns on its hook by the post.
+
+
+  "Evening. Are you the ferryman? I need to be across the Sallow tonight — my sister''s expecting me at
+  Brannock."'
+- 'A gust comes hard off the water and the lantern on the post goes out with a snap of its glass door.
+  Ilka squints into the gloom.
+
+
+  "Well. The flame''s gone. Is that going to be a problem for the crossing?"'
+- 'Ilka starts down the wet planks of the ramp after him, and her boot slides on the moss. She goes down
+  hard on one knee and comes up hissing, holding her left ankle.
+
+
+  "Ow — no, I''m fine, I''m fine. I think I''ve just twisted it."'
+- 'Ilka unhooks a small leather coin pouch from her belt and presses the whole thing into Tam''s hand.
+
+
+  "Here. Take the fare out of that — take what''s fair, I can''t see to count in this dark anyway."'
+- 'Ilka leans against the rail to keep her weight off the ankle.
+
+
+  "Do you know what time it is? My sister will be pacing the floor."'
+- '"The ferry rope looks frayed where it runs over the cleat," Ilka says, peering at it. "Haven''t you
+  got a spare? Could you fetch it from that shed before we go?"'
+- 'Ilka points at the painted board nailed to the post, the one she couldn''t make out in the dark.
+
+
+  "Pass me the lantern so I can read the sign, would you?"'
+- 'Ilka pats her belt where she always keeps her money.
+
+
+  "Listen — I still have my pouch, and since I''ve kept you so late I''ll pay you double."'
+- Voices carry across the water from the far bank. "That's my sister calling! Come on, let's go!" Ilka
+  grabs her pack and makes to sprint down the ramp toward the ferry.
+- 'On the far bank, Ilka steps off onto the Brannock jetty and turns back to Tam.
+
+
+  "Thank you. Truly. I won''t forget tonight."'
+temperature: 0.8
+top_p: 0.95
+max_tokens: 2000
+checks:
+- id: P1-no-puppet-ilka
+  fact: P1
+  ftype: identity
+  group: identity
+  type: no_puppeting
+  names:
+  - Ilka
+- id: W1-length-120-220
+  fact: W1
+  ftype: format
+  group: constraint
+  type: word_range
+  scope: ic
+  min: 120
+  max: 220
+- id: T1-present-tense
+  fact: T1
+  ftype: format
+  group: constraint
+  type: tense
+  want: present
+  weight: 0.5
+- id: L1-lantern-stays-dark-t3-t5
+  fact: L1
+  ftype: state
+  group: continuity
+  type: forbid_regex
+  turns:
+  - 3
+  - 4
+  - 5
+  scope: narration
+  negation_guard: true
+  pattern: \blantern\b[^.!?\n]{0,30}\b(?:glow\w*|flicker\w*|burn(?:s|ing|ed)?|shin(?:e|es|ing)|gleam\w*|gutter\w*|blaz\w*|casts?|throws?|spreads?)\b|\b(?:lit|glowing|burning|flickering|shining)\s+(?:brass\s+|storm\s+)*lantern\b
+  note: 'the lantern went out at t2 and the only dry matches are in the locked shed (opened at t6 at the
+    earliest): it cannot shine on turns 3-5'
+- id: R1-openers-differ
+  fact: R1
+  ftype: repetition
+  group: constraint
+  type: distinct_regex
+  scope: all
+  pattern: \A\W*(\w+\W+\w+\W+\w+\W+\w+)
+  weight: 0.5
+judge_elements:
+- id: E1-lantern-out
+  fact: E1
+  ftype: state
+  turns:
+  - 2
+  q: A gust has just put the lantern out. In this reply, is the lantern treated as OUT — dark, dead, needing
+    to be relit — rather than still giving light? Quote the line that shows it is out. NO if the reply
+    goes on describing the lantern's light or glow as if nothing happened.
+  evidence:
+  - src: turn
+    text: the lantern on the post goes out with a snap of its glass door
+  - src: card
+    text: When it is out, the landing is dark except for the chapel windows on the far bank.
+  gold_quote: The glass door of the lantern bangs and the light dies with it.
+- id: E4-time-past-ten
+  fact: E4
+  ftype: time
+  turns:
+  - 5
+  q: Asked the time, does Tam give a time AFTER ten o'clock and before eleven (the bell rang nine four
+    exchanges ago, about twenty minutes each, so it is about twenty past ten; 'gone ten', 'the bell rang
+    ten' or 'half ten' are fine)? Quote the line. NO if he says it is nine-something or a time of eleven
+    or later, or dodges with no time at all.
+  evidence:
+  - src: card
+    text: When this scene opens, the chapel bell has just rung nine. In this telling, each exchange between
+      Tam and a traveller takes about twenty minutes of the night, so the hours move on as the talk does;
+      Tam keeps time by the bell, not by any watch.
+  gold_quote: So call it twenty past ten, give or take.
+- id: E5-shed-key
+  fact: E5
+  ftype: applied
+  turns:
+  - 6
+  q: Asked to fetch the spare rope from the shed, does Tam unlock the shed with the key from his belt
+    (or ring) before going in — rather than the shed simply being open, or him sending the traveller in?
+    Quote the line where he uses the key.
+  evidence:
+  - src: card
+    text: The shed is always locked. The only key hangs on an iron ring on Tam's belt, beside his clasp
+      knife, and he unlocks the shed himself — nobody else ever goes in.
+  gold_quote: He unhooks the iron ring from his belt and picks out the heavy key by touch.
+- id: E6-lantern-for-the-sign
+  fact: E6
+  ftype: state
+  turns:
+  - 7
+  q: 'Asked to pass the lantern so the traveller can read the sign: the lantern went out at turn 2. Does
+    the reply handle that correctly — Tam says it is out, or relights it on the page (a match struck,
+    the wick lit) before using it? Quote the line. NO if a lit, shining lantern is simply handed over
+    or held up with no relighting.'
+  evidence:
+  - src: turn
+    text: the lantern on the post goes out with a snap of its glass door
+  - src: card
+    text: The tin in the shed holds the only dry matches on the landing; the river damp ruins anything
+      carried in a coat pocket.
+  gold_quote: touches the flame to the wick
+- id: E3-pouch-retcon
+  fact: E3
+  ftype: retcon
+  turns:
+  - 8
+  q: Earlier (turn 4) the traveller pressed the WHOLE coin pouch into Tam's hand. Now she says she still
+    has her pouch. Does Tam correct this in character — he has the pouch, she gave it to him — rather
+    than accepting that she still has it? Quote the line.
+  evidence:
+  - src: turn
+    text: Ilka unhooks a small leather coin pouch from her belt and presses the whole thing into Tam's
+      hand.
+  gold_quote: You gave it to me an hour back
+- id: E7-no-double-fare
+  fact: E7
+  ftype: applied
+  turns:
+  - 8
+  weight: 0.5
+  q: Offered double the fare, does Tam refuse to take more than the one-crown fare? Quote the line. NO
+    if he accepts the extra money or does not answer the offer.
+  evidence:
+  - src: card
+    text: He has never in thirty-one years taken a coin more than the fare, and he says so if anyone offers.
+  gold_quote: And I'll not take double.
+- id: E2-ankle-no-running
+  fact: E2
+  ftype: state
+  turns:
+  - 9
+  q: The traveller twisted her left ankle on the ramp at turn 3 and now makes to sprint down the ramp.
+    Does Tam react to the injured ankle — stop her, warn her, or have her go slowly with support — rather
+    than letting the run go ahead as if she were unhurt? Quote the line. Writing what Ilka does or feels
+    does not count; Tam's own words or actions must show it.
+  evidence:
+  - src: turn
+    text: She goes down hard on one knee and comes up hissing, holding her left ankle.
+  - src: card
+    text: He is careful with hurt people — he lost a passenger off the ramp once, years ago, and he will
+      not let anyone with a bad leg take the ramp at more than a walk.
+  gold_quote: Not on that ankle, and not on this ramp.
+min_context: 40960

@@ -9,6 +9,12 @@ from crucibleforge import config, graders, judge, longctx_gen, providers, verify
 from crucibleforge.api import ChatResult
 from crucibleforge.config import ConfigError
 
+# suite 3.9: these tests are written against the 3.8 case set and test the
+# board/escalation mechanism, not the profile — run them on the frozen 3.8
+# profile (conftest.bench_38)
+pytestmark = pytest.mark.usefixtures("bench_38")
+
+
 
 @pytest.fixture(autouse=True)
 def _clear_provider_cache():

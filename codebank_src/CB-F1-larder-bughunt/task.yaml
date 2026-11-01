@@ -1,0 +1,20 @@
+id: CB-F1-larder-bughunt
+category: codeagent
+family: agent
+difficulty: medium
+max_tokens: 4096
+allowed_paths: ["larder/*.py"]
+new_paths: []
+pythonpath: ["."]
+issue: |
+  Bug report: "I have 750 g of flour, the bread recipe needs 1.25 kg, and the
+  shopping list tells me to buy the whole 1.25 kg. Also, after I bought
+  another 500 g and added it, the pantry shows 500 g of flour instead of
+  1250 g." tests/test_shopping.py::test_partial_stock fails too.
+
+  Find the causes and fix them so the package does what README.md says.
+groups:
+  - {id: convert, file: test_convert.py, kind: f2p, why: "README units: exact conversions in both directions, case-insensitive, cross-family raises ValueError"}
+  - {id: add, file: test_add.py, kind: f2p, why: "README Pantry.add (and use): adds to what is there, converting to the stored unit (issue: 500 g more -> 1250 g); wrong family raises (README: converting between families raises)"}
+  - {id: shopping, file: test_shopping_hidden.py, kind: f2p, why: "README shopping.missing in recipe units across mixed units (issue scenario)"}
+  - {id: existing, file: test_existing.py, kind: p2p, why: "unchanged: use(), items(), KeyError/ValueError, normalize"}

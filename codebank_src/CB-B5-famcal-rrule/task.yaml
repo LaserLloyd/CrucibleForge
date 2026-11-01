@@ -1,0 +1,18 @@
+id: CB-B5-famcal-rrule
+category: codebank
+family: feature
+difficulty: hard
+max_tokens: 8192
+allowed_paths: ["famcal/*.py"]
+new_paths: ["famcal/*.py"]
+pythonpath: ["."]
+issue: |
+  Implement famcal.rrule.expand as specified in docs/rrule.md. The week view
+  (famcal.agenda) depends on it. Everything in the spec will be checked,
+  including time zones and clock changes.
+groups:
+  - {id: monthly, file: test_monthly.py, kind: f2p, why: "spec MONTHLY: ordinal BYDAY (2TU, -1FR), 5MO and the 31st skipped not moved, negative BYMONTHDAY, INTERVAL in months"}
+  - {id: weekly, file: test_weekly.py, kind: f2p, why: "spec WEEKLY: weeks from Monday of dtstart's week, INTERVAL, BYDAY; DAILY BYDAY filter + inclusive UNTIL; dtstart only if it matches"}
+  - {id: dst_count, file: test_dst_count.py, kind: f2p, why: "spec: wall time kept, gap shifted forward, fall-back first; COUNT counts from dtstart incl. excluded; [after, before) half-open; UTC results"}
+  - {id: random, file: test_random.py, kind: f2p, why: "whole spec: 360 random rules in 3 zones vs a brute-force day scan"}
+  - {id: existing, file: test_existing.py, kind: p2p, why: "parse_rrule unchanged"}

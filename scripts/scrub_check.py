@@ -214,7 +214,9 @@ CONTENT_RULES: list[tuple[re.Pattern, str]] = [
      "a real Tailscale MagicDNS hostname (use example.ts.net in docs)"),
     (re.compile(r"\btail[0-9a-f]{6,}\b"),
      "a Tailscale tailnet id"),
-    (re.compile(r"[A-Za-z0-9._%+-]+"
+    # (?<!\\) : a local part right after a backslash is an escape sequence, as in
+    # the JSON-embedded `\n@pytest.mark.parametrize` decorator text in cases/*.json.
+    (re.compile(r"(?<!\\)[A-Za-z0-9._%+-]+"
                 # noreply@ / no-reply@ are unroutable by convention and are what
                 # a git author line SHOULD say, so they are never a disclosure.
                 r"(?<!\bnoreply)(?<!\bno-reply)@"
@@ -290,7 +292,7 @@ def local_rule_summary() -> tuple[int, str]:
 
 
 # The one place a personal name is published on purpose: a copyright line
-# names its holder, and MIT requires it to survive verbatim. Only the LOCAL
+# names its holder in LICENSE (MIT-0) on purpose. Only the LOCAL
 # identifier rules are relaxed here — every credential, path and host rule
 # still applies to this file.
 LOCAL_RULE_EXEMPT = {"LICENSE", "LICENSE.md", "LICENSE.txt", "COPYING"}
@@ -393,6 +395,19 @@ HEURISTIC_IN_FIXTURES = {
     "a real Tailscale MagicDNS hostname (use example.ts.net in docs)",
 }
 FIXTURE_PATH = re.compile(r"(^|/)tests?/|(^|/)scripts/e2e_")
+
+# Code-bank task fixture logs. These are SYNTHETIC files the agent tasks read
+# (fictional users such as "alex", fictional hosts), not run logs from a rig;
+# .gitignore re-includes them (`!codebank_src/**/logs/*.log`). They are exempt
+# from exactly two rules: the tracked-*.log path rule and the generic
+# /home/<user> rule. Every other rule (a /var/home path, LAN/tailnet IPs, keys,
+# local hostname rules) still applies to them.
+CODEBANK_LOG = re.compile(r"^codebank_src/[^/]+/logs/[^/]+\.log$")
+# The wider set exempt from the generic /home/<user> rule alone: every file of
+# the fixture repos, plus the case JSON files that embed them as strings.
+CODEBANK_FIXTURE = re.compile(
+    r"^codebank_src/|^cases/(?:codeagent|codebank)[^/]*\.json$")
+HOME_PATH_WHY = "an absolute path inside someone's home directory"
 
 
 def scan_text(text: str, label: str) -> list[str]:
@@ -528,6 +543,8 @@ def scan(root: Path, staged: bool = False, rev: str | None = None,
         if staged or rev or rel in carried:
             for pattern, why in FORBIDDEN_IF_COMMITTED:
                 if pattern.search(rel):
+                    if CODEBANK_LOG.search(rel) and pattern.pattern == r"\.log$":
+                        continue   # synthetic task fixture, see CODEBANK_LOG
                     where = ("staged for commit" if staged
                              else f"committed in {rev}" if rev
                              else "tracked by git")
@@ -561,6 +578,7 @@ def scan(root: Path, staged: bool = False, rev: str | None = None,
 
         in_fixtures = bool(FIXTURE_PATH.search(rel))
         is_license = Path(rel).name in LOCAL_RULE_EXEMPT
+        is_codebank_log = bool(CODEBANK_FIXTURE.search(rel))
         for lineno, line in enumerate(text.splitlines(), 1):
             if OK_MARKER.search(line):
                 continue
@@ -569,7 +587,13 @@ def scan(root: Path, staged: bool = False, rev: str | None = None,
                     continue
                 if is_license and why == "a local private identifier":
                     continue
-                m = pattern.search(line)
+                if is_codebank_log and why == HOME_PATH_WHY:
+                    # Fictional /home/<user> is fine here; /var/home is the
+                    # real Atomic-distro layout and still counts.
+                    m = next((x for x in pattern.finditer(line)
+                              if x.group(0).startswith("/var/")), None)
+                else:
+                    m = pattern.search(line)
                 if m:
                     snippet = m.group(0)
                     if len(snippet) > 60:
@@ -747,6 +771,49 @@ def selftest() -> int:
                                 "\u2014 that file is meant to ship")
             _git(root, "rm", "-q", "-f", "--cached", rel)
             f.unlink()
+
+        # Code-bank fixture logs: synthetic, so a tracked *.log and a fictional
+        # /home/<user> pass; everything else still fires.
+        cb = "codebank_src/CB-X1-demo/logs/demo.log"
+        for body, must_fire, label in (
+                ("user alex ran /home/alex/job.sh\n", False, "fictional /home path"),  # scrub-ok: selftest fixture
+                ("cd /var/home/operator\n", True, "/var/home path"),  # scrub-ok: selftest fixture
+                ("db at 192.168.1.10\n", True, "LAN address")):  # scrub-ok: selftest fixture
+            f = root / cb
+            f.parent.mkdir(parents=True, exist_ok=True)
+            f.write_text(body, encoding="utf-8")
+            _git(root, "add", "-f", cb)
+            fired = any(cb in p for p in scan(root, staged=True))
+            if fired != must_fire:
+                failures.append(f"code-bank fixture log ({label}): "
+                                f"{'not flagged' if must_fire else 'wrongly flagged'}")
+            _git(root, "rm", "-q", "-f", "--cached", cb)
+            f.unlink()
+        # The home-path exemption covers the whole fixture tree and the case JSON.
+        for rel, body, must_fire in (
+                ("codebank_src/CB-X1-demo/repo/app.service", "WorkingDirectory=/home/alex/app\n", False),  # scrub-ok: selftest fixture
+                ("cases/codebank_x.json", '{"f": "/home/alex/x"}\n', False),  # scrub-ok: selftest fixture
+                ("cases/codebank_x.json", '{"f": "/var/home/operator/x"}\n', True),  # scrub-ok: selftest fixture
+                ("cases/other.json", '{"f": "/home/alex/x"}\n', True),  # scrub-ok: selftest fixture
+                ("docs/pytest.md", "decorator \\n@pytest.mark.parametrize here\n", False)):
+            f = root / rel
+            f.parent.mkdir(parents=True, exist_ok=True)
+            f.write_text(body, encoding="utf-8")
+            _git(root, "add", "-f", rel)
+            fired = any(rel in p for p in scan(root, staged=True))
+            if fired != must_fire:
+                failures.append(f"fixture-tree rule {rel!r} {body.strip()!r}: "
+                                f"{'not flagged' if must_fire else 'wrongly flagged'}")
+            _git(root, "rm", "-q", "-f", "--cached", rel)
+            f.unlink()
+        f = root / "logs" / "run_foo.log"
+        f.parent.mkdir(parents=True, exist_ok=True)
+        f.write_text("ok\n", encoding="utf-8")
+        _git(root, "add", "-f", "logs/run_foo.log")
+        if not any("run_foo.log" in p for p in scan(root, staged=True)):
+            failures.append("a tracked run_foo.log outside codebank_src was not flagged")
+        _git(root, "rm", "-q", "-f", "--cached", "logs/run_foo.log")
+        f.unlink()
 
         # An ignored file is NOT part of a default scan (it cannot be
         # published) but IS part of --all-files (the "what if the ignore rule

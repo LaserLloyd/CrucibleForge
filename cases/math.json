@@ -86,7 +86,7 @@
     "system": "Reason step by step, then end your reply with a single final line 'Answer: <value>' containing only the final answer.",
     "prompt": "The number 2027 is prime. Find the remainder when 2^2500 + 3^2500 is divided by 2027. Give an integer between 0 and 2026.",
     "temperature": 0.0,
-    "max_tokens": 3072,
+    "max_tokens": 6144,
     "grader": "numeric",
     "grader_config": {
       "answer": 141,
@@ -164,16 +164,16 @@
     "id": "MH11-strings-no-adjacent-no-ABC",
     "difficulty": "hard",
     "system": "Reason step by step, then end your reply with a single final line 'Answer: <value>' containing only the final answer.",
-    "prompt": "How many strings of length 10 over the alphabet {A, B, C, D} have no two equal adjacent letters and do not contain the substring ABC anywhere?",
+    "prompt": "How many strings of length 10 over the alphabet {A, B, C, D} have no two equal adjacent letters and contain neither the substring ABC nor the substring ABD anywhere?",
     "temperature": 0.0,
-    "max_tokens": 5120,
+    "max_tokens": 6144,
     "grader": "numeric",
     "grader_config": {
-      "answer": 62217,
+      "answer": 47624,
       "tolerance": 0.001
     },
     "verify": {
-      "python": "sum(1 for t in __import__('itertools').product('ABCD',repeat=10) if all(t[i]!=t[i+1] for i in range(9)) and 'ABC' not in ''.join(t))"
+      "python": "sum(1 for t in __import__('itertools').product('ABCD',repeat=10) if all(t[i]!=t[i+1] for i in range(9)) and 'ABC' not in ''.join(t) and 'ABD' not in ''.join(t))"
     }
   },
   {
@@ -351,6 +351,125 @@
     },
     "verify": {
       "python": "next(n for n in range(1001,10**6) if str(n)==str(n)[::-1] and (lambda s: s==s[::-1])((lambda f: f(f,n))(lambda f,m: '' if m==0 else f(f,m//7)+str(m%7))))"
+    }
+  },
+  {
+    "id": "MH23-guarded-lattice-paths",
+    "difficulty": "hard",
+    "system": "Reason step by step, then end your reply with a single final line 'Answer: <value>' containing only the final answer.",
+    "prompt": "Count the lattice paths from (0, 0) to (12, 12) that use only unit steps right (from (x, y) to (x + 1, y)) and up (from (x, y) to (x, y + 1)), never visit any of the three points (4, 4), (6, 9) and (9, 5), and never visit a point (x, y) with y > x + 2 (they may touch the line y = x + 2 but not go above it). Give the number of such paths as an integer.",
+    "temperature": 0.0,
+    "max_tokens": 6144,
+    "grader": "numeric",
+    "grader_config": {
+      "answer": 686387,
+      "tolerance": 0.001
+    },
+    "verify": {
+      "python": "(lambda m: (lambda f: f(f, 12, 12))(lambda f, x, y: m[(x, y)] if (x, y) in m else m.setdefault((x, y), 0 if (x < 0 or y < 0 or (x, y) in {(4, 4), (6, 9), (9, 5)} or y > x + 2) else 1 if (x, y) == (0, 0) else f(f, x - 1, y) + f(f, x, y - 1))))({})"
+    }
+  },
+  {
+    "id": "MH24-strings-no-adjacent-no-ABC-CBA-12",
+    "difficulty": "hard",
+    "system": "Reason step by step, then end your reply with a single final line 'Answer: <value>' containing only the final answer.",
+    "prompt": "How many strings of length 12 over the alphabet {A, B, C, D} have no two equal adjacent letters and contain neither the substring ABC nor the substring CBA anywhere?",
+    "temperature": 0.0,
+    "max_tokens": 6144,
+    "grader": "numeric",
+    "grader_config": {
+      "answer": 396546,
+      "tolerance": 0.001
+    },
+    "verify": {
+      "python": "(lambda f: f(f, '', 12))(lambda f, s, k: 1 if k == 0 else sum(f(f, s + c, k - 1) for c in 'ABCD' if (not s or s[-1] != c) and (s[-2:] + c) not in ('ABC', 'CBA')))"
+    }
+  },
+  {
+    "id": "MH25-proper-bracelets-10-4",
+    "difficulty": "hard",
+    "system": "Reason step by step, then end your reply with a single final line 'Answer: <value>' containing only the final answer.",
+    "prompt": "A bracelet has 10 beads equally spaced on a closed loop, and each bead is one of 4 colours (not every colour has to be used). No two neighbouring beads may have the same colour; the 10th bead and the 1st bead are neighbours too. Two bracelets are the same if one can be turned into the other by rotating it or by turning it over. How many different bracelets are there?",
+    "temperature": 0.0,
+    "max_tokens": 6144,
+    "grader": "numeric",
+    "grader_config": {
+      "answer": 3210,
+      "tolerance": 0.001
+    },
+    "verify": {
+      "python": "len({min(w for r in range(10) for w in ((t[r:]+t[:r]),(t[r:]+t[:r])[::-1])) for t in __import__('itertools').product(range(4),repeat=10) if all(t[i]!=t[(i+1)%10] for i in range(10))})"
+    }
+  },
+  {
+    "id": "MH28-derangements-no-successions-7",
+    "difficulty": "hard",
+    "system": "Reason step by step, then end your reply with a single final line 'Answer: <value>' containing only the final answer.",
+    "prompt": "How many permutations (p1, p2, ..., p7) of the numbers 1 to 7 satisfy both of these conditions: no number is in its own position (pi is never equal to i), and no number is immediately followed by the next larger number (p(i+1) is never equal to pi + 1, for i = 1 to 6)?",
+    "temperature": 0.0,
+    "max_tokens": 6144,
+    "grader": "numeric",
+    "grader_config": {
+      "answer": 682,
+      "tolerance": 0.001
+    },
+    "verify": {
+      "python": "sum(1 for p in __import__('itertools').permutations(range(1,8)) if all(p[i]!=i+1 for i in range(7)) and all(p[i+1]!=p[i]+1 for i in range(6)))"
+    }
+  },
+  {
+    "id": "MH31-no-fixed-no-unit-gap-7",
+    "difficulty": "hard",
+    "system": "Reason step by step, then end your reply with a single final line 'Answer: <value>' containing only the final answer.",
+    "prompt": "How many permutations (p1, p2, ..., p7) of the numbers 1 to 7 have no fixed point (pi is never equal to i) and no two neighbouring entries that differ by exactly 1 (|p(i+1) - pi| is never 1, for i = 1 to 6)?",
+    "temperature": 0.0,
+    "max_tokens": 6144,
+    "grader": "numeric",
+    "grader_config": {
+      "answer": 214,
+      "tolerance": 0.001
+    },
+    "verify": {
+      "python": "sum(1 for p in __import__('itertools').permutations(range(1,8)) if all(p[i]!=i+1 for i in range(7)) and all(abs(p[i+1]-p[i])!=1 for i in range(6)))"
+    }
+  },
+  {
+    "id": "MH33-no-fixed-no-unit-gap-6",
+    "difficulty": "hard",
+    "system": "Reason step by step, then end your reply with a single final line 'Answer: <value>' containing only the final answer.",
+    "prompt": "How many permutations (p1, p2, ..., p6) of the numbers 1 to 6 have no fixed point (pi is never equal to i) and no two neighbouring entries that differ by exactly 1 (|p(i+1) - pi| is never 1, for i = 1 to 5)?",
+    "temperature": 0.0,
+    "max_tokens": 6144,
+    "grader": "numeric",
+    "grader_config": {
+      "answer": 27,
+      "tolerance": 0.001
+    },
+    "verify": {
+      "python": "sum(1 for p in __import__('itertools').permutations(range(1,7)) if all(p[i]!=i+1 for i in range(6)) and all(abs(p[i+1]-p[i])!=1 for i in range(5)))"
+    }
+  },
+  {
+    "id": "MH34-neighbour-rule-permutations",
+    "difficulty": "hard",
+    "system": "Reason step by step, then end your reply with a single final line 'Answer: <value>' containing only the final answer.",
+    "prompt": "A permutation of 1, 2, ..., n is a list (p1, p2, ..., pn) containing each of those numbers exactly once. A \"fixed point\" is a position i with pi = i. Answer five counting questions.\n(a) How many permutations of 1 to 4 have no fixed point and no place where a number is immediately followed by the next larger number (p(i+1) = pi + 1)?\n(b) How many permutations of 1 to 4 have no fixed point and no place where a number is immediately followed by the next smaller number (p(i+1) = pi - 1)?\n(c) How many permutations of 1 to 5 have no fixed point and no two neighbouring entries that differ by exactly 1 (in either order)?\n(d) How many permutations of 1 to 6 have no two neighbouring entries that differ by exactly 1 (fixed points are allowed)?\n(e) How many permutations of 1 to 5 satisfy pi != i and pi != 6 - i for every position i = 1 to 5?\nOn the Answer line give the five counts in order (a) to (e), digits only, separated by single spaces (for example: Answer: 1 2 3 4 5).",
+    "temperature": 0.0,
+    "max_tokens": 6144,
+    "grader": "exact",
+    "grader_config": {
+      "answer": "4 5 2 90 16",
+      "elements": "positions",
+      "element_labels": [
+        "a-n4-no-fixed-no-succession",
+        "b-n4-no-fixed-no-descent1",
+        "c-n5-no-fixed-no-unit-gap",
+        "d-n6-no-unit-gap",
+        "e-n5-no-diagonal-no-antidiagonal"
+      ]
+    },
+    "verify": {
+      "python": "(lambda P: ' '.join(map(str,[sum(1 for p in P(range(1,5)) if all(p[i]!=i+1 for i in range(4)) and all(p[i+1]!=p[i]+1 for i in range(3))), sum(1 for p in P(range(1,5)) if all(p[i]!=i+1 for i in range(4)) and all(p[i+1]!=p[i]-1 for i in range(3))), sum(1 for p in P(range(1,6)) if all(p[i]!=i+1 for i in range(5)) and all(abs(p[i+1]-p[i])!=1 for i in range(4))), sum(1 for p in P(range(1,7)) if all(abs(p[i+1]-p[i])!=1 for i in range(5))), sum(1 for p in P(range(1,6)) if all(p[i]!=i+1 and p[i]!=5-i for i in range(5)))])))(__import__('itertools').permutations)"
     }
   }
 ]

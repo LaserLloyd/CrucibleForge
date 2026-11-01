@@ -1,5 +1,7 @@
 # Judge comparison — 2026-09-24
 
+> Snapshot from 2026-09-24, pre-3.9; kept as history.
+
 Can a smaller or hosted judge replace the Qwen3.5-122B-A10B heretic judge?
 Seven judges (eight runs; MiniMax-M3 twice to measure its own noise) each
 re-scored the same 65 chat rows — the 13 chat cases of suite 3.4.0 for five

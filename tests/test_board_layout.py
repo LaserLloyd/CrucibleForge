@@ -131,7 +131,8 @@ def test_page_has_chooser_reset_view_toggle_and_column_specs():
     data = json.loads(html.split('id="board-data">', 1)[1].split("</script>", 1)[0])
     assert [c["key"] for c in data["main"]] == MAIN
     extra = [c["key"] for c in data["extra"]]
-    assert extra == DEFAULT_EXTRA + ["date", "notes", "judge", "coverage", "provider"]
+    assert extra == DEFAULT_EXTRA + ["suite", "date", "notes", "judge", "coverage", "provider", "room_cell", "reason", "tiers_cell",
+                             "raw_cell", "vs_above", "points_cell"]
     assert {c["kind"] for c in data["extra"] if c["key"].startswith("c:")} == {"num"}
     assert data["thresholds"] == [10, 30, 50, 70, 90, 100]
 
@@ -157,9 +158,9 @@ def test_default_layout_main_then_components_and_filters():
       out.heads = heads(); out.filters = filterRow(); out.chooser = chooser(); out.order = order();
       out.view = body.getAttribute('data-view'); out.pressed = el('viewTable').getAttribute('aria-pressed');
     """)
-    assert out["heads"] == MAIN + DEFAULT_EXTRA
+    assert out["heads"] == MAIN + DEFAULT_EXTRA + ["suite"]     # Suite shown by default (3.8.0)
     assert out["filters"] == ["chat", "coding", "overall"] + DEFAULT_EXTRA
-    assert out["chooser"] == ["+" + k for k in DEFAULT_EXTRA] + ["-date", "-notes", "-judge", "-coverage", "-provider"]
+    assert out["chooser"] == ["+" + k for k in DEFAULT_EXTRA] + ["+suite", "-date", "-notes", "-judge", "-coverage", "-provider", "-room_cell", "-reason", "-tiers_cell", "-raw_cell", "-vs_above", "-points_cell"]
     assert out["order"] == "m0,m1,m2" and out["view"] == "table" and out["pressed"] == "true"
 
 
@@ -169,6 +170,7 @@ def test_chooser_add_remove_reorder_drag_and_filters_follow_the_columns():
       pickFilter('c:NSFW', 70); el('thead').fire('click', {target: th('c:NSFW')});
       out.sortedBy = el('thead').innerHTML.includes('data-k="c:NSFW" scope="col" class="side-chat" aria-sort="descending"');
       tick('c:NSFW', false);                         // remove NSFW: its filter and its sort go too
+      tick('suite', false);                          // (3.8.0 default column) out of the way
       out.afterRemove = heads().slice(6); out.filters1 = filterRow(); out.order1 = order();
       tick('notes', true); tick('date', true);        // add Notes, Run date (text: no ≥ filter)
       move('notes', -1); move('notes', -1);            // Notes two places left
@@ -183,7 +185,7 @@ def test_chooser_add_remove_reorder_drag_and_filters_follow_the_columns():
     assert out["heads"] == ["c:Tools", "c:RP", "notes", "judge", "c:Programs", "date"]
     assert out["filters2"] == ["chat", "coding", "overall", "c:Tools", "c:RP", "c:Programs"]
     assert out["chooser"][:6] == ["+c:Tools", "+c:RP", "+notes", "+judge", "+c:Programs", "+date"]
-    assert out["chooser"][6:] == ["-c:NSFW", "-coverage", "-provider"]
+    assert out["chooser"][6:] == ["-c:NSFW", "-suite", "-coverage", "-provider", "-room_cell", "-reason", "-tiers_cell", "-raw_cell", "-vs_above", "-points_cell"]
 
 
 @needs_node
@@ -208,7 +210,7 @@ def test_threshold_and_free_number_filters():
 def test_state_round_trip_through_a_fake_dispatch_parent():
     """Framed + sandboxed (localStorage throws): `get` on load, the first
     answer applied, later answers (acks) ignored, `set` after each change."""
-    saved_state = {"version": 1, "columns": ["notes", "c:RP", "bogus", "c:RP"], "sortKey": "c:RP", "sortDir": -1,
+    saved_state = {"version": 2, "columns": ["notes", "c:RP", "bogus", "c:RP"], "sortKey": "c:RP", "sortDir": -1,
                    "filters": {"c:RP": 50, "c:Programs": 70, "chat": 10}, "text": "", "benched": True,
                    "expanded": ["m0", "ghost"], "view": "cards"}
     out = run_board(board(), r"""
@@ -218,7 +220,7 @@ def test_state_round_trip_through_a_fake_dispatch_parent():
       out.heads = heads().slice(6); out.filters = filterRow(); out.order = order(); out.view = body.getAttribute('data-view');
       out.expanded = /detail-row/.test(el('tbody').innerHTML); out.benched = el('benched').checked;
       out.filtersOpen = el('filtersRow').cls.has('open');
-      deliver({type: 'dispatch:tool-state', state: {version: 1, columns: []}});   // an ack: ignored
+      deliver({type: 'dispatch:tool-state', state: {version: 2, columns: []}});   // an ack: ignored
       out.stillHeads = heads().slice(6);
       el('viewTable').fire('click'); el('thead').fire('click', {target: th('tok_s')});
       out.beforeDebounce = parentMsgs.filter(([m]) => m.op === 'set').length;
@@ -233,14 +235,14 @@ def test_state_round_trip_through_a_fake_dispatch_parent():
     assert out["view"] == "cards" and out["expanded"] and out["benched"] and out["filtersOpen"]
     assert out["stillHeads"] == ["notes", "c:RP"]
     assert out["beforeDebounce"] == 0 and out["sets"] == ["*"]    # one debounced set
-    assert out["state"] == {"version": 1, "columns": ["notes", "c:RP"], "sortKey": "tok_s", "sortDir": -1,
+    assert out["state"] == {"version": 2, "columns": ["notes", "c:RP"], "sortKey": "tok_s", "sortDir": -1,
                             "filters": {"c:RP": 50, "chat": 10}, "text": "", "benched": True,
                             "expanded": ["m0"], "view": "table"}
 
 
 @needs_node
 def test_localstorage_when_opened_directly_and_version_bump_resets():
-    st = {"version": 1, "columns": ["c:Tools", "date"], "sortKey": "c:Tools", "sortDir": -1,
+    st = {"version": 2, "columns": ["c:Tools", "date"], "sortKey": "c:Tools", "sortDir": -1,
           "filters": {"c:Tools": 50}, "text": "m", "benched": False, "expanded": [], "view": "table"}
     out = run_board(board(), r"""
       out.msgs = parentMsgs.length; out.heads = heads().slice(6); out.order = order(); out.text = el('filter').value;
@@ -250,19 +252,19 @@ def test_localstorage_when_opened_directly_and_version_bump_resets():
     assert out["msgs"] == 0                                       # not framed: no bridge traffic
     assert out["heads"] == ["c:Tools", "date"] and out["order"] == "m1,m0" and out["text"] == "m"
     assert out["saved"]["text"] == "m1" and out["saved"]["columns"] == ["c:Tools", "date"]
-    assert out["reset"]["columns"] == DEFAULT_EXTRA and out["reset"]["filters"] == {}
-    assert out["resetHeads"] == DEFAULT_EXTRA
+    assert out["reset"]["columns"] == DEFAULT_EXTRA + ["suite"] and out["reset"]["filters"] == {}
+    assert out["resetHeads"] == DEFAULT_EXTRA + ["suite"]
     old = dict(st, version=99)
     out = run_board(board(), "out.heads = heads().slice(6); out.order = order();",
                     store={"crucibleforge-board-layout": json.dumps(old)})
-    assert out["heads"] == DEFAULT_EXTRA and out["order"] == "m0,m1,m2"
+    assert out["heads"] == DEFAULT_EXTRA + ["suite"] and out["order"] == "m0,m1,m2"
     out = run_board(board(), "out.heads = heads().slice(6);", store={"crucibleforge-board-layout": "{not json"})
-    assert out["heads"] == DEFAULT_EXTRA
+    assert out["heads"] == DEFAULT_EXTRA + ["suite"]
 
 
 @needs_node
 def test_a_renamed_component_is_dropped_from_a_saved_layout():
-    st = {"version": 1, "columns": ["c:Gone", "c:Tools"], "sortKey": "c:Gone", "sortDir": -1,
+    st = {"version": 2, "columns": ["c:Gone", "c:Tools"], "sortKey": "c:Gone", "sortDir": -1,
           "filters": {"c:Gone": 90}, "text": "", "benched": False, "expanded": [], "view": "table"}
     out = run_board(board(), "out.heads = heads().slice(6); out.filters = filterRow(); out.order = order();",
                     store={"crucibleforge-board-layout": json.dumps(st)})

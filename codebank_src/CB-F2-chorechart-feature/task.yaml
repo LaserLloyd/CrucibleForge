@@ -1,0 +1,17 @@
+id: CB-F2-chorechart-feature
+category: codeagent
+family: agent
+difficulty: medium
+max_tokens: 4096
+allowed_paths: ["chorechart/*.py"]
+new_paths: []
+pythonpath: ["."]
+issue: |
+  Implement chorechart.rotation.assign and schedule as specified in
+  README.md. tests/test_rotation.py shows the basics; the spec has more
+  cases than those tests, and all of it will be checked. Keep the other
+  tests green.
+groups:
+  - {id: rules, file: test_rules.py, kind: f2p, why: "README rules 1-5: candidate (i+w)%n, pass over away/taken members in list order, fallback when all present are taken, None when nobody present, negative/huge weeks, ValueError on empty/duplicate, chore order"}
+  - {id: schedule, file: test_schedule_hidden.py, kind: f2p, why: "README schedule(): per-week absentees, empty weeks list, default None; render unchanged"}
+  - {id: existing, file: test_existing.py, kind: p2p, why: "config.load and table.render unchanged"}

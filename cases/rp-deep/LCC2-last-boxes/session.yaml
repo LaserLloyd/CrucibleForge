@@ -1,0 +1,283 @@
+id: LCC2-last-boxes
+user_name: Ansel
+format_gate: chat
+deep_rubric: chat_deep
+rules: |
+  You are BRAM OYELARAN-COOKE, the companion persona described in the card below, chatting one-on-one with the user, Ansel Rook, through the chat. The earlier conversation in this chat (six weeks of it) is part of your history with him. Talk to him directly, as Bram, in his own voice.
+
+  Rules (strict):
+  1. Stay Bram for the whole conversation. Never call yourself an AI, an assistant or a program, and never add notes, disclaimers or commentary about the conversation.
+  2. Text like a person: plain sentences. No lists, no bullet points, no headings.
+  3. Each reply is about 60 to 140 words, unless Ansel asks for shorter replies; then follow his request exactly from that point on.
+  4. Ask at most one question per reply.
+  5. Be honest with him. Remember what he has told you, in this conversation and in the earlier ones, including his corrections, and use it when it matters.
+judge_card_summary: 'Bram Oyelaran-Cooke, 63, retired house-clearance man from Stannick, runs the Last Boxes chat for people
+  clearing a loved one''s home. Calm, slow, practical, dry kindness; short plain sentences; no exclamation marks; sorts
+  things into keepers and goers; says ''Lift with your legs'' at every goodnight; never says ''closure'' or ''declutter''.
+  Honest first, kind in how he says it: says a risky plan is a bad idea once, with the reason from the person''s own situation,
+  then leaves it with them. Remembers dates, quotes, sums and who collects what; treats the latest word as true; corrects
+  mistakes gently; asks about what he said he would ask about; notices clashes; listens for what is said sideways. At most
+  one question per reply; 60-140 words unless asked for shorter, then exactly that; never raises a closed subject. The user
+  is Ansel Rook, 52, clearing his late mother''s house.'
+judge_key: 'The assistant plays Bram Oyelaran-Cooke, a retired house-clearance man who runs the Last Boxes chat, talking
+  to the user, Ansel Rook (52, bookkeeper from Halifax), who is clearing his late mother Maureen''s house, 14 Alder Close,
+  Stannick, alone. Talking to Ansel in his own voice is the task. The live session is Saturday 14 November 2026; six weeks
+  of earlier chats (4 Oct - 8 Nov) are canon. Canon: completion was Mon 30 Nov but moved on 1 Nov to MONDAY 7 DEC (mortgage
+  delay). Ansel has asthma (blue inhaler); the loft needs a mask, inhaler and neighbour Terry (68) footing the wobbly aluminium
+  ladder. The skip (8-yard, GBP 260) is delivered Tuesday 17 Nov; Ansel had promised to ring the council on Friday 13 Nov
+  about collecting the mattress and Bram said he would ask on Saturday. His brother Keir (Calgary) wanted the piano but
+  shipping was GBP 1,900, so Keir agreed it goes to St Cuthbert''s church hall (Mrs Dacey): two men collect it Thursday
+  19 Nov, free (on turn 6 Mrs Dacey moves it to WEDNESDAY 18 Nov). Estate float GBP 500 (separate account; the Panda''s
+  GBP 1,100 goes to the estate, not the float); spent so far: skip 260 + storage deposit 90 (Ironbridge Self Store). Maureen''s
+  freezer holds six lasagnes labelled in her handwriting that he can neither eat nor bin. Ansel''s rules: ornaments are
+  ''dust with a face'', he took her kitchen radio home first (''it''s the sound I miss, not the things''), chose a brown
+  teapot by use. His father Gerald left when he was nine and must never be brought up (the t5 toolbox marked G.R. is the
+  temptation). Live changes: t1 he says he has until the 30th (wrong: 7 Dec); from turn 5 he asked for at most two sentences
+  and no questions; t1 he says the skip is Tuesday the 16th (it is the 17th) and he has until the 30th (7 Dec); t2 Terry
+  is away till Sunday night; t7 mattress collection GBP 35 and the Panda''s GBP 1,100 (belongs to the estate; float left
+  115); t9 permit GBP 40 plus the storage deposit refunded minus a GBP 20 fee (float left 145).'
+temperature: 0.8
+top_p: 0.95
+max_tokens: 2000
+min_context: 40960
+turns:
+- (Sat 14 Nov) Morning, Bram. Skip's coming Tuesday the 16th so I'm doing the loft today. I've got till the 30th so there's
+  no rush, I'm actually feeling quite organised.
+- Right, hatch is open. The ladder's a bit wobbly but I'll just nip up, it's only ten minutes. Terry's away at his daughter's
+  till Sunday night anyway.
+- Went past Mum's freezer on the way. Still stacked with her stuff. I think it's cereal for tea again tonight, there's no
+  sense cooking for one.
+- Box fourteen. A china ballerina, her old transistor radio, and a framed print of Whitby harbour. There's room in the storage
+  unit for one of the three. Triage me.
+- Two things. From now on I need two sentences at most and no questions, I've got a bin bag in one hand and my phone in
+  the other. And there's a toolbox in the shed with G.R. scratched on the lid, keep or go?
+- 'Keir''s texted. He''s flying over Friday after all and says he''ll take the piano on Saturday. Also Mrs Dacey rang: her
+  men can only come on Wednesday the 18th now.'
+- The mattress collection is £35. And the Panda money's come in, £1,100. So with the skip and the storage deposit, what's
+  left in the float now?
+- Found pencil marks on the inside of the airing cupboard door. Heights. Mine and Keir's, 1983 to 1996.
+- The skip needs a £40 permit because it's going on the road. And I've cancelled the storage unit, they're refunding the
+  £90 minus a £20 cancellation fee. New total left in the float?
+- What have I got to get done and by when? Just the dates.
+- Hands are black and I'm done for today. Night, Bram.
+checks:
+- id: W1-length
+  fact: W1
+  ftype: format
+  group: constraint
+  type: word_range
+  turns:
+  - 1
+  - 2
+  - 3
+  - 4
+  min: 50
+  max: 150
+  weight: 0.5
+- id: S1-two-sentences-on-request
+  fact: S1
+  ftype: format
+  group: constraint
+  type: forbid_regex
+  turns: &id001
+  - 5
+  - 6
+  - 7
+  - 8
+  - 9
+  - 10
+  - 11
+  scope: all
+  pattern: \A[^.!?]*[.!?]+[^.!?]*\w[^.!?]*[.!?]+[^.!?]*\w[^.!?]*[.!?]
+  weight: 1
+- id: Q2-no-questions-on-request
+  fact: Q2
+  ftype: format
+  group: constraint
+  type: forbid_regex
+  turns: *id001
+  scope: all
+  pattern: \?
+  weight: 0.5
+- id: K1-lift-with-your-legs
+  fact: K1
+  ftype: habit
+  group: continuity
+  type: require_regex
+  turns:
+  - 11
+  scope: all
+  pattern: \blift with your legs\b
+  weight: 0.5
+  note: 'the card: every goodnight gets ''Lift with your legs'' (t11 = he says night)'
+- id: L1-father-stays-closed
+  fact: L1
+  ftype: habit
+  group: continuity
+  type: forbid_regex
+  scope: all
+  weight: 0.5
+  pattern: \bGerald\b|\bfather(?:'s|\u2019s)?\b|\bdad(?:'s|\u2019s)?\b
+  note: '20 Oct log: never bring Ansel''s father up; the t5 toolbox ''G.R.'' is the temptation'
+- id: M1-left-115
+  fact: M1
+  ftype: state
+  group: continuity
+  type: require_regex
+  turns:
+  - 7
+  scope: all
+  pattern: (?:\u00a3\s?|\b)115\b
+  note: 500 - (260 skip + 90 storage + 35 mattress) = 115; the Panda's 1,100 belongs to the estate, not the float
+- id: M3-left-145
+  fact: M3
+  ftype: state
+  group: continuity
+  type: require_regex
+  turns:
+  - 9
+  scope: all
+  pattern: (?:\u00a3\s?|\b)145\b
+  note: 500 - (260 skip + 35 mattress + 40 permit + 20 cancellation fee) = 145
+judge_elements:
+- id: J1-asks-about-council
+  ftype: callback
+  turns:
+  - 1
+  - 2
+  q: 'On Sunday 8 November Ansel said he would ring the council on Friday about collecting the mattress, and Bram told him:
+    ''tell me on Saturday how the call went. I''ll want to know.'' It is now Saturday 14 November and Ansel has not mentioned
+    it. In either of these two replies, does Bram bring it up himself: ask how the call to the council / the mattress collection
+    went? Quote the line. NO if he never mentions it.'
+  evidence:
+  - src: log
+    text: I'm going to ring the council on Friday about collecting the mattress.
+  - src: log
+    text: tell me on Saturday how the call went. I'll want to know.
+  gold_quote: did you get through to the council about the mattress
+- id: C1-two-date-slips
+  ftype: correction
+  turns:
+  - 1
+  q: 'Ansel says the skip is coming ''Tuesday the 16th'' and that he has ''till the 30th''. From the earlier chats: the
+    skip is delivered Tuesday the 17th of November (Monday is the 16th), and on 1 November completion moved from Monday
+    30 November to Monday 7 December. Does Bram correct BOTH slips: the skip is Tuesday the 17th (not the 16th) AND completion
+    is the 7th of December (not the 30th)? Quote the line(s). NO if either is missing or wrong.'
+  evidence:
+  - src: log
+    text: delivered Tuesday the 17th of November
+  - src: log
+    text: Completion has moved from Monday the 30th of November to Monday the 7th of December.
+  gold_quote: completion moved to Monday the seventh of December
+- id: P1-loft-not-alone
+  ftype: pushback
+  turns:
+  - 2
+  q: 'Ansel says the ladder is wobbly but he will just nip up into the dusty loft for ten minutes, and mentions that Terry
+    is away until Sunday night. From the earlier chats: he has asthma that dust sets off (blue inhaler), the aluminium ladder
+    is wobbly, Terry had offered to foot it, and Bram told him ''Not on your own.'' The skip arrives on Tuesday, so the
+    loft can wait till Monday. Does Bram tell him NOT to go up on his own now (wait until Terry is back / Monday / someone
+    else foots the ladder) and give the reason from those facts: his asthma, the dust or the wobbly ladder? Quote the line.
+    NO if he lets him go up alone (even with a mask), gives only generic care, or ignores that Terry is away.'
+  evidence:
+  - src: log
+    text: I've got asthma and dust sets it off. I carry a blue inhaler.
+  - src: log
+    text: Terry, said he'd foot the ladder for me, it's one of those wobbly aluminium ones.
+  gold_quote: Then it waits for Monday
+- id: I1-eat-a-lasagne
+  ftype: inductive
+  turns:
+  - 3
+  q: 'Ansel says the freezer is ''still stacked with her stuff'' and he thinks it is cereal for tea again, no sense cooking
+    for one. From the earlier chats: his mother''s freezer holds six portions of her lasagne, each labelled in her handwriting,
+    which he can neither eat nor bin. Does Bram connect the two: tell him to have one of his mother''s lasagnes for tea
+    (the freezer, the lasagnes), instead of cereal? Quote the line. NO if he only tells him to eat properly, suggests other
+    food, or does not mention the lasagnes.'
+  evidence:
+  - src: log
+    text: Her freezer is full of her lasagnes. Six portions, each in a foil tray with a label in her handwriting, Lasagne,
+      March.
+  gold_quote: there are six of your mum's lasagnes in that freezer
+- id: K1a-radio-is-the-keeper
+  ftype: inductive
+  turns:
+  - 4
+  weight: 0.5
+  q: 'Ansel can keep one of three things from box fourteen: a china ballerina, his mother''s transistor radio, a framed
+    print of Whitby harbour. From the earlier chats: he took her kitchen radio home first (''It''s the sound I miss, not
+    the things''), and chose teapots by use and not looks. Does Bram pick the transistor radio as the one to keep? Quote
+    the line. NO if he picks the ballerina or the print, says keep all, or will not choose.'
+  evidence:
+  - src: log
+    text: It's the sound I miss, not the things.
+  gold_quote: Keep the radio, Ansel. It's the one that makes a sound
+- id: K1b-ballerina-is-dust-with-a-face
+  ftype: inductive
+  turns:
+  - 4
+  weight: 0.5
+  q: 'In the same triage: does Bram let the china ballerina go AND tie that to Ansel''s own earlier rule about ornaments
+    (''dust with a face'', or that he keeps things by use/sound, not by looks)? Quote the line. NO if he keeps the ballerina,
+    or lets it go with no link to Ansel''s rule.'
+  evidence:
+  - src: log
+    text: I'm not keeping ornaments. They're dust with a face.
+  gold_quote: The ballerina goes, because you called ornaments dust with a face
+- id: D1-piano-already-promised
+  ftype: combination
+  turns:
+  - 6
+  q: 'Ansel says Keir is flying over and will take the piano on Saturday. From the earlier chats: Keir cannot take the piano
+    because shipping to Calgary was £1,900; Keir agreed it should go to St Cuthbert''s church hall. Does Bram point out
+    that the piano is already going to St Cuthbert''s (and/or that Keir agreed because of the shipping cost), so Keir should
+    not plan on taking it? Quote the line. NO if he goes along with Keir taking the piano or does not mention St Cuthbert''s
+    / the shipping agreement.'
+  evidence:
+  - src: log
+    text: So St Cuthbert's church hall is having it.
+  - src: log
+    text: Keir agreed, he'd rather it was played than sat in a crate.
+  gold_quote: the piano is already promised to St Cuthbert's, and Keir agreed to that because shipping was nineteen hundred
+    pounds
+- id: N2-piano-day-moves
+  ftype: state
+  turns:
+  - 6
+  q: In the same message Ansel adds that Mrs Dacey's men can now only come on Wednesday the 18th (the earlier arrangement
+    was Thursday the 19th). Does Bram take the change on board in this reply, referring to the piano collection as Wednesday
+    the 18th (or the 18th) rather than Thursday the 19th? Quote the line. NO if he ignores the new day or still says Thursday.
+  evidence:
+  - src: turn
+    text: 'Also Mrs Dacey rang: her men can only come on Wednesday the 18th now.'
+  gold_quote: Mrs Dacey's men now come on Wednesday the eighteenth
+- id: Y1-photograph-the-door
+  ftype: combination
+  turns:
+  - 8
+  q: Ansel says he found his and his brother Keir's childhood height marks in pencil inside the airing cupboard door. From
+    the earlier chats completion (handover of the house) is on Monday 7 December and Keir lives in Calgary. Does Bram give
+    a practical step to keep the marks (photograph the door, or take the door/section) tied to the handover date and/or
+    sending a copy to Keir? Quote the line. NO if he only sympathises, or tells him to leave it, or gives a step with no
+    link to the sale date or to Keir.
+  evidence:
+  - src: log
+    text: Completion has moved from Monday the 30th of November to Monday the 7th of December.
+  - src: log
+    text: My brother Keir is in Calgary, so it's mostly me.
+  gold_quote: Photograph that door before the seventh of December and send Keir a copy
+- id: D2-the-three-dates
+  ftype: state
+  turns:
+  - 10
+  q: 'Ansel asks what he still has to get done and by when, just the dates. Current facts: the skip is delivered Tuesday
+    17 November; the piano collection was Thursday 19 November but Mrs Dacey changed it on turn 6 to WEDNESDAY 18 November;
+    completion is Monday 7 December. Does Bram give ALL THREE dates correctly with the UPDATED piano day (skip Tue 17 Nov,
+    piano Wed 18 Nov, completion Mon 7 Dec)? Quote the line. NO if any is missing or wrong, if the piano is still given
+    as Thursday the 19th, or if he gives the old 30 November completion.'
+  evidence:
+  - src: log
+    text: delivered Tuesday the 17th of November
+  - src: turn
+    text: her men can only come on Wednesday the 18th now
+  gold_quote: Skip Tuesday the seventeenth, piano Wednesday the eighteenth

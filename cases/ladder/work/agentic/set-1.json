@@ -1,0 +1,10 @@
+{
+ "level": 1,
+ "budget": 65536,
+ "note": "3.10 Work packs (2026-10-29): long-tier agent tasks (40k-token / 60-call sandbox): a spec audit with one reported and 21 silent README defects in three all-or-nothing groups (3.10 hardening: MiniMax-M3 0.33), a multi-module feature with an all-or-nothing SQLite migration, and a performance rewrite that must keep the slow code's exact pairing semantics. Target: MiniMax-M3 15-35%, deepseek-flash <= ~30%.",
+ "cases": [
+  "LAG1-potkeeper-yearend",
+  "LAG2-seedbank-units",
+  "LAG3-tillroll-reconcile"
+ ]
+}

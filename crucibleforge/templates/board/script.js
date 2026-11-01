@@ -19,16 +19,22 @@ const MAIN = DATA.main;                   // fixed left columns [{key, label, ki
 const EXTRA = DATA.extra;                 // choosable right-hand columns [{key, label, kind, side?, group}]
 const MAIN_BY = {}; MAIN.forEach(c => { MAIN_BY[c.key] = c; });
 const EXTRA_BY = {}; EXTRA.forEach(c => { EXTRA_BY[c.key] = c; });
-const HEAD_FILTERS = ['chat', 'coding', 'overall'];   // always filterable
-const TEXT_COLS = new Set(['label', 'date', 'notes', 'judge', 'coverage', 'provider']);
+// always filterable: every numeric main column but rank and tok/s (legacy:
+// chat, coding, overall; suite 3.9 profile scores: overall then each score)
+const HEAD_FILTERS = MAIN.filter(c => c.kind === 'num' && c.key !== 'rank' && c.key !== 'tok_s').map(c => c.key);
+// component groups ("sides"), in board order: [{key, label}]
+const SIDES = DATA.sides || [{key: 'chat', label: 'Chat'}, {key: 'coding', label: 'Coding'}];
+const SIDE_LABEL = {}; SIDES.forEach(x => { SIDE_LABEL[x.key] = x.label; });
+const SCORE_COLS = MAIN.filter(c => c.kind === 'num' && c.key !== 'rank' && c.key !== 'tok_s');
+const TEXT_COLS = new Set(['label', 'class', 'lean', 'suite', 'date', 'notes', 'judge', 'coverage', 'provider', 'tiers_cell', 'raw_cell', 'vs_above', 'points_cell']);
 const LABELS = new Set(rows.map(r => r.label));
-const STATE_VERSION = 1;                  // bump = every saved layout resets
+const STATE_VERSION = 2;                  // bump = every saved layout resets (2: Suite column)
 const STORE_KEY = 'crucibleforge-board-layout';
 const BRIDGE = 'dispatch:tool-state';
 const MAX_STATE = 16 * 1024;
 
 function defaults() {
-  return {columns: COMPS.map(c => 'c:' + c.label), sortKey: 'rank', sortDir: 1,
+  return {columns: COMPS.map(c => 'c:' + c.label).concat(['suite']), sortKey: 'rank', sortDir: 1,
           filters: {}, text: '', benched: false, expanded: [], view: 'table'};
 }
 let S = defaults();
@@ -160,9 +166,9 @@ function detail(r) {
     return '<button class="comp" data-sort="c:' + esc(c.label) + '" title="Sort all rows by ' + esc(c.label) + '">' +
       '<span class="lbl">' + esc(c.label) + '</span><span class="val' + band(v) + '">' + num(v, 0) + '</span></button>';
   }).join('');
-  const groups = ['chat', 'coding'].map(s => {
+  const groups = SIDES.map(x => x.key).map(s => {
     const inner = side(s);
-    return inner ? '<div class="group wide"><h4>' + (s === 'chat' ? 'Chat' : 'Coding') +
+    return inner ? '<div class="group wide"><h4>' + esc(SIDE_LABEL[s] || s) +
       ' components — click one to sort every row by it</h4><div class="comp-grid">' + inner + '</div></div>' : '';
   }).join('');
   return '<div class="detail">' + groups +
@@ -174,25 +180,28 @@ function detail(r) {
 // bookkeeping sits behind the per-card Details toggle (shares the ▸ set).
 function card(r) {
   const open = expanded.has(r.label);
-  const cls = r.tier >= 2 ? ' fail-card' : (r.tier >= 1 ? ' warn-card' : '');
-  const head = [['chat', 'Chat'], ['coding', 'Coding'], ['overall', 'Overall']].map(([k, t]) =>
+  const cls = (r.tier >= 2 ? ' fail-card' : (r.tier >= 1 ? ' warn-card' : '')) + (r.old ? ' old-card' : '');
+  const head = SCORE_COLS.map(c => [c.key, c.label]).map(([k, t]) =>
     '<div class="hl' + (S.sortKey === k ? ' sorted' : '') + '"><span class="hl-lbl">' + t + '</span>' +
-    '<span class="hl-val">' + num(r[k], 1) + '</span></div>').join('');
+    '<span class="hl-val">' + sval(r, k) + (k === 'overall' ? '' : tierTag(r, k)) + '</span></div>').join('');
   const col = s => {
     const items = COMPS.filter(c => c.side === s).map(c => {
       const v = (r.components || {})[c.label];
       return '<div class="chip side-' + s + (S.sortKey === 'c:' + c.label ? ' sorted' : '') + '">' +
         '<span class="lbl">' + esc(c.label) + '</span><span class="val' + band(v) + '">' + num(v, 0) + '</span></div>';
     }).join('');
-    return items ? '<div class="ccol"><h4>' + (s === 'chat' ? 'Chat' : 'Coding') + '</h4>' + items + '</div>' : '';
+    return items ? '<div class="ccol"><h4>' + esc(SIDE_LABEL[s] || s) + '</h4>' + items + '</div>' : '';
   };
   return '<article class="card' + cls + '" data-label="' + esc(r.label) + '">' +
-    '<div class="card-top"><span class="rank">#' + r.rank + '</span><h2 class="name">' + esc(r.label) + '</h2></div>' +
+    '<div class="card-top"><span class="rank">#' + rankOf(r) + '</span><h2 class="name">' + esc(r.label) + oldTag(r) + '</h2></div>' +
     '<div class="hls">' + head + '</div>' +
-    '<div class="sub"><span' + (S.sortKey === 'tok_s' ? ' class="sorted"' : '') + '>' + num(r.tok_s, 1) + ' tok/s</span>' +
+    '<div class="sub">' + (r.class ? '<span>class ' + esc(r.class) + '</span>' : '') +
+    (r.lean ? '<span>' + esc(r.lean) + '</span>' : '') +
+    '<span' + (S.sortKey === 'tok_s' ? ' class="sorted"' : '') + '>' + num(r.tok_s, 1) + ' tok/s</span>' +
+    '<span' + (S.sortKey === 'suite' ? ' class="sorted"' : '') + '>suite ' + esc(r.suite || '–') + '</span>' +
     '<span' + (S.sortKey === 'date' ? ' class="sorted"' : '') + '>' + esc(r.date || '–') + '</span></div>' +
     (r.notes ? '<div class="card-notes">' + esc(r.notes) + '</div>' : '') +
-    '<div class="ccols">' + col('chat') + col('coding') + '</div>' +
+    '<div class="ccols">' + SIDES.map(x => col(x.key)).join('') + '</div>' +
     '<button class="card-toggle" type="button" aria-expanded="' + open + '" data-toggle="' + esc(r.label) + '">' +
     (open ? '▾ Hide details' : '▸ Details: judge, coverage, id') + '</button>' +
     (open ? '<div class="card-detail">' + metaGroups(r) + '</div>' : '') +
@@ -204,7 +213,7 @@ function th(k) {
   const cls = c.side ? 'side-' + c.side : (MAIN_BY[k] ? 'main-col' : 'extra-col');
   return '<th data-k="' + esc(k) + '" scope="col" class="' + cls + (k === 'label' ? ' label' : '') + '" aria-sort="' +
     (on ? (S.sortDir === 1 ? 'ascending' : 'descending') : 'none') + '"' +
-    (c.side ? ' title="' + (c.side === 'chat' ? 'Chat' : 'Coding') + ' component"' : '') + '>' + esc(c.label) +
+    (c.side ? ' title="' + esc(SIDE_LABEL[c.side] || c.side) + ' component"' : '') + '>' + esc(c.label) +
     ' <span class="arrow">' + (on ? (S.sortDir === 1 ? '▲' : '▼') : '⇅') + '</span></th>';
 }
 function cell(r, k) {
@@ -214,8 +223,28 @@ function cell(r, k) {
     return '<td class="num comp-col side-' + c.side + band(v) + '">' + num(v, 0) + '</td>';
   }
   if (k === 'notes') return '<td class="notes">' + esc(r.notes || '') + '</td>';
+  if (k === 'reason') return '<td class="num">' + sval(r, 'reason') + tierTag(r, 'reason') + '</td>';
   if (k === 'date') return '<td class="num">' + esc(r.date || '–') + '</td>';
   return '<td class="meta-col">' + esc(r[k] || '–') + '</td>';
+}
+// suite 3.9: the tier a score reached (Chat/Code up to 200 = T1 + half of T2 and T3)
+function tierTag(r, k) {
+  const t = r.reached && (r.reached[k] || r.reached[k === 'coding' ? 'code' : k]);
+  return t ? ' <span class="tier-tag" title="highest tier scored">T' + t + '</span>' : '';
+}
+// suite 3.9 headline: S on the rough scale, integer part as the main number,
+// "± m" after it; the raw % stays in the tooltip (and the Raw % column)
+function sval(r, k) {
+  const s = r.s && r.s[k];
+  if (!isNum(s)) return num(r[k], 1);
+  const m = r.m && r.m[k];
+  const t = s.toFixed(1).split('.');
+  return '<span class="sv" title="raw ' + num(r[k], 1) + ' %"><b class="s-main">' + t[0] + '</b>.' + t[1] +
+    (isNum(m) ? '<span class="pm"> ± ' + m.toFixed(1) + '</span>' : '') + '</span>';
+}
+function rankOf(r) { return esc(r.rank_label || String(r.rank)); }
+function oldTag(r) {
+  return r.old ? ' <span class="old-tag" title="values from an older suite — re-run pending">old</span>' : '';
 }
 function dirText() {
   if (S.sortKey === 'rank') return S.sortDir === 1 ? '▲ Top first' : '▼ Bottom first';
@@ -229,12 +258,13 @@ function render() {
     MAIN.map(c => th(c.key)).join('') + S.columns.map(th).join('') + '</tr>';
   $('tbody').innerHTML = data.map(r => {
     const open = expanded.has(r.label);
-    const cls = r.tier >= 2 ? ' fail-row' : (r.tier >= 1 ? ' warn-row' : '');
+    const cls = (r.tier >= 2 ? ' fail-row' : (r.tier >= 1 ? ' warn-row' : '')) + (r.old ? ' old-row' : '');
     return '<tr class="data-row' + cls + '" data-label="' + esc(r.label) + '">' +
       '<td class="xcol"><button class="toggle" aria-expanded="' + open + '" aria-label="details" data-toggle="' + esc(r.label) + '">' + (open ? '▾' : '▸') + '</button></td>' +
-      '<td class="num">' + r.rank + '</td><td class="label">' + esc(r.label) + '</td>' +
-      '<td class="num strong">' + num(r.chat, 1) + '</td><td class="num strong">' + num(r.coding, 1) + '</td>' +
-      '<td class="num strong">' + num(r.overall, 1) + '</td><td class="num">' + num(r.tok_s, 1) + '</td>' +
+      '<td class="num">' + rankOf(r) + '</td><td class="label">' + esc(r.label) + oldTag(r) + '</td>' +
+      MAIN.slice(2).map(c => c.key === 'tok_s' ? '<td class="num">' + num(r.tok_s, 1) + '</td>'
+        : c.kind === 'text' ? '<td class="meta-col">' + esc(r[c.key] || '–') + '</td>'
+        : '<td class="num strong">' + sval(r, c.key) + (c.key === 'overall' ? '' : tierTag(r, c.key)) + '</td>').join('') +
       S.columns.map(k => cell(r, k)).join('') + '</tr>' +
       (open ? '<tr class="detail-row"><td colspan="' + ncol + '">' + detail(r) + '</td></tr>' : '');
   }).join('') || '<tr><td colspan="' + ncol + '" class="empty">No model matches these filters.</td></tr>';

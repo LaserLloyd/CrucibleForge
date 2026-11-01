@@ -1,0 +1,26 @@
+id: CB-A1-tabsplit-cents
+category: codebank
+family: fix
+difficulty: medium
+max_tokens: 8192
+allowed_paths: ["tabsplit/*.py"]
+new_paths: []
+pythonpath: ["."]
+issue: |
+  Bug report from the household tab: after this week's entries the numbers
+  are wrong. Ana paid a 100.00 dinner for the three of us (Ana, Ben, Cy),
+  Ben paid a 19.99 taxi for himself and Cy, and Cy entered a -20.00 refund
+  shared by Ana and Ben. report() now fails with "balances do not sum to
+  zero", and in a shell parse_amount("19.99") gives 1998.
+
+  Fix the package so it follows the rules in README.md and in the
+  docstrings exactly. Assume other inputs than this week's will be checked
+  too.
+groups:
+  - {id: parse, file: test_parse.py, kind: f2p, why: "money.parse_amount docstring: accepted grammar, examples, ValueError list; README 'integer cents'"}
+  - {id: even, file: test_even.py, kind: f2p, why: "split_evenly docstring: total // n or one more, extra cents in given order, sums to total, ValueError on empty"}
+  - {id: weights, file: test_weights.py, kind: f2p, why: "split_by_weights docstring: floor + largest remainder (total*w mod W, i.e. exact), ties by weights order, sums, ValueError on empty/non-positive/non-int weights"}
+  - {id: refund, file: test_refund.py, kind: f2p, why: "split_evenly/split_by_weights docstrings + README: negative total mirrors the positive split with shares negated"}
+  - {id: ledger, file: test_ledger.py, kind: f2p, why: "issue scenario + README: balances sum to zero; ledger uses parse_amount + split_evenly as documented"}
+  - {id: existing, file: test_existing.py, kind: p2p, why: "unchanged behaviour: format_cents, settle, report text, int amounts, weighted ledger"}
+smoke: true

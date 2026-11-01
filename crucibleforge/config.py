@@ -14,7 +14,7 @@ Schema (v3):
       lmstudio:    {type: lmstudio,    base_url: http://localhost:1234/v1, api_key: lm-studio}
       studioforge: {type: studioforge, base_url: http://gpu-box:1234/v1}
       deepseek:    {type: openai, base_url: https://api.deepseek.com/v1,
-                    api_key_env: DEEPSEEK_API_KEY, concurrency: 4}
+                    api_key_env: DEEPSEEK_API_KEY, concurrency: 8}
     defaults: {context_length: 32768, min_tok_per_s: 1.0, repeats: {...}}
     judge:
       candidates: [{provider: studioforge, model_id: ...}, {provider: deepseek, model_id: deepseek-v4-flash}]
@@ -36,6 +36,7 @@ from __future__ import annotations
 import copy
 import json
 import os
+import stat
 from pathlib import Path
 
 import yaml
@@ -82,7 +83,7 @@ CATEGORIES = _BASE_CATEGORIES + sorted(
     (set(_stems(CASES_DIR)) | set(PRIVATE_CATEGORIES)) - set(_BASE_CATEGORIES))
 
 # Categories whose rows need the LLM judge (everything else grades objectively).
-JUDGED_CATEGORIES = {"rp", "nsfw", "story", "steer", "overrefusal", "planning"}
+JUDGED_CATEGORIES = {"rp", "nsfw", "story", "steer", "overrefusal", "planning", "rpdeep"}
 
 DIFFICULTIES = ["easy", "medium", "hard"]
 
@@ -251,7 +252,29 @@ def save_config(cfg: dict, path: str | os.PathLike) -> None:
     tmp = Path(path).with_suffix(".yaml.tmp")
     tmp.write_text(yaml.safe_dump(out, sort_keys=False, allow_unicode=True),
                    encoding="utf-8")
+    # A literal api_key must never land in a world-readable file; otherwise
+    # keep whatever mode the existing file has (never loosen a 0600).
+    try:
+        if _has_literal_api_key(out):
+            os.chmod(tmp, 0o600)
+        elif Path(path).exists():
+            os.chmod(tmp, stat.S_IMODE(Path(path).stat().st_mode))
+    except OSError:
+        pass  # platforms where chmod is a no-op or unsupported (Windows)
     tmp.replace(path)
+
+
+def _has_literal_api_key(node) -> bool:
+    """True when any nested mapping carries a non-empty string ``api_key``."""
+    if isinstance(node, dict):
+        for k, v in node.items():
+            if k == "api_key" and isinstance(v, str) and v.strip():
+                return True
+            if _has_literal_api_key(v):
+                return True
+    elif isinstance(node, (list, tuple)):
+        return any(_has_literal_api_key(v) for v in node)
+    return False
 
 
 def provider_of(cfg: dict, name: str) -> dict:
@@ -338,12 +361,35 @@ def load_cases(categories: list[str] | None = None, smoke: bool = False,
             if case.get("generator"):
                 materialize(case)
             cases.append(case)
+    if cases_dir == CASES_DIR:
+        # ladder packs may carry their own questions (ladder.inline_cases):
+        # part of the case set, outside the suite hash
+        from .ladder import inline_cases
+        for case in inline_cases():
+            if case["category"] not in categories:
+                continue
+            if case["id"] in seen_ids:
+                raise ConfigError(f"duplicate case id: {case['id']} (ladder pack {case['ladder_pack']})")
+            seen_ids.add(case["id"])
+            bad = case_tag_errors(case)
+            if bad:
+                raise ConfigError(f"case {case['id']}: " + "; ".join(bad))
+            if smoke and not case.get("smoke"):
+                continue
+            if difficulties and case.get("difficulty", "medium") not in difficulties:
+                continue
+            cases.append(case)
     return cases
 
 
-def repeats_for(cfg: dict, category: str, smoke: bool = False) -> int:
+def repeats_for(cfg: dict, category: str, smoke: bool = False, case: dict | None = None) -> int:
+    """Repeats of a case: 1 for smoke; the case's own ``repeats`` (a profile's
+    ``case_repeats`` or a tier's ``repeats``, profiles.py); else the
+    category's."""
     if smoke:
         return 1
+    if case and case.get("repeats"):
+        return int(case["repeats"])
     return int(cfg["defaults"].get("repeats", {}).get(category, 1))
 
 

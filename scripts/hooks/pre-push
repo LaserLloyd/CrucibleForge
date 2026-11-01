@@ -19,6 +19,21 @@
 set -e
 cd "$(git rev-parse --show-toplevel)"
 
+# Find a working Python >= 3.12 (python3 is absent on many Windows installs;
+# the Windows Store stub exists but fails the version probe, so it is skipped).
+PY=
+for cand in python3 python "py -3"; do
+    # shellcheck disable=SC2086
+    if $cand -c "import sys; sys.exit(0 if sys.version_info >= (3, 12) else 1)" >/dev/null 2>&1; then
+        PY=$cand
+        break
+    fi
+done
+if [ -z "$PY" ]; then
+    echo "$(basename "$0"): no working Python >= 3.12 found (tried python3, python, py -3)" >&2
+    exit 1
+fi
+
 remote_name="$1"
 
 # The all-zero sha means "no such ref". Its LENGTH differs between sha1 and
@@ -71,14 +86,14 @@ while read -r local_ref local_sha remote_ref remote_sha; do
     scanned=0
     for sha in $(git rev-list --reverse $range); do
         scanned=$((scanned + 1))
-        python3 scripts/scrub_check.py --rev "$sha" || {
+        $PY scripts/scrub_check.py --rev "$sha" || {
             status=1
             echo "pre-push: the tree of commit $sha is not publishable" >&2
         }
     done
     echo "pre-push: scanned $scanned commit tree(s) on $local_ref"
 
-    python3 scripts/scrub_check.py --commit-range "$range" || status=1
+    $PY scripts/scrub_check.py --commit-range "$range" || status=1
 done
 
 if [ "$saw_ref" = 0 ]; then

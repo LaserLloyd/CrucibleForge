@@ -64,4 +64,15 @@ if [ ! -f scripts/scrub-rules.local.txt ]; then
 fi
 
 echo ""
-echo "Verify with:  python3 scripts/scrub_check.py --selftest"
+PY=
+for cand in python3 python "py -3"; do
+    # shellcheck disable=SC2086
+    if $cand -c "import sys; sys.exit(0 if sys.version_info >= (3, 12) else 1)" >/dev/null 2>&1; then
+        PY=$cand
+        break
+    fi
+done
+echo "Verify with:  ${PY:-python3} scripts/scrub_check.py --selftest"
+if [ -z "$PY" ]; then
+    echo "install-hooks: NOTE — no working Python >= 3.12 found; the hooks will refuse to run until one is on PATH."
+fi

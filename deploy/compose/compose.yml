@@ -2,7 +2,7 @@
 #
 #   cp deploy/compose/.env.example deploy/compose/.env     # optional; every value has a default
 #   docker compose -f deploy/compose/compose.yml up -d
-#   docker compose -f deploy/compose/compose.yml logs app  # prints the GUI URL (with a freshly generated token; a stored or env token is never logged: exec app crucibleforge gui token show)
+#   docker compose -f deploy/compose/compose.yml logs app  # prints the GUI URL (with a freshly generated token; a stored or env token is never logged: exec app crucibleforge gui token show). The URL names the container port 8777; from the host use HOST_PORT (default 8777)
 #
 # CLI inside the container (one-off, same volume):
 #   docker compose -f deploy/compose/compose.yml run --rm app status

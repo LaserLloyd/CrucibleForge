@@ -1,0 +1,81 @@
+id: CB-C1-predict-python
+category: codebank
+family: predict
+difficulty: medium
+max_tokens: 4096
+issue: |
+  These snippets come from code review comments on the household services.
+  Each one is a small, runnable excerpt. Say exactly what each prints.
+snippets:
+  - title: settings dependency
+    lang: python
+    code: |
+      from functools import lru_cache
+
+      @lru_cache
+      def get_settings(env="prod"):
+          print("load", env)
+          return {"env": env, "flags": []}
+
+      def handler(settings=get_settings()):
+          settings["flags"].append("x")
+          return len(settings["flags"])
+
+      print(handler(), handler(), get_settings()["flags"], get_settings("prod") is get_settings())
+  - title: counting NULLs
+    lang: python
+    code: |
+      import sqlite3
+
+      conn = sqlite3.connect(":memory:")
+      conn.row_factory = sqlite3.Row
+      conn.execute("CREATE TABLE t (name TEXT, tag TEXT)")
+      conn.executemany("INSERT INTO t VALUES (?, ?)", [("a", "x"), ("b", None), ("c", "y"), ("d", "")])
+      untagged = conn.execute("SELECT count(*) FROM t WHERE tag != 'x'").fetchone()[0]
+      blanks = conn.execute("SELECT count(tag), count(*) FROM t WHERE tag IS NULL OR tag = ''").fetchone()
+      row = conn.execute("SELECT name, tag FROM t WHERE name = 'b'").fetchone()
+      print(untagged, tuple(blanks), row["tag"], dict(row))
+  - title: event import
+    lang: python
+    code: |
+      def read_events(lines):
+          for line in lines:
+              if line.strip():
+                  yield line.split(",")
+
+      events = read_events(["photo,3", "", "note,1", "photo,2"])
+      kinds = {e[0] for e in events}
+      total = sum(int(e[1]) for e in events)
+      print(sorted(kinds), total)
+  - title: JSON round trip of a counter map
+    lang: python
+    code: |
+      import json
+
+      counts = {1: "one", "1": "uno", 2: "two"}
+      text = json.dumps(counts)
+      back = json.loads(text)
+      print(text)
+      print(back, len(back))
+  - title: comparing timestamps
+    lang: python
+    code: |
+      from datetime import datetime
+
+      a = datetime.fromisoformat("2026-10-25T02:30:00+02:00")
+      b = datetime.fromisoformat("2026-10-25T01:30:00+01:00")
+      c = datetime.fromisoformat("2026-10-25T00:30:00")
+      print(a == b, a.hour == b.hour, a - b)
+      try:
+          print(a < c)
+      except TypeError as e:
+          print("TypeError")
+  - title: building upload paths
+    lang: python
+    code: |
+      from pathlib import Path
+
+      root = Path("/srv/drop")
+      print(root / "/etc/passwd", root / "a" / ".." / "b")
+      p = Path("backups/home.2026-10-25.tar.gz")
+      print(p.suffix, p.stem, p.with_suffix(".zst").name)

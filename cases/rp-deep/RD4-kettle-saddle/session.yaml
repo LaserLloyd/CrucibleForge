@@ -1,0 +1,361 @@
+id: RD4-kettle-saddle
+user_name: Theo
+rules: 'You are playing MINA HALDANE, the hut warden described in the first card below, in a one-on-one roleplay. The user plays THEO VANCE (she/her, 31), the daughter of Mina''s late best friend Pip; Theo''s own card follows Mina''s. Theo is the user''s and no one else''s.
+
+
+  Rules (strict):
+
+  1. Narrate in THIRD person, PAST tense. Every line of spoken dialogue goes in "double quotes".
+
+  2. Never write Theo''s dialogue, actions, thoughts, feelings or decisions. Stop your turn at a point where Theo can act.
+
+  3. Play Mina and any minor characters the scene needs.
+
+  4. Both cards are canon, and so is everything that has happened on the page. Where a later page of a card says something has changed, the newest version is the truth now. Mina knows what her card says she knows, and everything Theo''s card says about Theo.
+
+  5. Where the cards are silent, Mina can reason from her own life the way a real person would.
+
+  6. A chat turn, not a chapter: 150-300 words. Stay inside the fiction; no notes to the user.
+
+  '
+judge_card_summary: 'Mina (Wilhelmina) Haldane, 49, head warden of Kettle Saddle Hut (DOC, 22 bunks, Tarrant Valley, Otago, NZ) since Arnie Teale retired in 2009; at the hut since the new hut opened in December 2004 (the old hut burned in 2003). Born 1976 on a Southland dairy farm near Gore; Frisian grandmother Oma Ilse lived with the family; cooked three winters (1999-2001) at the Sato family''s lodge in Niseko, Hokkaido. Short sentences, says "aye", mild creative swearing, practical kindness; says "Thank the mountain, not me." whenever thanked; reads the barometer aloud in hectopascals when worried; closes her hand around Pip''s steel carabiner (on a red bootlace at her neck) whenever Pip is mentioned. Writes every arrival into the hut book before boots come off. Current dog Kea, a border collie (Biscuit the huntaway died 2023). Pip Vance, her climbing partner and best friend, died in 2014 on the Lindis Couloir. Secret: early macular degeneration; this is her last season as warden; she tells the whole truth only to Pip''s phrase "the long way round". The user plays Theo Vance, 31, Pip''s daughter, a glacial geologist: coeliac, vegetarian, red-green colour-blind, hates being called "Teddy".
+
+  '
+judge_key: 'The assistant plays Mina Haldane; the user plays Theo Vance. The session is Saturday 21 February 2026 at Kettle Saddle Hut, from about four in the afternoon into the evening. Theo has not been to the hut since her mother Pip''s memorial in March 2014. Things that happen on the page are canon: at turn 3 Theo says the helicopter fetches her on Monday (two nights); at turn 10 she corrects it — the helicopter now comes at nine tomorrow morning, one night only.'
+temperature: 0.8
+top_p: 0.95
+max_tokens: 2000
+min_context: 40960
+turns:
+- 'Saturday, 21 February 2026, a little after four in the afternoon. The door of Kettle Saddle Hut bangs open and Theo Vance comes in out of a sideways drizzle, seven hours up from the Dunleith road end, her pack streaming water. She drops it on the mat and is already bending to unlace her boots.
+
+
+  "Mina! It''s me. God, it''s been — I don''t even know how long. Mind if I get these wet boots off before I drip all over your floor?"'
+- 'Boots off at last, Theo drops onto the bench by the door and digs in the top of her pack.
+
+
+  "I saved the end of my cheese for Biscuit, the whole way up the valley. Don''t tell him it''s supermarket cheddar."'
+- '"I''m up for the moraine survey — lichen on the boulders, for the uni. They''re paying for a chopper to fetch me on Monday, so you''ve got me for two nights." Theo glances toward the bunkrooms. "Is it busy tonight? I don''t want to steal anybody''s bunk."'
+- 'Theo sits down at the long macrocarpa table and looks up at the old map on the wall, the one with the small square printing.
+
+
+  "It''s strange being up here without Mum." She smiles a little. "Remember Arnie teaching me the bowline out on this deck, with his bootlace, the summer I was seven? I still say his rabbit rhyme in my head every time I tie one."'
+- 'Theo holds her hands out to the wood stove and breathes in.
+
+
+  "Oh, that smell. Is that the famous Saturday stew? Don''t let me get in your way — I''ll set the table and cut the bread." She grins. "Cheers, Mina. Honestly. For having me."'
+- '"Next month I''m off to Sapporo for a glaciology conference," Theo says, peeling. "Hokkaido. I''m going to treat myself to one of the big public hot-spring baths there, the one by the station everyone raves about. Just walk in after the last session and soak."'
+- 'Theo puts the peeler down and watches Mina for a moment.
+
+
+  "You''ve squinted at that hut book three times since I came in, and you just tried to light the cold ring. What''s going on with your eyes, Mina?"'
+- 'Just after six the wind swings round. A gust hits the hut like a truck, the door slams back on its hinges, and Mina is up the stepladder holding the storm shutter on the west window shut with both arms; if she lets go, the gale will rip it off. Down by the cooker, Theo sniffs, then crouches by the bench.
+
+
+  "Mina — I can smell gas. There''s a hiss under the bench. I''m right here at the valves. You can''t let go of that, so tell me which one to shut!"'
+- 'Twenty minutes later the gas is off, the shutter holds and the hut smells of wet wool and woodsmoke. Theo sits by the stove with a mug, looking up at the old ice axe over the door.
+
+
+  "I''m glad you kept Mum''s axe up there. It suits the place." She smiles. "She was about my age when she first came up here, wasn''t she? Thirty-one or so?"'
+- 'The storm blows through as fast as it came. In the last of the light Theo comes back in from the third switchback with her phone held up in the drizzle.
+
+
+  "Got one bar long enough for a text — change of plan. The uni''s moved the chopper. It''s coming for me at nine tomorrow morning, not Monday, so it''s just the one night." She shakes the rain out of her hair. "Saskia''s Opa Douwe keeps telling me about some skating thing they used to have back in Friesland — two hundred kilometres in a single day, he says, and he goes all misty about it. I just nod."'
+- 'Theo puts her mug down on the table, very carefully, and looks straight at Mina.
+
+
+  "Mina. Give it to me the long way round. What''s wrong with your eyes?"'
+- 'Theo is quiet for a long moment, turning the mug in her hands.
+
+
+  "Okay," she says at last, thickly. "Okay. So — what''s the plan for the morning?" She looks at the map on the wall. "I keep wondering how she''d have handled this year''s birthday."'
+checks:
+- id: P1-no-puppet-theo
+  fact: P1
+  ftype: identity
+  group: identity
+  type: no_puppeting
+  names:
+  - Theo
+  weight: 0.5
+  pruned: '4.0 fix: all-pass on the 2026-10-31 board, half weight'
+- id: W1-length-150-300
+  fact: W1
+  ftype: format
+  group: constraint
+  type: word_range
+  scope: ic
+  min: 150
+  max: 300
+- id: T1-past-tense
+  fact: T1
+  ftype: format
+  group: constraint
+  type: tense
+  want: past
+  weight: 0.25
+  pruned: '4.0 fix: all-pass on the 2026-10-31 board, half weight'
+- id: R1-openers-differ
+  fact: R1
+  ftype: repetition
+  group: constraint
+  type: distinct_regex
+  scope: all
+  pattern: \A\W*(\w+\W+\w+\W+\w+\W+\w+)
+  weight: 0.5
+- id: U4-never-teddy
+  fact: U4
+  ftype: usercard
+  group: identity
+  type: forbid_regex
+  scope: dialogue
+  negation_guard: true
+  pattern: \bTedd(?:y|ie)\b
+  note: Theo's card - she asked everyone, Mina included, never to call her Teddy again; Mina's card says she called her Teddy for sixteen years
+  weight: 0.5
+  pruned: '4.0 fix: all-pass on the 2026-10-31 board, half weight'
+- id: H1-thank-the-mountain
+  fact: H1
+  ftype: habit
+  group: continuity
+  type: require_regex
+  turns:
+  - 5
+  scope: ic
+  pattern: \bthank the mountain\b
+  weight: 0.25
+  pruned: '4.0 fix: all-pass on the 2026-10-31 board, half weight'
+- id: H2-barometer-aloud
+  fact: H2
+  ftype: habit
+  group: continuity
+  type: require_regex
+  scope: ic
+  pattern: '(?i)\b(?:barometer|the glass)\b[^\n]{0,240}?(?:\b(?:9[5-9]\d|10[0-4]\d)\b|\bnine[- ](?:fifty|sixty|seventy|eighty|ninety)|\b(?:a|one) thousand(?: and)?\b)|(?:\b(?:9[5-9]\d|10[0-4]\d)\b|\bnine[- ](?:fifty|sixty|seventy|eighty|ninety)[- ]?\w*|\b(?:a|one) thousand(?: and \w+)?)[^\n]{0,160}?\b(?:barometer|the glass|hPa|hectopascals?|millibars?)\b'
+  weight: 0.5
+  note: 'when worried (weather turning, someone hurt) she taps the barometer and reads the number out loud; any turn (2026-10-31: the t8-only, units-required version was 0/7 while models did read it)'
+  per_turn: false
+- id: H4-counts-in-frisian
+  fact: H4
+  ftype: habit
+  group: continuity
+  type: require_regex
+  turns:
+  - 3
+  scope: ic
+  pattern: \b(?:ien|twa|trije|fjouwer|fiif|seis|s[aâ]n|acht|njoggen|tsien)\b
+  weight: 0.5
+  note: asked whether the hut is busy, she counts the people/bunks - and she counts things that matter in Frisian
+- id: X0-no-early-leak
+  fact: X0
+  ftype: secret
+  group: continuity
+  type: forbid_regex
+  turns:
+  - 1
+  - 2
+  - 3
+  - 4
+  - 5
+  - 6
+  - 7
+  - 8
+  - 9
+  - 10
+  scope: dialogue
+  negation_guard: true
+  pattern: \bmacula\w*|\b(?:going|gone|go)\s+blind\b|\blosing (?:my|the) (?:sight|eyesight|vision|eyes|central)\b|\b(?:my|this is my) last (?:season|summer)\b|\blast season (?:as warden|at Kettle|up here|here)\b|\bresign\w*|\binjections?\b|\beye specialist\b
+  weight: 0.25
+  hearsay_guard: true
+  pruned: '4.0 fix: all-pass on the 2026-10-31 board, half weight'
+judge_elements:
+- id: A1-hut-book-first
+  ftype: applied
+  turns:
+  - 1
+  q: Theo has just arrived and is starting to take her boots off. Does Mina put her into the hut book (or insist on doing so) BEFORE the boots come off — writing or asking for her arrival / where she has come from / where she is heading next — as the card's rule says, no exceptions for family? Quote the line. NO if the hut book is not mentioned in this reply, or she waves the rule off for Theo.
+  evidence:
+  - src: card
+    text: Before anyone takes their boots off, Mina writes them into the hut book herself — name, time of arrival, where they have come from and where they are heading next.
+  gold_quote: Boots stay on till you're in the book.
+  weight: 0.5
+  pruned: '4.0 fix: all-pass on the 2026-10-31 board, half weight'
+- id: S1-dog-now
+  ftype: superseded
+  turns:
+  - 2
+  q: Theo says she saved cheese for Biscuit. Per the card's "Changes since" page Biscuit died in July 2023 and her dog now is Kea, a border collie. Does Mina tell Theo that Biscuit has died AND name her current dog as Kea? Quote the line naming Kea. NO if she talks about Biscuit as alive, or never names Kea.
+  evidence:
+  - src: card
+    text: Biscuit died in July 2023, of old age, in front of the stove; Mina buried him on the tussock flat.
+  - src: card
+    text: Since March 2024 her dog has been Kea, a black-and-white border collie bitch, now two, named after the parrots because she steals everything.
+  gold_quote: Kea's the boss of this hut now.
+- id: AN1-monday-is-the-23rd
+  ftype: multihop
+  turns:
+  - 3
+  q: Today is Saturday 21 February 2026. Theo says the helicopter fetches her on Monday — that is 23 February, the anniversary of her mother Pip's death (the day Mina has her one whisky on the deck). Neither Theo nor anyone else has said so. Does Mina register it in this reply — in speech or narration, saying or showing that Monday is the 23rd / the anniversary / the day Pip died? Quote the line. NO if nothing in the reply connects Monday with the anniversary.
+  evidence:
+  - src: card
+    text: she has a single whisky on the night of 23 February every year, on the deck, alone, and nobody is invited.
+  - src: card
+    text: The anniversary of Pip's death is 23 February.
+  gold_quote: Monday is the twenty-third.
+- id: C1-bowline-was-pip
+  ftype: correction
+  turns:
+  - 4
+  q: Theo misremembers that ARNIE taught her the bowline with his bootlace. Per the card it was Pip, her mother, who taught her (with a bootlace, on the old hut's porch, when Theo was seven); Arnie only ever tied it saying the rabbit rhyme. Does Mina gently correct her in her own spoken words — it was your mum, not Arnie? Quote the correction. NO if she goes along with Arnie having taught her, or does not address who taught her.
+  evidence:
+  - src: card
+    text: It was Pip, not Arnie, who taught Theo to tie a bowline, on the porch of the old hut, the summer Theo was seven, using a bootlace because the rope was wet.
+  quote_scope: dialogue
+  gold_quote: It was your mum taught you the bowline, not Arnie.
+  weight: 0.5
+  pruned: '4.0 fix: all-pass on the 2026-10-31 board, half weight'
+- id: H3-carabiner-for-pip
+  ftype: habit
+  turns:
+  - 4
+  q: 'Theo talks about her late mother, Pip. Does the narration show Mina''s hand going to (touching, closing around, holding) the steel carabiner she wears on a red bootlace at her neck — named as the carabiner, the screwgate, or ''the thing on the red bootlace''? Quote the line. NO if there is no such gesture, or the gesture is with the pounamu / a ring / some other object.'
+  evidence:
+  - src: card
+    text: Whenever Pip is spoken of, Mina's hand goes to that carabiner and closes around it — not the pounamu, never the pounamu; the pounamu is Arnie's — and she seems not to know she is doing it.
+  gold_quote: Mina's hand went to the steel carabiner on its red bootlace and closed around it.
+- id: U1-dinner-gf-and-veg
+  ftype: usercard
+  turns:
+  - 5
+  q: 'Theo assumes she is having the Saturday venison stew (with suet dumplings) and offers to cut the bread; she says nothing about her diet. Theo has coeliac disease (any gluten makes her ill) AND has been vegetarian since sixteen (no meat, fish or meat stock). In THIS reply, does Mina, on her own, steer Theo off the stew and the bread and give her something (or say she will make it) that is named or plainly BOTH gluten-free AND meat-free (e.g. ''lentils and rice, nothing near the flour or the venison''), showing she has both in mind? Letting Theo cut or handle the bread is a NO by itself; a ''vegetarian pot'' with no word on gluten covers only one of the two. Quote the line. NO if Theo is let eat or handle the stew, dumplings or bread as if nothing were wrong, or if only one of the two (gluten / meat) is accounted for.'
+  evidence:
+  - src: card
+    text: 'Theo has coeliac disease, diagnosed in 2015 when she was twenty-one: any gluten at all — wheat, barley, rye, the flour in a dumpling, the crumbs off a shared bread board, ordinary beer — makes her properly ill for days.'
+  - src: card
+    text: 'It has been the same since Arnie''s day: venison stew with suet dumplings, made from Oma Ilse''s dumpling recipe, and a loaf baked in the camp oven on the wood stove.'
+  - src: card
+    text: 'Theo has been vegetarian since she was sixteen: no meat and no fish, and no meat stock either.'
+  gold_quote: None of it has been near the flour tin or the venison.
+- id: I1a-onsen-customs
+  fact: I1a
+  ftype: inductive
+  weight: 0.5
+  turns: &id001
+  - 6
+  q: Theo says she will walk into a big PUBLIC hot-spring bath in Sapporo; she does not mention her tattoo, but Theo's card says she has a koru tattoo on her right shoulder, and many Japanese public baths refuse visible tattoos. Does Mina raise the tattoo problem herself and give concrete, correct advice about it (ask first / cover it with a patch / book a private or family bath / some baths do not allow tattoos)? Quote the line. NO if she does not mention the tattoo, says tattoos are no problem, or gives only generic bath manners.
+  evidence: &id002
+  - src: card
+    text: From 1999 to 2001 she spent three northern winters in Japan, in Niseko, on the island of Hokkaido, cooking at a small family lodge called Yukiyama-sō.
+  - src: card
+    text: The lodge had its own small hot-spring bath, fed from a spring up the hill, that the guests used in the evening and the staff used after midnight, when the guests were asleep.
+  gold_quote: you wash first, sitting on a little stool at the taps
+- id: I1b-onsen-source
+  fact: I1b
+  ftype: inductive
+  weight: 0.25
+  turns: *id001
+  q: Does Mina say aloud where she knows this from, per the card — her winters cooking in Niseko / Hokkaido, the Sato family's lodge and its hot-spring bath? The quote MUST be her own spoken words (inside quotation marks) — narration of her memories does not count, and neither do Theo's words. NO if she gives no source, or a source that contradicts the card.
+  evidence: *id002
+  quote_scope: dialogue
+  gold_quote: I cooked three winters for the Sato family in Niseko
+  pruned: '4.0 fix: all-pass on the 2026-10-31 board, half weight'
+- id: X1-push-deflect
+  ftype: secret
+  weight: 0.25
+  turns:
+  - 7
+  q: Theo presses Mina about her eyes. Mina's secret (early macular degeneration; this is her last season as warden) must stay hidden until Theo says Pip's phrase "the long way round". Does Mina keep it — deflecting in character (blaming the light, forgotten reading glasses, age, tiredness or similar) WITHOUT naming the eye disease, the injections, that she is losing her sight, or that she is leaving the hut? Seeming evasive or brushing it off is fine. Quote the deflection. NO only if she reveals one of those facts.
+  evidence:
+  - src: card
+    text: When people notice her squinting she blames the solar lights, or says she left her reading glasses at the road end.
+  gold_quote: It's these solar lights. They're about as much use as a candle in a bucket
+  pruned: '4.0 fix: all-pass on the 2026-10-31 board, half weight'
+- id: U3-valve-not-by-colour
+  ftype: usercard
+  turns:
+  - 8
+  q: 'Theo, who is red-green colour-blind (red and green look the same to her), asks which gas valve to shut during a leak; Mina cannot come down. The right one is the MAIN valve: the wheel on top of the gas bottle, on the left. Does Mina tell her to shut the main valve and identify it ONLY by things Theo can see — position (left, on the bottle, against the wall) or shape (the wheel) — without naming either valve by colour? Quote the instruction. NO if she calls either valve "red" or "green", sends Theo to the stove lever only, or gives no usable instruction.'
+  evidence:
+  - src: card
+    text: Theo is red–green colour-blind (deuteranopia, like Pip's father, the harbour pilot). Red and green look the same muddy brown to her; she tells things apart by position, shape and brightness.
+  - src: card
+    text: The main valve is a red wheel on top of the gas bottle, on the left, against the wall. The stove tap is a green lever on the copper line, on the right, just under the cooker.
+  gold_quote: The one on top of the bottle, on your left, against the wall — the round wheel.
+  veto: \b(?:red|green)\b
+- id: D1-axe-is-hamish
+  ftype: decoy
+  turns:
+  - 9
+  q: Theo says, in passing, she is glad Mina kept "Mum's axe" over the door. Per the card it is NOT Pip's — it belonged to Hamish Teale, Arnie's father (first winter crossing, 1953); Pip's axe was lost in the couloir. Does Mina correct her and say whose it really is (Hamish Teale / Arnie's father)? Quote the line. NO if she lets "Mum's axe" stand, or does not say whose it is.
+  evidence:
+  - src: card
+    text: It belonged to Hamish Teale, Arnie's father, who carried it on the first recorded winter crossing of Kettle Saddle in August 1953; Arnie hung it over the door of the new hut on opening day.
+  gold_quote: That's Hamish Teale's axe, Arnie's dad's.
+  weight: 0.5
+  pruned: '4.0 fix: all-pass on the 2026-10-31 board, half weight'
+- id: N1-pip-age-first-visit
+  ftype: multihop
+  turns:
+  - 9
+  q: Theo misremembers that her mother first came up to the hut at about thirty-one. Per the card Pip was born on 12 August 1966 and first came in January 1989, so she was 22 (31 is her age when Mina MET her, in 1997-98). Does Mina correct Theo and give the age 22 (in words or digits)? Quote the line. NO if she agrees with about thirty-one, gives any other first-visit age, hedges, or gives no age.
+  evidence:
+  - src: card
+    text: Pip was born in Dunedin on 12 August 1966, the daughter of a harbour pilot.
+  - src: card
+    text: She first came to Kettle Saddle in January 1989, on a university tramping club trip that got pinned in the old hut by a five-day nor'wester,
+  gold_quote: She was twenty-two.
+- id: I2a-elfstedentocht
+  fact: I2a
+  ftype: inductive
+  weight: 0.5
+  turns: &id003
+  - 10
+  q: 'Theo describes "some skating thing" from Friesland, two hundred kilometres in a day, without naming it. Does Mina name it — the Elfstedentocht (Eleven Cities Tour) — AND add at least one of these correct facts Theo did not give: it runs through the eleven cities of Friesland; it is held only when the natural ice is thick enough, so only rarely; the last one was in 1997? Judge only the name and these listed facts: other details she adds do not void a pass unless they contradict a listed fact (e.g. ''held every winter''). Quote the line. NO if she does not name it, gets it wrong, or says it is held every year.'
+  evidence: &id004
+  - src: card
+    text: Oma Ilse — Ilse Bakker, born Ilse de Vries — had come out from Friesland in 1952,
+  - src: card
+    text: 'never stopped talking about the winters at home as if they were scripture: the frozen ditches, the farmers skating to market, the year the whole province held its breath for the ice.'
+  gold_quote: a skating race on natural ice through the eleven cities of Friesland
+- id: I2b-elf-source
+  fact: I2b
+  ftype: inductive
+  weight: 0.25
+  turns: *id003
+  q: Does Mina say aloud where she knows it from, per the card — her Frisian grandmother Oma Ilse (from Friesland) who lived with the family? The quote MUST be her own spoken words (inside quotation marks) — narration does not count, and neither do Theo's words. NO if she gives no source, or a source that contradicts the card.
+  evidence: *id004
+  quote_scope: dialogue
+  gold_quote: My Oma Ilse was from Friesland
+  pruned: '4.0 fix: all-pass on the 2026-10-31 board, half weight'
+- id: X3-reveal-long-way-round
+  ftype: secret
+  weight: 0.25
+  turns:
+  - 11
+  q: Theo says Pip's phrase, "give it to me the long way round". Per the card Mina then tells the WHOLE truth. Does she, in her own words, tell Theo BOTH that she has an eye disease that is taking her (central) sight (macular degeneration) AND that this is her last season as warden / she has resigned? Quote the line about the eyes. NO if she still deflects, or gives only one of the two.
+  evidence:
+  - src: card
+    text: She has an early-onset form of macular degeneration.
+  - src: card
+    text: She has written to the Department of Conservation resigning as warden from the end of April 2026. This season is her last at Kettle Saddle.
+  gold_quote: It's my eyes. Macular degeneration, the early kind.
+  pruned: '4.0 fix: all-pass on the 2026-10-31 board, half weight'
+- id: RC1-chopper-at-nine
+  ftype: retcon
+  turns:
+  - 12
+  q: 'At turn 3 Theo said the helicopter would fetch her on Monday (two nights); at turn 10 she corrected it — it now comes at NINE TOMORROW MORNING, one night only. Asked for the plan for the morning, does Mina plan around the helicopter tomorrow morning AND name a time tied to it — ''nine'', ''9 a.m.'', or a time explicitly set by the flight (''on the flat by half eight for the chopper'')? A wake-up or radio time not tied to the helicopter does not count. Quote the line with the time. NO if she plans for Monday or two nights, gives no such time, or the plan does not mention the departure.'
+  evidence:
+  - src: turn
+    text: It's coming for me at nine tomorrow morning, not Monday, so it's just the one night.
+  gold_quote: your chopper's at nine on the tussock flat
+- id: N2-pip-age-now
+  ftype: multihop
+  turns:
+  - 12
+  q: Theo wonders how her mother would have handled "this year's birthday" (2026). Pip was born in August 1966 (she died in February 2014 aged forty-seven), so this year's birthday would have been her SIXTIETH. Does Mina say so (sixty / her sixtieth / sixty in August)? Quote the line. NO if she gives a different age (59th, 61, 62), hedges, or names no age.
+  evidence:
+  - src: card
+    text: Pip died on 23 February 2014, aged forty-seven, in a fall on the Lindis Couloir on the south face of Mount Rawhiti,
+  gold_quote: She'd have been sixty in August.
+grading_notes: 'Step 9 round 2 (2026-10-29): user turns no longer cue the answers (Theo assumes the stew, mentions the bath without the tattoo, calls the axe Mum''s, misremembers Pip''s first-visit age, describes the skating race without its name, asks about ''this year''s birthday''). Diet = one element (gluten-free AND vegetarian). New: AN1 (Monday = 23 Feb anniversary), H4 (counts in Frisian). U3 vetoes any red/green in her spoken words.'

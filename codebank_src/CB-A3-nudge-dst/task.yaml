@@ -1,0 +1,23 @@
+id: CB-A3-nudge-dst
+category: codebank
+family: fix
+difficulty: hard
+max_tokens: 8192
+allowed_paths: ["nudge/*.py"]
+new_paths: []
+pythonpath: ["."]
+issue: |
+  Two reports from the Berlin household after this weekend's clock change:
+
+  1. "Meds, daily 02:30" fired twice on the night the clocks went back.
+  2. A weekly "mon 18:30" reminder shows up on Tuesdays, and the calendar
+     view (occurrences) shows the Sunday 07:00 reminder at 08:00 local in
+     the weeks after a clock change.
+
+  Fix the package so it follows the contract in README.md. Check the
+  whole contract, not only these two reports.
+groups:
+  - {id: fold, file: test_fold.py, kind: f2p, why: "README: next_fire strictly after, UTC, at most once per local day, ambiguous wall time fires once at the first occurrence (issue 1)"}
+  - {id: parse, file: test_parse.py, kind: f2p, why: "README: weekday 0-6 with Monday = 0, any letter case, ValueError otherwise (issue 2a)"}
+  - {id: span, file: test_span.py, kind: f2p, why: "README: occurrences lists every fire instant in [start, end), start included, end excluded; wall time kept across DST (issue 2b); gap rule"}
+  - {id: existing, file: test_existing.py, kind: p2p, why: "unchanged: Tokyo daily, to_iso format, spring-forward gap shift, non-UTC after, parse errors"}

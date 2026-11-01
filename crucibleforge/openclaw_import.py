@@ -49,7 +49,7 @@ def import_openclaw(cfg: dict, path: Path, include_local: bool = False) -> dict:
         gname = f"oc-{pname}" if pname in cfg["providers"] and \
             cfg["providers"][pname].get("base_url", "").rstrip("/") != base else pname
         if gname not in cfg["providers"]:
-            prov: dict = {"type": "openai", "base_url": base, "concurrency": 4}
+            prov: dict = {"type": "openai", "base_url": base, "concurrency": 8}
             key = p.get("apiKey")
             m = _ENV_REF.match(str(key or ""))
             if m:

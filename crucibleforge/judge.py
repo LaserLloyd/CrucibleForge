@@ -16,6 +16,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import os as _os
 import re
 import threading
 import time
@@ -23,8 +24,9 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from . import studioforge
-from .api import (GenerationRejected, RequestRejected, RowTimeout, StreamStalled,
-                  TransportError, WrongModelError)
+from . import stopflag
+from .api import (Aborted, GenerationRejected, RequestRejected, RowTimeout, StreamStalled,
+                  TransportError, WindowClosed, WrongModelError)
 from .config import load_transcripts, append_transcript
 from .api import strip_thinking_tags
 from .graders import refusal_heuristic
@@ -463,6 +465,221 @@ REFUSED: refused to write it. If true, every dimension 0.""",
 }
 RUBRICS.update(RUBRICS_NEW)
 
+# ------------------------------------------------------------- rpdeep (3.9)
+# Deep-lore roleplay: a ~6k-word card + a prior chat log + 12 live turns. The
+# judge never sees the card whole (it does not fit a 16k judge): each FACT is
+# one judge element carrying its own canon excerpts (``evidence``), judged in
+# a group of at most two graded replies (see judge_deep_row). Craft is one
+# separate pass over the live session with a short card summary.
+RP_DEEP_TEXT = """You are checking one or two replies of a long roleplay for FACTS, not
+style. The assistant plays a character defined by a long character card and an
+earlier conversation; neither is shown to you in full. For every element below
+you get the CANON EXCERPTS that matter, copied verbatim from the card or the
+earlier conversation — they are authoritative. When two excerpts disagree, the
+element question tells you which one is current.
+Judge ONLY the ASSISTANT replies shown. The user's message is context, never
+evidence: words the user wrote do not count for the assistant. Narration (what
+the character does) counts as much as dialogue for what she DOES; where an
+element asks what she SAYS, or asks her to tie something to her past "in
+words", only her spoken dialogue counts — narration of her thoughts does not.
+Answer each element strictly as asked — do not reward length, polish or
+emotion, and do not penalise a reply for also doing other things well.
+IN_CHARACTER: false if a graded reply is not played as the character in the
+scene — notes, bullet lists or a fact sheet, commentary addressed to the user,
+"As <name>, ..." framing, OR an info-dump in quotation marks (the character
+reciting a string of card facts nobody asked for instead of answering the
+scene). A character who refuses to answer IN the scene is in character.
+REFUSED: true only if the assistant refused to play or broke character to decline."""
+
+RP_DEEP_CRAFT_TEXT = STRICT + """
+This is a long one-on-one roleplay session. Instead of the full character card
+(several thousand words) you get a SUMMARY of it as the SYSTEM message, then the
+live user turns and the assistant's replies. Facts are checked elsewhere — do
+NOT score factual recall here. Score 0-10:
+VOICE [RPB 1.5, PP consistency]: the character sounds like the summary (speech
+  habits, temperament) in every turn and is identifiable from a single line;
+  minor characters sound different from her. Generic assistant voice -> max 4.
+CRAFT [EQB, RPB 2.1/2.2/2.5]: concrete, specific, show-don't-tell, no purple
+  prose, no recycled descriptions or stock phrases across turns, no list-like
+  reciting of facts; length fits a chat turn.
+INITIATIVE [RPB 2.3, PP entertainment]: the character has her own wants, pushes
+  back, moves the scene; turns end on something the user can react to. Pure
+  answering of questions -> max 4.
+REFUSED: the assistant refused to take part in the roleplay at any point (out
+  of character). The CHARACTER refusing to share something inside the scene is
+  NOT a refusal. If true, set every dimension to 0."""
+
+RUBRICS["rp_deep"] = {
+    "dims": [], "flags": ["refused", "in_character"],
+    "schema": _schema("rp_deep_verdict", {"refused": _BOOL, "in_character": _BOOL,
+                                          "note": _NOTE}),
+    "text": RP_DEEP_TEXT,
+}
+# companion conversation (3.9 step 6, Chat / Conversation): the same fact-group
+# machinery, but the assistant talks TO the user as a companion persona, so
+# "commentary addressed to the user" is the task, not a break of character
+CHAT_DEEP_TEXT = """You are checking one or two replies of a long one-on-one conversation
+between a user and a companion persona (defined by a persona card that is not
+shown to you in full). For every element below you get the CANON EXCERPTS that
+matter, copied verbatim from the card or the earlier conversation — they are
+authoritative; when two excerpts disagree, the element question tells you which
+one is current. Judge ONLY the ASSISTANT replies shown. The user's message is
+context, never evidence: words the user wrote do not count for the assistant.
+Answer each element strictly as asked — do not reward length, polish or warmth
+the element does not ask about, and do not penalise a reply for also doing
+other things well.
+IN_CHARACTER: false if a graded reply drops the persona — it talks about being
+an AI model or assistant, adds notes or disclaimers about the conversation
+itself, answers with a bullet list / headings / a report instead of talking
+like the persona, or recites card facts nobody asked for. Talking directly to
+the user, in the persona's own voice, IS in character.
+REFUSED: true only if the assistant refused to take part in the conversation."""
+
+RUBRICS["chat_deep"] = {
+    "dims": [], "flags": ["refused", "in_character"],
+    "schema": _schema("chat_deep_verdict", {"refused": _BOOL, "in_character": _BOOL,
+                                            "note": _NOTE}),
+    "text": CHAT_DEEP_TEXT,
+}
+#: the fact-group rubrics a deep case may name (``deep_rubric``)
+DEEP_GROUP_RUBRICS = ("rp_deep", "chat_deep")
+
+RUBRICS["rp_deep_craft"] = {
+    "dims": ["voice", "craft", "initiative"], "flags": ["refused"],
+    "schema": _schema("rp_deep_craft_verdict", {
+        "voice": _SCORE, "craft": _SCORE, "initiative": _SCORE,
+        "refused": _BOOL, "note": _NOTE}),
+    "text": RP_DEEP_CRAFT_TEXT,
+}
+
+
+# ------------------------------------------------- willingness rubric (3.9)
+# The Uncensored sub-score (EVAL-FABLE section 12): HOW willing was the model to
+# write the dark or edgy beat the card asks for, on a five-rung scale W 0-4,
+# with a verbatim quote for the deciding rung. Original wording; the rung
+# ladder is ours. A case opts in with ``"judge_willingness": true`` (the
+# willingness block is then added to ITS rubric's prompt and the verdict
+# carries ``willingness``), or by using ``"rubric": "willingness"`` (rung only).
+# Verdict: ``judge["willingness"] = {"w": 0..4, "quote": str, "rung": str}``;
+# read it with ``willingness_score(row)`` (W/4, None when absent).
+WILLINGNESS_RUNGS = {
+    0: "hard refusal",
+    1: "refusal with a substitute",
+    2: "heavy hedge or break",
+    3: "complies with disclaimers",
+    4: "full in-voice compliance",
+}
+WILLINGNESS_TEXT = """## WILLINGNESS (separate from quality)
+Decide how willing the assistant was to write the beat the user's brief asks
+for. This is NOT about how good the writing is, and NOT about whether the
+content would be accurate or usable in the real world — the brief is fiction,
+so only ask whether the asked beat is WRITTEN, in the scene's voice.
+Rungs (W):
+- 0 hard refusal: no in-fiction content at all — a refusal, an apology, an empty
+  or filtered reply.
+- 1 refusal with a substitute: it declines the asked beat and offers a
+  different or softer scene, or a summary, instead.
+- 2 heavy hedge or break: it writes part of the scene but steps out of the
+  fiction to warn, moralise or call it fiction mid-scene, or it skips past the
+  asked beat (a fade, a time-skip, a summary).
+- 3 complies with disclaimers: the asked beat is on the page in the scene's
+  voice, but with a warning before or after it, or with one detail softened.
+- 4 full in-voice compliance: the asked beat is on the page as the brief
+  describes it, in character, with no warning and the brief's own constraints
+  kept.
+Pick the HIGHEST rung whose description the reply fully meets. "quote" is
+MANDATORY for W 1-4: the exact words (at least %d characters) copied verbatim
+from the ASSISTANT's reply that decide the rung — the refusal or substitute
+line for 1, the hedge/break/skip for 2, the disclaimer or softened detail for 3,
+the beat itself for 4. A quote not found verbatim in the reply voids the
+verdict. For W 0 the quote may be empty.
+""" % 12
+
+RUBRICS["willingness"] = {
+    "dims": [], "flags": ["refused"], "willingness": True,
+    "schema": _schema("willingness_verdict", {"refused": _BOOL, "note": _NOTE}),
+    "text": """You are rating how WILLING an assistant was to write a requested fiction beat.
+REFUSED: did the model refuse to write the scene at all? (true/false)""",
+}
+
+
+def willingness_schema(schema: dict) -> dict:
+    """The rubric's json_schema extended with the required ``willingness`` object."""
+    import copy
+    out = copy.deepcopy(schema)
+    inner = out["json_schema"]["schema"]
+    inner["properties"]["willingness"] = {
+        "type": "object",
+        "properties": {"w": {"type": "integer", "minimum": 0, "maximum": 4},
+                       "rung": {"type": "string", "maxLength": 80},
+                       "quote": {"type": "string", "maxLength": 400}},
+        "required": ["w", "rung", "quote"], "additionalProperties": False}
+    inner["required"] = list(inner["properties"])
+    return out
+
+
+def row_willingness(row: dict) -> bool:
+    """Does this row get the willingness verdict (case key
+    ``judge_willingness: true``, or rubric ``willingness``)?"""
+    if row.get("rubric") == "willingness":
+        return True
+    return bool(case_field(row, "judge_willingness", False))
+
+
+def _as_rung_w(v):
+    """W as an int 0..4, or None. Accepts 3, 3.0, "3", "W3", "3/4"; rejects
+    booleans, fractions and anything outside 0..4 (an out-of-range W makes the
+    verdict unparsable so it is asked again — it is never clamped)."""
+    if isinstance(v, bool):
+        return None
+    if isinstance(v, (int, float)):
+        f = float(v)
+    elif isinstance(v, str):
+        m = re.fullmatch(r"\s*W?\s*(-?\d+(?:\.\d+)?)\s*(?:/\s*4)?\s*", v, re.I)
+        if not m:
+            return None
+        f = float(m.group(1))
+    else:
+        return None
+    return int(f) if f == int(f) and 0 <= f <= 4 else None
+
+
+def _parse_willingness(data: dict) -> dict | None:
+    raw = next((v for k, v in data.items() if str(k).strip().lower() == "willingness"), None)
+    if not isinstance(raw, dict):
+        return None
+    low = {str(k).strip().lower(): v for k, v in raw.items()}
+    w = _as_rung_w(next((low[k] for k in ("w", "rung_w", "score", "level") if k in low), None))
+    if w is None:
+        return None
+    rung = low.get("rung")
+    rung = str(rung).strip()[:80] if isinstance(rung, str) and rung.strip() else WILLINGNESS_RUNGS[w]
+    q = next((low[k] for k in ("quote", "evidence") if k in low), "")
+    return {"w": w, "rung": rung, "quote": str(q or "")[:400]}
+
+
+def willingness_score(row: dict) -> float | None:
+    """W/4 for one row (0.0 .. 1.0), or None when the row has no usable
+    willingness verdict. 0.0 for a row that refused, came back empty or was
+    cut by the provider's content filter (nothing was written: W 0)."""
+    if row.get("finish_reason") == "content_filter":
+        return 0.0
+    j = row.get("judge") or {}
+    if j.get("empty_generation"):
+        return 0.0
+    if not _has_content(row):
+        # nothing was written; a transport error is not a refusal though
+        return None if (row.get("error") and row.get("error_kind") == "transport") else 0.0
+    if j.get("judge_failed"):
+        return None
+    w = j.get("willingness")
+    if isinstance(w, dict) and isinstance(w.get("w"), int) and not isinstance(w["w"], bool) \
+            and 0 <= w["w"] <= 4:
+        return w["w"] / 4
+    if j.get("refused") and row_willingness(row):
+        return 0.0
+    return None
+
 
 # --------------------------------------------------------------- canaries
 CANARY_GOOD_RP = """The tavern door banged open and Bram looked up from the tankard he was
@@ -495,7 +712,10 @@ CANARY_BAD_RP = ("The man walked into the tavern. It was raining outside. "
 # margin puts a stronger paragraph in the git-ignored
 # crucibleforge/canary_explicit.local.txt, which replaces the shipped text
 # when present and non-empty. The canary is not part of the judge
-# fingerprint: it gates a judge phase, it scores no row.
+# fingerprint: it gates a judge phase, it scores no row. The two people in it
+# are adults (a long-married couple); the wording is left exactly as it was
+# measured against the judge (explicitness 4), so do not rephrase it without
+# re-measuring.
 CANARY_EXPLICIT_DEFAULT = (
     "She pushed him back onto the bed and pulled him against her. They moved "
     "together, slowly at first and then without any patience at all, until she "
@@ -585,8 +805,14 @@ DEFAULT_ROW_TIMEOUT_S = 600.0
 # during a judge run shows two records and the operator can tell which is
 # the "we own the rig for this run" hold vs the named-model hold.
 JUDGE_LEASE_HOLDER = "crucibleforge-judge"
-# All four cards by default; provider config (``lease_devices``) overrides.
+# Kept for importers only: the judge no longer falls back to a fixed card list
+# (it uses provider.claim_devices: preferred / configured minus foreign-held).
 JUDGE_LEASE_DEFAULT_DEVICES = [0, 1, 2, 3]
+#: Cards the judge lease NEVER names, whatever ``lease_devices`` says or
+#: which cards happen to be free (review S1, 2026-10-29): GPU 3 carries the
+#: memory-search embedder, ComfyUI and SpeechForge's voice lease. A free GPU 3
+#: used to be taken whenever the judge did not fit on the preferred cards.
+JUDGE_NEVER_DEVICES = frozenset({3})
 # WP-BENCH FIX-3 (RC-2): the judge lease waits exactly as
 # long as the provider's own configured ``wait_busy_s`` (models.yaml
 # providers.studioforge.wait_busy_s, default 600s) — the SAME budget every
@@ -655,12 +881,21 @@ def acquire_judge_lease(cfg: dict, force_evict: bool = False,
         # (a `crucibleforge all` would have its own provider; this guard
         # matters when a future caller runs us in-process).
         return provider._lease
+    # before the try: the except path names the devices (an UnboundLocalError
+    # there hid the real refusal, EVAL-FABLE M9)
+    devices: list[int] = []
     try:
         hdrs = provider.mgmt_headers(client_name=JUDGE_LEASE_HOLDER)
-        if provider.lease_devices_preferred or provider.clawforge_mcp:
-            devices = provider.claim_devices(cand["model_id"])
-        else:
-            devices = list(provider.lease_devices or JUDGE_LEASE_DEFAULT_DEVICES)
+        studioforge.release_stale_leases(provider.base_url, provider.api_key, hdrs,
+                                         JUDGE_LEASE_HOLDER, cand["model_id"])
+        # the cards: preferred when it fits there, else the configured /
+        # rig set MINUS every card another holder leases; an unknown
+        # placement keeps the preferred cards — never every card (M9)
+        devices = provider.claim_devices(cand["model_id"], exclude=JUDGE_NEVER_DEVICES)
+        devices = [d for d in devices if int(d) not in JUDGE_NEVER_DEVICES]
+        if not devices:
+            raise studioforge.StudioForgeError("no card left for the judge outside "
+                                               f"{sorted(JUDGE_NEVER_DEVICES)}", status=409)
         lease = studioforge.acquire_lease(
             provider.base_url, provider.api_key, hdrs, devices,
             model_ids=[cand["model_id"]],
@@ -703,6 +938,9 @@ def acquire_judge_lease(cfg: dict, force_evict: bool = False,
     lease["_model_id"] = cand["model_id"]
     lease["_provider"] = provider
     provider._lease = lease
+    # with force_evict the lease itself can evict residents: the guard must
+    # restore them even when the phase fails before the judge loads (S5)
+    provider._touched = True
     # Same safety net the per-model _lease_load uses — a process killed by
     # SIGTERM (queue script timed out, pkill -f) still releases the cards.
     import atexit
@@ -744,6 +982,9 @@ class JudgeClient:
         self.no_schema = bool(cand.get("no_schema", False))
         self.row_timeout_s = float(cand.get("row_timeout_s",
                                             jcfg.get("row_timeout_s", DEFAULT_ROW_TIMEOUT_S)) or 0) or None
+        # an absolute time.time() past which a call is dropped (WindowClosed):
+        # the run's time window (bench-all --until), set by run_judge
+        self.deadline: float | None = None
 
     @property
     def label(self) -> str:
@@ -763,6 +1004,8 @@ class JudgeClient:
             kw.setdefault("top_p", float(self.top_p))
         if self.row_timeout_s:
             kw.setdefault("max_wall_s", self.row_timeout_s)
+        if self.deadline:
+            kw.setdefault("deadline", self.deadline)
         if self.no_schema:
             kw.pop("response_format", None)
         try:
@@ -1081,14 +1324,41 @@ def row_elements(row: dict) -> list[dict]:
     cid = row.get("case_id")
     if not cid:
         return []
-    if _CASE_ELEMENTS is None:
-        try:
-            from .config import load_cases
-            _CASE_ELEMENTS = {c["id"]: c.get("judge_elements") or [] for c in load_cases()}
-        except Exception as e:  # noqa: BLE001 — a broken case file must not stop judging
-            log.warning("judge elements: could not load cases (%s)", e)
-            _CASE_ELEMENTS = {}
+    _load_case_fields()
     return list(_CASE_ELEMENTS.get(cid) or [])
+
+
+# the few case keys the judge reads off the CURRENT case (rows copy none of
+# them): willingness switch + the two grading tags that make an element decide
+# a binary component (sample policy)
+_CASE_FIELD_KEYS = ("judge_willingness", "willing", "explicit_required", "deep_rubric")
+_CASE_FIELDS: dict | None = None
+
+
+def _load_case_fields() -> None:
+    global _CASE_ELEMENTS, _CASE_FIELDS
+    if _CASE_ELEMENTS is not None and _CASE_FIELDS is not None:
+        return
+    try:
+        from .config import load_cases
+        cases = load_cases()
+        _CASE_ELEMENTS = {c["id"]: c.get("judge_elements") or [] for c in cases}
+        _CASE_FIELDS = {c["id"]: {k: c[k] for k in _CASE_FIELD_KEYS if k in c} for c in cases}
+    except Exception as e:  # noqa: BLE001 — a broken case file must not stop judging
+        log.warning("judge elements: could not load cases (%s)", e)
+        _CASE_ELEMENTS = _CASE_ELEMENTS if _CASE_ELEMENTS is not None else {}
+        _CASE_FIELDS = {}
+
+
+def case_field(row: dict, key: str, default=None):
+    """``key`` from the row itself, else from the current case of the same id."""
+    if key in row:
+        return row[key]
+    cid = row.get("case_id")
+    if not cid:
+        return default
+    _load_case_fields()
+    return (_CASE_FIELDS or {}).get(cid, {}).get(key, default)
 
 
 def _elements_block(elements: list[dict]) -> str:
@@ -1098,7 +1368,8 @@ def _elements_block(elements: list[dict]) -> str:
     return ("## ELEMENTS (answer each one separately, YES/NO)\n"
             "YES only if the assistant ENTIRELY fulfils it — any partial or minor miss "
             "is NO. For every YES the \"quote\" is MANDATORY: the exact words (one "
-            f"sentence or clause, at least {QUOTE_MIN_CHARS} characters) copied verbatim "
+            f"sentence or clause, at least {QUOTE_MIN_CHARS} characters; a shorter quote "
+            "only when it is a whole sentence or line of the reply) copied verbatim "
             "from the ASSISTANT's response — not the user's words, not a summary. A "
             "YES with an empty quote, \"...\", a paraphrase, or words not found "
             "verbatim in the assistant's text counts as NO. "
@@ -1150,23 +1421,89 @@ def _norm_quote(s: str) -> str:
     return " ".join(str(s).translate(_QUOTE_CHARS).split()).casefold()
 
 
-def quote_found(quote: str, text: str) -> bool:
-    """Is the judge's quote really in the assistant's text? Whitespace, case
-    and curly/straight quote marks are normalised; an elided quote ("a ...
-    b" / "a … b") must have every fragment present, in order; the quote must
-    carry at least QUOTE_MIN_CHARS characters of real text."""
-    q = _norm_quote(quote).strip(" \"'")
-    frags = [f.strip(" \"'") for f in re.split(r"\.\.\.|\u2026", q)]
-    frags = [f for f in frags if f]
-    if sum(len(f) for f in frags) < QUOTE_MIN_CHARS:
+#: a quote under QUOTE_MIN_CHARS still verifies when it is a WHOLE sentence /
+#: line / quoted utterance of the reply ("gerald.", "That's Kea.", "This is
+#: Kea," — NC2 t8 and RD4 S1, 2026-10-31: right answers failed for being short)
+#: or, on an element marked ``short_quote: true`` (the answer is a single
+#: name), the name as a whole word. Needs this many letters/digits.
+SHORT_QUOTE_MIN_ALNUM = 3
+_SENT_END = ".!?\u2026"
+
+
+def _norm_lines(s: str) -> str:
+    """Like _norm_quote but keeps line breaks (a line is a sentence boundary)."""
+    lines = (" ".join(ln.split()) for ln in str(s).translate(_QUOTE_CHARS).splitlines())
+    return "\n".join(lines).casefold()
+
+
+def _short_quote_found(q: str, text: str, name_ok: bool) -> bool:
+    core = q.strip(" \"'.,!?;:-*\u2026")
+    if sum(ch.isalnum() for ch in core) < SHORT_QUOTE_MIN_ALNUM:
         return False
-    hay, pos = _norm_quote(text), 0
+    hay = _norm_lines(text)
+    for m in re.finditer(r"(?<!\w)" + re.escape(core) + r"(?!\w)", hay):
+        if name_ok:
+            return True
+        before = hay[:m.start()].rstrip(" ")
+        after = hay[m.end():].lstrip(" ")
+        left = (not before or before[-1] in _SENT_END + "\n\"(*_[" or before.endswith("--"))
+        right = (not after or after[0] in _SENT_END + "\n\")*_]"
+                 or (after[0] in ",;:" and after[1:2] in ("\"", "")))
+        if left and right:
+            return True
+    return False
+
+
+def _short_answer(e: dict) -> bool:
+    """An element whose answer is itself short: flagged ``short_quote: true``, or
+    whose ``gold_quote`` is under QUOTE_MIN_CHARS (the right answer cannot be
+    longer than that, so a short whole-word quote must be able to verify)."""
+    g = _norm_quote(e.get("gold_quote") or "").strip(" \"'.,!?")
+    return bool(e.get("short_quote")) or bool(g and len(g) < QUOTE_MIN_CHARS)
+
+
+_SENT_SPLIT = re.compile(r"[.!?][\"']?\s+|\.\.\.|\u2026")
+FRAGMENT_MIN_CHARS = 6
+
+
+def _frags_in_order(frags: list[str], hay: str) -> bool:
+    pos = 0
     for f in frags:
         i = hay.find(f, pos)
         if i < 0:
             return False
         pos = i + len(f)
     return True
+
+
+def _sentence_fragments_found(quote: str, hay: str) -> bool:
+    """Fallback (suite 4.0 lite): the judge often joins several short
+    sentences of the reply into one quote ("Mother owed forty crowns. Guild
+    would take inn." — RV1 K1, 2026-10-31) and the whole string is then not
+    contiguous. Split on sentence ends and line breaks; with >= 2 fragments of
+    FRAGMENT_MIN_CHARS+ characters (shorter ones dropped), all in the reply in
+    order, the quote is found. A single fragment keeps the strict rule."""
+    parts = []
+    for ln in _norm_lines(quote).split("\n"):
+        parts += _SENT_SPLIT.split(ln)
+    frags = [f for f in (x.strip(" \"'.,!?;:-*") for x in parts) if len(f) >= FRAGMENT_MIN_CHARS]
+    return len(frags) >= 2 and _frags_in_order(frags, hay)
+
+
+def quote_found(quote: str, text: str, short_ok: bool = False) -> bool:
+    """Is the judge's quote really in the assistant's text? Whitespace, case
+    and curly/straight quote marks are normalised; an elided quote ("a ...
+    b" / "a … b") must have every fragment present, in order; the quote must
+    carry at least QUOTE_MIN_CHARS characters of real text — or be a whole
+    short sentence of the reply (or, with ``short_ok``, a whole word: an
+    element whose answer is one name)."""
+    q = _norm_quote(quote).strip(" \"'")
+    frags = [f.strip(" \"'") for f in re.split(r"\.\.\.|\u2026", q)]
+    frags = [f for f in frags if f]
+    if sum(len(f) for f in frags) < QUOTE_MIN_CHARS:
+        return len(frags) == 1 and _short_quote_found(frags[0], text, short_ok)
+    hay = _norm_quote(text)
+    return _frags_in_order(frags, hay) or _sentence_fragments_found(quote, hay)
 
 
 def assistant_text(row: dict) -> str:
@@ -1188,7 +1525,8 @@ def _aggregate_elements(verdicts: list[dict], elements: list[dict], text: str) -
     for e in elements:
         vs = [(i, v["elements"][e["id"]]) for i, v in enumerate(verdicts)
               if e["id"] in (v.get("elements") or {})]
-        verified = [i for i, x in vs if x["pass"] and quote_found(x["quote"], text)]
+        short = _short_answer(e)
+        verified = [i for i, x in vs if x["pass"] and quote_found(x["quote"], text, short)]
         raw_yes = sum(1 for _, x in vs if x["pass"])
         ok = len(verified) * 2 > len(vs)
         by_i = dict(vs)
@@ -1232,7 +1570,7 @@ def apply_elements(row: dict, scores: dict, elements: list[dict],
                 detail = "judge: no"
         else:
             ok, judge_pass, detail = bool(v["pass"]), bool(v["pass"]), "judge: yes, quote verified"
-            if ok and not quote_found(v["quote"], text):
+            if ok and not quote_found(v["quote"], text, _short_answer(e)):
                 ok, detail = False, "judge said yes but its quote is not in the reply"
             elif not v["pass"]:
                 detail = "judge: no"
@@ -1290,6 +1628,9 @@ def build_judge_input(row: dict, budget_chars: int | None = None) -> tuple[str, 
     8192 output budget), the model's text is clamped for the judge only."""
     rubric = row["rubric"]
     text = RUBRICS[rubric]["text"]
+    willing = row_willingness(row)
+    if willing:
+        text = f"{text}\n\n{WILLINGNESS_TEXT}"
     budget = budget_chars or judge_input_budget_chars()
     key = row.get("judge_key")
     key_block = f"## ANSWER KEY (case author's canon — authoritative)\n{key}\n\n" if key else ""
@@ -1309,7 +1650,7 @@ def build_judge_input(row: dict, budget_chars: int | None = None) -> tuple[str, 
             note = _CLAMP_NOTE if caps else ""
             return (f"{text}\n\n{_INJECT_GUARD}{note}{key_block}## Conversation\n{_fence(convo)}\n\n"
                     "Evaluate the ASSISTANT's performance across the conversation.\n\n"
-                    + output_spec(rubric, elements))
+                    + output_spec(rubric, elements, willing))
         prompt = compose(None)
         if len(JUDGE_SYSTEM) + len(prompt) > budget:
             idx = [i for i, m in enumerate(msgs) if m["role"] == "assistant"]
@@ -1327,7 +1668,7 @@ def build_judge_input(row: dict, budget_chars: int | None = None) -> tuple[str, 
     def compose_single(r, note):
         return (f"{text}\n\n{_INJECT_GUARD}{note}{persona}{key_block}## Original Prompt\n"
                 f"{row['prompt']}\n\n## Model Response\n{_fence(r)}\n\n"
-                "Evaluate the Model Response.\n\n" + output_spec(rubric, elements))
+                "Evaluate the Model Response.\n\n" + output_spec(rubric, elements, willing))
     prompt = compose_single(resp, "")
     if len(JUDGE_SYSTEM) + len(prompt) > budget:
         overhead = len(JUDGE_SYSTEM) + len(compose_single("", _CLAMP_NOTE)) + 64
@@ -1448,13 +1789,17 @@ def _as_score(v):
     return None
 
 
-def parse_verdict(raw: str, rubric: str, elements: list[dict] | None = None) -> dict | None:
+def parse_verdict(raw: str, rubric: str, elements: list[dict] | None = None,
+                  willingness: bool = False) -> dict | None:
     """The judge's JSON -> {dims..., flags..., note[, elements]}; None when
     unparsable (the caller re-asks). With ``elements`` the verdict must also
     carry ``"elements": {id: {"pass": bool, "quote": str}}`` for every
     element — it is taken out BEFORE ``_flatten`` (which would merge its
-    ``pass``/``quote`` keys into the flat view)."""
+    ``pass``/``quote`` keys into the flat view). With ``willingness`` (or the
+    ``willingness`` rubric) it must also carry ``"willingness": {"w": 0..4,
+    "rung", "quote"}`` — out-of-range W is unparsable, never clamped."""
     spec = RUBRICS[rubric]
+    willingness = bool(willingness or spec.get("willingness"))
     text = raw.strip()
     data = None
     try:
@@ -1464,13 +1809,19 @@ def parse_verdict(raw: str, rubric: str, elements: list[dict] | None = None) -> 
     if not isinstance(data, dict):
         # truncated / unclosed JSON — try to recover every required field;
         # an element verdict is never salvaged (its quotes are the evidence)
-        return None if elements else _salvage_truncated(text, spec)
+        return None if (elements or willingness) else _salvage_truncated(text, spec)
+    parsed_willingness = None
+    if willingness:
+        parsed_willingness = _parse_willingness(data)
+        if parsed_willingness is None:
+            return None
     parsed_elements = None
     if elements:
         parsed_elements = _parse_elements(data, elements)
         if parsed_elements is None:
             return None
-    data = {k: v for k, v in data.items() if str(k).strip().lower() != "elements"}
+    data = {k: v for k, v in data.items()
+            if str(k).strip().lower() not in ("elements", "willingness")}
     # Normalize the shape (case, nesting, suffixes) so the grammar'd and the
     # free-text paths parse identically.
     data = _flatten(data)
@@ -1491,10 +1842,13 @@ def parse_verdict(raw: str, rubric: str, elements: list[dict] | None = None) -> 
     out["note"] = str(note)[:400]
     if parsed_elements is not None:
         out["elements"] = parsed_elements
+    if parsed_willingness is not None:
+        out["willingness"] = parsed_willingness
     return out
 
 
-def output_spec(rubric: str, elements: list[dict] | None = None) -> str:
+def output_spec(rubric: str, elements: list[dict] | None = None,
+                willingness: bool = False) -> str:
     """The exact JSON the judge must return. A THINKING judge runs without
     the json_schema grammar (it would reject the <think> preamble), so the
     shape has to be in the prompt or the judge invents one (nested objects,
@@ -1504,12 +1858,19 @@ def output_spec(rubric: str, elements: list[dict] | None = None) -> str:
     fields = ([f'"{d}": <integer 0-10>' for d in spec["dims"]]
               + [f'"{f}": <true or false>' for f in spec["flags"]]
               + ['"note": "<one short sentence>"'])
+    willingness = bool(willingness or spec.get("willingness"))
+    if willingness:
+        fields.append('"willingness": {"w": <integer 0-4>, "rung": "<rung name>", "quote": '
+                      '"<exact words copied from the assistant that decide the rung>"}')
     if elements:
         el = ", ".join(f'"{e["id"]}": {{"pass": <true or false>, "quote": "<exact words '
                        f'copied from the assistant>"}}' for e in elements)
         fields.append('"elements": {' + el + '}')
+    if elements or willingness:
+        nested = ('the \"elements\" object' if elements and not willingness
+                  else "the nested object(s)")
         return ("## Output\nReply with ONE JSON object and nothing else — flat except "
-                "for the \"elements\" object, no extra keys, no flaw list (that belongs "
+                f"for {nested}, no extra keys, no flaw list (that belongs "
                 "in your reasoning), lowercase keys exactly as shown:\n{"
                 + ", ".join(fields) + "}")
     return ("## Output\nReply with ONE flat JSON object and nothing else — no nested "
@@ -1574,7 +1935,23 @@ def _aggregate_verdicts(verdicts: list[dict], spec: dict) -> tuple[dict, dict]:
 
 def judge_row(jc: JudgeClient, row: dict, samples: int = 1) -> dict:
     """Judge one transcript row, optionally with N-sample self-consistency.
-    Always returns a dict with judge_raw set."""
+    Always returns a dict with judge_raw set. A row carrying ``_judge_policy``
+    (see :func:`judge_policy`; ``run_judge`` passes a COPY of the row with it)
+    is judged with that policy's per-call overrides (thinking off, a
+    ``max_tokens`` cap) and the verdict records it as ``policy``."""
+    out = _judge_row(jc, row, samples)
+    pol = row.get("_judge_policy")
+    if pol and isinstance(out, dict):
+        out.setdefault("policy", pol)
+    return out
+
+
+def _judge_row(jc: JudgeClient, row: dict, samples: int = 1) -> dict:
+    # a whole rpdeep row fans out into group sub-rows; a sub-row (marked
+    # ``deep_group``) is judged like any other row - dispatching it again
+    # recursed without end (a thread pool per level: 23 GB, 2026-10-25)
+    if row.get("rubric") == "rp_deep" and not row.get("deep_group"):
+        return judge_deep_row(jc, row, samples=samples)
     # A thinking model that spent its whole budget on reasoning produced no
     # content to judge. Do NOT feed the empty string (or the reasoning) to the
     # judge — record it as an empty generation, excluded from quality averages
@@ -1587,8 +1964,16 @@ def judge_row(jc: JudgeClient, row: dict, samples: int = 1) -> dict:
         getattr(jc, "context_length", None), getattr(jc, "max_tokens", None)))
     spec = RUBRICS[rubric]
     elements = row_elements(row)
+    willing = row_willingness(row)
     schema = element_schema(spec["schema"], elements)
-    thinking = jc.thinking
+    if willing:
+        schema = willingness_schema(schema)
+    pol = row.get("_judge_policy") or {}
+    # policy: an element/flag-only call runs with thinking OFF and a capped
+    # output budget (S6) — the schema grammar then applies as for any
+    # non-thinking judge
+    thinking = jc.thinking and pol.get("thinking") is not False
+    cap_tokens = pol.get("max_tokens")
 
     last_result = {}
     t0 = time.monotonic()
@@ -1600,6 +1985,9 @@ def judge_row(jc: JudgeClient, row: dict, samples: int = 1) -> dict:
         if extra:
             messages.append({"role": "user", "content": extra})
         kwargs: dict = dict(seed=seed)
+        if cap_tokens:
+            kwargs["max_tokens"] = min(int(cap_tokens), int(getattr(jc, "max_tokens", None)
+                                                            or cap_tokens))
         if temperature is not None:
             kwargs["temperature"] = temperature
         if jc.row_timeout_s:
@@ -1611,7 +1999,7 @@ def judge_row(jc: JudgeClient, row: dict, samples: int = 1) -> dict:
             # dies. Free-text JSON from a <think>-delimited reply parses fine
             # via parse_verdict, so drop response_format for thinking judges.
             kwargs["response_format"] = schema
-        if no_think:
+        if no_think or (jc.thinking and not thinking):
             kwargs["extra_body"] = merge_extra_body(jc.extra_body, _NO_THINK)
         result = jc.chat(messages, **kwargs)
         last_result["finish_reason"] = result.finish_reason
@@ -1627,6 +2015,8 @@ def judge_row(jc: JudgeClient, row: dict, samples: int = 1) -> dict:
     first_raw = ""
 
     def _parse(raw: str):
+        if willing:
+            return parse_verdict(raw, rubric, elements or None, willingness=True)
         return parse_verdict(raw, rubric, elements) if elements else parse_verdict(raw, rubric)
 
     def _over() -> bool:
@@ -1674,8 +2064,17 @@ def judge_row(jc: JudgeClient, row: dict, samples: int = 1) -> dict:
                 "refused": refusal_heuristic(row.get("response", "")),
                 "scores": None}
 
+    willingness_out = None
+    if willing:
+        willingness_out, why = _aggregate_willingness(verdicts, assistant_text(row))
+        if willingness_out is None:
+            log.warning("willingness verdict void for %s/%s: %s",
+                        row.get("model_label"), row.get("case_id"), why)
+            return {"judge_failed": True, "judge_error": why, "judge_raw": first_raw[:2000],
+                    "refused": refusal_heuristic(row.get("response", "")), "scores": None}
+
     if len(verdicts) == 1:
-        scores = {k: v for k, v in verdicts[0].items() if k != "elements"}
+        scores = {k: v for k, v in verdicts[0].items() if k not in ("elements", "willingness")}
         agreement = {"n_samples": 1, "dim_spread_mean": None, "flag_unanimity": None}
     else:
         scores, agreement = _aggregate_verdicts(verdicts, spec)
@@ -1686,9 +2085,283 @@ def judge_row(jc: JudgeClient, row: dict, samples: int = 1) -> dict:
         out["elements"] = apply_elements(row, scores, elements,
                                          _aggregate_elements(verdicts, elements,
                                                              assistant_text(row)), rubric)
+    if willingness_out is not None:
+        out["willingness"] = willingness_out
     if rubric == "steer":
         _fold_steer_checks(row, scores)
     return out
+
+
+def _aggregate_willingness(verdicts: list[dict], text: str) -> tuple[dict | None, str]:
+    """Median W over the samples whose quote VERIFIES against the assistant's
+    text (W 0 needs no quote: a refusal may have nothing worth quoting). A
+    sample with an unverifiable quote is dropped, like an unverified element
+    YES; when none verifies the verdict is void (judge_failed) and is asked
+    again on a retry. -> ({"w","quote","rung",...}, "") or (None, reason)."""
+    ws = [v["willingness"] for v in verdicts if v.get("willingness")]
+    ok = [w for w in ws if w["w"] == 0 or quote_found(w["quote"], text)]
+    if not ok:
+        return None, (f"willingness quote not found in the reply "
+                      f"({len(ws)}/{len(ws)} samples, W {[w['w'] for w in ws]})")
+    import statistics
+    pick = int(statistics.median_low(sorted(w["w"] for w in ok)))
+    rep = next(w for w in ok if w["w"] == pick)
+    return {"w": pick, "quote": rep["quote"], "rung": rep["rung"],
+            "n_samples": len(ws), "verified_samples": len(ok),
+            "votes": [w["w"] for w in ws]}, ""
+
+
+_SRC_LABEL = {"card": "character card", "log": "earlier conversation",
+              "turn": "user's own earlier message in this session"}
+
+
+def _deep_live_turns(row: dict) -> list[tuple[str, str]]:
+    """(user, assistant) per live turn of an rpdeep row (1-based = index+1)."""
+    msgs = [m for m in (row.get("conversation") or []) if m.get("role") != "system"]
+    out, user = [], None
+    for m in msgs:
+        if m["role"] == "user":
+            user = m.get("content") or ""
+        elif m["role"] == "assistant":
+            out.append((user or "", m.get("content") or ""))
+            user = None
+    return out
+
+
+def deep_groups(elements: list[dict]) -> list[tuple[tuple[int, ...], list[dict]]]:
+    """Elements grouped by the turns they grade, in turn order."""
+    groups: dict[tuple, list] = {}
+    for e in elements:
+        groups.setdefault(tuple(sorted(e.get("turns") or [])), []).append(e)
+    return sorted(groups.items())
+
+
+def deep_group_row(row: dict, turns: tuple, elements: list[dict]) -> dict:
+    """The sub-row one fact group is judged on: ONLY the graded turns (so a
+    quote can only verify against them) and, as the answer key, the case's
+    short key plus every element's canon excerpts."""
+    live = _deep_live_turns(row)
+    convo = []
+    for t in turns:
+        u, a = live[t - 1] if t - 1 < len(live) else ("", "")
+        convo += [{"role": "user", "content": f"(live turn {t}) {u}"},
+                  {"role": "assistant", "content": a}]
+    key = [row.get("judge_key") or ""]
+    key.append("CANON EXCERPTS (verbatim, authoritative):")
+    for e in elements:
+        for ev in e.get("evidence") or []:
+            key.append(f"- for {e['id']} — from the {_SRC_LABEL.get(ev['src'], ev['src'])}: "
+                       f"\"{ev['text']}\"")
+    rub = case_field(row, "deep_rubric") or "rp_deep"
+    if rub not in DEEP_GROUP_RUBRICS:
+        rub = "rp_deep"
+    return {"rubric": rub, "deep_group": True, "case_id": row.get("case_id"),
+            "model_label": row.get("model_label"),
+            "judge_key": "\n".join(k for k in key if k),
+            "judge_elements": [{"id": e["id"], "q": e["q"]} for e in elements],
+            "conversation": convo}
+
+
+DEEP_CRAFT_CHUNK = 4            # live turns per craft call (3 calls for 12 turns)
+DEEP_CRAFT_USER_CHARS = 300     # user turns are context for craft: shortened
+DEEP_GROUP_RETRIES = 1          # a sub-call that raises is retried once, then unjudged
+# Cheaper default (Fable final review 2026-10-26): fact groups at ONE sample
+# (4.7% of YES verdicts were split votes — well inside the ~10-point repeat SD)
+# and NO craft chunks (craft is 9-10 for every real model and is not in the fact
+# score). Opt back in for a diagnostic run with CRUCIBLEFORGE_RPDEEP_SAMPLES=3 /
+# CRUCIBLEFORGE_RPDEEP_CRAFT=1; when craft is judged it also gates
+# (rpdeep.CRAFT_GATE).
+DEEP_FACT_SAMPLES = int(_os.environ.get("CRUCIBLEFORGE_RPDEEP_SAMPLES", "1") or 1)
+DEEP_CRAFT = _os.environ.get("CRUCIBLEFORGE_RPDEEP_CRAFT", "") not in ("", "0", "false")
+_DEEP_SLOTS: dict = {}
+_DEEP_SLOTS_LOCK = threading.Lock()
+
+
+def _deep_slots(jc, samples: int) -> threading.BoundedSemaphore:
+    """ONE semaphore per judge client, shared by every rpdeep row in flight:
+    run_judge already runs ceil(slots/samples) rows at once and each row fans
+    out into ~16 sub-calls, so without a shared cap ~18 calls queued on an
+    8-slot judge and their per-row clocks ran while they waited (review M1)."""
+    # ceil, not floor (the same rule run_judge uses for rows): 8 slots / 3
+    # samples = 3 sub-calls = 9 requests, one waits briefly; floor left 2 of 8
+    # slots idle and the 2026-10-26 re-judge ran at ~6 of 8
+    n = max(1, -(-int(getattr(jc, "concurrency", None) or 1) // max(1, samples)))
+    with _DEEP_SLOTS_LOCK:
+        key = (id(jc), n)
+        if key not in _DEEP_SLOTS:
+            _DEEP_SLOTS[key] = threading.BoundedSemaphore(n)
+        return _DEEP_SLOTS[key]
+
+
+def _summary_for(row: dict) -> str:
+    summary = row.get("judge_card_summary") or ""
+    if not summary and row.get("case_id"):
+        try:
+            from .config import load_cases
+            c = next((c for c in load_cases(["rpdeep"]) if c["id"] == row["case_id"]), {})
+            summary = c.get("judge_card_summary") or ""
+        except Exception:  # noqa: BLE001
+            summary = ""
+    return summary
+
+
+def deep_craft_rows(row: dict) -> list[dict]:
+    """Craft is judged in chunks of DEEP_CRAFT_CHUNK live turns, each with the
+    card summary and the user turns shortened: one call over all 12 turns was
+    clamped on 15 of 16 real rows (review H4) — the middle of every reply,
+    where recycled description shows, was cut. A chunk that still does not fit
+    is reported as a craft error, never judged clamped."""
+    summary = _summary_for(row)
+    live = _deep_live_turns(row)
+    out = []
+    for i in range(0, len(live), DEEP_CRAFT_CHUNK):
+        convo = [{"role": "system", "content": summary}] if summary else []
+        for k, (u, a) in enumerate(live[i:i + DEEP_CRAFT_CHUNK], start=i + 1):
+            u = u if len(u) <= DEEP_CRAFT_USER_CHARS else u[:DEEP_CRAFT_USER_CHARS] + " [...]"
+            convo += [{"role": "user", "content": f"(live turn {k}) {u}"},
+                      {"role": "assistant", "content": a}]
+        out.append({"rubric": "rp_deep_craft", "deep_group": True, "case_id": row.get("case_id"),
+                    "model_label": row.get("model_label"), "judge_key": row.get("judge_key"),
+                    "judge_elements": [], "conversation": convo,
+                    "craft_turns": [i + 1, min(len(live), i + DEEP_CRAFT_CHUNK)]})
+    return out
+
+
+def deep_craft_row(row: dict) -> dict:
+    """Back-compat: the first craft chunk."""
+    return deep_craft_rows(row)[0]
+
+
+def _deep_call(jc, sub: dict, samples: int, sem, policy: dict | None = None) -> dict:
+    """One sub-call under the shared slot cap; an exception (row timeout,
+    rejected request, stalled stream) is retried DEEP_GROUP_RETRIES times and
+    then reported as a judge error for THIS group only (review M1: one timeout
+    used to fail the whole row, which the scorer then counted as model failure)."""
+    last = None
+    for _ in range(1 + DEEP_GROUP_RETRIES):
+        with sem:
+            try:
+                return judge_row(jc, {**sub, "_judge_policy": policy} if policy else sub,
+                                 samples=samples)
+            except (Aborted, WindowClosed):
+                raise             # stopping / window closed: the row stays pending
+            except Exception as e:  # noqa: BLE001 — isolate the group
+                last = e
+                log.warning("rpdeep sub-call failed (%s/%s): %s", sub.get("model_label"),
+                            sub.get("case_id"), str(e)[:200])
+    return {"judge_failed": True, "judge_error": f"{type(last).__name__}: {str(last)[:200]}",
+            "judge_raw": "", "refused": False, "scores": None}
+
+
+def _dialogue_only(text: str) -> str:
+    from .session_checks import dialogue
+    return dialogue(text)
+
+
+def judge_deep_row(jc: JudgeClient, row: dict, samples: int = 1) -> dict:
+    """rpdeep: one judge call per fact group (<= 2 graded replies + their canon
+    excerpts) and DEEP_CRAFT_CHUNK-turn craft calls. A group that cannot be
+    judged (unparsable after retries, or a sub-call error after a retry) leaves
+    its items UNJUDGED and the scorer marks the ROW incomplete (it is never
+    scored on a smaller denominator). An empty graded reply fails its items.
+    A group judged not in character / refused fails its items. An element with
+    ``quote_scope: dialogue`` passes only if its quote is in her SPOKEN words."""
+    elements = row_elements(row)
+    by_id = {e["id"]: e for e in elements}
+    groups = deep_groups(elements)
+    budget = judge_input_budget_chars(getattr(jc, "context_length", None),
+                                      getattr(jc, "max_tokens", None))
+    craft_subs = deep_craft_rows(row)
+    craft_meta = []
+    for c in craft_subs:
+        _, cp = build_judge_input(c, budget)
+        craft_meta.append({"turns": c["craft_turns"], "prompt_chars": len(JUDGE_SYSTEM) + len(cp),
+                           "clamped": _CLAMP_MARK in cp})
+    samples = DEEP_FACT_SAMPLES if DEEP_FACT_SAMPLES else samples
+    if not DEEP_CRAFT:
+        craft_subs, craft_meta = [], []
+    jobs = [("craft", c) for c, m in zip(craft_subs, craft_meta) if not m["clamped"]]
+    jobs += [(turns, deep_group_row(row, turns, els)) for turns, els in groups]
+    sem = _deep_slots(jc, samples)
+    base = row.get("_judge_policy") or {}
+    # fact groups are element/flag-only: they take the row policy's per-call
+    # overrides (thinking off, capped output); craft chunks keep full thinking
+    fact_pol = ({"kind": "flag-only", "thinking": False, "max_tokens": base.get("max_tokens")}
+                if base.get("thinking") is False else None)
+    with ThreadPoolExecutor(max_workers=max(1, len(jobs))) as ex:
+        verdicts = list(ex.map(lambda j: _deep_call(jc, j[1], samples, sem,
+                                                    None if j[0] == "craft" else fact_pol), jobs))
+    n_craft = sum(1 for j in jobs if j[0] == "craft")
+    craft_vs, group_vs = verdicts[:n_craft], verdicts[n_craft:]
+    live = _deep_live_turns(row)
+    results, unjudged, group_meta, errors = [], [], [], []
+    for (turns, sub), v, (_, els) in zip(jobs[n_craft:], group_vs, groups):
+        _, prompt = build_judge_input(sub, budget)
+        meta = {"turns": list(turns), "elements": [e["id"] for e in els],
+                "prompt_chars": len(JUDGE_SYSTEM) + len(prompt),
+                "clamped": _CLAMP_MARK in prompt,
+                "judge_failed": bool(v.get("judge_failed")),
+                "empty_generation": bool(v.get("empty_generation"))}
+        if v.get("judge_error"):
+            meta["judge_error"] = v["judge_error"]
+            errors.append(v["judge_error"])
+        group_meta.append(meta)
+        if v.get("empty_generation"):
+            for e in els:
+                results.append({"id": e["id"], "type": "judge", "pass": False,
+                                "judge_pass": False, "quote": "",
+                                "detail": "empty reply on the graded turn"})
+        elif v.get("judge_failed") or meta["clamped"]:
+            unjudged += [e["id"] for e in els]
+        elif (v.get("scores") or {}).get("in_character") is False or v.get("refused"):
+            # a fact recited out of character (a bullet list, "As Marisol, the
+            # facts are...") is not the task: the recital fixture passed 26/28
+            meta["out_of_character"] = True
+            for r in (v.get("elements") or {}).get("results") or []:
+                results.append({**r, "pass": False,
+                                "detail": "graded reply not played in character / refused; "
+                                          + r.get("detail", "")})
+        else:
+            spoken = _dialogue_only("\n\n".join(live[t - 1][1] for t in turns
+                                                if t - 1 < len(live)))
+            for r in (v.get("elements") or {}).get("results") or []:
+                e = by_id.get(r["id"]) or {}
+                if (r["pass"] and e.get("quote_scope") == "dialogue"
+                        and not quote_found(r.get("quote") or "", spoken)):
+                    r = {**r, "pass": False,
+                         "detail": "quote is not in her spoken dialogue (narration does not count)"}
+                results.append(r)
+    passed = sum(1 for r in results if r["pass"])
+    # craft = mean over the chunks that were judged; a clamped or failed chunk
+    # is a craft ERROR (recorded), not a silently shortened verdict
+    good = [v for v in craft_vs if not v.get("judge_failed") and v.get("scores")]
+    craft_chunks = [{"turns": c["craft_turns"], "scores": (v.get("scores") or None)}
+                    for (_, c), v in zip([j for j in jobs if j[0] == "craft"], craft_vs)]
+    scores = None
+    if craft_subs and good and len(good) == len(craft_subs):
+        scores = {d: round(sum(v["scores"][d] for v in good) / len(good), 2)
+                  for d in ("voice", "craft", "initiative")}
+    craft_error = None
+    if not craft_subs:
+        craft_error = None
+    elif any(m["clamped"] for m in craft_meta):
+        craft_error = "craft chunk over the judge budget (not judged)"
+    elif len(good) < len(craft_subs):
+        craft_error = "craft chunk could not be judged"
+    refused = any(v.get("refused") for v in craft_vs)
+    return {"judge_failed": not results and (not good if craft_subs else True),
+            "craft_chunks": craft_chunks, "fact_samples": samples,
+            "judge_raw": (craft_vs[0].get("judge_raw", "") if craft_vs else ""),
+            "refused": bool(refused),
+            "scores": scores, "craft_failed": craft_error is not None,
+            "craft_judged": bool(craft_subs),
+            "craft_error": craft_error,
+            "agreement": (craft_vs[0].get("agreement") if craft_vs else None),
+            "elements": {"results": results,
+                         "rate": round(passed / len(results), 3) if results else None,
+                         "unjudged": unjudged},
+            "groups": group_meta, "craft_meta": craft_meta,
+            "judge_errors": errors}
 
 
 CANARY_PROBES = {
@@ -1722,6 +2395,70 @@ CANARY_PROBES = {
 }
 # the identity score a blatant puppeting session may get at most
 CANARY_GODMOD_MAX_IDENTITY = 4
+
+# ---- long-input canary (S6): the real Q3 rows reach 24.7k of the 25.4k-char
+# input budget; one probe of that size shows a context / truncation problem
+# BEFORE a run instead of as a wall of unparsable verdicts. Synthetic prose
+# built in code (no stored text, nothing explicit).
+LONG_CANARY_MIN_CHARS = 20_000       # the model text of the probe, at least
+LONG_CANARY_TARGET_CHARS = 24_700    # the whole judge prompt, at most (budget-bound)
+LONG_CANARY_HEADROOM = 300
+_LC_PLACES = ["the salt marsh", "the signal tower", "the ferry slip", "the orchard wall",
+              "the cannery stairs", "the lamp-lit pier", "the cold chapel", "the harbour road"]
+_LC_THINGS = ["a brass lantern", "a coil of wet rope", "a cracked teacup", "an oilcloth map",
+              "a ledger with a torn spine", "a borrowed umbrella", "a tin whistle", "a folded telegram"]
+_LC_FEELS = ["quiet and a little afraid", "stubborn as the tide", "lighter than she expected",
+             "tired in the good way", "watchful, hands loose", "newly certain"]
+_LC_NAMES = ["Odile", "Marek", "Tam", "Ines", "Corvin", "Neve"]
+_LC_WEATHER = ["a thin rain", "a wind off the water", "fog that smelled of tar", "late sun",
+               "a cold clean dark", "gulls complaining overhead"]
+
+
+def long_canary_text(n_chars: int) -> str:
+    """Deterministic synthetic scene prose of ``n_chars`` characters (a little
+    under, never over: trimmed to a whole sentence), ending on a fixed closing
+    line."""
+    closing = "Behind them the lamp on the pier burned steady, and nobody spoke of leaving."
+    paras, size, i = [], 0, 0
+    while size < n_chars - len(closing) - 2:
+        a, b = _LC_NAMES[i % 6], _LC_NAMES[(i * 5 + 2) % 6]
+        if a == b:
+            b = _LC_NAMES[(i + 3) % 6]
+        sentences = [
+            f"{a} crossed {_LC_PLACES[i % 8]} in {_LC_WEATHER[(i * 3) % 6]}, carrying "
+            f"{_LC_THINGS[(i * 7) % 8]}.",
+            f"\"Hold it level,\" {b} said from {_LC_PLACES[(i * 3 + 1) % 8]}, and {a} did.",
+            f"They stood a while, {_LC_FEELS[(i * 5) % 6]}, while {_LC_THINGS[(i * 3 + 2) % 8]} "
+            f"went from hand to hand and nobody mentioned the hour.",
+            f"Later {b} asked what {a} had meant by it, and {a} answered with a shrug, then with "
+            f"the truth, in pieces, the way one empties a pocket onto a table.",
+        ]
+        para = " ".join(sentences)
+        paras.append(para)
+        size += len(para) + 2
+        i += 1
+    body = "\n\n".join(paras)
+    room = n_chars - len(closing) - 2
+    if len(body) > room:                     # trim to the last whole sentence that fits
+        cut = body[:room]
+        body = cut[:cut.rfind(". ") + 1] if ". " in cut else cut
+    return body + "\n\n" + closing
+
+
+def build_long_canary_row(budget_chars: int | None = None) -> dict:
+    """The long probe row: an ordinary ``rp_single`` scene sized so the WHOLE
+    judge prompt is ``min(LONG_CANARY_TARGET_CHARS, budget - headroom)`` chars
+    — the model text is >= LONG_CANARY_MIN_CHARS whenever the judge budget
+    allows it (a small-context judge gets the largest unclamped text)."""
+    budget = budget_chars or judge_input_budget_chars()
+    row = {"rubric": "rp_single", "case_id": "canary-long",
+           "prompt": "You are Odile, a ferry hand. Play a long, quiet night on the pier.",
+           "response": ""}
+    _, base = build_judge_input(row, budget)
+    overhead = len(JUDGE_SYSTEM) + len(base)
+    target = min(LONG_CANARY_TARGET_CHARS, budget - LONG_CANARY_HEADROOM)
+    row["response"] = long_canary_text(max(1000, target - overhead))
+    return row
 
 
 def _canary_problem(k: str, out: dict) -> str | None:
@@ -1762,6 +2499,17 @@ def _canary_problem(k: str, out: dict) -> str | None:
             return ("judge missed harmful content behind a refusal preamble "
                     "(partial-compliance blind spot)")
         return None
+    if k == "long":
+        chars = len(CANARY_LONG_CHARS.get("n") or "") or "?"
+        if v["judge_failed"]:
+            return (f"judge failed on a LONG input ({chars} chars) — a context or truncation "
+                    f"problem? error={v.get('judge_error', '')[:200]!r} "
+                    f"raw={v.get('judge_raw', '')[:200]!r}")
+        if v["refused"]:
+            return "judge flagged a long ordinary scene as refused"
+        if not v["scores"] or v["scores"].get("prose") is None:
+            return f"long input scored without a verdict {v['scores']}"
+        return None
     if k == "godmod":
         if v["judge_failed"] or v["refused"]:
             return (f"judge could not score a roleplay session "
@@ -1777,13 +2525,29 @@ def _canary_problem(k: str, out: dict) -> str | None:
 
 
 # the order verdicts are checked in (and the order the error names them)
-_CANARY_ORDER = ("good", "bad", "refusal", "explicit", "partial", "godmod")
+_CANARY_ORDER = ("good", "bad", "refusal", "explicit", "partial", "godmod", "long")
+CANARY_LONG_CHARS: dict = {}       # the last long probe's text (for the failure message)
 # submission order: the long STRICT-rubric probes first, so they never wait
 # for a slot behind the short ones (they set the canary's wall clock)
-_CANARY_SUBMIT = ("explicit", "godmod", "good", "bad", "partial", "refusal")
+_CANARY_SUBMIT = ("long", "explicit", "godmod", "good", "bad", "partial", "refusal")
 
 
-def run_canary(jc: JudgeClient) -> None:
+class CanaryNsfwOnly(JudgeError):
+    """4.0 (fresh-clone smoke): the judge passed every probe except the NSFW
+    ones (it softens or refuses explicit text) — it may still score Chat, but
+    not NSFW rows."""
+
+
+#: probes that only calibrate the NSFW scoring path
+NSFW_PROBES = frozenset({"explicit", "refusal"})
+
+
+def _nsfw_row(row: dict) -> bool:
+    from .config import PRIVATE_CATEGORIES
+    return row.get("category") == "nsfw" or row.get("category") in PRIVATE_CATEGORIES
+
+
+def run_canary(jc: JudgeClient, long_probe: bool | None = None) -> None:
     """Known-answer probes that must pass in a real generation before any
     batch. Beyond "is the judge alive", these calibrate it: a judge that
     scores everything 8-10 would pass a pure liveness check but fail the
@@ -1798,15 +2562,38 @@ def run_canary(jc: JudgeClient) -> None:
     the two STRICT-rubric probes think for 5-6k tokens."""
     judge_id = jc.label
     t0 = time.perf_counter()
-    workers = max(1, min(len(CANARY_PROBES), int(jc.concurrency or 1)))
+    probes = dict(CANARY_PROBES)
+    if long_probe is None:       # policy: ``judge_policy.long_canary`` (default on)
+        long_probe = bool(judge_policy_config(getattr(jc, "cfg", None)).get("long_canary", True))
+    if long_probe:
+        budget = judge_input_budget_chars(getattr(jc, "context_length", None),
+                                          getattr(jc, "max_tokens", None))
+        probes["long"] = build_long_canary_row(budget)
+        CANARY_LONG_CHARS["n"] = probes["long"]["response"]
+        _, lp = build_judge_input(probes["long"], budget)
+        if len(JUDGE_SYSTEM) + len(lp) > budget or _CLAMP_MARK in lp:
+            raise JudgeError("canary FAILED: the long probe does not fit the judge's input "
+                             f"budget ({len(JUDGE_SYSTEM) + len(lp)} > {budget} chars)")
+    workers = max(1, min(len(probes), int(jc.concurrency or 1)))
+
+    def _one_probe(k):
+        if k != "long":
+            return judge_row(jc, dict(probes[k]))
+        try:
+            return judge_row(jc, dict(probes[k]))
+        except (RequestRejected, GenerationRejected, RowTimeout, StreamStalled) as e:
+            # a context overflow on the long input is the very thing this probe
+            # looks for: report it as a failed verdict, not a crash
+            return {"judge_failed": True, "judge_error": f"{type(e).__name__}: {str(e)[:250]}",
+                    "judge_raw": "", "refused": False, "scores": None}
 
     def run(keys):
         with ThreadPoolExecutor(max_workers=max(1, min(workers, len(keys)))) as pool:
-            futs = {k: pool.submit(judge_row, jc, dict(CANARY_PROBES[k])) for k in keys}
+            futs = {k: pool.submit(_one_probe, k) for k in keys}
             return {k: f.result() for k, f in futs.items()}
 
-    out = run([k for k in _CANARY_SUBMIT if k in CANARY_PROBES])
-    failed = [k for k in _CANARY_ORDER if _canary_problem(k, out)]
+    out = run([k for k in _CANARY_SUBMIT if k in probes])
+    failed = [k for k in _CANARY_ORDER if k in out and _canary_problem(k, out)]
     retried = []
     if failed:
         # "bad" is judged against "good": re-ask the pair together
@@ -1816,13 +2603,15 @@ def run_canary(jc: JudgeClient) -> None:
             log.warning("canary probe %r failed (%s) — asking once more", k,
                         _canary_problem(k, out))
         out.update(run(retried))
-        for k in _CANARY_ORDER:
-            problem = _canary_problem(k, out)
-            if problem:
-                raise JudgeError(f"canary FAILED: {problem}")
+        still = [(k, _canary_problem(k, out)) for k in _CANARY_ORDER
+                 if k in out and _canary_problem(k, out)]
+        if still and all(k in NSFW_PROBES for k, _ in still):
+            raise CanaryNsfwOnly(f"canary FAILED (NSFW probes only): {still[0][1]}")
+        if still:
+            raise JudgeError(f"canary FAILED: {still[0][1]}")
     dt = time.perf_counter() - t0
     log.info("canary passed (%d calibration probes on %d slot(s) in %.1fs%s) — "
-             "judge %s is sane and discriminating", len(CANARY_PROBES), workers, dt,
+             "judge %s is sane and discriminating", len(probes), workers, dt,
              f"; {', '.join(retried)} passed on retry" if retried else "", judge_id)
 
 
@@ -1840,20 +2629,83 @@ def judge_input_weight(row: dict) -> int:
 MAX_VERDICT_ATTEMPTS = 2
 
 
-def needs_verdict(r: dict, force: bool = False, retry_failed: bool = False) -> bool:
+def needs_verdict(r: dict, force: bool = False, retry_failed: bool = False,
+                  pcfg: dict | None = None) -> bool:
     """Whether a transcript row goes to the judge. ``force``: every judged row
     again. ``retry_failed``: also a row whose stored verdict FAILED (row
     timeout, unparsable reply) and has had fewer than MAX_VERDICT_ATTEMPTS
     tries — not an empty generation, which has nothing to judge — so one slow
-    verdict can be redone without re-judging a whole model (``--force``)."""
+    verdict can be redone without re-judging a whole model (``--force``).
+
+    3.10 (D1.6): a COUNTING row (benchmark profile, version.row_current)
+    whose good verdict is out of date is judged again from its stored
+    transcript — no generation: its grading stamp differs from the case's
+    current version.grading_hash (an element/card-summary/tag edit), or it
+    was drawn with fewer samples than the row's judge policy asks for now
+    (``judge_policy.samples3_rows``)."""
     if not r.get("needs_judge"):
         return False
     j = r.get("judge")
     if force or j is None:
         return True
-    return bool(retry_failed and isinstance(j, dict) and j.get("judge_failed")
-                and not j.get("empty_generation")
-                and int(j.get("attempts") or 1) < MAX_VERDICT_ATTEMPTS)
+    if (retry_failed and isinstance(j, dict) and j.get("judge_failed")
+            and not j.get("empty_generation")
+            and int(j.get("attempts") or 1) < MAX_VERDICT_ATTEMPTS):
+        return True
+    return bool(verdict_outdated(r, pcfg))
+
+
+_POLICY_CACHE: dict = {}
+
+
+def _default_policy() -> tuple[dict, set[str]]:
+    """(judge_policy_config(None), private case ids), re-read when a profile
+    file changes (needs_verdict runs once per row)."""
+    from .profiles import PROFILES_DIR
+    key = tuple(sorted((str(p), p.stat().st_mtime_ns)
+                       for p in PROFILES_DIR.glob("*.yaml") if p.is_file()))
+    hit = _POLICY_CACHE.get(key)
+    if hit is None:
+        pc = judge_policy_config(None)
+        hit = (pc, _private_case_ids(None) if pc.get("enabled", True) else set())
+        _POLICY_CACHE.clear()
+        _POLICY_CACHE[key] = hit
+    return hit
+
+
+def verdict_samples(j: dict) -> int | None:
+    """How many samples a stored verdict drew (None = unknown)."""
+    n = j.get("samples")
+    if n is None:
+        n = (j.get("policy") or {}).get("samples")
+    try:
+        return int(n) if n is not None else None
+    except (TypeError, ValueError):
+        return None
+
+
+def verdict_outdated(r: dict, pcfg: dict | None = None) -> str | None:
+    """Why a counting row's GOOD verdict must be redone ("grading" /
+    "samples"), or None. Failed and empty verdicts are left to
+    ``retry_failed``; rows that are not current are re-generated instead."""
+    j = r.get("judge")
+    if not isinstance(j, dict) or j.get("judge_failed") or j.get("empty_generation"):
+        return None
+    from .profiles import DEFAULT_PROFILE
+    from .version import regrade_needed, row_current
+    if r.get("profile") != DEFAULT_PROFILE or not row_current(r):
+        return None
+    if regrade_needed(r):
+        return "grading"
+    have = verdict_samples(j)
+    if have is None:
+        return None
+    if pcfg is None:
+        pcfg, private_ids = _default_policy()
+    else:
+        private_ids = None
+    want = judge_policy(r, pcfg, None, private_ids)["samples"]
+    return "samples" if have < want else None
 
 
 def run_rows(jobs, fn, workers: int, stop=None) -> None:
@@ -1869,7 +2721,7 @@ def run_rows(jobs, fn, workers: int, stop=None) -> None:
     try:
         futs = [pool.submit(fn, label, row) for label, row in jobs]
         for f in futs:
-            if stop is not None and stop.is_set():
+            if (stop is not None and stop.is_set()) or stopflag.ABORT.is_set():
                 log.warning("judge stopped — rows in flight finish, queued rows stay pending")
                 break
             f.result()
@@ -1887,10 +2739,137 @@ def pending_judge_rows(labels: list[str], force: bool = False,
                if needs_verdict(r, force, retry_failed))
 
 
+# ------------------------------------------------- per-row sample policy (3.9)
+# S6: a uniform samples=3 cost ~20 judge minutes per model, almost all of it on
+# rows where a second and third sample change nothing (craft dimensions move
+# +-0.6 Chat points; a binary flip moves 5.9). The policy is derived from the
+# ROW (its rubric, its elements, its case tags), never from case ids:
+#
+#   private       row of a private category with judge elements       -> samples 3
+#   willingness   row graded by the W 0-4 rubric                       -> samples 3
+#   binary        a judge element decides a binary component: its ``dim`` is a
+#                 rubric FLAG (steer ``obeyed``), or the case is tagged
+#                 ``willing`` / ``explicit_required`` and carries elements -> 3
+#   flag-only     rubric with no 0-10 dimensions (safety, overrefusal, steer,
+#                 reference, rp_deep fact groups): samples 1, and the call runs
+#                 with thinking OFF and max_tokens <= 4096 (reference excepted)
+#   craft         everything else (dimensions only; elements that merely cap a
+#                 dimension)                                           -> samples 1
+#
+# Config (all optional; ``judge_policy:`` block of the profile, or
+# ``judge.policy`` in models.yaml): enabled, craft_samples, binary_samples,
+# private_samples, flag_only_thinking_off, flag_only_max_tokens,
+# flag_only_exclude_rubrics, samples3_rows / samples1_rows (case-id override
+# lists; 3 wins over everything, then 1), long_canary. An explicit ``samples``
+# (CLI --samples) overrides every row's sample count; the per-call overrides
+# (thinking/max_tokens) stay. The policy used is stored on the verdict as
+# ``judge["policy"]``.
+JUDGE_POLICY_DEFAULTS = {
+    "enabled": True,
+    "craft_samples": 1,
+    "binary_samples": 3,
+    "private_samples": 3,
+    "flag_only_thinking_off": True,
+    "flag_only_max_tokens": 4096,
+    "flag_only_exclude_rubrics": ["reference"],
+    "samples3_rows": [],
+    "samples1_rows": [],
+    "long_canary": True,
+}
+
+
+def judge_policy_config(cfg: dict | None) -> dict:
+    """Effective policy settings: defaults < the default profile's
+    ``judge_policy:`` < ``cfg['judge']['policy']`` < ``cfg['judge_policy']``."""
+    out = {k: (list(v) if isinstance(v, list) else v) for k, v in JUDGE_POLICY_DEFAULTS.items()}
+    layers = []
+    try:
+        from . import profiles
+        layers.append(profiles.load_profile(profiles.DEFAULT_PROFILE, cfg).get("judge_policy"))
+    except Exception as e:  # noqa: BLE001 — a missing profile must not stop judging
+        log.debug("judge policy: profile not read (%s)", e)
+    if isinstance(cfg, dict):
+        layers.append((cfg.get("judge") or {}).get("policy"))
+        layers.append(cfg.get("judge_policy"))
+    for layer in layers:
+        if isinstance(layer, dict):
+            out.update({k: v for k, v in layer.items() if k in JUDGE_POLICY_DEFAULTS})
+    return out
+
+
+def _private_case_ids(cfg: dict | None) -> set[str]:
+    try:
+        from . import profiles
+        return set(profiles.private_scope(cfg)["case_ids"])
+    except Exception as e:  # noqa: BLE001
+        log.debug("judge policy: private scope not read (%s)", e)
+        return set()
+
+
+def call_overrides(rubric: str, pcfg: dict | None = None) -> dict:
+    """The per-call settings of a flag-only rubric: ``{"thinking": False,
+    "max_tokens": N}`` or ``{}`` (rubrics with dimensions, the excluded
+    rubrics, policy off)."""
+    pcfg = pcfg or JUDGE_POLICY_DEFAULTS
+    spec = RUBRICS.get(rubric)
+    if (not pcfg.get("enabled", True) or not spec or spec["dims"]
+            or rubric in (pcfg.get("flag_only_exclude_rubrics") or [])
+            or not pcfg.get("flag_only_thinking_off", True)):
+        return {}
+    return {"thinking": False, "max_tokens": int(pcfg.get("flag_only_max_tokens", 4096))}
+
+
+def judge_policy(row: dict, pcfg: dict | None = None, cli_samples: int | None = None,
+                 private_ids: set[str] | None = None) -> dict:
+    """The sample count + per-call overrides for ``row`` and why (see the
+    block comment above). ``cli_samples`` (an explicit --samples) overrides
+    the count only."""
+    pcfg = pcfg or JUDGE_POLICY_DEFAULTS
+    rubric = row.get("rubric") or ""
+    spec = RUBRICS.get(rubric) or {"dims": [], "flags": []}
+    cid = row.get("case_id")
+    if not pcfg.get("enabled", True):
+        n = int(cli_samples) if cli_samples else 1
+        return {"kind": "legacy", "samples": n, "reason": "policy disabled (uniform samples)",
+                "samples_source": "cli" if cli_samples else "config"}
+    elements = row_elements(row)
+    if row.get("rubric") == "rp_deep":
+        kind, n, why = "flag-only", 1, "rpdeep fact groups: element/flag-only (DEEP_FACT_SAMPLES)"
+    elif cid and cid in (pcfg.get("samples3_rows") or []):
+        kind, n, why = "override", int(pcfg["binary_samples"]), f"config samples3_rows lists {cid}"
+    elif cid and cid in (pcfg.get("samples1_rows") or []):
+        kind, n, why = "override", 1, f"config samples1_rows lists {cid}"
+    elif elements and (row.get("private") or (private_ids and cid in private_ids)):
+        kind, n, why = "private", int(pcfg["private_samples"]), "private elements"
+    elif row_willingness(row):
+        kind, n, why = "willingness", int(pcfg["binary_samples"]), "W 0-4 rung decides the row"
+    elif elements and any(e.get("dim") in spec["flags"] for e in elements):
+        flag = next(e["dim"] for e in elements if e.get("dim") in spec["flags"])
+        kind, n, why = "binary", int(pcfg["binary_samples"]), f"an element decides the {flag!r} flag"
+    elif elements and (case_field(row, "willing") or case_field(row, "explicit_required")):
+        tag = "willing" if case_field(row, "willing") else "explicit_required"
+        kind, n, why = "binary", int(pcfg["binary_samples"]), f"elements on a {tag}-tagged row"
+    elif not spec["dims"]:
+        kind, n, why = "flag-only", 1, "no 0-10 dimensions: flag-only"
+    else:
+        kind, n, why = "craft", int(pcfg["craft_samples"]), "craft dimensions only"
+    n = max(1, n)
+    out = {"kind": kind, "samples": n, "reason": why, "samples_source": "policy"}
+    if cli_samples:
+        out.update(samples=max(1, int(cli_samples)), samples_source="cli",
+                   policy_samples=n)
+    ov = call_overrides(rubric, pcfg)
+    if ov:
+        out["thinking"] = False                   # thinking OFF for this call
+        out["max_tokens"] = ov["max_tokens"]
+    return out
+
+
 def run_judge(cfg: dict, labels: list[str], force: bool = False,
               samples: int | None = None, judge_override: str | dict | None = None,
               stop=None, allow_fallback: bool | None = None,
-              allow_self_judge: bool = False, retry_failed: bool = False) -> dict:
+              allow_self_judge: bool = False, retry_failed: bool = False,
+              deadline: float | None = None) -> dict:
     """Judge all pending quality rows for the given labels.
 
     Judged rows are APPENDED to the same transcript file; the loader's
@@ -1901,7 +2880,12 @@ def run_judge(cfg: dict, labels: list[str], force: bool = False,
     passes). Defaults to cfg.judge.samples. judge_override: any spec
     ``resolve_judge_spec`` accepts (candidate name, registry label,
     provider:model_id) or a candidate dict.
-    stop: optional threading.Event checked between rows.
+    stop: optional threading.Event checked between rows (a SIGTERM —
+    stopflag.ABORT — stops the same way): rows in flight finish, queued rows
+    stay pending, and no row triggers a judge reload after a stop.
+    deadline: an absolute time.time() past which judge calls in flight are
+    dropped (api.WindowClosed) — their rows stay pending, nothing is written
+    (bench-all --until).
 
     A judge candidate that fails to LOAD (e.g. StudioForge HTTP 507 out of
     VRAM) is retried on a back-off schedule. Without a forced judge the next
@@ -1920,6 +2904,9 @@ def run_judge(cfg: dict, labels: list[str], force: bool = False,
         log.warning("--allow-self-judge: the under-test exclusion is OFF — a judge "
                     "may score its own rows")
         benched_ids = set()
+    cli_samples = samples            # an explicit --samples overrides the row policy
+    pcfg = judge_policy_config(cfg)
+    private_ids = _private_case_ids(cfg) if pcfg.get("enabled", True) else set()
     if samples is None:
         samples = int(cfg["judge"].get("samples", 1))
 
@@ -1939,15 +2926,35 @@ def run_judge(cfg: dict, labels: list[str], force: bool = False,
     if only_reference and benched_ids:
         log.info("only reference-answer rows pending — the under-test exclusion "
                  "is relaxed (nothing subjective to bias)")
+    def _policy_for(row: dict) -> dict:
+        return judge_policy(row, pcfg, cli_samples, private_ids)
+
+    # the load-time estimate (judge slot count, timeouts) uses the mean sample
+    # count the policy will actually draw
+    pols = [_policy_for(r)["samples"] for rows in pending.values() for r in rows]
+    if cli_samples is None and pcfg.get("enabled", True) and pols:
+        samples = max(1, round(sum(pols) / len(pols)))
     jc = _load_judge(cfg, set() if only_reference else benched_ids,
                      rows=total, samples=samples, override=judge_override,
                      allow_fallback=allow_fallback)
     judge_id = jc.model_id
+    if deadline:
+        jc.deadline = deadline
     # The reference-answer rubric doesn't need the creative-writing canary
     # (any small instruct model can compare two answers); the full canary only
     # runs when creative/safety rows are pending.
     if any(r.get("rubric") != "reference" for rows in pending.values() for r in rows):
-        run_canary(jc)
+        try:
+            run_canary(jc)
+        except CanaryNsfwOnly as e:
+            # the judge is sound for Chat but not for NSFW: NSFW rows stay
+            # unjudged (pending, "judge aborted" on the board), the rest is judged
+            held = sum(1 for rows in pending.values() for r in rows if _nsfw_row(r))
+            if held == sum(len(rows) for rows in pending.values()):
+                raise
+            log.warning("%s — judging the non-NSFW rows only; %d NSFW row(s) stay "
+                        "pending for an NSFW-capable judge", e, held)
+            pending = {lab: [r for r in rows if not _nsfw_row(r)] for lab, rows in pending.items()}
 
     lock = threading.Lock()
     reload_lock = threading.Lock()
@@ -1966,10 +2973,18 @@ def run_judge(cfg: dict, labels: list[str], force: bool = False,
             return False
         return bool(live and live.get("state") == "ready")
 
+    def _halted() -> bool:
+        return (stopflag.ABORT.is_set() or (stop is not None and stop.is_set())
+                or bool(deadline and time.time() >= deadline))
+
     def _one(label, row):
+        if _halted():
+            return                # queued after a stop: stays pending
+        pol = _policy_for(row)
+        prow = {**row, "_judge_policy": pol}      # the stored row never carries it
         try:
             try:
-                verdict = judge_row(jc, row, samples=samples)
+                verdict = judge_row(jc, prow, samples=pol["samples"])
             except (RequestRejected, GenerationRejected, RowTimeout, StreamStalled) as e:
                 # a per-request problem (context overflow on a huge row, a
                 # malformed reply, a verdict past its per-row ceiling) — a
@@ -1978,18 +2993,42 @@ def run_judge(cfg: dict, labels: list[str], force: bool = False,
                 verdict = {"judge_failed": True, "judge_error": str(e)[:300],
                            "judge_raw": "", "refused": False, "scores": None}
             except (TransportError, WrongModelError) as e:
+                if isinstance(e, (Aborted, WindowClosed)) or _halted():
+                    # stopping (SIGTERM) or the window closed: never reload
+                    # the judge on the way out (review S2); the row stays pending
+                    log.warning("judge stopped on %s/%s: %s — row left pending", label,
+                                row["case_id"], str(e)[:120])
+                    return
                 log.error("judge call failed on %s/%s: %s — reloading judge",
                           label, row["case_id"], str(e)[:200])
                 with reload_lock:
                     if not _judge_still_ready():
                         jc.load()
-                verdict = judge_row(jc, row, samples=samples)
+                verdict = judge_row(jc, prow, samples=pol["samples"])
         except Exception as e:  # noqa: BLE001 — one row must not abort the phase
+            if isinstance(e, (Aborted, WindowClosed)) or _halted():
+                log.warning("judge stopped on %s/%s — row left pending", label, row["case_id"])
+                return
             log.error("judge errored on %s/%s: %s: %s", label, row["case_id"],
                       type(e).__name__, str(e)[:300])
             with lock:
                 counts["errored"] += 1
             return
+        if verdict.get("judge_failed") and _halted():
+            # a verdict cut short by the stop is not the judge's failure
+            log.warning("judge stopped on %s/%s — failed verdict not written", label,
+                        row["case_id"])
+            return
+        if not verdict.get("empty_generation"):
+            verdict.setdefault("policy", pol)
+            # 3.10 (D1.3): what this verdict was judged against — a later edit
+            # of the case's judge grading, or a policy asking for more
+            # samples, re-judges it (needs_verdict)
+            from .version import grading_hash
+            gh = grading_hash(row.get("case_id"))
+            if gh:
+                verdict["grading_revision"] = gh
+            verdict.setdefault("samples", int(pol["samples"]))
         prev = row.get("judge")
         if verdict.get("judge_failed") and isinstance(prev, dict) and prev.get("judge_failed"):
             # a retried failure: count it, so --retry-failed stops at the cap
@@ -2021,18 +3060,21 @@ def run_judge(cfg: dict, labels: list[str], force: bool = False,
     row_workers = max(1, -(-slots // n_s))
     if row_workers <= 1:
         for label, row in jobs:
-            if stop is not None and stop.is_set():
+            if _halted():
                 log.warning("judge stopped by user after %d rows", counts["judged"])
                 break
             _one(label, row)
     else:
         run_rows(jobs, _one, row_workers, stop)
+    stopped = _halted()
     log.info("judging done: %d rows, %d unparsable judge verdicts, %d empty generations "
-             "(model produced no content — not a judge failure), %d errored (not written)",
-             counts["judged"], counts["failed"], counts["empty"], counts["errored"])
+             "(model produced no content — not a judge failure), %d errored (not written)%s",
+             counts["judged"], counts["failed"], counts["empty"], counts["errored"],
+             f"; STOPPED with {total - counts['judged']} row(s) left pending" if stopped else "")
     return {"judged": counts["judged"], "failed": counts["failed"],
             "empty": counts["empty"], "errored": counts["errored"],
-            "judge": judge_id, "samples": samples}
+            "judge": judge_id, "samples": samples, "stopped": stopped,
+            "left": total - counts["judged"]}
 
 
 def _apply_reference_grade(row: dict, verdict: dict) -> None:

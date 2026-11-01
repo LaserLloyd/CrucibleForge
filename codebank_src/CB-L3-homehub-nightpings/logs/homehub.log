@@ -1,0 +1,23 @@
+2026-10-17T22:10:00+02:00 homehub[2207]: notify: sent 'Front door is open'
+2026-10-17T22:10:00+02:00 homehub[2207]: rule fired: door-open
+2026-10-17T22:15:00+02:00 homehub[2207]: rule fired: door-open
+2026-10-17T22:20:00+02:00 homehub[2207]: rule fired: door-open
+2026-10-17T22:25:00+02:00 homehub[2207]: rule fired: door-open
+2026-10-17T22:30:00+02:00 homehub[2207]: rule fired: door-open
+2026-10-17T22:35:00+02:00 homehub[2207]: rule fired: door-open
+2026-10-17T22:40:00+02:00 homehub[2207]: notify: sent 'Front door is open'
+2026-10-17T22:40:00+02:00 homehub[2207]: rule fired: door-open
+2026-10-17T22:45:00+02:00 homehub[2207]: rule fired: door-open
+2026-10-17T22:50:00+02:00 homehub[2207]: rule fired: door-open
+2026-10-17T22:55:00+02:00 homehub[2207]: rule fired: door-open
+2026-10-17T23:00:00+02:00 homehub[2207]: notify: sent 'Front door is open'
+2026-10-17T23:00:00+02:00 homehub[2207]: notify: sent 'Heating on'
+2026-10-17T23:00:00+02:00 homehub[2207]: rule fired: door-open
+2026-10-17T23:00:00+02:00 homehub[2207]: rule fired: door-open
+2026-10-17T23:00:00+02:00 homehub[2207]: rule fired: heat-up
+2026-10-17T23:05:00+02:00 homehub[2207]: rule fired: heat-up
+2026-10-17T23:10:00+02:00 homehub[2207]: notify: sent 'Front door is open'
+2026-10-17T23:40:00+02:00 homehub[2207]: notify: sent 'Front door is open'
+2026-10-18T07:30:00+02:00 homehub[2207]: notifier: 15 notification(s) held, 95 throttled
+... (102 more 'rule fired: door-open' lines until 07:25, every 5 minutes)
+2026-10-18T07:41:12+02:00 note (Ana): got 5 'front door' pings before midnight and a 'heating' one, nothing at all this morning. Quiet hours are 22:00-07:00 and there should be one morning summary. The door was open all night (cat flap broke).

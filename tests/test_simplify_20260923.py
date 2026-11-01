@@ -13,6 +13,12 @@ import pytest
 from crucibleforge import api, cli, config, graders, judge, preflight, report, runner, studioforge
 from crucibleforge.api import ChatResult, GenerationRejected, TransportError
 
+# suite 3.9: these tests are written against the 3.8 case set and test the
+# board/escalation mechanism, not the profile — run them on the frozen 3.8
+# profile (conftest.bench_38)
+pytestmark = pytest.mark.usefixtures("bench_38")
+
+
 
 def _case(cid):
     return next(c for c in config.load_cases() if c["id"] == cid)
@@ -41,7 +47,8 @@ def test_scorecard_has_only_chat_and_coding_headlines(tmp_path, monkeypatch):
     md = report.generate()
     sc = md.split("## Scorecard")[1].split("\n\n")[1]
     header = sc.splitlines()[0]
-    assert header == "| # | Model | Chat | Coding | Overall | tok/s | Run date | Notes |"
+    assert header == ("| # | Model | Chat | Coding | Overall | Room | tok/s | Suite | Run date "
+                      "| Notes |")
     assert "T/S" not in md and "| Code |" not in md and "Summary" not in md
     comp_header = md.split("## Components")[1].split("\n\n")[1].splitlines()[0]
     assert "| Programs |" in comp_header and "| Code |" not in comp_header

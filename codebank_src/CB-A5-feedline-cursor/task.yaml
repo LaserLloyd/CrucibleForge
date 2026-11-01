@@ -1,0 +1,20 @@
+id: CB-A5-feedline-cursor
+category: codebank
+family: fix
+difficulty: medium
+max_tokens: 8192
+allowed_paths: ["feedline/*.py"]
+new_paths: []
+pythonpath: ["."]
+issue: |
+  Users say the feed "skips photos": after a bulk upload (many items with the
+  same created_at) scrolling down jumps past some of them. Some also see an
+  extra "Load more" button that loads an empty page at the very end.
+
+  Fix the paging so it meets the contract in README.md. Remember that phones
+  still hold cursors from release 1.
+groups:
+  - {id: ties, file: test_ties.py, kind: f2p, why: "README: newest first, ties by id desc, every item exactly once page after page, even with new items at the top"}
+  - {id: cursor, file: test_cursor.py, kind: f2p, why: "README: release-1 cursors (base64url of bare created_at) still accepted with their old meaning (strictly older); undecodable cursor -> ValueError('bad cursor'); opaque string"}
+  - {id: end, file: test_end.py, kind: f2p, why: "README: next_cursor None exactly when nothing follows (issue: empty last page)"}
+  - {id: existing, file: test_existing.py, kind: p2p, why: "unchanged: item dict shape, limit validation 1..100 (non-int too), empty feed"}

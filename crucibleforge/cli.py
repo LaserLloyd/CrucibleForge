@@ -25,10 +25,14 @@ import re
 import secrets
 import shlex
 import shutil
+import socket
 import sys
+import threading
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 
+from . import stopflag
 from .config import (CATEGORIES, ConfigError, EXAMPLE_CONFIG_PATH,
                      USER_CONFIG_PATH, load_cases, load_config, resolve_models,
                      results_dir)
@@ -268,6 +272,64 @@ def _v2_existing(run_id: str) -> dict:
     return {}
 
 
+#: A "running" report with no pid (written before pids were recorded) is
+#: taken for dead once it is this old.
+V2_ORPHAN_AGE_S = 24 * 3600
+
+
+def _pid_is_crucibleforge(pid: int) -> bool:
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    try:
+        cmd = Path(f"/proc/{pid}/cmdline").read_bytes()
+    except OSError:
+        return True                      # no /proc: trust the signal check
+    return b"crucibleforge" in cmd
+
+
+def _v2_sweep_orphans(own_run_id: str) -> list[str]:
+    """Mark our own run reports that are still "running" but whose process is
+    gone (a SIGKILL, a power cut: only SIGTERM is trapped) as failed, so they
+    stop looking live forever (3.8 review, 2026-10-25: two such reports sat
+    "running" for a day). Only reports this host wrote; never raises.
+    Returns the run ids marked."""
+    marked: list[str] = []
+    if V2_RUNS_ROOT is None:
+        return marked
+    host = socket.gethostname()
+    now = time.time()
+    try:
+        metas = sorted(Path(V2_RUNS_ROOT).glob("*/meta.json"))
+    except OSError:
+        return marked
+    for path in metas:
+        try:
+            m = json.loads(path.read_text(encoding="utf-8"))
+            if (not isinstance(m, dict) or m.get("producer") != V2_PRODUCER
+                    or m.get("status") != "running" or m.get("id") == own_run_id):
+                continue
+            pid = m.get("pid")
+            if pid is not None:
+                if m.get("host") not in (None, host) or _pid_is_crucibleforge(int(pid)):
+                    continue
+            elif now - path.stat().st_mtime < V2_ORPHAN_AGE_S:
+                continue
+            m.update(status="failed", finished=_utcnow_iso(),
+                     error="the run's process is gone (killed without a chance to write its "
+                           "report); its finished rows are kept and the next run picks up the rest")
+            _atomic_write_json(path, m)
+            marked.append(str(m.get("id")))
+            log.warning("V2 run-report: %s was left running by a dead process — marked failed",
+                        m.get("id"))
+        except (OSError, ValueError, TypeError):
+            continue
+    return marked
+
+
 def _v2_start(args) -> dict:
     """FIRST act for a V2-tracked command, before any benchmark work at all:
     mint/resolve the run id and write meta.json with status "running". This
@@ -296,11 +358,15 @@ def _v2_start(args) -> dict:
                  requester, deliver_to, task_run_id, sorted(extra))
     title = f"CrucibleForge {args.cmd}: {args.models}"
     created = _utcnow_iso()
+    # who is running it, so the next run can tell a live report from one a
+    # SIGKILL left "running" forever (_v2_sweep_orphans)
+    extra = {**extra, "pid": os.getpid(), "host": socket.gethostname()}
     state = {"run_id": run_id, "requester_session": requester, "thread_id": deliver_to,
              "task_run_id": task_run_id, "title": title, "created": created, "extra": extra}
     if V2_RUNS_ROOT is None:
         log.info("run report off ($CRUCIBLEFORGE_V2_RUNS_ROOT not set)")
         return state
+    _v2_sweep_orphans(run_id)
     try:
         meta = _v2_meta(run_id, status="running", created=created, finished=None, title=title,
                         requester_session=requester, thread_id=deliver_to,
@@ -337,11 +403,24 @@ def _next_hint(error: str) -> str:
     return "see results/crucibleforge.log for the phase that failed"
 
 
+def _summary_bits(card: dict) -> list[str]:
+    """The Result line's scores: Overall + each public category on the points
+    board (3.9); the pre-points keys (Chat/Coding) otherwise."""
+    if card.get("score_defs"):
+        def _f(v):
+            return f"{v:.1f}" if isinstance(v, (int, float)) else "-"
+        return [f"Overall {_f(card.get('total'))}"] + [
+            f"{d['label']} {_f(card.get(d['key']))}"
+            for d in card["score_defs"] if d.get("public", True)]
+    return [f"Chat {card['chat']:.1f}" if card.get("chat") is not None else "Chat -",
+            f"Coding {card['coding']:.1f}" if card.get("coding") is not None else "Coding -"]
+
+
 def _v2_report_body(cmd: str, args, cfg: dict, rc: int, state: dict) -> str:
     """runs/<id>/report.md: the 5-heading contract (Result / Evidence /
     Files / Failed / Next) + the scorecard. the run-report scanner posts only the
     ``## Result`` section when the report is long, so Result carries one
-    self-contained line per model: ``label: Chat 88.7 · Coding 69.4 · 41 min``
+    self-contained line per model: ``label: Overall 17.2 · Coding/Work 9.4 · Chat 7.8 · NSFW 8.3 · 41 min``
     or ``label: FAILED — <the full error>``."""
     from .report import board_stats, run_minutes, scorecard_section, generate
     from .version import revision
@@ -406,8 +485,7 @@ def _v2_report_body(cmd: str, args, cfg: dict, rc: int, state: dict) -> str:
                 mins = (datetime.now(timezone.utc) - t0).total_seconds() / 60
             except (KeyError, ValueError, TypeError):
                 mins = None
-        bits = [f"Chat {card['chat']:.1f}" if card.get("chat") is not None else "Chat -",
-                f"Coding {card['coding']:.1f}" if card.get("coding") is not None else "Coding -"]
+        bits = _summary_bits(card)
         if mins is not None:
             bits.append(f"{mins:.0f} min")
         line = f"{label}: " + " · ".join(bits)
@@ -926,8 +1004,82 @@ def cmd_recover(args, cfg):
     return _run_rc(summary, [e["name"] for e in entries if todo.get(e["name"])])
 
 
+def cmd_escalate(args, cfg):
+    """Re-run the jobs that ran out of the board's budget on the profile's
+    escalation rungs (runner.DEFAULT_ESCALATION_RUNGS: 64k, then 128k for what
+    still runs out), the model reloaded with a context wide enough for the
+    rung. The rows carry ``budget_rung``: they feed the report's Room column
+    and never the board. They need the judge like any other row (`all` and
+    `bench-all` judge right after)."""
+    from .runner import escalate_models, escalation_rungs, escalation_todo
+    from .profiles import all_tier_cases
+    from . import report
+    cfg, cases, prof = _apply_profile_arg(args, cfg)
+    # suite 3.9: a tier-2/3 row that ran out of budget is escalated like a
+    # tier-1 row (the jobs come from the rows; this is only what is selectable)
+    cases = all_tier_cases(prof, smoke=getattr(args, "smoke", False))
+    entries = resolve_models(cfg, args.models)
+    if not entries:
+        raise SystemExit("no models selected (pass --models)")
+    rungs = escalation_rungs(cfg)
+    if getattr(args, "rungs", None):
+        rungs = sorted({int(x) for x in _parse_list(args.rungs)})
+    if not rungs:
+        print("escalation is off for this profile (no escalation_rungs above the cap)")
+        return 0
+    todo = {e["name"]: len(escalation_todo(report.board_filter(e["name"], cfg, with_rungs=True),
+                                           e["name"], rungs)) for e in entries}
+    print(f"escalation rungs {rungs} — jobs out of budget: " +
+          ", ".join(f"{k}={v}" for k, v in todo.items()))
+    entries = [e for e in entries if todo[e["name"]]]
+    if not entries:
+        print("nothing to escalate")
+        return 0
+    if not getattr(args, "no_link_check", False):
+        from .preflight import check_link_health
+        check_link_health(cfg, entries)
+    guard = _ProviderGuard(cfg, entries, force_evict=getattr(args, "force_evict", False))
+    busy = guard.busy()
+    if busy and not getattr(args, "yes", False):
+        print(f"LM Studio is currently serving {busy} — re-run with --yes to proceed.")
+        return 1
+    try:
+        by_rung = escalate_models(cfg, entries, cases, rungs=rungs)
+    finally:
+        guard.restore()
+    rc = 0
+    for rung, summary in by_rung.items():
+        print(f"\nescalation {rung} summary:")
+        _print_run_summary(summary)
+        rc = rc or _run_rc(summary, list(summary))
+    return rc
+
+
+def _escalate_phase(args, cfg, labels: list[str]) -> int:
+    """The escalation round inside `all` — OPT-IN since suite 3.9
+    (``--escalate``; EVAL-FABLE M1, run side): the timed run never re-runs
+    what ran out of budget. An out-of-budget row is a stored row with
+    finish=length (the board scores it as run out); an escalated rerun is
+    counted when one exists (standalone `crucibleforge escalate`, or
+    ``--escalate``). ``--no-escalate`` stays accepted (a no-op). A failure
+    here never stops the judge or the report."""
+    if not getattr(args, "escalate", False) or getattr(args, "no_escalate", False) or not labels:
+        return 0
+    e_args = copy.copy(args)
+    e_args.models = ",".join(labels)
+    e_args.rungs = None
+    e_args.yes = True
+    try:
+        return cmd_escalate(e_args, cfg)
+    except SystemExit as e:
+        log.error("escalation phase refused: %s", e)
+        return 1
+    except Exception as e:  # noqa: BLE001 — the board results are still worth judging
+        log.error("escalation phase failed: %s", e)
+        return 1
+
+
 def cmd_judge(args, cfg):
-    from .judge import JudgeLeaseUnavailable, acquire_judge_lease, run_judge
     cfg, _, _ = _apply_profile_arg(args, cfg)
     entries = resolve_models(cfg, args.models)
     labels = [e["name"] for e in entries]
@@ -952,6 +1104,18 @@ def cmd_judge(args, cfg):
         log.info("nothing to judge for %s — rig untouched", labels)
         print("nothing to judge")
         return 0
+    with rig_phase(needed=not _judge_is_remote(args, cfg), what="judge phase"):
+        return _cmd_judge_locked(args, cfg, labels, samples, retry_failed)
+
+
+def _judge_is_remote(args, cfg) -> bool:
+    a = copy.copy(args)
+    a.cmd = "judge"
+    return _remote_judge_only(a, cfg)
+
+
+def _cmd_judge_locked(args, cfg, labels, samples, retry_failed):
+    from .judge import JudgeLeaseUnavailable, acquire_judge_lease, run_judge
     force_evict = getattr(args, "force_evict", False) or _judge_policy_force(cfg)
     # The guard's resident snapshot MUST be taken before the judge lease:
     # with bench-first the lease itself evicts a chat-tier resident, and a
@@ -973,11 +1137,16 @@ def cmd_judge(args, cfg):
         guard.restore()
         return 4
     try:
+        # stop: bench-all's window edge (an Event its timer sets); a SIGTERM
+        # (stopflag.ABORT) stops the phase the same way inside run_judge —
+        # in-flight verdicts finish, queued rows stay pending, no reloads
         result = run_judge(cfg, labels, force=args.force, samples=samples,
                            judge_override=getattr(args, "judge", None),
                            allow_fallback=getattr(args, "judge_fallback", None),
                            allow_self_judge=bool(getattr(args, "allow_self_judge", False)),
-                           retry_failed=retry_failed)
+                           retry_failed=retry_failed,
+                           stop=getattr(args, "judge_stop", None),
+                           deadline=getattr(args, "judge_deadline", None))
     except Exception as e:
         # the board names the reason next to the unjudged rows
         _stamp_judge_error(labels, str(e))
@@ -990,6 +1159,9 @@ def cmd_judge(args, cfg):
           f"{result.get('empty', 0)} empty generations, "
           f"{result.get('errored', 0)} errored, samples={result.get('samples')}) "
           f"with {result.get('judge')}")
+    if result.get("stopped"):
+        print(f"judge phase stopped early: {result.get('left', 0)} row(s) left pending "
+              f"(judged by the next run)")
     return 1 if result.get("errored") else 0
 
 
@@ -1033,7 +1205,7 @@ def cmd_report(args, cfg, full_board: bool = False):
     if getattr(args, "public", False):
         try:
             md = generate(None if full_board else args.models, write=True, public=True,
-                          out_dir=getattr(args, "out", None))
+                          out_dir=getattr(args, "out", None), cfg=cfg or None)
         except PrivateLeak as e:
             print(f"refused: {e}", file=sys.stderr)
             return 3
@@ -1041,12 +1213,66 @@ def cmd_report(args, cfg, full_board: bool = False):
         print(f"wrote the PUBLIC board (private categories excluded) to "
               f"{getattr(args, 'out', None) or public_dir()}")
         return 0
-    md = generate(None if full_board else args.models, write=True)
+    md = generate(None if full_board else args.models, write=True, cfg=cfg or None)
     print(scorecard_section(md))
     print(f"wrote {report_md_path()}")
     print(f"      {failures_md_path()}")
     print(f"      {report_html_path()}")
     return 0
+
+
+def cmd_compare(args, cfg):
+    """`crucibleforge compare A B`: is A better than B? The paired bootstrap
+    difference of the headline S (headline.py) per score and overall."""
+    from .report import compare, render_compare
+    try:
+        res = compare(args.a, args.b, cfg or None)
+    except ValueError as e:
+        print(f"compare: {e}", file=sys.stderr)
+        return 2
+    print(render_compare(res))
+    return 0
+
+
+def cmd_calibrate(args, cfg):
+    """`crucibleforge calibrate`: too-easy sub-scores (reference model) and
+    sub-scores some model maxed (needs a new pack). Reads the board only."""
+    from .report import calibration, render_calibration
+    try:
+        res = calibration(cfg or None, getattr(args, "reference", None))
+    except ValueError as e:
+        print(f"calibrate: {e}", file=sys.stderr)
+        return 2
+    print(render_calibration(res))
+    return 0
+
+
+def cmd_pack(args, cfg):
+    """`crucibleforge pack new <category/part>` scaffolds the next ladder pack
+    (draft); `crucibleforge pack verify <file>` checks one (docs/CUSTOM-TESTS.md)."""
+    from pathlib import Path as _P
+    from . import ladder
+    from .config import ConfigError as _CE
+    from .profiles import DEFAULT_PROFILE, load_profile
+    prof = load_profile(DEFAULT_PROFILE, cfg or None)
+    try:
+        if args.action == "new":
+            path = ladder.new_pack(prof, args.subscore, count=args.count,
+                                   category=args.category, grading=args.grading,
+                                   level=args.level)
+            print(f"wrote {path} (draft, {args.count} question stub(s), 1 point in total)")
+            print("\n".join(ladder._GRADING_HELP))
+            return 0
+        problems, notes = ladder.verify_pack(_P(args.file), prof)
+    except _CE as e:
+        print(f"pack: {e}", file=sys.stderr)
+        return 2
+    for n in notes:
+        print(f"note: {n}")
+    for p in problems:
+        print(f"FAIL: {p}")
+    print("ok" if not problems else f"{len(problems)} problem(s)")
+    return 1 if problems else 0
 
 
 def cmd_bench_all(args, cfg):
@@ -1071,17 +1297,35 @@ def cmd_pairwise(args, cfg):
 
 
 def cmd_all(args, cfg):
-    """run -> judge -> report. A model-level generation failure (not served,
-    OOM, lease refused, transport abort) is that MODEL's failure: it is
-    recorded in its meta (the board and the run-report say FAILED and why) and
-    the batch's exit code stays non-zero — but the judge phase still runs over
-    every model the run phase got to (a model with no pending rows is a no-op
-    there), and the board is rebuilt. Only a run phase that never started
-    (nothing runnable, LM Studio busy without --yes) skips the later phases.
-    Before 2026-09-28 any single failure returned here, so one unservable
-    model in a 31-model backfill left the 25 good transcripts unjudged."""
+    """run -> judge -> ladder sets -> report. A model-level generation failure
+    (not served, OOM, lease refused, transport abort) is that MODEL's
+    failure: it is recorded in its meta (the board and the run-report say
+    FAILED and why) and the batch's exit code stays non-zero — but the judge
+    phase still runs over every model the run phase got to (a model with no
+    pending rows is a no-op there), and the board is rebuilt. Only a run
+    phase that never started (nothing runnable, LM Studio busy without
+    --yes) skips the later phases. Before 2026-09-28 any single failure
+    returned here, so one unservable model in a 31-model backfill left the
+    25 good transcripts unjudged.
+
+    Suite 3.9: the escalation round is OPT-IN (``--escalate``; it is outside
+    the timed run). After the standard judge, each model's due ladder sets
+    (crucibleforge/ladder.py) run, are judged, and the next due sets follow
+    until none is due (:func:`_ladder_phases`); a profile without sub-scores
+    keeps the legacy tier-2/3 phases. Every phase is timed (meta ``timing``;
+    ``--timing`` prints the table)."""
+    if getattr(args, "plan", False):
+        return cmd_plan(args, cfg)
+    from . import timing
+    clock = timing.Clock()
+    args._clock = clock
+    t0 = time.monotonic()
     rc = cmd_run(args, cfg)
     ran = getattr(args, "ran_labels", None)
+    # the runner records each model's generation rounds in its own meta
+    clock.add("generation", time.monotonic() - t0, ran or [], record_meta=False)
+    if stopping():
+        return TERM_EXIT      # SIGTERM: no escalation / judge / report after a stop
     if rc and not ran:
         return rc
     if rc:
@@ -1089,6 +1333,19 @@ def cmd_all(args, cfg):
                   len(ran), ",".join(ran))
         args = copy.copy(args)
         args.models = ",".join(ran)
+    # escalation round (opt-in since 3.9): re-run what ran out of budget on
+    # bigger rungs before the judge, so one judge pass scores both. Only for
+    # the benchmark profile (the Room column lives on its board).
+    from .profiles import DEFAULT_PROFILE
+    rc_e = 0
+    if (getattr(args, "profile", None) or DEFAULT_PROFILE) == DEFAULT_PROFILE and not getattr(args, "smoke", False):
+        if getattr(args, "escalate", False):
+            with clock.phase("escalation", ran or []):
+                rc_e = _escalate_phase(args, cfg, ran or [])
+        else:
+            rc_e = _escalate_phase(args, cfg, ran or [])
+    if stopping():
+        return TERM_EXIT
     # WP-BENCH review fix: cmd_judge signals failure by RETURNING non-zero in
     # two cases (4 = start-of-judge lease unavailable, 1 = rows errored) —
     # neither raises, so the bare `cmd_judge(args, cfg)` this used to be
@@ -1096,14 +1353,463 @@ def cmd_all(args, cfg):
     # never having scored a single row (a delivered, confidently-worded V2
     # "succeeded" report for a run that did not succeed). Capture it.
     try:
-        rc_j = cmd_judge(args, cfg)
+        with clock.phase("judge", ran or []):
+            rc_j = cmd_judge(args, cfg)
     except Exception as e:  # noqa: BLE001 — objective results are still worth a report
         log.error("judge phase failed: %s — rendering the report without judged rows", e)
         rc_j = 1
     else:
         if rc_j:
             log.error("judge phase exited %d — rendering the report without judged rows", rc_j)
-    return cmd_report(args, cfg, full_board=True) or rc or rc_j
+    if rc_e:
+        # not the exit code: the board's own run is complete; the Room column
+        # shows the jobs still waiting ("…") and the next run retries them
+        log.error("escalation round exited %d — the Room column stays pending for those jobs",
+                  rc_e)
+    if stopping():
+        return TERM_EXIT
+    if uses_ladder(args, cfg):
+        rc_t = _ladder_phases(args, cfg, ran or [])
+    else:
+        t1 = time.monotonic()
+        rc_t = _tier_phases(args, cfg, ran or [])
+        clock.add("tier phases", time.monotonic() - t1, ran or [])
+    if stopping():
+        return TERM_EXIT
+    with clock.phase("report", ran or []):
+        rc_r = cmd_report(args, cfg, full_board=True)
+    print(clock.summary_line())
+    if getattr(args, "timing", False):
+        print(clock.table(ran or []))
+    return rc_r or rc or rc_j or rc_t
+
+
+def uses_ladder(args, cfg) -> bool:
+    """The default `all` path climbs ladders (crucibleforge/ladder.py) when
+    the profile declares sub-scores (``scores.<cat>.parts``) or ladder set
+    files exist for it; an old tiered profile keeps the tier phases."""
+    from . import ladder
+    from .profiles import DEFAULT_PROFILE, load_profile
+    try:
+        prof = load_profile(getattr(args, "profile", None) or DEFAULT_PROFILE, cfg)
+        return bool(ladder.part_keys(prof) or ladder.discover(prof))
+    except Exception:  # noqa: BLE001 — an unreadable profile: the legacy path decides
+        return False
+
+
+def tier_progress(label: str, cfg: dict, prof: dict) -> dict:
+    """{score: tiers.combine entry} for ``label`` from its CURRENT board rows
+    (report.board_filter): what it scored per tier, and which tiers are open."""
+    from . import report
+    rows = report.board_filter(label, cfg)
+    st = report.tier_model_stats(label, cfg, rows, report.load_meta(label), {"old": False})
+    return report.tier_scorecard(st, report.scoring_config(cfg), prof)["tiers"]
+
+
+def tier_todo(label: str, cfg: dict, prof: dict, tier: int,
+              progress: dict | None = None, smoke: bool = False) -> tuple[list[str], list[dict], set]:
+    """(unlocked scores, their tier cases, jobs still to run) for ``label``.
+    A score is unlocked by its result on the tier below (tiers.unlocked); a
+    case that already has current rows is not run again (a resumed nightly)."""
+    from . import report
+    from . import tiers as _tiers
+    from .config import repeats_for
+    from .profiles import tier_cases
+    progress = progress if progress is not None else tier_progress(label, cfg, prof)
+    prev = {}
+    for score, e in progress.items():
+        below = tier - 1
+        if below == 1:
+            prev[score] = e.get("t1")
+        else:
+            prev[score] = e.get(f"t{below}") if (e.get("state") or {}).get(below) == "scored" else None
+    scores = _tiers.unlocked(prof, tier, prev)
+    cases = tier_cases(prof, tier, scores=scores, smoke=smoke) if scores else []
+    have = done_jobs(report.board_filter(label, cfg))
+    jobs = {(None, c["id"], r) for c in cases
+            for r in range(1, repeats_for(cfg, c["category"], smoke, c) + 1)
+            if (c["id"], r) not in have}
+    return scores, cases, jobs
+
+
+def done_jobs(rows: list[dict]) -> set[tuple]:
+    """(case id, repeat) of every job with a usable current row. An ERRORED
+    row (grade ``error``: transport failure, rejected request) is not done
+    — a resumed run retries it (EVAL-FABLE M4; bench_all.missing_cases has
+    the same rule, bounded by MAX_CASE_ATTEMPTS)."""
+    return {(r.get("case_id"), r.get("repeat")) for r in rows if r.get("grade") != "error"}
+
+
+def _tier_phases(args, cfg, labels: list[str]) -> int:
+    """Suite 3.9: tier 2, then tier 3, for every model that unlocked a score
+    (tiers.py). Each tier: run the unlocked items (a tier-3 round loads the
+    model at ``tiers.t3.context``), escalate what ran out, judge. A failure
+    here never blocks the report; the board shows the tier as pending."""
+    from .profiles import DEFAULT_PROFILE, load_profile
+    from .runner import run_models
+    from . import tiers as _tiers
+    name = getattr(args, "profile", None) or DEFAULT_PROFILE
+    if (name != DEFAULT_PROFILE or getattr(args, "smoke", False) or not labels
+            or getattr(args, "no_tiers", False)):
+        return 0
+    try:
+        prof = load_profile(name, cfg)
+        if not _tiers.enabled(prof):
+            return 0
+        cfg_p, _, _ = _apply_profile_arg(args, cfg)
+        entries = {e["name"]: e for e in resolve_models(cfg_p, ",".join(labels))}
+    except (SystemExit, Exception) as e:  # noqa: BLE001 — the tier-1 board is still worth a report
+        log.error("tier phases refused: %s", e)
+        return 1
+    rc = 0
+    for tier in _tiers.TIERS:
+        ran = []
+        for label, entry in entries.items():
+            try:
+                scores, cases, jobs = tier_todo(label, cfg_p, prof, tier)
+            except Exception as e:  # noqa: BLE001 — one model's board must not stop the rest
+                log.error("tier %d: cannot score %s (%s) — tier skipped", tier, label, e)
+                rc = 1
+                continue
+            log.info("tier %d: %s unlocked %s — %d job(s) to run", tier, label,
+                     scores or "nothing", len(jobs))
+            if not jobs:
+                continue
+            guard = _ProviderGuard(cfg_p, [entry], force_evict=getattr(args, "force_evict", False))
+            try:
+                summary = run_models(cfg_p, [entry], cases, jobs_by_label={label: jobs},
+                                     min_ctx=_tiers.tier_context(prof, tier), record_key="tiers")
+            finally:
+                guard.restore()
+            _print_run_summary(summary)
+            rc = rc or _run_rc(summary, [label])
+            ran.append(label)
+        if not ran:
+            continue
+        rc = rc or _escalate_phase(args, cfg, ran)
+        j_args = copy.copy(args)
+        j_args.models = ",".join(ran)
+        try:
+            rc = rc or cmd_judge(j_args, cfg)
+        except Exception as e:  # noqa: BLE001 — the board is still worth rendering
+            log.error("tier %d judge phase failed: %s", tier, e)
+            rc = 1
+    return rc
+
+
+#: A ladder climb inside one `all` stops after this many levels (a guard: a
+#: set is due again only when its result is missing, so this is never hit
+#: by a working profile).
+MAX_LADDER_ROUNDS = 12
+
+
+def ladder_todo(label: str, cfg: dict, prof: dict, sets: dict, unlock: float,
+                progress: dict | None = None, smoke: bool = False,
+                tried: set | None = None) -> tuple[list[dict], set, list[str]]:
+    """(cases of every due set, jobs still to run, ["<key>#<n>", ...]) for
+    ``label``. Due = ``ladder.due`` on the model's shares
+    (report.ladder_progress: {"cat/part": {"std": share, "sets": {n: share}}});
+    a job with a usable current row is not re-run, an errored one is
+    (:func:`done_jobs`); ``tried`` = jobs this invocation already ran (never
+    twice in one `all`)."""
+    from . import ladder
+    from . import report
+    from .config import repeats_for
+    if progress is None:
+        progress = report.ladder_progress(label, cfg)
+    cases, names = [], []
+    for key, seq in sets.items():
+        pr = progress.get(key) or {}
+        for n in ladder.due(pr.get("std"), pr.get("sets") or {}, seq, unlock):
+            cs = ladder.set_cases(prof, key, n, smoke=smoke, sets=sets)
+            if cs:
+                cases += cs
+                names.append(f"{key}#{n}")
+    have = done_jobs(report.board_filter(label, cfg))
+    jobs = {(None, c["id"], r) for c in cases
+            for r in range(1, repeats_for(cfg, c["category"], smoke, c) + 1)
+            if (c["id"], r) not in have and (c["id"], r) not in (tried or set())}
+    return cases, jobs, names
+
+
+def _ladder_phases(args, cfg, labels: list[str]) -> int:
+    """Suite 3.9 ladders: after the standard judge, run every model's due
+    ladder sets (all sets of the lowest open level of each sub-score
+    together), escalate (only with --escalate), judge, then look again —
+    the next level is due only when every level below scored >= the unlock
+    share — until nothing is due. A failure here never blocks the report;
+    the board shows an unrun set as pending."""
+    from . import ladder
+    from . import report
+    from .profiles import DEFAULT_PROFILE, load_profile
+    from .runner import run_models
+    name = getattr(args, "profile", None) or DEFAULT_PROFILE
+    if (name != DEFAULT_PROFILE or getattr(args, "smoke", False) or not labels
+            or getattr(args, "no_tiers", False) or getattr(args, "no_ladder", False)):
+        return 0
+    try:
+        prof = load_profile(name, cfg)
+        sets = ladder.discover(prof)
+        if not sets:
+            return 0
+        if not hasattr(report, "ladder_progress"):
+            log.error("ladder sets exist but this build has no report.ladder_progress — "
+                      "ladder phases skipped")
+            return 1
+        unlock = ladder.unlock_share(prof)
+        cfg_p, _, _ = _apply_profile_arg(args, cfg)
+        entries = {e["name"]: e for e in resolve_models(cfg_p, ",".join(labels))}
+    except (SystemExit, Exception) as e:  # noqa: BLE001 — the standard board is still worth a report
+        log.error("ladder phases refused: %s", e)
+        return 1
+    clock = getattr(args, "_clock", None)
+    # bench-all (review B2): ``ladder_admit(label, entry, cases, jobs)`` says
+    # whether a model's due sets fit its time window (and arms it);
+    # ``ladder_after()`` disarms it; ``judge_stop`` set = the window is over
+    admit = getattr(args, "ladder_admit", None)
+    after = getattr(args, "ladder_after", None)
+    window_over = getattr(args, "judge_stop", None)
+    tried: dict[str, set] = {l: set() for l in entries}
+    rc = 0
+    for level in range(1, MAX_LADDER_ROUNDS + 1):
+        ran = []
+        t0 = time.monotonic()
+        for label, entry in entries.items():
+            if stopping():
+                return TERM_EXIT
+            if window_over is not None and window_over.is_set():
+                break
+            try:
+                cases, jobs, names = ladder_todo(label, cfg_p, prof, sets, unlock,
+                                                 tried=tried[label])
+            except Exception as e:  # noqa: BLE001 — one model's board must not stop the rest
+                log.error("ladder: cannot score %s (%s) — skipped", label, e)
+                rc = 1
+                continue
+            log.info("ladder round %d: %s — due %s, %d job(s) to run", level, label,
+                     names or "nothing", len(jobs))
+            if not jobs:
+                continue
+            if admit is not None and not admit(label, entry, cases, jobs):
+                log.info("ladder round %d: %s — does not fit the time window, next run",
+                         level, label)
+                continue
+            tried[label] |= jobs
+            guard = _ProviderGuard(cfg_p, [entry], force_evict=getattr(args, "force_evict", False))
+            try:
+                summary = run_models(cfg_p, [entry], cases, jobs_by_label={label: jobs},
+                                     record_key="ladder")
+            finally:
+                guard.restore()
+                if after is not None:
+                    after()
+            _print_run_summary(summary)
+            rc = rc or _run_rc(summary, [label])
+            ran.append(label)
+        if not ran:
+            break
+        if clock:
+            clock.add(f"ladder round {level} generation", time.monotonic() - t0, ran)
+        if stopping():
+            return TERM_EXIT
+        rc = rc or _escalate_phase(args, cfg, ran)
+        j_args = copy.copy(args)
+        j_args.models = ",".join(ran)
+        t1 = time.monotonic()
+        try:
+            rc = rc or cmd_judge(j_args, cfg)
+        except Exception as e:  # noqa: BLE001 — the board is still worth rendering
+            log.error("ladder round %d judge phase failed: %s", level, e)
+            rc = 1
+        if clock:
+            clock.add(f"ladder round {level} judge", time.monotonic() - t1, ran)
+    return rc
+
+
+def plan_budget(cfg_p: dict, entry: dict, case: dict, ctx_len: int | None) -> str:
+    """The output budget a case's rows will be sent, without calling a model:
+    a fixed budget (the code bank's, a ladder set's) clamped to the window,
+    else the board regime (case budget x factor within [floor, cap] — for
+    every model under the one-budget rule (S8); otherwise a model the run
+    has not probed yet shows both)."""
+    from .runner import (BANK_CATEGORIES, BANK_WINDOW_SLACK, REGIME_DEPLOYED, _Ctx,
+                         _prompt_tokens, fixed_budget, run_plan)
+    d = cfg_p["defaults"]
+    mt = int(case.get("max_tokens") or 0)
+    fixed = fixed_budget(cfg_p, case)
+    if fixed:
+        msgs = ([{"role": "system", "content": case.get("system") or ""},
+                 {"role": "user", "content": case.get("prompt") or ""}])
+        b = int(fixed)
+        if ctx_len:
+            b = min(b, int(ctx_len) - _prompt_tokens(msgs) - BANK_WINDOW_SLACK)
+        kind = ("bank" if case["category"] in BANK_CATEGORIES else "ladder" if case.get("ladder_budget") else "case")
+        return f"{max(b, 256)} ({kind})"
+    fake = type("C", (), {})()
+    fake.thinking = True
+    fake.think_factor = float(d.get("thinking_max_tokens_factor", 4))
+    fake.think_cap = int(d.get("thinking_max_tokens_cap", 32768))
+    fake.think_floor = int(d.get("thinking_max_tokens_floor") or 0)
+    think = _Ctx.budget(fake, mt)
+    one = d.get("regime") == REGIME_DEPLOYED and bool(run_plan(cfg_p).get("one_budget", True))
+    t = entry.get("thinking", "auto")
+    if one or t is True or (entry.get("extra_body") or {}).get("reasoning_format"):
+        return str(think)
+    if t is False:
+        return str(mt)
+    return f"{think} if thinking, else {mt}"
+
+
+def cmd_plan(args, cfg) -> int:
+    """`crucibleforge all --plan`: what `all` would run per model — every
+    standard row (case, repeats, budget) in its load round(s) (a rig model:
+    round A at the context floor, round B for the wide rows; a hosted API:
+    one round), the ladder sets each sub-score could add, and a wall-time
+    ESTIMATE (crucibleforge/estimate.py) — computed, no model or provider
+    called. The ladder lists show what WOULD run once unlocked; the unlock
+    rule decides at run time from the model's scores."""
+    from . import estimate as est
+    from .config import repeats_for
+    from .runner import _LOADING_TYPES, plan_rounds
+    from .providers import provider_for
+    cfg_p, cases, prof = _apply_profile_arg(args, cfg)
+    entries = resolve_models(cfg_p, args.models)
+    if not entries:
+        raise SystemExit("no models selected (pass --models)")
+    smoke = getattr(args, "smoke", False)
+    samples = int((cfg_p.get("judge") or {}).get("samples", 3) or 3)
+    out = []
+
+    def rows_of(cs, ctx_len, entry):
+        lines, n = [], 0
+        for c in cs:
+            r = repeats_for(cfg_p, c["category"], smoke, c)
+            need = int(c.get("min_context") or 0)
+            na = f"  n/a (ctx: needs {need})" if need and ctx_len and need > ctx_len else ""
+            n += r
+            lines.append(f"    {c['category']:<15} {c['id']:<36} x{r}  budget "
+                         f"{plan_budget(cfg_p, entry, c, ctx_len)}{na}")
+        return lines, n
+
+    from .judge import judge_policy, judge_policy_config
+    pcfg = judge_policy_config(cfg)
+
+    def jobs_of(cs, rig):
+        """(job seconds, judged rows weighted by the per-row sample policy
+        relative to the 3-sample measurement: a samples=1 row counts 1/3)."""
+        secs, judged = [], 0.0
+        for c in cs:
+            r = repeats_for(cfg_p, c["category"], smoke, c)
+            secs += [est.job_seconds(c, rig)] * r
+            if est.judged(c):
+                try:
+                    n = judge_policy({**c, "case_id": c["id"]}, pcfg)["samples"]
+                except Exception:  # noqa: BLE001 — an estimate never fails the plan
+                    n = samples
+                judged += r * n / 3.0
+        return secs, judged
+
+    for e in entries:
+        prov = provider_for(cfg_p, e)
+        rig = prov.type in _LOADING_TYPES
+        perf = [c for c in cases if c["category"] == "perf"]
+        t1 = [c for c in cases if c["category"] != "perf"]
+        n_all = sum(repeats_for(cfg_p, c["category"], smoke, c) for c in t1)
+        out.append(f"== {e['name']} ({e.get('provider')}:{e['model_id']})")
+        out.append(f"  T1 — every model: {n_all} rows ({len(t1)} cases) + {len(perf)} perf probes")
+        rounds = plan_rounds(cfg_p, e, cases)
+        gen_total, judged_total, parts = 0.0, 0, []
+        for i, rd in enumerate(rounds):
+            rcs = [c for c in rd["cases"] if c["category"] != "perf"]
+            lines, n = rows_of(rcs, rd["ctx"], e)
+            slots = est.rig_slots(rd["ctx"]) if rig else max(1, int(prov.concurrency or 1))
+            if rig:
+                what = {"A": "standard rows", "B": "wide rows (bank / ladder budget)",
+                        "all": "every row"}[rd["name"]]
+                out.append(f"  round {rd['name']} — {what}: {n} rows, loaded at ctx {rd['ctx']} "
+                           f"(~{slots} slots)")
+            else:
+                out.append(f"  one round — hosted API (nothing loaded): {n} rows, "
+                           f"{slots} requests at once")
+            out += lines
+            secs, judged = jobs_of(rcs, rig)
+            m = est.generation_min(secs, slots) + (est.RELOAD_S / 60 if rig and i else 0)
+            gen_total += m
+            judged_total += judged
+            parts.append(f"round {rd['name']} {m:.1f} min" if rig else f"generation {m:.1f} min")
+        jm = est.judge_min(judged_total, 3)
+        out.append(f"  estimate (not a measurement — "
+                   f"{'omega-class rig seconds per row (a verbose 27B is ~x2)' if rig else 'hosted-API seconds per row'}"
+                   f", x{est.CALIBRATION} calibration, crucibleforge/estimate.py): "
+                   + ", ".join(parts) + f"; judge {jm:.1f} min ({judged_total:.1f} judged-row "
+                   f"equivalents at 3 samples, per-row sample policy) -> ~{gen_total + jm:.0f} min")
+        out += _plan_ladder(args, cfg_p, prof, e, rig, prov, rows_of, jobs_of, samples) \
+            if uses_ladder(args, cfg) else _plan_tiers(args, cfg_p, prof, e, rows_of)
+    print("\n".join(out))
+    print("\n(plan only — no model, provider or judge was called; times are estimates)")
+    return 0
+
+
+def _plan_ladder(args, cfg_p, prof, e, rig, prov, rows_of, jobs_of, samples) -> list[str]:
+    from . import estimate as est
+    from . import ladder
+    from .runner import load_context
+    out = []
+    try:
+        sets = ladder.discover(prof)
+    except ConfigError as ex:
+        return [f"  ladder: INVALID — {ex}"]
+    unlock = ladder.unlock_share(prof)
+    if not sets:
+        return [f"  ladder: no sets yet (cases/ladder/<category>/<part>/set-<n>.json; "
+                f"a set runs when every level below scored >= {unlock:.0%})"]
+    out.append(f"  ladder — a set runs when every level below it scored >= {unlock:.0%} "
+               f"(all sets of one level together):")
+    gen_all, judged_all = 0.0, 0
+    for key, seq in sets.items():
+        for spec in seq:
+            cs = ladder.set_cases(prof, key, spec["n"], smoke=getattr(args, "smoke", False),
+                                  sets=sets)
+            ctx = load_context(cfg_p, e, cases=cs)
+            lines, n = rows_of(cs, ctx, e)
+            below = "standard" if spec.get("level", spec["n"]) == 1 else "standard + every lower level"
+            budget = f", budget {spec['budget']}" if spec.get("budget") else ""
+            out.append(f"  {key} set {spec['n']} (level {spec.get('level', spec['n'])}): "
+                       f"{len(cs)} cases, {n} rows{budget}, loaded at ctx {ctx} — runs if "
+                       f">= {unlock:.0%} on {below}")
+            out += lines
+            secs, judged = jobs_of(cs, rig)
+            slots = est.rig_slots(ctx) if rig else max(1, int(prov.concurrency or 1))
+            gen_all += est.generation_min(secs, slots) + (est.RELOAD_S / 60 if rig else 0)
+            judged_all += judged
+    jm = est.judge_min(judged_all, 3) if judged_all else 0.0
+    out.append(f"  estimate if every set unlocks: +{gen_all:.0f} min generation, "
+               f"+{jm:.0f} min judge (one load and judge pass per set, an upper bound)")
+    return out
+
+
+def _plan_tiers(args, cfg_p, prof, e, rows_of) -> list[str]:
+    """Legacy (a tiered profile without sub-scores): tier-2/3 lists."""
+    from .profiles import tier_cases
+    from .runner import load_context
+    from . import tiers as _tiers
+    out = []
+    for tier in _tiers.TIERS:
+        gates = {s: _tiers.gate(prof, tier, s) for s in _tiers.SCORES}
+        tc = tier_cases(prof, tier, smoke=getattr(args, "smoke", False))
+        for score in _tiers.SCORES:
+            sc_cases = [c for c in tc if c["tier_score"] == score]
+            if not sc_cases:
+                out.append(f"  T{tier} {score}: no items")
+                continue
+            ctx_t = load_context(cfg_p, e, min_ctx=_tiers.tier_context(prof, tier),
+                                 cases=sc_cases)
+            lines, n = rows_of(sc_cases, ctx_t, e)
+            below = "T1" if tier == 2 else "T2"
+            out.append(f"  T{tier} {score} — if {score} >= {gates[score]:g} on {below}: "
+                       f"{n} rows, loaded at ctx {ctx_t}")
+            out += lines
+    return out
 
 
 def cmd_gui(args, cfg):
@@ -1261,7 +1967,18 @@ def cmd_cases(args, cfg):
         return 0
     if args.action == "verify":
         from .verify_cases import verify_all
-        return verify_all(cases, verbose=args.verbose)
+        rc = verify_all(cases, verbose=args.verbose)
+        # ladder packs: the set files themselves (unknown ids, empty packs,
+        # a standard case reused in a pack, a case in two packs)
+        from . import ladder
+        from .profiles import DEFAULT_PROFILE, load_profile
+        try:
+            problems = ladder.verify(load_profile(DEFAULT_PROFILE, cfg or None))
+        except Exception as e:  # noqa: BLE001 — report, don't crash the case check
+            problems = [f"ladder: {e}"]
+        for p in problems:
+            print(f"FAIL ladder: {p}")
+        return rc or (1 if problems else 0)
     return 1
 
 
@@ -1292,7 +2009,109 @@ ENV_FILE: Path | None = Path(_ENV_FILE_ENV).expanduser() if _ENV_FILE_ENV else N
 # log line. A parent that already holds it (a queue script's `flock
 # results/.rig.lock …`) is detected by walking the process ancestry for an
 # open fd on the lock file, so the child does not deadlock on its own parent.
-RIG_LOCK_CMDS = ("run", "all", "judge", "recover", "bench-all")
+RIG_LOCK_CMDS = ("run", "all", "judge", "recover", "escalate", "bench-all")
+
+
+# ------------------------------------------------------------- stop path
+# M10 / STEP4 defect 1 (2026-10-28): a SIGTERM while the rig was unreachable
+# raised SystemExit in the main thread, which then joined worker threads stuck
+# in a socket connect; systemd SIGABRTed the process 46-90 s later with the
+# meta unfinished and the lease held. Now the handler only SETS the stop flags
+# (runner.STOP + stopflag.ABORT): the runner's pool stops waiting at once, the
+# retry/backoff loops and polling sleeps give up, the meta is marked stopped,
+# the `finally` blocks release the lease, and the process exits without
+# joining stuck workers. A watchdog ends the process after
+# ``STOP_GRACE_S`` whatever the main thread is blocked in (it marks the
+# in-flight runs stopped and releases every lease first). A second SIGTERM
+# raises SystemExit at once (the old behaviour).
+TERM_EXIT = 128 + 15
+STOP_GRACE_S = 30.0
+_TERMS = {"n": 0}
+
+
+def _stop_grace_s() -> float:
+    try:
+        return float(os.environ.get("CRUCIBLEFORGE_STOP_GRACE_S") or STOP_GRACE_S)
+    except ValueError:
+        return STOP_GRACE_S
+
+
+def request_stop(signum: int = 15) -> None:
+    """What SIGTERM does (also callable directly, e.g. by tests)."""
+    from . import runner
+    runner.STOP.set()
+    stopflag.ABORT.set()
+    log.warning("signal %d — stopping: no new work starts, waits end now, the run is marked "
+                "stopped and the GPU lease released (hard exit in %.0fs at the latest)",
+                signum, _stop_grace_s())
+    t = threading.Thread(target=_stop_watchdog, args=(128 + signum,),
+                         name="crucibleforge-stop-watchdog", daemon=True)
+    t.start()
+
+
+def _term(signum, frame):
+    _TERMS["n"] += 1
+    if _TERMS["n"] > 1:
+        raise SystemExit(128 + signum)
+    request_stop(signum)
+
+
+def install_stop_handler() -> None:
+    import signal
+    signal.signal(signal.SIGTERM, _term)
+
+
+def release_all_leases() -> None:
+    """Release every GPU lease any provider of this process holds (bounded:
+    the management client's connect timeout is seconds)."""
+    from . import providers
+    for _cfg, p in list(providers._CACHE.values()):
+        if getattr(p, "_lease", None) is None and not getattr(p, "_vacated_render", False):
+            continue
+        try:
+            p.release_lease()
+        except Exception as e:  # noqa: BLE001 — best effort on the way out
+            log.warning("lease release on %s failed: %s", p.name, e)
+
+
+def _stop_watchdog(code: int) -> None:
+    time.sleep(_stop_grace_s())
+    log.error("still running %.0fs after the stop signal — marking the run stopped, "
+              "releasing leases and ending the process", _stop_grace_s())
+    _hard_exit(code)
+
+
+def _hard_exit(code: int) -> None:
+    from . import runner
+    try:
+        marked = runner.mark_active_stopped()
+        if marked:
+            log.warning("marked stopped: %s", ", ".join(marked))
+        release_all_leases()
+    finally:
+        logging.shutdown()
+        os._exit(code)
+
+
+def _exit_after_stop(rc: int) -> None:
+    """End a stopped process: release leases now (atexit would too, but only
+    after joining threads that may never end), then exit — hard when a
+    worker thread is still blocked in a socket."""
+    release_all_leases()
+    stuck = [t.name for t in threading.enumerate()
+             if t is not threading.main_thread() and t.is_alive() and not t.daemon]
+    if stuck:
+        log.warning("leaving %d blocked worker thread(s) behind: %s", len(stuck),
+                    ", ".join(stuck[:8]))
+        sys.stdout.flush()
+        sys.stderr.flush()
+        logging.shutdown()
+        os._exit(rc or TERM_EXIT)
+    sys.exit(rc or TERM_EXIT)
+
+
+def stopping() -> bool:
+    return stopflag.ABORT.is_set()
 
 
 def _remote_judge_only(args, cfg) -> bool:
@@ -1317,6 +2136,60 @@ def _remote_judge_only(args, cfg) -> bool:
     if remote:
         log.info("judge %s is a hosted API — the rig lock is not taken", cand["model_id"])
     return remote
+
+
+#: The rig lock this process holds (main's up-front lock or a phase lock).
+_RIG_LOCK: dict = {"f": None}
+
+
+def _is_rig_provider(cfg, name: str | None) -> bool:
+    from .providers import get_provider
+    try:
+        return get_provider(cfg, name).type in ("lmstudio", "studioforge")
+    except Exception:  # noqa: BLE001 — unsure: treat as rig
+        return True
+
+
+def all_hosted(args, cfg) -> bool:
+    """True when every model the command selects is a hosted API (S10): such
+    a run takes results/.rig.lock only around its rig phases (a rig judge),
+    so it runs in parallel with a rig model's benchmark (STEP4: MiniMax had
+    to run from a copy of the results dir to get past omega's lock)."""
+    if getattr(args, "cmd", None) not in ("run", "all", "escalate", "recover"):
+        return False
+    try:
+        entries = resolve_models(cfg, getattr(args, "models", None) or "all")
+    except (SystemExit, Exception):  # noqa: BLE001 — unsure: take the lock
+        return False
+    return bool(entries) and not any(_is_rig_provider(cfg, e.get("provider")) for e in entries)
+
+
+class rig_phase:
+    """Hold results/.rig.lock for one rig phase when the command did not take
+    it up front (S10). No-op when ``needed`` is false or the lock is held."""
+
+    def __init__(self, needed: bool = True, what: str = "rig phase"):
+        self.needed, self.what, self.mine = needed, what, False
+
+    def __enter__(self):
+        if self.needed and _RIG_LOCK["f"] is None:
+            f = acquire_rig_lock()
+            if f is not None:
+                _RIG_LOCK["f"], self.mine = f, True
+                log.info("rig lock taken for the %s", self.what)
+        return self
+
+    def __exit__(self, *exc):
+        if self.mine:
+            f, _RIG_LOCK["f"] = _RIG_LOCK["f"], None
+            try:
+                import fcntl
+                fcntl.flock(f.fileno(), fcntl.LOCK_UN)
+            except (ImportError, OSError):
+                pass
+            f.close()
+            log.info("rig lock released after the %s", self.what)
+        return False
 
 
 def _rig_lock_path() -> Path:
@@ -1369,7 +2242,15 @@ def acquire_rig_lock():
         holder = f.read().strip()[:200]
         log.warning("another CrucibleForge benchmark holds %s (%s) — waiting for it to "
                     "finish (one benchmark at a time)", path, holder or "holder unknown")
-        fcntl.flock(f.fileno(), fcntl.LOCK_EX)
+        # poll, not a blocking flock: a SIGTERM while waiting must end the wait
+        while True:
+            try:
+                fcntl.flock(f.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+                break
+            except BlockingIOError:
+                if stopflag.sleep(2.0):
+                    f.close()
+                    raise SystemExit(TERM_EXIT)
     f.seek(0)
     f.truncate()
     f.write(f"pid {os.getpid()} since {_utcnow_iso()}: crucibleforge {' '.join(sys.argv[1:])[:160]}\n")
@@ -1540,6 +2421,18 @@ def main(argv=None):
     p_recover.add_argument("--profile", default=None)
     p_recover.add_argument("--judge", default=None, help=argparse.SUPPRESS)
     p_recover.add_argument("--no-link-check", action="store_true")
+    p_esc = sub.add_parser(
+        "escalate", help="re-run the answers that ran out of budget on bigger budgets "
+                         "(64k, then 128k) for the board's Room column")
+    add_force_evict_arg(p_esc)
+    p_esc.add_argument("--models", default="all")
+    p_esc.add_argument("--rungs", default=None,
+                       help="comma list of output budgets (default: the profile's "
+                            "escalation_rungs)")
+    p_esc.add_argument("--yes", action="store_true")
+    p_esc.add_argument("--profile", default=None)
+    p_esc.add_argument("--judge", default=None, help=argparse.SUPPRESS)
+    p_esc.add_argument("--no-link-check", action="store_true")
     p_report = sub.add_parser("report", help="generate comparison report")
     p_report.add_argument("--models", default=None)
     p_report.add_argument("--public", action="store_true",
@@ -1548,13 +2441,51 @@ def main(argv=None):
                                "left out and every file is leak-checked before writing; "
                                "writes results/public/ (or --out), never the local board")
     p_report.add_argument("--out", default=None, help="with --public: output directory")
+    p_cmp = sub.add_parser("compare", help="head-to-head: paired bootstrap difference of the "
+                                           "headline scores of two models (no model is called)")
+    p_cmp.add_argument("a")
+    p_cmp.add_argument("b")
+    p_cal = sub.add_parser("calibrate", help="flag sub-scores the reference model aces "
+                                             "(too easy) and sub-scores a model maxed "
+                                             "(needs a new pack); reads the board only")
+    p_cal.add_argument("--reference", default=None,
+                       help="reference model label (default: the profile's calibration.reference)")
+    p_pack = sub.add_parser("pack", help="ladder packs: scaffold (new) or check (verify) one")
+    pks = p_pack.add_subparsers(dest="action", required=True)
+    p_pn = pks.add_parser("new", help="scaffold the next pack of a sub-score (category/part)")
+    p_pn.add_argument("subscore", help="e.g. work/code")
+    p_pn.add_argument("--count", type=int, default=3, help="questions (default 3; any >= 1)")
+    p_pn.add_argument("--level", type=int, default=None,
+                      help="unlock level (default: one above the highest existing)")
+    p_pn.add_argument("--category", default=None, help="case category of the stubs")
+    p_pn.add_argument("--grading", default=None, choices=["exact", "python_exec", "judged"])
+    p_pv = pks.add_parser("verify", help="check one pack file")
+    p_pv.add_argument("file")
     p_pw = sub.add_parser("pairwise", help="head-to-head A/B Elo on creative categories")
     p_pw.add_argument("--models", default="all")
     p_pw.add_argument("--categories", default="rp,nsfw,story")
     p_pw.add_argument("--judge", default=None)
     p_pw.add_argument("--yes", action="store_true")
-    p_all = sub.add_parser("all", help="run + judge + report")
+    p_all = sub.add_parser("all", help="run + escalate + judge + report")
     add_run_args(p_all)
+    p_all.add_argument("--plan", action="store_true",
+                       help="print what would run per model (tier-1 rows, repeats, budgets, "
+                            "the context it loads at, the tier-2/3 items and their gates) "
+                            "without calling any model, provider or judge")
+    p_all.add_argument("--no-tiers", action="store_true",
+                       help="standard only: no ladder sets / tier-2/3 phases (= --no-ladder)")
+    p_all.add_argument("--escalate", action="store_true",
+                       help="also run the escalation round: answers that ran out of budget "
+                            "re-run on the profile's escalation_rungs (4.0: 64k only). Off by default since "
+                            "3.9 — it is outside the timed run; `crucibleforge escalate` "
+                            "does the same on its own")
+    p_all.add_argument("--no-escalate", action="store_true",
+                       help="accepted for compatibility (escalation is off unless --escalate)")
+    p_all.add_argument("--no-ladder", action="store_true",
+                       help="standard cases only: no ladder sets (suite 3.9)")
+    p_all.add_argument("--timing", action="store_true",
+                       help="print the per-phase wall-clock table at the end (always recorded "
+                            "in each model's meta under `timing`)")
     p_all.add_argument("--force", action="store_true",
                        help="re-judge rows that already have verdicts; also lets --fresh "
                             "combine with --cases/--categories (archives the whole set)")
@@ -1572,6 +2503,24 @@ def main(argv=None):
                       help="keep board rows of models gone from the rig / disabled")
     p_ba.add_argument("--first", default=None,
                       help="comma list of labels to generate before everything else")
+    p_ba.add_argument("--until", default=None, metavar="HH:MM",
+                      help="time window: EVERYTHING (generation, escalation, ladder packs, "
+                           "judge, boards) is done by HH:MM — a model starts only when its "
+                           "estimated generation + judge fit, in-flight rows are capped, the "
+                           "judge stops before the end (unjudged rows wait for the next run)")
+    p_ba.add_argument("--judge-reserve-min", type=float, default=45,
+                      help="the FLOOR of the judge reserve: generation stops early enough for "
+                           "the estimated judge work (crucibleforge/estimate.py) but never "
+                           "less than this many minutes before the judge (default 45)")
+    p_ba.add_argument("--plan-start", default=None, metavar="HH:MM",
+                      help="plan only: estimate the --until window as if the run started then")
+    p_ba.add_argument("--no-ladder", action="store_true",
+                      help="standard cases only: no ladder packs")
+    p_ba.add_argument("--escalate", action="store_true",
+                      help="4.0: after every model's single pass, ONE retry pass for the rows "
+                           "that ran out of budget, at the next rung only (off by default)")
+    p_ba.add_argument("--no-escalate", action="store_true",
+                      help="accepted for compatibility (escalation is off unless --escalate)")
     p_ba.add_argument("--models", default=None, help=argparse.SUPPRESS)
     add_v2_args(p_ba)
 
@@ -1649,7 +2598,7 @@ def main(argv=None):
     # `cases` reads only the case files that ship with the repo — no provider,
     # no models, no results. A clean checkout (CI) has no models.yaml, so
     # requiring one here would fail `cases verify` on every fresh runner.
-    config_optional = args.cmd == "cases"
+    config_optional = args.cmd in ("cases", "pack")
     try:
         cfg = load_config(args.config)
     except ConfigError as e:
@@ -1662,21 +2611,16 @@ def main(argv=None):
         from .config import set_results_dir
         set_results_dir(Path(args.results))
     setup_logging((results_dir() / "crucibleforge.log") if cfg else None)
-    # a SIGTERM (queue script killed, `pkill`) must still release the GPU
-    # lease and restore residents: turn it into SystemExit so the `finally`
-    # blocks and atexit handlers run instead of the process just vanishing
-    import signal
-
-    def _term(signum, frame):
-        raise SystemExit(128 + signum)
-    signal.signal(signal.SIGTERM, _term)
+    # a SIGTERM (queue script killed, `pkill`, systemd stop) must end the run
+    # in seconds, mark it stopped and release the GPU lease (M10)
+    install_stop_handler()
 
     # Fail fast: refuse before a multi-hour run rather than at the first
     # coding case. "cases list" and the read-only commands never execute
     # anything, so they are not gated.
     from . import graders
-    executes_code = args.cmd in {"run", "all", "recover", "gui", "bench-all"} or (
-        args.cmd == "cases" and getattr(args, "action", None) == "verify")
+    executes_code = args.cmd in {"run", "all", "recover", "escalate", "gui", "bench-all"} or (
+        args.cmd in ("cases", "pack") and getattr(args, "action", None) == "verify")
     if executes_code:
         try:
             graders.require_sandbox()
@@ -1694,8 +2638,11 @@ def main(argv=None):
                         "execute model-written code as this user, with network access "
                         "and this user's files readable.", graders.ALLOW_FLAG, why)
 
+    if stopflag.ABORT.is_set():
+        _exit_after_stop(TERM_EXIT)
     handler = {"status": cmd_status, "run": cmd_run, "judge": cmd_judge,
-               "recover": cmd_recover, "report": cmd_report, "pairwise": cmd_pairwise, "all": cmd_all,
+               "recover": cmd_recover, "escalate": cmd_escalate, "report": cmd_report, "compare": cmd_compare, "calibrate": cmd_calibrate,
+               "pack": cmd_pack, "pairwise": cmd_pairwise, "all": cmd_all,
                "gui": cmd_gui, "import-openclaw": cmd_import_openclaw,
                "models": cmd_models, "cases": cmd_cases, "bench-all": cmd_bench_all}[args.cmd]
     # WP-BENCH FIX-6: `run`/`all` are the two commands that do real benched
@@ -1712,18 +2659,33 @@ def main(argv=None):
     rig_lock = None
     try:
         plan_only = args.cmd == "bench-all" and not getattr(args, "go", False)
-        if args.cmd in RIG_LOCK_CMDS and not plan_only and not _remote_judge_only(args, cfg):
-            rig_lock = acquire_rig_lock()  # noqa: F841 — held until exit
+        if (args.cmd in RIG_LOCK_CMDS and not plan_only and not _remote_judge_only(args, cfg)
+                and not getattr(args, "plan", False)):
+            if all_hosted(args, cfg):
+                log.info("every selected model is a hosted API — results/.rig.lock is taken "
+                         "only around rig phases (a rig judge), not for the whole run")
+            else:
+                rig_lock = acquire_rig_lock()  # noqa: F841 — held until exit
+                _RIG_LOCK["f"] = rig_lock
         rc = handler(args, cfg)
     except ConfigError as e:
         print(f"config error: {e}", file=sys.stderr)
         rc = 2
     except BaseException as e:
+        if stopflag.ABORT.is_set():
+            log.warning("stopped (SIGTERM) during %s: %s", args.cmd, type(e).__name__)
+            if v2_tracked:
+                _v2_finish(args.cmd, args, cfg, TERM_EXIT, v2_state)
+            _exit_after_stop(TERM_EXIT)
         if v2_tracked:
             _v2_finish(args.cmd, args, cfg, _exit_code_from_exception(e), v2_state)
         raise
+    if stopflag.ABORT.is_set():
+        rc = TERM_EXIT
     if v2_tracked:
         _v2_finish(args.cmd, args, cfg, rc or 0, v2_state)
+    if stopflag.ABORT.is_set():
+        _exit_after_stop(rc)
     sys.exit(rc or 0)
 
 

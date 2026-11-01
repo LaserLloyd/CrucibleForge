@@ -1,0 +1,16 @@
+2026-10-14T07:00:02+09:00 nightwatch[4121]: nightwatch: photos=STALE(28.0h) home=FRESH(25.5h)
+2026-10-15T07:00:01+09:00 nightwatch[5530]: nightwatch: photos=STALE(28.1h) home=STALE(26.4h)
+2026-10-15T07:00:01+09:00 systemd[1567]: nightwatch.service: Main process exited, code=exited, status=1/FAILURE
+2026-10-15T09:12:40+09:00 note (Ana): checked by hand. Newest photos backup was made yesterday at 12:00, so 19 h old at 07:00. home was made at 23:36 yesterday.
+2026-10-16T07:00:03+09:00 nightwatch[6012]: nightwatch: photos=STALE(28.0h) home=FRESH(16.9h)
+2026-10-17T07:00:02+09:00 nightwatch[7120]: Traceback (most recent call last):
+2026-10-17T07:00:02+09:00 nightwatch[7120]:   File "/home/alex/nightwatch/nightwatch/main.py", line 32, in <module>
+2026-10-17T07:00:02+09:00 nightwatch[7120]:     sys.exit(run(sys.argv[1]))
+2026-10-17T07:00:02+09:00 nightwatch[7120]:   File "/home/alex/nightwatch/nightwatch/main.py", line 10, in run
+2026-10-17T07:00:02+09:00 nightwatch[7120]:     cfg = load(config_path)
+2026-10-17T07:00:02+09:00 nightwatch[7120]:   File "/home/alex/nightwatch/nightwatch/config.py", line 20, in load
+2026-10-17T07:00:02+09:00 nightwatch[7120]:     max_age = verify["max_age_hours"]
+2026-10-17T07:00:02+09:00 nightwatch[7120]: KeyError: 'max_age_hours'
+2026-10-17T07:00:02+09:00 systemd[1567]: nightwatch.service: Main process exited, code=exited, status=1/FAILURE
+2026-10-18T07:00:02+09:00 nightwatch[8044]: KeyError: 'max_age_hours'
+2026-10-18T07:00:02+09:00 systemd[1567]: nightwatch.service: Main process exited, code=exited, status=1/FAILURE

@@ -1,0 +1,12 @@
+[verify]
+max_age_h = 26
+
+[[target]]
+name = "photos"
+dir = "/var/mnt/backup/photos"
+pattern = "*.tar.zst"
+
+[[target]]
+name = "home"
+dir = "/var/mnt/backup/home"
+pattern = "home-*.tar.zst"

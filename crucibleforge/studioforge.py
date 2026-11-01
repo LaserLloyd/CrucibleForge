@@ -70,6 +70,8 @@ from json import loads as json_loads
 
 import httpx
 
+from . import stopflag
+
 log = logging.getLogger(__name__)
 
 DEFAULT_BASE_URL = "http://localhost:1234/v1"   # override in models.yaml providers.<name>.base_url
@@ -94,6 +96,17 @@ LEASE_HOLDER = "crucibleforge"
 LEASE_IDLE_TTL_S = 7200.0
 
 
+#: Connect timeout for every management call. The read timeout stays the
+#: call's own (a cold load may legitimately answer after 15 minutes), but a
+#: rig that does not even accept the connection (Tailscale key expired,
+#: 2026-10-28) must fail in seconds, not hold a worker for the full 900 s.
+MGMT_CONNECT_TIMEOUT_S = 10.0
+
+
+def _timeout(total: float) -> httpx.Timeout:
+    return httpx.Timeout(total, connect=min(float(total), MGMT_CONNECT_TIMEOUT_S))
+
+
 class StudioForgeError(RuntimeError):
     """StudioForge could not serve the requested model."""
 
@@ -111,6 +124,12 @@ class StatusUnavailable(StudioForgeError):
 
 
 # ------------------------------------------------------------------ plumbing
+
+def _sleep(seconds: float) -> None:
+    """A polling/back-off pause that ends the wait on a hard stop."""
+    if stopflag.sleep(seconds, time.sleep):
+        raise StudioForgeError("stopping (SIGTERM): wait abandoned")
+
 
 def _api(base_url: str) -> str:
     """StudioForge's management API lives beside /v1 (…/api/*)."""
@@ -172,7 +191,7 @@ def _mgmt(method: str, base_url: str, api_key: str, headers: dict | None, path: 
     StatusUnavailable on a transport failure so callers can tell "the server
     did not answer" from "the server said no"."""
     try:
-        with httpx.Client(timeout=timeout) as http:
+        with httpx.Client(timeout=_timeout(timeout)) as http:
             resp = http.request(method, f"{_api(base_url)}{path}", json=json,
                                 headers=_hdrs(api_key, headers))
     except httpx.HTTPError as e:
@@ -196,7 +215,7 @@ def _models_json(base_url: str, api_key: str) -> list[dict]:
     """Raw entries from GET /v1/models (id, size_bytes, state, kind, ...)."""
     headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
     try:
-        with httpx.Client(timeout=15) as http:
+        with httpx.Client(timeout=_timeout(15)) as http:
             resp = http.get(f"{base_url}/models", headers=headers)
     except httpx.HTTPError as e:
         log.warning("StudioForge unreachable at %s: %s", base_url, e)
@@ -349,7 +368,7 @@ def wait_ready(model_id: str, base_url: str, api_key: str,
             raise StudioForgeError(
                 f"{model_id} not ready after {timeout_s:.0f}s (state "
                 f"{(live or {}).get('state')!r})")
-        time.sleep(poll_s)
+        _sleep(poll_s)
 
 
 # ------------------------------------------------------------------ loading
@@ -695,7 +714,7 @@ def load_model(model_id: str, base_url: str, api_key: str,
                 log.warning("load-recommended for %s at ctx=%d refused (HTTP %s, %s) — "
                             "retrying in %.0fs (%s)", model_id, wanted,
                             res.get("_status"), _refusal_reason(res), wait, detail)
-                time.sleep(wait)
+                _sleep(wait)
                 waited += wait
                 continue
             raise StudioForgeError(
@@ -766,7 +785,7 @@ def unload_all(base_url: str = DEFAULT_BASE_URL, api_key: str = DEFAULT_API_KEY,
                 f"will not evict a serving model after waiting {wait_busy_s:.0f}s: {names}")
         log.info("waiting for %d busy resident(s) to go idle before unloading: %s",
                  len(busy), [r["model_id"].rsplit("/", 1)[-1] for r in busy])
-        time.sleep(5.0)
+        _sleep(5.0)
         try:
             res = residents(base_url, api_key, headers)
         except StatusUnavailable:
@@ -787,6 +806,27 @@ def unload_all(base_url: str = DEFAULT_BASE_URL, api_key: str = DEFAULT_API_KEY,
             log.warning("unload of %s rejected (HTTP %d: %s)", mid, code, str(data)[:200])
     log.info("unloaded %d/%d idle StudioForge model(s)", unloaded, len(targets))
     return unloaded
+
+
+def unload_models(base_url: str, api_key: str, headers: dict | None,
+                  model_ids: list[str], timeout_s: float = 20.0) -> int:
+    """Best-effort, bounded unload of exactly ``model_ids`` (the stop path:
+    never waits for idle, never raises, never sleeps). Returns how many the
+    rig accepted."""
+    n = 0
+    for mid in model_ids:
+        try:
+            code, data = _mgmt("POST", base_url, api_key, headers,
+                               f"/api/models/{_quote(mid)}/unload", timeout=timeout_s)
+        except StudioForgeError as e:
+            log.warning("unload of %s on stop failed: %s", mid, e)
+            continue
+        if code < 400:
+            n += 1
+        else:
+            log.warning("unload of %s on stop rejected (HTTP %d: %s)", mid, code,
+                        str(data)[:160])
+    return n
 
 
 # ------------------------------------------------------------------- leases
@@ -843,22 +883,105 @@ def placement_fits(base_url: str, api_key: str, headers: dict | None,
     return None
 
 
+def foreign_held_devices(leases: list[dict], *, vacatable_render: bool = False,
+                         our_family: str = LEASE_HOLDER) -> set[int]:
+    """Cards held by SOMEONE ELSE's lease (not a ``crucibleforge*`` holder).
+    A render lease (ClawForge's ComfyUI) is left out when ``vacatable_render``
+    — bench-first vacates it through ClawForge and resumes it afterwards.
+    Everything else (SpeechForge's voice lease on GPU 3, another tenant) is
+    never asked for: STEP4 defect 2 (2026-10-28) was a judge lease naming all
+    four cards, GPU 3 included, while speechforge held it."""
+    out: set[int] = set()
+    for l in leases or []:
+        holder = str(l.get("holder") or "")
+        fam = str(l.get("holder_family") or "")
+        if holder.startswith(our_family) or fam == our_family:
+            continue
+        render = l.get("kind") == "render" or fam == "clawforge" or holder.startswith("clawforge")
+        if render and vacatable_render:
+            continue
+        out.update(int(d) for d in (l.get("devices") or []))
+    return out
+
+
 def choose_lease_devices(base_url: str, api_key: str, headers: dict | None, model_id: str,
-                         preferred: list[int] | None, fallback: list[int]) -> list[int]:
-    """``preferred`` when the planner says the model fits there empty,
-    otherwise ``fallback``. Logged either way so the run's device choice is
-    never a mystery."""
+                         preferred: list[int] | None, fallback: list[int],
+                         busy: set[int] | None = None) -> list[int]:
+    """``preferred`` when the planner says the model fits there empty;
+    ``fallback`` minus the cards another holder leases (``busy``) when the
+    planner says it does NOT fit; and ``preferred`` again when the planner
+    cannot say (no placement / no answer) — an unknown placement is never a
+    reason to widen the lease to every card (EVAL-FABLE M9: the judge's
+    fallback named [0,1,2,3], GPU 3 included, on 2026-10-28). Logged either
+    way so the run's device choice is never a mystery."""
+    busy = set(busy or ())
+    free = [d for d in fallback if d not in busy]
+    if busy & set(fallback):
+        log.info("cards %s are leased by another holder — never asked for", sorted(busy & set(fallback)))
     if not preferred or sorted(preferred) == sorted(fallback):
-        return list(fallback)
+        if not free:
+            raise StudioForgeError(f"no free card for {model_id.rsplit('/', 1)[-1]}: every one of "
+                                   f"{fallback} is leased by another holder")
+        return free
     fits = placement_fits(base_url, api_key, headers, model_id, list(preferred))
     short = model_id.rsplit("/", 1)[-1]
     if fits:
         log.info("%s fits on preferred cards %s — leasing only those (the rest stay free)",
                  short, preferred)
         return list(preferred)
-    log.info("%s does not fit on preferred cards %s (planner: %s) — leasing the whole set %s",
-             short, preferred, "no placement" if fits is None else "does not fit", fallback)
-    return list(fallback)
+    if fits is None:
+        log.warning("%s: the planner gave no placement for preferred cards %s — leasing those "
+                    "(never widened to every card on an unknown placement); the rig refuses "
+                    "clearly if it does not fit", short, preferred)
+        return list(preferred)
+    if not free:
+        raise StudioForgeError(f"{short} does not fit on {preferred} and no other card is free "
+                               f"(leased by another holder: {sorted(busy)})")
+    log.info("%s does not fit on preferred cards %s — leasing the free set %s", short,
+             preferred, free)
+    return free
+
+
+# ---------------------------------------------- stale leases (STEP4 2026-10-28)
+
+def stale_leases(leases: list[dict], holder: str, model_id: str,
+                 own_lease_id: str | None = None) -> list[dict]:
+    """Leases held under OUR exact ``holder`` that name ``model_id`` and are
+    not this process's own: left by a run that died without releasing
+    (STEP4's 92fa55704e1e, a SIGABRTed run). One benchmark runs at a time
+    (results/.rig.lock, and a resident another live run leased is refused
+    outright — Provider._refuse_other_bench_lease), so such a lease has no
+    live owner. Other holders (the judge's ``crucibleforge-judge`` vs a run's
+    ``crucibleforge``), other models and other tenants are never touched."""
+    out = []
+    for l in leases or []:
+        lid = str(l.get("id") or l.get("lease_id") or "")
+        if str(l.get("holder") or "") != holder or (own_lease_id and lid == own_lease_id):
+            continue
+        if model_id in (l.get("model_ids") or []):
+            out.append(l)
+    return out
+
+
+def release_stale_leases(base_url: str, api_key: str, headers: dict | None, holder: str,
+                         model_id: str, own_lease_id: str | None = None) -> list[str]:
+    """Release the :func:`stale_leases` before taking a new one, so a crashed
+    run's lease is never stacked under a second one. Returns the ids
+    released. An unreadable lease list changes nothing."""
+    try:
+        leases = list_leases(base_url, api_key, headers)
+    except StudioForgeError as e:
+        log.info("lease list unavailable (%s) — no stale-lease check", e)
+        return []
+    out = []
+    for l in stale_leases(leases, holder, model_id, own_lease_id):
+        lid = str(l.get("id") or l.get("lease_id") or "")
+        log.warning("stale lease %s (holder %s, devices %s, reason %r) from a run that is gone "
+                    "— releasing it before taking a new one", lid, holder, l.get("devices"),
+                    str(l.get("reason") or "")[:120])
+        if lid and release_lease(base_url, api_key, headers, lid):
+            out.append(lid)
+    return out
 
 
 def foreign_render_leases(leases: list[dict], devices: list[int],
@@ -896,7 +1019,7 @@ def clawforge_control(mcp_url: str, action: str, timeout: float = 180.0) -> dict
         return json_loads(txt) if txt.strip().startswith("{") else {}
 
     try:
-        with httpx.Client(timeout=timeout) as http:
+        with httpx.Client(timeout=_timeout(timeout)) as http:
             init = {"jsonrpc": "2.0", "id": 1, "method": "initialize",
                     "params": {"protocolVersion": "2024-11-05", "capabilities": {},
                                "clientInfo": {"name": "crucibleforge", "version": "1"}}}
@@ -946,7 +1069,7 @@ def vacate_render_leases(base_url: str, api_key: str, headers: dict | None, devi
     clawforge_control(clawforge_mcp, "vacate")
     t0 = time.monotonic()
     while time.monotonic() - t0 < wait_s:
-        time.sleep(5)
+        _sleep(5)
         try:
             still = foreign_render_leases(list_leases(base_url, api_key, headers), devices)
         except StatusUnavailable:
@@ -1088,7 +1211,7 @@ def acquire_lease(base_url: str, api_key: str, headers: dict | None, devices: li
                 busy_since = None
             log.warning("lease refused (HTTP %d, %s) — retrying in %.0fs: %s",
                         code, reason_txt, wait, detail)
-            time.sleep(wait)
+            _sleep(wait)
             waited += wait
             continue
         raise StudioForgeError(f"lease refused (HTTP {code}): {detail}", status=code,

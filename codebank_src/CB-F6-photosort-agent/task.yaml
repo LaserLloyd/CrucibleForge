@@ -1,0 +1,18 @@
+id: CB-F6-photosort-agent
+category: codeagent
+family: agent
+difficulty: hard
+max_tokens: 4096
+allowed_paths: ["photosort/*.py"]
+new_paths: ["photosort/*.py"]
+pythonpath: ["."]
+issue: |
+  Photo import problems after Ana got a new phone and the family's Tokyo
+  trip. The import log ("import") has the details and notes from Ben and
+  Ana. Fix photosort so it follows README.md. The catalog on the NAS was
+  created by release 1 and must keep working.
+groups:
+  - {id: dates, file: test_dates.py, kind: f2p, why: "README: folder = year/month of taken as written; taken_utc = taken - offset (sign, half-hour offsets), no offset = UTC"}
+  - {id: dedup, file: test_dedup.py, kind: f2p, why: "README: duplicate = same SHA-256 content (also within one import); same name different content imported as <stem>-N; extension any case"}
+  - {id: migration, file: test_migration.py, kind: f2p, why: "README: user_version migration; release-1 catalog photos count for duplicate checks (content of their library files); migrating twice harmless"}
+  - {id: existing, file: test_existing.py, kind: p2p, why: "README: ignored files, result shape and order, copy"}

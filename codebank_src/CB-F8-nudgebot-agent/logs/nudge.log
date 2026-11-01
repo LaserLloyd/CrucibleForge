@@ -1,0 +1,33 @@
+2026-03-02 07:00:04 INFO tick: posted bins -> Ana (due 2026-03-02T13:00:00+00:00)
+2026-03-02 19:00:02 INFO tick: posted dishes -> Ana (due 2026-03-03T01:00:00+00:00)
+2026-03-03 19:00:03 INFO tick: posted dishes -> Ben (due 2026-03-04T01:00:00+00:00)
+2026-03-04 19:00:01 INFO tick: posted dishes -> Cleo (due 2026-03-05T01:00:00+00:00)
+2026-03-05 19:00:02 INFO tick: posted dishes -> Dan (due 2026-03-06T01:00:00+00:00)
+2026-03-06 19:00:01 INFO tick: posted dishes -> Ana (due 2026-03-07T01:00:00+00:00)
+2026-03-07 19:00:02 INFO tick: posted dishes -> Ben (due 2026-03-08T01:00:00+00:00)
+2026-03-08 09:00:00 INFO tick: posted plants -> everyone (due 2026-03-08T14:00:00+00:00)
+2026-03-08 20:00:02 INFO tick: posted dishes -> Cleo (due 2026-03-09T01:00:00+00:00)
+note (Ana): dishes is set for 19:00 but since the weekend it shows up at 20:00.
+2026-03-09 08:00:03 INFO tick: posted bins -> Ben (due 2026-03-09T13:00:00+00:00)
+note (Ben): the bins nudge came at 8 this Monday. The truck comes at 7:30, we missed it.
+2026-03-09 10:00:01 INFO tick: posted plants -> everyone (due 2026-03-09T14:00:00+00:00)
+2026-03-09 20:00:02 INFO tick: posted dishes -> Dan (due 2026-03-10T01:00:00+00:00)
+2026-03-10 06:00:01 INFO tick: posted cat -> everyone (due 2026-03-10T11:00:00+00:00)
+note (Cleo): the 6am feed-the-cat nudge woke the baby again. Quiet hours are 22:00-07:00!
+2026-03-10 10:00:02 INFO tick: posted plants -> everyone (due 2026-03-10T14:00:00+00:00)
+2026-03-10 20:00:01 INFO tick: posted dishes -> Ana (due 2026-03-11T01:00:00+00:00)
+2026-03-11 02:14:55 INFO restart: NAS firmware update, nudgebot back at 02:31
+2026-03-11 02:31:07 INFO tick: posted bins -> Cleo (due 2026-03-02T13:00:00+00:00)
+2026-03-11 02:31:07 INFO tick: posted bins -> Dan (due 2026-03-09T13:00:00+00:00)
+2026-03-11 02:31:07 INFO tick: posted dishes -> Ben (due 2026-03-03T01:00:00+00:00)
+2026-03-11 02:31:07 INFO tick: ... 7 more dishes nudges (due 2026-03-04 .. 2026-03-10), the last -> Cleo
+2026-03-11 02:31:07 INFO tick: posted plants -> everyone (due 2026-03-08T14:00:00+00:00)
+2026-03-11 02:31:07 INFO tick: posted plants -> everyone (due 2026-03-09T14:00:00+00:00)
+2026-03-11 02:31:07 INFO tick: posted plants -> everyone (due 2026-03-10T14:00:00+00:00)
+note (Ana): after the NAS update everyone got a pile of old nudges, plants three times. If the box was off, one nudge per chore is plenty - and never the same one twice.
+2026-03-14 10:00:00 INFO config: members changed ["Ana", "Ben", "Cleo", "Dan"] -> ["Ana", "Ben", "Dan"] (Cleo moved out)
+2026-03-14 20:00:02 INFO tick: posted dishes -> Ana (due 2026-03-15T01:00:00+00:00)
+note (Dan): Cleo had the dishes last before she moved out, so it should be me now. Ana got it instead.
+2026-03-16 03:12:40 ERROR save_state: OSError(28, 'No space left on device')
+2026-03-16 03:17:41 WARNING load_state: state.json is empty or broken, starting fresh
+note (Ben): after the disk filled up the state file was empty and we got every nudge since March 2 again.

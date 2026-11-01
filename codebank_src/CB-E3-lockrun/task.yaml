@@ -1,0 +1,25 @@
+id: CB-E3-lockrun
+category: codebank
+family: fix
+difficulty: hard
+max_tokens: 8192
+allowed_paths: ["lockrun.sh"]
+new_paths: []
+pythonpath: ["."]
+per_test_timeout_s: 20
+group_timeout_s: 40
+issue: |
+  lockrun.sh is used by every nightly job on the home server, and it is
+  broken in several ways: the photo sync was started with a mangled path
+  ("Ana's Phone" became two arguments), jobs report success when the
+  command failed, a busy lock exits 1 (our monitoring expects 75), `-w` is
+  ignored, and stopping a job with systemctl leaves the command running and
+  a stale pid file behind.
+
+  Rewrite lockrun.sh so it does exactly what README.md says.
+groups:
+  - {id: args, file: test_args.py, kind: f2p, why: "README: arguments exactly as given (spaces, empty, globs), lockrun's stdin, COMMAND's exit status incl. 128+signal"}
+  - {id: busy, file: test_busy.py, kind: f2p, why: "README: busy -> message + exit 75 at once without -w; -w waits up to N then 75; different NAMEs independent"}
+  - {id: signals, file: test_signals.py, kind: f2p, why: "README: pid file holds COMMAND's pid; SIGTERM/SIGINT forwarded, wait, cleanup, exit 128+N; pid file removed however lockrun ends"}
+  - {id: usage, file: test_usage.py, kind: f2p, why: "README: usage errors exit 64 without running anything; LOCKDIR created"}
+  - {id: existing, file: test_existing.py, kind: p2p, why: "simple run + status unchanged"}

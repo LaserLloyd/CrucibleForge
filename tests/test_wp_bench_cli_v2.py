@@ -23,6 +23,12 @@ import pytest
 from crucibleforge import cli, config as cfgmod, providers, studioforge
 from crucibleforge import report as report_mod
 
+# suite 3.9: these tests are written against the 3.8 case set and test the
+# board/escalation mechanism, not the profile — run them on the frozen 3.8
+# profile (conftest.bench_38)
+pytestmark = pytest.mark.usefixtures("bench_38")
+
+
 
 @pytest.fixture(autouse=True)
 def _isolate_results_dir(tmp_path, monkeypatch):
@@ -125,6 +131,8 @@ def test_v2_start_writes_running_meta_before_any_work(tmp_path, monkeypatch):
     state = cli._v2_start(args)
     meta_path = tmp_path / "w-test-1" / "meta.json"
     meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    # who runs it (orphan sweep, 2026-10-25) rides along beside the 15 schema fields
+    assert meta.pop("pid") == os.getpid() and meta.pop("host")
     assert meta == {
         "schema": 1, "id": "w-test-1", "producer": "crucibleforge", "kind": "cron-worker",
         "title": "CrucibleForge run: chat-35b",

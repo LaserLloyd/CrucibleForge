@@ -1,0 +1,19 @@
+id: CB-F5-chatlist-unread
+category: codeagent
+family: agent
+difficulty: medium
+max_tokens: 4096
+allowed_paths: ["events.mjs", "unread.mjs", "format.mjs"]
+new_paths: []
+pythonpath: ["."]
+issue: |
+  Unread badges in the chat app are wrong: an edited message shows as two
+  unread, deleted messages never stop counting, the count jumps back up a
+  while after reading a thread on the phone, and your own messages count as
+  unread. Fix the client logic so it follows README.md.
+groups:
+  - {id: edits, file: edits.test.mjs, kind: f2p, runner: node, why: "README: edit is still one message; events may repeat (replays); deleted messages don't count, even if replayed later"}
+  - {id: read, file: read.test.mjs, kind: f2p, runner: node, why: "README: read events late/out of order, reading never makes a thread less read (incl. read before messages)"}
+  - {id: mine, file: mine.test.mjs, kind: f2p, runner: node, why: "README: user's own messages never unread; badge '' / n / '99+' above 99"}
+  - {id: existing, file: existing.test.mjs, kind: p2p, runner: node, why: "unchanged: plain counting, applyEvent returns state, relativeTime"}
+smoke: true

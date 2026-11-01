@@ -1,0 +1,25 @@
+id: CB-A8-shoplist-sync
+category: codebank
+family: fix
+difficulty: hard
+max_tokens: 8192
+allowed_paths: ["shoplist/*.py"]
+new_paths: []
+pythonpath: ["."]
+issue: |
+  Sync bugs reported by the family:
+
+  * Two phones that synced with each other show different quantities for
+    the same item.
+  * Ben deleted "rice" on his phone before it ever got Ana's "rice", and the
+    next sync brought rice back.
+  * After a sync, removing an item sometimes does nothing on the other phone.
+
+  Make shoplist implement the data model in README.md exactly. The merge
+  must converge whatever order the phones sync in.
+groups:
+  - {id: converge, file: test_converge.py, kind: f2p, why: "README: merge commutative, associative, idempotent (random op histories, all merge orders)"}
+  - {id: ties, file: test_ties.py, kind: f2p, why: "README: larger (lamport, replica) stamp wins; present: same lamport -> add wins; later remove wins"}
+  - {id: tombstone, file: test_tombstone.py, kind: f2p, why: "README: remove writes present=False even for an unseen item; keys normalised (strip, collapse whitespace, casefold) everywhere"}
+  - {id: clock, file: test_clock.py, kind: f2p, why: "README: local op increments the clock; after merge the clock >= the largest merged lamport"}
+  - {id: existing, file: test_existing.py, kind: p2p, why: "README: items() order and shape, uncheck, dump/load round trip, qty >= 1"}

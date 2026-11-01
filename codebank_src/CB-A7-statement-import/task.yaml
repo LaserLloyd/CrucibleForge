@@ -1,0 +1,25 @@
+id: CB-A7-statement-import
+category: codebank
+family: fix
+difficulty: hard
+max_tokens: 8192
+allowed_paths: ["stmtimport.py"]
+new_paths: []
+pythonpath: ["."]
+issue: |
+  Three things for stmtimport.py:
+
+  1. Bug: since we added the Alpenbank savings account, outgoing amounts
+     from it are wildly wrong (a 12,50 EUR purchase showed as 1250.00) or
+     the rows end up as import errors.
+  2. Bug: the March ledger is missing a coffee and a bakery purchase; it
+     looks like merge() threw them away as duplicates.
+  3. Feature: add the Nordbank format described in README.md.
+
+  Make the file follow every rule in README.md. For changes in a long file,
+  SEARCH/REPLACE blocks are fine.
+groups:
+  - {id: alpen, file: test_alpen.py, kind: f2p, why: "BANK_FORMATS alpen: amounts German style (Soll and Haben), Soll = money out (issue 1)"}
+  - {id: merge, file: test_merge.py, kind: f2p, why: "README rule 3: same account+amount+normalised payee, dates <= 2 days; only pre-existing rows, each absorbs one; order rules (issue 2)"}
+  - {id: nordbank, file: test_nordbank.py, kind: f2p, why: "README Nordbank: columns, Buchungstag date, German amounts, non-EUR skipped and counted, bad rows -> errors with line numbers, documented in BANK_FORMATS"}
+  - {id: existing, file: test_existing.py, kind: p2p, why: "unchanged: harbor/kiwi parsing + error lines, budgets, monthly totals, QIF, recurring, payee normalisation"}

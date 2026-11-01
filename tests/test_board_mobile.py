@@ -45,7 +45,8 @@ def test_page_carries_card_layout_and_phone_controls():
     sel = re.search(r'<select id="sortSel"[^>]*>(.*?)</select>', html).group(1)
     values = re.findall(r'<option value="([^"]*)"', sel)
     assert values == ["rank", "label", "chat", "coding", "overall", "tok_s", "c:RP", "c:Programs",
-                      "date", "notes", "judge", "coverage", "provider"]
+                      "suite", "date", "notes", "judge", "coverage", "provider", "room_cell", "reason", "tiers_cell",
+                      "raw_cell", "vs_above", "points_cell"]
     assert "Chat components" in sel and "Coding components" in sel and "Run info" in sel
     assert 'id="sortDir"' in html
     assert 'id="filtersBtn"' in html and 'aria-controls="filtersRow"' in html
@@ -123,7 +124,7 @@ def test_one_state_drives_cards_and_table():
 
 @pytest.mark.skipif(shutil.which("node") is None, reason="node not installed")
 def test_filters_disclosure_starts_open_when_a_saved_filter_is_active():
-    st = {"version": 1, "columns": ["c:RP", "c:Programs"], "sortKey": "rank", "sortDir": 1,
+    st = {"version": 2, "columns": ["c:RP", "c:Programs"], "sortKey": "rank", "sortDir": 1,
           "filters": {"c:RP": 50}, "text": "", "benched": False, "expanded": [], "view": "table"}
     out = run_board(render_html(_rows(), "sub", components=COMPS), r"""
       out.open = el('filtersRow').cls.has('open'); out.btn = el('filtersBtn').textContent;

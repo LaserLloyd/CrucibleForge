@@ -1,0 +1,25 @@
+id: CB-A2-pulsecount-upsert
+category: codebank
+family: fix
+difficulty: hard
+max_tokens: 8192
+min_sqlite: "3.24"
+allowed_paths: ["pulsecount/*.py"]
+new_paths: []
+pythonpath: ["."]
+issue: |
+  The dashboard shows two "signup" rows for 2026-10-03, neither with the
+  right count, and the note typed on "backup-fail" vanished after the next
+  event came in.
+
+  Fix bump() so the counters follow the data rules in README.md, and make
+  sure existing databases, which already contain duplicate rows, are
+  cleaned up when they are opened with connect(). No count may be lost.
+  Databases are opened by older and newer installs alike, so keep the
+  migration scheme as it is (append, never edit an applied migration).
+groups:
+  - {id: upsert, file: test_upsert.py, kind: f2p, why: "README: one row per (day,name), count = total, note survives bumps, first/last = earliest/latest at incl. late events; ids stable (row survives = no delete+insert)"}
+  - {id: unique, file: test_unique.py, kind: f2p, why: "README 'Exactly one row per (day, name)' enforced by the DB after migrate (issue: duplicates must not come back)"}
+  - {id: dedup, file: test_dedup.py, kind: f2p, why: "README merge rules: smallest id, summed count, earliest first_seen, latest last_seen, note of smallest-id non-empty; issue: cleaned up on connect()"}
+  - {id: rerun, file: test_rerun.py, kind: f2p, why: "README: version in user_version, migrate() idempotent; issue: append a migration; fresh DB = latest + unique"}
+  - {id: existing, file: test_existing.py, kind: p2p, why: "unchanged behaviour: top ordering, get None, set_note, row factory"}

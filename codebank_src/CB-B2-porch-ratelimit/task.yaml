@@ -1,0 +1,17 @@
+id: CB-B2-porch-ratelimit
+category: codebank
+family: feature
+difficulty: medium
+max_tokens: 8192
+allowed_paths: ["porch/*.py"]
+new_paths: ["porch/ratelimit.py"]
+pythonpath: ["."]
+issue: |
+  A buggy phone widget hammered the API last night. Add the rate limiting
+  described in docs/ratelimit.md.
+groups:
+  - {id: bucket, file: test_bucket.py, kind: f2p, why: "spec: bucket starts full, refills at rate up to burst, one token per request, X-RateLimit-Remaining floored, 429 JSON body + content type, app not called"}
+  - {id: retry_after, file: test_retry_after.py, kind: f2p, why: "spec: Retry-After = seconds until one token, rounded up, at least 1"}
+  - {id: isolation, file: test_isolation.py, kind: f2p, why: "spec: one bucket per key; non-/api/ paths and keyless requests untouched, no extra header"}
+  - {id: wiring, file: test_wiring.py, kind: f2p, why: "spec: build() wraps with rate=5, burst=10"}
+  - {id: existing, file: test_existing.py, kind: p2p, why: "spec: middleware never changes the app's status/headers/body"}

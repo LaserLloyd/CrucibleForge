@@ -338,6 +338,37 @@ print("BENCH_OK_7742")
 
 SENTINEL = "BENCH_OK_7742"
 
+# Partial credit for programs (EVAL-FABLE M2): a case may split its hidden
+# tests into named groups (``grader_config.test_groups: {name: code}``, run
+# after the shared ``tests`` prelude, if any). Each group runs on its own;
+# the row's elements are the groups and the case passes only when all do.
+_GROUP_HARNESS = '''\
+import sys as _sys, json as _json
+_ns = {{}}
+_solution = {solution!r}
+_prelude = {prelude!r}
+_groups = {groups!r}
+try:
+    exec(compile(_solution, "solution", "exec"), _ns)
+except SystemExit:
+    pass
+except BaseException as _e:
+    print("BENCH_SETUP_ERROR:" + type(_e).__name__ + ":" + str(_e)[:150])
+    _sys.exit(1)
+try:
+    exec(compile(_prelude, "prelude", "exec"), _ns)
+except BaseException as _e:
+    print("BENCH_SETUP_ERROR:prelude:" + type(_e).__name__ + ":" + str(_e)[:150])
+    _sys.exit(1)
+for _name, _code in _groups:
+    try:
+        exec(compile(_code, "group_" + _name, "exec"), dict(_ns))
+        print("BENCH_GROUP:" + _json.dumps([_name, True, ""]))
+    except BaseException as _e:
+        print("BENCH_GROUP:" + _json.dumps([_name, False, (type(_e).__name__ + ":" + str(_e))[:150]]))
+    _sys.stdout.flush()
+'''
+
 
 _OPEN_FENCE_RE = re.compile(r"```(?:python|py)[ \t]*\n", re.IGNORECASE)
 
@@ -399,8 +430,58 @@ def _sandbox_cmd(script_path: str, workdir: str) -> list[str]:
     return [sys.executable, "-I", script_path]
 
 
+def _grade_python_groups(code: str, cfg: dict) -> dict:
+    """grade_python_exec for a case with ``test_groups``: one sandbox run,
+    every group on its own; elements = groups, rate = share passed."""
+    groups = list((cfg.get("test_groups") or {}).items())
+    names = [g for g, _ in groups]
+
+    def all_fail(detail):
+        return {"grade": "fail", "detail": detail, "rate": 0.0,
+                "results": [{"id": g, "pass": False, "detail": detail[:80]} for g in names]}
+    if not code:
+        return all_fail("no code in response")
+    harness = _GROUP_HARNESS.format(solution=code, prelude=cfg.get("tests") or "", groups=groups)
+    require_sandbox()
+    with tempfile.TemporaryDirectory(prefix="bench-code-") as td:
+        path = Path(td) / "harness.py"
+        path.write_text(harness, encoding="utf-8")
+        try:
+            proc = subprocess.run(
+                _sandbox_cmd(str(path), td),
+                capture_output=True, text=True, encoding="utf-8",
+                errors="replace", timeout=CODE_TIMEOUT_S, cwd=td, env=_child_env())
+            out = proc.stdout
+        except subprocess.TimeoutExpired as e:
+            out = (e.stdout or b"").decode("utf-8", "replace") if isinstance(e.stdout, bytes) else (e.stdout or "")
+            if "BENCH_GROUP:" not in out:
+                return all_fail(f"timeout >{CODE_TIMEOUT_S}s")
+    if "BENCH_SETUP_ERROR:" in out:
+        return all_fail("setup " + out.split("BENCH_SETUP_ERROR:", 1)[1].strip().splitlines()[0][:150])
+    got = {}
+    for line in out.splitlines():
+        if line.startswith("BENCH_GROUP:"):
+            try:
+                name, ok, msg = json.loads(line[len("BENCH_GROUP:"):])
+            except ValueError:
+                continue
+            got[name] = (bool(ok), msg)
+    results = [{"id": g, "pass": got.get(g, (False, ""))[0],
+                "detail": got.get(g, (False, "did not run (timeout or crash)"))[1]} for g in names]
+    n_ok = sum(1 for r in results if r["pass"])
+    rate = n_ok / len(results) if results else 0.0
+    fails = [f"{r['id']}: {r['detail']}" for r in results if not r["pass"]]
+    return {"grade": "pass" if n_ok == len(results) else "fail",
+            "detail": "all test groups passed" if not fails else
+            # validation item 8: every failed group, not the first 180 chars
+            f"{n_ok}/{len(results)} test groups passed; " + "; ".join(fails)[:2000],
+            "results": results, "rate": rate}
+
+
 def grade_python_exec(response_text: str, cfg: dict, finish_reason: str | None = None) -> dict:
     code = extract_python(response_text, finish_reason)
+    if cfg.get("test_groups"):
+        return _grade_python_groups(code, cfg)
     if not code:
         return {"grade": "fail", "detail": "no code in response"}
     harness = _HARNESS.format(solution=code, tests=cfg["tests"])
@@ -653,7 +734,16 @@ def _check_one(text: str, check: dict) -> tuple[bool, str]:
         if not text.startswith(check["value"]):
             return False, f"does not start with {check['value']!r}"
     elif kind == "regex":
-        if re.search(check["pattern"], text) is None:
+        hay = text
+        if check.get("last_of"):
+            # answer-line checks (code bank predict family): only the LAST
+            # line that answers this question counts, so listing several
+            # candidates ("Q1: a" ... "Q1: b") cannot collect the point
+            lines = [l for l in text.splitlines() if re.match(check["last_of"], l)]
+            if not lines:
+                return False, "no answer line"
+            hay = lines[-1]
+        if re.search(check["pattern"], hay) is None:
             return False, f"no match for /{check['pattern']}/"
     else:
         return False, f"unknown check type {kind!r}"
@@ -834,6 +924,22 @@ def grade_reference(response_text: str, cfg: dict) -> dict:
             "needs_judge": True, "reference": cfg["reference"]}
 
 
+def _parallel_match(call: dict, spec: dict) -> bool:
+    if call.get("name") != spec["name"]:
+        return False
+    try:
+        args = json.loads(call.get("arguments") or "{}")
+    except json.JSONDecodeError:
+        return False
+    if not isinstance(args, dict):
+        return False
+    for arg_name, accepted in (spec.get("required_args") or {}).items():
+        val = str(args.get(arg_name, "")).lower()
+        if arg_name not in args or (accepted and not any(a.lower() in val for a in accepted)):
+            return False
+    return True
+
+
 def grade_tool_parallel(tool_calls: list[dict], cfg: dict,
                         response_text: str = "") -> dict:
     """BFCL-style parallel / multiple call grading: the model must emit a call
@@ -841,39 +947,36 @@ def grade_tool_parallel(tool_calls: list[dict], cfg: dict,
       {"expect_calls": [{"name": "...", "required_args": {"a": ["x"]}}, ...],
        "allow_extra": false}
     Each expected spec must be satisfied by a distinct emitted call. Falls
-    back to text-emitted calls (see _extract_tool_calls_from_text)."""
+    back to text-emitted calls (see _extract_tool_calls_from_text).
+
+    Partial credit (3.9, EVAL-FABLE M2): the elements are one per expected
+    call (a distinct emitted call satisfies it) plus, unless ``allow_extra``,
+    "no extra or missing calls in this turn" — so one correct call of three
+    scores 1/4, not 0. The grade stays strict (every element)."""
     if not tool_calls and response_text:
         tool_calls = _extract_tool_calls_from_text(response_text)
     expected = cfg["expect_calls"]
-    if not cfg.get("allow_extra") and len(tool_calls) != len(expected):
-        return {"grade": "fail",
-                "detail": f"{len(tool_calls)} calls, expected {len(expected)}"}
     remaining = list(tool_calls)
-    for spec in expected:
-        match_idx = None
-        for i, call in enumerate(remaining):
-            if call.get("name") != spec["name"]:
-                continue
-            try:
-                args = json.loads(call.get("arguments") or "{}")
-            except json.JSONDecodeError:
-                continue
-            if not isinstance(args, dict):
-                continue
-            ok = True
-            for arg_name, accepted in (spec.get("required_args") or {}).items():
-                val = str(args.get(arg_name, "")).lower()
-                if arg_name not in args or (accepted and not any(a.lower() in val for a in accepted)):
-                    ok = False
-                    break
-            if ok:
-                match_idx = i
-                break
-        if match_idx is None:
-            return {"grade": "fail",
-                    "detail": f"no call satisfied {spec['name']} {spec.get('required_args', {})}"}
-        remaining.pop(match_idx)
-    return {"grade": "pass", "detail": f"{len(expected)} parallel calls valid"}
+    results = []
+    for k, spec in enumerate(expected):
+        i = next((i for i, call in enumerate(remaining) if _parallel_match(call, spec)), None)
+        ok = i is not None
+        if ok:
+            remaining.pop(i)
+        results.append({"id": f"call-{k + 1}-{spec['name']}", "pass": ok,
+                        "detail": "matched" if ok else
+                        f"no call satisfied {spec['name']} {spec.get('required_args', {})}"})
+    if not cfg.get("allow_extra"):
+        exact = len(tool_calls) == len(expected)
+        results.append({"id": "call-count", "pass": exact,
+                        "detail": f"{len(tool_calls)} calls, expected {len(expected)}"})
+    rate = round(sum(1 for r in results if r["pass"]) / len(results), 3)
+    bad = [r for r in results if not r["pass"]]
+    if bad:
+        first = next((r for r in bad if r["id"] == "call-count"), bad[0])
+        return {"grade": "fail", "detail": first["detail"], "results": results, "rate": rate}
+    return {"grade": "pass", "detail": f"{len(expected)} parallel calls valid",
+            "results": results, "rate": rate}
 
 
 GRADERS = {
@@ -887,7 +990,15 @@ GRADERS = {
     "contains": lambda result, cfg: grade_contains(result.scoreable_text(), cfg),
     "exact": lambda result, cfg: grade_exact(result.scoreable_text(), cfg),
     "reference": lambda result, cfg: grade_reference(result.scoreable_text(), cfg),
+    # code bank: edits applied to a small project, hidden tests in the sandbox
+    "repo_tests": lambda result, cfg: _codebank().grade_repo_tests(
+        result.scoreable_text(), cfg, result.finish_reason),
 }
+
+
+def _codebank():
+    from . import codebank          # lazy: codebank imports this module
+    return codebank
 
 
 # an explicit final-answer line ("Answer: 42", "answer = B, D, A")

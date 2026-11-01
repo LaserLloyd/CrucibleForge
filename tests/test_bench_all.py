@@ -27,6 +27,7 @@ def _m(name, mid, prov="sf", **kw):
 def _plan(cfg, rig, rows=None, pending=None, board=None, **kw):
     rows = rows or {}
     pending = pending or {}
+    kw.setdefault("ladder_for", lambda l: None)
     return bench_all.plan(cfg, set(rig), board_labels=board or [],
                           rows_for=lambda l: rows.get(l, []),
                           pending_for=lambda l: pending.get(l, 0),

@@ -1,0 +1,21 @@
+id: CB-B4-sw-cache
+category: codebank
+family: feature
+difficulty: hard
+max_tokens: 8192
+allowed_paths: ["sw-core.mjs"]
+new_paths: []
+pythonpath: ["."]
+issue: |
+  The service worker core only knows "cache everything, cache first". Since
+  the last deploy: people see yesterday's shopping list until they reload
+  twice, updating the app wiped the photo viewer's media-v1 cache, and adding
+  an item while offline crashes the worker.
+
+  Rewrite sw-core.mjs so it implements every caching rule in README.md.
+groups:
+  - {id: activate, file: activate.test.mjs, kind: f2p, runner: node, why: "rule 2: delete only app-* caches other than CACHE"}
+  - {id: api, file: api.test.mjs, kind: f2p, runner: node, why: "rule 3 /api/: network-first, store 200 copy, offline -> cached or 503 JSON, non-200 returned not stored"}
+  - {id: static, file: static.test.mjs, kind: f2p, runner: node, why: "rule 3 other GETs: cache-first, store only 200, offline navigate -> /offline.html, else 504 empty"}
+  - {id: passthrough, file: passthrough.test.mjs, kind: f2p, runner: node, why: "rule 3: non-GET and cross-origin go to the network untouched, never cached (offline POST rejects as fetch does)"}
+  - {id: existing, file: existing.test.mjs, kind: p2p, runner: node, why: "rules 1-2 unchanged: install precaches, activate keeps CACHE"}

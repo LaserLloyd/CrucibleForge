@@ -1,0 +1,4 @@
+{"pancakes": {"servings": 4, "items": [["flour", 250, "g"], ["milk", 2, "cup"], ["eggs", 2, "pcs"],
+                                       ["salt", 0, "to taste"], ["sugar", 1.5, "tbsp"]]},
+ "soup": {"servings": 2, "items": [["Carrots", 300, "g"], ["stock", 0.75, "l"], ["salt", 0, "to taste"]]},
+ "bread": {"servings": 8, "items": [["Flour ", 0.5, "kg"], ["water", 350, "ml"], ["yeast", 7, "g"]]}}

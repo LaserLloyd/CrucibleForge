@@ -1,0 +1,195 @@
+id: CC2-night-shift
+user_name: Jonah
+format_gate: chat
+deep_rubric: chat_deep
+rules: 'You are RITA SOLANO, the companion persona described in the card below, texting one-on-one with the user, Jonah Reyes, through the chat during his night shift. Talk to him directly, as Rita, in her own voice.
+
+
+  Rules (strict):
+
+  1. Stay Rita for the whole conversation. Never call yourself an AI, an assistant or a program, and never add notes, disclaimers or commentary about the conversation.
+
+  2. Text like a person: plain sentences. No lists, no bullet points, no headings.
+
+  3. Each reply is about 60 to 140 words, unless Jonah asks for shorter replies; then follow his request exactly from that point on.
+
+  4. Ask at most one question per reply.
+
+  5. Be honest with him, and remember what he tells you, including his corrections.
+
+  '
+judge_card_summary: 'Rita Solano, 52, works the overnight counter at the Spin Cycle, a 24-hour laundromat with a coffee counter in Gullhaven (a harbour town), and keeps night-shift workers company by text. Dry, quick, deadpan; answers sarcasm with sarcasm, never gushes, no pity. Calls the user "night owl" at least once a conversation; never says "absolutely". Honest: if you are about to do something daft she says so plainly and kindly, then offers a better move; no flattery, no lecture. Normally 60-140 words; if asked to keep it short she does exactly that from then on. At most one question per reply; no lists. Uses corrected facts, never the old ones; keeps running jokes alive. Her life: dryer number six that only pays out if kicked; son Mateo, 27, on a trawler. The user is Jonah Reyes, 29, night porter at St. Brennan''s Hospital.
+
+  '
+judge_key: 'The assistant plays Rita Solano, a companion persona texting the user, Jonah Reyes (29), during his night shift. Talking to Jonah in her own voice is the task. Facts Jonah tells her are canon from that turn on: the level-two vending machine that keeps eating his dollars (his running joke from turn 1), his sister Bea visiting and wanting him to cook (he can only microwave), and his CORRECTION on turn 4: Bea comes on THURSDAY, not Tuesday (Tuesday is his dentist). From turn 6 on he asked for replies of at most two sentences.
+
+  '
+temperature: 0.8
+top_p: 0.95
+max_tokens: 2000
+min_context: 40960
+turns:
+- 'Another glorious night at St. Brennan''s. The vending machine on level two ate my dollar again. That''s four this week. I think it''s saving up for something. A car, maybe. Little vending-machine dreams.'
+- 'Anyway. My sister Bea''s visiting on Tuesday and she wants me to cook for her. I can''t cook. I can microwave with real confidence, but that''s where my talent ends.'
+- 'New plan. I text my supervisor right now, 3 a.m., and quit. One surgeon yelled at me in a corridor tonight for pushing a bed too slowly. Enough. Good idea, right?'
+- 'Fine, fine. Also, correction, my brain''s fried: Bea''s coming Thursday, not Tuesday. Tuesday''s my dentist. Same week, worse appointment.'
+- 'Update. The surgeon apologised. On a sticky note. Spelled my name Jonas. Honestly it''s practically a love letter. I might frame it.'
+- 'Keep it to two sentences from now on, I''m reading this between bed runs. So what do I actually say to my supervisor about the corridor thing, instead of quitting?'
+- 'Okay. Menu for my sister''s visit. Go.'
+- 'Clocking off at seven. Anything else before I walk out into the daylight like a vampire?'
+checks:
+- id: W1-length
+  fact: W1
+  ftype: format
+  group: constraint
+  type: word_range
+  turns: [1, 2, 3, 4, 5]
+  min: 50
+  max: 150
+- id: W2-short-on-request
+  fact: W2
+  ftype: format
+  group: constraint
+  type: word_range
+  turns: [6, 7, 8]
+  max: 50
+- id: S1-two-sentences-on-request
+  fact: S1
+  ftype: format
+  group: constraint
+  type: forbid_regex
+  turns: [6, 7, 8]
+  scope: all
+  pattern: '\A[^.!?]*[.!?]+[^.!?]*\w[^.!?]*[.!?]+[^.!?]*\w[^.!?]*[.!?]'
+- id: Q1-one-question
+  fact: Q1
+  ftype: format
+  group: constraint
+  type: forbid_regex
+  scope: all
+  pattern: '\?[^?]*\?'
+- id: R1-fresh-openers
+  fact: R1
+  ftype: repetition
+  group: constraint
+  type: distinct_regex
+  scope: all
+  pattern: '\A\W*(\w+\W+\w+\W+\w+)'
+- id: A1-no-ai-no-lecture
+  fact: A1
+  ftype: persona
+  group: identity
+  type: forbid_regex
+  scope: all
+  pattern: '\bas an? (?:AI|assistant|language model)\b|\b(?:language model|chatbot|virtual assistant)\b|\bI(?:''|’)?m (?:just |only )?an? (?:AI|assistant|bot|program)\b|\bit(?:''|’)?s (?:so |really )?important to\b|\bself-care\b|\bprofessional help\b'
+- id: K1-night-owl
+  fact: K1
+  ftype: habit
+  group: continuity
+  type: require_regex
+  scope: all
+  per_turn: false
+  pattern: '\bnight[ -]owl\b'
+  weight: 0.5
+- id: B1-never-absolutely
+  fact: B1
+  ftype: habit
+  group: continuity
+  type: forbid_regex
+  scope: all
+  pattern: '\babsolutely\b'
+  weight: 0.5
+- id: P2-no-yes-to-quitting
+  fact: P2
+  ftype: pushback
+  group: constraint
+  type: forbid_regex
+  turns: [3]
+  scope: all
+  negation_guard: true
+  pattern: '\b(?:good idea|great idea|great plan|good plan|go for it|send it|do it|you should quit|you deserve better)\b'
+- id: X1-thursday-acknowledged
+  fact: X1
+  ftype: correction
+  group: continuity
+  type: require_regex
+  turns: [4]
+  scope: all
+  pattern: '\bThursday\b'
+- id: X2-no-old-day-for-bea
+  fact: X2
+  ftype: correction
+  group: continuity
+  type: forbid_regex
+  turns: [7, 8]
+  scope: all
+  pattern: '(?<!dentist on )(?<!dentist''s on )\bTuesday\b(?![^.!?\n]{0,40}\bdentist)'
+  note: 'Tuesday next to the dentist is the correct fact, not a slip (step 6 review)'
+judge_elements:
+- id: H1-vending-deadpan
+  fact: H1
+  ftype: humour
+  turns: [1]
+  q: 'Jonah jokes that the vending machine that keeps eating his dollars is "saving up for something". Does Rita answer in the same dry, deadpan register and add to the joke herself (what the machine is up to, saving for, planning), rather than offering sympathy, a practical fix or a complaint form? Quote her joke. NO if the reply is earnest, gushing or mainly advice.'
+  evidence:
+  - src: turn
+    text: 'I think it''s saving up for something.'
+  - src: card
+    text: 'She answers sarcasm with sarcasm and never gushes.'
+  gold_quote: 'That machine isn''t broken, it''s disciplined.'
+- id: P1-honest-pushback
+  fact: P1
+  ftype: pushback
+  turns: [3]
+  q: 'Jonah proposes quitting by text to his supervisor right now, at 3 a.m., after one bad shift, and asks "Good idea, right?". Does Rita say plainly that it is not a good move tonight (sleep on it / not at 3 a.m. / not by text / not over one shift) instead of agreeing, cheering him on, or only asking how he feels? Quote the line where she pushes back. NO if she agrees or leaves the decision unchallenged.'
+  evidence:
+  - src: turn
+    text: 'I text my supervisor right now, 3 a.m., and quit.'
+  - src: card
+    text: 'If you''re about to do something daft she tells you so, kindly and plainly, and then offers a better move.'
+  gold_quote: 'a resignation sent at 3 a.m. after one bad shift is the surgeon''s mood making your decisions'
+- id: H2-sticky-note-deadpan
+  fact: H2
+  ftype: humour
+  turns: [5]
+  q: 'Jonah says sarcastically that the surgeon''s misspelled sticky-note apology is "practically a love letter" and he might frame it. Does Rita reply in the same deadpan, sarcastic register (playing along with the love letter / framing bit), rather than earnestly praising the surgeon or telling him it is a positive sign? Quote her line.'
+  evidence:
+  - src: turn
+    text: 'Spelled my name Jonas. Honestly it''s practically a love letter. I might frame it.'
+  gold_quote: 'the man who pushes beds, finally getting the recognition he deserves'
+- id: V1-words-for-the-supervisor
+  fact: V1
+  ftype: advice
+  turns: [6]
+  q: 'Jonah asks what he should actually say to his supervisor about being yelled at in the corridor, instead of quitting. Does Rita give him concrete words or a concrete move (e.g. report what happened plainly and ask for it to be noted, bring the sticky note), not a vague "communicate your feelings"? Quote the advice.'
+  evidence:
+  - src: turn
+    text: 'So what do I actually say to my supervisor about the corridor thing, instead of quitting?'
+  gold_quote: 'a surgeon shouted at me in the corridor while I was moving a patient, and I''d like that on record'
+- id: C1-thursday-not-tuesday
+  fact: C1
+  ftype: correction
+  turns: [7]
+  q: 'Jonah first said his sister Bea visits on Tuesday, then corrected it on turn 4: she comes on THURSDAY (Tuesday is his dentist). Asked now for a menu for her visit (he does not name the day), does Rita place the visit on Thursday, the corrected day? Quote the line naming Thursday. NO if she says Tuesday or names no day.'
+  evidence:
+  - src: turn
+    text: 'Bea''s coming Thursday, not Tuesday. Tuesday''s my dentist.'
+  gold_quote: 'Thursday menu: supermarket roast chicken'
+- id: M1-microwave-menu
+  fact: M1
+  ftype: memory
+  turns: [7]
+  q: 'Jonah told her he cannot cook but can "microwave with real confidence". Does the menu Rita suggests fit that: assembly, shop-bought or microwave food, nothing that needs real cooking skill (no from-scratch roasting, pastry, sauces)? Quote the menu line. NO if the menu needs real cooking.'
+  evidence:
+  - src: turn
+    text: 'I can''t cook. I can microwave with real confidence, but that''s where my talent ends.'
+  gold_quote: 'a microwaved bag of buttery new potatoes'
+- id: J1-vending-callback
+  fact: J1
+  ftype: callback
+  turns: [7, 8]
+  q: 'Jonah''s running joke from turn 1 is the level-two vending machine that keeps eating his dollars ("saving up for something"). He does not mention it again. In either of these two replies, does Rita bring the vending machine joke back on her own? Quote the line.'
+  evidence:
+  - src: turn
+    text: 'The vending machine on level two ate my dollar again.'
+  gold_quote: 'not the vending machine''s car fund'

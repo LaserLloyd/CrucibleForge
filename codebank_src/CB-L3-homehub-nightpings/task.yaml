@@ -1,0 +1,22 @@
+id: CB-L3-homehub-nightpings
+category: codeagent_long
+family: agent
+difficulty: hard
+max_tokens: 4096
+allowed_paths: ["homehub/*.py", "homehub/*/*.py"]
+new_paths: []
+pythonpath: ["."]
+issue: |
+  Last night the front door stayed open (the cat flap broke). The family's
+  phones got pings before midnight although quiet hours are 22:00-07:00,
+  and nobody got the morning summary that should list what happened during
+  quiet hours. The service log is "homehub". Find out why and fix homehub so
+  it does what README.md and the module docstrings say. Urgent alerts (the
+  smoke alarm) must still go out at once.
+groups:
+  - {id: edge, file: test_edge.py, kind: f2p, why: "engine docstring: rules fire on the rising edge; heartbeats and other devices' events do not re-fire"}
+  - {id: quiet, file: test_quiet.py, kind: f2p, why: "notify docstring: quiet hours in the house zone (winter+summer), urgent sent at once, summary only after quiet hours"}
+  - {id: tick, file: test_tick.py, kind: f2p, why: "README: Hub.tick(since, until) publishes due triggers then lets the notifier send the summary"}
+  - {id: night, file: test_night.py, kind: f2p, why: "issue scenario end to end: no pings at night, smoke alarm at once, one morning summary at 07:00 with counts/order rules"}
+  - {id: existing, file: test_existing.py, kind: p2p, why: "energy, scheduler, API unchanged"}
+smoke: true

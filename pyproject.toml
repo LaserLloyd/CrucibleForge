@@ -1,9 +1,9 @@
 [project]
 name = "crucibleforge-bench"
-version = "3.7.0"
+version = "4.0.0"
 description = "CrucibleForge — an LLM capability benchmark with a hard tier, deterministic graders, an LLM judge (local or remote), and a web GUI. Works with LM Studio, llama.cpp/StudioForge, Ollama, vLLM, DeepSeek, OpenRouter, OpenAI, Open WebUI — anything OpenAI-compatible."
 readme = "README.md"
-license = "MIT"
+license = "MIT-0"
 license-files = ["LICENSE"]
 requires-python = ">=3.12"
 keywords = ["llm", "benchmark", "evaluation", "eval", "openai-compatible"]
@@ -26,7 +26,10 @@ dependencies = [
 crucibleforge = "crucibleforge.cli:main"
 
 [dependency-groups]
-dev = ["pytest>=8"]
+dev = [
+    "pytest>=8",
+    "pytest-xdist>=3.8.0",
+]
 
 [build-system]
 requires = ["hatchling"]
@@ -59,6 +62,10 @@ addopts = "-q"
 # changes, `uvx ruff check --select I --fix .` does it in one pass.
 [tool.ruff]
 target-version = "py312"
+# codebank_src/ holds the code-bank task fixtures the benchmark grades (hidden
+# tests, deliberately broken mutants, agent-task repos). They are not this
+# project's code and must stay byte-exact, so the linter never touches them.
+extend-exclude = ["codebank_src"]
 
 [tool.ruff.lint]
 select = ["E4", "E7", "E9", "F"]

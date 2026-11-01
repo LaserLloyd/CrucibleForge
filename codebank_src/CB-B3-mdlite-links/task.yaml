@@ -1,0 +1,17 @@
+id: CB-B3-mdlite-links
+category: codebank
+family: feature
+difficulty: medium
+max_tokens: 8192
+allowed_paths: ["mdlite.mjs"]
+new_paths: []
+pythonpath: ["."]
+issue: |
+  Add links to the renderer, exactly as the "Links" section of README.md
+  describes. The renderer's output goes straight into innerHTML in the chat
+  app, so treat this as security-sensitive.
+groups:
+  - {id: links, file: links.test.mjs, kind: f2p, runner: node, why: "README links: anchor shape + rel, escaped URL, http/https/mailto any case, relative URLs, bold/em label, several links, non-links stay text"}
+  - {id: xss, file: xss.test.mjs, kind: f2p, runner: node, why: "README safety: any other scheme -> formatted TEXT only; quotes in URL escaped; no scheme (percent-encoded colon, ./ prefix) -> allowed"}
+  - {id: code, file: code.test.mjs, kind: f2p, runner: node, why: "README: no links inside code spans; label escaped like any text"}
+  - {id: existing, file: existing.test.mjs, kind: p2p, runner: node, why: "README 'Supported today': paragraphs, breaks, escaping, bold/em/code unchanged"}

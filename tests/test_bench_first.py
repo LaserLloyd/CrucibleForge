@@ -53,9 +53,11 @@ def test_choose_devices_prefers_5090s_when_planner_says_fit(monkeypatch):
     assert studioforge.choose_lease_devices("u", "", None, "m", [0, 1], [0, 1, 2, 3]) == [0, 1]
     monkeypatch.setattr(studioforge, "_mgmt", lambda *a, **k: _options_payload(False))
     assert studioforge.choose_lease_devices("u", "", None, "m", [0, 1], [0, 1, 2, 3]) == [0, 1, 2, 3]
-    # planner silent → whole rig, never a guess
+    # planner silent → the preferred cards, never widened to the whole rig
+    # (EVAL-FABLE M9, 2026-10-28: the widened judge lease named GPU 3, another
+    # tenant's card; tests/test_runner_lease_39.py)
     monkeypatch.setattr(studioforge, "_mgmt", lambda *a, **k: (500, {}))
-    assert studioforge.choose_lease_devices("u", "", None, "m", [0, 1], [0, 1, 2, 3]) == [0, 1, 2, 3]
+    assert studioforge.choose_lease_devices("u", "", None, "m", [0, 1], [0, 1, 2, 3]) == [0, 1]
     # no preference configured → no planner call at all
     monkeypatch.setattr(studioforge, "_mgmt", lambda *a, **k: pytest.fail("must not call"))
     assert studioforge.choose_lease_devices("u", "", None, "m", None, [0, 1, 2, 3]) == [0, 1, 2, 3]

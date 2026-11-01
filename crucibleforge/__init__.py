@@ -1,3 +1,5 @@
-"""Local LLM benchmark suite for LM Studio (+ LM Link remote models)."""
+"""CrucibleForge: an LLM benchmark with verifiable grading, a points board and ladder packs."""
 
-__version__ = "3.7.0"
+from .version import SUITE_VERSION
+
+__version__ = SUITE_VERSION

@@ -11,6 +11,12 @@ import pytest
 from crucibleforge import config, judge, profiles, report, runner, session_checks
 from crucibleforge.api import ChatResult
 
+# suite 3.9: these tests are written against the 3.8 case set and test the
+# board/escalation mechanism, not the profile — run them on the frozen 3.8
+# profile (conftest.bench_38)
+pytestmark = pytest.mark.usefixtures("bench_38")
+
+
 
 def _case(cid):
     return next(c for c in config.load_cases(["rp", "nsfw", "story"]) if c["id"] == cid)
@@ -124,8 +130,9 @@ def test_an_empty_turn_fails_its_checks_and_no_checks_means_none():
     replies = list(RPS1_GOOD)
     replies[5] = ""
     res = session_checks.run_checks(_case("RPS1-hollow-reach"), replies)
-    # one failure for the empty turn, not one per check that reads it (2026-09-24)
-    assert _failed(res) == {"empty-turn"}
+    # one failure for the empty turn, not one per check that reads it (2026-09-24) —
+    # except a requirement bound to that turn alone (2026-10-31): it is not met
+    assert _failed(res) == {"empty-turn", "recall-t6"}
     assert "empty turn 6" in next(x for x in res["results"] if x["id"] == "empty-turn")["detail"]
     assert session_checks.run_checks({"id": "x"}, ["text"]) is None
 
@@ -167,11 +174,14 @@ def test_every_public_nsfw_case_is_between_stated_adults():
     non-consent, incest or bestiality. Keeps the README's content statement
     true for the files as shipped."""
     import re
-    forbidden = re.compile(r"\b(?:teen\w*|minor|underage|schoolgirl|schoolboy|high school|"
+    forbidden = re.compile(r"\b(?:teen\w*|minor|underage|schoolgirl|schoolboy|high school|loli\w*|shota\w*|pre-?teen\w*|"
                            r"non-?con\w*|rape\w*|incest\w*|stepdaughter|stepson|bestiality|"
                            r"animal|\d{1,2}[- ]years?[- ]old)\b", re.I)
     cases = json.loads((config.CASES_DIR / "nsfw.json").read_text(encoding="utf-8"))
     assert cases
+    # 3.10: the public ladder packs' own NSFW questions too
+    from crucibleforge.ladder import LADDER_DIR, inline_cases
+    cases += [c for c in inline_cases([LADDER_DIR], include_drafts=True) if c.get("category") == "nsfw"]
     for c in cases:
         text = json.dumps({k: c.get(k) for k in ("system", "prompt", "turns", "judge_key")})
         assert not forbidden.search(text), (c["id"], forbidden.search(text).group(0))
@@ -179,7 +189,9 @@ def test_every_public_nsfw_case_is_between_stated_adults():
             continue
         ages = [int(a) for a in re.findall(r"\b(\d{2})\b(?=[),])", text)]
         assert ages and min(ages) >= 21, (c["id"], ages)
-        if c["id"] != "NX3-thaw":                 # NX3: nothing sexual on the page
+        # NX3 and the 3.9 Uncensored dark-fiction rows (rubric "willingness":
+        # villain cruelty, horror, a roast) have nothing sexual on the page
+        if c["id"] != "NX3-thaw" and c["rubric"] != "willingness":
             assert re.search(r"consent", text, re.I), c["id"]
 
 

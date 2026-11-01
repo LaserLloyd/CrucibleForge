@@ -1,0 +1,32 @@
+id: LAG3-tillroll-reconcile
+category: codeagent_long
+family: agent
+difficulty: hard
+max_tokens: 4096
+allowed_paths: ["tillroll/*.py"]
+new_paths: ["tillroll/*.py"]
+pythonpath: ["."]
+per_test_timeout_s: 25
+group_timeout_s: 40
+timeout_s: 300
+issue: |
+  Since the card terminal and the online shop pay into the shop's bank
+  account, the year-end reconciliation (`python -m tillroll.cli reconcile`)
+  has become unusable: on this year's export (about 150,000 bank lines and
+  160,000 receipts) it ran all night and Mirela killed it. The log is
+  "reconcile". Make reconciling and the monthly report fast: on a full year
+  of data each should finish within a few seconds (Dana runs it on an old
+  laptop). Dana, the accountant, diffs every run against the output of the
+  current code, so the results must stay exactly what the current code
+  produces for any input: every match and pair, the order of every list,
+  every line of the report. README.md and the module docstrings describe the
+  rules.
+groups:
+  - {id: spread, file: test_perf_spread.py, kind: f2p, why: "a year (150k/150k, many amounts, card fees, refunds, per-till ids, repeated rows, pairs) reconciled fast with output identical to the old code"}
+  - {id: hot, file: test_perf_hot.py, kind: f2p, why: "80k receipts of two prices over four days, ids repeat across tills: per-amount buckets are huge; fast and identical"}
+  - {id: refunds, file: test_perf_refunds.py, kind: f2p, why: "120k receipts of four prices, a third refunds: pass 0 (latest earlier sale of the till, 30 days) fast and identical"}
+  - {id: pairs, file: test_perf_pairs.py, kind: f2p, why: "24k receipts / 12k lines that mostly need the pair pass (same till, same day, tie rules); fast and identical"}
+  - {id: dense, file: test_perf_dense.py, kind: f2p, why: "36k receipts of a 40-price list in 3 days + 30k mostly unpairable lines: the pair pass must not scan every receipt of the day per line; fast and identical"}
+  - {id: report, file: test_perf_report.py, kind: f2p, why: "monthly report on the full year fast and byte-identical"}
+  - {id: exact, file: test_exact.py, kind: p2p, why: "1,200 small adversarial statements (id clashes across tills, repeated rows, refunds, ties) + medium ones + reports compared with the old code embedded as oracle"}
+  - {id: existing, file: test_existing.py, kind: p2p, why: "money, card_fee, csv, vat, z-report unchanged"}

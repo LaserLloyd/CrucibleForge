@@ -1,0 +1,22 @@
+id: CB-D4-watch-sessions
+category: codebank
+family: sql
+difficulty: hard
+max_tokens: 8192
+min_sqlite: "3.25"
+answer: "block:sql"
+answer_path: answer.sql
+allowed_paths: []
+new_paths: []
+pythonpath: ["."]
+system: |
+  You are a senior engineer who writes SQL for SQLite (version 3.25 or newer: window functions and recursive CTEs are available). You cannot run queries here.
+
+  Answer with the query in one fenced ```sql block (a single statement). A short explanation before it is fine.
+issue: |
+  Write the screen-time report query described in README.md.
+groups:
+  - {id: sample, file: test_sample.py, kind: f2p, why: "README sample table"}
+  - {id: merge, file: test_merge.py, kind: f2p, why: "README sessions: join when start <= end of everything so far + 1800 s (nested, touching, same start), union length, span"}
+  - {id: dates, file: test_dates.py, kind: f2p, why: "README: local date of the session's first start (offsets incl. negative and :45), sessions crossing local midnight, users without plays absent"}
+  - {id: random, file: test_random.py, kind: f2p, why: "whole README: 40 random logs vs a reference query"}
