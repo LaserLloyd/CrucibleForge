@@ -6,6 +6,15 @@ was ever published as Gauntlet, so there is no migration to do — the entries
 below are kept because the engineering they record is real, not to narrate a
 rename.
 
+## 4.0.1 — container smoke fix (2026-11-01)
+
+- `cases verify` no longer crashes with a traceback when node is not on PATH (the published image has none):
+  node-runner cases and node predict snippets are reported as `SKIP` and counted in the summary line. The
+  error text no longer points at a `--allow-no-node` flag that never existed. This fixes the `containers`
+  workflow smoke test that failed on 4.0.0.
+- `SECURITY.md` names GitHub private vulnerability reporting as the contact.
+- No case content or suite hash change.
+
 ## 4.0.0 — "lite": simple, quick, differentiating (2026-10-31)
 
 - **Board: Overall /20 = Coding /10 + Chat /10.** NSFW /10 stays beside it, never added. Coding =

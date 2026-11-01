@@ -335,10 +335,17 @@ def _check_judge_elements(case: dict) -> list[str]:
 
 
 def verify_all(cases: list[dict], verbose: bool = False) -> int:
-    bad = 0
+    from .codebank import NodeMissing
+    bad = skipped = 0
     n_ref = n_ver = 0
     for c in cases:
-        errs = _check(c)
+        try:
+            errs = _check(c)
+        except NodeMissing as e:
+            # an image or host without node cannot run node cases; skip loudly, not crash
+            skipped += 1
+            print(f"SKIP {c['category']}/{c['id']}: {e}")
+            continue
         n_ref += bool(c.get("reference") or c.get("env")
                       or c.get("grader") == "repo_tests")
         n_ver += bool(c.get("verify") or c.get("snippets"))
@@ -348,5 +355,6 @@ def verify_all(cases: list[dict], verbose: bool = False) -> int:
         elif verbose:
             print(f"ok   {c['category']}/{c['id']}")
     print(f"{len(cases)} cases checked, {bad} with problems "
-          f"({n_ref} reference solutions executed, {n_ver} answers re-derived)")
+          f"({n_ref} reference solutions executed, {n_ver} answers re-derived)"
+          + (f"; {skipped} skipped (node not on PATH)" if skipped else ""))
     return 1 if bad else 0

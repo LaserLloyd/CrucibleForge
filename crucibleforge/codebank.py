@@ -525,6 +525,10 @@ def _bwrap_has_size() -> bool:
     return _HAS_SIZE[_g._BWRAP]
 
 
+class NodeMissing(RuntimeError):
+    """A node-runner case or snippet was asked for but no node is on PATH."""
+
+
 def node_path() -> str | None:
     p = shutil.which("node")
     return os.path.realpath(p) if p else None
@@ -581,7 +585,7 @@ def run_groups(tree: dict[str, str], hidden: dict[str, str], groups: list[dict],
     needs_node = any(g.get("runner") == "node" for g in groups)
     node = node_path() if needs_node else None
     if needs_node and not node:
-        raise RuntimeError("this case needs node and none is on PATH (use --allow-no-node to skip node cases)")
+        raise NodeMissing("this case needs node and none is on PATH")
     files = dict(hidden)
     plan, canaries = [], {}
     for g in groups:
@@ -815,6 +819,8 @@ def derive_gold(lang: str, code: str) -> str:
     cwd) and return its stdout lines joined with ' | ' (the packer's gold)."""
     _g.require_sandbox()
     node = node_path() if lang == "node" else None
+    if lang == "node" and not node:
+        raise NodeMissing("this snippet needs node and none is on PATH")
     with tempfile.TemporaryDirectory(prefix="cbp-") as td:
         name = "snippet.mjs" if lang == "node" else "snippet"
         (Path(td) / name).write_text(code, encoding="utf-8")

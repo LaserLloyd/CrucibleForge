@@ -616,3 +616,16 @@ def test_v2_result_carries_one_line_per_model(tmp_path, monkeypatch):
     files = body.split("## Files", 1)[1].split("##", 1)[0]
     assert "transcripts_bad.jsonl" not in files                # only files that exist
     assert "transcripts_good.jsonl" in files
+
+
+def test_verify_all_skips_node_cases_without_node(monkeypatch, capsys):
+    from crucibleforge import codebank, verify_cases
+
+    def boom(case):
+        raise codebank.NodeMissing("this case needs node and none is on PATH")
+
+    monkeypatch.setattr(verify_cases, "_check", boom)
+    case = {"category": "code", "id": "X1"}
+    assert verify_cases.verify_all([case]) == 0
+    out = capsys.readouterr().out
+    assert "SKIP code/X1" in out and "1 skipped" in out

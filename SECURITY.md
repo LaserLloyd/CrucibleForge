@@ -4,10 +4,8 @@
 
 Please do not open a public issue for a security problem.
 
-- Contact: **[placeholder: the maintainer sets a private security contact here
-  before the first public release]**
-- If the repository is hosted on GitHub, use "Report a vulnerability" (private
-  vulnerability reporting) under the Security tab once it is enabled.
+- Report privately via GitHub: **Security → Report a vulnerability** on the
+  repository (private vulnerability reporting is enabled).
 
 Include the CrucibleForge version (`crucibleforge/version.py`), your OS, and the smallest `models.yaml` that
 reproduces the problem. Never attach real API keys, StudioForge PINs, run
