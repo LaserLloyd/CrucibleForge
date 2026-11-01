@@ -14,6 +14,9 @@ rename.
   workflow smoke test that failed on 4.0.0. The workflow's image smoke test now verifies only the
   math/instruct/reasoning cases (the full code-bank verify runs in the `ci` workflow, not in a node-less,
   unsandboxed container, where it ran for 25+ minutes).
+- macOS: the code-bank child no longer dies on `RLIMIT_AS` (best-effort limits) and `derive_gold` has an
+  unsandboxed path like the grader; Windows reports code-bank cases as `SKIP` (the runner needs POSIX
+  `resource`/`SIGALRM`). CI runs the tests with `-n auto`.
 - `SECURITY.md` names GitHub private vulnerability reporting as the contact.
 - No case content or suite hash change.
 

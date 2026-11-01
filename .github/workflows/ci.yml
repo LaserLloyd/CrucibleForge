@@ -111,7 +111,7 @@ jobs:
         if: runner.os == 'Linux'
         run: uvx ruff@0.16.5 check .
       - name: Tests
-        run: uv run pytest -q
+        run: uv run pytest -q -n auto
       # The gold answers are not taken on trust: every math/reasoning answer is
       # recomputed from its `verify` expression and every coding `reference`
       # solution is executed against its own tests. A case file edited by hand

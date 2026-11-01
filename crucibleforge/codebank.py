@@ -316,8 +316,11 @@ if mode == "parent":
 # ---------------- child: run ONE test function (all its parameters)
 import resource
 _cap = 2 << 30                       # 2 GiB address space (box OOM rule)
-resource.setrlimit(resource.RLIMIT_AS, (_cap, _cap))
-resource.setrlimit(resource.RLIMIT_FSIZE, (256 << 20, 256 << 20))
+for _lim, _val in ((resource.RLIMIT_AS, _cap), (resource.RLIMIT_FSIZE, 256 << 20)):
+    try:
+        resource.setrlimit(_lim, (_val, _val))
+    except (ValueError, OSError):    # macOS refuses RLIMIT_AS above its hard cap: best effort
+        pass
 _exit = os._exit                     # saved before any model code runs
 _write = os.write
 def _die(code, msg=""):
@@ -525,8 +528,17 @@ def _bwrap_has_size() -> bool:
     return _HAS_SIZE[_g._BWRAP]
 
 
-class NodeMissing(RuntimeError):
+class Unsupported(RuntimeError):
+    """The code bank cannot execute on this host (Windows has no ``resource``/``SIGALRM``)."""
+
+
+class NodeMissing(Unsupported):
     """A node-runner case or snippet was asked for but no node is on PATH."""
+
+
+def posix_runner() -> bool:
+    """The code-bank child runner needs POSIX ``resource`` + ``SIGALRM``."""
+    return os.name != "nt"
 
 
 def node_path() -> str | None:
@@ -581,6 +593,8 @@ def run_groups(tree: dict[str, str], hidden: dict[str, str], groups: list[dict],
     shares a process with model code). Each group's file gets a planted
     canary; a canary that passes sets ``tamper`` on every group.
     Returns {group_id: {"ok": bool, "tests": [...], "detail": str, "tamper": bool}}."""
+    if not posix_runner():
+        raise Unsupported("the code bank needs a POSIX host (resource limits and SIGALRM)")
     _g.require_sandbox()
     needs_node = any(g.get("runner") == "node" for g in groups)
     node = node_path() if needs_node else None
@@ -817,6 +831,8 @@ def grade_repo_tests(response_text: str, cfg: dict, finish_reason: str | None = 
 def derive_gold(lang: str, code: str) -> str:
     """Run a predict-family snippet in the sandbox (LC_ALL=C, TZ=UTC, empty
     cwd) and return its stdout lines joined with ' | ' (the packer's gold)."""
+    if not posix_runner():
+        raise Unsupported("the code bank needs a POSIX host (resource limits and SIGALRM)")
     _g.require_sandbox()
     node = node_path() if lang == "node" else None
     if lang == "node" and not node:
@@ -824,19 +840,25 @@ def derive_gold(lang: str, code: str) -> str:
     with tempfile.TemporaryDirectory(prefix="cbp-") as td:
         name = "snippet.mjs" if lang == "node" else "snippet"
         (Path(td) / name).write_text(code, encoding="utf-8")
-        interp = {"python": [_g._REAL_PY, "-I", "-B"], "bash": ["/usr/bin/bash"], "node": [node or "node"]}[lang]
+        interp = {"python": [_g._REAL_PY, "-I", "-B"], "bash": [shutil.which("bash") or "/usr/bin/bash"],
+                  "node": [node or "node"]}[lang]
         envs = {"LC_ALL": "C", "LANG": "C", "TZ": "UTC", "PYTHONHASHSEED": "0", "HOME": "/tmp"}
-        path = "/usr/bin:/bin"
-        extra = []
-        if node:
-            ndir = os.path.dirname(node)
-            extra += ["--ro-bind", ndir, ndir]
-            path = ndir + ":" + path
-        cmd = _g._bwrap_args(_g._BWRAP) + ["--ro-bind", td, "/snip"] + extra
-        for k, v in {**envs, "PATH": path}.items():
-            cmd += ["--setenv", k, v]
-        cmd += ["--chdir", "/tmp"] + interp + ["/snip/" + name]
-        p = subprocess.run(cmd, capture_output=True, text=True, timeout=30, env=_g._child_env())
+        if _g._BWRAP and _g.probe_bwrap(_g._BWRAP)[0]:
+            path = "/usr/bin:/bin"
+            extra = []
+            if node:
+                ndir = os.path.dirname(node)
+                extra += ["--ro-bind", ndir, ndir]
+                path = ndir + ":" + path
+            cmd = _g._bwrap_args(_g._BWRAP) + ["--ro-bind", td, "/snip"] + extra
+            for k, v in {**envs, "PATH": path}.items():
+                cmd += ["--setenv", k, v]
+            cmd += ["--chdir", "/tmp"] + interp + ["/snip/" + name]
+            p = subprocess.run(cmd, capture_output=True, text=True, timeout=30, env=_g._child_env())
+        else:
+            # --allow-unsandboxed (require_sandbox() already passed): run the snippet directly
+            p = subprocess.run(interp + [str(Path(td) / name)], capture_output=True, text=True, timeout=30,
+                               cwd=td, env={**_g._child_env(), **envs})
     return " | ".join(l.rstrip() for l in p.stdout.rstrip("\n").split("\n"))
 
 
