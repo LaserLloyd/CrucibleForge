@@ -111,7 +111,7 @@ jobs:
         if: env.PUBLISH != 'true'
         run: |
           docker run --rm "${{ steps.ref.outputs.image }}" --help
-          docker run --rm -e CRUCIBLEFORGE_ALLOW_UNSANDBOXED=1 "${{ steps.ref.outputs.image }}" cases verify
+          docker run --rm -e CRUCIBLEFORGE_ALLOW_UNSANDBOXED=1 "${{ steps.ref.outputs.image }}" cases verify --categories math,instruct,reasoning
 
       # --- SBOM (syft -> CycloneDX) + checksums ---------------------------------
       - name: SBOM (CycloneDX)

@@ -11,7 +11,9 @@ rename.
 - `cases verify` no longer crashes with a traceback when node is not on PATH (the published image has none):
   node-runner cases and node predict snippets are reported as `SKIP` and counted in the summary line. The
   error text no longer points at a `--allow-no-node` flag that never existed. This fixes the `containers`
-  workflow smoke test that failed on 4.0.0.
+  workflow smoke test that failed on 4.0.0. The workflow's image smoke test now verifies only the
+  math/instruct/reasoning cases (the full code-bank verify runs in the `ci` workflow, not in a node-less,
+  unsandboxed container, where it ran for 25+ minutes).
 - `SECURITY.md` names GitHub private vulnerability reporting as the contact.
 - No case content or suite hash change.
 
