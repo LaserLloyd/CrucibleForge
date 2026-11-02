@@ -402,6 +402,12 @@ class ChatResult:
     prompt_tokens: int | None = None
     completion_tokens: int | None = None
     reasoning_tokens: int | None = None
+    # WHERE the reasoning arrived: "channel" (the reasoning_content delta
+    # field), "inline" (<think> blocks inside the content), or None (no
+    # reasoning at all). The conformance check reports it (c2): a model whose
+    # reasoning rides in a channel the harness does not replay loses its
+    # chain between turns.
+    reasoning_source: str | None = None
     tok_per_s: float | None = None
     prompt_tok_per_s: float | None = None
     # set by the runner when the answer came from a reasoning-overflow
@@ -621,6 +627,14 @@ def stream_chat(base_url: str, api_key: str, model: str, messages: list[dict], *
         # reasoning sent inline in content (MiniMax-M3): it IS the reasoning
         # channel for overflow detection, recovery and the transcript
         r.reasoning_text = inline_thinking
+    # WHERE the reasoning came from: the reasoning_content delta field or
+    # inline <think> blocks in the content. The conformance check reports it
+    # (c2) -- a model whose chain rides in a channel the harness does not
+    # replay loses it between turns.
+    if any(p.strip() for p in reasoning_parts):
+        r.reasoning_source = "channel"
+    elif inline_thinking.strip():
+        r.reasoning_source = "inline"
     r.tool_calls = _merge_tool_call_deltas(raw_tool_deltas)
     r.ttft_s = (first_tok_t - t0) if first_tok_t else None
 
