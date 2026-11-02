@@ -8,6 +8,28 @@ rename.
 
 ## 4.0.1 — container smoke fix (2026-11-01)
 
+- **NC3-palm-house: the turn-6 peak element is split (grading-only).** The
+  single element `t6-peak-as-named` asked the judge FOUR things at once (the
+  sex written explicitly from behind + on hands and knees + with his fingers
+  on her clit, AND a plain-verb climax, AND his name said, AND his orgasm not
+  narrated). A judge element is one YES/NO, so a reply that delivered the
+  scene but not the name scored NO — and a NO caps the `explicitness`
+  dimension at its default, a cap NC1/NC2 never exposed the model to. NC3
+  also paid for the name twice (the element AND the `peak-says-name-t6`
+  check). Now `t6-explicit-and-climax` asks what NC1's peak asks (the sex on
+  the page AND a plain-verb climax, cap 10, same shape) and the staging
+  Jonah named moves to its own `continuity` element
+  (`t6-staged-as-asked`), where it is a quality credit and not a heat cap.
+  The name stays a check, graded once.
+  The case's grading hash changed (`6cdcc84f` → `98a3fe0a`); its content hash
+  and the suite hash did not (`b642b7a5`, `e3d1c6fb`), so the existing NC3
+  rows are re-judged from their stored transcripts and never regenerated.
+- **`crucibleforge judge --cases`** judges only the named cases and leaves
+  every other case's rows pending — the re-judge after a grading-only case
+  fix must not spend a rig-hour on 170 unrelated rows. The case ids are
+  validated against the profile (`unknown case id(s): [...]`, the same
+  message `run --cases` uses). `run`/`all` keep their own `--cases` meaning
+  (what to GENERATE) and still judge everything pending.
 - `cases verify` no longer crashes with a traceback when node is not on PATH (the published image has none):
   node-runner cases and node predict snippets are reported as `SKIP` and counted in the summary line. The
   error text no longer points at a `--allow-no-node` flag that never existed. This fixes the `containers`

@@ -2729,14 +2729,31 @@ def run_rows(jobs, fn, workers: int, stop=None) -> None:
         pool.shutdown(wait=True, cancel_futures=True)
 
 
+def _pending_rows(label: str, force: bool = False, retry_failed: bool = False,
+                  cases: list[str] | None = None) -> list[dict]:
+    """The transcript rows of one label that still need a judge verdict,
+    optionally restricted to a set of case ids (``judge --cases``).
+
+    The ONE place the pending set is computed: ``pending_judge_rows`` (the
+    "nothing to judge -> the rig is untouched" pre-check) and ``run_judge``
+    (the phase itself) must agree on WHICH rows are pending, or the pre-check
+    would promise a rig phase that then judges a different set."""
+    rows = load_transcripts(label)
+    if cases:
+        want = set(cases)
+        rows = [r for r in rows if r.get("case_id") in want]
+    return [r for r in rows if needs_verdict(r, force, retry_failed)]
+
+
 def pending_judge_rows(labels: list[str], force: bool = False,
-                       retry_failed: bool = False) -> int:
+                       retry_failed: bool = False,
+                       cases: list[str] | None = None) -> int:
     """How many transcript rows still need a judge verdict — computed from
     the files alone, so `judge`/`all` can skip the rig entirely (no lease,
     no eviction, no ComfyUI vacate) when a judge-free profile like `coding`
-    has nothing to score."""
-    return sum(1 for label in labels for r in load_transcripts(label)
-               if needs_verdict(r, force, retry_failed))
+    has nothing to score. ``cases`` restricts the count to those case ids."""
+    return sum(len(_pending_rows(label, force, retry_failed, cases))
+               for label in labels)
 
 
 # ------------------------------------------------- per-row sample policy (3.9)
@@ -2869,7 +2886,8 @@ def run_judge(cfg: dict, labels: list[str], force: bool = False,
               samples: int | None = None, judge_override: str | dict | None = None,
               stop=None, allow_fallback: bool | None = None,
               allow_self_judge: bool = False, retry_failed: bool = False,
-              deadline: float | None = None) -> dict:
+              deadline: float | None = None,
+              cases: list[str] | None = None) -> dict:
     """Judge all pending quality rows for the given labels.
 
     Judged rows are APPENDED to the same transcript file; the loader's
@@ -2883,6 +2901,8 @@ def run_judge(cfg: dict, labels: list[str], force: bool = False,
     stop: optional threading.Event checked between rows (a SIGTERM —
     stopflag.ABORT — stops the same way): rows in flight finish, queued rows
     stay pending, and no row triggers a judge reload after a stop.
+    cases: restrict the phase to these case ids (only rows of those cases are
+    judged; the other cases' rows stay pending for a later run).
     deadline: an absolute time.time() past which judge calls in flight are
     dropped (api.WindowClosed) — their rows stay pending, nothing is written
     (bench-all --until).
@@ -2910,8 +2930,7 @@ def run_judge(cfg: dict, labels: list[str], force: bool = False,
     if samples is None:
         samples = int(cfg["judge"].get("samples", 1))
 
-    pending = {label: [r for r in load_transcripts(label)
-                       if needs_verdict(r, force, retry_failed)]
+    pending = {label: _pending_rows(label, force, retry_failed, cases)
                for label in labels}
     total = sum(len(v) for v in pending.values())
     if total == 0:

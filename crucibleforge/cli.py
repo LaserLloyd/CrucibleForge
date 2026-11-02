@@ -1080,7 +1080,7 @@ def _escalate_phase(args, cfg, labels: list[str]) -> int:
 
 
 def cmd_judge(args, cfg):
-    cfg, _, _ = _apply_profile_arg(args, cfg)
+    cfg, prof_cases, _ = _apply_profile_arg(args, cfg)
     entries = resolve_models(cfg, args.models)
     labels = [e["name"] for e in entries]
     samples = getattr(args, "samples", None)
@@ -1096,8 +1096,9 @@ def cmd_judge(args, cfg):
     # holder, instead of timing out 178 rows in.
     from .judge import pending_judge_rows
     retry_failed = bool(getattr(args, "retry_failed", False))
+    only = _judge_cases(args, prof_cases)
     if pending_judge_rows(labels, force=bool(getattr(args, "force", False)),
-                          retry_failed=retry_failed) == 0:
+                          retry_failed=retry_failed, cases=only) == 0:
         # Judge-free profile (e.g. `coding`) or already judged: do not touch
         # the rig at all — a lease here would evict residents and vacate
         # ComfyUI for a phase that has nothing to do.
@@ -1105,7 +1106,32 @@ def cmd_judge(args, cfg):
         print("nothing to judge")
         return 0
     with rig_phase(needed=not _judge_is_remote(args, cfg), what="judge phase"):
-        return _cmd_judge_locked(args, cfg, labels, samples, retry_failed)
+        return _cmd_judge_locked(args, cfg, labels, samples, retry_failed, only)
+
+
+def _judge_cases(args, prof_cases: list[dict]) -> list[str] | None:
+    """The case ids a ``judge`` run is restricted to (None = every case).
+
+    ``judge --cases NC3-palm-house`` re-judges ONE case and leaves every
+    other case's rows pending — the re-judge after a grading-only case fix
+    must not spend a rig-hour re-scoring 170 unrelated rows.
+
+    Only the ``judge`` subcommand filters: ``all``/``run`` already use
+    ``--cases`` to pick what to GENERATE, and their judge phase must keep
+    judging everything that is pending (a run of one case must not leave the
+    other cases' rows unjudged). So the filter applies when the command IS
+    ``judge`` and is ignored when ``all``/``run`` call the judge phase.
+    """
+    if getattr(args, "cmd", None) != "judge":
+        return None
+    only = _parse_list(getattr(args, "cases", None))
+    if not only:
+        return None
+    known = {c["id"] for c in prof_cases}
+    missing = sorted(set(only) - known)
+    if missing:
+        raise SystemExit(f"unknown case id(s): {missing}")
+    return only
 
 
 def _judge_is_remote(args, cfg) -> bool:
@@ -1114,7 +1140,7 @@ def _judge_is_remote(args, cfg) -> bool:
     return _remote_judge_only(a, cfg)
 
 
-def _cmd_judge_locked(args, cfg, labels, samples, retry_failed):
+def _cmd_judge_locked(args, cfg, labels, samples, retry_failed, cases=None):
     from .judge import JudgeLeaseUnavailable, acquire_judge_lease, run_judge
     force_evict = getattr(args, "force_evict", False) or _judge_policy_force(cfg)
     # The guard's resident snapshot MUST be taken before the judge lease:
@@ -1146,7 +1172,8 @@ def _cmd_judge_locked(args, cfg, labels, samples, retry_failed):
                            allow_self_judge=bool(getattr(args, "allow_self_judge", False)),
                            retry_failed=retry_failed,
                            stop=getattr(args, "judge_stop", None),
-                           deadline=getattr(args, "judge_deadline", None))
+                           deadline=getattr(args, "judge_deadline", None),
+                           cases=cases)
     except Exception as e:
         # the board names the reason next to the unjudged rows
         _stamp_judge_error(labels, str(e))
@@ -2404,6 +2431,10 @@ def main(argv=None):
                          help="also re-judge rows whose stored verdict FAILED (row timeout, "
                               "unparsable reply) — without --force's re-judging of every row")
     p_judge.add_argument("--samples", type=int, default=None)
+    p_judge.add_argument("--cases", default=None,
+                         help="comma-separated case ids to judge (only these cases' rows; "
+                              "the others stay pending — use it to re-judge one case after "
+                              "a grading-only case fix)")
     p_judge.add_argument("--judge", default=None, help="judge to use: a judge.candidates name, a registry label (e.g. minimax-m3), or provider:model_id. Default: the profile's judge (bench: Gemma-4-31B heretic Q8). A hosted-API judge takes no GPU lease and no rig lock")
     p_judge.add_argument("--allow-self-judge", action="store_true",
                          help="experiments only: let the judge score its own rows "

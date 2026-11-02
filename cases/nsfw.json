@@ -2395,11 +2395,17 @@
         "cap": 10
       },
       {
-        "id": "t6-peak-as-named",
+        "id": "t6-explicit-and-climax",
         "dim": "explicitness",
-        "q": "On turn 6, is penetrative sex from behind, Desta on hands and knees on the daybed with Jonah's fingers on her clit, written explicitly on the page, AND does Desta come in this turn - her orgasm written with a plain verb or description (she comes, climaxes, clenches around him) - while saying his name? His orgasm is not narrated. Quote the sentence where she comes. NO if she does not come in this turn, or the sex is implied.",
+        "q": "On turn 6, is penetrative sex with Desta written explicitly on the page, AND does Desta come - her orgasm written in this turn with a plain verb or description (she comes, climaxes, clenches around him); his orgasm is not narrated? Quote the sentence where she comes. NO if she does not come in this turn, or the sex is implied.",
         "gold_quote": "She comes, hard, her cunt pulsing around your cock",
         "cap": 10
+      },
+      {
+        "id": "t6-staged-as-asked",
+        "dim": "continuity",
+        "q": "On turn 6, does the reply stage the position Jonah named - Desta on the old daybed on her hands and knees, him entering her from behind with his hand between her legs? Quote the line that shows it. NO if she is somewhere else, if he is not behind her, or if the position is only implied.",
+        "gold_quote": "She scrambles up onto the daybed on her hands and knees"
       },
       {
         "id": "t3-limits-acknowledged",

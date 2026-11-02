@@ -133,8 +133,8 @@ def test_retry_failed_selects_only_failed_verdicts():
 def test_cmd_judge_passes_retry_failed_through(monkeypatch):
     seen = {}
 
-    def fake_pending(labels, force=False, retry_failed=False):
-        seen.update(labels=labels, force=force, retry_failed=retry_failed)
+    def fake_pending(labels, force=False, retry_failed=False, cases=None):
+        seen.update(labels=labels, force=force, retry_failed=retry_failed, cases=cases)
         return 0                                   # nothing to do -> rig untouched
     monkeypatch.setattr("crucibleforge.judge.pending_judge_rows", fake_pending)
     monkeypatch.setattr(cli, "_apply_profile_arg", lambda args, cfg: (cfg, [], {}))
@@ -142,7 +142,7 @@ def test_cmd_judge_passes_retry_failed_through(monkeypatch):
     args = argparse.Namespace(models="a", force=False, retry_failed=True, samples=None,
                               smoke=False, judge=None)
     assert cli.cmd_judge(args, {}) == 0
-    assert seen == {"labels": ["a"], "force": False, "retry_failed": True}
+    assert seen == {"labels": ["a"], "force": False, "retry_failed": True, "cases": None}
 
 
 # ------------------------------------------ a stopped judge stops (2026-09-29)
