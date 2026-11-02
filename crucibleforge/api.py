@@ -595,11 +595,15 @@ def stream_chat(base_url: str, api_key: str, model: str, messages: list[dict], *
                     # server answered 200 with a non-SSE body (error JSON)
                     raise TransportError("no SSE data in 200 response")
                 if not r.finish_reason and not usage and not (
-                        st["done"] and (text_parts or reasoning_parts or raw_tool_deltas)):
+                        st["done"] and (text_parts or raw_tool_deltas)):
                     # the server closed the stream before saying it was done:
                     # whatever arrived is a fragment, not the model's answer
                     # (2026-10-29: an empty MiniMax row was scored 0). A
-                    # ``[DONE]`` after content IS the server saying so (N1).
+                    # ``[DONE]`` after content IS the server saying so (N1) —
+                    # but only after an ANSWER or a tool call: ``[DONE]`` after
+                    # reasoning alone, with no finish_reason and no usage, is a
+                    # cut stream (2026-11-02: MiniMax rows with 9k-48k chars of
+                    # reasoning and no answer were scored as failed answers).
                     raise TransportError("stream dropped before a finish_reason or usage")
     except (WrongModelError, TransportError):
         raise  # RequestRejected is a TransportError

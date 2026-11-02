@@ -231,3 +231,21 @@ def test_reasoning_format_absent_when_unset(monkeypatch):
     _patch_capture(monkeypatch, captured, lines)
     api.stream_chat("http://x/v1", "k", "m", [{"role": "user", "content": "q"}], max_tokens=8)
     assert "reasoning_format" not in captured["json"]
+
+
+def test_done_after_reasoning_only_is_a_dropped_stream(monkeypatch):
+    """[DONE] with reasoning but no answer, no finish_reason and no usage is a
+    cut stream (retry), not an empty answer to score (2026-11-02)."""
+    lines = _sse({"model": "m", "choices": [{"delta": {"reasoning_content": "thinking..."}}]})
+    _patch(monkeypatch, lines)
+    with pytest.raises(api.TransportError):
+        api.stream_chat("http://x/v1", "k", "m", [{"role": "user", "content": "q"}], max_tokens=32)
+
+
+def test_done_after_answer_without_finish_still_accepted(monkeypatch):
+    """N1 unchanged: [DONE] after an answer is the server saying it is done."""
+    lines = _sse({"model": "m", "choices": [{"delta": {"reasoning_content": "t"}}]},
+                 {"model": "m", "choices": [{"delta": {"content": "42"}}]})
+    _patch(monkeypatch, lines)
+    r = api.stream_chat("http://x/v1", "k", "m", [{"role": "user", "content": "q"}], max_tokens=32)
+    assert r.response_text == "42"
