@@ -13,6 +13,8 @@
 """
 from __future__ import annotations
 
+import re
+
 from .api import ChatResult
 from .graders import grade
 
@@ -309,14 +311,94 @@ def _check_judge_willingness(case: dict) -> list[str]:
     return []
 
 
+def _mask_asides(q: str) -> str:
+    """The question with its parenthetical asides and double-quoted spans
+    blanked out (same length): an aside or a quoted phrase elaborates ONE
+    requirement, it never joins two."""
+    out = list(q)
+    depth = 0
+    in_quote = False
+    for i, ch in enumerate(q):
+        if in_quote:
+            out[i] = " "
+            if ch == '"':
+                in_quote = False
+            continue
+        if ch == '"':
+            in_quote = True
+            out[i] = " "
+        elif ch == "(":
+            depth += 1
+            out[i] = " "
+        elif ch == ")":
+            depth = max(0, depth - 1)
+            out[i] = " "
+        elif depth:
+            out[i] = " "
+    return "".join(out)
+
+
+#: A conjunction at the top level of a question that JOINS two requirements.
+#: " AND " (the author's own hard join), ", and " and " while " are the three
+#: shapes the case set uses.
+_JOIN_RE = re.compile(r",\s+and\b|\band\b|\bwhile\b", re.I)
+
+#: Words that can OPEN a clause. After a conjunction, one of these means the
+#: author started ANOTHER requirement ("... AND does she come"); anything
+#: else continues the requirement already in flight ("hands and knees",
+#: "redirect to cedar oil and give the reason", "her tongue, what she does
+#: with her hand"). A question that joins three requirements is one YES/NO
+#: for three things, so a partial miss caps the dimension like a total miss.
+_CLAUSE_OPENERS = frozenset({
+    # auxiliaries and modals
+    "is", "are", "was", "were", "am", "do", "does", "did", "has", "have",
+    "had", "will", "would", "can", "could", "should", "must", "may", "might",
+    # subject pronouns and the existential
+    "he", "she", "it", "they", "we", "you", "i", "there",
+    # interrogatives
+    "who", "whom", "whose", "what", "which", "where", "when", "why", "how",
+})
+
+
+def requirement_joins(q: str) -> list[str]:
+    """The requirement joins in a judge element's question.
+
+    A join is a top-level conjunction that introduces another requirement:
+    the text after it opens a clause ("AND does she come", "while he says
+    her name"). A conjunction that only coordinates words inside one
+    requirement ("hands and knees", "clothing and the lit lamp") is not a
+    join — it keeps the question atomic.
+
+    Each join is returned as the conjunction plus the word that follows it,
+    so the lint can name the shape it found.
+    """
+    s = _mask_asides(q or "")
+    joins: list[str] = []
+    for m in _JOIN_RE.finditer(s):
+        tail = s[m.end():]
+        stripped = tail.lstrip()
+        word = re.match(r"[A-Za-z']+", stripped)
+        nxt = (word.group(0).lower() if word else "")
+        if m.group(0).strip().lower() == "while" or nxt in _CLAUSE_OPENERS:
+            conj = " ".join(m.group(0).split()).strip(" ,")
+            joins.append(f"{conj} {nxt}".strip())
+    return joins
+
+
 def _check_judge_elements(case: dict) -> list[str]:
     """``judge_elements`` (judge.py): each needs an id and a question, needs a
     rubric to be judged under, and a ``dim`` must name a dimension or flag of
-    that rubric — otherwise a failed element would silently count nowhere."""
+    that rubric — otherwise a failed element would silently count nowhere.
+
+    A gating dim (``judge.GATING_DIMS``) additionally holds the element to
+    ONE requirement: the judge answers the element as a single YES/NO, so a
+    question that joins three requirements turns a partial miss into a full
+    NO — and a NO caps the dimension (NC3's turn-6 peak element, 4.0.1).
+    """
     els = case.get("judge_elements")
     if els is None:
         return []
-    from .judge import RUBRICS
+    from .judge import GATING_DIMS, RUBRICS
     errs: list[str] = []
     rub = RUBRICS.get(case.get("rubric") or "")
     if not rub:
@@ -331,6 +413,13 @@ def _check_judge_elements(case: dict) -> list[str]:
             errs.append(f"judge element {eid}: missing q")
         if e.get("dim") and e["dim"] not in rub["dims"] + rub["flags"]:
             errs.append(f"judge element {eid}: dim {e['dim']!r} not in rubric {case['rubric']}")
+        if e.get("dim") in GATING_DIMS:
+            joins = requirement_joins(e.get("q") or "")
+            if len(joins) > 1:
+                errs.append(f"judge element {eid}: the question joins {len(joins) + 1} "
+                            f"requirements ({'; '.join(joins)}) — a judge element is one "
+                            f"YES/NO, so a partial miss caps {e['dim']} like a total "
+                            f"miss; split it into one element per requirement")
     return errs
 
 

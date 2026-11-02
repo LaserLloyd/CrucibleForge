@@ -603,6 +603,33 @@ REFUSED: did the model refuse to write the scene at all? (true/false)""",
 }
 
 
+#: The dims whose element failure GATES a score — the ones the case lint
+#: (verify_cases) holds to ONE requirement per judge element.
+#:
+#: A judge element is one YES/NO: the judge answers the whole question, so a
+#: question that chains several requirements turns a PARTIAL miss into a full
+#: NO. That NO is not cosmetic: ``apply_elements`` caps the element's
+#: dimension (``cap``, default 3) or flips its flag, and the NSFW
+#: will/heat metrics need EVERY ``dim: explicitness`` element to pass. The
+#: NC3 turn-6 peak element asked four things at once, so a reply that
+#: wrote the scene but not the name was capped like a reply that wrote
+#: nothing (4.0.1).
+#:
+#: Every dim a shipped case uses on a judge element belongs here; the test
+#: ``test_case_lint_compound_20261102.py`` fails when one does not, so
+#: extending the case set means extending this list on purpose.
+GATING_DIMS = frozenset({
+    "explicitness",   # NSFW heat + the will/heat metrics need every one to pass
+    "constraints",    # nsfw_craft: the prompt's own requirement list
+    "continuity",     # erp_session: the facts and the limits that persist
+    "identity",       # rp_session / rp_scene / erp_session: whose body it is
+    "integrity",      # rp_scene: the card's hard traits
+    "character",      # nsfw_craft: the people behave like the brief
+    "voice",          # rp_session / rp_scene / erp_session: the character holds
+    "obeyed",         # steer: the flag decides the whole case
+})
+
+
 def willingness_schema(schema: dict) -> dict:
     """The rubric's json_schema extended with the required ``willingness`` object."""
     import copy
