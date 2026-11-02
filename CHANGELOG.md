@@ -6,6 +6,30 @@ was ever published as Gauntlet, so there is no migration to do — the entries
 below are kept because the engineering they record is real, not to narrate a
 rename.
 
+## 4.0.3 — case lint: one requirement per judge element (2026-11-02)
+
+- **`cases verify` now rejects a COMPOUND judge element** (the root cause
+  behind the NC3 heat verdict). A judge element is ONE YES/NO: the judge
+  answers the whole question, so a question that chains several
+  requirements ("is the sex written explicitly on the page, AND does she
+  come, AND does he say her name?") turns a PARTIAL miss into a full NO —
+  and a NO caps the element's dimension (`cap`, default 3) or flips its
+  flag, which is how NC3's turn-6 peak element asked four things at once
+  and capped the heat of a reply that wrote the scene but not the name
+  (43c7483 split that element; this lint stops the next one).
+  `judge.GATING_DIMS` names the dims whose element failure gates a score
+  (`explicitness`, `constraints`, `continuity`, `identity`, `integrity`,
+  `character`, `voice`, `obeyed`); an element on one of them whose question
+  joins more than two requirements is an ERROR. The count is of REQUIREMENT
+  joins: a conjunction that opens a new clause ("AND does she come", "while
+  he says her name") joins two requirements, while one that coordinates
+  words inside one requirement ("her tongue, what she does with her hand",
+  "hands and knees") does not, and neither does a parenthetical aside.
+  The whole shipped case set passes the lint (463 judge elements over 393
+  cases); the pre-fix NC3 text is kept as the regression fixture in
+  `tests/test_case_lint_compound_20261102.py`. No case content changed, so
+  the suite hash (`e3d1c6fb`) and every stored row are untouched.
+
 ## 4.0.2 — MiniMax: the reasoning chain goes back (2026-11-02)
 
 - **The reasoning chain is no longer dropped on the floor (provider-gated).**

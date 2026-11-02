@@ -44,6 +44,12 @@ custom:
   number of cases in that sub-score; a mapping (`{my-cat: 10, steer: 5}`) gives explicit weights.
 - A case's grading is whatever its case object says: a deterministic `grader`, a judge `rubric`
   with `judge_elements` (YES/NO with a quote), deterministic `checks`, or both.
+- A judge element is ONE YES/NO. When its `dim` gates a score (`judge.GATING_DIMS`:
+  `explicitness`, `constraints`, `continuity`, `identity`, `integrity`, `character`, `voice`,
+  `obeyed`), `cases verify` rejects a question that joins more than two requirements — a
+  partial miss would score NO and cap the dimension like a total miss. Split it into one
+  element per requirement. Coordinating words inside one requirement ("hands and knees") and
+  parenthetical asides do not count as joins.
 - `cases:` limits which rows feed the sub-score (components are per category, so this is how
   one category is split over several sub-scores).
 - `include_in: overall` adds the test's points to Overall; `include_in: work` (or `chat`,

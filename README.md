@@ -698,6 +698,18 @@ check passes too. Checks and `judge_elements` are grading, not the question:
 editing them does not change the suite revision (re-judge after editing a judge
 element or a steer check). Method and sources: `docs/differentiation-2026-09-25.md`.
 
+**One requirement per judge element (4.0.3).** A judge element is ONE
+YES/NO, so a question that chains several requirements ("is the sex written
+explicitly on the page, AND does she come, AND does he say her name?") turns
+a partial miss into a full NO — and a NO caps the element's `dim` like a
+total miss. `cases verify` is an **ERROR** on a judge element whose `dim`
+gates a score (`judge.GATING_DIMS`: `explicitness`, `constraints`,
+`continuity`, `identity`, `integrity`, `character`, `voice`, `obeyed`) and
+whose question joins more than two requirements. Split such an element into
+one element per requirement. Coordinating words inside ONE requirement ("her
+tongue, what she does with her hand") and parenthetical asides do not count
+as joins.
+
 **Spread and variety checks (3.5.0).** `require_spread` (`pattern`, `parts` N,
 `min_parts` M): the scoped text is cut into N equal slices by words and passes
 when at least M slices contain a match ("explicit at M separate points", not
