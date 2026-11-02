@@ -6,6 +6,44 @@ was ever published as Gauntlet, so there is no migration to do — the entries
 below are kept because the engineering they record is real, not to narrate a
 rename.
 
+## 4.0.3 — `conform`: prove the request protocol per model (2026-11-02)
+
+(the suite version stays 4.0.1: no case content changed, so no row goes stale)
+
+- **The bench's request protocol is now proven per model, not assumed.** The
+  MiniMax collapse (scores 0.4-1.7) had two causes on the protocol side: the
+  reasoning chain was dropped between turns although MiniMax requires it back
+  (1/10 recall dropped vs 7/10 replayed), and a retired model id that
+  `/v1/models` still listed 404'd on every call. Both were invisible: the
+  harness ASSUMED one protocol for every model and never checked it against
+  the model's behaviour. `crucibleforge conform` does the check, with a
+  handful of cheap calls that go through the bench's OWN request path
+  (`Provider.chat` + the runner's message builders) — a hand-rolled request
+  would prove nothing, since the point is to exercise the exact bytes and the
+  exact conversation the run sends.
+  Six checks per model, each PASS / WARN / FAIL with a one-line reason: **c1
+  served** (a 1-turn call succeeds; the model the API reports is recorded, so
+  an alias is visible; a 4xx is a FAIL), **c2 reasoning** (where the
+  reasoning arrives — the `reasoning_content` field, inline `<think>` tags or
+  nowhere — and that no think tags leak into the answer, the gemma4 case of
+  2026-10-24), **c3 chain** (a 2-turn memory probe whose turn-1 fact exists
+  ONLY in the reasoning, run with the current reasoning-replay setting and
+  with the opposite one; the opposite recalling better means the replay
+  setting is wrong for this model — the MiniMax defect), **c4 tools** (a
+  2-step tool round trip through the runner's tool-loop builder; a 4xx or a
+  malformed history is a FAIL), **c5 sampler** (the sampler the profile
+  would send for this model is accepted) and **c6 budget** (a medium coding
+  prompt at the board budget; an empty answer with `finish=length` needs the
+  escalation rung, see Room).
+  The record lands in `results/conformance/<label>.json` with the protocol
+  fingerprint (provider type, reasoning replay, extra_body keys, sampler), so
+  a harness change can tell which rows are stale. A rig model is only checked
+  while it is loaded — `conform` never loads a model behind the bench's back
+  (`--allow-load` does, under the rig lock).
+- **`runner.assistant_turn` is now the one builder for the assistant turn**,
+  shared by the multi-turn runner and the conformance probe, so a probe can
+  never measure a conversation the bench does not send.
+
 ## 4.0.2 — MiniMax: the reasoning chain goes back (2026-11-02)
 
 - **The reasoning chain is no longer dropped on the floor (provider-gated).**

@@ -274,8 +274,12 @@ def _ask(ctx, messages: list[dict], *, max_tokens: int,
 
     ``temperature`` / ``top_p`` are sent EXPLICITLY, ``None`` included: the
     bench sends nothing when the profile pins no sampler (the "as deployed"
-    regime), and a probe must look like the bench.
+    regime), and a probe must look like the bench.  The default is the
+    model's OWN sampler (ctx.sampling), so a probe is the request the bench
+    would send for this model.
     """
+    if temperature is None and top_p is None:
+        temperature, top_p = ctx.sampling({})
     kw = {"max_tokens": max_tokens, "seed": 42, "extra_body": ctx.extra_body,
           "temperature": temperature, "top_p": top_p}
     if tools:
@@ -319,11 +323,18 @@ def _c2_reasoning(ctx) -> Check:
                                   f"(HTTP {e.status}): {str(e.body)[:160]}")
     except TransportError as e:
         return Check("c2", FAIL, f"the reasoning probe failed: {str(e)[:200]}")
-    leak = _LEAK_RE.search(r.response_text or "")
-    if leak:
-        return Check("c2", FAIL, f"think tags leaked into the answer: "
-                                  f"{leak.group(0)!r} (the harness does not "
-                                  f"parse this dialect)")
+    # The text that can reach a grader: the content channel, and the
+    # reasoning channel when the answer arrived there (api.ChatResult.
+    # scoreable_text falls back to it).  A KNOWN dialect is already stripped
+    # at the API boundary, so anything left is a dialect the harness does not
+    # parse -- the tags would then be graded as the reply.
+    for channel, text in (("the answer", r.response_text or ""),
+                          ("the reasoning", r.reasoning_text or "")):
+        leak = _LEAK_RE.search(text)
+        if leak:
+            return Check("c2", FAIL, f"think tags leaked into {channel}: "
+                                      f"{leak.group(0)!r} (the harness does not "
+                                      f"parse this dialect)")
     if not (r.reasoning_text or "").strip() and not r.reasoning_tokens:
         return Check("c2", INFO, "no reasoning channel on a reasoning prompt "
                                   "-- the model answers directly")
@@ -340,8 +351,12 @@ def _chain_arm(ctx, replay: bool, trials: int = 3) -> dict:
 
     ``replay`` says whether the assistant turn goes back WITH its reasoning
     (the MiniMax protocol).  Returns the recall count, how many trials were
-    conclusive, and the first error (if any)."""
+    conclusive, how many could prove nothing, and the first error."""
     recalled = conclusive = errors = 0
+    # trials that could prove nothing, by cause: the model did not think at
+    # all, or it wrote the number down (the fact would then live in the
+    # content channel, where the replay does not matter)
+    no_reasoning = wrote_down = 0
     first_error: str | None = None
     for _ in range(trials):
         try:
@@ -355,10 +370,12 @@ def _chain_arm(ctx, replay: bool, trials: int = 3) -> dict:
         if not numbers:
             # no reasoning channel (or no number in it): the fact cannot be
             # remembered, so the trial proves nothing
+            no_reasoning += 1
             continue
         if _NUM_RE.search(r1.response_text or ""):
             # the model wrote the number down: the fact is in the content
             # channel, where the replay does not matter
+            wrote_down += 1
             continue
         history = [{"role": "user", "content": _CHAIN_TURN1},
                    runner.assistant_turn(r1, replay),
@@ -379,6 +396,7 @@ def _chain_arm(ctx, replay: bool, trials: int = 3) -> dict:
         if len(said) <= 12 and any(n in said for n in numbers):
             recalled += 1
     return {"recalled": recalled, "conclusive": conclusive,
+            "no_reasoning": no_reasoning, "wrote_down": wrote_down,
             "errors": errors, "error": first_error}
 
 
@@ -420,6 +438,12 @@ def _c3_chain(cfg, entry, provider, ctx) -> Check:
         if cur["errors"] or opp["errors"]:
             return Check("c3", WARN, f"the memory probe could not run: "
                                       f"{cur['error'] or opp['error']}")
+        if cur["wrote_down"] or opp["wrote_down"]:
+            # the model thought, but wrote the number down (the fact would
+            # then live in the content channel, where the replay is moot)
+            return Check("c3", INFO, "the model wrote the number down instead "
+                                      "of only thinking it: the probe could "
+                                      "not separate the two settings")
         return Check("c3", INFO, "no reasoning channel: the model is not a "
                                   "thinking model, there is no chain to replay")
     if cur["conclusive"] < 2 or opp["conclusive"] < 2:
@@ -486,13 +510,26 @@ def _c4_tools(ctx) -> Check:
                              f"{len(ids)} step(s), the history was accepted")
 
 
+#: how an API says that a parameter is ignored
+_IGNORE_WORDS = ("ignor", "not supported", "unsupported", "not applicable",
+                 "no effect", "has no effect", "is not used")
+
+
 def _ignored_params(text: str, params: dict) -> str:
-    """The sampler parameters the API says it ignores, if it says so."""
-    low = (text or "").lower()
-    if not any(w in low for w in ("ignor", "not supported", "unsupported",
-                                  "not applicable")):
-        return ""
-    hit = [k for k in params if k in low]
+    """The sampler parameters the API says it ignores, if it says so.
+
+    The statement has to name the parameter: a reply that happens to contain
+    the word "ignored" is not evidence about the sampler.
+    """
+    sentences = re.split(r"[.\n]", text or "")
+    hit: list[str] = []
+    for sentence in sentences:
+        low = sentence.lower()
+        if not any(w in low for w in _IGNORE_WORDS):
+            continue
+        for k in params:
+            if k.lower() in low and k not in hit:
+                hit.append(k)
     return ", ".join(hit)
 
 

@@ -364,6 +364,7 @@ uv run crucibleforge recover --models a,b --yes     # re-run reasoning-overflow 
 uv run crucibleforge pairwise --models a,b --categories rp,nsfw --yes  # position-swapped head-to-head
 uv run crucibleforge models discover <provider>     # list what a server is serving
 uv run crucibleforge cases verify                   # re-derive every gold answer offline
+uv run crucibleforge conform --models <label>       # prove the request protocol works for a model
 ```
 
 `crucibleforge all` = `run` → `judge` → `report`. Results land in
@@ -375,6 +376,32 @@ first; without it the board still uses only the latest run of each case.
 Only one benchmark runs at a time: `run`/`all`/`judge`/`recover` take
 `results/.rig.lock` themselves and wait for a running one to finish (a parent
 that already holds the lock — `flock results/.rig.lock …` — is recognised).
+
+### Conformance (`crucibleforge conform`)
+
+A model is benched with ONE request protocol, and the protocol differs per
+provider: MiniMax requires its reasoning chain to be sent back (the chain
+dropped measured 1/10 recall against 7/10 replayed), a hosted API may ignore
+`temperature`, a model id can be retired while `/v1/models` still lists it.
+`conform` proves the protocol per model with a handful of cheap calls that go
+through the bench's OWN request path — the same `Provider.chat` and the same
+message builders the run uses — so a PASS means the bench itself would talk
+to the model correctly:
+
+| check | what it proves |
+| --- | --- |
+| `c1 served` | a 1-turn call succeeds; the model the API reports is recorded (alias detection); a 4xx is a FAIL |
+| `c2 reasoning` | where the reasoning arrives (`reasoning_content`, inline `<think>`, none) and that no think tags leak into the answer |
+| `c3 chain` | a 2-turn memory probe whose fact lives only in the reasoning, with the current reasoning-replay setting and with the opposite one — the opposite recalling better means the replay setting is wrong for this model |
+| `c4 tools` | a 2-step tool round trip (call → tool result → answer); a 4xx or a malformed history is a FAIL |
+| `c5 sampler` | the sampler the profile would send for this model is accepted |
+| `c6 budget` | a medium coding prompt at the board budget; an empty answer with `finish=length` needs the escalation rung (see Room) |
+
+The record lands in `results/conformance/<label>.json` with the protocol
+fingerprint (provider type, reasoning replay, extra_body keys, sampler), so a
+harness change can tell which rows are stale. A rig model (StudioForge / LM
+Studio) is only checked while it is loaded — `conform` never loads a model
+behind the bench's back (`--allow-load` does, under the rig lock).
 
 ### Registry (`models.yaml`)
 

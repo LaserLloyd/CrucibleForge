@@ -2024,8 +2024,21 @@ def cmd_conform(args, cfg):
     # the checks must see the profile the bench would send (its sampler
     # rules and its budgets), so the profile is applied first
     cfg = conformance.with_profile(cfg, getattr(args, "profile", None))
-    records = conformance.conform(cfg, entries,
-                                  allow_load=bool(getattr(args, "allow_load", False)))
+    # --allow-load puts a model on the rig: that must not happen beside a
+    # running benchmark (it would evict its residents and corrupt its
+    # timings), so the rig lock is taken for that case only.
+    from .providers import get_provider
+
+    def _is_rig(e):
+        try:
+            return get_provider(cfg, e.get("provider")).type in ("lmstudio", "studioforge")
+        except Exception:  # noqa: BLE001
+            return False
+
+    need_lock = bool(getattr(args, "allow_load", False)) and any(_is_rig(e) for e in entries)
+    with rig_phase(needed=need_lock, what="conform (--allow-load)"):
+        records = conformance.conform(
+            cfg, entries, allow_load=bool(getattr(args, "allow_load", False)))
     if getattr(args, "json", False):
         print(json.dumps([r.to_dict() for r in records], indent=2))
     else:

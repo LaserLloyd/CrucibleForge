@@ -21,12 +21,11 @@ plus the record file, the protocol fingerprint and the CLI.
 from __future__ import annotations
 
 import json
-import re
 from pathlib import Path
 
 import pytest
 
-from crucibleforge import api, cli, conformance, providers, runner
+from crucibleforge import api, cli, conformance, providers
 from crucibleforge.providers import clear_cache
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -357,6 +356,25 @@ def test_c3_chain_is_info_for_a_model_that_does_not_think():
     c = _check(rec, "c3")
     assert c.status == conformance.INFO
     assert "not a thinking model" in c.detail
+
+
+def test_c3_chain_is_info_when_the_model_writes_the_number_down():
+    """The fact must live ONLY in the reasoning.  A model that writes the
+    number down cannot separate the two settings, so the check says so
+    instead of guessing."""
+    def script(body):
+        text = _last_text(body)
+        if "random 6-digit number" in text:
+            return 200, _sse([_chunk({"reasoning_content":
+                                      f"Let me pick {CHAIN_NUMBER}."}),
+                              _chunk({"content": f"I picked {CHAIN_NUMBER}."},
+                                     "stop"), _usage(True)])
+        return _default_script(body)
+
+    rec = _run(_cfg(reasoning_replay=True), script)
+    c = _check(rec, "c3")
+    assert c.status == conformance.INFO
+    assert "wrote the number down" in c.detail
 
 
 def test_c4_tools_passes_on_a_well_formed_round_trip():
