@@ -6,7 +6,7 @@ was ever published as Gauntlet, so there is no migration to do — the entries
 below are kept because the engineering they record is real, not to narrate a
 rename.
 
-## 4.0.3 — `conform`: prove the request protocol per model (2026-11-02)
+## 4.0.4 — `conform`: prove the request protocol per model (2026-11-02)
 
 (the suite version stays 4.0.1: no case content changed, so no row goes stale)
 
