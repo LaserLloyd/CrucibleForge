@@ -2009,6 +2009,51 @@ def cmd_cases(args, cfg):
     return 1
 
 
+def cmd_conform(args, cfg):
+    """Prove the harness's request protocol works for the selected models.
+
+    The checks run through the bench's own request path (Provider.chat and
+    the runner's message builders), so a PASS means the bench itself would
+    talk to the model correctly -- not that a hand-rolled probe did.
+    """
+    from . import conformance
+    entries = resolve_models(cfg, args.models or "all")
+    if not entries:
+        print("no models selected")
+        return 1
+    # the checks must see the profile the bench would send (its sampler
+    # rules and its budgets), so the profile is applied first
+    cfg = conformance.with_profile(cfg, getattr(args, "profile", None))
+    # --allow-load puts a model on the rig: that must not happen beside a
+    # running benchmark (it would evict its residents and corrupt its
+    # timings), so the rig lock is taken for that case only.
+    from .providers import get_provider
+
+    def _is_rig(e):
+        try:
+            return get_provider(cfg, e.get("provider")).type in ("lmstudio", "studioforge")
+        except Exception:  # noqa: BLE001
+            return False
+
+    need_lock = bool(getattr(args, "allow_load", False)) and any(_is_rig(e) for e in entries)
+    with rig_phase(needed=need_lock, what="conform (--allow-load)"):
+        records = conformance.conform(
+            cfg, entries, allow_load=bool(getattr(args, "allow_load", False)))
+    if getattr(args, "json", False):
+        print(json.dumps([r.to_dict() for r in records], indent=2))
+    else:
+        for r in records:
+            print(f"\n{r.label} ({r.model_id}) via {r.provider} [{r.provider_type}]"
+                  f" — {r.verdict}")
+            for c in r.checks:
+                print(f"  {c.id} {c.status:4s} {c.detail}")
+            if r.note:
+                print(f"  note: {r.note}")
+            print(f"  record: {conformance.record_path(r.label)}")
+    # a FAIL is the gate's signal: the model is not benched as it is
+    return 1 if any(r.verdict == conformance.FAIL for r in records) else 0
+
+
 # ------------------------------------------------------------------- main
 
 # ------------------------------------------------------------ --detach
@@ -2607,6 +2652,23 @@ def main(argv=None):
         pc.add_argument("--difficulty", default=None)
         pc.add_argument("--verbose", "-v", action="store_true")
 
+    p_conf = sub.add_parser(
+        "conform", help="check that the harness's request protocol works for "
+                        "a model (served / reasoning / chain / tools / sampler "
+                        "/ budget) before it is benched")
+    p_conf.add_argument("--models", default="all",
+                        help="comma list of labels, or 'all' (default)")
+    p_conf.add_argument("--json", action="store_true",
+                        help="print the records as JSON (the per-check detail "
+                             "goes to the log)")
+    p_conf.add_argument("--allow-load", action="store_true",
+                        help="load a rig model that is not resident yet "
+                             "(off by default: conform never loads a model "
+                             "behind the bench's back)")
+    p_conf.add_argument("--profile", default=None,
+                        help="the benchmark profile whose sampler and budgets "
+                             "the checks use (default: bench)")
+
     args = parser.parse_args(argv)
 
     if args.allow_unsandboxed:
@@ -2675,7 +2737,8 @@ def main(argv=None):
                "recover": cmd_recover, "escalate": cmd_escalate, "report": cmd_report, "compare": cmd_compare, "calibrate": cmd_calibrate,
                "pack": cmd_pack, "pairwise": cmd_pairwise, "all": cmd_all,
                "gui": cmd_gui, "import-openclaw": cmd_import_openclaw,
-               "models": cmd_models, "cases": cmd_cases, "bench-all": cmd_bench_all}[args.cmd]
+               "models": cmd_models, "cases": cmd_cases, "bench-all": cmd_bench_all,
+               "conform": cmd_conform}[args.cmd]
     # WP-BENCH FIX-6: `run`/`all` are the two commands that do real benched
     # work end to end, so they are the ones tracked by the fleet-wide
     # runs/<id>/{report.md,meta.json} contract. This wraps the dispatch

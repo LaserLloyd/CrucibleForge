@@ -1891,6 +1891,27 @@ def _sendable_history(history: list[dict]) -> list[dict]:
     return out
 
 
+def assistant_turn(result: ChatResult, replay: bool) -> dict:
+    """The assistant message as it goes back into the conversation.
+
+    The content channel is the answer. The reasoning channel is NOT the
+    answer, but on a provider with reasoning replay on it IS the model's
+    context: MiniMax documents that the complete assistant message
+    (reasoning_content included) must be passed back or the chain is lost
+    (1/10 recall with it dropped vs 7/10 replayed). With the replay off the
+    turn carries the content only -- byte-identical to a run without the
+    switch.
+
+    One builder for both callers (the multi-turn runner and the conformance
+    probe), so a probe can never measure a conversation the bench does not
+    actually send.
+    """
+    turn = {"role": "assistant", "content": result.response_text}
+    if replay and result.reasoning_text:
+        turn["reasoning_content"] = result.reasoning_text
+    return turn
+
+
 def _judged_history(history: list[dict]) -> list[dict]:
     """The recorded history as the JUDGE reads it: content only. The
     reasoning channel rides in the REPLAYED history (it is the model's own
@@ -1922,9 +1943,10 @@ def _run_multiturn(case, base_row, ctx: _Ctx, max_tokens, temperature, top_p, se
         # the REPLAYED history only — the judged conversation stays
         # content-only (see _judged_history).
         reply = result.response_text
-        turn = {"role": "assistant", "content": reply}
-        if getattr(ctx, "reasoning_replay", False) and result.reasoning_text:
-            turn["reasoning_content"] = result.reasoning_text
+        # one builder for the bench and the conformance probe (runner.
+        # assistant_turn): the reasoning channel rides on the assistant turn
+        # only on a provider with the reasoning replay on.
+        turn = assistant_turn(result, bool(getattr(ctx, "reasoning_replay", False)))
         history.append(turn)
         row = {**base_row, "run_id": str(uuid.uuid4())[:8], "turn": i,
                "prompt": user_turn, "response": result.response_text,
