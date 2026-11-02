@@ -21,6 +21,19 @@
 #   api_key_env: VAR   name of the env var holding the bearer key (sent as
 #                      "Authorization: Bearer"); StudioForge API keys go here
 #   extra_body: {...}  extra request fields for every model on this provider
+#   reasoning_replay: true|false
+#                      pass the model's reasoning chain back to it. MiniMax
+#                      documents that the complete assistant message (the
+#                      reasoning_content included) must be appended to the
+#                      history or the chain is lost (measured: 1/10 recall with
+#                      it dropped vs 7/10 replayed). ON, every request to this
+#                      provider carries reasoning_split: true so the thinking
+#                      arrives in reasoning_content for EVERY model on it, and
+#                      the assistant turn goes back with its reasoning. OFF,
+#                      every request is byte-identical to a run without the
+#                      switch. Default: ON for a provider pointed at MiniMax's
+#                      OpenAI-compatible API (api.minimax.io / api.minimaxi.com),
+#                      OFF for every other provider.
 #   StudioForge rig etiquette (type: studioforge):
 #   use_resident: true  (default) if the target model is ALREADY resident, ready,
 #                      multi-slot and wide enough, use it as-is: no lease, no
@@ -87,6 +100,22 @@ providers:
     type: openai
     base_url: http://localhost:3000/api
     api_key_env: OPENWEBUI_API_KEY
+  minimax:                        # MiniMax's OpenAI-compatible API
+    type: openai
+    base_url: https://api.minimax.io/v1
+    api_key_env: MINIMAX_API_KEY
+    concurrency: 8
+    # reasoning_replay: true is the built-in default here (the provider is
+    # pointed at MiniMax's API), so the chain is passed back to the model.
+    # Set it to false to turn the protocol off for this provider, or true on
+    # any other provider to turn it on.
+    # MiniMax facts: temperature and top_p are IGNORED by the API (it always
+    # uses 1 / 0.95); M2.5 / M2.7 retire on 2026-11-18, and M Plan / Token
+    # Plan traffic to M2.5 / M2.7 is auto-routed to M3.1 Flash from
+    # 2026-10-19 (CF cannot tell a route from the real model -- /v1 returns
+    # the REQUESTED id).
+    thinking_max_tokens_cap: 65536
+    thinking_max_tokens_factor: 12
 
 defaults:
   context_length: 32768   # for models without an explicit value

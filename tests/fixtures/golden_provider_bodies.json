@@ -1,0 +1,678 @@
+{
+  "deepseek": [
+    {
+      "max_tokens": 64,
+      "messages": [
+        {
+          "content": "you are a test",
+          "role": "system"
+        },
+        {
+          "content": "first",
+          "role": "user"
+        }
+      ],
+      "model": "m",
+      "seed": 1,
+      "stream": true,
+      "stream_options": {
+        "include_usage": true
+      },
+      "temperature": 0.0,
+      "top_p": 1.0
+    },
+    {
+      "max_tokens": 256,
+      "messages": [
+        {
+          "content": "you are a test",
+          "role": "system"
+        },
+        {
+          "content": "first",
+          "role": "user"
+        },
+        {
+          "content": "first reply",
+          "role": "assistant"
+        },
+        {
+          "content": "second",
+          "role": "user"
+        }
+      ],
+      "model": "m",
+      "seed": 1,
+      "stream": true,
+      "stream_options": {
+        "include_usage": true
+      },
+      "temperature": 0.0,
+      "top_p": 1.0
+    },
+    {
+      "max_tokens": 256,
+      "messages": [
+        {
+          "content": "you are a test",
+          "role": "system"
+        },
+        {
+          "content": "weather in tokyo?",
+          "role": "user"
+        }
+      ],
+      "model": "m",
+      "seed": 42,
+      "stream": true,
+      "stream_options": {
+        "include_usage": true
+      },
+      "temperature": 0.0,
+      "tools": [
+        {
+          "function": {
+            "description": "weather",
+            "name": "get_weather",
+            "parameters": {
+              "properties": {},
+              "type": "object"
+            }
+          },
+          "type": "function"
+        }
+      ]
+    },
+    {
+      "max_tokens": 256,
+      "messages": [
+        {
+          "content": "you are a test",
+          "role": "system"
+        },
+        {
+          "content": "weather in tokyo?",
+          "role": "user"
+        },
+        {
+          "content": "",
+          "role": "assistant",
+          "tool_calls": [
+            {
+              "function": {
+                "arguments": "{\"location\": \"tokyo\"}",
+                "name": "get_weather"
+              },
+              "id": "call_1",
+              "type": "function"
+            }
+          ]
+        },
+        {
+          "content": "sunny",
+          "role": "tool",
+          "tool_call_id": "call_1"
+        }
+      ],
+      "model": "m",
+      "seed": 42,
+      "stream": true,
+      "stream_options": {
+        "include_usage": true
+      },
+      "temperature": 0.0,
+      "tools": [
+        {
+          "function": {
+            "description": "weather",
+            "name": "get_weather",
+            "parameters": {
+              "properties": {},
+              "type": "object"
+            }
+          },
+          "type": "function"
+        }
+      ]
+    },
+    {
+      "max_tokens": 256,
+      "messages": [
+        {
+          "content": "you are a test",
+          "role": "system"
+        },
+        {
+          "content": "weather in tokyo?",
+          "role": "user"
+        },
+        {
+          "content": "",
+          "role": "assistant",
+          "tool_calls": [
+            {
+              "function": {
+                "arguments": "{\"location\": \"tokyo\"}",
+                "name": "get_weather"
+              },
+              "id": "call_1",
+              "type": "function"
+            }
+          ]
+        },
+        {
+          "content": "sunny",
+          "role": "tool",
+          "tool_call_id": "call_1"
+        },
+        {
+          "content": "It will rain tomorrow.",
+          "role": "assistant"
+        }
+      ],
+      "model": "m",
+      "seed": 42,
+      "stream": true,
+      "stream_options": {
+        "include_usage": true
+      },
+      "temperature": 0.0,
+      "tools": [
+        {
+          "function": {
+            "description": "weather",
+            "name": "get_weather",
+            "parameters": {
+              "properties": {},
+              "type": "object"
+            }
+          },
+          "type": "function"
+        }
+      ]
+    },
+    {
+      "max_tokens": 256,
+      "messages": [
+        {
+          "content": "you are a test",
+          "role": "system"
+        },
+        {
+          "content": "weather in tokyo?",
+          "role": "user"
+        }
+      ],
+      "model": "m",
+      "seed": 42,
+      "stream": true,
+      "stream_options": {
+        "include_usage": true
+      },
+      "temperature": 0.0,
+      "tools": [
+        {
+          "function": {
+            "description": "weather",
+            "name": "get_weather",
+            "parameters": {
+              "properties": {},
+              "type": "object"
+            }
+          },
+          "type": "function"
+        }
+      ]
+    },
+    {
+      "max_tokens": 256,
+      "messages": [
+        {
+          "content": "you are a test",
+          "role": "system"
+        },
+        {
+          "content": "weather in tokyo?",
+          "role": "user"
+        },
+        {
+          "content": "",
+          "role": "assistant",
+          "tool_calls": [
+            {
+              "function": {
+                "arguments": "{\"location\": \"tokyo\"}",
+                "name": "get_weather"
+              },
+              "id": "call_1",
+              "type": "function"
+            }
+          ]
+        },
+        {
+          "content": "sunny",
+          "role": "tool",
+          "tool_call_id": "call_1"
+        }
+      ],
+      "model": "m",
+      "seed": 42,
+      "stream": true,
+      "stream_options": {
+        "include_usage": true
+      },
+      "temperature": 0.0,
+      "tools": [
+        {
+          "function": {
+            "description": "weather",
+            "name": "get_weather",
+            "parameters": {
+              "properties": {},
+              "type": "object"
+            }
+          },
+          "type": "function"
+        }
+      ]
+    },
+    {
+      "max_tokens": 256,
+      "messages": [
+        {
+          "content": "you are a test",
+          "role": "system"
+        },
+        {
+          "content": "weather in tokyo?",
+          "role": "user"
+        },
+        {
+          "content": "",
+          "role": "assistant",
+          "tool_calls": [
+            {
+              "function": {
+                "arguments": "{\"location\": \"tokyo\"}",
+                "name": "get_weather"
+              },
+              "id": "call_1",
+              "type": "function"
+            }
+          ]
+        },
+        {
+          "content": "sunny",
+          "role": "tool",
+          "tool_call_id": "call_1"
+        },
+        {
+          "content": "",
+          "role": "assistant"
+        }
+      ],
+      "model": "m",
+      "seed": 42,
+      "stream": true,
+      "stream_options": {
+        "include_usage": true
+      },
+      "temperature": 0.0,
+      "tools": [
+        {
+          "function": {
+            "description": "weather",
+            "name": "get_weather",
+            "parameters": {
+              "properties": {},
+              "type": "object"
+            }
+          },
+          "type": "function"
+        }
+      ]
+    }
+  ],
+  "studioforge": [
+    {
+      "max_tokens": 64,
+      "messages": [
+        {
+          "content": "you are a test",
+          "role": "system"
+        },
+        {
+          "content": "first",
+          "role": "user"
+        }
+      ],
+      "model": "m",
+      "priority": 2,
+      "seed": 1,
+      "stream": true,
+      "stream_options": {
+        "include_usage": true
+      },
+      "temperature": 0.0,
+      "top_p": 1.0
+    },
+    {
+      "max_tokens": 256,
+      "messages": [
+        {
+          "content": "you are a test",
+          "role": "system"
+        },
+        {
+          "content": "first",
+          "role": "user"
+        },
+        {
+          "content": "first reply",
+          "role": "assistant"
+        },
+        {
+          "content": "second",
+          "role": "user"
+        }
+      ],
+      "model": "m",
+      "priority": 2,
+      "seed": 1,
+      "stream": true,
+      "stream_options": {
+        "include_usage": true
+      },
+      "temperature": 0.0,
+      "top_p": 1.0
+    },
+    {
+      "max_tokens": 256,
+      "messages": [
+        {
+          "content": "you are a test",
+          "role": "system"
+        },
+        {
+          "content": "weather in tokyo?",
+          "role": "user"
+        }
+      ],
+      "model": "m",
+      "priority": 2,
+      "seed": 42,
+      "stream": true,
+      "stream_options": {
+        "include_usage": true
+      },
+      "temperature": 0.0,
+      "tools": [
+        {
+          "function": {
+            "description": "weather",
+            "name": "get_weather",
+            "parameters": {
+              "properties": {},
+              "type": "object"
+            }
+          },
+          "type": "function"
+        }
+      ]
+    },
+    {
+      "max_tokens": 256,
+      "messages": [
+        {
+          "content": "you are a test",
+          "role": "system"
+        },
+        {
+          "content": "weather in tokyo?",
+          "role": "user"
+        },
+        {
+          "content": "",
+          "role": "assistant",
+          "tool_calls": [
+            {
+              "function": {
+                "arguments": "{\"location\": \"tokyo\"}",
+                "name": "get_weather"
+              },
+              "id": "call_1",
+              "type": "function"
+            }
+          ]
+        },
+        {
+          "content": "sunny",
+          "role": "tool",
+          "tool_call_id": "call_1"
+        }
+      ],
+      "model": "m",
+      "priority": 2,
+      "seed": 42,
+      "stream": true,
+      "stream_options": {
+        "include_usage": true
+      },
+      "temperature": 0.0,
+      "tools": [
+        {
+          "function": {
+            "description": "weather",
+            "name": "get_weather",
+            "parameters": {
+              "properties": {},
+              "type": "object"
+            }
+          },
+          "type": "function"
+        }
+      ]
+    },
+    {
+      "max_tokens": 256,
+      "messages": [
+        {
+          "content": "you are a test",
+          "role": "system"
+        },
+        {
+          "content": "weather in tokyo?",
+          "role": "user"
+        },
+        {
+          "content": "",
+          "role": "assistant",
+          "tool_calls": [
+            {
+              "function": {
+                "arguments": "{\"location\": \"tokyo\"}",
+                "name": "get_weather"
+              },
+              "id": "call_1",
+              "type": "function"
+            }
+          ]
+        },
+        {
+          "content": "sunny",
+          "role": "tool",
+          "tool_call_id": "call_1"
+        },
+        {
+          "content": "It will rain tomorrow.",
+          "role": "assistant"
+        }
+      ],
+      "model": "m",
+      "priority": 2,
+      "seed": 42,
+      "stream": true,
+      "stream_options": {
+        "include_usage": true
+      },
+      "temperature": 0.0,
+      "tools": [
+        {
+          "function": {
+            "description": "weather",
+            "name": "get_weather",
+            "parameters": {
+              "properties": {},
+              "type": "object"
+            }
+          },
+          "type": "function"
+        }
+      ]
+    },
+    {
+      "max_tokens": 256,
+      "messages": [
+        {
+          "content": "you are a test",
+          "role": "system"
+        },
+        {
+          "content": "weather in tokyo?",
+          "role": "user"
+        }
+      ],
+      "model": "m",
+      "priority": 2,
+      "seed": 42,
+      "stream": true,
+      "stream_options": {
+        "include_usage": true
+      },
+      "temperature": 0.0,
+      "tools": [
+        {
+          "function": {
+            "description": "weather",
+            "name": "get_weather",
+            "parameters": {
+              "properties": {},
+              "type": "object"
+            }
+          },
+          "type": "function"
+        }
+      ]
+    },
+    {
+      "max_tokens": 256,
+      "messages": [
+        {
+          "content": "you are a test",
+          "role": "system"
+        },
+        {
+          "content": "weather in tokyo?",
+          "role": "user"
+        },
+        {
+          "content": "",
+          "role": "assistant",
+          "tool_calls": [
+            {
+              "function": {
+                "arguments": "{\"location\": \"tokyo\"}",
+                "name": "get_weather"
+              },
+              "id": "call_1",
+              "type": "function"
+            }
+          ]
+        },
+        {
+          "content": "sunny",
+          "role": "tool",
+          "tool_call_id": "call_1"
+        }
+      ],
+      "model": "m",
+      "priority": 2,
+      "seed": 42,
+      "stream": true,
+      "stream_options": {
+        "include_usage": true
+      },
+      "temperature": 0.0,
+      "tools": [
+        {
+          "function": {
+            "description": "weather",
+            "name": "get_weather",
+            "parameters": {
+              "properties": {},
+              "type": "object"
+            }
+          },
+          "type": "function"
+        }
+      ]
+    },
+    {
+      "max_tokens": 256,
+      "messages": [
+        {
+          "content": "you are a test",
+          "role": "system"
+        },
+        {
+          "content": "weather in tokyo?",
+          "role": "user"
+        },
+        {
+          "content": "",
+          "role": "assistant",
+          "tool_calls": [
+            {
+              "function": {
+                "arguments": "{\"location\": \"tokyo\"}",
+                "name": "get_weather"
+              },
+              "id": "call_1",
+              "type": "function"
+            }
+          ]
+        },
+        {
+          "content": "sunny",
+          "role": "tool",
+          "tool_call_id": "call_1"
+        },
+        {
+          "content": "",
+          "role": "assistant"
+        }
+      ],
+      "model": "m",
+      "priority": 2,
+      "seed": 42,
+      "stream": true,
+      "stream_options": {
+        "include_usage": true
+      },
+      "temperature": 0.0,
+      "tools": [
+        {
+          "function": {
+            "description": "weather",
+            "name": "get_weather",
+            "parameters": {
+              "properties": {},
+              "type": "object"
+            }
+          },
+          "type": "function"
+        }
+      ]
+    }
+  ]
+}

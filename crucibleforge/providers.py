@@ -27,6 +27,7 @@ import re
 import threading
 import time
 from dataclasses import dataclass, field
+from urllib.parse import urlparse
 
 import httpx
 
@@ -34,6 +35,34 @@ from . import lms, studioforge
 from .config import ConfigError, provider_of
 
 log = logging.getLogger(__name__)
+
+#: Hosts that serve MiniMax's OpenAI-compatible API. Every model behind them
+#: thinks, and MiniMax documents that the chain must be sent back: "the
+#: complete model response (i.e., the assistant message) must be append to the
+#: conversation history to maintain the continuity of the reasoning chain"
+#: (platform.minimax.io/docs/api-reference/text-openai-api). Measured on the
+#: bench's own cases: 1/10 recall with the chain dropped, 7/10 with it
+#: replayed (2026-11-02 audit).
+#:
+#: A provider pointed at one of these hosts therefore gets the reasoning
+#: replay by default. ``reasoning_replay: false`` in models.yaml turns it off
+#: for that provider (and ``true`` turns it on anywhere else).
+_MINIMAX_HOSTS = ("api.minimax.io", "api.minimaxi.com")
+
+
+def _is_minimax(base_url: str) -> bool:
+    """True when ``base_url`` points at MiniMax's OpenAI-compatible API."""
+    host = (urlparse(base_url).hostname or "").lower()
+    return host in _MINIMAX_HOSTS
+
+
+def reasoning_replay_default(p: dict) -> bool:
+    """The built-in default for a provider's reasoning replay: ON for
+    MiniMax (whose API requires the chain back), OFF for everyone else --
+    every other provider's request bytes stay exactly as they were."""
+    if "reasoning_replay" in p:
+        return bool(p["reasoning_replay"])
+    return _is_minimax(str(p.get("base_url") or ""))
 
 # how often the keepalive touches a standing GPU lease (fraction of its TTL)
 _LEASE_TOUCH_FRACTION = 0.25
@@ -108,6 +137,13 @@ class Provider:
     # RC-1/RC-7). Default on; set ``use_resident: false``
     # in models.yaml to always take the lease/unload path instead.
     use_resident: bool = True
+    # Reasoning replay (MiniMax's documented protocol): the assistant turn is
+    # sent back WITH its ``reasoning_content``, and every request carries
+    # ``reasoning_split: true`` so the reasoning arrives in that channel for
+    # every model on this provider. Set per provider in models.yaml
+    # (``reasoning_replay: true``); the built-in default is ON for MiniMax
+    # and OFF everywhere else -- see reasoning_replay_default().
+    reasoning_replay: bool = False
     # WP-BENCH FIX-2: force=true is never sent on this provider's own
     # initiative (see studioforge.acquire_lease) — only when a caller has
     # explicitly set this, itself only ever flipped by the CLI's
@@ -664,6 +700,14 @@ class Provider:
         override or, non-studioforge providers, it is simply omitted."""
         from .api import stream_chat_retried
         body_extra = merge_extra_body(self.extra_body, kw.pop("extra_body", None))
+        if self.reasoning_replay:
+            # The chain must arrive in reasoning_content for the replay to
+            # work, and MiniMax's API only does that when reasoning_split is
+            # set (it normalises M3/M2.x's inline <think> into the channel the
+            # tool path already speaks). It is REQUIRED to be true on
+            # M3.1-Flash (the API 400s on false) and is accepted by all six
+            # MiniMax models. Every request to this provider carries it.
+            body_extra["reasoning_split"] = True
         kw.setdefault("timeout", self.timeout)
         headers = dict(self.headers)
         if self.type == "studioforge":
@@ -727,6 +771,7 @@ def get_provider(cfg: dict, name: str) -> Provider:
         headers={k: _expand_env(v) for k, v in (p.get("headers") or {}).items()},
         timeout=float(p.get("timeout", 900)),
         extra_body=dict(p.get("extra_body") or {}),
+        reasoning_replay=reasoning_replay_default(p),
         lease=bool(p.get("lease", False)) and ptype == "studioforge",
         lease_devices=list(p["lease_devices"]) if p.get("lease_devices") else None,
         lease_idle_ttl_s=float(p.get("lease_idle_ttl_s", studioforge.LEASE_IDLE_TTL_S) or 0)

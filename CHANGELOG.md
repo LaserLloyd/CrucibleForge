@@ -6,6 +6,45 @@ was ever published as Gauntlet, so there is no migration to do — the entries
 below are kept because the engineering they record is real, not to narrate a
 rename.
 
+## 4.0.2 — MiniMax: the reasoning chain goes back (2026-11-02)
+
+- **The reasoning chain is no longer dropped on the floor (provider-gated).**
+  MiniMax documents that the complete assistant message — `reasoning_content`
+  included — must be appended to the conversation history or the chain is lost
+  ("the complete model response (i.e., the assistant message) must be append
+  to the conversation history to maintain the continuity of the reasoning
+  chain", platform.minimax.io/docs/api-reference/text-openai-api). The runner
+  fed back the CONTENT channel only, so the thinking was discarded: measured
+  1/10 recall with the chain dropped against 7/10 replayed, and the model
+  produced reasoning on 1 of 12 turns instead of 6–12 of 12 (the harness was
+  not merely losing information, it was suppressing the model's thinking).
+  A new per-provider switch `providers.<name>.reasoning_replay` turns the
+  protocol on: the assistant turn goes back with its `reasoning_content`, and
+  every request to that provider carries `reasoning_split: true` so the
+  thinking arrives in that channel for EVERY model on it (M3.1-Flash, M3,
+  M2.x — accepted by all six; M3.1-Flash requires it). The judged
+  conversation stays content-only — the CoT is the model's context, not its
+  answer. **Default: on for a provider pointed at MiniMax's API
+  (api.minimax.io / api.minimaxi.com), off for every other provider**; off
+  means every request is byte-identical to a run without the switch, which a
+  golden capture of the deepseek and studioforge request bodies proves.
+- **The tool loop keeps a well-formed history at a prose step.** When the
+  model called a tool where the case wanted prose, the harness appended the
+  assistant turn *without* its `tool_calls` and without any tool result: the
+  model's unanswered request leaked into the next turn and was re-issued
+  there, which then failed "N tool calls, expected 1" (45 calls dropped
+  across the stored transcripts, 3/3 of those failures a re-issue). With the
+  replay on, the calls stay on the assistant turn and EVERY one is answered,
+  so the next request is well-formed. The step itself still fails — the case
+  wanted no tool — but the conversation no longer leaks.
+- **MiniMax facts, now documented where providers are configured:** the API
+  **ignores `temperature` and `top_p`** (it always uses 1 / 0.95); **M2.5 and
+  M2.7 retire on 2026-11-18**; and M Plan / Token Plan traffic to M2.5 /
+  M2.7 is **auto-routed to M3.1 Flash** from 2026-10-19, which CF cannot
+  detect (the `/v1` response carries the *requested* model id). `models.yaml`
+  is the maintainer's and is untouched by this change; the switch is
+  documented in `models.example.yaml` and the README.
+
 ## 4.0.1 — container smoke fix (2026-11-01)
 
 - **NC3-palm-house: the turn-6 peak element is split (grading-only).** The

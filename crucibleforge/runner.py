@@ -287,6 +287,10 @@ class _Ctx:
         self.model_id = entry["model_id"]
         self.ctx_len = ctx_len
         self.extra_body = model_extra_body(entry)
+        # Provider-gated reasoning replay (MiniMax's documented protocol: the
+        # assistant turn goes back WITH its reasoning). OFF by default -- a
+        # provider without it sends byte-identical requests to before.
+        self.reasoning_replay = bool(getattr(provider, "reasoning_replay", False))
         self.lock = threading.Lock()
         # serialises reloads (eviction / wrong model) WITHOUT blocking the
         # row writers on ctx.lock for the minutes a load can take (M10)
@@ -1870,16 +1874,30 @@ def _sendable_history(history: list[dict]) -> list[dict]:
     is left out and the user turns on either side of it are joined (blank
     line), so roles keep alternating and nothing is invented: the model sees
     what the user said and no reply of its own. The RECORDED history (and so
-    the judged conversation) keeps the empty turn as it happened."""
+    the judged conversation) keeps the empty turn as it happened.
+
+    A turn that carries the reasoning channel but no visible text is NOT
+    dropped: the chain is the model's own context and dropping it loses the
+    thread (only a provider with reasoning replay on ever records one)."""
     out: list[dict] = []
     for m in history:
-        if m["role"] == "assistant" and not (m.get("content") or "").strip():
+        if (m["role"] == "assistant" and not (m.get("content") or "").strip()
+                and not (m.get("reasoning_content") or "").strip()):
             continue
         if out and out[-1]["role"] == m["role"] == "user":
             out[-1] = {**out[-1], "content": f"{out[-1]['content']}\n\n{m['content']}"}
         else:
             out.append(m)
     return out
+
+
+def _judged_history(history: list[dict]) -> list[dict]:
+    """The recorded history as the JUDGE reads it: content only. The
+    reasoning channel rides in the REPLAYED history (it is the model's own
+    context, not its answer) and never in the judged conversation."""
+    if not any("reasoning_content" in m for m in history):
+        return history
+    return [{k: v for k, v in m.items() if k != "reasoning_content"} for m in history]
 
 
 def _run_multiturn(case, base_row, ctx: _Ctx, max_tokens, temperature, top_p, seed) -> list[dict]:
@@ -1896,12 +1914,18 @@ def _run_multiturn(case, base_row, ctx: _Ctx, max_tokens, temperature, top_p, se
         result = ctx.call(msgs, max_tokens=max_tokens, exact_budget=exact,
                           recover=ctx.recover_for(case),
                           temperature=temperature, top_p=top_p, seed=seed)
-        # Feed back the CONTENT channel only — never the reasoning/CoT. A
-        # thinking model that emptied its budget on reasoning produces an
-        # empty assistant turn, which is the honest representation (and the
-        # judge scores it as such) rather than CoT masquerading as roleplay.
+        # The content channel is the answer. The reasoning channel is NOT the
+        # answer, but on a provider with reasoning replay it IS the model's
+        # context: MiniMax documents that the complete assistant message
+        # (reasoning_content included) must be passed back or the chain is
+        # lost (1/10 recall with it dropped vs 7/10 replayed). It rides in
+        # the REPLAYED history only — the judged conversation stays
+        # content-only (see _judged_history).
         reply = result.response_text
-        history.append({"role": "assistant", "content": reply})
+        turn = {"role": "assistant", "content": reply}
+        if getattr(ctx, "reasoning_replay", False) and result.reasoning_text:
+            turn["reasoning_content"] = result.reasoning_text
+        history.append(turn)
         row = {**base_row, "run_id": str(uuid.uuid4())[:8], "turn": i,
                "prompt": user_turn, "response": result.response_text,
                "reasoning": result.reasoning_text, "tool_calls": [],
@@ -1927,7 +1951,7 @@ def _run_multiturn(case, base_row, ctx: _Ctx, max_tokens, temperature, top_p, se
             row["rubric"] = case.get("rubric", "rp_multi")
             row["conversation"] = (
                 ([{"role": "system", "content": case["system"]}]
-                 if case.get("system") else []) + history)
+                 if case.get("system") else []) + _judged_history(history))
             if case.get("judge_key"):
                 row["judge_key"] = case["judge_key"]
             if case.get("history"):
@@ -1993,6 +2017,15 @@ def _step_type(step: dict) -> str:
     if step.get("expect_tool"):
         return "tool_call"
     return "no_tool" if step.get("expect_no_tool") else "answer"
+
+
+#: The tool result fed back when the model called a tool at a step the case
+#: wants answered in prose (replay providers only). The step still fails —
+#: the case wanted no tool — but the conversation stays well-formed: the
+#: call stays on the assistant turn and every call is answered, or the
+#: model's unanswered request leaks into the next turn and is re-issued
+#: there (which then fails "N tool calls, expected 1").
+TOOLS_UNAVAILABLE = '{"error": "not executed: tools are not available at this step"}'
 
 
 def _run_env_loop(case, base_row, ctx: _Ctx, max_tokens, temperature, seed, top_p=None) -> dict:
@@ -2181,19 +2214,38 @@ def _run_tool_loop(case, base_row, ctx: _Ctx, max_tokens, temperature, seed, top
                                  '{"error": "not executed: one call per step"}'})
         else:
             text = _answer_view(result).scoreable_text()
+            calls = result.tool_calls or _extract_tool_calls_from_text(text)
             # one pure grader for generation AND report time (stepgrade;
             # report._recheck re-grades stored rows when needles change)
-            called = bool(step.get("expect_no_tool") and (
-                result.tool_calls or _extract_tool_calls_from_text(text)))
+            called = bool(step.get("expect_no_tool") and calls)
             verdict = grade_answer_step(step, text, called)
             if step.get("expect_no_tool"):
                 verdict["called_tool"] = called
                 if called:
                     verdict["calls"] = [{"name": c.get("name"), "arguments": c.get("arguments")}
-                                        for c in (result.tool_calls
-                                                  or _extract_tool_calls_from_text(text))][:5]
+                                        for c in calls][:5]
             steps[i] = verdict
-            messages.append({"role": "assistant", "content": result.response_text})
+            if getattr(ctx, "reasoning_replay", False) and calls:
+                # The model called a tool where the case wanted prose. The
+                # step still FAILS (the case wanted no tool) — but the
+                # conversation must stay well-formed: the call stays on the
+                # assistant turn and EVERY call is answered, or the model's
+                # unanswered request leaks into the next turn and is
+                # re-issued there (which then fails "N tool calls, expected
+                # 1"). MiniMax documents the full assistant message (tool
+                # calls included) as the thing to pass back, and an
+                # assistant tool_call with no tool result is a malformed
+                # request.
+                msg, ids = _assistant_tool_turn(result, calls)
+                messages.append(msg)
+                for cid in ids:
+                    messages.append({"role": "tool", "tool_call_id": cid,
+                                     "content": TOOLS_UNAVAILABLE})
+            else:
+                turn = {"role": "assistant", "content": result.response_text}
+                if getattr(ctx, "reasoning_replay", False) and result.reasoning_text:
+                    turn["reasoning_content"] = result.reasoning_text
+                messages.append(turn)
         i += 1
 
     graded = [s for s in steps if s is not None]

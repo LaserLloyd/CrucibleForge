@@ -412,6 +412,19 @@ models:
 * `extra_body` (per model or provider) merges arbitrary request fields —
   e.g. `{reasoning_format: deepseek}` for llama.cpp thinking models so CoT
   stays out of `content`.
+* `reasoning_replay: true|false` (per provider) passes the model's **reasoning
+  chain back to it**: the assistant turn goes back with its `reasoning_content`,
+  and every request carries `reasoning_split: true` so the thinking arrives in
+  that channel for every model on the provider. MiniMax documents that the
+  complete assistant message — reasoning included — must be appended to the
+  history or the chain is lost (measured: 1/10 recall with it dropped vs 7/10
+  replayed). **Default: on for a provider pointed at MiniMax's API, off for
+  every other provider** — off means every request is byte-identical to a run
+  without the switch. MiniMax facts: the API **ignores `temperature` and
+  `top_p`** (it always uses 1 / 0.95); **M2.5 / M2.7 retire on 2026-11-18**,
+  and M Plan / Token Plan traffic to M2.5 / M2.7 is **auto-routed to M3.1
+  Flash** from 2026-10-19 (CF cannot tell a route from the real model — `/v1`
+  returns the *requested* id).
 * Config search order: `--config`, `$CRUCIBLEFORGE_CONFIG`, `./models.yaml`,
   `<repo>/models.yaml`, `~/.config/crucibleforge/models.yaml`. A v2 registry
   (`endpoint:`/`rig:`) is upgraded in memory; `crucibleforge config --upgrade`
