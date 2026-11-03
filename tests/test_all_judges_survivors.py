@@ -102,7 +102,7 @@ def test_cmd_run_records_the_labels_it_ran(monkeypatch):
         def serving(self): return None
         def restore(self): pass
     monkeypatch.setattr(cli, "_ProviderGuard", _Guard)
-    monkeypatch.setattr(runner, "run_models", lambda cfg, e, cases, smoke=False: {
+    monkeypatch.setattr(runner, "run_models", lambda cfg, e, cases, smoke=False, **kw: {
         "a": {"rows": 1, "load_s": 0, "device": "d"},
         "b": {"failed": True, "error": "transport"}})
     args = argparse.Namespace(models="a,b,c", categories=None, difficulty=None, cases=None,

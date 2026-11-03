@@ -277,6 +277,19 @@ def resolve_sampler(cfg: dict, entry: dict) -> tuple[dict, str]:
     return {}, "default"
 
 
+def protocol_stamp(cfg: dict, entry: dict, provider: Provider, ctx) -> dict:
+    """The request protocol a row is measured under -- the conformance
+    fingerprint (provider type, reasoning replay, extra_body keys, sampler).
+
+    The same shape the ``conform`` record carries, so a row can be compared
+    with the record that says the protocol works for this model: a harness
+    change that moves the fingerprint is what makes a row STALE rather than
+    merely old (R3).
+    """
+    from .conformance import protocol_fingerprint
+    return protocol_fingerprint(cfg, entry, provider, ctx)
+
+
 class _Ctx:
     """Everything a single model run needs, shared by the case workers."""
 
@@ -662,7 +675,8 @@ class _Ctx:
 def run_models(cfg: dict, model_entries: list[dict], cases: list[dict],
                smoke: bool = False, jobs_by_label: dict | None = None,
                rung: int | None = None, min_ctx: int | None = None,
-               record_key: str | None = None) -> dict:
+               record_key: str | None = None,
+               skip_conformance: bool = False) -> dict:
     """jobs_by_label: optional {label: {(bench_run_id, case_id, repeat), ...}}
     restricting each model to exactly those (case, repeat) jobs, re-run under
     their ORIGINAL bench_run_id so the new rows supersede the old ones (used
@@ -709,7 +723,8 @@ def run_models(cfg: dict, model_entries: list[dict], cases: list[dict],
                         rung=rung, min_ctx=min_ctx, record_key=record_key,
                         reset=(i == 0), bench_run_id=rid, perf=(i == 0),
                         last=(i == len(rounds) - 1),
-                        round_name=rd["name"] if len(rounds) > 1 else None, carry=carry))
+                        round_name=rd["name"] if len(rounds) > 1 else None, carry=carry,
+                        skip_conformance=skip_conformance))
                 summary[label] = _merge_round_summaries(parts)
             except RunStopped:
                 _record_stop(cfg, entry, label, summary, jobs_by_label, record_key, rung)
@@ -1043,7 +1058,8 @@ def _run_one_model(cfg, entry, cases, csvw: _Csv, smoke,
                    min_ctx: int | None = None, record_key: str | None = None,
                    reset: bool = True, bench_run_id: str | None = None, perf: bool = True,
                    last: bool = True, round_name: str | None = None,
-                   carry: dict | None = None) -> dict:
+                   carry: dict | None = None,
+                   skip_conformance: bool = False) -> dict:
     """One load round of one model (run_models splits a run into rounds,
     :func:`plan_rounds`). ``reset``: the first round of a board run starts a
     fresh meta; ``perf``: the perf probes run in this round; ``last``: this
@@ -1122,6 +1138,28 @@ def _run_one_model(cfg, entry, cases, csvw: _Csv, smoke,
     min_tps = float(cfg["defaults"].get("min_tok_per_s", 0) or 0)
     revision = _revision(cfg)
     judge_fp = _judge_fp(cfg)
+    # the request protocol every row of this round is measured under (the
+    # conformance fingerprint): a harness change moves it, so a stale row can
+    # be told from an old one (R3)
+    protocol = protocol_stamp(cfg, entry, provider, ctx)
+
+    # The conformance gate (Part 3): a model is benched only under a request
+    # protocol that has been PROVEN for it.  An API model is gated before the
+    # run (cli._conformance_gate); a rig model can only be checked while it
+    # is loaded, so it is gated HERE, right after the load.  A FAIL means the
+    # model is NOT run: the reason names the check, and the board and the
+    # run summary say so.
+    if provider.type in ("studioforge", "lmstudio"):
+        from . import conformance as _conformance
+        gate = _conformance.gate(cfg, entry, provider=provider, ctx=ctx,
+                                 skip=skip_conformance, loaded=True)
+        if not gate.ok:
+            raise ModelRunError(gate.reason)
+        _write_meta(label, entry, provider, profile=cfg.get("_profile"),
+                    revision=_revision(cfg),
+                    extra={"conformance": {"verdict": gate.verdict,
+                                           "ts": (gate.record or {}).get("ts"),
+                                           "protocol": protocol}})
 
     def base_row_for(case, repeat, seed, temperature, top_p, max_tokens, rid=None):
         extra = {}
@@ -1153,6 +1191,7 @@ def _run_one_model(cfg, entry, cases, csvw: _Csv, smoke,
             "bench_run_id": rid or bench_run_id,
             "bench_revision": revision, "judge_fingerprint": judge_fp,
             "profile": cfg.get("_profile"),
+            "protocol": protocol,
             "ts": _now(),
             "model_label": label, "model_id": model_id, "device": provider.name,
             "provider": provider.name,

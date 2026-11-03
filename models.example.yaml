@@ -21,6 +21,13 @@
 #   api_key_env: VAR   name of the env var holding the bearer key (sent as
 #                      "Authorization: Bearer"); StudioForge API keys go here
 #   extra_body: {...}  extra request fields for every model on this provider
+#   docs: <url>          the vendor's API documentation. For a HOSTED provider
+#                      (a public API, not a local server) it says where the
+#                      request protocol the bench assumes was read.
+#   docs_verified: YYYY-MM-DD
+#                      when that documentation was last reviewed. `conform`
+#                      WARNs (c7) when a hosted provider carries no docs, or
+#                      when the review is older than 120 days.
 #   reasoning_replay: true|false
 #                      pass the model's reasoning chain back to it. MiniMax
 #                      documents that the complete assistant message (the
@@ -81,6 +88,9 @@ providers:
     base_url: https://api.deepseek.com/v1
     api_key_env: DEEPSEEK_API_KEY
     concurrency: 8
+    # a hosted provider: say where its protocol was read, and when
+    docs: https://api-docs.deepseek.com/
+    docs_verified: 2026-11-03          # YYYY-MM-DD: the last review
     # A remote API with a 1M context may lift the thinking budget the profile
     # sizes for a 32768-token local server (remote providers only):
     thinking_max_tokens_cap: 65536

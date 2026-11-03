@@ -389,6 +389,13 @@ class _RunProv:
         self.fn = fn
         self._workers = workers
         self.order = []
+        # The two Provider fields the runner reads off the provider it holds:
+        # the per-model request extras and the reasoning-replay knob. The
+        # Part 3 protocol stamp (runner.protocol_stamp) reads both to name
+        # the request protocol a row was measured under, so the double has to
+        # carry them -- the Provider dataclass declares both with defaults.
+        self.extra_body = {}
+        self.reasoning_replay = False
 
     def alive(self): return True
     def is_available(self, mid): return True

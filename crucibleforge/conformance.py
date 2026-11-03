@@ -38,6 +38,10 @@ Checks (each PASS / WARN / FAIL with a one-line reason):
 - **c6 budget**    -- one medium coding prompt at the board budget: an empty
   answer with ``finish=length`` is a WARN ("needs the escalation rung; see
   Room").
+- **c7 docs**      -- the vendor docs of a HOSTED provider: the registry row
+  says where the protocol was read (``docs``) and when it was last checked
+  (``docs_verified``).  A missing or a stale entry is a WARN: nobody read
+  the protocol the bench assumes.
 
 The result is written to ``results/conformance/<label>.json``::
 
@@ -56,12 +60,14 @@ passed.
 from __future__ import annotations
 
 import copy
+import ipaddress
 import json
 import logging
 import re
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
+from urllib.parse import urlparse
 
 from . import runner
 from .api import ChatResult, RequestRejected, TransportError, WrongModelError
@@ -79,7 +85,10 @@ INFO = "INFO"
 SKIP = "SKIP"
 
 #: the checks, in the order they run
-CHECK_IDS = ("c1", "c2", "c3", "c4", "c5", "c6")
+CHECK_IDS = ("c1", "c2", "c3", "c4", "c5", "c6", "c7")
+
+#: how old a vendor-doc review may be before the check warns (days)
+DOCS_MAX_AGE_DAYS = 120
 
 #: a think-ish marker left in an answer: the harness parsed the reasoning but
 #: did not recognise the dialect, so the tags leaked into the answer.  The
@@ -565,6 +574,57 @@ def _c5_sampler(ctx) -> Check:
     return Check("c5", PASS, detail)
 
 
+def _is_hosted(provider: Provider) -> bool:
+    """True for a provider on a vendor's server (a public API), not a local
+    one: a rig, a box on the LAN, a container alias.  A hosted provider has
+    vendor documentation, so its request protocol has to be read (and the
+    reading dated).
+    """
+    if provider.type in ("studioforge", "lmstudio"):
+        return False
+    host = (urlparse(provider.base_url or "").hostname or "").lower()
+    if not host or host == "localhost":
+        return False
+    try:
+        ipaddress.ip_address(host)
+        return False                      # an address on the LAN is local
+    except ValueError:
+        pass
+    return "." in host
+
+
+def _c7_docs(cfg: dict, provider: Provider) -> Check:
+    """The vendor docs of a hosted provider: the registry row says where the
+    protocol was read and when it was last checked.  This is the "review the
+    vendor docs" step, made visible: a provider row without a dated docs URL
+    means nobody ever read the protocol the bench assumes.
+    """
+    if not _is_hosted(provider):
+        return Check("c7", INFO, f"{provider.name} is not a hosted provider "
+                                 f"- there are no vendor docs to review")
+    row = (cfg.get("providers") or {}).get(provider.name) or {}
+    url = str(row.get("docs") or "").strip()
+    if not url:
+        return Check("c7", WARN, "the provider row carries no docs URL - the "
+                                 "vendor protocol was never reviewed")
+    verified = str(row.get("docs_verified") or "").strip()
+    if not verified:
+        return Check("c7", WARN, f"the docs ({url}) carry no verification "
+                                 f"date - the vendor protocol was never "
+                                 f"reviewed")
+    try:
+        when = datetime.strptime(verified[:10], "%Y-%m-%d").date()
+    except ValueError:
+        return Check("c7", WARN, f"the docs verification date {verified!r} is "
+                                 f"not a YYYY-MM-DD date")
+    age = (datetime.now(timezone.utc).date() - when).days
+    if age > DOCS_MAX_AGE_DAYS:
+        return Check("c7", WARN, f"the docs ({url}) were last verified {age} "
+                                 f"days ago (over {DOCS_MAX_AGE_DAYS}) - "
+                                 f"review them again")
+    return Check("c7", PASS, f"the docs ({url}) were verified on {verified}")
+
+
 def _c6_budget(cfg, ctx) -> Check:
     """One medium coding prompt at the board budget."""
     case_mt = int((cfg.get("_profile_max_tokens") or {}).get("coding", 6144))
@@ -591,27 +651,41 @@ def _c6_budget(cfg, ctx) -> Check:
 
 # ------------------------------------------------------------- the run
 
-def run_model(cfg: dict, entry: dict, *, allow_load: bool = False) -> Record:
-    """Run the conformance checks for one model and return its record."""
+def run_model(cfg: dict, entry: dict, *, allow_load: bool = False,
+                  ctx=None, loaded: bool = False) -> Record:
+    """Run the conformance checks for one model and return its record.
+
+    "ctx" = the runner's own context for this model: the gate (Part 3)
+    hands it over so the record's fingerprint is the one the rows will
+    carry (same bytes, same conversation).
+
+    "loaded" = the model is loaded right now (the bench has it): the checks
+    run against it, with no residency probe and no load of their own.
+    """
     from .version import revision
     label = str(entry.get("name") or entry.get("model_id") or "")
     provider = provider_for(cfg, entry)
     ts = datetime.now(timezone.utc).isoformat(timespec="seconds")
-    ctx = _make_ctx(cfg, entry, provider)
-    protocol = protocol_fingerprint(cfg, entry, provider, ctx)
+    ctx = ctx if ctx is not None else _make_ctx(cfg, entry, provider)
     rec = Record(label=label, model_id=entry.get("model_id") or "",
                  provider=provider.name, provider_type=provider.type,
-                 ts=ts, suite_revision=revision(cfg), protocol=protocol,
+                 ts=ts, suite_revision=revision(cfg), protocol={},
                  checks=[])
-    if provider.type in ("studioforge", "lmstudio"):
+    if provider.type in ("studioforge", "lmstudio") and not loaded:
         if not allow_load and not _rig_resident(provider, entry["model_id"]):
             rec.verdict = SKIP
             rec.note = (f"{provider.type} model is not loaded: a rig model is "
                         f"only checked while the bench has it loaded (or with "
                         f"--allow-load)")
+            rec.protocol = protocol_fingerprint(cfg, entry, provider, ctx)
             return rec
         if allow_load:
             provider.switch_model(entry["model_id"], _ctx_len(cfg, entry))
+    # the rig's reasoning_format is part of the request, so the fingerprint
+    # has to see it -- the runner adopts it right after the load, and a rig
+    # model's record would otherwise never match the rows it produced
+    ctx.adopt_rig_reasoning()
+    rec.protocol = protocol_fingerprint(cfg, entry, provider, ctx)
     checks = (
         ("c1", lambda: _c1_served(ctx)),
         ("c2", lambda: _c2_reasoning(ctx)),
@@ -619,6 +693,7 @@ def run_model(cfg: dict, entry: dict, *, allow_load: bool = False) -> Record:
         ("c4", lambda: _c4_tools(ctx)),
         ("c5", lambda: _c5_sampler(ctx)),
         ("c6", lambda: _c6_budget(cfg, ctx)),
+        ("c7", lambda: _c7_docs(cfg, provider)),
     )
     for cid, fn in checks:
         try:
@@ -639,6 +714,139 @@ def run_model(cfg: dict, entry: dict, *, allow_load: bool = False) -> Record:
     if c1 is not None and c1.data:
         rec.served_model = c1.data.get("served_model")
     return rec
+
+
+# ------------------------------------------------------------- the gate
+
+
+@dataclass
+class Gate:
+    """The gate's decision for one model (Part 3)."""
+
+    #: the model may be benched
+    ok: bool
+    #: PASS / WARN / FAIL / SKIP
+    verdict: str
+    #: why (the failing check for a FAIL, a note otherwise)
+    reason: str = ""
+    #: the conformance record the decision was made on
+    record: dict | None = None
+    #: the checks ran just now (the record was missing or stale)
+    ran: bool = False
+    #: the record that was there was for another protocol
+    stale: bool = False
+    #: --skip-conformance: the model runs without a proven protocol
+    skipped: bool = False
+
+
+def record_is_current(rec: dict | None, protocol: dict) -> bool:
+    """True when the stored record was made under THIS protocol.
+
+    A SKIP record never counts: it proves nothing (the model was not
+    resident for the check), so the gate tries again next time.
+    """
+    if not rec:
+        return False
+    if (rec.get("verdict") or "") == SKIP:
+        return False
+    return (rec.get("protocol") or {}) == protocol
+
+
+def fail_reason(rec: dict) -> str:
+    """The line the run summary and the board show for a model that is not
+    benched: "conformance FAIL: <check> - <why>"."""
+    fails = [c for c in (rec.get("checks") or []) if c.get("status") == FAIL]
+    if not fails:
+        return "conformance FAIL"
+    ids = ", ".join(str(c.get("id")) for c in fails)
+    detail = str(fails[0].get("detail") or "")
+    return f"conformance FAIL: {ids}" + (f" - {detail}" if detail else "")
+
+
+def gate(cfg: dict, entry: dict, *, provider=None, ctx=None,
+         skip: bool = False, allow_load: bool = False,
+         write: bool = True, loaded: bool = False) -> Gate:
+    """The gate: a model is benched only under a protocol proven for it.
+
+    - a record for the CURRENT fingerprint -> the model runs;
+    - no record, or one for another fingerprint -> the checks run now (the
+      model is loaded by then, so a rig model can be checked as well);
+    - a FAIL -> the model does not run, and the reason names the check;
+    - "skip" (--skip-conformance) -> the model runs anyway, and the
+      override is logged.
+    """
+    label = str(entry.get("name") or entry.get("model_id") or "")
+    provider = provider if provider is not None else provider_for(cfg, entry)
+    ctx = ctx if ctx is not None else _make_ctx(cfg, entry, provider)
+    protocol = protocol_fingerprint(cfg, entry, provider, ctx)
+    if skip:
+        log.warning("conformance gate: %s runs WITHOUT a conformance record "
+                    "(--skip-conformance)", label)
+        return Gate(ok=True, verdict=SKIP,
+                    reason="conformance skipped (--skip-conformance)",
+                    skipped=True)
+    rec = read_record(label)
+    if record_is_current(rec, protocol):
+        verdict = str(rec.get("verdict") or PASS)
+        if verdict == FAIL:
+            return Gate(ok=False, verdict=FAIL, reason=fail_reason(rec),
+                        record=rec)
+        return Gate(ok=True, verdict=verdict, record=rec)
+    log.info("conformance gate: %s has no record for the current protocol "
+             "(%s) - running the checks", label,
+             "stale" if rec else "missing")
+    new = run_model(cfg, entry, allow_load=allow_load, ctx=ctx, loaded=loaded)
+    data = new.to_dict()
+    if write:
+        write_record(new)
+    if new.verdict == FAIL:
+        return Gate(ok=False, verdict=FAIL, reason=fail_reason(data),
+                    record=data, ran=True, stale=bool(rec))
+    if new.verdict == SKIP:
+        # the model was not resident for the check: nothing was proven, but
+        # only a FAIL blocks a run - the gate says so in the log
+        log.warning("conformance gate: %s could not be checked (%s)",
+                    label, new.note or "skipped")
+        return Gate(ok=True, verdict=SKIP, reason=(new.note or "skipped"),
+                    record=data, ran=True, stale=bool(rec))
+    return Gate(ok=True, verdict=new.verdict, record=data, ran=True,
+                stale=bool(rec))
+
+
+def gate_entries(cfg: dict, entries: list[dict], *, skip: bool = False,
+                 write: bool = True) -> tuple[list[dict], dict]:
+    """Gate a list of models before a run: (runnable, {label: reason}).
+
+    A model with no record for the CURRENT protocol gets the checks run
+    now -- an API model needs nothing loaded for that.  A FAIL means the
+    model is NOT run, and the reason names the check.
+
+    A rig model is left alone here: it can only be checked while it is
+    loaded, so the runner gates it right after the load
+    (runner._run_one_model).
+    """
+    from .providers import provider_for
+    ok: list[dict] = []
+    bad: dict[str, str] = {}
+    for entry in entries:
+        try:
+            provider = provider_for(cfg, entry)
+        except Exception as e:  # noqa: BLE001 — a broken registry entry is
+            # the run's problem, not the gate's: let it through
+            log.warning("conformance gate: %s has no usable provider (%s)",
+                        entry.get("name"), e)
+            ok.append(entry)
+            continue
+        if provider.type in ("studioforge", "lmstudio"):
+            ok.append(entry)
+            continue
+        label = str(entry.get("name") or entry.get("model_id") or "")
+        g = gate(cfg, entry, provider=provider, skip=skip, write=write)
+        if g.ok:
+            ok.append(entry)
+        else:
+            bad[label] = g.reason
+    return ok, bad
 
 
 def conform(cfg: dict, entries: list[dict], *, allow_load: bool = False,

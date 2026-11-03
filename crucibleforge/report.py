@@ -872,8 +872,55 @@ def _expected_case_count(cfg: dict | None, profile: str | None) -> int | None:
     return len(cases)
 
 
+def conformance_record(label: str) -> dict | None:
+    """The stored conformance record of a model (None: never checked).
+
+    The record is written by ``crucibleforge conform`` (and by the gate
+    that runs the checks when the record is missing or stale).
+    """
+    try:
+        from . import conformance
+        return conformance.read_record(label)
+    except Exception:  # noqa: BLE001 — a board note must never break the board
+        return None
+
+
+def _is_api_model(meta: dict, cfg: dict | None) -> bool:
+    """True for a model served by a hosted API (not a rig model).
+
+    The "rows predate harness change" note is for API models: their rows
+    pile up across harness changes (a rig model's board is rebuilt from the
+    rig anyway).
+    """
+    m = meta or {}
+    ptype = m.get("provider_type")
+    if not ptype and cfg:
+        name = m.get("provider") or m.get("device")
+        ptype = ((cfg.get("providers") or {}).get(name) or {}).get("type")
+    return bool(ptype) and ptype not in ("studioforge", "lmstudio")
+
+
+def _protocol_mix_note(rows: list[dict], meta: dict, cfg: dict | None) -> str | None:
+    """The note for a model whose rows were measured under MORE THAN ONE
+    request protocol: the rows cannot be compared with each other, so the
+    model has to be re-run under the current one.
+    """
+    protos = [r.get("protocol") for r in rows if r.get("protocol")]
+    uniq = {json.dumps(p, sort_keys=True) for p in protos}
+    if len(uniq) < 2:
+        return None
+    if not _is_api_model(meta, cfg):
+        return None
+    fields = ("provider_type", "reasoning_replay", "extra_body_keys", "sampler")
+    parsed = [json.loads(u) for u in uniq]
+    changed = [f for f in fields
+               if len({json.dumps(p.get(f), sort_keys=True) for p in parsed}) > 1]
+    return ("rows predate harness change "
+            + ("+".join(changed) or "protocol") + " — re-run")
+
+
 def _coverage(rows: list[dict], meta: dict, cfg: dict | None,
-              era: dict | None = None) -> dict:
+              era: dict | None = None, label: str | None = None) -> dict:
     """What this model's result set covers, and whether it is comparable.
     tier 0 = comparable; 1 = partial / stale / judged by another judge /
     unjudged rows; 2 = the run failed. The scorecard ranks by tier first."""
@@ -934,6 +981,21 @@ def _coverage(rows: list[dict], meta: dict, cfg: dict | None,
         notes.append("stale revision")
     if judge_mismatch:
         notes.append("judged by " + ", ".join(short_model(j) for j in judges))
+    # the conformance record: a FAIL keeps the model off the board, a WARN
+    # says what to look at
+    conf = conformance_record(label) if label else None
+    if conf:
+        checks = conf.get("checks") or []
+        fails = [str(c.get("id")) for c in checks if c.get("status") == "FAIL"]
+        warns = [str(c.get("id")) for c in checks if c.get("status") == "WARN"]
+        if fails:
+            notes.append("conformance FAIL: " + ", ".join(fails))
+        elif warns:
+            notes.append("conformance WARN: " + ", ".join(warns))
+    # rows measured under different request protocols cannot be compared
+    mix = _protocol_mix_note(rows, meta, cfg)
+    if mix:
+        notes.append(mix)
     status = "; ".join(notes) if notes else (
         f"full ({attempted}/{cases} attempted, {skipped} n/a)" if skipped else f"full ({cases} cases)")
     tier = 2 if failed else (1 if (complete is False or stale or old or judge_mismatch
@@ -1907,7 +1969,7 @@ def model_stats(label: str, cfg: dict | None = None, rows: list[dict] | None = N
         "judge_models": judge_models, "judge_agreement": judge_agreement,
         "judged_generic": judged_generic,
         "n_rows": len(rows),
-        "coverage": {} if _BOOT.get() is not None else _coverage(rows, meta, cfg, era),
+        "coverage": {} if _BOOT.get() is not None else _coverage(rows, meta, cfg, era, label),
     }
 
 
@@ -2636,6 +2698,31 @@ def _suite_head(stats: dict, cfg: dict | None) -> list[str]:
     return out
 
 
+def _conformance_lines(labels: list[str], stats: dict, cfg: dict | None) -> list[str]:
+    """The conformance section of report.md: every model's verdict and the
+    date it was proven on.  The checks are listed only when one of them is
+    not a PASS (a FAIL keeps the model off the board, a WARN says what to
+    look at)."""
+    rows = []
+    for l in labels:
+        rec = conformance_record(l)
+        if not rec:
+            continue
+        checks = rec.get("checks") or []
+        odd = [f"{c.get('id')} {c.get('status')}" for c in checks
+               if c.get("status") not in ("PASS", "INFO")]
+        rows.append([l, str(rec.get("verdict") or "-"),
+                     str(rec.get("ts") or "-")[:10],
+                     ", ".join(odd) if odd else "all PASS"])
+    if not rows:
+        return []
+    return (["", "## Conformance", ""]
+            + _table(["Model", "Verdict", "Date", "Checks"], rows)
+            + ["", "*A model is benched only under a request protocol that was "
+              "proven for it (`crucibleforge conform`): a FAIL keeps it off "
+              "the board.*"])
+
+
 def render_markdown(labels: list[str], stats: dict, cfg: dict | None,
                     archived_note: str | None = None) -> str:
     """report.md: the scorecard (Chat / Coding) + one component table."""
@@ -2653,6 +2740,7 @@ def render_markdown(labels: list[str], stats: dict, cfg: dict | None,
     L += ["", "## Scorecard", ""]
     if any("tiers" in stats[l]["scorecard"] for l in ranked):
         L += _tier_tables(ranked, stats, sc, cfg)
+        L += _conformance_lines(labels, stats, cfg)
         return _components_md(L, ranked, stats, sc)
     rows = []
     for i, l in enumerate(ranked, 1):
@@ -2670,6 +2758,7 @@ def render_markdown(labels: list[str], stats: dict, cfg: dict | None,
               "same budget for every model — and rows still on old values (Suite \"(old)\") "
               "rank below every current row: old and current regimes are not comparable.*"]
 
+    L += _conformance_lines(labels, stats, cfg)
     return _components_md(L, ranked, stats, sc)
 
 
