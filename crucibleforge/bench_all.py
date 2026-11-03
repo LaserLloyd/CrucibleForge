@@ -142,6 +142,14 @@ def rig_arches(prov) -> dict[str, str]:
             for m in records if m.get("id")}
 
 
+def first_ahead(labels, first) -> list[str]:
+    """``labels`` with the ``--first`` ones ahead, in the order they were
+    named; the rest keep their order."""
+    first = [f for f in (first or []) if f]
+    head = [f for f in first if f in labels]
+    return head + [l for l in labels if l not in head]
+
+
 def plan(cfg: dict, rig_ids: set[str], *, include_api: bool = False,
          board_labels: list[str] | None = None, rows_for=None,
          judge_id: str | None = None, case_ids: list[str] | None = None,
@@ -280,6 +288,24 @@ def plan(cfg: dict, rig_ids: set[str], *, include_api: bool = False,
         if due and due.get("jobs"):
             ladder_plan.append({"model": label, "sets": list(due.get("names") or []),
                                 "jobs": int(due["jobs"])})
+    order = first_ahead([lp["model"] for lp in ladder_plan], first)
+    ladder_plan.sort(key=lambda lp: order.index(lp["model"]))
+    # 2026-11-03: --first used to reorder generation only — a named model with
+    # nothing to generate silently waited behind everyone else's generation;
+    # say where its work lands instead
+    gen_labels = {l for _, labels, _ in ordered for l in labels}
+    first_notes = []
+    for f in first:
+        if f in gen_labels:
+            continue
+        work = []
+        if any(lp["model"] == f for lp in ladder_plan):
+            work.append("ladder packs first in the ladder phase")
+        if any(e["model"] == f for e in escalate):
+            work.append("escalation only with --escalate")
+        first_notes.append((f, ("nothing to generate — " + "; ".join(work)
+                                + " (after every generation group and the judge)")
+                            if work else "nothing to do"))
     # 3.10 (D1.7): per model, what is re-GENERATED (no usable current row:
     # new or edited case content) vs only re-JUDGED from the stored
     # transcript (judge grading edited, more samples asked)
@@ -322,7 +348,8 @@ def plan(cfg: dict, rig_ids: set[str], *, include_api: bool = False,
             "groups": [{"models": labels, "cases": list(miss)} for miss, labels, _ in ordered],
             "judge": to_judge, "case_count": len(case_ids),
             "escalate": escalate, "rungs": list(rungs or []), "ladder": ladder_plan,
-            "per_model": per_model, "hosted_pending": hosted_pending, "_private": private}
+            "per_model": per_model, "hosted_pending": hosted_pending, "_private": private,
+            "first": first, "first_notes": first_notes}
 
 
 def rejudge_cases(label: str) -> set[str]:
@@ -368,6 +395,9 @@ def format_plan(p: dict) -> str:
         L.append(f"  ! {label}: enabled but not on the rig — skipped (disable it or re-download)")
     for label, why in p["prune"]:
         L.append(f"  - off the board: {label} ({why})")
+    for label, why in p.get("first_notes") or []:
+        # never "> " here: the nightly's done-check greps that prefix
+        L.append(f"  ! --first {label}: {why}")
     for g in p["groups"]:
         L.append(f"  > generate {len(g['cases'])} case(s) for {', '.join(g['models'])}")
     if p.get("escalate"):
@@ -1007,8 +1037,8 @@ def execute(args, cfg: dict) -> int:
         # ladder packs (review B2), like `all`: every due set, judged, until
         # none is due — inside the same window (each model's set starts only
         # when its estimate fits)
-        lad = sorted((set(judged_labels) | {lp["model"] for lp in p.get("ladder") or []})
-                     - set(left))
+        lad = first_ahead(sorted((set(judged_labels) | {lp["model"] for lp in p.get("ladder") or []})
+                                 - set(left)), p.get("first"))
         if lad and not cli.stopping() and not judge_stop.is_set() and _judge_room() \
                 and not getattr(args, "no_ladder", False):
             rc_l = _ladder_round(args, cfg, lad, win, jargs, want_esc, _arm, _disarm,

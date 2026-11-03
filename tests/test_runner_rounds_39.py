@@ -99,6 +99,7 @@ def _fake_rig(monkeypatch):
     monkeypatch.setattr(P, "switch_model", switch)
     monkeypatch.setattr(P, "chat", chat)
     monkeypatch.setattr(P, "live_context", lambda self, mid: None)
+    monkeypatch.setattr(P, "trained_context", lambda self, mid: None)
     monkeypatch.setattr(P, "loaded_plan_for",
                         lambda self, mid: {"ctx_size": cur["ctx"], "parallel": slots[cur["ctx"]]})
     monkeypatch.setattr(P, "workers", lambda self, mid: slots[cur["ctx"]])

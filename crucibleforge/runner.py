@@ -1082,6 +1082,21 @@ def _run_one_model(cfg, entry, cases, csvw: _Csv, smoke,
              f", round {round_name}" if round_name else "")
     if not provider.is_available(model_id):
         raise ModelRunError(f"{model_id} is not served by provider {provider.name}")
+    # the rig refuses a load past the model's trained window (HTTP 400), so a
+    # small model would fail outright at the bench context: load it at its
+    # trained window instead — the rows that cannot fit are skipped (n/a)
+    # below, exactly like a rig that serves a narrower window than asked
+    trained = (provider.trained_context(model_id)
+               if hasattr(provider, "trained_context") else None)
+    if trained and ctx_len and int(ctx_len) > trained:
+        if rung and trained < int(rung):
+            raise ModelRunError(f"escalation to {rung} tokens needs ctx >= {rung}; {label} is "
+                                f"trained to {trained} — rung skipped")
+        log.warning("%s is trained to %d tokens, below the bench context %s — loading at %d; "
+                    "cases that need more are skipped (n/a), not failed",
+                    label, trained, ctx_len, trained)
+        ctx_len = trained
+        ctx.ctx_len = trained
     load_s = provider.switch_model(model_id, ctx_len)
     live_ctx = provider.live_context(model_id)
     if live_ctx and ctx_len and live_ctx < int(ctx_len):

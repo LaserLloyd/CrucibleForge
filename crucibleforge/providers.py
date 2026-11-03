@@ -527,6 +527,28 @@ class Provider:
         """The placement this run measured under (recorded at load time)."""
         return dict(self._plans.get(model_id) or {})
 
+    def trained_context(self, model_id: str) -> int | None:
+        """The window ``model_id`` was trained on, as the rig publishes it
+        (StudioForge ``/v1/models`` → ``studioforge.n_ctx_train``). The rig
+        refuses a load past it (HTTP 400 "is trained to N tokens"), so the
+        runner never asks for more. ``None`` = unknown (other providers, no
+        metadata, listing failed) — the caller keeps its context."""
+        if self.type != "studioforge":
+            return None
+        try:
+            records = studioforge.list_models_full(self.base_url, self.api_key)
+        except Exception as e:  # noqa: BLE001 — unknown, not fatal: the load is the real check
+            log.debug("%s: trained window of %s unavailable: %s", self.name, model_id, e)
+            return None
+        for m in records or []:
+            if m.get("id") == model_id:
+                n = (m.get("studioforge") or {}).get("n_ctx_train")
+                try:
+                    return int(n) if n and int(n) > 0 else None
+                except (TypeError, ValueError):
+                    return None
+        return None
+
     def live_context(self, model_id: str) -> int | None:
         ctx = (self._plans.get(model_id) or {}).get("ctx_size")
         try:
