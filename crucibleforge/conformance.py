@@ -598,10 +598,9 @@ def run_model(cfg: dict, entry: dict, *, allow_load: bool = False) -> Record:
     provider = provider_for(cfg, entry)
     ts = datetime.now(timezone.utc).isoformat(timespec="seconds")
     ctx = _make_ctx(cfg, entry, provider)
-    protocol = protocol_fingerprint(cfg, entry, provider, ctx)
     rec = Record(label=label, model_id=entry.get("model_id") or "",
                  provider=provider.name, provider_type=provider.type,
-                 ts=ts, suite_revision=revision(cfg), protocol=protocol,
+                 ts=ts, suite_revision=revision(cfg), protocol={},
                  checks=[])
     if provider.type in ("studioforge", "lmstudio"):
         if not allow_load and not _rig_resident(provider, entry["model_id"]):
@@ -609,9 +608,15 @@ def run_model(cfg: dict, entry: dict, *, allow_load: bool = False) -> Record:
             rec.note = (f"{provider.type} model is not loaded: a rig model is "
                         f"only checked while the bench has it loaded (or with "
                         f"--allow-load)")
+            rec.protocol = protocol_fingerprint(cfg, entry, provider, ctx)
             return rec
         if allow_load:
             provider.switch_model(entry["model_id"], _ctx_len(cfg, entry))
+    # the rig's reasoning_format is part of the request, so the fingerprint
+    # has to see it -- the runner adopts it right after the load, and a rig
+    # model's record would otherwise never match the rows it produced
+    ctx.adopt_rig_reasoning()
+    rec.protocol = protocol_fingerprint(cfg, entry, provider, ctx)
     checks = (
         ("c1", lambda: _c1_served(ctx)),
         ("c2", lambda: _c2_reasoning(ctx)),

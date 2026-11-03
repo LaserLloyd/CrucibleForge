@@ -277,6 +277,19 @@ def resolve_sampler(cfg: dict, entry: dict) -> tuple[dict, str]:
     return {}, "default"
 
 
+def protocol_stamp(cfg: dict, entry: dict, provider: Provider, ctx) -> dict:
+    """The request protocol a row is measured under -- the conformance
+    fingerprint (provider type, reasoning replay, extra_body keys, sampler).
+
+    The same shape the ``conform`` record carries, so a row can be compared
+    with the record that says the protocol works for this model: a harness
+    change that moves the fingerprint is what makes a row STALE rather than
+    merely old (R3).
+    """
+    from .conformance import protocol_fingerprint
+    return protocol_fingerprint(cfg, entry, provider, ctx)
+
+
 class _Ctx:
     """Everything a single model run needs, shared by the case workers."""
 
@@ -1107,6 +1120,10 @@ def _run_one_model(cfg, entry, cases, csvw: _Csv, smoke,
     min_tps = float(cfg["defaults"].get("min_tok_per_s", 0) or 0)
     revision = _revision(cfg)
     judge_fp = _judge_fp(cfg)
+    # the request protocol every row of this round is measured under (the
+    # conformance fingerprint): a harness change moves it, so a stale row can
+    # be told from an old one (R3)
+    protocol = protocol_stamp(cfg, entry, provider, ctx)
 
     def base_row_for(case, repeat, seed, temperature, top_p, max_tokens, rid=None):
         extra = {}
@@ -1138,6 +1155,7 @@ def _run_one_model(cfg, entry, cases, csvw: _Csv, smoke,
             "bench_run_id": rid or bench_run_id,
             "bench_revision": revision, "judge_fingerprint": judge_fp,
             "profile": cfg.get("_profile"),
+            "protocol": protocol,
             "ts": _now(),
             "model_label": label, "model_id": model_id, "device": provider.name,
             "provider": provider.name,
