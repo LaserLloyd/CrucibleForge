@@ -591,18 +591,27 @@ def _c6_budget(cfg, ctx) -> Check:
 
 # ------------------------------------------------------------- the run
 
-def run_model(cfg: dict, entry: dict, *, allow_load: bool = False) -> Record:
-    """Run the conformance checks for one model and return its record."""
+def run_model(cfg: dict, entry: dict, *, allow_load: bool = False,
+                  ctx=None, loaded: bool = False) -> Record:
+    """Run the conformance checks for one model and return its record.
+
+    "ctx" = the runner's own context for this model: the gate (Part 3)
+    hands it over so the record's fingerprint is the one the rows will
+    carry (same bytes, same conversation).
+
+    "loaded" = the model is loaded right now (the bench has it): the checks
+    run against it, with no residency probe and no load of their own.
+    """
     from .version import revision
     label = str(entry.get("name") or entry.get("model_id") or "")
     provider = provider_for(cfg, entry)
     ts = datetime.now(timezone.utc).isoformat(timespec="seconds")
-    ctx = _make_ctx(cfg, entry, provider)
+    ctx = ctx if ctx is not None else _make_ctx(cfg, entry, provider)
     rec = Record(label=label, model_id=entry.get("model_id") or "",
                  provider=provider.name, provider_type=provider.type,
                  ts=ts, suite_revision=revision(cfg), protocol={},
                  checks=[])
-    if provider.type in ("studioforge", "lmstudio"):
+    if provider.type in ("studioforge", "lmstudio") and not loaded:
         if not allow_load and not _rig_resident(provider, entry["model_id"]):
             rec.verdict = SKIP
             rec.note = (f"{provider.type} model is not loaded: a rig model is "
@@ -644,6 +653,139 @@ def run_model(cfg: dict, entry: dict, *, allow_load: bool = False) -> Record:
     if c1 is not None and c1.data:
         rec.served_model = c1.data.get("served_model")
     return rec
+
+
+# ------------------------------------------------------------- the gate
+
+
+@dataclass
+class Gate:
+    """The gate's decision for one model (Part 3)."""
+
+    #: the model may be benched
+    ok: bool
+    #: PASS / WARN / FAIL / SKIP
+    verdict: str
+    #: why (the failing check for a FAIL, a note otherwise)
+    reason: str = ""
+    #: the conformance record the decision was made on
+    record: dict | None = None
+    #: the checks ran just now (the record was missing or stale)
+    ran: bool = False
+    #: the record that was there was for another protocol
+    stale: bool = False
+    #: --skip-conformance: the model runs without a proven protocol
+    skipped: bool = False
+
+
+def record_is_current(rec: dict | None, protocol: dict) -> bool:
+    """True when the stored record was made under THIS protocol.
+
+    A SKIP record never counts: it proves nothing (the model was not
+    resident for the check), so the gate tries again next time.
+    """
+    if not rec:
+        return False
+    if (rec.get("verdict") or "") == SKIP:
+        return False
+    return (rec.get("protocol") or {}) == protocol
+
+
+def fail_reason(rec: dict) -> str:
+    """The line the run summary and the board show for a model that is not
+    benched: "conformance FAIL: <check> - <why>"."""
+    fails = [c for c in (rec.get("checks") or []) if c.get("status") == FAIL]
+    if not fails:
+        return "conformance FAIL"
+    ids = ", ".join(str(c.get("id")) for c in fails)
+    detail = str(fails[0].get("detail") or "")
+    return f"conformance FAIL: {ids}" + (f" - {detail}" if detail else "")
+
+
+def gate(cfg: dict, entry: dict, *, provider=None, ctx=None,
+         skip: bool = False, allow_load: bool = False,
+         write: bool = True, loaded: bool = False) -> Gate:
+    """The gate: a model is benched only under a protocol proven for it.
+
+    - a record for the CURRENT fingerprint -> the model runs;
+    - no record, or one for another fingerprint -> the checks run now (the
+      model is loaded by then, so a rig model can be checked as well);
+    - a FAIL -> the model does not run, and the reason names the check;
+    - "skip" (--skip-conformance) -> the model runs anyway, and the
+      override is logged.
+    """
+    label = str(entry.get("name") or entry.get("model_id") or "")
+    provider = provider if provider is not None else provider_for(cfg, entry)
+    ctx = ctx if ctx is not None else _make_ctx(cfg, entry, provider)
+    protocol = protocol_fingerprint(cfg, entry, provider, ctx)
+    if skip:
+        log.warning("conformance gate: %s runs WITHOUT a conformance record "
+                    "(--skip-conformance)", label)
+        return Gate(ok=True, verdict=SKIP,
+                    reason="conformance skipped (--skip-conformance)",
+                    skipped=True)
+    rec = read_record(label)
+    if record_is_current(rec, protocol):
+        verdict = str(rec.get("verdict") or PASS)
+        if verdict == FAIL:
+            return Gate(ok=False, verdict=FAIL, reason=fail_reason(rec),
+                        record=rec)
+        return Gate(ok=True, verdict=verdict, record=rec)
+    log.info("conformance gate: %s has no record for the current protocol "
+             "(%s) - running the checks", label,
+             "stale" if rec else "missing")
+    new = run_model(cfg, entry, allow_load=allow_load, ctx=ctx, loaded=loaded)
+    data = new.to_dict()
+    if write:
+        write_record(new)
+    if new.verdict == FAIL:
+        return Gate(ok=False, verdict=FAIL, reason=fail_reason(data),
+                    record=data, ran=True, stale=bool(rec))
+    if new.verdict == SKIP:
+        # the model was not resident for the check: nothing was proven, but
+        # only a FAIL blocks a run - the gate says so in the log
+        log.warning("conformance gate: %s could not be checked (%s)",
+                    label, new.note or "skipped")
+        return Gate(ok=True, verdict=SKIP, reason=(new.note or "skipped"),
+                    record=data, ran=True, stale=bool(rec))
+    return Gate(ok=True, verdict=new.verdict, record=data, ran=True,
+                stale=bool(rec))
+
+
+def gate_entries(cfg: dict, entries: list[dict], *, skip: bool = False,
+                 write: bool = True) -> tuple[list[dict], dict]:
+    """Gate a list of models before a run: (runnable, {label: reason}).
+
+    A model with no record for the CURRENT protocol gets the checks run
+    now -- an API model needs nothing loaded for that.  A FAIL means the
+    model is NOT run, and the reason names the check.
+
+    A rig model is left alone here: it can only be checked while it is
+    loaded, so the runner gates it right after the load
+    (runner._run_one_model).
+    """
+    from .providers import provider_for
+    ok: list[dict] = []
+    bad: dict[str, str] = {}
+    for entry in entries:
+        try:
+            provider = provider_for(cfg, entry)
+        except Exception as e:  # noqa: BLE001 — a broken registry entry is
+            # the run's problem, not the gate's: let it through
+            log.warning("conformance gate: %s has no usable provider (%s)",
+                        entry.get("name"), e)
+            ok.append(entry)
+            continue
+        if provider.type in ("studioforge", "lmstudio"):
+            ok.append(entry)
+            continue
+        label = str(entry.get("name") or entry.get("model_id") or "")
+        g = gate(cfg, entry, provider=provider, skip=skip, write=write)
+        if g.ok:
+            ok.append(entry)
+        else:
+            bad[label] = g.reason
+    return ok, bad
 
 
 def conform(cfg: dict, entries: list[dict], *, allow_load: bool = False,

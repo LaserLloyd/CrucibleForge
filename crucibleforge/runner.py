@@ -675,7 +675,8 @@ class _Ctx:
 def run_models(cfg: dict, model_entries: list[dict], cases: list[dict],
                smoke: bool = False, jobs_by_label: dict | None = None,
                rung: int | None = None, min_ctx: int | None = None,
-               record_key: str | None = None) -> dict:
+               record_key: str | None = None,
+               skip_conformance: bool = False) -> dict:
     """jobs_by_label: optional {label: {(bench_run_id, case_id, repeat), ...}}
     restricting each model to exactly those (case, repeat) jobs, re-run under
     their ORIGINAL bench_run_id so the new rows supersede the old ones (used
@@ -722,7 +723,8 @@ def run_models(cfg: dict, model_entries: list[dict], cases: list[dict],
                         rung=rung, min_ctx=min_ctx, record_key=record_key,
                         reset=(i == 0), bench_run_id=rid, perf=(i == 0),
                         last=(i == len(rounds) - 1),
-                        round_name=rd["name"] if len(rounds) > 1 else None, carry=carry))
+                        round_name=rd["name"] if len(rounds) > 1 else None, carry=carry,
+                        skip_conformance=skip_conformance))
                 summary[label] = _merge_round_summaries(parts)
             except RunStopped:
                 _record_stop(cfg, entry, label, summary, jobs_by_label, record_key, rung)
@@ -1056,7 +1058,8 @@ def _run_one_model(cfg, entry, cases, csvw: _Csv, smoke,
                    min_ctx: int | None = None, record_key: str | None = None,
                    reset: bool = True, bench_run_id: str | None = None, perf: bool = True,
                    last: bool = True, round_name: str | None = None,
-                   carry: dict | None = None) -> dict:
+                   carry: dict | None = None,
+                   skip_conformance: bool = False) -> dict:
     """One load round of one model (run_models splits a run into rounds,
     :func:`plan_rounds`). ``reset``: the first round of a board run starts a
     fresh meta; ``perf``: the perf probes run in this round; ``last``: this
@@ -1124,6 +1127,24 @@ def _run_one_model(cfg, entry, cases, csvw: _Csv, smoke,
     # conformance fingerprint): a harness change moves it, so a stale row can
     # be told from an old one (R3)
     protocol = protocol_stamp(cfg, entry, provider, ctx)
+
+    # The conformance gate (Part 3): a model is benched only under a request
+    # protocol that has been PROVEN for it.  An API model is gated before the
+    # run (cli._conformance_gate); a rig model can only be checked while it
+    # is loaded, so it is gated HERE, right after the load.  A FAIL means the
+    # model is NOT run: the reason names the check, and the board and the
+    # run summary say so.
+    if provider.type in ("studioforge", "lmstudio"):
+        from . import conformance as _conformance
+        gate = _conformance.gate(cfg, entry, provider=provider, ctx=ctx,
+                                 skip=skip_conformance, loaded=True)
+        if not gate.ok:
+            raise ModelRunError(gate.reason)
+        _write_meta(label, entry, provider, profile=cfg.get("_profile"),
+                    revision=_revision(cfg),
+                    extra={"conformance": {"verdict": gate.verdict,
+                                           "ts": (gate.record or {}).get("ts"),
+                                           "protocol": protocol}})
 
     def base_row_for(case, repeat, seed, temperature, top_p, max_tokens, rid=None):
         extra = {}

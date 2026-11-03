@@ -857,6 +857,31 @@ def _fail_fast(cfg, entries, *, check_judge: bool, judge) -> tuple[list[dict], d
     return ok, bad
 
 
+def _conformance_gate(cfg, entries, *, skip: bool = False) -> tuple[list[dict], dict]:
+    """The conformance gate (Part 3): a model is benched only under a request
+    protocol that has been PROVEN for it.
+
+    The record has to be for the CURRENT fingerprint; when it is missing or
+    stale the checks run now (an API model needs nothing loaded).  A FAIL
+    means the model is NOT run -- its meta is written as FAILED with the
+    reason, so the board and the run report say why.  A rig model is gated
+    by the runner instead: it can only be checked while it is loaded.
+    """
+    from . import conformance
+    from .providers import provider_for
+    from .runner import _write_meta
+    from .version import revision
+    ok, bad = conformance.gate_entries(cfg, entries, skip=skip)
+    for label, why in bad.items():
+        log.error("model %s is not benched: %s", label, why)
+        entry = next((e for e in entries if e.get("name") == label), None)
+        if entry is not None:
+            _write_meta(label, entry, provider_for(cfg, entry), failed=True,
+                        error=why, profile=cfg.get("_profile"),
+                        revision=revision(cfg), reset=True)
+    return ok, bad
+
+
 def _refuse_fresh_with_filter(args) -> None:
     """``--fresh`` archives the model's WHOLE result set; combined with a
     ``--cases``/``--categories`` filter it would re-run a handful of cases
@@ -903,6 +928,11 @@ def cmd_run(args, cfg):
     needs_judge = any(c.get("rubric") or c.get("turns") for c in cases)
     entries, unrunnable = _fail_fast(cfg, entries, judge=getattr(args, "judge", None),
                                      check_judge=args.cmd == "all" and needs_judge)
+    # the conformance gate (Part 3): a model is benched only under a request
+    # protocol that has been proven for it
+    entries, gate_bad = _conformance_gate(
+        cfg, entries, skip=bool(getattr(args, "skip_conformance", False)))
+    unrunnable.update(gate_bad)
     if not entries:
         print("\nrun summary:")
         for label, why in unrunnable.items():
@@ -927,7 +957,9 @@ def cmd_run(args, cfg):
         log.warning("StudioForge residents mid-request right now: %s — the load will wait "
                     "for them to go idle (never evicts a serving model)", serving)
     try:
-        summary = run_models(cfg, entries, cases, smoke=args.smoke)
+        summary = run_models(cfg, entries, cases, smoke=args.smoke,
+                             skip_conformance=getattr(args, "skip_conformance",
+                                                      False))
     finally:
         guard.restore()
     args.ran_labels = [e["name"] for e in entries if e["name"] in summary]
@@ -2443,6 +2475,10 @@ def main(argv=None):
         p.add_argument("--fresh", action="store_true",
                        help="archive prior transcripts for these models first "
                             "(default: accumulate across runs)")
+        p.add_argument("--skip-conformance", action="store_true",
+                       help="do not gate generation on a current conformance "
+                            "record: a model is benched without a proven "
+                            "request protocol (the override is logged)")
         p.add_argument("--samples", type=int, default=None,
                        help="judge self-consistency samples (default: config)")
         p.add_argument("--difficulty", default=None,
@@ -2597,6 +2633,9 @@ def main(argv=None):
                            "that ran out of budget, at the next rung only (off by default)")
     p_ba.add_argument("--no-escalate", action="store_true",
                       help="accepted for compatibility (escalation is off unless --escalate)")
+    p_ba.add_argument("--skip-conformance", action="store_true",
+                      help="do not gate generation on a current conformance "
+                           "record (the override is logged)")
     p_ba.add_argument("--models", default=None, help=argparse.SUPPRESS)
     add_v2_args(p_ba)
 

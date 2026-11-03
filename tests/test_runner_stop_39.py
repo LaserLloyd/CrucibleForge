@@ -103,6 +103,10 @@ def _launch(tmp_path, cfg_path, grace_s):
     argv = [sys.executable, "-m", "crucibleforge.cli", "--allow-unsandboxed",
             "--config", str(cfg_path), "--results", str(tmp_path / "results"), "run",
             "--models", "m", "--no-link-check",
+            # the conformance gate would refuse the model before the run even
+            # starts: the host here hangs, so the probes hang with it.  This
+            # test is about the SIGTERM path, not about the gate.
+            "--skip-conformance",
             "--cases", "WL2-lighthouse,UX1-tide-cell,UX3-brass-roast"]   # 4.0: three single-turn board cases
     return subprocess.Popen(argv, cwd=str(tmp_path), env=env,
                             stdout=subprocess.PIPE, stderr=subprocess.STDOUT)

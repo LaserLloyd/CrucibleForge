@@ -897,7 +897,8 @@ def execute(args, cfg: dict) -> int:
             run_args = argparse.Namespace(
                 cmd="run", models=",".join(g["models"]), cases=",".join(g["cases"]),
                 categories=None, difficulty=None, fresh=False, force=False, smoke=False,
-                yes=True, no_link_check=False, judge=None, force_evict=False, profile=None)
+                yes=True, no_link_check=False, judge=None, force_evict=False, profile=None,
+                skip_conformance=bool(getattr(args, "skip_conformance", False)))
             log.info("bench-all: generating %d case(s) for %s", len(g["cases"]), run_args.models)
             try:
                 r = cli.cmd_run(run_args, cfg)
