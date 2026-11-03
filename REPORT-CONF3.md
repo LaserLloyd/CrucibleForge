@@ -91,7 +91,23 @@ after `adopt_rig_reasoning()`, and the new check `c7`).
   test now passes `--skip-conformance` (it tests the SIGTERM path);
   `tests/test_all_judges_survivors.py` monkeypatches `runner.run_models` with
   a lambda that now takes `**kw`.
-- Final suite line: `PYTEST_SUMMARY`
+- Final suite line (whole suite, `uv run --offline pytest -q -n 4 -o addopts=""
+  --basetemp=.../tmp-conf3`): `5 failed, 1869 passed, 9 skipped, 365 warnings in
+  1682.67s (0:28:02)`
+- All five failures are in the **case-lint** area
+  (`tests/test_simplify_20260923.py`, `tests/test_v3.py`), not in the Part 3
+  code: the lint is static and offline, and its import graph
+  (`api`, `graders`, `judge`, `codebank`, `session_checks`, `config`)
+  pulls in **none** of the five files Part 3 changed (verified by grep). The
+  lint derives the code-bank gold answers by RUNNING snippets in a sandbox
+  (`codebank.derive_gold`), and on this box it hung for >600 s in isolation
+  and reported one code-bank problem while the maintainer's live `bench-all`
+  held the rig and another lane's 6-worker suite ran at the same time. So the
+  failures are contention, not Part 3 — but they were **not** re-verified green
+  on a quiet box here (the Part 3 suites, 29 new tests, pass in isolation).
+  The Part 3 test files pass on their own:
+  `tests/test_conformance_gate_20261103.py` + `tests/test_conformance_board_20261103.py`
+  + `tests/test_conformance_20261102.py` = 54 passed.
 
 ## Commits (in order)
 
@@ -124,3 +140,6 @@ after `adopt_rig_reasoning()`, and the new check `c7`).
 6. The `c7` check adds a WARN to every hosted provider whose row has no
    dated docs URL, so the first `conform` on a fresh registry reports a WARN
    (the model still runs — only a FAIL blocks).
+7. The five case-lint failures of the suite run above are contention, not
+   Part 3 (see "Tests"), but they are left unverified on a quiet box: a
+   re-run of the whole suite on an idle machine is still owed.
