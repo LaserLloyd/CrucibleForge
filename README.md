@@ -396,12 +396,29 @@ to the model correctly:
 | `c4 tools` | a 2-step tool round trip (call → tool result → answer); a 4xx or a malformed history is a FAIL |
 | `c5 sampler` | the sampler the profile would send for this model is accepted |
 | `c6 budget` | a medium coding prompt at the board budget; an empty answer with `finish=length` needs the escalation rung (see Room) |
+| `c7 docs` | the vendor docs of a **hosted** provider: the registry row says where the protocol was read (`docs`) and when it was last checked (`docs_verified`); a missing entry, or one older than 120 days, is a WARN |
 
 The record lands in `results/conformance/<label>.json` with the protocol
 fingerprint (provider type, reasoning replay, extra_body keys, sampler), so a
 harness change can tell which rows are stale. A rig model (StudioForge / LM
 Studio) is only checked while it is loaded — `conform` never loads a model
 behind the bench's back (`--allow-load` does, under the rig lock).
+
+### The gate (`run` / `bench-all`)
+
+A model is benched only under a request protocol that has been **proven** for
+it. `run` and `bench-all` require a conformance record for the *current*
+fingerprint: when it is missing or stale the checks run first (a rig model
+right after it is loaded, an API model before the run). A **FAIL** means the
+model is **not run** — the run summary and the board say which check failed.
+`--skip-conformance` overrides the gate; the override is logged.
+
+Every row now carries the protocol it was measured under (`protocol` in the
+transcript), so a harness change can tell which rows are stale: a model whose
+rows mix fingerprints gets the note *"rows predate harness change … —
+re-run"* on the board. `report.md` has a **Conformance** section with each
+model's verdict and the date it was proven on; the board's Notes column says
+`conformance FAIL: <check>` (or a WARN summary).
 
 ### Registry (`models.yaml`)
 
@@ -452,6 +469,11 @@ models:
   and M Plan / Token Plan traffic to M2.5 / M2.7 is **auto-routed to M3.1
   Flash** from 2026-10-19 (CF cannot tell a route from the real model — `/v1`
   returns the *requested* id).
+* `docs: <url>` + `docs_verified: YYYY-MM-DD` (per provider) — for a
+  **hosted** provider: where its API documentation was read, and when it was
+  last reviewed. `conform` WARNs (c7) when a hosted provider carries no docs,
+  or when the review is older than 120 days — the "review the vendor docs"
+  step becomes visible instead of being silently skipped.
 * Config search order: `--config`, `$CRUCIBLEFORGE_CONFIG`, `./models.yaml`,
   `<repo>/models.yaml`, `~/.config/crucibleforge/models.yaml`. A v2 registry
   (`endpoint:`/`rig:`) is upgraded in memory; `crucibleforge config --upgrade`

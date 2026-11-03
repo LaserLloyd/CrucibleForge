@@ -23,6 +23,8 @@ from pathlib import Path
 
 import pytest
 
+from datetime import datetime, timedelta, timezone
+
 from crucibleforge import api, cli, conformance, config, providers, runner
 from crucibleforge.providers import clear_cache
 
@@ -176,7 +178,10 @@ def _cfg(**kw):
                 "api_key": "k", "concurrency": 1,
                 # the replay is ON: it is the MiniMax protocol, and with it
                 # off the chain is dropped (the defect c3 exists for)
-                "reasoning_replay": True}
+                "reasoning_replay": True,
+                # a hosted provider: its docs are read and dated (c7)
+                "docs": "https://fake.invalid/docs",
+                "docs_verified": datetime.now(timezone.utc).date().isoformat()}
     provider.update(kw.pop("provider", {}))
     entry = {"name": "m", "provider": "fake", "model_id": "m",
              "context_length": 32768}
@@ -397,3 +402,61 @@ def test_a_rig_model_with_a_proven_protocol_runs(monkeypatch):
     summary = _run(cfg)
     assert summary["m"]["rows"] == 1
     assert _record()["verdict"] in (conformance.PASS, conformance.WARN)
+
+
+# ------------------------------------------------------- the vendor docs (c7)
+
+def _c7(cfg):
+    prov = providers.get_provider(cfg, "fake")
+    return conformance._c7_docs(cfg, prov)
+
+
+def test_a_hosted_provider_without_docs_warns():
+    """Nobody read the protocol the bench assumes: the row says so."""
+    cfg = _cfg()
+    cfg["providers"]["fake"].pop("docs")
+    c = _c7(cfg)
+    assert c.id == "c7"
+    assert c.status == conformance.WARN
+    assert "docs" in c.detail
+
+
+def test_a_hosted_provider_without_a_verification_date_warns():
+    cfg = _cfg()
+    cfg["providers"]["fake"].pop("docs_verified")
+    c = _c7(cfg)
+    assert c.status == conformance.WARN
+
+
+def test_a_hosted_provider_with_stale_docs_warns():
+    """The review is older than 120 days: read them again."""
+    cfg = _cfg()
+    old = (datetime.now(timezone.utc).date()
+           - timedelta(days=conformance.DOCS_MAX_AGE_DAYS + 1)).isoformat()
+    cfg["providers"]["fake"]["docs_verified"] = old
+    c = _c7(cfg)
+    assert c.status == conformance.WARN
+    assert str(conformance.DOCS_MAX_AGE_DAYS) in c.detail
+
+
+def test_a_hosted_provider_with_fresh_docs_passes():
+    cfg = _cfg()
+    c = _c7(cfg)
+    assert c.status == conformance.PASS
+
+
+def test_a_local_provider_is_not_asked_for_vendor_docs():
+    """A local server has no vendor documentation."""
+    cfg = _cfg(provider={"base_url": "http://127.0.0.1:1234/v1"})
+    cfg["providers"]["fake"].pop("docs")
+    cfg["providers"]["fake"].pop("docs_verified")
+    c = _c7(cfg)
+    assert c.status == conformance.INFO
+
+
+def test_the_docs_check_is_part_of_the_record():
+    """c7 runs with the other checks, so the record always carries it."""
+    cfg = _cfg()
+    conformance.conform(cfg, cfg["models"])
+    rec = _record()
+    assert "c7" in {c["id"] for c in rec["checks"]}

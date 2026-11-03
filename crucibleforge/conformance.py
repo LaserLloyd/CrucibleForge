@@ -38,6 +38,10 @@ Checks (each PASS / WARN / FAIL with a one-line reason):
 - **c6 budget**    -- one medium coding prompt at the board budget: an empty
   answer with ``finish=length`` is a WARN ("needs the escalation rung; see
   Room").
+- **c7 docs**      -- the vendor docs of a HOSTED provider: the registry row
+  says where the protocol was read (``docs``) and when it was last checked
+  (``docs_verified``).  A missing or a stale entry is a WARN: nobody read
+  the protocol the bench assumes.
 
 The result is written to ``results/conformance/<label>.json``::
 
@@ -56,12 +60,14 @@ passed.
 from __future__ import annotations
 
 import copy
+import ipaddress
 import json
 import logging
 import re
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
+from urllib.parse import urlparse
 
 from . import runner
 from .api import ChatResult, RequestRejected, TransportError, WrongModelError
@@ -79,7 +85,10 @@ INFO = "INFO"
 SKIP = "SKIP"
 
 #: the checks, in the order they run
-CHECK_IDS = ("c1", "c2", "c3", "c4", "c5", "c6")
+CHECK_IDS = ("c1", "c2", "c3", "c4", "c5", "c6", "c7")
+
+#: how old a vendor-doc review may be before the check warns (days)
+DOCS_MAX_AGE_DAYS = 120
 
 #: a think-ish marker left in an answer: the harness parsed the reasoning but
 #: did not recognise the dialect, so the tags leaked into the answer.  The
@@ -565,6 +574,57 @@ def _c5_sampler(ctx) -> Check:
     return Check("c5", PASS, detail)
 
 
+def _is_hosted(provider: Provider) -> bool:
+    """True for a provider on a vendor's server (a public API), not a local
+    one: a rig, a box on the LAN, a container alias.  A hosted provider has
+    vendor documentation, so its request protocol has to be read (and the
+    reading dated).
+    """
+    if provider.type in ("studioforge", "lmstudio"):
+        return False
+    host = (urlparse(provider.base_url or "").hostname or "").lower()
+    if not host or host == "localhost":
+        return False
+    try:
+        ipaddress.ip_address(host)
+        return False                      # an address on the LAN is local
+    except ValueError:
+        pass
+    return "." in host
+
+
+def _c7_docs(cfg: dict, provider: Provider) -> Check:
+    """The vendor docs of a hosted provider: the registry row says where the
+    protocol was read and when it was last checked.  This is the "review the
+    vendor docs" step, made visible: a provider row without a dated docs URL
+    means nobody ever read the protocol the bench assumes.
+    """
+    if not _is_hosted(provider):
+        return Check("c7", INFO, f"{provider.name} is not a hosted provider "
+                                 f"- there are no vendor docs to review")
+    row = (cfg.get("providers") or {}).get(provider.name) or {}
+    url = str(row.get("docs") or "").strip()
+    if not url:
+        return Check("c7", WARN, "the provider row carries no docs URL - the "
+                                 "vendor protocol was never reviewed")
+    verified = str(row.get("docs_verified") or "").strip()
+    if not verified:
+        return Check("c7", WARN, f"the docs ({url}) carry no verification "
+                                 f"date - the vendor protocol was never "
+                                 f"reviewed")
+    try:
+        when = datetime.strptime(verified[:10], "%Y-%m-%d").date()
+    except ValueError:
+        return Check("c7", WARN, f"the docs verification date {verified!r} is "
+                                 f"not a YYYY-MM-DD date")
+    age = (datetime.now(timezone.utc).date() - when).days
+    if age > DOCS_MAX_AGE_DAYS:
+        return Check("c7", WARN, f"the docs ({url}) were last verified {age} "
+                                 f"days ago (over {DOCS_MAX_AGE_DAYS}) - "
+                                 f"review them again")
+    return Check("c7", PASS, f"the docs ({url}) were verified on {verified}")
+
+
 def _c6_budget(cfg, ctx) -> Check:
     """One medium coding prompt at the board budget."""
     case_mt = int((cfg.get("_profile_max_tokens") or {}).get("coding", 6144))
@@ -633,6 +693,7 @@ def run_model(cfg: dict, entry: dict, *, allow_load: bool = False,
         ("c4", lambda: _c4_tools(ctx)),
         ("c5", lambda: _c5_sampler(ctx)),
         ("c6", lambda: _c6_budget(cfg, ctx)),
+        ("c7", lambda: _c7_docs(cfg, provider)),
     )
     for cid, fn in checks:
         try:

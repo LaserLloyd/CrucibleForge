@@ -6,6 +6,31 @@ was ever published as Gauntlet, so there is no migration to do — the entries
 below are kept because the engineering they record is real, not to narrate a
 rename.
 
+## 4.0.5 — the conformance gate, the board notes and the protocol stamp (2026-11-03)
+
+(the suite version stays 4.0.1: no case content changed, so no row goes stale)
+
+- **A model is benched only under a request protocol that has been proven for
+  it.** `run` and `bench-all` require a conformance record for the CURRENT
+  fingerprint (provider type, reasoning replay, extra_body keys, sampler);
+  when it is missing or stale the checks run first — for a rig model right
+  after it is loaded, for an API model before the run. A **FAIL** means the
+  model is **not run**: the run summary, the board and the run report name
+  the check that failed (`conformance FAIL: c3`). `--skip-conformance`
+  overrides the gate, and the override is logged.
+- **Every row records the request protocol it was measured under**
+  (`protocol` in the transcript), so a harness fix can tell which rows are
+  stale. A model whose board rows mix fingerprints gets the note *"rows
+  predate harness change <x> — re-run"* (API models), and `report.md` grows a
+  **Conformance** section with each model's verdict and the date it was proven
+  on. The board's Notes column says `conformance FAIL: <check>` or a WARN
+  summary.
+- **The vendor docs of a hosted provider are part of the check** (`c7`): a
+  provider row may carry `docs: <url>` and `docs_verified: YYYY-MM-DD`, and
+  `conform` WARNs when a hosted provider carries neither, or when the review
+  is older than 120 days — the "review the vendor docs" step becomes visible
+  instead of being silently skipped.
+
 ## 4.0.4 — `conform`: prove the request protocol per model (2026-11-02)
 
 (the suite version stays 4.0.1: no case content changed, so no row goes stale)
