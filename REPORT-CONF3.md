@@ -92,22 +92,36 @@ after `adopt_rig_reasoning()`, and the new check `c7`).
   `tests/test_all_judges_survivors.py` monkeypatches `runner.run_models` with
   a lambda that now takes `**kw`.
 - Final suite line (whole suite, `uv run --offline pytest -q -n 4 -o addopts=""
-  --basetemp=.../tmp-conf3`): `5 failed, 1869 passed, 9 skipped, 365 warnings in
-  1682.67s (0:28:02)`
-- All five failures are in the **case-lint** area
-  (`tests/test_simplify_20260923.py`, `tests/test_v3.py`), not in the Part 3
-  code: the lint is static and offline, and its import graph
-  (`api`, `graders`, `judge`, `codebank`, `session_checks`, `config`)
-  pulls in **none** of the five files Part 3 changed (verified by grep). The
-  lint derives the code-bank gold answers by RUNNING snippets in a sandbox
-  (`codebank.derive_gold`), and on this box it hung for >600 s in isolation
-  and reported one code-bank problem while the maintainer's live `bench-all`
-  held the rig and another lane's 6-worker suite ran at the same time. So the
-  failures are contention, not Part 3 — but they were **not** re-verified green
-  on a quiet box here (the Part 3 suites, 29 new tests, pass in isolation).
-  The Part 3 test files pass on their own:
+  --basetemp=.../tmp-conf3`): `1874 passed, 9 skipped, 365 warnings in
+  1562.97s (0:26:02)`
+- The suite was RED before this line and is GREEN now: an earlier run reported
+  `3 failed, 1871 passed, 9 skipped, 365 warnings in 1576.39s (0:26:16)`. The
+  three failures were ONE Part 3 defect, and it was a real regression, not
+  contention: the three tests in `tests/test_simplify_20260923.py` failed with
+  `AttributeError: '_RunProv' object has no attribute 'extra_body'` at
+  `crucibleforge/conformance.py:239`, reached from the Part 3 stamp
+  `crucibleforge/runner.py:1129` (`protocol_stamp` → `protocol_fingerprint`).
+  Part 3 reads two `Provider` fields off the provider the runner holds —
+  `extra_body` and `reasoning_replay` — and that suite's duck-typed `_RunProv`
+  double carried neither, so every test reaching `_run_one_model` through it
+  raised before the first row. It reproduces in 0.35 s in isolation: no rig,
+  no network, no sandbox, no code-bank, so it is not load. The `Provider`
+  dataclass declares both fields with defaults
+  (`crucibleforge/providers.py:115` `extra_body`, `:146` `reasoning_replay`),
+  so real providers were never affected — the double was out of date with the
+  `Provider` contract. FIXED: the double now carries the two fields with the
+  same defaults the dataclass declares.
+- The Part 3 test files pass on their own:
   `tests/test_conformance_gate_20261103.py` + `tests/test_conformance_board_20261103.py`
   + `tests/test_conformance_20261102.py` = 54 passed.
+- A first run of the same command on this box reported `5 errors` instead: a
+  concurrent pytest (a different job, same `--basetemp` path) wiped the
+  basetemp mid-run and deleted the xdist `popen-gw*` dirs, so five tests
+  errored at setup with `FileNotFoundError`. That is an artefact of sharing
+  a `--basetemp` with another run, not a property of this branch. The two
+  tests involved (`tests/test_v3.py::test_openclaw_import_maps_env_keys_and_prices`,
+  `tests/test_v3.py::test_profile_unknown_case_rejected`) pass in isolation
+  (2 passed in 0.17 s) and pass in the runs above.
 
 ## Commits (in order)
 
@@ -140,6 +154,10 @@ after `adopt_rig_reasoning()`, and the new check `c7`).
 6. The `c7` check adds a WARN to every hosted provider whose row has no
    dated docs URL, so the first `conform` on a fresh registry reports a WARN
    (the model still runs — only a FAIL blocks).
-7. The five case-lint failures of the suite run above are contention, not
-   Part 3 (see "Tests"), but they are left unverified on a quiet box: a
-   re-run of the whole suite on an idle machine is still owed.
+7. **The three failures the suite carried before this report are FIXED**
+   (see "Tests"): the Part 3 stamp read `extra_body` and `reasoning_replay`
+   off the provider, and the duck-typed `_RunProv` double in
+   `tests/test_simplify_20260923.py` had neither. The double now carries
+   both with the defaults the `Provider` dataclass declares, and the whole
+   suite is GREEN. The production path was never wrong — `Provider` always
+   has the two fields — so no runtime behaviour changed.
