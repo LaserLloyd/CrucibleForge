@@ -19,9 +19,15 @@ const MAIN = DATA.main;                   // fixed left columns [{key, label, ki
 const EXTRA = DATA.extra;                 // choosable right-hand columns [{key, label, kind, side?, group}]
 const MAIN_BY = {}; MAIN.forEach(c => { MAIN_BY[c.key] = c; });
 const EXTRA_BY = {}; EXTRA.forEach(c => { EXTRA_BY[c.key] = c; });
-// always filterable: every numeric main column but rank and tok/s (legacy:
-// chat, coding, overall; suite 3.9 profile scores: overall then each score)
-const HEAD_FILTERS = MAIN.filter(c => c.kind === 'num' && c.key !== 'rank' && c.key !== 'tok_s').map(c => c.key);
+// every column has its own filter menu (the ▾ in its header); the operators
+// depend on the column's type: a score is a number, a model name is text
+const NUM_OPS = ['lt', 'le', 'gt', 'ge', 'eq', 'ne', 'between', 'empty'];
+const TEXT_OPS = ['contains', 'eq', 'not', 'starts', 'empty'];
+const OP_LABEL = {lt: 'Less than', le: 'Less than or equal', gt: 'Greater than', ge: 'Greater than or equal',
+                  eq: 'Equal to', ne: 'Not equal', between: 'Between', empty: 'Is empty',
+                  contains: 'Contains', not: 'Does not contain', starts: 'Starts with'};
+const OP_LABEL_TEXT = {eq: 'Equals'};               // a text column says "equals", not "equal to"
+const OP_SYM = {lt: '<', le: '≤', gt: '>', ge: '≥', eq: '=', ne: '≠'};
 // component groups ("sides"), in board order: [{key, label}]
 const SIDES = DATA.sides || [{key: 'chat', label: 'Chat'}, {key: 'coding', label: 'Coding'}];
 const SIDE_LABEL = {}; SIDES.forEach(x => { SIDE_LABEL[x.key] = x.label; });
@@ -48,6 +54,8 @@ function defaults() {
 let S = defaults();
 let expanded = new Set();
 let filtersOpen = false, colsOpen = false, dragKey = null;
+let openKey = null;                       // the column whose filter menu is open
+const menuState = {};                     // per column: {op, value, to} — the menu's own state
 
 const $ = id => document.getElementById(id);
 function esc(s) {
@@ -63,11 +71,33 @@ function value(r, k) {
   if (TEXT_COLS.has(k)) return v === null || v === undefined ? '' : String(v).toLowerCase();
   return isNum(v) ? Number(v) : null;
 }
+// every visible column is filterable: the fixed ones (rank, model, scores,
+// tok/s) plus the chosen right-hand ones
 function filterKeys(cols) {
-  return HEAD_FILTERS.concat(cols.filter(k => EXTRA_BY[k] && EXTRA_BY[k].kind === 'num'));
+  return MAIN.map(c => c.key).concat(cols.filter(k => EXTRA_BY[k]));
 }
 
 // ------------------------------------------------------------ saved state
+/** A saved per-column filter → a valid one. The old build wrote a plain
+ *  number (the minimum score): it reads back as "greater than or equal", so
+ *  a layout saved before the menus existed still means the same thing.
+ *  An unknown operator, an unknown column or a broken value is dropped. */
+function sanitizeFilter(k, raw) {
+  const c = colOf(k);
+  if (!c) return null;
+  if (typeof raw === 'number') return (isFinite(raw) && raw >= 0) ? {op: 'ge', value: raw} : null;
+  if (!raw || typeof raw !== 'object' || typeof raw.op !== 'string') return null;
+  const op = raw.op;
+  if (!opList(c).includes(op)) return null;
+  if (op === 'empty') return {op: 'empty'};
+  if (op === 'between') {
+    const a = Number(raw.from), b = Number(raw.to);
+    if (!isFinite(a) || !isFinite(b)) return null;
+    return {op: 'between', from: a, to: b};
+  }
+  if (c.kind === 'num') return (typeof raw.value === 'number' && isFinite(raw.value)) ? {op: op, value: raw.value} : null;
+  return (typeof raw.value === 'string') ? {op: op, value: raw.value.slice(0, 200)} : null;
+}
 /** Whatever came back from storage → a valid state. Unknown columns, filters
  *  on columns that are not shown, and rows that no longer exist are dropped
  *  silently; another `version` means defaults. */
@@ -85,8 +115,9 @@ function sanitize(raw) {
   const fk = filterKeys(d.columns);
   if (raw.filters && typeof raw.filters === 'object') {
     for (const k of Object.keys(raw.filters)) {
-      const v = raw.filters[k];
-      if (fk.includes(k) && typeof v === 'number' && isFinite(v) && v >= 0) d.filters[k] = v;
+      if (!fk.includes(k)) continue;                  // a column that is not shown: dropped
+      const f = sanitizeFilter(k, raw.filters[k]);
+      if (f) d.filters[k] = f;
     }
   }
   if (typeof raw.text === 'string') d.text = raw.text.slice(0, 200);
@@ -138,6 +169,7 @@ function applyState(st) {
   expanded = new Set(st.expanded);
   S = st;
   filtersOpen = Object.keys(S.filters).length > 0;
+  if (openKey) closeMenu(false);
   $('filter').value = S.text;
   $('benched').checked = S.benched;
   renderChips();
@@ -168,9 +200,8 @@ function passes(r) {
     if (!(r.label.toLowerCase().includes(f) || String(r.model_id || '').toLowerCase().includes(f)
           || String(r.provider || '').toLowerCase().includes(f))) return false;
   }
-  for (const k in S.filters) {
-    const v = value(r, k);
-    if (v === null || v < S.filters[k]) return false;
+  for (const k in S.filters) {                     // AND across the columns
+    if (!passesOp(r, k, S.filters[k])) return false;
   }
   return true;
 }
@@ -200,17 +231,20 @@ function detail(r) {
 }
 // Phone card: headline numbers big, every component in two short columns; the
 // bookkeeping sits behind the per-card Details toggle (shares the ▸ set).
+// The cards have no headers, so every number carries its own ▾: the same
+// filter menu as the table header, opened right there.
 function card(r) {
   const open = expanded.has(r.label);
   const cls = (r.tier >= 2 ? ' fail-card' : (r.tier >= 1 ? ' warn-card' : '')) + (r.old ? ' old-card' : '');
   const head = SCORE_COLS.map(c => [c.key, c.label]).map(([k, t]) =>
     '<div class="hl' + (S.sortKey === k ? ' sorted' : '') + '"><span class="hl-lbl">' + t + '</span>' +
-    '<span class="hl-val">' + sval(r, k) + (k === 'overall' ? '' : tierTag(r, k)) + '</span></div>').join('');
+    '<span class="hl-val">' + sval(r, k) + (k === 'overall' ? '' : tierTag(r, k)) + '</span>' + fbtn(k, t) + '</div>').join('');
   const col = s => {
     const items = COMPS.filter(c => c.side === s).map(c => {
       const v = (r.components || {})[c.label];
       return '<div class="chip side-' + s + (S.sortKey === 'c:' + c.label ? ' sorted' : '') + '">' +
-        '<span class="lbl">' + esc(c.label) + '</span><span class="val' + band(v) + '">' + num(v, 0) + '</span></div>';
+        '<span class="lbl">' + esc(c.label) + '</span><span class="val' + band(v) + '">' + num(v, 0) + '</span>' +
+        fbtn('c:' + c.label, c.label) + '</div>';
     }).join('');
     return items ? '<div class="ccol"><h4>' + esc(SIDE_LABEL[s] || s) + '</h4>' + items + '</div>' : '';
   };
@@ -229,6 +263,13 @@ function card(r) {
     (open ? '<div class="card-detail">' + metaGroups(r) + '</div>' : '') +
     '</article>';
 }
+// the ▾ in a header: opens that column's filter menu (the header label keeps
+// its click-to-sort; the two never fight over the same click)
+function fbtn(k, label) {
+  return '<button type="button" class="fbtn' + (k in S.filters ? ' on' : '') + '" data-fbtn="' + esc(k) +
+    '" aria-haspopup="true" aria-expanded="' + (openKey === k) + '" aria-label="Filter ' + esc(label) +
+    '" title="Filter ' + esc(label) + '">▾</button>';
+}
 function th(k) {
   const c = colOf(k);
   const on = S.sortKey === k;
@@ -236,7 +277,7 @@ function th(k) {
   return '<th data-k="' + esc(k) + '" scope="col" tabindex="0" class="' + cls + (k === 'label' ? ' label' : '') + '" aria-sort="' +
     (on ? (S.sortDir === 1 ? 'ascending' : 'descending') : 'none') + '"' +
     (c.side ? ' title="' + esc(SIDE_LABEL[c.side] || c.side) + ' component"' : '') + '>' + esc(c.label) +
-    ' <span class="arrow">' + (on ? (S.sortDir === 1 ? '▲' : '▼') : '⇅') + '</span></th>';
+    ' <span class="arrow">' + (on ? (S.sortDir === 1 ? '▲' : '▼') : '⇅') + '</span>' + fbtn(k, c.label) + '</th>';
 }
 function cell(r, k) {
   const c = EXTRA_BY[k];
@@ -276,6 +317,8 @@ function dirText() {
 function render() {
   const data = rows.filter(passes).sort(compare);
   const ncol = 1 + MAIN.length + S.columns.length;
+  if (openKey && filterKeys(S.columns).indexOf(openKey) < 0) closeMenu(false);   // its column is gone
+  renderFilters();                                   // the column launcher (which column is filtered)
   $('thead').innerHTML = '<tr><th scope="col" class="xcol" aria-label="details"></th>' +
     MAIN.map(c => th(c.key)).join('') + S.columns.map(th).join('') + '</tr>';
   $('tbody').innerHTML = data.map(r => {
@@ -307,7 +350,7 @@ function render() {
   $('colsPanel').classList.toggle('open', colsOpen);
   const ranked = data.filter(r => isNum(r.overall)).length;
   $('count').innerHTML = data.length + ' of ' + rows.length + ' models · ' + ranked + ' ranked' +
-    '<span class="desk-only"> · click a column head (or Enter on it) to sort · ▸ opens points, components, notes and judge</span>';
+    '<span class="desk-only"> · click a column head (or Enter on it) to sort · the ▾ in a head filters that column · ▸ opens points, components, notes and judge</span>';
   syncChips();
   $('clearAll').disabled = !anyFilter();
 }
@@ -357,71 +400,319 @@ function anyFilter() {
 function clearAll() {
   S.text = ''; S.benched = false; S.classes = []; S.leans = []; S.current = false; S.where = ''; S.filters = {};
   $('filter').value = ''; $('benched').checked = false;
-  renderFilters(); render(); save();
+  render(); save();
+  if (openKey) updateActive();
 }
 
-// ------------------------------------------------------------ filters row
-// Rebuilt only when the column set changes (never while typing): Chat, Coding
-// and Overall always, then one per chosen numeric column, in column order.
-// The headline scores are points (Overall /20, the others /10; a ladder pack can pass 10),
-// so their minimum-score steps are points too; components stay on 0-100.
+// ------------------------------------------------------------ column filters
+// Every column carries its own filter menu (the ▾ in its header): sort up /
+// down, the operators for that column's type, the minimum-score presets, a
+// free number and a clear. One filter per column at a time; the filters of
+// different columns compose with AND. The menu is one shared popup, placed
+// next to the trigger that opened it.
 const POINTS = rows.some(r => r.s);
 function stepsFor(k) {
   if (!POINTS || !MAIN_BY[k] || MAIN_BY[k].kind !== 'num') return THRESHOLDS;
   return k === 'overall' ? [8, 10, 12, 14, 16, 18] : [4, 5, 6, 7, 8, 9];
 }
-function filterChip(k) {
+// the presets are score steps: a rank or a token rate has no meaningful ones
+function presetsFor(k) { return (k === 'rank' || k === 'tok_s') ? [] : stepsFor(k); }
+function opList(c) { return c.kind === 'num' ? NUM_OPS : TEXT_OPS; }
+function opName(op, num) { return (!num && OP_LABEL_TEXT[op]) ? OP_LABEL_TEXT[op] : (OP_LABEL[op] || op); }
+function opText(op, num) { return OP_SYM[op] ? OP_SYM[op] + ' ' + opName(op, num) : opName(op, num); }
+/** The value of a row for a column, as the filters see it (text is
+ *  lower-cased, a missing value is null / ''). */
+function filterValue(r, k) {
+  if (k.startsWith('c:')) { const v = (r.components || {})[k.slice(2)]; return isNum(v) ? Number(v) : null; }
   const c = colOf(k);
-  const v = S.filters[k];
-  const steps = stepsFor(k);
-  const custom = isNum(v) && !steps.includes(v);
-  const opts = '<option value="">any</option>' + steps.map(t =>
-    '<option value="' + t + '"' + (v === t ? ' selected' : '') + '>' + (t < 100 || steps !== THRESHOLDS ? '≥' : '') + t + '</option>').join('') +
-    '<option value="custom" disabled' + (custom ? ' selected' : '') + '>custom</option>';
-  return '<div class="comp-filter ' + (c.side ? 'side-' + c.side : 'main') + (k in S.filters ? ' is-active' : '') +
-    '" data-f="' + esc(k) + '" role="group" aria-label="minimum ' + esc(c.label) + '">' +
-    '<span class="lbl">' + esc(c.label) + '</span>' +
-    '<select aria-label="minimum ' + esc(c.label) + '">' + opts + '</select>' +
-    '<span class="ge" aria-hidden="true">≥</span><input type="number" inputmode="decimal" min="0" max="100" step="any" ' +
-    'placeholder="__" value="' + (isNum(v) ? v : '') + '" aria-label="minimum ' + esc(c.label) + ', any number"></div>';
+  if (c && c.kind === 'text') { const v = r[k]; return v === null || v === undefined ? '' : String(v).toLowerCase(); }
+  const v = r[k];
+  return isNum(v) ? Number(v) : null;
 }
-function renderFilters() {
-  $('filtersRow').innerHTML = '<span class="flabel">Minimum score →</span>' +
-    filterKeys(S.columns).map(filterChip).join('') +
-    '<button type="button" data-act="clear" title="Clear every element filter">Clear</button>';
+function passesOp(r, k, f) {
+  if (!f) return true;
+  const v = filterValue(r, k);
+  if (f.op === 'empty') return v === null || v === '';
+  if (v === null || v === '') return false;      // a missing value fails every other operator
+  if (f.op === 'between') return v >= f.from && v <= f.to;
+  if (typeof v === 'number') {
+    switch (f.op) {
+      case 'lt': return v < f.value;
+      case 'le': return v <= f.value;
+      case 'gt': return v > f.value;
+      case 'ge': return v >= f.value;
+      case 'eq': return v === f.value;
+      case 'ne': return v !== f.value;
+    }
+    return false;
+  }
+  const s = String(v), t = String(f.value).toLowerCase();
+  switch (f.op) {
+    case 'contains': return s.includes(t);
+    case 'eq': return s === t;
+    case 'not': return !s.includes(t);
+    case 'starts': return s.startsWith(t);
+  }
+  return true;
 }
-function setFilter(chip, k, n) {
-  if (n === null) delete S.filters[k]; else S.filters[k] = n;
-  if (chip && chip.classList) chip.classList.toggle('is-active', k in S.filters);
+// --- the menu ------------------------------------------------------------
+function menuInit(k) {
+  const c = colOf(k);
+  const f = S.filters[k];
+  const st = {op: (f && f.op) || (c.kind === 'num' ? 'ge' : 'contains'), value: '', to: ''};
+  if (f) {
+    if (f.op === 'between') { st.value = String(f.from); st.to = String(f.to); }
+    else if (f.op !== 'empty') st.value = String(f.value);
+  }
+  menuState[k] = st;
+  return st;
+}
+function activeText(k) {
+  const f = S.filters[k];
+  if (!f) return '';
+  const c = colOf(k);
+  if (f.op === 'empty') return c.label + ' is empty';
+  if (f.op === 'between') return c.label + ' between ' + f.from + ' and ' + f.to;
+  const desc = c.kind === 'num' ? (OP_SYM[f.op] || opName(f.op, true).toLowerCase()) : opName(f.op, false).toLowerCase();
+  return c.label + ' ' + desc + ' ' + (c.kind === 'num' ? f.value : '"' + f.value + '"');
+}
+function menuHTML(k) {
+  const c = colOf(k);
+  const num = c.kind === 'num';
+  const st = menuState[k] || menuInit(k);
+  const dir = S.sortKey === k ? S.sortDir : 0;
+  const item = (act, label, on) => '<button type="button" class="fm-item' + (on ? ' on' : '') +
+    '" role="menuitem" data-act="' + act + '" data-k="' + esc(k) + '">' + esc(label) + '</button>';
+  const opBtn = o => '<button type="button" class="fm-op' + (st.op === o ? ' on' : '') + '" role="menuitemradio"' +
+    ' aria-checked="' + (st.op === o) + '" data-op="' + o + '" data-k="' + esc(k) + '" title="' +
+    esc(opName(o, num)) + '">' + esc(opText(o, num)) + '</button>';
+  const val = (st.value === undefined || st.value === null) ? '' : st.value;
+  const fields = num
+    ? '<label class="fm-field"><span>' + (st.op === 'between' ? 'From' : 'Value') + '</span>' +
+      '<input type="text" inputmode="decimal" data-role="value" data-k="' + esc(k) + '" value="' + esc(val) +
+      '" aria-label="' + esc(opName(st.op, num)) + ' for ' + esc(c.label) + '"></label>' +
+      (st.op === 'between' ? '<label class="fm-field"><span>To</span><input type="text" inputmode="decimal" ' +
+        'data-role="to" data-k="' + esc(k) + '" value="' + esc(st.to) + '" aria-label="upper bound for ' +
+        esc(c.label) + '"></label>' : '')
+    : '<label class="fm-field"><span>Text</span><input type="search" data-role="value" data-k="' + esc(k) +
+      '" value="' + esc(val) + '" aria-label="value for ' + esc(c.label) + '"></label>';
+  const steps = presetsFor(k);
+  const presets = steps.length ? '<div class="fm-presets">' + steps.map(t =>
+      '<button type="button" class="fm-preset" data-preset="' + t + '" data-k="' + esc(k) + '" title="minimum ' +
+      t + '">≥ ' + t + '</button>').join('') + '</div>' : '';
+  return '<div class="fm-head">' + esc(c.label) + '</div>' +
+    item('asc', 'Sort ascending', dir === 1) + item('desc', 'Sort descending', dir === -1) +
+    '<hr class="fm-sep"><div class="fm-ops" role="group" aria-label="' + esc(c.label) + ' operators">' +
+    opList(c).map(opBtn).join('') + '</div>' + fields + presets +
+    '<hr class="fm-sep">' + item('clear', 'Clear filter for this column');
+}
+function updateActive() {
+  const a = $('fmenuActive');
+  const t = openKey ? activeText(openKey) : '';
+  a.textContent = t;
+  a.classList.toggle('has', !!t);
+}
+function renderMenu() {
+  if (!openKey) return;
+  const k = openKey;
+  const act = document.activeElement;
+  let sel = null;
+  if (act && act.getAttribute) {
+    for (const a of ['data-op', 'data-preset', 'data-act']) {
+      const v = act.getAttribute(a);
+      if (v) { sel = '[' + a + '="' + v + '"]'; break; }
+    }
+  }
+  const body = $('fmenuBody');
+  body.innerHTML = menuHTML(k);
+  updateActive();
+  if (sel && body.querySelector) {
+    const b = body.querySelector(sel);
+    if (b && b.focus) b.focus();
+  }
+}
+function menuItems() {
+  const b = $('fmenuBody');
+  return b && b.querySelectorAll ? Array.prototype.slice.call(b.querySelectorAll('button,input')) : [];
+}
+function focusTrigger(k) {
+  if (!document.querySelector) return;
+  const b = document.querySelector('[data-fbtn="' + String(k).replace(/"/g, '') + '"]');
+  if (b && b.focus) b.focus();
+}
+// the trigger says whether its menu is open (the head is re-rendered on every
+// change, so this only matters between two renders)
+function setTrigger(k, expanded, trigger) {
+  const v = String(!!expanded);
+  if (trigger && trigger.setAttribute) trigger.setAttribute('aria-expanded', v);
+  if (!document.querySelectorAll) return;
+  const list = document.querySelectorAll('[data-fbtn="' + String(k).replace(/"/g, '') + '"]');
+  for (let i = 0; i < list.length; i++) {
+    if (list[i] && list[i].setAttribute) list[i].setAttribute('aria-expanded', v);
+  }
+}
+function positionMenu(trigger) {
+  const m = $('fmenu');
+  if (!m.style) return;
+  const r = trigger && trigger.getBoundingClientRect ? trigger.getBoundingClientRect() : null;
+  if (!r) return;
+  const vw = window.innerWidth || 0;
+  const w = m.offsetWidth || 280;
+  const left = vw ? Math.max(6, Math.min(r.left, vw - w - 6)) : Math.max(6, r.left);
+  m.style.left = left + 'px';
+  m.style.top = (r.bottom + 4) + 'px';
+}
+function openMenu(k, trigger) {
+  if (!colOf(k)) return;
+  closeMenu(false);
+  openKey = k;
+  menuInit(k);
+  $('fmenu').classList.add('open');
+  setTrigger(k, true, trigger);
+  renderMenu();
+  positionMenu(trigger);
+  const items = menuItems();
+  if (items.length && items[0].focus) items[0].focus();
+}
+function closeMenu(refocus) {
+  const k = openKey;
+  openKey = null;
+  $('fmenu').classList.remove('open');
+  $('fmenuBody').innerHTML = '';
+  $('fmenuActive').textContent = '';
+  $('fmenuActive').classList.remove('has');
+  if (k) setTrigger(k, false);
+  if (refocus && k) focusTrigger(k);
+}
+function toggleMenu(k, trigger) {
+  if (openKey === k) { closeMenu(true); return; }
+  openMenu(k, trigger);
+}
+// --- applying a filter ---------------------------------------------------
+function makeFilter(k, st) {
+  const c = colOf(k);
+  const raw = String(st.value === undefined || st.value === null ? '' : st.value).trim();
+  if (c.kind === 'num') {
+    const n = Number(raw);
+    if (raw === '' || !isFinite(n)) return null;
+    return {op: st.op, value: n};
+  }
+  if (raw === '') return null;
+  return {op: st.op, value: raw};
+}
+function setFilter(k, f) {
+  if (f) S.filters[k] = f; else delete S.filters[k];
+  render(); save();
+  if (openKey === k) updateActive();
+}
+function clearFilter(k) {
+  if (!k) return;
+  delete S.filters[k];
+  menuInit(k);
   render(); save();
 }
-function onFilterChange(e) {
-  const t = e.target;
-  if (!t || t.tagName !== 'SELECT') return;
-  const chip = t.closest('[data-f]');
-  if (!chip) return;
-  if (t.value === 'custom') return;
-  const n = t.value === '' ? null : Number(t.value);
-  const inp = chip.querySelector('input');
-  if (inp) inp.value = n === null ? '' : String(n);
-  setFilter(chip, chip.dataset.f, n);
+function selectOp(k, op) {
+  if (!k) return;
+  const c = colOf(k);
+  if (!c || !opList(c).includes(op)) return;
+  const st = menuState[k];
+  st.op = op;
+  if (op === 'empty') { setFilter(k, {op: 'empty'}); renderMenu(); return; }
+  if (op === 'between') {
+    const a = Number(st.value), b = Number(st.to);
+    if (String(st.value).trim() !== '' && String(st.to).trim() !== '' && isFinite(a) && isFinite(b))
+      setFilter(k, {op: 'between', from: a, to: b});
+    renderMenu();
+    return;
+  }
+  const f = makeFilter(k, st);
+  if (f) setFilter(k, f);
+  renderMenu();
 }
-function onFilterInput(e) {
-  const t = e.target;
-  if (!t || t.tagName !== 'INPUT') return;
-  const chip = t.closest('[data-f]');
-  if (!chip) return;
-  const raw = String(t.value).trim();
-  const n = raw === '' ? null : Number(raw);
-  if (n !== null && (!isFinite(n) || n < 0)) return;
-  const sel = chip.querySelector('select');
-  if (sel) sel.value = n === null ? '' : (stepsFor(chip.dataset.f).includes(n) ? String(n) : 'custom');
-  setFilter(chip, chip.dataset.f, n);
+function applyPreset(k, t) {
+  if (!k || !isFinite(t)) return;
+  const st = menuState[k];
+  st.op = 'ge'; st.value = String(t); st.to = '';
+  setFilter(k, {op: 'ge', value: t});
+  renderMenu();
 }
-function onFilterClick(e) {
-  if (!e.target.closest('[data-act="clear"]')) return;
-  S.filters = {};
-  renderFilters(); render(); save();
+function onMenuClick(e) {
+  const t = e.target;
+  if (!t || !t.closest) return;
+  const op = t.closest('[data-op]');
+  if (op) { selectOp(openKey, op.dataset.op); return; }
+  const pre = t.closest('[data-preset]');
+  if (pre) { applyPreset(openKey, Number(pre.dataset.preset)); return; }
+  const act = t.closest('[data-act]');
+  if (!act) return;
+  const k = act.dataset.k || openKey;
+  if (act.dataset.act === 'asc') { sortBy(k, 1); closeMenu(true); }
+  else if (act.dataset.act === 'desc') { sortBy(k, -1); closeMenu(true); }
+  else if (act.dataset.act === 'clear') { clearFilter(k); closeMenu(true); }
+}
+function onMenuInput(e) {
+  const t = e.target;
+  if (!t || !t.dataset || !t.dataset.role) return;
+  const k = openKey;
+  if (!k) return;
+  const st = menuState[k];
+  if (t.dataset.role === 'to') st.to = t.value; else st.value = t.value;
+  if (st.op === 'between') {
+    const a = Number(st.value), b = Number(st.to);
+    if (String(st.value).trim() !== '' && String(st.to).trim() !== '' && isFinite(a) && isFinite(b))
+      setFilter(k, {op: 'between', from: a, to: b});
+    return;
+  }
+  if (st.op === 'empty') return;
+  if (String(t.value).trim() === '') { setFilter(k, null); return; }
+  const f = makeFilter(k, st);
+  if (f) setFilter(k, f);
+}
+function onMenuKey(e) {
+  if (!e || !e.key) return;
+  if (e.key === 'Escape') { closeMenu(true); if (e.preventDefault) e.preventDefault(); return; }
+  if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp' && e.key !== 'Home' && e.key !== 'End') return;
+  const items = menuItems();
+  if (!items.length) return;
+  const cur = items.indexOf(document.activeElement);
+  let i = 0;
+  if (e.key === 'ArrowDown') i = (cur + 1) % items.length;
+  else if (e.key === 'ArrowUp') i = cur <= 0 ? items.length - 1 : cur - 1;
+  else if (e.key === 'Home') i = 0;
+  else i = items.length - 1;
+  if (items[i] && items[i].focus) items[i].focus();
+  if (e.preventDefault) e.preventDefault();
+}
+function onDocClick(e) {
+  if (!openKey) return;
+  const t = e.target;
+  if (!t || !t.closest) return;
+  if (t.closest('#fmenu') || t.closest('[data-fbtn]')) return;
+  closeMenu(false);
+}
+// --- the filters row ------------------------------------------------------
+// The old row of per-column minimums now lives in the header menus. The row
+// stays as the launcher: one button per column, each opening its own menu
+// (on the phone the cards have no headers, so this is the way in).
+function renderFilters() {
+  $('filtersRow').innerHTML = '<span class="flabel">Filter a column →</span>' +
+    filterKeys(S.columns).map(k => {
+      const c = colOf(k);
+      return '<button type="button" class="col-fbtn' + (k in S.filters ? ' on' : '') + '" data-fbtn="' + esc(k) +
+        '" aria-haspopup="true" aria-expanded="' + (openKey === k) + '" aria-label="Filter ' + esc(c.label) + '">' +
+        esc(c.label) + ' <span class="sym" aria-hidden="true">▾</span></button>';
+    }).join('') +
+    '<button type="button" data-act="clear" title="Clear every column filter">Clear</button>';
+}
+function onFiltersRowClick(e) {
+  const t = e.target;
+  if (!t || !t.closest) return;
+  const b = t.closest('[data-fbtn]');
+  if (b) { toggleMenu(b.dataset.fbtn, b); return; }
+  if (t.closest('[data-act="clear"]')) {
+    S.filters = {};
+    render(); save();
+  }
 }
 
 // ------------------------------------------------------------ column chooser
@@ -443,7 +734,7 @@ function renderChooser() {
       (!on || i === n - 1 ? ' disabled' : '') + '>↓</button></li>';
   }).join('');
 }
-function columnsChanged() { renderChooser(); renderFilters(); render(); save(); }
+function columnsChanged() { renderChooser(); render(); save(); }
 function setColumn(k, on) {
   if (!EXTRA_BY[k]) return;
   const has = S.columns.includes(k);
@@ -498,13 +789,19 @@ function onDragEnd() { dragKey = null; renderChooser(); }
 
 // ------------------------------------------------------------ wiring
 function defaultDir(k) { return (k === 'rank' || TEXT_COLS.has(k)) ? 1 : -1; }
-function sortBy(k) {
+/** Sort by a column. Without `dir` it toggles (the header label); the menu's
+ *  "Sort ascending" / "Sort descending" pass the direction explicitly. */
+function sortBy(k, dir) {
   if (!colOf(k)) return;
-  if (S.sortKey === k) S.sortDir = -S.sortDir;
-  else { S.sortKey = k; S.sortDir = defaultDir(k); }
+  if (dir === undefined) {
+    if (S.sortKey === k) S.sortDir = -S.sortDir;
+    else { S.sortKey = k; S.sortDir = defaultDir(k); }
+  } else { S.sortKey = k; S.sortDir = dir === 1 ? 1 : -1; }
   render(); save();
 }
 function onListClick(e) {
+  const b = e.target && e.target.closest ? e.target.closest('[data-fbtn]') : null;
+  if (b) { toggleMenu(b.dataset.fbtn, b); return; }
   const t = e.target.closest('[data-toggle]');
   if (t) {
     const l = t.dataset.toggle;
@@ -515,7 +812,12 @@ function onListClick(e) {
   const c = e.target.closest('[data-sort]');
   if (c) sortBy(c.dataset.sort);
 }
-function onHeadClick(e) { const h = e.target.closest('th[data-k]'); if (h) sortBy(h.dataset.k); }
+function onHeadClick(e) {
+  const b = e.target && e.target.closest ? e.target.closest('[data-fbtn]') : null;
+  if (b) { toggleMenu(b.dataset.fbtn, b); return; }     // the ▾ opens the menu, it does not sort
+  const h = e.target.closest('th[data-k]');
+  if (h) sortBy(h.dataset.k);
+}
 function setView(v) { S.view = v; render(); save(); }
 function resetLayout() {
   applyState(defaults());
@@ -537,9 +839,12 @@ function init() {
   $('colsDone').addEventListener('click', () => { colsOpen = false; render(); });
   $('resetLayout').addEventListener('click', resetLayout);
   const fr = $('filtersRow');
-  fr.addEventListener('change', onFilterChange);
-  fr.addEventListener('input', onFilterInput);
-  fr.addEventListener('click', onFilterClick);
+  fr.addEventListener('click', onFiltersRowClick);
+  const menu = $('fmenu');
+  menu.addEventListener('click', onMenuClick);
+  menu.addEventListener('input', onMenuInput);
+  menu.addEventListener('keydown', onMenuKey);
+  document.addEventListener('click', onDocClick);      // click outside the menu: it closes
   const cl = $('colsList');
   cl.addEventListener('change', onColsChange);
   cl.addEventListener('click', onColsClick);
@@ -549,6 +854,8 @@ function init() {
   cl.addEventListener('dragend', onDragEnd);
   $('thead').addEventListener('click', onHeadClick);
   $('thead').addEventListener('keydown', e => {                 // sortable by keyboard: Enter / Space on a head
+    const t = e.target;
+    if (t && t.closest && t.closest('[data-fbtn]')) return;     // the ▾ handles its own keys
     if (e.key !== 'Enter' && e.key !== ' ') return;
     const h = e.target && e.target.closest ? e.target.closest('th[data-k]') : null;
     if (!h) return;
