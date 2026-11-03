@@ -1268,6 +1268,15 @@ def _run_one_model(cfg, entry, cases, csvw: _Csv, smoke,
         base_row = base_row_for(case, repeat, seed, temperature, top_p, max_tokens, rid)
 
         need_ctx = int(case.get("min_context") or 0)
+        # a code-bank row is sent its WHOLE fixed budget (bank_budget), so it
+        # needs the budget plus the escalation pad of context (the load floor,
+        # bank_context): on a narrower window the budget would be clamped down
+        # and the row could still "pass" — skip it (n/a) like every other
+        # over-budget row instead
+        if case.get("category") in BANK_CATEGORIES:
+            b = fixed_budget(cfg, case)
+            if b:
+                need_ctx = max(need_ctx, int(b) + ESCALATION_CTX_PAD)
         if need_ctx and ctx_len and need_ctx > int(ctx_len):
             row = {**base_row, "run_id": str(uuid.uuid4())[:8], "turn": None,
                    "prompt": case.get("prompt", "")[:200], "response": "",
