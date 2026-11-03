@@ -39,20 +39,43 @@ h1{font-size:16px;margin:0 0 4px 0;font-weight:600;}
 .col-item .cg{color:var(--muted);font-size:10px;}
 .col-item button{padding:1px 7px;}
 .col-item button:disabled{opacity:.3;cursor:default;}
-/* "Filter by element →": Chat / Coding / Overall + one per chosen numeric column; always visible on desktop */
+/* "Filter by element →": the per-column minimums live in the header menus
+   now (the ▾ in a head); this row is the launcher that lists every column. */
 .filters-row{display:none;gap:6px;flex-wrap:wrap;justify-content:flex-start;align-items:center;padding-top:6px;border-top:1px dashed var(--border);}
 .filters-row .flabel{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-right:6px;}
-.filters-row .comp-filter{display:inline-flex;align-items:center;gap:4px;font-size:11px;color:var(--muted);border:1px solid var(--border);border-radius:6px;padding:3px 6px;}
-.filters-row .comp-filter.main{background:var(--soft);}
-.filters-row .comp-filter.side-chat{background:var(--chat);}
-.filters-row .comp-filter.side-coding{background:var(--coding);}
-.filters-row .comp-filter.is-active{border-color:var(--accent);color:var(--fg);}
-.filters-row .comp-filter select{background:var(--bg);color:var(--fg);border:0;font-size:11px;cursor:pointer;padding:0 2px;}
-.filters-row .comp-filter .lbl{font-weight:600;}
-.filters-row .comp-filter .ge{opacity:.7;}
-.filters-row .comp-filter input{width:48px;background:var(--bg);color:var(--fg);border:1px solid var(--border);border-radius:4px;font-size:11px;padding:1px 4px;}
-.filters-row .comp-filter input::placeholder{color:var(--muted);}
+.filters-row .col-fbtn{background:var(--row);color:var(--fg);border:1px solid var(--border);border-radius:6px;padding:3px 10px;font-size:12px;cursor:pointer;font-family:inherit;}
+.filters-row .col-fbtn:hover{border-color:var(--accent);}
+.filters-row .col-fbtn.on{border-color:var(--accent);color:var(--accent);}
+.filters-row .col-fbtn .sym{opacity:.6;}
 .filters-row button{font-size:11px;padding:3px 8px;}
+/* the ▾ in a header: opens that column's filter menu */
+th .fbtn{background:transparent;border:0;color:var(--muted);font-size:11px;line-height:1;padding:2px 3px;margin-left:2px;cursor:pointer;border-radius:4px;vertical-align:middle;font-family:inherit;}
+th .fbtn:hover,th .fbtn:focus-visible{color:var(--accent);background:var(--soft);}
+th .fbtn.on{color:var(--accent);font-weight:700;}
+/* the column filter menu: one shared popup, placed next to its trigger */
+.fmenu{position:fixed;z-index:60;display:none;min-width:268px;max-width:min(340px,calc(100vw - 24px));background:var(--row);color:var(--fg);border:1px solid var(--border);border-radius:10px;box-shadow:0 12px 32px rgba(0,0,0,.45);padding:6px;font-size:13px;}
+.fmenu.open{display:block;}
+.fm-head{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;padding:4px 8px 6px;margin-bottom:2px;border-bottom:1px solid var(--border);}
+.fm-item{display:block;width:100%;text-align:left;background:transparent;color:var(--fg);border:0;border-radius:6px;padding:6px 8px;font-size:13px;cursor:pointer;font-family:inherit;}
+.fm-item:hover,.fm-item:focus-visible{background:var(--soft);}
+.fm-item.on{color:var(--accent);}
+.fm-sep{border:0;border-top:1px solid var(--border);margin:5px 2px;}
+.fm-ops{display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:2px 4px;}
+.fm-op{background:var(--bg);color:var(--fg);border:1px solid var(--border);border-radius:6px;padding:5px 8px;font-size:12px;cursor:pointer;font-family:inherit;text-align:left;}
+.fm-op:hover{border-color:var(--accent);}
+.fm-op.on{border-color:var(--accent);color:var(--accent);font-weight:600;background:var(--soft);}
+.fm-field{display:flex;align-items:center;gap:8px;padding:4px 8px;font-size:12px;color:var(--muted);}
+.fm-field span{flex:none;width:42px;}
+.fm-field input{flex:1;min-width:0;background:var(--bg);color:var(--fg);border:1px solid var(--border);border-radius:6px;padding:5px 8px;font-size:13px;font-family:inherit;}
+.fm-presets{display:flex;flex-wrap:wrap;gap:4px;padding:2px 8px 6px;}
+.fm-preset{background:var(--bg);color:var(--fg);border:1px solid var(--border);border-radius:999px;padding:2px 10px;font-size:11px;cursor:pointer;font-family:inherit;}
+.fm-preset:hover{border-color:var(--accent);}
+.fm-active{display:none;padding:6px 8px 4px;font-size:12px;color:var(--accent);}
+.fm-active.has{display:block;}
+/* the card's own filter entry point (the phone cards have no headers) */
+.hl{position:relative;}
+.hl .fbtn{position:absolute;top:0;right:0;}
+.chip .fbtn{margin-left:2px;}
 .wrap{flex:none;max-height:72vh;overflow:auto;padding:0 16px;}
 table{border-collapse:separate;border-spacing:0;font-size:13px;min-width:100%;}
 thead th{position:sticky;top:0;z-index:10;}
@@ -146,14 +169,20 @@ body[data-view=cards] .wrap{display:none;}
 .toolbar #clearAll{min-height:44px;font-size:15px;border-radius:8px;flex:1 1 auto;}
 .toolbar label{font-size:14px;min-height:44px;padding:0 4px;}
 .toolbar label input{width:20px;height:20px;}
-/* element filters: collapsed behind "Filters (n)"; open = stacked full width */
+/* column filters: collapsed behind "Filters (n)"; open = stacked full width */
 .filters-row{display:none;border-top:0;padding-top:0;}
 .filters-row.open{display:flex;flex-direction:column;align-items:stretch;gap:6px;margin-top:4px;}
-.filters-row .comp-filter{display:flex;justify-content:space-between;min-height:44px;font-size:15px;padding:0 4px 0 12px;border-radius:8px;}
-.filters-row .comp-filter select{font-size:16px;min-height:40px;min-width:38%;margin-left:auto;border-radius:6px;padding:0 8px;border:1px solid var(--border);}
-.filters-row .comp-filter input{font-size:16px;min-height:40px;width:72px;border-radius:6px;}
-.filters-row .comp-filter .ge{font-size:15px;}
+.filters-row .col-fbtn{display:flex;justify-content:space-between;align-items:center;min-height:44px;font-size:15px;padding:0 12px;border-radius:8px;}
 .filters-row button{min-height:44px;font-size:15px;border-radius:8px;}
+/* the filter menu and the ▾ triggers need real tap targets */
+.fmenu{max-width:calc(100vw - 24px);}
+.fm-item{font-size:15px;padding:9px 8px;}
+.fm-op,.fm-preset{font-size:14px;min-height:40px;padding:8px 10px;}
+.fm-field{font-size:14px;}
+.fm-field input{font-size:16px;min-height:40px;}
+th .fbtn{font-size:15px;padding:6px 7px;}
+.hl .fbtn{font-size:13px;padding:3px;}
+.chip .fbtn{font-size:12px;padding:3px 2px;}
 .meta#count{margin:8px 0 0;font-size:14px;}
 /* cards (the Cards view) */
 body[data-view=cards] .cards{display:flex;}
@@ -204,11 +233,9 @@ footer p{font-size:13px;}
 /* suite 3.9 headline: S with the integer part as the main number */
 .sv .s-main{font-size:1.2em;font-weight:700}
 .sv .pm{opacity:.7;font-size:.85em;font-weight:400}
-.filters-row .comp-filter.side-nsfw{background:rgba(210,153,34,.08);}
 th.side-nsfw{box-shadow:inset 0 -3px 0 var(--warn);}
 td.side-nsfw{background:rgba(210,153,34,.08);}
 .chip.side-nsfw{background:rgba(210,153,34,.08);box-shadow:inset 3px 0 0 var(--warn);}
-.filters-row .comp-filter.side-work{background:var(--coding);}
 th.side-work{box-shadow:inset 0 -3px 0 var(--ok);}
 td.side-work{background:var(--coding);}
 .chip.side-work{background:var(--coding);box-shadow:inset 3px 0 0 var(--ok);}

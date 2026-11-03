@@ -8,15 +8,19 @@ module bakes them into a self-contained page: inline CSS + JS, the rows as a
 The design is the element-filter board the maintainer approved on 2026-09-20/22,
 revised 2026-09-26 ("make it a table, expandable rows, sortable by element;
 main = Chat, Coding, Overall, tok/s; customizable columns on the far right;
-save my layout; filtering back"): fixed columns ``# · Model · Chat · Coding ·
-Overall · tok/s``, then the viewer's chosen columns (⚙ Columns: every
-component, Run date, Notes, Judge, Coverage, Provider; default = the
-components in scoring order), click-to-sort on every column, a text filter, a
-"benched only" toggle, a "Filter by element →" row (≥ steps + a free number,
-for Chat/Coding/Overall and every chosen numeric column), and a per-row ▸
-expander (every component, Notes, Run date, judge). The layout is saved per
-viewer — through DisPatch's tool-state bridge when framed, else localStorage.
-At <= 720 px the phone gets Table | Cards (Table by default). See README.md.
+save my layout; filtering back") and again on 2026-11-03 ("for each header,
+add a on click filter option, and move the filters in there"): fixed columns
+``# · Model · Chat · Coding · Overall · tok/s``, then the viewer's chosen
+columns (⚙ Columns: every component, Run date, Notes, Judge, Coverage,
+Provider; default = the components in scoring order), click-to-sort on every
+column, a text filter, a "benched only" toggle, and a **filter menu per
+header** (the ▾ in a head: sort up/down, the operators for that column's
+type, the minimum-score presets + a free number, a clear and the active
+filter). A per-row ▸ expander (every component, Notes, Run date, judge). The
+layout is saved per viewer — through DisPatch's tool-state bridge when
+framed, else localStorage. At <= 720 px the phone gets Table | Cards (Table
+by default); the cards have no headers, so every number on a card carries its
+own ▾. See README.md.
 
 The page is served by DisPatch in a sandboxed frame, so it must carry no
 IPs, URLs or hostnames: every string is passed through :func:`scrub`.
@@ -159,9 +163,9 @@ def render_html(rows: list[dict], subtitle: str = "",
     page, :class:`ValueError` is raised instead of returning it (fail closed).
     ``None`` = the operator's own board, rendered as is.
 
-    The table head, the filter row and the column chooser are built by
-    ``script.js`` from the viewer's saved layout; this page only carries the
-    chrome and the data."""
+    The table head, the filter menus, the column launcher row and the column
+    chooser are built by ``script.js`` from the viewer's saved layout; this
+    page only carries the chrome and the data."""
     rows = scrub(rows)
     comps = scrub(_components(rows, components))
     if forbidden:
@@ -221,6 +225,10 @@ def render_html(rows: list[dict], subtitle: str = "",
         '<div class="filters-row" id="filtersRow"></div>'
         f'<div class="meta" id="count">{len(rows)} models</div>'
         "</header>"
+        '<div class="fmenu" id="fmenu" role="menu" aria-label="column filter">'
+        '<div class="fm-body" id="fmenuBody"></div>'
+        '<div class="fm-active" id="fmenuActive"></div>'
+        '</div>'
         '<div class="wrap"><table><thead id="thead"></thead><tbody id="tbody"></tbody></table></div>'
         '<div class="cards" id="cards"></div>'
         f"{below}"

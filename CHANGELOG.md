@@ -6,6 +6,28 @@ was ever published as Gauntlet, so there is no migration to do — the entries
 below are kept because the engineering they record is real, not to narrate a
 rename.
 
+## Unreleased (2026-11-03)
+
+- **The board filters per column, from the column head.** Every header now
+  carries a small ▾ next to its label (the label itself still click-to-sorts);
+  the ▾ opens that column's own filter menu: **Sort ascending / Sort
+  descending**, the operators for that column's type, the minimum-score
+  presets (`≥ 10 … ≥ 100`; point-sized for the headline scores) with a free
+  number box, **Clear filter for this column** and — when a filter is on — the
+  active filter in words (`Overall > 15`). Numeric columns get
+  `< ≤ > ≥ = ≠ between (two bounds) is empty`; text columns (model, date,
+  suite, provider, notes, judge…) get
+  `contains / equals / does not contain / starts with / is empty`. One filter
+  per column at a time, and the filters of different columns compose with
+  AND. The old "Filter by element →" row of per-column minimums moved into
+  these menus; the row under the toolbar is now the launcher that lists every
+  column (the phone's way in — the cards have no headers, so every number on
+  a card carries its own ▾). The menus are keyboard-first: Enter/Space opens,
+  arrows walk, Escape closes and gives the focus back to the ▾.
+  The saved layout keeps the old format working (a bare number reads back as
+  "≥ that number"), so nobody loses a saved board and the state version did
+  not move.
+
 ## 4.0.5 — the conformance gate, the board notes and the protocol stamp (2026-11-03)
 
 (the suite version stays 4.0.1: no case content changed, so no row goes stale)

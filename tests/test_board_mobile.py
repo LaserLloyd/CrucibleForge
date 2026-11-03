@@ -118,7 +118,7 @@ def test_one_state_drives_cards_and_table():
     assert "hl-val" in html_cards and "chip side-coding" in html_cards
     # back to Table; the whole view is saved
     assert out["view"] == "table"
-    assert out["saved"]["view"] == "table" and out["saved"]["filters"] == {"c:Programs": 50}
+    assert out["saved"]["view"] == "table" and out["saved"]["filters"] == {"c:Programs": {"op": "ge", "value": 50}}
     assert out["saved"]["expanded"] == ["m1"] and out["saved"]["sortKey"] == "tok_s"
 
 
@@ -130,3 +130,25 @@ def test_filters_disclosure_starts_open_when_a_saved_filter_is_active():
       out.open = el('filtersRow').cls.has('open'); out.btn = el('filtersBtn').textContent;
     """, store={"crucibleforge-board-layout": json.dumps(st)})
     assert out["open"] is True and out["btn"] == "▾ Filters (1)"
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="node not installed")
+def test_the_phone_cards_filter_the_same_way_and_carry_their_own_entry_point():
+    """The cards have no headers, so every number on a card has its own ▾ and
+    the Filters disclosure lists every column: the phone reaches the same
+    per-column filters as the table."""
+    out = run_board(render_html(_rows(), "sub", components=COMPS), r"""
+      el('viewCards').fire('click');
+      out.triggers = (el('cards').innerHTML.match(/data-fbtn=/g) || []).length;
+      out.row = filterRow();
+      el('cards').fire('click', {target: {closest: s => (s === '[data-fbtn]' ? {dataset: {fbtn: 'coding'}} : null)}});
+      out.menu = menuOpen(); out.html = menuHtml();
+      menuClick('[data-op]', {op: 'gt'}); menuInput('value', 25);
+      out.cards = cardOrder(); out.table = order();
+      out.btn = el('filtersBtn').textContent;
+    """)
+    assert out["triggers"] >= 5                              # a ▾ on every score of every card
+    assert "coding" in out["row"] and "c:Programs" in out["row"]   # the launcher lists the columns
+    assert out["menu"] is True and "Greater than" in out["html"]
+    assert out["cards"] == out["table"] == "m0,m1"           # coding 50 and 80 pass, 20 does not
+    assert out["btn"].endswith("Filters (1)")
