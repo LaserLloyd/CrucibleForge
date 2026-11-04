@@ -687,6 +687,10 @@ function onDocClick(e) {
   if (!openKey) return;
   const t = e.target;
   if (!t || !t.closest) return;
+  // A click inside the menu re-renders it (renderMenu) before this bubbles up,
+  // so the clicked button is already detached and closest('#fmenu') misses:
+  // without this, picking an operator or a preset closed the menu.
+  if (t.isConnected === false) return;
   if (t.closest('#fmenu') || t.closest('[data-fbtn]')) return;
   closeMenu(false);
 }

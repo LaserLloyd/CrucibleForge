@@ -87,7 +87,9 @@ global.window = {
   },
 };
 window.parent = OPT.framed ? parentWin : window;
-const document = {readyState: 'complete', getElementById: el, body, addEventListener() {},
+const docListeners = {};
+const document = {readyState: 'complete', getElementById: el, body,
+  addEventListener(t, f) { (docListeners[t] = docListeners[t] || []).push(f); },
   querySelectorAll: sel => { const m = /\[data-fbtn="([^"]+)"\]/.exec(sel); return (m && trigs[m[1]]) ? [trigs[m[1]]] : []; },
   querySelector: sel => { const l = document.querySelectorAll(sel); return l.length ? l[0] : null; }};
 global.document = document;
@@ -123,8 +125,12 @@ function openMenu(k) {
   return t;
 }
 function menuClick(sel, ds) {
-  el('fmenu').fire('click', {target: {dataset: ds || {},
-    closest: s => (s === sel ? {dataset: ds || {}} : null)}});
+  // the browser order: the menu's own handler runs (and re-renders the menu,
+  // detaching the clicked button), then the click bubbles to the document
+  const target = {dataset: ds || {}, isConnected: false,
+    closest: s => (s === sel ? {dataset: ds || {}} : null)};
+  el('fmenu').fire('click', {target});
+  (docListeners.click || []).forEach(f => f({target}));
 }
 function menuInput(role, val) {
   el('fmenu').fire('input', {target: {dataset: {role}, value: String(val)}});
@@ -513,6 +519,25 @@ def test_the_menu_offers_the_operators_of_the_column_type():
         assert op in txt, op
     assert "Less than" not in txt and "Between" not in txt
     assert "Contains" in out["text2"]                            # Run date is text too
+
+
+@needs_node
+def test_picking_an_operator_or_preset_keeps_the_menu_open():
+    # 2026-11-04: the re-render detached the clicked button, the document's
+    # click-outside handler missed #fmenu and closed the menu, so an operator
+    # click was lost (reopening fell back to >=).
+    out = run_board(board(), r"""
+      openMenu('coding'); menuClick('[data-op]', {op: 'lt'});
+      out.afterOp = menuOpen(); out.opOn = menuHtml().includes('data-op="lt"') && /fm-op on[^>]*data-op="lt"/.test(menuHtml());
+      menuInput('value', 60); out.rows = order(); out.active = activeLine();
+      menuClick('[data-preset]', {preset: '5'}); out.afterPreset = menuOpen();
+      (docListeners.click || []).forEach(f => f({target: {isConnected: true, closest: () => null}}));
+      out.outside = menuOpen();
+    """)
+    assert out["afterOp"] is True and out["opOn"] is True
+    assert out["rows"] == "m0,m2" and out["active"].startswith("Coding <")
+    assert out["afterPreset"] is True
+    assert out["outside"] is False    # a real click outside still closes it
 
 
 @needs_node
