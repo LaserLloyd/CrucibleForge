@@ -62,6 +62,82 @@ sub-score worth 10, `include_in: none`, private. That is how an existing private
 overlay predates `custom:` (its weight under `scoring.chat`) is wired: the overlay stays as it is,
 the test is its own column, and it never counts in NSFW, Chat or Overall.
 
+### Keeping a custom test local-only
+
+A private custom test is meant to live on one machine: scored on your own board, never in
+the repository, never on a board you publish. Everything below holds for any private test.
+
+**Layout (all git-ignored).**
+
+| Path | What |
+|---|---|
+| `cases/private/<category>.json` | the cases (a category is private because its file lives here) |
+| `cases/private/ladder/...` | private ladder packs, if any |
+| `cases/private/README.md` | your own notes on the test (any non-`.json` file here is ignored by the loader) |
+| `profiles/bench.private.yaml` | the overlay: `private:`, `cases:`, `labels:`, `custom:`, budgets |
+| `profiles/private/<name>.yaml` | whole private profiles |
+| `scripts/scrub-rules.local.txt` | extra words (regexes) the privacy scanner must refuse |
+
+**How it is loaded.** At runtime only, and only when the files are there:
+`config.PRIVATE_CATEGORIES` is the list of `.json` stems in `cases/private/`, and
+`profiles.load_profile` merges `<name>.private.yaml` over `<name>.yaml`. With the layer absent
+(a fresh clone, or `CRUCIBLEFORGE_NO_PRIVATE=1`) the test does not exist: no category, no
+column, no empty score, no error. The suite revision never includes `cases/private/`, so
+adding, editing or removing a private test never relabels public rows stale, and moving the
+layer away and back changes nothing on the board.
+
+**How it stays out of git.** `.gitignore` covers every path above, and
+`scripts/scrub_check.py` (run by the `pre-commit`, `commit-msg` and `pre-push` hooks from
+`sh scripts/install-hooks.sh`) refuses two things:
+
+- any file under a private path, even one forced in with `git add -f`;
+- any NAME the layer defines, in any tracked file or commit message: each private case file's
+  stem, every case id in it, and the overlays' `private:` entries, `labels:` and `custom:`
+  keys and labels. These are derived from the layer on every run (nothing to maintain), and
+  a hit is reported by file and line with the matched text redacted. Words the public suite
+  uses itself are never banned. Add any other word (a display name you use in notes, a
+  nickname) to `scripts/scrub-rules.local.txt`.
+
+Keep examples in tracked docs and tests generic (`my-cat`, `MC1-first`): a real private
+label in a docstring is exactly what the scanner now refuses.
+
+**How it stays off the public board.** `crucibleforge report` (your board) shows the test;
+`crucibleforge report --public` drops its rows, cases, weights and labels *before* scoring
+and re-checks every file it writes for every private name (one hit = nothing written,
+exit 3). Build anything you publish from the `--public` output only, never from
+`results/report.*`.
+
+**Updating the repo safely.** Git never touches ignored files on `git pull`, `git merge`,
+`git rebase`, `git checkout`/`git switch` or a plain `git stash`. These DO destroy the layer:
+
+- `git clean -x` / `git clean -X` / `git clean -fdx` (use `git clean -fd`, which keeps ignored
+  files, or `git clean -n` first);
+- `git stash --all` (`-a`) followed by a lost or dropped stash;
+- deleting the checkout or re-cloning instead of pulling.
+
+**Backups.** `scripts/private_layer.py` snapshots the layer:
+
+```bash
+python3 scripts/private_layer.py status             # files + sha256, and whether the newest backup matches
+python3 scripts/private_layer.py backup             # timestamped .tar.gz (dir 0700, files 0600, newest 20 kept)
+python3 scripts/private_layer.py list
+python3 scripts/private_layer.py restore latest     # dry run: what is missing or different
+python3 scripts/private_layer.py restore latest --go  # backs up the current layer first, then writes back
+```
+
+Backups go to `$CRUCIBLEFORGE_PRIVATE_BACKUP_DIR` (default
+`~/Documents/Backups/crucibleforge-private`). Results (`results/`) are not part of the layer.
+To back up automatically, enable it for your clone (local git config, never shipped):
+
+```bash
+git config crucibleforge.privateBackup true
+sh scripts/install-hooks.sh            # adds post-checkout / post-merge
+```
+
+Then every commit snapshots the layer when it changed, and every checkout or merge warns if a
+file the newest backup holds has gone missing (with the restore command). Before anything
+risky, run `backup` by hand.
+
 ---
 
 ## 2. Ladder packs (harder questions)

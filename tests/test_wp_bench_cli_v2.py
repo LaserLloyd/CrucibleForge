@@ -476,11 +476,23 @@ def test_local_env_file_sets_defaults_only(tmp_path, monkeypatch):
     monkeypatch.delenv("CRUCIBLEFORGE_ENV_FILE", raising=False)
     monkeypatch.delenv("STUDIOFORGE_MCP_PIN", raising=False)
     monkeypatch.setenv("CRUCIBLEFORGE_RUN_ID", "from-env")
+    monkeypatch.delenv("CRUCIBLEFORGE_NO_PRIVATE", raising=False)   # an operator's shell
     applied = cli._load_local_env(p)
     assert applied == {"CRUCIBLEFORGE_V2_RUNS_ROOT": "~/runs", "CRUCIBLEFORGE_ENV_FILE": "/etc/x.env"}
     assert os.environ["CRUCIBLEFORGE_RUN_ID"] == "from-env"      # the real env wins
     assert "STUDIOFORGE_MCP_PIN" not in os.environ               # only CRUCIBLEFORGE_* keys
     assert cli._load_local_env(tmp_path / "missing.env") == {}
+
+
+def test_clean_clone_mode_ignores_the_local_env_file(tmp_path, monkeypatch):
+    """CRUCIBLEFORGE_NO_PRIVATE=1 (the suite) never inherits operator-local
+    defaults such as a live run-report root."""
+    p = tmp_path / "crucibleforge.local.env"
+    p.write_text("CRUCIBLEFORGE_V2_RUNS_ROOT=/somewhere/live\n", encoding="utf-8")
+    monkeypatch.delenv("CRUCIBLEFORGE_V2_RUNS_ROOT", raising=False)
+    monkeypatch.setenv("CRUCIBLEFORGE_NO_PRIVATE", "1")
+    assert cli._load_local_env(p) == {}
+    assert "CRUCIBLEFORGE_V2_RUNS_ROOT" not in os.environ
 
 
 def test_v2_report_resolves_a_label_registered_mid_run(tmp_path, monkeypatch):

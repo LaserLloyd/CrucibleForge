@@ -30,7 +30,7 @@ hooks_dir=$(git rev-parse --git-path hooks)
 mkdir -p "$hooks_dir"
 
 installed=0
-for name in pre-commit commit-msg pre-push; do
+for name in pre-commit commit-msg pre-push post-checkout post-merge; do
     src="scripts/hooks/$name"
     dst="$hooks_dir/$name"
     if [ ! -f "$src" ]; then

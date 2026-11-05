@@ -118,7 +118,12 @@ ids and labels.
   relabels public rows stale; private rows carry their own `private_revision`.
 - The test-suite runs with `CRUCIBLEFORGE_NO_PRIVATE=1` — exactly what a clean
   clone sees — and `tests/test_private_categories.py` checks that no tracked
-  file names a local private category or case id.
+  file names a local private category, case id or label; `scripts/scrub_check.py`
+  derives the same names from your layer and refuses them in commits.
+- Updating is safe: `git pull`/`merge`/`checkout` never touch ignored files, but
+  `git clean -x`/`-X` and `git stash --all` do. Back the layer up with
+  `python3 scripts/private_layer.py backup` (restore with `restore latest --go`);
+  details in docs/CUSTOM-TESTS.md, "Keeping a custom test local-only".
 
 ### Refreshing the whole board
 

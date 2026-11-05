@@ -259,7 +259,7 @@ def load_local_rules() -> list[tuple[re.Pattern, str]]:
               "On the maintainer's machine that file exists;\n"
               "            in CI it never does, so this run cannot catch a name "
               "or hostname.", file=sys.stderr)
-        return rules
+        return rules + private_layer_rules()
     for raw in path.read_text(encoding="utf-8").splitlines():
         line = raw.strip()
         if not line or line.startswith("#"):
@@ -270,7 +270,98 @@ def load_local_rules() -> list[tuple[re.Pattern, str]]:
             print(f"scrub_check: bad regex in scrub-rules.local.txt: {line!r} ({e})",
                   file=sys.stderr)
             sys.exit(2)
-    return rules
+    return rules + private_layer_rules()
+
+
+# A hit on a name DERIVED from the local private layer is reported without the
+# matched text: echoing it into a terminal, a CI log or a hook transcript would
+# be the very leak the rule exists to stop.
+LAYER_WHY = "a name from the local private test layer (cases/private/, *.private.yaml)"
+_MIN_TERM = 4
+
+
+def _layer_yaml(path: Path) -> dict:
+    try:
+        import yaml  # optional: the hooks run on a bare system Python
+    except ImportError:
+        yaml = None
+    text = path.read_text(encoding="utf-8", errors="ignore")
+    if yaml is not None:
+        try:
+            data = yaml.safe_load(text)
+            return data if isinstance(data, dict) else {}
+        except Exception:  # noqa: BLE001 — a broken overlay must not crash the gate
+            pass
+    # no PyYAML: pull `labels: {key: "Label"}` / `key: Label` pairs by hand
+    labels = dict(re.findall(r"""([\w.-]+)\s*:\s*["']([^"'\n]{4,})["']""", text))
+    return {"labels": labels}
+
+
+def private_layer_terms() -> set[str]:
+    """Every NAME the local private layer defines: the stem of each
+    cases/private/*.json (and ladder pack) file, every case id in them, and the
+    labels / custom-score keys of the private profile overlays. None of them
+    may appear in a tracked file or a commit message. Empty on a clean clone."""
+    if hasattr(private_layer_terms, "_cache"):
+        return private_layer_terms._cache
+    import json
+    terms: set[str] = set()
+    pdir = REPO / "cases" / "private"
+    if pdir.is_dir():
+        for p in sorted(pdir.rglob("*.json")):
+            if p.parent == pdir:
+                terms.add(p.stem)
+            try:
+                data = json.loads(p.read_text(encoding="utf-8"))
+            except Exception:  # noqa: BLE001
+                continue
+            items = data if isinstance(data, list) else (data.get("questions") or data.get("cases") or []) \
+                if isinstance(data, dict) else []
+            for c in items:
+                if isinstance(c, dict) and isinstance(c.get("id"), str):
+                    terms.add(c["id"])
+    overlays = list((REPO / "profiles").glob("*.private.yaml")) + \
+        list((REPO / "profiles" / "private").glob("*.yaml"))
+    private_cats = set(terms)
+    for p in overlays:
+        prof = _layer_yaml(p)
+        cats = set(prof.get("private") or []) | private_cats
+        terms.update(c for c in prof.get("private") or [] if isinstance(c, str))
+        for k, v in (prof.get("labels") or {}).items():
+            if k in cats and isinstance(v, str):
+                terms.add(v)
+        for k, v in (prof.get("custom") or {}).items():
+            terms.add(str(k))
+            if isinstance(v, dict) and isinstance(v.get("label"), str):
+                terms.add(v["label"])
+    # never ban a word the PUBLIC suite uses itself (a shared case id or
+    # category name would make every scan fail on the public cases)
+    public: set[str] = set()
+    for p in (REPO / "cases").glob("*.json"):
+        public.add(p.stem)
+        try:
+            public.update(c.get("id") for c in json.loads(p.read_text(encoding="utf-8"))
+                          if isinstance(c, dict))
+        except Exception:  # noqa: BLE001
+            pass
+    terms = {t for t in terms if isinstance(t, str) and len(t) >= _MIN_TERM and t not in public}
+    private_layer_terms._cache = terms
+    return terms
+
+
+def private_layer_rules() -> list[tuple[re.Pattern, str]]:
+    terms = private_layer_terms()
+    if not terms:
+        return []
+    alt = "|".join(re.escape(t) for t in sorted(terms, key=len, reverse=True))
+    return [(re.compile(rf"(?<![\w-])(?:{alt})(?![\w-])", re.IGNORECASE), LAYER_WHY)]
+
+
+def _shown(m: re.Match, why: str) -> str:
+    if why == LAYER_WHY:
+        return "<redacted>"
+    snippet = m.group(0)
+    return snippet if len(snippet) <= 60 else snippet[:57] + "…"
 
 
 def local_rule_summary() -> tuple[int, str]:
@@ -284,9 +375,13 @@ def local_rule_summary() -> tuple[int, str]:
     gate.
     """
     n = len(load_local_rules())
+    layer = len(private_layer_terms())
+    tail = (f"; {layer} name(s) derived from the local private test layer"
+            if layer else "")
+    n -= 1 if layer else 0
     if n:
         return n, (f"{n} private identifier rule(s) loaded from "
-                   f"scripts/scrub-rules.local.txt")
+                   f"scripts/scrub-rules.local.txt{tail}")
     return 0, ("0 private identifier rules — scripts/scrub-rules.local.txt is "
                "absent, so GENERIC rules only")
 
@@ -429,9 +524,7 @@ def scan_text(text: str, label: str) -> list[str]:
         for pattern, why in rules:
             m = pattern.search(line)
             if m:
-                snippet = m.group(0)
-                if len(snippet) > 60:
-                    snippet = snippet[:57] + "\u2026"
+                snippet = _shown(m, why)
                 problems.append(f"{label}:{lineno}: looks like {why} \u2192 {snippet!r}")
                 break
     return problems
@@ -595,9 +688,7 @@ def scan(root: Path, staged: bool = False, rev: str | None = None,
                 else:
                     m = pattern.search(line)
                 if m:
-                    snippet = m.group(0)
-                    if len(snippet) > 60:
-                        snippet = snippet[:57] + "…"
+                    snippet = _shown(m, why)
                     problems.append(f"{rel}:{lineno}: looks like {why} → {snippet!r}")
                     break
     return problems

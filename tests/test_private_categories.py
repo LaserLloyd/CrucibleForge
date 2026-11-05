@@ -231,6 +231,12 @@ def test_no_tracked_file_names_a_private_category():
     for p in pdir.glob("*.json"):
         terms.add(p.stem)
         terms.update(c["id"] for c in json.loads(p.read_text(encoding="utf-8")))
+    # and the overlays' labels / custom keys (the same set the scanner derives)
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("scrub_check", REPO / "scripts" / "scrub_check.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    terms |= mod.private_layer_terms()
     tracked = _git("ls-files").stdout.split()
     hits = []
     for f in tracked:
@@ -238,8 +244,9 @@ def test_no_tracked_file_names_a_private_category():
         if not fp.is_file() or fp.suffix in {".png", ".jpg", ".ico"}:
             continue
         text = fp.read_text(encoding="utf-8", errors="ignore")
-        hits += [(f, t) for t in terms if re.search(rf"(?<![\w-]){re.escape(t)}(?![\w-])", text)]
-    assert not hits, hits
+        hits += [(f, t) for t in terms if re.search(rf"(?<![\w-]){re.escape(t)}(?![\w-])", text, re.I)]
+    # report file names only: the terms themselves are private
+    assert not hits, sorted({f for f, _ in hits})
 
 
 def test_public_board_does_not_list_a_private_only_model(private_env):

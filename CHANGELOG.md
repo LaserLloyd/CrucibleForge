@@ -8,6 +8,22 @@ rename.
 
 ## Unreleased (2026-11-03)
 
+- **Local-only custom tests are harder to leak and easy to back up.**
+  `scripts/scrub_check.py` now derives every name the local private layer
+  defines (private case file stems, their case ids, the overlays' `private:`
+  entries, `labels:` and `custom:` keys/labels) and refuses them in tracked
+  files and commit messages, reporting file and line with the match redacted.
+  New `scripts/private_layer.py status|backup|restore|list|check` snapshots the
+  git-ignored layer (0700 dir, 0600 archives, newest 20 kept; `restore` is a
+  dry run without `--go` and backs up the current layer first). Opt-in per
+  clone (`git config crucibleforge.privateBackup true`): `pre-commit` backs the
+  layer up when it changed, new `post-checkout`/`post-merge` hooks warn if a
+  file from the newest backup went missing. docs/CUSTOM-TESTS.md gains
+  "Keeping a custom test local-only" (layout, loading, update-safe git use —
+  never `git clean -x` — backups). Docstring and test examples of a private
+  custom score are generic now. No case content, scoring or suite revision
+  change.
+
 - **The board filters per column, from the column head.** Every header now
   carries a small ▾ next to its label (the label itself still click-to-sorts);
   the ▾ opens that column's own filter menu: **Sort ascending / Sort

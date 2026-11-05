@@ -110,7 +110,7 @@ def custom_scores(prof: dict | None) -> list[dict]:
     overlay's — ``custom:`` declarations, each a category of its own::
 
         custom:
-          max_rp:
+          my_score:
             label: My Private Score
             include_in: none        # overall | none | <a category key, e.g. nsfw>
             public: false           # default false: scrubbed from --public
@@ -120,8 +120,8 @@ def custom_scores(prof: dict | None) -> list[dict]:
     A PRIVATE category (the profile's ``private:`` list) that no custom
     declaration names becomes one automatically (one sub-score worth 10,
     ``include_in: none``, private) — it never feeds a built-in category,
-    whatever ``scoring:`` group an older overlay put its weight in (the maintainer
-    2026-10-28: "keep my max RP score completely separate")."""
+    whatever ``scoring:`` group an older overlay put its weight in: a private
+    score is kept completely separate from the public ones (2026-10-28)."""
     prof = prof or {}
     out = [_score_def(k, v or {}, custom=True) for k, v in (prof.get("custom") or {}).items()]
     named = {c for d in out for p in d["parts"] for c in p["scoring"]}

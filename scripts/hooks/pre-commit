@@ -20,4 +20,15 @@ if [ -z "$PY" ]; then
     echo "$(basename "$0"): no working Python >= 3.12 found (tried python3, python, py -3)" >&2
     exit 1
 fi
-exec $PY scripts/scrub_check.py --staged
+$PY scripts/scrub_check.py --staged
+
+# Opt-in safety net for a checkout that keeps local-only tests: snapshot the
+# git-ignored private layer whenever it changed since the last backup
+# (scripts/private_layer.py). Enable per clone with
+#     git config crucibleforge.privateBackup true
+# A failed backup never blocks the commit; it only says so.
+if [ "$(git config --bool crucibleforge.privateBackup 2>/dev/null)" = "true" ]; then
+    $PY scripts/private_layer.py backup --if-changed --quiet \
+        || echo "pre-commit: NOTE — private-layer backup failed (commit continues)" >&2
+fi
+exit 0

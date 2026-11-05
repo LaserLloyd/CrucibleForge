@@ -253,8 +253,10 @@ def test_sx1_signoff_inline_passes_on_the_tturbo_row():
         "transcripts_qwen3.8-27b-tturbo-fable-heretic.jsonl"
     if not p.exists():
         pytest.skip("results not present (clean checkout)")
-    row = next(r for r in map(json.loads, p.open(encoding="utf-8")) if r.get("case_id") == "SX1-harborline-ledger"
-               and r.get("bench_run_id") == "000ac71a" and r.get("judge"))
+    row = next((r for r in map(json.loads, p.open(encoding="utf-8")) if r.get("case_id") == "SX1-harborline-ledger"
+               and r.get("bench_run_id") == "000ac71a" and r.get("judge")), None)
+    if row is None:
+        pytest.skip("the 000ac71a row is no longer on this board (re-run since)")
     replies = [m["content"] for m in row["conversation"] if m["role"] == "assistant"]
     res = session_checks.run_checks(_steer_case("SX1-harborline-ledger"), replies)
     got = {r["id"]: r["pass"] for r in res["results"]}

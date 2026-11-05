@@ -393,14 +393,14 @@ def test_rpdeep_component_scores_complete_rows_only(monkeypatch):
 
 # ------------------------------------------------- the private component
 
-def test_public_board_scrubs_my_private_score_with_tiers(tmp_path, monkeypatch):
-    """My Private Score stays private on the 3.9 profile: a private overlay
+def test_public_board_scrubs_a_private_score_with_tiers(tmp_path, monkeypatch):
+    """A private custom score stays private on the 3.9 profile: a private overlay
     component (as profiles/bench.private.yaml adds it) counts on the local
     board and is absent from every `report --public` file, tier tables
     included; the public Chat is scored without it."""
     import shutil
     import yaml
-    cat, ids, lab = "zz-max-rp", ["ZQ1-private-one", "ZQ2-private-two"], "Max Hush RP"
+    cat, ids, lab = "zz-private-score", ["ZQ1-private-one", "ZQ2-private-two"], "Hush Score"
     pdir = tmp_path / "cases-private"
     pdir.mkdir()
     (pdir / f"{cat}.json").write_text(json.dumps([

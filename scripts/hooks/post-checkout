@@ -1,0 +1,14 @@
+#!/bin/sh
+# post-checkout: after git rewrote the working tree, warn (never fail) if a
+# local-only file that the newest private-layer backup holds has gone missing
+# (scripts/private_layer.py check). Opt-in per clone:
+#     git config crucibleforge.privateBackup true
+cd "$(git rev-parse --show-toplevel)" || exit 0
+[ "$(git config --bool crucibleforge.privateBackup 2>/dev/null)" = "true" ] || exit 0
+for cand in python3 python; do
+    if $cand -c "import sys; sys.exit(0 if sys.version_info >= (3, 12) else 1)" >/dev/null 2>&1; then
+        $cand scripts/private_layer.py check
+        break
+    fi
+done
+exit 0

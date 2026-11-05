@@ -1,7 +1,7 @@
 """Suite 3.9 points board (the maintainer 2026-10-28): categories Coding/Work, Chat,
 NSFW out of 10 points each (sub-score points), Overall = Coding/Work + Chat,
 ladder packs (+1 point per pack, unlocked at >= 90 % on everything below),
-custom tests (My Private Score never in NSFW/Overall, never public), MAXED,
+custom tests (a private custom score never in NSFW/Overall, never public), MAXED,
 calibration, `pack new`/`pack verify`, and the bootstrap ± / tie groups on
 top. Runs as a clean clone (conftest)."""
 from __future__ import annotations
@@ -201,10 +201,10 @@ def test_custom_include_in_a_category_adds_to_it(tmp_path, monkeypatch):
     assert c["work"] == pytest.approx(11.0) and "(+ Lipogram)" in c["labels"]["work"]
 
 
-# -------------------------------------------------- My Private Score (private)
+# ------------------------------------------- a private custom score
 
 def _private(tmp_path, monkeypatch, overlay_scoring=True, declared=None):
-    cat, ids, lab = "zz-max-rp", ["ZQ1-private-one", "ZQ2-private-two"], "Max Hush RP"
+    cat, ids, lab = "zz-private-score", ["ZQ1-private-one", "ZQ2-private-two"], "Hush Score"
     pdir = tmp_path / "cases-private"
     pdir.mkdir(exist_ok=True)
     (pdir / f"{cat}.json").write_text(json.dumps([
@@ -231,7 +231,7 @@ def _private(tmp_path, monkeypatch, overlay_scoring=True, declared=None):
     return env, cat, ids, lab, rows
 
 
-def test_max_rp_is_its_own_custom_test_never_nsfw_chat_or_overall(tmp_path, monkeypatch):
+def test_a_private_score_is_its_own_custom_test_never_nsfw_chat_or_overall(tmp_path, monkeypatch):
     env, cat, ids, lab, rows = _private(tmp_path, monkeypatch)
     prof = profiles.load_profile("bench", env.cfg)
     defs = {d["key"]: d for d in tiers.scores(prof)}
@@ -255,16 +255,16 @@ def test_max_rp_is_its_own_custom_test_never_nsfw_chat_or_overall(tmp_path, monk
 
 
 def test_a_declared_custom_test_replaces_the_automatic_one(tmp_path, monkeypatch):
-    decl = {"maxrp": {"label": "My Main", "include_in": "none",
-                      "parts": {"main": {"label": "Main", "max": 6, "scoring": ["zz-max-rp"]}}}}
+    decl = {"myscore": {"label": "My Hush Score", "include_in": "none",
+                      "parts": {"main": {"label": "Main", "max": 6, "scoring": ["zz-private-score"]}}}}
     env, cat, ids, lab, rows = _private(tmp_path, monkeypatch, overlay_scoring=False, declared=decl)
     prof = profiles.load_profile("bench", env.cfg)
     keys = [d["key"] for d in tiers.scores(prof)]
-    assert "maxrp" in keys and cat not in keys
+    assert "myscore" in keys and cat not in keys
     c = _board(env, {"m": rows})["m"]["scorecard"]
-    assert c["maxrp"] == pytest.approx(0.8 * 6)
+    assert c["myscore"] == pytest.approx(0.8 * 6)
     # public board: the declared custom test is private by default (public: false)
-    assert not tiers.scores({**prof, "_public": True})[-1]["key"] == "maxrp"
+    assert not tiers.scores({**prof, "_public": True})[-1]["key"] == "myscore"
 
 
 # ------------------------------------------------------------- ladders

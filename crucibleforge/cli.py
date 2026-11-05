@@ -50,8 +50,15 @@ LOCAL_ENV_PATH = Path(__file__).resolve().parents[1] / "crucibleforge.local.env"
 
 def _load_local_env(path: Path = LOCAL_ENV_PATH) -> dict[str, str]:
     """setdefault each CRUCIBLEFORGE_* line of ``path`` into os.environ;
-    returns what was applied. A missing/unreadable file applies nothing."""
+    returns what was applied. A missing/unreadable file applies nothing.
+
+    CRUCIBLEFORGE_NO_PRIVATE=1 (clean-clone mode, set by the test-suite)
+    applies nothing either: the file is part of the operator's local layer,
+    and a test run once inherited its run-report root and wrote into a live
+    delivery directory."""
     applied: dict[str, str] = {}
+    if os.environ.get("CRUCIBLEFORGE_NO_PRIVATE") == "1":
+        return applied
     try:
         lines = path.read_text(encoding="utf-8").splitlines()
     except OSError:
