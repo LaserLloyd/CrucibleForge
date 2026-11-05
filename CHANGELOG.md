@@ -23,6 +23,8 @@ rename.
   never `git clean -x` — backups). Docstring and test examples of a private
   custom score are generic now. No case content, scoring or suite revision
   change.
+  The suite's clean-clone mode (`CRUCIBLEFORGE_NO_PRIVATE=1`) no longer reads
+  the operator's `crucibleforge.local.env`.
 
 - **The board filters per column, from the column head.** Every header now
   carries a small ▾ next to its label (the label itself still click-to-sorts);
