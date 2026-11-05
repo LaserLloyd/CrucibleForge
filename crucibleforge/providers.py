@@ -163,6 +163,13 @@ class Provider:
     # longer than this is unloaded (its stream cut) — see
     # studioforge.acquire_lease(busy_unload_after_s). None = wait, then fail.
     busy_unload_after_s: float | None = None
+    # The D46 tier every completion request declares (§12.2: 2 = agent).
+    # ``bench-all --lease-mode day`` lowers it to 3 (background).
+    request_priority: int = 2
+    # ``bench-all --lease-mode day`` (MakoBench operator, 2026-11-06): a lease
+    # names ONE card that no priority-1/2 or pinned model is recorded on, and
+    # the run refuses rather than widen onto a protected card.
+    day_single_card: bool = False
     _vacated_render: bool = field(default=False, repr=False)
     # remembers what /models returned (None = endpoint doesn't support listing)
     _models_cache: set | None = field(default=None, repr=False)
@@ -306,6 +313,10 @@ class Provider:
                 return 0.0
             if self.lease:
                 return self._lease_load(model_id, context_length)
+            if self.day_single_card:
+                raise studioforge.DayCardRefused(
+                    "day mode needs a GPU lease (lease: true) — refused rather than "
+                    "unloading residents", status=409)
             studioforge.unload_all(self.base_url, self.api_key, self.mgmt_headers(),
                                    wait_busy_s=self.wait_busy_s)
             t = studioforge.load_model(model_id, self.base_url, self.api_key,
@@ -384,9 +395,16 @@ class Provider:
                     self.base_url, self.api_key, hdrs, devices, model_ids=[model_id],
                     reason=f"crucibleforge benchmark: {model_id.rsplit('/', 1)[-1]}",
                     idle_ttl_s=self.lease_idle_ttl_s, wait_busy_s=self.wait_busy_s,
-                    force=self.force_evict,
-                    busy_unload_after_s=self.busy_unload_after_s if self.force_evict else None)
+                    force=self.force_evict and not self.day_single_card,
+                    busy_unload_after_s=(self.busy_unload_after_s
+                                         if self.force_evict and not self.day_single_card
+                                         else None))
             except studioforge.StudioForgeError as e:
+                if e.status in (401, 403, 404, 405) and self.day_single_card:
+                    # the lease-less path unloads idle residents: never by day
+                    raise studioforge.DayCardRefused(
+                        f"day mode: no GPU lease available ({e}) — refused rather than "
+                        f"unloading residents", status=409) from e
                 if e.status in (401, 403, 404, 405):
                     log.warning("GPU lease unavailable (%s) — running WITHOUT a lease; "
                                 "co-tenants can evict this model", e)
@@ -457,6 +475,11 @@ class Provider:
         GPU 3 rule, judge.JUDGE_NEVER_DEVICES)."""
         exclude = {int(d) for d in exclude or ()}
         hdrs = self.mgmt_headers()
+        if self.day_single_card:
+            # day mode: never vacate a render lease, never widen (no
+            # preferred/fallback walk), one unprotected card or a refusal
+            return studioforge.choose_day_card(self.base_url, self.api_key, hdrs, model_id,
+                                               exclude=exclude)
         try:
             busy = studioforge.foreign_held_devices(
                 studioforge.list_leases(self.base_url, self.api_key, hdrs),
@@ -673,7 +696,14 @@ class Provider:
             # models WE loaded that were not resident before: unload them so
             # the cards go back to whoever had them (a 97 GiB judge left
             # resident blocks the pin reconciler until its TTL)
-            for mid in list(self._plans):
+            if self.day_single_card:
+                # day mode: unload exactly the models this run loaded — never
+                # a resident someone else loaded while we ran
+                ours = [m for m in self._plans if m not in before]
+                if ours:
+                    studioforge.unload_models(self.base_url, self.api_key,
+                                              self.mgmt_headers(), ours)
+            for mid in ([] if self.day_single_card else list(self._plans)):
                 if mid not in before:
                     try:
                         studioforge.unload_all(self.base_url, self.api_key, self.mgmt_headers(),
@@ -734,7 +764,7 @@ class Provider:
         headers = dict(self.headers)
         if self.type == "studioforge":
             headers.setdefault("X-SF-Client", client_name or studioforge.LEASE_HOLDER)
-            kw.setdefault("priority", 2)
+            kw.setdefault("priority", self.request_priority)
         return stream_chat_retried(self.base_url, self.api_key, model_id, messages,
                                    headers=headers, verify_model=self.verify_model,
                                    extra_body=body_extra, **kw)
@@ -810,8 +840,52 @@ def get_provider(cfg: dict, name: str) -> Provider:
         busy_unload_after_s=(float(p["busy_unload_after_s"])
                              if p.get("busy_unload_after_s") not in (None, False, "") else None),
     )
+    if ptype == "studioforge" and LEASE_MODE[0]:
+        apply_lease_mode(prov, LEASE_MODE[0])
     _CACHE[key] = (cfg, prov)
     return prov
+
+
+# ------------------------------------------------------------ lease modes
+# MakoBench operator (2026-11-06, OPERATOR-PLAN-v2 §6.3): `bench-all
+# --lease-mode night|day` overrides the models.yaml bench-first policy for
+# EVERY studioforge provider this process builds (generation, escalation,
+# ladder and the judge alike — the judge reads the same Provider fields).
+# Unset (no flag) = the models.yaml policy, unchanged.
+#
+#                         night                       day
+#   force=true            idle residents (policy)     never
+#   busy_unload_after_s   None (never cut a reply)    None
+#   ClawForge vacate      yes (policy)                never
+#   request priority      2                           3
+#   devices               planner / preferred cards   one unprotected card, else refuse
+LEASE_MODES = ("night", "day")
+#: the active mode for this process (a list so tests can reset it in place)
+LEASE_MODE: list[str | None] = [None]
+
+
+def apply_lease_mode(prov: "Provider", mode: str) -> "Provider":
+    """Set ``prov``'s lease policy fields for ``mode`` (see the table above)."""
+    if mode not in LEASE_MODES:
+        raise ValueError(f"unknown lease mode {mode!r} (night|day)")
+    prov.busy_unload_after_s = None
+    if mode == "day":
+        prov.force_evict_policy = False
+        prov.force_evict = False
+        prov.clawforge_mcp = None
+        prov.lease_devices_preferred = None
+        prov.request_priority = 3
+        prov.day_single_card = True
+    return prov
+
+
+def set_lease_mode(mode: str | None) -> None:
+    """Make ``mode`` (or None = the models.yaml policy) the process-wide lease
+    mode; providers built before are dropped so the next get_provider applies it."""
+    if mode is not None and mode not in LEASE_MODES:
+        raise ValueError(f"unknown lease mode {mode!r} (night|day)")
+    LEASE_MODE[0] = mode
+    clear_cache()
 
 
 def provider_for(cfg: dict, entry: dict) -> Provider:

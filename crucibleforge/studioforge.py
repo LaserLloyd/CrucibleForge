@@ -942,6 +942,91 @@ def choose_lease_devices(base_url: str, api_key: str, headers: dict | None, mode
     return free
 
 
+# ------------------------------------------- day lease mode (2026-11-06)
+# MakoBench operator, OPERATOR-PLAN-v2 §6.3: a daytime bench is a guest. It
+# takes ONE card that no chat/agent-tier (priority 1/2) or pinned model is
+# recorded on, never vacates a render lease, never forces, and refuses when
+# the model would fit only on a protected card.
+
+class DayCardRefused(StudioForgeError):
+    """No unprotected single card can hold the model (day lease mode)."""
+
+
+def protected_devices(base_url: str, api_key: str, headers: dict | None = None) -> set[int]:
+    """Cards a day run must not take: the recorded placement
+    (``settings.device_override`` / ``settings.allowed_devices``) of every
+    library model whose effective tier is 1/2 or that is pinned, plus the
+    live devices of every loaded instance of such a model. A protected model
+    with no recorded placement (may land anywhere) protects only the cards it
+    is loaded on right now. Raises StatusUnavailable when the library cannot
+    be read (a day run then refuses — it cannot tell what is protected)."""
+    code, data = _mgmt("GET", base_url, api_key, headers, "/api/models", timeout=30)
+    if code != 200 or not isinstance(data, (dict, list)):
+        raise StatusUnavailable(f"GET /api/models HTTP {code}", status=code)
+    rows = data.get("models", data.get("data", [])) if isinstance(data, dict) else data
+    out: set[int] = set()
+    protected_ids: set[str] = set()
+    for r in rows or []:
+        if not isinstance(r, dict):
+            continue
+        st = r.get("settings") or {}
+        try:
+            tier = int(r.get("priority") if r.get("priority") is not None
+                       else st.get("priority") or 3)
+        except (TypeError, ValueError):
+            tier = 3
+        if tier in (1, 2) or st.get("pinned") or r.get("pinned"):
+            protected_ids.add(str(r.get("id") or r.get("model_id") or ""))
+            for key in ("device_override", "allowed_devices"):
+                out.update(int(d) for d in (st.get(key) or []))
+    try:
+        for m in status(base_url, api_key, headers).get("loaded", []):
+            plan = m.get("plan") or {}
+            try:
+                tier = int(m.get("priority") or 3)
+            except (TypeError, ValueError):
+                tier = 3
+            if m.get("model_id") in protected_ids or tier in (1, 2) or m.get("pinned"):
+                out.update(int(d) for d in (plan.get("devices") or []))
+    except StudioForgeError as e:
+        raise StatusUnavailable(f"day mode: live placements unreadable ({e})",
+                                status=getattr(e, "status", None)) from e
+    return out
+
+
+def choose_day_card(base_url: str, api_key: str, headers: dict | None, model_id: str,
+                    exclude=()) -> list[int]:
+    """The ONE card a day-mode lease names: the first rig card that is not
+    protected (:func:`protected_devices`), not leased by anyone else (render
+    leases included — a day run never vacates) and not ``exclude``d, on
+    which the planner says ``model_id`` fits EMPTY. Refuses
+    (:class:`DayCardRefused`, status 409) otherwise, naming whether the model
+    would have fitted on a protected card."""
+    short = model_id.rsplit("/", 1)[-1]
+    exclude = {int(d) for d in exclude or ()}
+    cards = gpu_indices(base_url, api_key, headers)
+    protected = protected_devices(base_url, api_key, headers)
+    leased = foreign_held_devices(list_leases(base_url, api_key, headers),
+                                  vacatable_render=False)
+    free = [d for d in cards if d not in protected and d not in leased and d not in exclude]
+    for d in free:
+        if placement_fits(base_url, api_key, headers, model_id, [d]):
+            log.info("day mode: %s fits on unprotected card %d — leasing only that card",
+                     short, d)
+            return [d]
+    on_protected = [d for d in cards if d in protected and d not in exclude
+                    and placement_fits(base_url, api_key, headers, model_id, [d])]
+    if on_protected:
+        raise DayCardRefused(
+            f"day mode: {short} fits only on protected card(s) {on_protected} "
+            f"(priority-1/2 or pinned placements) — refused; it runs in the night window",
+            status=409)
+    raise DayCardRefused(
+        f"day mode: {short} fits on no single free card (free: {free or 'none'}, "
+        f"protected: {sorted(protected)}, leased by others: {sorted(leased)}) — refused; "
+        f"it runs in the night window", status=409)
+
+
 # ---------------------------------------------- stale leases (STEP4 2026-10-28)
 
 def stale_leases(leases: list[dict], holder: str, model_id: str,

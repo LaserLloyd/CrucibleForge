@@ -930,8 +930,9 @@ def acquire_judge_lease(cfg: dict, force_evict: bool = False,
             reason=f"CrucibleForge judge run: {cand['model_id'].rsplit('/', 1)[-1]}",
             idle_ttl_s=provider.lease_idle_ttl_s or studioforge.LEASE_IDLE_TTL_S,
             wait_busy_s=provider.wait_busy_s,
-            force=force_evict,
-            busy_unload_after_s=provider.busy_unload_after_s if force_evict else None,
+            force=force_evict and not provider.day_single_card,
+            busy_unload_after_s=(provider.busy_unload_after_s
+                                 if force_evict and not provider.day_single_card else None),
         )
     except studioforge.StudioForgeError as e:
         # Surface the holder/conflict info the server already gave us so the

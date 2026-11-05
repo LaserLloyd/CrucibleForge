@@ -6,6 +6,25 @@ was ever published as Gauntlet, so there is no migration to do — the entries
 below are kept because the engineering they record is real, not to narrate a
 rename.
 
+## Unreleased (2026-11-06)
+
+- **`bench-all` can be scoped and run gently (unattended operator support).**
+  `--only LABELS` (labels or rig model ids) limits registration, pruning,
+  generation, escalation, ladder packs and the judge to those models; a name
+  that matches nothing exits 2 instead of widening to the whole board.
+  `--lease-mode night` keeps the bench-first policy but never cuts a busy
+  resident (`busy_unload_after_s` off); `--lease-mode day` sends no `force`,
+  never vacates a render lease, asks priority 3, leases one card that no
+  priority-1/2 or pinned model is placed on (refusing otherwise) and implies
+  `--no-judge`. `--no-judge` generates only (no judge, no ladder packs, no
+  judge reserve in the window). `--plan-json` prints the plan as one JSON
+  object (per label: missing cases, estimated generation/judge minutes,
+  window verdict). A `keep_on_board: true` registry row is never pruned.
+  Detached units stop within 45 s (`TimeoutStopSec=45`, `KillMode=mixed`),
+  and the finished run meta carries `exit_code` (and, for bench-all, its
+  scope). Without the new flags bench-all behaves as before. No case content,
+  scoring or suite revision change.
+
 ## Unreleased (2026-11-03)
 
 - **Local-only custom tests are harder to leak and easy to back up.**

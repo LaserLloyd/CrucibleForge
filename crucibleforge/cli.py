@@ -586,11 +586,22 @@ def _v2_finish(cmd: str, args, cfg: dict, rc: int, state: dict) -> None:
     except Exception as e:  # noqa: BLE001
         log.error("V2 run-report report.md write failed for %s: %s", run_id, e)
     status = "done" if rc == 0 else "failed"
+    extra = dict(state.get("extra") or {})
+    # the real exit code beside status (WP4, 2026-11-06): "failed" covers
+    # 1 model failed / 3 public leak / 4 rig busy / 5 rig down / 143 stopped
+    extra["exit_code"] = int(rc)
+    if cmd == "bench-all":
+        extra["bench_all"] = {
+            "only": _parse_list(getattr(args, "only", None)),
+            "lease_mode": getattr(args, "lease_mode", None),
+            "no_judge": bool(getattr(args, "no_judge", False)
+                             or getattr(args, "lease_mode", None) == "day"),
+            "models": _parse_list(getattr(args, "models", None)) or []}
     try:
         meta = _v2_meta(run_id, status=status, created=state["created"], finished=_utcnow_iso(),
                         title=state["title"], requester_session=state["requester_session"],
                         thread_id=state["thread_id"], task_run_id=state["task_run_id"],
-                        extra=state.get("extra"))
+                        extra=extra)
         _atomic_write_json(run_dir / "meta.json", meta)
         log.info("V2 run-report: %s/{report.md,meta.json} written (status=%s)", run_dir, status)
     except OSError as e:
@@ -1342,9 +1353,21 @@ def cmd_pack(args, cfg):
 
 
 def cmd_bench_all(args, cfg):
-    """The whole-board refresh (crucibleforge/bench_all.py)."""
+    """The whole-board refresh (crucibleforge/bench_all.py). ``--lease-mode``
+    overrides the models.yaml lease policy for this process only."""
     from .bench_all import execute
-    return execute(args, cfg)
+    from . import providers
+    mode = getattr(args, "lease_mode", None)
+    if not mode:
+        return execute(args, cfg)
+    providers.set_lease_mode(mode)
+    log.info("bench-all: lease mode %s — %s", mode,
+             "force idle residents only, never cut a busy one, priority 2" if mode == "night"
+             else "no force, no ClawForge vacate, one unprotected card, priority 3, no judge")
+    try:
+        return execute(args, cfg)
+    finally:
+        providers.set_lease_mode(None)
 
 
 def cmd_pairwise(args, cfg):
@@ -2369,6 +2392,10 @@ def acquire_rig_lock():
     return f
 
 
+#: seconds a detached unit gets between SIGTERM and SIGKILL on `systemctl stop`
+DETACH_STOP_TIMEOUT_S = 45
+
+
 def _detach_argv(args, argv: list[str] | None) -> tuple[str, list[str], str]:
     """(unit name, systemd-run argv, run id) for a detached re-launch."""
     run_id = _resolve_run_id(args)
@@ -2384,6 +2411,11 @@ def _detach_argv(args, argv: list[str] | None) -> tuple[str, list[str], str]:
     script = f"{source}cd {shlex.quote(cwd)} && exec uv run crucibleforge {inner_cmd}"
     cmd = ["systemd-run", "--user", "--collect", "--quiet", f"--unit={unit}",
            f"--description=CrucibleForge {args.cmd}: {args.models} (run {run_id})",
+           # a stop is bounded (OPERATOR-PLAN-v2 C4): SIGTERM to the main
+           # process only (uv forwards it to the bench, whose handler releases
+           # the lease and unloads its own models), SIGKILL to the whole unit
+           # after DETACH_STOP_TIMEOUT_S
+           f"--property=TimeoutStopSec={DETACH_STOP_TIMEOUT_S}", "--property=KillMode=mixed",
            f"--setenv=CRUCIBLEFORGE_RUN_ID={run_id}",
            f"--working-directory={cwd}", "/bin/bash", "-c", script]
     return unit, cmd, run_id
@@ -2643,6 +2675,22 @@ def main(argv=None):
     p_ba.add_argument("--skip-conformance", action="store_true",
                       help="do not gate generation on a current conformance "
                            "record (the override is logged)")
+    p_ba.add_argument("--only", default=None, metavar="LABELS",
+                      help="comma list of labels (or rig model ids): touch ONLY these — "
+                           "registration, generation, escalation, ladder packs and the judge; "
+                           "every other model is left alone (no prune of other rows)")
+    p_ba.add_argument("--lease-mode", choices=("night", "day"), default=None,
+                      help="override the models.yaml lease policy: night = evict IDLE "
+                           "residents only, never cut a busy one; day = no force, no ClawForge "
+                           "vacate, one card no priority-1/2/pinned model is on (else "
+                           "refuse), request priority 3, no judge. Default: models.yaml")
+    p_ba.add_argument("--no-judge", action="store_true",
+                      help="generate only: no judge phase and no ladder packs (rows wait "
+                           "for the next judged run); implied by --lease-mode day")
+    p_ba.add_argument("--plan-json", action="store_true",
+                      help="print the plan as ONE JSON object (per label: missing cases, "
+                           "estimated generation/judge minutes, window verdict vs --until); "
+                           "touches nothing")
     p_ba.add_argument("--models", default=None, help=argparse.SUPPRESS)
     add_v2_args(p_ba)
 
@@ -2716,6 +2764,8 @@ def main(argv=None):
                              "the checks use (default: bench)")
 
     args = parser.parse_args(argv)
+    if args.cmd == "bench-all" and args.plan_json and (args.go or args.detach):
+        parser.error("--plan-json is a plan only: drop --go/--detach")
 
     if args.allow_unsandboxed:
         from . import graders

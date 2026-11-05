@@ -32,7 +32,18 @@ interleaves. ``503 priority_hold`` is waited out by the client.
 Exit codes: 0 done (or nothing to do) · 1 some model failed (the rest were
 still judged and boarded; per-model notes in the report) · 3 the public board
 refused to write (a private term leaked) · 4 the rig is busy (judge lease
-refused) — back off and re-run later · 5 the rig is unreachable (no listing).
+refused) — back off and re-run later · 5 the rig is unreachable (no listing)
+· 2 ``--only`` names no registered or rig model.
+
+MakoBench operator flags (2026-11-06, OPERATOR-PLAN-v2 §6.3):
+``--only LABELS`` scopes EVERYTHING above to those labels (the run never
+registers, prunes, generates, escalates, ladders or judges another model);
+``--lease-mode night|day`` overrides the models.yaml lease policy (night =
+force idle residents only, never cut a busy one; day = no force, no ClawForge
+vacate, one unprotected card or refuse, request priority 3, no judge);
+``--no-judge`` generates only; ``--plan-json`` prints the plan as one JSON
+object. A registry row with ``keep_on_board: true`` is never pruned. With
+none of these flags bench-all behaves exactly as before.
 """
 from __future__ import annotations
 
@@ -46,6 +57,8 @@ from pathlib import Path
 log = logging.getLogger(__name__)
 
 EXIT_OK, EXIT_MODEL_FAILED, EXIT_PUBLIC_LEAK, EXIT_RIG_BUSY, EXIT_RIG_DOWN = 0, 1, 3, 4, 5
+#: --only names nothing that exists (never silently widened to "all")
+EXIT_USAGE = 2
 
 #: rig ids that are never contestants (not chat models)
 _NOT_CHAT = re.compile(r"embed|rerank|whisper|clip|tts", re.IGNORECASE)
@@ -155,11 +168,19 @@ def plan(cfg: dict, rig_ids: set[str], *, include_api: bool = False,
          judge_id: str | None = None, case_ids: list[str] | None = None,
          pending_for=None, attempts_for=None, first: list[str] | None = None,
          rig_arch: dict[str, str] | None = None, room_for=None,
-         rungs: list[int] | None = None, ladder_for=None, rejudge_for=None) -> dict:
+         rungs: list[int] | None = None, ladder_for=None, rejudge_for=None,
+         only: list[str] | None = None) -> dict:
     """What bench-all would do — computed, nothing touched. Pure given its
     inputs (the tests drive it with fakes). ``ladder_for(label)`` = the
     model's DUE ladder sets {"names": ["<cat>/<part>#n", ...], "jobs": n}
-    (default: :func:`ladder_due` — what `all` would climb now)."""
+    (default: :func:`ladder_due` — what `all` would climb now).
+
+    ``only`` (``--only``, MakoBench operator 2026-11-06): the run touches
+    ONLY these labels (a rig model id names its would-be label too) — sync,
+    prune, generation, escalation, ladder and the judge alike; every other
+    model is left exactly as it is. Names that match nothing are listed in
+    ``only_unknown``. A registry row with ``keep_on_board: true`` is never
+    pruned (its rows stay on the board after its model leaves the rig)."""
     from . import report
     from .judge import needs_verdict
     from .config import repeats_for
@@ -192,6 +213,7 @@ def plan(cfg: dict, rig_ids: set[str], *, include_api: bool = False,
     registered = {m["model_id"] for m in models}
     taken = set(by_name)
 
+    only_set = {o for o in (only or []) if o} if only is not None else None
     add, skipped_rig = [], []
     for mid in sorted(rig_ids - registered):
         if _NOT_CHAT.search(mid):
@@ -209,6 +231,8 @@ def plan(cfg: dict, rig_ids: set[str], *, include_api: bool = False,
                 entry["arch"] = arch
             if arch in _REASONING_ARCHES:
                 entry["extra_body"] = {"reasoning_format": _REASONING_FORMAT}
+            if only_set is not None and lab not in only_set and mid not in only_set:
+                continue          # --only: another model's registration waits
             add.append(entry)
 
     def on_rig(m):
@@ -217,19 +241,26 @@ def plan(cfg: dict, rig_ids: set[str], *, include_api: bool = False,
     def is_api(m):
         return prov_type.get(m.get("provider")) not in ("studioforge", "lmstudio")
 
-    candidates, not_on_rig = [], []
+    def wanted(label, mid=None):
+        return only_set is None or label in only_set or (mid is not None and mid in only_set)
+
+    candidates, not_on_rig, kept_on_board = [], [], []
     for m in models:
-        if m.get("enabled", True) is False:
+        if m.get("enabled", True) is False or not wanted(m["name"], m.get("model_id")):
             continue
         if on_rig(m) or (include_api and is_api(m)):
             candidates.append(m["name"])
         elif prov_type.get(m.get("provider")) == "studioforge":
-            not_on_rig.append(m["name"])
+            (kept_on_board if m.get("keep_on_board") else not_on_rig).append(m["name"])
     candidates += [a["name"] for a in add]
 
     prune = []
     for label in board_labels or []:
         m = by_name.get(label)
+        if not wanted(label, (m or {}).get("model_id")):
+            continue
+        if m is not None and m.get("keep_on_board"):
+            continue          # the operator removed the model; its numbers stay
         if m is None:
             prune.append((label, "no registry entry"))
         elif m.get("enabled", True) is False:
@@ -324,7 +355,7 @@ def plan(cfg: dict, rig_ids: set[str], *, include_api: bool = False,
     hosted_pending = []
     for label in board_labels or []:
         m = by_name.get(label)
-        if (m is None or label in candidates or m.get("enabled", True) is False
+        if (m is None or not wanted(label, m.get("model_id")) or label in candidates or m.get("enabled", True) is False
                 or not is_api(m)):
             continue
         try:
@@ -349,7 +380,21 @@ def plan(cfg: dict, rig_ids: set[str], *, include_api: bool = False,
             "judge": to_judge, "case_count": len(case_ids),
             "escalate": escalate, "rungs": list(rungs or []), "ladder": ladder_plan,
             "per_model": per_model, "hosted_pending": hosted_pending, "_private": private,
-            "first": first, "first_notes": first_notes}
+            "first": first, "first_notes": first_notes,
+            "only": sorted(only_set) if only_set is not None else None,
+            "only_unknown": only_unknown(only_set, by_name, rig_ids, add, skipped_rig),
+            "kept_on_board": kept_on_board}
+
+
+def only_unknown(only_set, by_name, rig_ids, add, skipped_rig) -> list[str]:
+    """--only names that are neither a registry label (or its model id) nor
+    a rig model about to be registered."""
+    if not only_set:
+        return []
+    known = set(by_name) | {m.get("model_id") for m in by_name.values()}
+    known |= {a["name"] for a in add} | {a["model_id"] for a in add}
+    skipped = {mid for mid, _ in skipped_rig}
+    return sorted(o for o in only_set if o not in known and o not in skipped)
 
 
 def rejudge_cases(label: str) -> set[str]:
@@ -391,8 +436,14 @@ def format_plan(p: dict) -> str:
         L.append(f"  + register {a['name']}  ({a['model_id']})")
     for mid, why in p["skipped_rig"]:
         L.append(f"  · not registered: {mid} — {why}")
+    if p.get("only") is not None:
+        L.append(f"  · --only: {', '.join(p['only']) or '(none)'} — every other model is untouched")
+    for o in p.get("only_unknown") or []:
+        L.append(f"  ! --only {o}: no registry entry and not on the rig — nothing to do for it")
     for label in p["not_on_rig"]:
         L.append(f"  ! {label}: enabled but not on the rig — skipped (disable it or re-download)")
+    for label in p.get("kept_on_board") or []:
+        L.append(f"  · {label}: not on the rig — its rows stay on the board (keep_on_board)")
     for label, why in p["prune"]:
         L.append(f"  - off the board: {label} ({why})")
     for label, why in p.get("first_notes") or []:
@@ -407,7 +458,11 @@ def format_plan(p: dict) -> str:
         # "> generate" on purpose: the nightly's done-check greps that prefix
         L.append(f"  > generate ladder pack(s) for {lp['model']}: {', '.join(lp['sets'])} "
                  f"({lp['jobs']} job(s))")
-    if p["judge"]:
+    if p["judge"] and p.get("no_judge"):
+        # never "> " here: nothing is judged by this run
+        L.append(f"  · judge skipped (--no-judge): rows of {', '.join(p['judge'])} wait "
+                 f"for a judged run")
+    elif p["judge"]:
         L.append(f"  > judge pending rows of {', '.join(p['judge'])}")
     priv = (p.get("_private") or {})
     pids = set(priv.get("ids") or ())
@@ -575,15 +630,19 @@ class Window:
     ``--judge-reserve-min`` (the floor). A group starts only when its
     estimated generation fits before that stop."""
 
-    def __init__(self, hard_end: datetime, floor_min: float = 0.0):
+    def __init__(self, hard_end: datetime, floor_min: float = 0.0, no_judge: bool = False):
         from datetime import timedelta
         self.hard_end = hard_end
-        self.floor_min = float(floor_min or 0)
+        # --no-judge: nothing is judged in this window, so no time is kept for it
+        self.no_judge = bool(no_judge)
+        self.floor_min = 0.0 if self.no_judge else float(floor_min or 0)
         self.judge_cut = hard_end - timedelta(minutes=REPORT_TAIL_MIN)
         self.judge_stop_at = self.judge_cut - timedelta(minutes=JUDGE_STOP_LEAD_MIN)
 
     def reserve_min(self, judge_eq: float) -> float:
         from . import estimate as est
+        if self.no_judge:
+            return 0.0
         return max(self.floor_min, est.judge_min(judge_eq, 3) if judge_eq > 0 else 0.0)
 
     def gen_end(self, judge_eq: float) -> datetime:
@@ -739,6 +798,169 @@ def schedule_lines(p: dict, cfg: dict, win: Window, start: datetime,
     return L
 
 
+def window_schedule(p: dict, cfg: dict, win: "Window | None", start: datetime,
+                    estimate_for=None, pending_for=None) -> dict:
+    """The structured twin of :func:`schedule_lines` (same arithmetic, same
+    admission order): ``{"per_label": {label: {gen_min, judge_eq, verdict,
+    start, end}}, "judge_eq", "judge_min", "gen_stop", "judge_fits"}``.
+    verdict: ``fits`` · ``oversize_first`` (longer than the window but first
+    in the queue: starts, runs to the cut, resumes next run) ·
+    ``does_not_fit`` (left for the next run) · ``no_window`` (no --until)."""
+    from datetime import timedelta
+    from . import estimate as est
+    estimate_for = estimate_for or (lambda g: group_estimate(cfg, g["models"], g["cases"],
+                                                             p.get("add"), p.get("_provider")))
+    pending_for = pending_for or (lambda labels: pending_equiv(labels, cfg))
+    per: dict[str, dict] = {}
+    t = start
+    eq = pending_for(p.get("judge") or [])
+    ran = 0
+    last_end = None
+    for g in units(p):
+        label = g["models"][0]
+        try:
+            gen, q = estimate_for(g)
+        except Exception as e:  # noqa: BLE001 — a plan field, never a failure
+            per[label] = {"gen_min": None, "judge_eq": None, "verdict": "no_estimate",
+                          "error": str(e)[:200]}
+            continue
+        row = {"gen_min": round(gen, 1), "judge_eq": round(q, 2)}
+        if win is None:
+            row["verdict"] = "no_window"
+        elif (not ran and win.gen_end(eq + q) > t + timedelta(minutes=OVERSIZE_MIN_MIN)
+              and not win.fits(t, gen, eq + q)):
+            row.update(verdict="oversize_first", start=_hm(t), end=_hm(win.gen_end(eq + q)))
+            t = win.gen_end(eq + q)
+            eq += q
+            last_end = win.gen_end(eq)
+            ran += 1
+        elif win.fits(t, gen, eq + q):
+            row.update(verdict="fits", start=_hm(t), end=_hm(t + timedelta(minutes=gen)))
+            t += timedelta(minutes=gen)
+            eq += q
+            last_end = win.gen_end(eq)
+            ran += 1
+        else:
+            row["verdict"] = "does_not_fit"
+        per[label] = row
+    out = {"per_label": per, "judge_eq": round(eq, 2)}
+    if win is None:
+        out.update(judge_min=round(est.judge_min(eq, 3), 1) if eq else 0.0,
+                   gen_stop=None, judge_fits=None)
+        return out
+    jm = est.judge_min(eq, 3) if eq else 0.0
+    gen_stop = last_end or win.gen_end(eq)
+    room = (win.judge_stop_at - max(gen_stop, start)).total_seconds() / 60
+    out.update(judge_min=round(jm, 1), gen_stop=_hm(gen_stop),
+               judge_fits=(None if win.no_judge else bool(jm <= room)))
+    return out
+
+
+def plan_json(p: dict, cfg: dict, *, until: str | None, start: datetime,
+              judge_reserve_min: float = 45, no_judge: bool = False,
+              lease_mode: str | None = None, estimate_for=None, pending_for=None,
+              pending_label=None) -> dict:
+    """``bench-all --plan-json``: the plan as ONE JSON object for a machine
+    caller (the MakoBench operator). Per label: the cases it would generate
+    (public ids named, private ones only counted), estimated generation and
+    judge minutes, escalation/ladder jobs, and the window verdict against
+    ``--until``. Nothing is touched. ``pending_label(label)`` = rows of that
+    label already waiting for a verdict, in judged-row equivalents."""
+    from . import estimate as est
+    from .version import SUITE_VERSION
+    pending_for = pending_for or (lambda labels: pending_equiv(labels, cfg))
+    pending_label = pending_label or (lambda label: pending_for([label]))
+    priv = p.get("_private") or {}
+    pids = set(priv.get("ids") or ())
+    win = None
+    hard_end = None
+    if until:
+        _, hard_end = deadlines(until, 0, now=start)
+        win = Window(hard_end, float(judge_reserve_min or 0), no_judge=no_judge)
+    sched = window_schedule(p, cfg, win, start, estimate_for=estimate_for,
+                            pending_for=pending_for)
+    esc = {e["model"]: int(e.get("jobs") or 0) for e in p.get("escalate") or []}
+    lad = {lp["model"]: lp for lp in p.get("ladder") or []}
+    labels = list(dict.fromkeys(list(p.get("candidates") or [])
+                                + [a["name"] for a in p.get("add") or []]))
+    models = {}
+    for label in labels:
+        pm = (p.get("per_model") or {}).get(label) or {}
+        miss = list(pm.get("regenerate") or [])
+        srow = sched["per_label"].get(label) or {}
+        try:
+            waiting = float(pending_label(label)) if label in (p.get("judge") or []) else 0.0
+        except Exception:  # noqa: BLE001 — an estimate never fails the plan
+            waiting = 0.0
+        jeq = float(srow.get("judge_eq") or 0.0) + waiting
+        lp = lad.get(label)
+        if miss:
+            verdict = srow.get("verdict", "no_window" if win is None else "does_not_fit")
+        elif lp:
+            verdict = "ladder_only"
+        elif label in (p.get("judge") or []):
+            verdict = "judge_skipped" if no_judge else "judge_only"
+        elif esc.get(label):
+            verdict = "escalate_only"
+        else:
+            verdict = "nothing"
+        models[label] = {
+            "register": label in {a["name"] for a in p.get("add") or []},
+            "missing_cases": len(miss),
+            "missing_public": [c for c in miss if c not in pids],
+            "missing_private": sum(1 for c in miss if c in pids),
+            "rejudge_cases": len(pm.get("rejudge") or []),
+            "gen_min": srow.get("gen_min", 0.0 if not miss else None),
+            "judge_min": 0.0 if no_judge else round(est.judge_min(jeq, 3), 1) if jeq else 0.0,
+            "judge_deferred": bool(no_judge and jeq),
+            "escalate_jobs": esc.get(label, 0),
+            "ladder_jobs": int(lp["jobs"]) if lp else 0,
+            "ladder_sets": len(lp.get("sets") or []) if lp else 0,
+            "verdict": verdict,
+            "slot": ({"start": srow["start"], "end": srow["end"]}
+                     if srow.get("start") else None),
+        }
+    fits = [l for l, m in models.items() if m["verdict"] in ("fits", "oversize_first")]
+    left = [l for l, m in models.items() if m["verdict"] == "does_not_fit"]
+    out = {
+        "schema": 1, "suite": SUITE_VERSION, "kind": "bench-all-plan",
+        "only": p.get("only"), "only_unknown": list(p.get("only_unknown") or []),
+        "lease_mode": lease_mode, "no_judge": bool(no_judge),
+        "rig_models": p.get("rig_models"), "case_count": p.get("case_count"),
+        "nothing_to_do": nothing_to_do(p),
+        "register": [a["name"] for a in p.get("add") or []],
+        "prune": [l for l, _ in p.get("prune") or []],
+        "not_on_rig": list(p.get("not_on_rig") or []),
+        "kept_on_board": list(p.get("kept_on_board") or []),
+        "hosted_pending": list(p.get("hosted_pending") or []),
+        "models": models,
+        "window": {
+            "until": until, "start": _hm(start),
+            "hard_end": hard_end.isoformat(timespec="minutes") if hard_end else None,
+            "judge_cut": _hm(win.judge_cut) if win else None,
+            "gen_stop": sched.get("gen_stop"),
+            "judge_min": 0.0 if no_judge else sched.get("judge_min"),
+            "judge_fits": sched.get("judge_fits"),
+            "fits": fits, "left": left,
+            "verdict": ("no_window" if win is None else "fits" if not left
+                        and sched.get("judge_fits") is not False else "partial"
+                        if fits else "does_not_fit" if left else "fits"),
+        },
+    }
+    return out
+
+
+def dump_plan_json(obj: dict, p: dict) -> str:
+    """One line of JSON, private terms replaced like format_plan does."""
+    import json
+    import re as _re
+    text = json.dumps(obj, sort_keys=False, ensure_ascii=False)
+    for term in (p.get("_private") or {}).get("terms") or ():
+        if term and term in text:
+            text = _re.sub(r"(?<![\w-])" + _re.escape(term) + r"(?![\w-])", "private", text)
+    return text
+
+
 def _ladder_round(args, cfg, labels, win, jargs, want_esc, arm, disarm, waiting,
                   notes) -> int:
     """cli._ladder_phases for bench-all: the same climb `all` does, with a
@@ -790,20 +1012,56 @@ def execute(args, cfg: dict) -> int:
     from .config import load_config, results_dir
     from .providers import get_provider
     sf = [n for n, p in (cfg.get("providers") or {}).items() if (p or {}).get("type") == "studioforge"]
-    if not sf:
-        print("bench-all: no studioforge provider in models.yaml")
+    as_json = bool(getattr(args, "plan_json", False))
+
+    def _down(msg: str) -> int:
+        if as_json:
+            import json
+            print(json.dumps({"schema": 1, "kind": "bench-all-plan", "error": msg,
+                              "exit": EXIT_RIG_DOWN}))
+        else:
+            print(f"bench-all: {msg}")
         return EXIT_RIG_DOWN
+    if not sf:
+        return _down("no studioforge provider in models.yaml")
     prov = get_provider(cfg, sf[0])
     rig_ids = set(prov.list_models(refresh=True))
     if not rig_ids:
-        print("bench-all: the rig returned no model list — is the rig up?")
-        return EXIT_RIG_DOWN
+        return _down("the rig returned no model list — is the rig up?")
     board = sorted({p.stem.removeprefix("transcripts_") for p in results_dir().glob("transcripts_*.jsonl")}
                    | {p.stem.removeprefix("meta_") for p in results_dir().glob("meta_*.json")})
     first = [x.strip() for x in (getattr(args, "first", None) or "").split(",") if x.strip()]
+    only_arg = getattr(args, "only", None)
+    only = ([x.strip() for x in only_arg.split(",") if x.strip()]
+            if only_arg is not None else None)
+    lease_mode = getattr(args, "lease_mode", None)
+    # day mode never judges (the judge needs cards a day run may not take)
+    no_judge = bool(getattr(args, "no_judge", False)) or lease_mode == "day"
     p = plan(cfg, rig_ids, include_api=args.include_api, board_labels=board, first=first,
-             rig_arch=rig_arches(prov))
+             rig_arch=rig_arches(prov), only=only)
     p["_provider"] = sf[0]
+    p["no_judge"] = no_judge
+    if only is not None and (not only or set(p.get("only_unknown") or []) >= set(only)):
+        # --only named nothing that exists: say so, never fall back to "all"
+        if getattr(args, "plan_json", False):
+            print(dump_plan_json({"schema": 1, "kind": "bench-all-plan", "error":
+                                  "--only names no registered or rig model",
+                                  "only": only, "only_unknown": p.get("only_unknown")}, p))
+        else:
+            print(f"bench-all: --only {only_arg!r} names no registered or rig model — "
+                  f"nothing to do")
+        return EXIT_USAGE
+    if getattr(args, "plan_json", False):
+        start = datetime.now()
+        ps = getattr(args, "plan_start", None)
+        if ps:
+            hh, mm = (int(x) for x in ps.split(":", 1))
+            start = start.replace(hour=hh, minute=mm, second=0, microsecond=0)
+        print(dump_plan_json(plan_json(
+            p, cfg, until=getattr(args, "until", None), start=start,
+            judge_reserve_min=float(getattr(args, "judge_reserve_min", 45) or 0),
+            no_judge=no_judge, lease_mode=lease_mode), p))
+        return EXIT_OK
     if getattr(args, "until", None):
         # the window as estimated now (or at --plan-start HH:MM, plan only)
         start = datetime.now()
@@ -814,7 +1072,7 @@ def execute(args, cfg: dict) -> int:
         _, end = deadlines(args.until, 0, now=start)
         try:
             p["window"] = schedule_lines(p, cfg, Window(end, float(
-                getattr(args, "judge_reserve_min", 45) or 0)), start)
+                getattr(args, "judge_reserve_min", 45) or 0), no_judge=no_judge), start)
         except Exception as e:  # noqa: BLE001 — the plan lines are information only
             p["window"] = [f"  ~ window estimate unavailable: {e}"]
     print(format_plan(p))
@@ -846,7 +1104,8 @@ def execute(args, cfg: dict) -> int:
     from . import runner
     _, hard_end = deadlines(getattr(args, "until", None),
                             float(getattr(args, "judge_reserve_min", 45) or 0))
-    win = Window(hard_end, float(getattr(args, "judge_reserve_min", 45) or 0)) if hard_end else None
+    win = (Window(hard_end, float(getattr(args, "judge_reserve_min", 45) or 0),
+                  no_judge=no_judge) if hard_end else None)
     if win:
         log.info("bench-all: time window — everything done by %s (judge cut %s)",
                  _hm(win.hard_end), _hm(win.judge_cut))
@@ -1017,7 +1276,11 @@ def execute(args, cfg: dict) -> int:
                  judge_deadline=win.judge_cut.timestamp() if win else None)
     judged_labels = sorted(set(p["judge"]) | {m for g in p["groups"] for m in g["models"]})
     try:
-        if judged_labels and not _judge_room():
+        if judged_labels and no_judge:
+            notes.append("judge skipped (--no-judge" + (", day lease mode" if lease_mode == "day"
+                                                       else "") + "): rows of "
+                         + ", ".join(judged_labels) + " wait for a judged run")
+        elif judged_labels and not _judge_room():
             notes.append("time window: no time left to judge — the rows wait for the next run")
         elif judged_labels:
             j_args = argparse.Namespace(models=",".join(judged_labels), **jargs)
@@ -1040,7 +1303,10 @@ def execute(args, cfg: dict) -> int:
         # when its estimate fits)
         lad = first_ahead(sorted((set(judged_labels) | {lp["model"] for lp in p.get("ladder") or []})
                                  - set(left)), p.get("first"))
-        if lad and not cli.stopping() and not judge_stop.is_set() and _judge_room() \
+        if no_judge and (lad or p.get("ladder")):
+            # a ladder set unlocks the next one from its JUDGED rows
+            notes.append("ladder packs skipped (--no-judge) — they run in a judged run")
+        elif lad and not cli.stopping() and not judge_stop.is_set() and _judge_room() \
                 and not getattr(args, "no_ladder", False):
             rc_l = _ladder_round(args, cfg, lad, win, jargs, want_esc, _arm, _disarm,
                                  _waiting, notes)
