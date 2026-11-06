@@ -8,6 +8,21 @@ rename.
 
 ## Unreleased (2026-11-06)
 
+- **Sizing support for MakoBench (below-Q8 and hosted/rented rows).** Board rows
+  carry three more facts, travelling like `quant` / `quant_standard`:
+  `quant_reason` (`q8_does_not_fit`, from the models.yaml entry key of the same
+  name), `served` (`rig` for a local provider, else the entry's `served:` key,
+  default `hosted`) and `served_precision` (entry key, e.g. `fp8`, `Q6_K`).
+  `bench-all --quant-reason q8_does_not_fit` records the reason when `--only`
+  names ONE new registration (refused otherwise). New provider
+  `openrouter-q5plus` is `openrouter` plus
+  `extra_body.provider = {quantizations: [fp6, int8, fp8, fp16, bf16, fp32],
+  allow_fallbacks: false}`, so hosted runs never land on a 4-bit endpoint. Tests
+  pin that provider `extra_body` reaches the request body and that
+  `bench-all --only X --include-api` plans `judge_only` (no generation) for a
+  hosted model whose rows are complete but unjudged. No case content or scoring
+  change.
+
 - **Scope alignment.** `bench-all` no longer registers rig models on its own:
   only a model `--only` names (or every in-scope one with `--register-new`).
   Out-of-scope kinds (translation/MT, captioners/OCR, 3D/GLB, TTS/ASR/audio,
