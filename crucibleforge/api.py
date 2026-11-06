@@ -453,8 +453,15 @@ def stream_chat(base_url: str, api_key: str, model: str, messages: list[dict], *
                 timeout: float = 900.0,
                 stall_s: float | None = None,
                 max_wall_s: float | None = None,
-                deadline: float | None = None) -> ChatResult:
+                deadline: float | None = None,
+                rename_params: dict | None = None,
+                drop_params: list | tuple | None = None) -> ChatResult:
     """One streaming chat completion with timing + real token usage.
+
+    rename_params / drop_params (provider config, 2026-11-06): vendor quirks on
+    the request body, applied last. OpenAI's reasoning models (gpt-5+, o-series)
+    refuse ``max_tokens`` (rename it to ``max_completion_tokens``) and any
+    non-default ``top_p``/``temperature`` (drop them).
 
     reasoning_format (llama.cpp server param, e.g. "deepseek") forces CoT
     extraction into the reasoning_content channel instead of inline thinking
@@ -499,6 +506,11 @@ def stream_chat(base_url: str, api_key: str, model: str, messages: list[dict], *
     if extra_body:
         for k, v in extra_body.items():
             body.setdefault(k, v)
+    for old, new in (rename_params or {}).items():
+        if old in body:
+            body[new] = body.pop(old)
+    for k in (drop_params or ()):
+        body.pop(k, None)
 
     r = ChatResult()
     text_parts: list[str] = []

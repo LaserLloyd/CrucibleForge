@@ -113,6 +113,8 @@ class Provider:
     headers: dict = field(default_factory=dict)
     timeout: float = 900.0
     extra_body: dict = field(default_factory=dict)
+    rename_params: dict = field(default_factory=dict)
+    drop_params: list = field(default_factory=list)
     recommended_load: bool = True
     concurrency_explicit: bool = False
     # StudioForge GPU lease: take the cards for the whole run so no co-tenant
@@ -761,6 +763,10 @@ class Provider:
             # MiniMax models. Every request to this provider carries it.
             body_extra["reasoning_split"] = True
         kw.setdefault("timeout", self.timeout)
+        if self.rename_params:
+            kw.setdefault("rename_params", self.rename_params)
+        if self.drop_params:
+            kw.setdefault("drop_params", self.drop_params)
         headers = dict(self.headers)
         if self.type == "studioforge":
             headers.setdefault("X-SF-Client", client_name or studioforge.LEASE_HOLDER)
@@ -823,6 +829,8 @@ def get_provider(cfg: dict, name: str) -> Provider:
         headers={k: _expand_env(v) for k, v in (p.get("headers") or {}).items()},
         timeout=float(p.get("timeout", 900)),
         extra_body=dict(p.get("extra_body") or {}),
+        rename_params={str(k): str(v) for k, v in (p.get("rename_params") or {}).items()},
+        drop_params=[str(k) for k in (p.get("drop_params") or [])],
         reasoning_replay=reasoning_replay_default(p),
         lease=bool(p.get("lease", False)) and ptype == "studioforge",
         lease_devices=list(p["lease_devices"]) if p.get("lease_devices") else None,

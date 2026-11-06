@@ -116,6 +116,15 @@ providers:
     base_url: https://api.openai.com/v1
     api_key_env: OPENAI_API_KEY
     concurrency: 8
+    # gpt-5+/o-series refuse max_tokens and non-default sampling: rename/drop those body keys
+    rename_params:
+      max_tokens: max_completion_tokens
+    drop_params: [top_p, temperature]
+  xai:                            # Grok (xAI's OpenAI-compatible API)
+    type: openai
+    base_url: https://api.x.ai/v1
+    api_key_env: GROK_API_KEY
+    concurrency: 8
   openwebui:                      # Open WebUI exposes an OpenAI-compatible API under /api
     type: openai
     base_url: http://localhost:3000/api
