@@ -123,6 +123,7 @@ def test_hook_refuses_a_commit_that_names_or_adds_the_layer(tmp_path):
     git("commit", "-q", "-m", "notes")
 
 
+@pytest.mark.skipif(os.name == "nt", reason="POSIX file modes; Windows reports 0o777")
 def test_backup_and_restore_round_trip(tmp_path, monkeypatch):
     pl = _load("private_layer")
     root, dest = tmp_path / "repo", tmp_path / "backups"

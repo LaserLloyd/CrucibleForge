@@ -64,3 +64,7 @@ RESET_LOGIN
 
 # code-bank task fixtures (the agent tasks read these logs)
 !codebank_src/**/logs/*.log
+
+# working notes (kept local)
+/REPORT-*.md
+/FINAL-PYTEST.txt
