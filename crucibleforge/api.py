@@ -498,7 +498,7 @@ def stream_chat(base_url: str, api_key: str, model: str, messages: list[dict], *
     if priority is not None:
         body["priority"] = int(priority)
     if tools:
-        body["tools"] = tools
+        body["tools"] = _with_array_items(tools)
     if response_format:
         body["response_format"] = response_format
     if reasoning_format:
@@ -757,3 +757,19 @@ def server_alive(base_url: str, api_key: str, headers: dict | None = None) -> bo
             return resp.status_code == 200
     except Exception:
         return False
+
+
+def _with_array_items(schema):
+    """A copy of the tool schemas where every ``type: array`` without ``items`` gets ``items: {}``.
+    llama.cpp's chat templates (and Python jinja2) read ``param_spec['items']``; a missing key falls
+    back to the dict's own ``items`` method and the template crashes with HTTP 500 (rig 2026-11-07).
+    ``{}`` is the JSON-Schema spelling of "any item", so the meaning is unchanged."""
+    if isinstance(schema, list):
+        return [_with_array_items(x) for x in schema]
+    if not isinstance(schema, dict):
+        return schema
+    out = {k: _with_array_items(v) for k, v in schema.items()}
+    t = out.get("type")
+    if (t == "array" or (isinstance(t, list) and "array" in t)) and "items" not in out:
+        out["items"] = {}
+    return out
