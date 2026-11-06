@@ -1,0 +1,114 @@
+# CrucibleForge starter registry for the Docker setup (compose.yaml).
+#
+# The container copies this file to /data/models.yaml on its first start (only
+# when /data/models.yaml does not exist yet). Edit THAT copy afterwards:
+#
+#   docker compose run --rm crucibleforge config            # prints its path
+#   docker compose run --rm -T crucibleforge cat /data/models.yaml > models.yaml   # copy out (docs/DOCKER.md)
+#
+# API keys NEVER go in this file. Name an environment variable with
+# api_key_env and put the key in .env (next to compose.yaml).
+# The full reference of every provider/model option is models.example.yaml.
+#
+# Inside a container "localhost" is the container itself. A server on YOUR
+# machine is reached as host.docker.internal (compose maps it to the host).
+
+providers:
+  # --- a local server on the host: llama.cpp (llama-server), LM Studio,
+  # StudioForge, Ollama, vLLM ... anything that speaks the OpenAI API.
+  # The first start replaces this URL with LLM_BASE_URL from .env.
+  #   llama-server default port 8080   ->  host.docker.internal:8080/v1
+  #   LM Studio                  1234   ->  host.docker.internal:1234/v1
+  #   Ollama                    11434   ->  host.docker.internal:11434/v1
+  # Docker Desktop reaches a server on the host's 127.0.0.1. Linux Docker and
+  # rootless Podman do not: start the server with --host 0.0.0.0 (LM Studio:
+  # "Serve on Local Network"), or with Podman add -f compose.podman.yaml.
+  local:
+    type: openai
+    base_url: http://host.docker.internal:1234/v1
+    # api_key_env: LOCAL_API_KEY      # only if your server wants a key (StudioForge does)
+
+  # --- hosted APIs (each needs its key in .env) ------------------------------
+  deepseek:
+    type: openai
+    base_url: https://api.deepseek.com/v1
+    api_key_env: DEEPSEEK_API_KEY
+    concurrency: 8
+    docs: https://api-docs.deepseek.com/
+    docs_verified: 2026-11-03
+  openrouter:
+    type: openai
+    base_url: https://openrouter.ai/api/v1
+    api_key_env: OPENROUTER_API_KEY
+    concurrency: 8
+  openai:
+    type: openai
+    base_url: https://api.openai.com/v1
+    api_key_env: OPENAI_API_KEY
+    concurrency: 8
+    # gpt-5 / o-series refuse max_tokens and non-default sampling
+    rename_params:
+      max_tokens: max_completion_tokens
+    drop_params: [top_p, temperature]
+  anthropic:                       # Claude, through Anthropic's OpenAI-compatible endpoint
+    type: openai
+    base_url: https://api.anthropic.com/v1
+    api_key_env: ANTHROPIC_API_KEY
+    concurrency: 4
+
+defaults:
+  context_length: 32768
+
+# The judge grades the chat / writing answers (deterministic categories such
+# as math, coding and instruction-following need none). Pick one per run with
+# --judge <name>. The judge runs on a server too: the container needs no GPU.
+judge:
+  temperature: 0.0
+  max_tokens: 4096
+  samples: 3
+  candidates:
+    # A judge never grades its own answers, so it must be a DIFFERENT model
+    # from the one under test (deepseek-flash below is judged by v4-pro).
+    # hosted: nothing to install. Hosted judges may refuse to score the
+    # adult (NSFW / role-play) rows; use a local uncensored judge for those.
+    - {name: api-judge, provider: deepseek, model_id: deepseek-v4-pro}
+    # local: any instruct model your local server serves
+    - {name: local-judge, provider: local, model_id: "your-judge-model-id", context_length: 16384}
+
+# Models under test. Run one with  --models <name>.
+# price = USD per 1M tokens (the report adds up the cost).
+models:
+  # whatever your local server has loaded; `crucibleforge models` (or the
+  # server's /v1/models) lists the exact id to put here
+  - name: local-model
+    provider: local
+    model_id: "your-model-id"
+    context_length: 32768
+    tags: [local]
+
+  - name: deepseek-flash
+    provider: deepseek
+    model_id: deepseek-flash
+    context_length: 131072
+    price: {input: 0.14, output: 0.28}
+    thinking: auto
+    tags: [remote, cheap]
+
+  - name: openrouter-example
+    provider: openrouter
+    model_id: "qwen/qwen3-235b-a22b"      # any id from openrouter.ai/models
+    context_length: 32768
+    enabled: false
+
+  - name: openai-example
+    provider: openai
+    model_id: "gpt-5-mini"
+    context_length: 131072
+    enabled: false
+
+  - name: claude-example
+    provider: anthropic
+    model_id: "claude-haiku-4-5"
+    context_length: 200000
+    max_output_tokens: 64000              # Claude rejects larger max_tokens
+    enabled: false

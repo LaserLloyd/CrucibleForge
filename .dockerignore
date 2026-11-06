@@ -1,32 +1,75 @@
-# Keep the build context to what the image needs.
+# Keep the build context to what the image needs, and keep everything private
+# or operator-local OUT of it. The Dockerfile COPYs only named paths, but a
+# file that never enters the context can never leak into a layer by accident
+# (a later `COPY . .`, a debug build), so this list is the real guard.
+# tests/test_docker_files.py checks the private entries are still here.
+
+# --- VCS, CI, editors, tooling caches ---------------------------------------
 .git
 .github
 .gitignore
+.gitattributes
+.idea
+.vscode
 .venv
+**/.venv
 .scratch-data
 .pytest_cache
+**/.pytest_cache
 .ruff_cache
-__pycache__
-*.pyc
+**/.ruff_cache
+.mypy_cache
+**/__pycache__
+**/*.pyc
 *.egg-info
 dist
 build
-# operator-local, possibly private: never into an image layer
+
+# --- PRIVATE benchmark content: never in an image ----------------------------
+cases/private
+profiles/private
+profiles/*.private.yaml
+**/*.local.*
+*.local.*
+crucibleforge.local.env
+docs/CUSTOM-TESTS.md
+scripts/scrub-rules.local.txt
+
+# --- operator-local config, secrets and run output -------------------------
 models.yaml
-models.yaml.bak*
+models.yaml.*
 gui_token
 RESET_LOGIN
 results
 runs
-cases/private
-profiles/private
+.scheduled
 .env
 .env.*
-*.log
-*.jsonl
+**/.env
+**/.env.*
+*.pem
+*.key
+**/*.log
+**/*.jsonl
+**/*.csv
+meta_*.json
+report.html
+report.json
+memory
+.openclaw
+.claude
+CLAUDE.md
+CLAUDE.local.md
+run_*.sh
+
+# --- not needed at runtime ----------------------------------------------------
+# codebank_src/ only feeds scripts/build_codebank.py; the built cases are in cases/.
+codebank_src
 scripts
 tests
 docs
 CHANGELOG.md
-CLAUDE.md
-.claude
+FINAL-PYTEST.txt
+REPORT-*.md
+compose.yaml
+deploy/compose

@@ -1,0 +1,19 @@
+# Optional override for ROOTLESS PODMAN on Linux, when your local LLM server
+# listens only on 127.0.0.1 (llama-server's default, LM Studio without
+# "Serve on Local Network"). Rootless Podman's host.docker.internal is not the
+# host's loopback, so such a server is "Connection refused" from the container.
+# This maps the host's loopback to 169.254.1.2 and points host.docker.internal
+# there:
+#
+#   podman compose -f compose.yaml -f compose.podman.yaml run --rm crucibleforge status
+#
+# (Docker Desktop on Windows/macOS needs none of this.)
+services:
+  crucibleforge:
+    network_mode: "pasta:--map-host-loopback,169.254.1.2"
+    extra_hosts: !override
+      - "host.docker.internal:169.254.1.2"
+  gui:
+    network_mode: "pasta:--map-host-loopback,169.254.1.2"
+    extra_hosts: !override
+      - "host.docker.internal:169.254.1.2"

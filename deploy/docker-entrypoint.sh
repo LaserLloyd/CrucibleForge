@@ -10,8 +10,10 @@
 #     summaries) to /data/backups/<old>-to-<new>-<timestamp>/ (keep the last 5).
 #     Transcripts (transcripts_*.jsonl, the large files) are NOT copied; back
 #     those up with the volume backup in docs/deploy/docker.md.
-#  4. First start: seed /data/models.yaml with the local provider pointed at the
-#     Docker host. An existing file is never touched.
+#  4. First start: seed /data/models.yaml from CRUCIBLEFORGE_SEED_TEMPLATE
+#     (default /app/models.example.yaml; the beginner compose.yaml picks the
+#     short /app/deploy/models.docker.yaml) with the local provider pointed at
+#     the Docker host. An existing file is never touched.
 #  5. `docker compose run --rm app status` works: a first argument that is not
 #     an executable (or starts with "-") is a crucibleforge subcommand.
 #  6. CRUCIBLEFORGE_GUI_TOKEN, when set, is the GUI's stable access token (read by the app
@@ -26,6 +28,7 @@ PUID="${PUID:-1000}"
 PGID="${PGID:-1000}"
 CFG="${CRUCIBLEFORGE_CONFIG:-$DATA_DIR/models.yaml}"
 LLM_BASE_URL="${LLM_BASE_URL:-http://host.docker.internal:1234/v1}"
+SEED_TEMPLATE="${CRUCIBLEFORGE_SEED_TEMPLATE:-/app/models.example.yaml}"
 
 log() { printf '%s crucibleforge-entrypoint: %s\n' "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" "$*" >&2; }
 die() { log "FATAL: $*"; exit 1; }
@@ -105,7 +108,10 @@ pre_upgrade_backup() {
 pre_upgrade_backup
 
 # ---- 4. first-start seed -----------------------------------------------------
-if [ ! -f "$CFG" ] && [ -f /app/models.example.yaml ]; then
+if [ ! -f "$CFG" ] && [ ! -f "$SEED_TEMPLATE" ]; then
+    log "note: seed template ${SEED_TEMPLATE} not found; ${CFG} not created"
+fi
+if [ ! -f "$CFG" ] && [ -f "$SEED_TEMPLATE" ]; then
     mkdir -p "$(dirname "$CFG")"
     # '|' as the sed delimiter: URLs contain '/'. Both spellings of loopback:
     # the template's StudioForge entry says 127.0.0.1, the LM Studio one says
@@ -122,9 +128,9 @@ if [ ! -f "$CFG" ] && [ -f /app/models.example.yaml ]; then
     sed -e 's|http://localhost:|http://host.docker.internal:|g' \
         -e 's|http://127.0.0.1:|http://host.docker.internal:|g' \
         -e "s|http://host.docker.internal:1234/v1|${url_sed}|g" \
-        /app/models.example.yaml > "$CFG.seed.$$"
+        "$SEED_TEMPLATE" > "$CFG.seed.$$"
     mv "$CFG.seed.$$" "$CFG"
-    log "seeded $CFG (primary local provider -> ${LLM_BASE_URL})"
+    log "seeded $CFG from ${SEED_TEMPLATE} (local provider -> ${LLM_BASE_URL})"
 fi
 
 # ---- 5/6. command + GUI token -------------------------------------------------

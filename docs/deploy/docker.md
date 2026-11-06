@@ -1,5 +1,9 @@
 # Running CrucibleForge in Docker
 
+> New to this? The short path (one `compose.yaml` at the repo root, a starter
+> registry, run a benchmark in a few commands) is [`docs/DOCKER.md`](../DOCKER.md).
+> This page covers the always-on GUI service in `deploy/compose/`.
+
 CrucibleForge is a benchmark runner with a web GUI. The image contains the
 program, the case set (`cases/`) and the profiles (`profiles/`); your registry
 (`models.yaml`) and every result live in one volume, `/data`. No GPU is needed:
