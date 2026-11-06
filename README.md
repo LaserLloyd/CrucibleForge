@@ -125,6 +125,21 @@ For a point-and-click version, run `uv run crucibleforge gui` and open the addre
 On Windows and macOS add `--allow-unsandboxed` before the subcommand, or use Docker; see [Install](#install).
 If a hosted API is involved, a run costs real money, so always look at `--plan` first.
 
+### Run it in Docker
+
+No Python install and no GPU in the container: the models run on your LLM server or a hosted API.
+
+    cp .env.example .env            # add an API key (e.g. DEEPSEEK_API_KEY) or point LLM_BASE_URL at your server
+    docker compose build
+    docker compose run --rm crucibleforge status
+    docker compose run --rm crucibleforge run --models deepseek-flash --smoke
+    docker compose run --rm crucibleforge report
+    docker compose --profile gui up -d gui      # results GUI on http://127.0.0.1:8777
+
+Coding scores need no judge. Chat and NSFW scores need a judge model: pass `--judge` (see
+[docs/DOCKER.md](docs/DOCKER.md) for a local judge and the trade-offs of an API judge).
+Podman works the same with `podman compose`. Full guide and troubleshooting: [docs/DOCKER.md](docs/DOCKER.md).
+
 ## Backends and APIs
 
 CrucibleForge is a client. Everything it needs is in `models.yaml`: a **provider** (where a server is), a
