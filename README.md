@@ -179,8 +179,9 @@ models:
     price: {input: 0.14, output: 0.28}   # USD per 1M tokens; the report totals the cost
 ```
 
-`models.example.yaml` also has entries for OpenAI, xAI, MiniMax and Open WebUI. A vendor with no OpenAI-style
-endpoint of its own can usually be reached through OpenRouter. Hosted providers should carry `docs:` and
+`models.example.yaml` also has entries for OpenAI, xAI, MiniMax and Open WebUI. Claude works directly: Anthropic's
+OpenAI-compatible endpoint is `type: openai` with `base_url: https://api.anthropic.com/v1`. A vendor with no
+OpenAI-style endpoint of its own can usually be reached through OpenRouter. Hosted providers should carry `docs:` and
 `docs_verified:` so the setup check can tell the request format was read from the vendor's documentation.
 Hosted-API models are only completed by `bench-all` with `--include-api`, because they cost money.
 
