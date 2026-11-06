@@ -6,3 +6,5 @@ Dockerfile text eol=lf
 .dockerignore text eol=lf
 deploy/** text eol=lf
 .github/workflows/containers.yml text eol=lf
+compose*.yaml text eol=lf
+.env.example text eol=lf

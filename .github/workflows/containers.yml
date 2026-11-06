@@ -17,6 +17,10 @@ on:
     paths:
       - Dockerfile
       - .dockerignore
+      - compose.yaml
+      - compose.podman.yaml
+      - .env.example
+      - scripts/docker-smoke.sh
       - deploy/**
       - pyproject.toml
       - uv.lock
@@ -112,6 +116,12 @@ jobs:
         run: |
           docker run --rm "${{ steps.ref.outputs.image }}" --help
           docker run --rm -e CRUCIBLEFORGE_ALLOW_UNSANDBOXED=1 "${{ steps.ref.outputs.image }}" cases verify --categories math,instruct,reasoning
+
+      # The beginner path: first-start seed, non-root, no private files in the
+      # image, compose.yaml valid. No model and no key are used.
+      - name: Docker smoke (scripts/docker-smoke.sh)
+        if: env.PUBLISH != 'true'
+        run: IMAGE="${{ steps.ref.outputs.image }}" NO_BUILD=1 sh scripts/docker-smoke.sh
 
       # --- SBOM (syft -> CycloneDX) + checksums ---------------------------------
       - name: SBOM (CycloneDX)

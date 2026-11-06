@@ -2,8 +2,10 @@
 # =============================================================================
 #  CrucibleForge - multi-stage container image
 # =============================================================================
+#  Quick start (beginner path, docs/DOCKER.md):
+#           cp .env.example .env && docker compose run --rm crucibleforge status
 #  Build:   docker build -t crucibleforge:dev .
-#  Run:     docker compose -f deploy/compose/compose.yml up -d
+#  GUI service (hardened, long-running): docker compose -f deploy/compose/compose.yml up -d
 #
 #  Load-bearing design notes (same pattern as the DisPatch Chat image):
 #
@@ -48,6 +50,8 @@ COPY README.md LICENSE models.example.yaml ./
 COPY crucibleforge/ ./crucibleforge/
 COPY cases/ ./cases/
 COPY profiles/ ./profiles/
+# the short Docker starter registry (compose.yaml seeds /data/models.yaml from it)
+COPY deploy/models.docker.yaml ./deploy/models.docker.yaml
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --locked
 

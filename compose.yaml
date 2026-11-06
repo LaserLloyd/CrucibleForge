@@ -1,0 +1,82 @@
+# CrucibleForge - the easy Docker setup (docs/DOCKER.md walks through it).
+#
+#   cp .env.example .env                 # put an API key in (or point at your local server)
+#   docker compose build
+#   docker compose run --rm crucibleforge status
+#   docker compose run --rm crucibleforge run --models deepseek-flash --smoke --categories math,instruct
+#   docker compose run --rm crucibleforge report
+#   docker compose --profile gui up -d gui           # results GUI on http://127.0.0.1:8777
+#
+# Podman: the same commands with `podman compose` (see docs/DOCKER.md).
+#
+# Everything you keep (models.yaml, results/, the GUI token) is on the
+# `crucibleforge-data` volume, mounted at /data. `down -v` DELETES it.
+# The container never needs a GPU: the models (and the judge) run on the
+# server it talks to - your local llama.cpp / LM Studio / StudioForge, or an API.
+#
+# For a hardened, always-on GUI service (healthcheck, PUID/PGID override,
+# resource limits) use deploy/compose/compose.yml instead; both share the
+# same project name and volume.
+name: crucibleforge
+
+x-crucibleforge: &cf
+  image: ${IMAGE:-crucibleforge:dev}
+  build:
+    context: .
+    dockerfile: Dockerfile
+    args:
+      VERSION: ${VERSION:-dev}
+  init: true
+  env_file:
+    - path: .env
+      required: false
+  environment:
+    TZ: ${TZ:-UTC}
+    # first start only: /data/models.yaml is copied from this short starter
+    CRUCIBLEFORGE_SEED_TEMPLATE: /app/deploy/models.docker.yaml
+    # your local OpenAI-compatible server, as seen FROM THE CONTAINER
+    LLM_BASE_URL: ${LLM_BASE_URL:-http://host.docker.internal:1234/v1}
+    # model-written code (coding cases) runs inside this container, which is
+    # the sandbox: non-root, no capabilities, read-only image (docs/deploy/docker.md)
+    CRUCIBLEFORGE_ALLOW_UNSANDBOXED: ${CRUCIBLEFORGE_ALLOW_UNSANDBOXED:-1}
+  user: "${RUN_AS:-1000:1000}"
+  read_only: true
+  tmpfs:
+    - /tmp
+  cap_drop: [ALL]
+  security_opt:
+    - no-new-privileges:true
+  # host.docker.internal = your machine (Docker Desktop has it; this line
+  # adds it on Linux Docker and Podman)
+  extra_hosts:
+    - "host.docker.internal:host-gateway"
+  volumes:
+    # Podman on an SELinux host with a bind-mounted DATA_PATH: add ":Z"
+    - ${DATA_PATH:-crucibleforge-data}:/data
+
+services:
+  # The CLI. `docker compose run --rm crucibleforge <subcommand> ...`
+  crucibleforge:
+    <<: *cf
+    command: ["--help"]
+
+  # The results GUI (optional): docker compose --profile gui up -d gui
+  gui:
+    <<: *cf
+    profiles: [gui]
+    command: ["gui", "--host", "0.0.0.0", "--port", "8777", "--no-open"]
+    environment:
+      TZ: ${TZ:-UTC}
+      CRUCIBLEFORGE_SEED_TEMPLATE: /app/deploy/models.docker.yaml
+      LLM_BASE_URL: ${LLM_BASE_URL:-http://host.docker.internal:1234/v1}
+      CRUCIBLEFORGE_ALLOW_UNSANDBOXED: ${CRUCIBLEFORGE_ALLOW_UNSANDBOXED:-1}
+      # a stable GUI token; empty = a fresh one is printed in the log each start
+      CRUCIBLEFORGE_GUI_TOKEN: ${CRUCIBLEFORGE_GUI_TOKEN:-}
+    ports:
+      # this machine only, unless you set BIND_ADDR=0.0.0.0 (the GUI still wants its token)
+      - "${BIND_ADDR:-127.0.0.1}:${HOST_PORT:-8777}:8777"
+    restart: unless-stopped
+    stop_grace_period: 60s
+
+volumes:
+  crucibleforge-data:
