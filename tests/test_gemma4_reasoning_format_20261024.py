@@ -28,7 +28,7 @@ def _cfg(models=()):
 def _plan(rig, rig_arch=None):
     return bench_all.plan(_cfg(), set(rig), board_labels=[], rows_for=lambda l: [],
                           pending_for=lambda l: 0, attempts_for=lambda l: {},
-                          judge_id=JUDGE, case_ids=CASES, rig_arch=rig_arch)
+                          judge_id=JUDGE, case_ids=CASES, rig_arch=rig_arch, register_new=True)
 
 
 def test_a_gemma4_rig_model_is_registered_with_the_reasoning_flag():

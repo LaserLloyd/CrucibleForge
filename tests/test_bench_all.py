@@ -64,7 +64,7 @@ def test_retryable_errors_are_missing_but_permanent_ones_are_not():
 def test_unregistered_rig_models_are_added_except_embeddings_and_the_judge():
     cfg = _cfg([_m("a", "org/a")])
     p = _plan(cfg, ["org/a", "org/New-Model-7B-Q8_0", "org/Qwen3-Embedding-8B", JUDGE],
-              rows={"a": _done(*CASES)})
+              rows={"a": _done(*CASES)}, register_new=True)
     assert [a["model_id"] for a in p["add"]] == ["org/New-Model-7B-Q8_0"]
     assert p["add"][0]["name"] == "new-model-7b-q8-0"
     assert {m for m, _ in p["skipped_rig"]} == {"org/Qwen3-Embedding-8B", JUDGE}

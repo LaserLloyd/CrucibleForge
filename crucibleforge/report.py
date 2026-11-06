@@ -984,12 +984,17 @@ def _coverage(rows: list[dict], meta: dict, cfg: dict | None,
     # the conformance record: a FAIL keeps the model off the board, a WARN
     # says what to look at
     conf = conformance_record(label) if label else None
+    provisional_reason = None
     if conf:
         checks = conf.get("checks") or []
         fails = [str(c.get("id")) for c in checks if c.get("status") == "FAIL"]
         warns = [str(c.get("id")) for c in checks if c.get("status") == "WARN"]
         if fails:
-            notes.append("conformance FAIL: " + ", ".join(fails))
+            # alignment 2026-11-06 (review B1/C1): the harness protocol is
+            # proven wrong for this model — the scores stay, the row is
+            # PROVISIONAL (unranked) until a re-run passes conformance
+            provisional_reason = "conformance FAIL: " + ", ".join(fails)
+            notes.append(provisional_reason)
         elif warns:
             notes.append("conformance WARN: " + ", ".join(warns))
     # rows measured under different request protocols cannot be compared
@@ -1005,7 +1010,8 @@ def _coverage(rows: list[dict], meta: dict, cfg: dict | None,
             "stale": stale or old, "old": old, "profile": profile, "judges": judges,
             "judge_mismatch": judge_mismatch, "self_judged": self_judged,
             "pending": pending, "rejudge": rejudge, "notes": notes, "tier": tier,
-            "status": status}
+            "status": status, "provisional": provisional_reason is not None,
+            "provisional_reason": provisional_reason}
 
 
 def _scores(row):
@@ -2167,7 +2173,10 @@ def rank_labels(labels: list[str], stats: dict) -> list[str]:
         groups = [d["group"] for d in c.get("score_defs") or []] or ["chat", "coding"]
         hl = stats[l].get("headline")
         tot = hl.get("sort") if hl else c.get("total")
-        return (failed, old, tot is None, neg(tot),
+        # alignment 2026-11-06: a provisional row (conformance FAIL) follows
+        # the ranked rows of its era — its numbers are kept, never ranked
+        prov = bool(cov.get("provisional"))
+        return (failed, old, prov, tot is None, neg(tot),
                 *(neg(c.get(g)) for g in groups), l)
     return sorted(labels, key=key)
 
@@ -2292,6 +2301,64 @@ def model_boots(labels: list[str], inputs: dict, cfg: dict | None,
     return out
 
 
+def _provisional(s: dict) -> bool:
+    """A row whose model holds a conformance FAIL record (alignment
+    2026-11-06, review B1): scores shown, never ranked."""
+    return bool((s.get("coverage") or {}).get("provisional"))
+
+
+#: a GGUF quant in a rig file name ("Q8_0", "Q5_K_M", "IQ4_XS", "Q4_0"…)
+_QUANT_PAT = r"(?<![A-Za-z0-9])(I?Q[1-8](?:_K_(?:XL|[SML])|_K|_XXS|_XS|_NL|_[01]|_S|_M)?)"
+_QUANT_RE = re.compile(_QUANT_PAT + r"(?![a-z0-9])")
+#: a lowercase file name ("cydonia-22b-v1-q6_k")
+_QUANT_RE_LOWER = re.compile(_QUANT_PAT + r"(?![A-Za-z0-9])", re.IGNORECASE)
+_FP_QUANT_RE = re.compile(r"(?<![A-Za-z0-9])(NVFP4|MXFP4|FP8|BF16|F16)(?![A-Za-z0-9])",
+                          re.IGNORECASE)
+LOCAL_TYPES = ("studioforge", "lmstudio")
+
+
+def quant_of(model_id: str | None) -> str | None:
+    """The quant of a local model file from its rig id (None: not parseable).
+    A 4-bit float format wins over a Q tag in the same name (an NVFP4 build
+    with Q8_0 side tensors is an NVFP4 model)."""
+    stem = str(model_id or "").rsplit("/", 1)[-1]
+    m = _FP_QUANT_RE.search(stem)
+    if m:
+        return m.group(1).upper()
+    hits = _QUANT_RE.findall(stem) or _QUANT_RE_LOWER.findall(stem)
+    return hits[-1].upper() if hits else None
+
+
+def row_facts(label: str, meta: dict | None, cfg: dict | None) -> dict:
+    """Public per-row facts the site needs (ALIGN-INTERFACE.md): scope
+    (modalities / text_suite_only), quant (+ whether it is the Q8_0
+    standard) and the family key — from the models.yaml row, the quant
+    parsed from the rig id when the row does not set ``quant:``."""
+    meta = meta or {}
+    entry = next((m for m in (cfg or {}).get("models") or []
+                  if isinstance(m, dict) and m.get("name") == label), {}) or {}
+    ptype = meta.get("provider_type")
+    if not ptype:
+        pname = entry.get("provider") or meta.get("provider") or meta.get("device")
+        ptype = (((cfg or {}).get("providers") or {}).get(pname) or {}).get("type") or pname
+    local = ptype in LOCAL_TYPES if ptype else None
+    quant = entry.get("quant") or (quant_of(entry.get("model_id") or meta.get("model_id"))
+                                   if local else None)
+    quant = str(quant) if quant else None
+    std = None if not quant else quant.upper() in ("Q8_0", "Q8")
+    mods = entry.get("modalities")
+    if not mods:
+        from .bench_all import MOD_VL, vl_chat
+        mods = MOD_VL if vl_chat(entry.get("model_id") or meta.get("model_id")) else "text->text"
+    mods = str(mods)
+    tso = entry.get("text_suite_only")
+    if tso is None:
+        tso = mods != "text->text"
+    return {"scope": {"modalities": mods, "text_suite_only": bool(tso)},
+            "quant": quant, "quant_standard": std,
+            "family": str(entry["family"]) if entry.get("family") else None}
+
+
 def _headline(labels: list[str], stats: dict, inputs: dict, cfg: dict | None) -> None:
     """stats[label]["headline"]: S ± m per category and overall, sub-score
     points ± m, the rank label ("2=") and the tie readout against the model
@@ -2310,7 +2377,8 @@ def _headline(labels: list[str], stats: dict, inputs: dict, cfg: dict | None) ->
     out_rank: dict[str, str] = {}
     for era_old in (False, True):
         part = [l for l in ranked if bool((stats[l].get("era") or {}).get("old")) == era_old
-                and not (stats[l].get("coverage") or {}).get("failed")]
+                and not (stats[l].get("coverage") or {}).get("failed")
+                and not _provisional(stats[l])]
         # unrounded overall so 9.25 vs 9.34 keeps its order
         s_raw = {l: _h.display(stats[l]["headline"]["P"], prof).get("overall") for l in part}
         lab, pairs = _h.rank_groups(part, boots, s_raw, level=hs["level"])
@@ -2335,7 +2403,8 @@ def _headline(labels: list[str], stats: dict, inputs: dict, cfg: dict | None) ->
     def _complete(l):
         return (stats[l]["headline"].get("S") or {}).get("overall") is not None
     cur = [l for l in labels if not (stats[l].get("era") or {}).get("old") and _complete(l)]
-    med = _h.board_medians([_sv(l) for l in cur])
+    # a provisional (mis-measured) row never moves the board medians
+    med = _h.board_medians([_sv(l) for l in cur if not _provisional(stats[l])])
     for l in labels:
         hl = stats[l]["headline"]
         hl["rank"] = out_rank.get(l, "-")
@@ -3685,6 +3754,10 @@ def board_stats(labels_arg: str | None, cfg: dict | None) -> tuple[list[str], di
             meta = {k: meta[k] for k in ("model_label", "model_id", "device", "provider",
                                          "provider_type", "price", "profile") if k in meta}
         stats[label] = tier_model_stats(label, cfg, rows, meta, era)
+        cov = stats[label].get("coverage") or {}
+        stats[label]["provisional"] = bool(cov.get("provisional"))
+        stats[label]["provisional_reason"] = cov.get("provisional_reason")
+        stats[label].update(row_facts(label, meta, cfg))
         inputs[label] = (rows, meta, era)
         stats[label]["latest_ts"] = max((str(r.get("ts") or "") for r in rows), default=None)
         if not era["old"]:
@@ -3742,6 +3815,11 @@ def html_rows(labels: list[str], stats: dict) -> list[dict]:
             "maxed": [k for k, v in ((s.get("headline") or {}).get("maxed") or {}).items()
                       if v.get("category")] or None,
             "tier": cov.get("tier", 0), "coverage": cov.get("status"),
+            # alignment 2026-11-06 (ALIGN-INTERFACE.md)
+            "provisional": bool(s.get("provisional")),
+            "provisional_reason": s.get("provisional_reason"),
+            "scope": s.get("scope"), "quant": s.get("quant"),
+            "quant_standard": s.get("quant_standard"), "family": s.get("family"),
             "judge": ", ".join(str(j).rsplit("/", 1)[-1] for j in judges) if judges else None,
             "components": {component_label(k): c["components"].get(k)
                            for g in c["weights"] for k in c["weights"][g]},

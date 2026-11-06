@@ -240,12 +240,15 @@ def protocol_fingerprint(cfg: dict, entry: dict, provider: Provider,
     if provider.reasoning_replay:
         # Provider.chat adds this one itself when the replay is on
         extra.add("reasoning_split")
+    # the replay the conversation really uses (a models.yaml row may set its
+    # own, runner._Ctx)
+    replay = bool(getattr(ctx, "reasoning_replay", provider.reasoning_replay))
     if ctx.regime == runner.REGIME_DEPLOYED:
         sampler = {"source": ctx.sampler_source, "params": dict(ctx.sampler or {})}
     else:
         sampler = {"source": "case", "params": {}}
     return {"provider_type": provider.type,
-            "reasoning_replay": bool(provider.reasoning_replay),
+            "reasoning_replay": replay,
             "extra_body_keys": sorted(extra),
             "sampler": sampler}
 
@@ -426,11 +429,15 @@ def _opposite_provider(provider: Provider, replay: bool) -> Provider:
 def _c3_chain(cfg, entry, provider, ctx) -> Check:
     """The 2-turn memory probe, with the current replay setting and with the
     opposite one."""
-    current = bool(provider.reasoning_replay)
+    # the replay the bench uses for THIS model (a models.yaml row may set its
+    # own, runner._Ctx) — the provider default otherwise
+    current = bool(getattr(ctx, "reasoning_replay", provider.reasoning_replay))
     # the opposite setting: the same provider with the knob flipped
     flipped = _opposite_provider(provider, not current)
     try:
-        opp_ctx = _make_ctx(cfg, entry, flipped)
+        opp_ctx = _make_ctx(cfg, {k: v for k, v in entry.items()
+                                  if k != "reasoning_replay"}, flipped)
+        opp_ctx.reasoning_replay = not current
     except Exception as e:  # noqa: BLE001 — a broken config must not crash the run
         return Check("c3", WARN, f"the opposite replay setting could not be "
                                   f"prepared: {str(e)[:160]}")

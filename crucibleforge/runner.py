@@ -304,6 +304,14 @@ class _Ctx:
         # assistant turn goes back WITH its reasoning). OFF by default -- a
         # provider without it sends byte-identical requests to before.
         self.reasoning_replay = bool(getattr(provider, "reasoning_replay", False))
+        # alignment 2026-11-06 (review B1): a models.yaml row may set its own
+        # ``reasoning_replay`` (conformance c3 proved the provider default
+        # wrong for that model, e.g. a Qwen3.8 thinking fine-tune on the rig
+        # that recalls its turn-1 chain only when it is sent back). It moves
+        # only the assistant-turn replay; the provider's request body is
+        # untouched (reasoning_split stays a MiniMax-provider matter).
+        if entry.get("reasoning_replay") is not None:
+            self.reasoning_replay = bool(entry["reasoning_replay"])
         self.lock = threading.Lock()
         # serialises reloads (eviction / wrong model) WITHOUT blocking the
         # row writers on ctx.lock for the minutes a load can take (M10)

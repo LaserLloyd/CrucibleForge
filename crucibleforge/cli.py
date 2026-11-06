@@ -2649,7 +2649,11 @@ def main(argv=None):
     p_ba.add_argument("--include-api", action="store_true",
                       help="also complete hosted-API models (metered — costs money)")
     p_ba.add_argument("--no-sync", action="store_true",
-                      help="do not register rig models missing from models.yaml")
+                      help="do not register rig models missing from models.yaml "
+                           "(even ones --only names)")
+    p_ba.add_argument("--register-new", action="store_true",
+                      help="also register EVERY in-scope rig model missing from models.yaml "
+                           "(default: only models --only names are registered)")
     p_ba.add_argument("--no-prune", action="store_true",
                       help="keep board rows of models gone from the rig / disabled")
     p_ba.add_argument("--first", default=None,

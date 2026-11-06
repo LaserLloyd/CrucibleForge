@@ -60,8 +60,40 @@ EXIT_OK, EXIT_MODEL_FAILED, EXIT_PUBLIC_LEAK, EXIT_RIG_BUSY, EXIT_RIG_DOWN = 0, 
 #: --only names nothing that exists (never silently widened to "all")
 EXIT_USAGE = 2
 
-#: rig ids that are never contestants (not chat models)
-_NOT_CHAT = re.compile(r"embed|rerank|whisper|clip|tts", re.IGNORECASE)
+#: rig ids that are never contestants — the MakoBench SCOPE v2 out-of-scope
+#: kinds (makobench-operator/SCOPE.md §3): output not text (TTS/ASR/audio,
+#: image/video generation, 3D/GLB), vectors or labels (embeddings, rerankers,
+#: classifiers, guard/reward models), single-task text tools (translation/MT,
+#: captioners, OCR). Matched on word-ish boundaries of the rig id, so a
+#: "…-MTP" chat model or a "clipped" name is not caught by accident.
+#: Vision-language CHAT models are in scope (text suite only) — only a
+#: captioner is refused here; registering one is the operator's call (--only).
+_NOT_CHAT = re.compile(
+    r"(?<![a-z0-9])(?:"
+    r"embed\w*|rerank\w*|whisper|clip|tts|asr|stt|speech|audio|voice|music|wav2vec|"
+    r"translat\w*|nllb|madlad|(?:hy-)?mt[0-9]?|"
+    r"caption\w*|ocr|florence|blip|"
+    r"3d|glb|gltf|cad|openscad|"
+    r"diffus\w*|sdxl|flux|video|image-gen|text-to-image|txt2img|"
+    r"guard|llamaguard|shieldgemma|moderation|reward|prm|classif\w*"
+    r")(?![a-z])", re.IGNORECASE)
+
+
+#: a vision-language CHAT model by name (the MakoBench operator's eligibility
+#: uses the same words): in scope, tested on the text suite only
+_VL_CHAT = re.compile(r"(?<![a-z0-9])(?:vl|vlm|vision|llava\w*|smolvlm|idefics\w*|internvl\w*|"
+                      r"pixtral|molmo|minicpm-?v)(?![a-z])", re.IGNORECASE)
+MOD_VL = "text+image->text"
+
+
+def vl_chat(model_id: str) -> bool:
+    """True for a rig id that names a vision-language chat model."""
+    return bool(_VL_CHAT.search(str(model_id or ""))) and not out_of_scope(model_id)
+
+
+def out_of_scope(model_id: str) -> bool:
+    """True for a rig id of a kind MakoBench never benches (SCOPE v2 §3)."""
+    return bool(_NOT_CHAT.search(str(model_id or "")))
 #: 2026-10-24: a gemma4 model benched WITHOUT ``extra_body.reasoning_format``
 #: leaks its thinking channel into the answer as literal ``<|channel>thought``
 #: text — every row truncates, the deterministic graders all score 0 and the
@@ -123,6 +155,20 @@ def missing_cases(rows: list[dict], case_ids: list[str],
             and attempts.get(c, 0) < MAX_CASE_ATTEMPTS]
 
 
+def replay_rows(entry: dict | None, rows: list[dict]) -> list[dict]:
+    """Alignment 2026-11-06 (review B1): when a registry row sets its own
+    ``reasoning_replay`` (conformance c3 proved the default wrong), rows
+    measured under the other replay setting are not usable — they measured
+    the wrong thing — so bench-all regenerates them. A row without a
+    protocol stamp was made with the replay off (the pre-2026-11-02 harness
+    never replayed). Without the key every row counts, as before."""
+    if not entry or entry.get("reasoning_replay") is None:
+        return rows
+    want = bool(entry["reasoning_replay"])
+    return [r for r in rows
+            if bool((r.get("protocol") or {}).get("reasoning_replay", False)) == want]
+
+
 def error_attempts(label: str) -> dict[str, int]:
     """Errored benchmark rows per case id over the label's history at the
     CURRENT suite revision (an error under an older regime says nothing about
@@ -169,7 +215,7 @@ def plan(cfg: dict, rig_ids: set[str], *, include_api: bool = False,
          pending_for=None, attempts_for=None, first: list[str] | None = None,
          rig_arch: dict[str, str] | None = None, room_for=None,
          rungs: list[int] | None = None, ladder_for=None, rejudge_for=None,
-         only: list[str] | None = None) -> dict:
+         only: list[str] | None = None, register_new: bool = False) -> dict:
     """What bench-all would do — computed, nothing touched. Pure given its
     inputs (the tests drive it with fakes). ``ladder_for(label)`` = the
     model's DUE ladder sets {"names": ["<cat>/<part>#n", ...], "jobs": n}
@@ -180,7 +226,16 @@ def plan(cfg: dict, rig_ids: set[str], *, include_api: bool = False,
     prune, generation, escalation, ladder and the judge alike; every other
     model is left exactly as it is. Names that match nothing are listed in
     ``only_unknown``. A registry row with ``keep_on_board: true`` is never
-    pruned (its rows stay on the board after its model leaves the rig)."""
+    pruned (its rows stay on the board after its model leaves the rig).
+
+    Registration (alignment 2026-11-06, review D2): a rig model with no
+    registry row is registered ONLY when ``--only`` names it, or with
+    ``register_new`` (``--register-new``) — the MakoBench operator is the
+    registrar; a plain nightly never turns a downloaded tool model into a
+    board row. Out-of-scope kinds (:func:`out_of_scope`) are never
+    registered, and a registry row with ``bench: false`` (or an out-of-scope
+    rig id) is never a contestant; its board rows are pruned like a
+    disabled model's unless ``keep_on_board``."""
     from . import report
     from .judge import needs_verdict
     from .config import repeats_for
@@ -216,8 +271,8 @@ def plan(cfg: dict, rig_ids: set[str], *, include_api: bool = False,
     only_set = {o for o in (only or []) if o} if only is not None else None
     add, skipped_rig = [], []
     for mid in sorted(rig_ids - registered):
-        if _NOT_CHAT.search(mid):
-            skipped_rig.append((mid, "not a chat model"))
+        if out_of_scope(mid):
+            skipped_rig.append((mid, "out of scope (not a text chat model)"))
         elif mid == judge_id:
             skipped_rig.append((mid, "the benchmark's judge (cannot score itself)"))
         else:
@@ -231,8 +286,16 @@ def plan(cfg: dict, rig_ids: set[str], *, include_api: bool = False,
                 entry["arch"] = arch
             if arch in _REASONING_ARCHES:
                 entry["extra_body"] = {"reasoning_format": _REASONING_FORMAT}
+            if vl_chat(mid):
+                # alignment 2026-11-06: published as "text suite only"
+                entry["modalities"] = MOD_VL
             if only_set is not None and lab not in only_set and mid not in only_set:
                 continue          # --only: another model's registration waits
+            if only_set is None and not register_new:
+                taken.discard(lab)
+                skipped_rig.append((mid, "not registered (the operator registers models: "
+                                         "--only LABEL, or --register-new)"))
+                continue
             add.append(entry)
 
     def on_rig(m):
@@ -244,9 +307,15 @@ def plan(cfg: dict, rig_ids: set[str], *, include_api: bool = False,
     def wanted(label, mid=None):
         return only_set is None or label in only_set or (mid is not None and mid in only_set)
 
-    candidates, not_on_rig, kept_on_board = [], [], []
+    def benched(m):
+        return m.get("bench", True) is not False and not out_of_scope(m.get("model_id"))
+
+    candidates, not_on_rig, kept_on_board, not_benched = [], [], [], []
     for m in models:
         if m.get("enabled", True) is False or not wanted(m["name"], m.get("model_id")):
+            continue
+        if not benched(m):
+            not_benched.append(m["name"])
             continue
         if on_rig(m) or (include_api and is_api(m)):
             candidates.append(m["name"])
@@ -265,13 +334,16 @@ def plan(cfg: dict, rig_ids: set[str], *, include_api: bool = False,
             prune.append((label, "no registry entry"))
         elif m.get("enabled", True) is False:
             prune.append((label, "disabled in models.yaml"))
+        elif not benched(m):
+            prune.append((label, "out of scope (bench: false)"))
         elif prov_type.get(m.get("provider")) == "studioforge" and m["model_id"] not in rig_ids:
             prune.append((label, "no longer on the rig"))
 
     groups: dict[tuple, list[str]] = {}
     for label in candidates:
         new = label in {a["name"] for a in add}
-        miss = tuple(missing_cases([] if new else rows_for(label), case_ids,
+        miss = tuple(missing_cases([] if new else replay_rows(by_name.get(label), rows_for(label)),
+                                   case_ids,
                                    {} if new else attempts_for(label), repeats))
         if miss:
             groups.setdefault(miss, []).append(label)
@@ -383,7 +455,7 @@ def plan(cfg: dict, rig_ids: set[str], *, include_api: bool = False,
             "first": first, "first_notes": first_notes,
             "only": sorted(only_set) if only_set is not None else None,
             "only_unknown": only_unknown(only_set, by_name, rig_ids, add, skipped_rig),
-            "kept_on_board": kept_on_board}
+            "kept_on_board": kept_on_board, "not_benched": not_benched}
 
 
 def only_unknown(only_set, by_name, rig_ids, add, skipped_rig) -> list[str]:
@@ -442,6 +514,8 @@ def format_plan(p: dict) -> str:
         L.append(f"  ! --only {o}: no registry entry and not on the rig — nothing to do for it")
     for label in p["not_on_rig"]:
         L.append(f"  ! {label}: enabled but not on the rig — skipped (disable it or re-download)")
+    for label in p.get("not_benched") or []:
+        L.append(f"  · {label}: out of scope (bench: false / not a text chat model) — never benched")
     for label in p.get("kept_on_board") or []:
         L.append(f"  · {label}: not on the rig — its rows stay on the board (keep_on_board)")
     for label, why in p["prune"]:
@@ -534,6 +608,8 @@ def append_registry(path: str | Path, add: list[dict], provider: str, ctx: int =
                   f"{ind}  tags:\n{ind}  - rig\n{ind}  - auto-added\n")
         if a.get("arch"):
             block += f"{ind}  arch: {a['arch']}\n"
+        if a.get("modalities"):
+            block += f"{ind}  modalities: {a['modalities']}\n"
         eb = a.get("extra_body") or {}
         if eb:
             block += f"{ind}  extra_body:\n"
@@ -1038,7 +1114,9 @@ def execute(args, cfg: dict) -> int:
     # day mode never judges (the judge needs cards a day run may not take)
     no_judge = bool(getattr(args, "no_judge", False)) or lease_mode == "day"
     p = plan(cfg, rig_ids, include_api=args.include_api, board_labels=board, first=first,
-             rig_arch=rig_arches(prov), only=only)
+             rig_arch=rig_arches(prov), only=only,
+             register_new=bool(getattr(args, "register_new", False))
+             and not getattr(args, "no_sync", False))
     p["_provider"] = sf[0]
     p["no_judge"] = no_judge
     if only is not None and (not only or set(p.get("only_unknown") or []) >= set(only)):

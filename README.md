@@ -132,10 +132,12 @@ uv run crucibleforge bench-all            # the plan: what is missing, what woul
 uv run crucibleforge bench-all --go       # do it (add --detach on a server)
 ```
 
-`bench-all` lists the models your StudioForge server has, registers chat
-models the registry lacks (embeddings and the judge excluded; appended as
-text so `models.yaml` keeps its comments), moves board rows of models that are
-gone, disabled or unregistered to `results/archive-<date>-pruned/`, generates
+`bench-all` lists the models your StudioForge server has, registers a chat
+model the registry lacks **only when `--only` names it** (or with
+`--register-new` for every in-scope one; out-of-scope kinds and the judge are
+never registered; appended as text so `models.yaml` keeps its comments), moves
+board rows of models that are gone, disabled, unregistered or `bench: false`
+to `results/archive-<date>-pruned/`, generates
 only the case ids each model is missing (never `--fresh`), judges once, and
 rebuilds both boards. Re-running it is always safe; with everything complete
 it reports *nothing to do*. Exit codes: 0 done · 1 a model failed (the others
@@ -498,6 +500,25 @@ long-context, instruct, harder coding); they stay runnable with
 `run --cases …` or a profile of your own, and some of them are ladder packs.
 All sexual content in the case files is between named, consenting adults with
 stated ages (21 or older).
+
+### What it never benches
+
+The suite scores text answers to chat-formatted prompts, so a model is a
+contestant only when its input and output are text and it chats. `bench-all`
+never registers, and never benches, a rig model whose id names an
+out-of-scope kind: translation (MT), captioners/OCR, 3D/GLB/CAD generators,
+TTS/ASR/speech/audio/music, image/video generation, embeddings, rerankers,
+classifiers, guard/safety and reward models (`bench_all.out_of_scope`). A
+registry row with `bench: false` is never benched either (its rows are pruned
+from the board unless `keep_on_board`). A vision-language chat model may be
+registered on purpose (`--only`); mark it `modalities: text+image->text` and
+its rows are published with `text_suite_only: true` (only the text suite was
+measured). A model whose conformance record FAILs keeps its numbers on the
+board but is **provisional**: unranked, with `provisional_reason` in the
+public `report.json`, until a re-run under the right protocol passes (a
+`models.yaml` row may set its own `reasoning_replay` when c3 proves the
+provider default wrong for it; rows measured under the other setting are then
+regenerated).
 
 `crucibleforge cases verify` re-checks the whole case set offline: every coding
 reference solution is executed against its own tests in the real sandbox (and

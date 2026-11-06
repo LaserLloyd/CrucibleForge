@@ -157,7 +157,7 @@ def test_family_comes_from_the_rig_arch_at_registration(tmp_path):
                        {"Org/Omega-X-31B"}, judge_id="j", case_ids=["A"],
                        rows_for=lambda l: [], pending_for=lambda l: 0, attempts_for=lambda l: {},
                        rungs=[], ladder_for=lambda l: None, rejudge_for=lambda l: set(),
-                       rig_arch={"Org/Omega-X-31B": "gemma4"})
+                       rig_arch={"Org/Omega-X-31B": "gemma4"}, register_new=True)
     assert p["add"][0]["arch"] == "gemma4"
     reg = tmp_path / "models.yaml"
     reg.write_text("models:\n- name: a\n  model_id: x/a\n", encoding="utf-8")

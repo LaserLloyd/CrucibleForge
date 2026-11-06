@@ -60,7 +60,7 @@ def test_only_scopes_every_phase_of_the_plan():
     rows = {"a": _done("C1"), "b": _done("C1"), "c": _done(*CASES)}
     lad = {"c": {"names": ["x/y#1"], "jobs": 2}}
     rig = ["org/a", "org/b", "org/c", "org/new-7b"]
-    full = _plan(cfg, rig, rows=rows, pending={"c": 1}, ladder=lad)
+    full = _plan(cfg, rig, rows=rows, pending={"c": 1}, ladder=lad, register_new=True)
     assert full["groups"] == [{"models": ["a", "b"], "cases": ["C2", "C3"]},
                               {"models": ["new-7b"], "cases": CASES}]
     assert full["judge"] == ["a", "b", "c", "new-7b"] and full["ladder"]
