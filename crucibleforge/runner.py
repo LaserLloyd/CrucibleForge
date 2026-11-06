@@ -337,6 +337,7 @@ class _Ctx:
         self.max_wall_s: float | None = None
         self._probe_pending: str | None = None
         d = cfg.get("defaults", {})
+        self.max_output = int(entry.get("max_output_tokens") or 0)
         self.think_factor = float(d.get("thinking_max_tokens_factor", 4))
         self.think_cap = int(d.get("thinking_max_tokens_cap", 32768))
         self.think_floor = int(d.get("thinking_max_tokens_floor") or 0)
@@ -524,6 +525,10 @@ class _Ctx:
             kw.setdefault("max_wall_s", self.max_wall_s)
         if GEN_DEADLINE[0]:
             kw.setdefault("deadline", GEN_DEADLINE[0])
+        # models.yaml ``max_output_tokens``: the vendor's hard output ceiling (e.g. 64000 on some
+        # Claude models, which 400 the whole request above it); budgets are clamped, never refused
+        if self.max_output and kw.get("max_tokens") and kw["max_tokens"] > self.max_output:
+            kw["max_tokens"] = self.max_output
         try:
             r = self.provider.chat(self.model_id, messages, **kw)
         except WrongModelError as e:
@@ -2070,7 +2075,10 @@ def _assistant_tool_turn(result: ChatResult, calls: list[dict]) -> tuple[dict, l
     ids = [(c or {}).get("id") or f"call_{i}" for i, c in enumerate(calls or [{}])]
     msg = {"role": "assistant", "content": result.response_text or "",
            "tool_calls": [{"id": cid, "type": "function",
-                           "function": {"name": (c or {}).get("name", ""),
+                           # an empty name (a model's malformed call) is replayed under a placeholder:
+                           # Anthropic rejects the whole turn otherwise (HTTP 400 "function.name: String
+                           # should have at least 1 character"). Grading reads the original call.
+                           "function": {"name": (c or {}).get("name") or "unnamed_tool",
                                         "arguments": (c or {}).get("arguments") or "{}"}}
                           for cid, c in zip(ids, calls or [{}])]}
     if result.reasoning_text:
