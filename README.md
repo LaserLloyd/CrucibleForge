@@ -1,4 +1,7 @@
-# CrucibleForge — a quick LLM benchmark that separates models
+# CrucibleForge
+
+[![CI](https://github.com/LaserLloyd/CrucibleForge/actions/workflows/ci.yml/badge.svg)](https://github.com/LaserLloyd/CrucibleForge/actions/workflows/ci.yml)
+[![License: MIT-0](https://img.shields.io/badge/License-MIT--0-green.svg)](LICENSE)
 
 <table>
   <tr>
@@ -7,49 +10,222 @@
   </tr>
 </table>
 
-CrucibleForge scores a language model on three things, **Coding**, **Chat** and
-**NSFW**, against **any OpenAI-compatible endpoint**: local (llama.cpp /
-llama-server, LM Studio, Ollama, vLLM) or hosted (DeepSeek, OpenRouter, OpenAI,
-Groq, …). Coding is graded mechanically (unit tests, exact output, tool-call
-steps); Chat and NSFW are graded by an LLM judge against a per-case checklist
-plus deterministic checks. One run takes roughly **25–30 minutes per local
-model** on a fast GPU box, judge included.
+Test any language model on **Coding**, **Chat** and **NSFW**, and get a score you can trust: code is graded by running it, chat is graded by a judge model with a yes/no checklist, and every score carries a margin. It works with any OpenAI-compatible endpoint, a model on your own machine or a hosted API.
 
-## Quickstart
+**CrucibleForge is an open LLM benchmark harness.** It sends a fixed set of cases to a model, grades the
+answers, and writes a report. It has no model inside it: you point it at a local server (llama.cpp,
+LM Studio, Ollama, vLLM, [StudioForge](https://github.com/LaserLloyd/StudioForge)) or a hosted API
+(DeepSeek, OpenAI, OpenRouter, MiniMax, xAI and others). The machine that runs it needs no GPU. It is the
+engine behind the public [MakoBench board](https://www.laserlloyd.com/makobench/). <!-- scrub-ok: public project/site URL, deliberate -->
+
+**Status:** suite 4.0 (`SUITE_VERSION` 4.0.1 in `crucibleforge/version.py`). Coding is executed in a `bwrap`
+sandbox on Linux; Windows and macOS use the Docker image or `--allow-unsandboxed` (see [Install](#install)).
+One full run takes roughly **25 to 30 minutes per local model** on a fast GPU box, judge included.
+
+**Read more:** [How CrucibleForge works](https://www.laserlloyd.com/makobench/docs/how-crucibleforge-works/) and <!-- scrub-ok: public project/site URL, deliberate -->
+[Run CrucibleForge on your own models](https://www.laserlloyd.com/makobench/docs/run-crucibleforge-on-your-own-models/) <!-- scrub-ok: public project/site URL, deliberate -->
+on LaserLloyd.com, and the author's other [AI projects](https://www.laserlloyd.com/ai/). <!-- scrub-ok: public project/site URL, deliberate -->
+
+---
+
+## Overview
+
+### In plain English
+
+<p align="center"><img src="docs/images/how-it-works.svg" alt="CrucibleForge in five stages: your models (a local server or a hosted API), a conformance check of seven cheap calls, the test runner with Coding, Chat and a separate NSFW group, the graders (code is run in a sandbox, chat is judged by a judge model with a yes/no checklist), and scores that end in the MakoBench board or your own report" width="700"></p>
+
+Three ideas. Your model stays wherever it already runs, and CrucibleForge talks to it over the API
+everything already speaks. The tests are fixed and graded the same way for every model, so scores can be
+compared. And a score is only trusted after a setup check proves the request format works for that model.
+
+### Components
+
+| Block | What it does |
+| --- | --- |
+| **Models** | Any OpenAI-style `/chat/completions` server, local or hosted, described in `models.yaml` as a *provider* plus a *model* entry. |
+| **Conformance check** (`crucibleforge conform`) | Seven cheap calls through the benchmark's own request path prove the model is served, its reasoning arrives, a fact survives between turns, tools round-trip, the sampler is accepted and the token budget fits. A FAIL means the model is not run. |
+| **Test runner** | Sends the cases in parallel up to the server's slots, longest first, and records every prompt and answer. Groups: Coding, Chat, and NSFW (kept apart). |
+| **Graders** | Code is run in a sandbox against hidden tests or compared exactly. Chat and NSFW are judged by a judge model answering a per-case yes/no checklist, next to plain text rules. |
+| **Scores and output** | Coding /10 plus Chat /10 is Overall /20, each with a bootstrap margin. Output is `results/report.html`, `report.md`, `report.json` and per-model transcripts. |
+| **Board** | The same files feed [MakoBench](https://www.laserlloyd.com/makobench/), the public board. | <!-- scrub-ok: public project/site URL, deliberate -->
+
+### How a run flows
+
+1. `crucibleforge all` reads `models.yaml` and picks the cases for the `bench` profile.
+2. Before anything is generated, the conformance gate checks each model. A model that fails is skipped and the report says which check failed.
+3. The runner sends every case to the model and stores the answers.
+4. Code answers are executed in the sandbox. Chat answers go to the judge, which first passes a calibration check.
+5. Scores are computed, margins added, and the report files are written next to your `models.yaml`.
+
+### Where to go next
+
+| You want to... | Go to |
+| --- | --- |
+| Run it for the first time | [Quick start](#quick-start) |
+| Connect a local server or an API key | [Backends and APIs](#backends-and-apis) |
+| Know what the tests measure | [What the tests measure](#what-the-tests-measure) |
+| Choose or understand the judge | [The judge](#the-judge) |
+| Read the report columns | [The board](#the-board) |
+| Use Docker instead of Python | [Install](#install) (under Advanced) |
+| Use it from a coding agent | [`docs/OPENCLAW.md`](docs/OPENCLAW.md) |
+
+---
+
+## Quick start
+
+This takes about ten minutes. You need a model to test, a judge, and a computer with [uv](https://docs.astral.sh/uv/)
+(it fetches Python for you). No GPU is needed on this computer. If you would rather not install Python tools,
+use the Docker route under [Install](#install).
+
+**1. Get it.**
 
 ```bash
-git clone <this repository> crucibleforge && cd crucibleforge
-uv sync                                   # Python 3.12+, https://docs.astral.sh/uv/
-cp models.example.yaml models.yaml        # then edit it (below)
-export DEEPSEEK_API_KEY=...               # only for hosted models / a hosted judge
-uv run crucibleforge status               # providers reachable? models? judge?
-uv run crucibleforge all --models deepseek-flash --judge deepseek:deepseek-v4-flash --yes
-# then open results/report.html in a browser (or read results/report.md)
+git clone https://github.com/LaserLloyd/CrucibleForge.git && cd CrucibleForge
+uv sync --python 3.13
 ```
 
-`models.yaml` needs three things:
+**2. Write your config.** This creates `models.yaml` from the example file. Keys never go in it.
 
-1. **A provider** — where the model is served. Any `/chat/completions`
-   server works with `type: openai`:
-   `{type: openai, base_url: http://localhost:8080/v1}` (llama-server),
-   `http://localhost:11434/v1` (Ollama), `http://localhost:1234/v1`
-   (LM Studio), `http://localhost:8000/v1` (vLLM), or a hosted API with
-   `api_key_env: <ENV VAR NAME>` (keys never go in the file).
-2. **A model** under `models:` — `{name: my-model, provider: <provider>, model_id: <id the server knows>, context_length: 65536}`.
-   `uv run crucibleforge models discover <provider>` lists what a server serves.
-3. **A judge** — any capable instruct model, local or hosted. Pass it per run
-   with `--judge <provider>:<model_id>` (as above) or put it first under
-   `judge: candidates:`. Before judging, a calibration canary checks it. A
-   judge that softens or refuses explicit text (most hosted APIs) still
-   scores Chat; the NSFW rows then stay "unjudged" until you judge them with
-   an NSFW-capable model (`crucibleforge judge --models <label> --judge …`).
+```bash
+uv run crucibleforge config --init
+```
 
-No GPU server of your own? Point a provider at a hosted API and the whole
-board runs over HTTP. Coding is executed in a `bwrap` sandbox on Linux; on
-Windows and macOS add `--allow-unsandboxed` before the subcommand (or use the
-Docker image, see [Install](#install)).
+Open `models.yaml`. Either enable one of the example providers, or add your own (see
+[Backends and APIs](#backends-and-apis)). For a hosted API, put the key in your shell:
+
+```bash
+export DEEPSEEK_API_KEY=...        # only for hosted providers; use the variable your provider entry names
+```
+
+**3. Check it.**
+
+```bash
+uv run crucibleforge status                      # providers UP? keys set? judge? how many cases?
+uv run crucibleforge models discover <provider>  # list the model ids a server offers
+```
+
+**4. See the plan, then run a smoke test.** `--plan` calls nothing and prints an estimate. `--smoke` runs a small
+subset end to end (generation, judging, report) to prove your setup works. It is not a score.
+
+```bash
+uv run crucibleforge all --models <model-name> --judge <provider>:<judge-model-id> --plan
+uv run crucibleforge all --smoke --models <model-name> --judge <provider>:<judge-model-id> --yes
+```
+
+**5. Read the result.** Open `results/report.html` in a browser, or read `results/report.md`. A smoke run shows
+the model as *partial*: it has no Overall and no rank until it has run the full set.
+
+**6. Run the full benchmark.**
+
+```bash
+uv run crucibleforge all --models <model-name> --judge <provider>:<judge-model-id> --yes
+```
+
+For a point-and-click version, run `uv run crucibleforge gui` and open the address it prints (loopback only by default).
+On Windows and macOS add `--allow-unsandboxed` before the subcommand, or use Docker; see [Install](#install).
+If a hosted API is involved, a run costs real money, so always look at `--plan` first.
+
+## Backends and APIs
+
+CrucibleForge is a client. Everything it needs is in `models.yaml`: a **provider** (where a server is), a
+**model** (which model on it) and a **judge**. Run `uv run crucibleforge config --init` to get a file with all
+of the examples below already in it.
+
+### Local server
+
+Any server that speaks `/chat/completions` works with `type: openai`:
+
+```yaml
+providers:
+  llamacpp:                     # llama-server, LM Studio, Ollama, vLLM, StudioForge gateway, ...
+    type: openai
+    base_url: http://127.0.0.1:8080/v1
+
+models:
+  - name: my-model
+    provider: llamacpp
+    model_id: the-id-your-server-reports
+    context_length: 32768
+```
+
+Common addresses: llama-server `http://127.0.0.1:8080/v1`, LM Studio `http://localhost:1234/v1`, Ollama
+`http://localhost:11434/v1`, vLLM `http://localhost:8000/v1`. A StudioForge server's OpenAI API is its gateway
+(port 1234 by default), never the control panel port. If the server requires a key, add `api_key_env: <ENV VAR NAME>`.
+
+Two richer provider types exist for local rigs: `type: lmstudio` (managed through the `lms` CLI, one model at a time,
+with a wrong-model guard) and `type: studioforge` (loads models through the server's planner, runs as many
+requests at once as the server has slots, and can take a GPU lease for the run).
+
+### Hosted API
+
+```yaml
+providers:
+  deepseek:
+    type: openai
+    base_url: https://api.deepseek.com/v1
+    api_key_env: DEEPSEEK_API_KEY      # the NAME of an environment variable, never the key
+    concurrency: 8
+  openrouter:
+    type: openai
+    base_url: https://openrouter.ai/api/v1
+    api_key_env: OPENROUTER_API_KEY
+    concurrency: 8
+
+models:
+  - name: deepseek-flash
+    provider: deepseek
+    model_id: deepseek-flash
+    context_length: 131072
+    price: {input: 0.14, output: 0.28}   # USD per 1M tokens; the report totals the cost
+```
+
+`models.example.yaml` also has entries for OpenAI, xAI, MiniMax and Open WebUI. A vendor with no OpenAI-style
+endpoint of its own can usually be reached through OpenRouter. Hosted providers should carry `docs:` and
+`docs_verified:` so the setup check can tell the request format was read from the vendor's documentation.
+Hosted-API models are only completed by `bench-all` with `--include-api`, because they cost money.
+
+### Already use OpenClaw?
+
+`uv run crucibleforge import-openclaw --write` copies providers, models, prices and `${ENV}` key references from an
+OpenClaw config. Literal keys are never copied. See [`docs/OPENCLAW.md`](docs/OPENCLAW.md).
+
+## What the tests measure
+
+The board is the `bench` profile (`profiles/bench.yaml`): 33 cases, 29 scored plus 4 speed probes. The case files
+hold many more; they stay runnable with `run --cases ...` or a profile of your own.
+
+| Group | Parts and points | How it is graded |
+| --- | --- | --- |
+| **Coding /10** | Functions 5, Predict and bug hunt 2.5, Tool use 2.5 | Python functions run against hidden unit tests (partial credit by test group); program output compared exactly; a bug fix checked by running tests; scripted tool-call conversations with traps. No opinions involved. |
+| **Chat /10** | Deep role-play 3, Conversation 3, Character 2, Creative writing 2 | Multi-turn sessions. A judge model answers a yes/no checklist per case, and plain text rules (counts, forbidden phrases) run beside it. |
+| **NSFW /10** | Uncensored 2, NSFW role-play 4, NSFW writing 4 | The same judge method. Shown beside the board and **never added to Overall**. Every character is an adult. |
+
+**Overall /20 = Coding + Chat.** A model that scores 90% or more on a part unlocks a harder bonus pack for it, the only way
+past 10 (see *Ladder packs* below). Chat measures role-play and companion conversation, not plain question answering.
+
+`crucibleforge cases verify` re-derives every gold answer offline, so the test set tests itself.
+
+## The judge
+
+Chat and NSFW answers cannot be run, so a **judge model** reads them. It never gives a free-form grade: each case has a list
+of yes/no questions, the judge answers each one and quotes the line that proves it, and a yes whose quote is not in the reply
+counts as a no. Rules that keep it honest:
+
+- The judge must not be the model under test.
+- A checklist question must ask exactly one thing (`cases verify` rejects compound ones on score-gating items).
+- Before a judge scores anything, a calibration check (a good and a bad scene, an obvious refusal, an explicit scene it must
+  score) runs. A judge that softens or refuses the task is caught and the batch aborts.
+- Verdicts use fixed settings and a median of 3 passes by default.
+
+The judge can be any capable instruct model, local or hosted: pass it with `--judge <provider>:<model_id>`, or list candidates
+under `judge:` in `models.yaml`. Most hosted judges refuse or soften adult text. Chat is still scored; the NSFW rows then
+stay "unjudged" until you judge them with a model that will do it (`crucibleforge judge --models <label> --judge ...`).
+Your Chat numbers only line up with the MakoBench board if you use the same judge; Code compares either way.
 
 ## The board
+
+The public board is [MakoBench](https://www.laserlloyd.com/makobench/). Your own board is the report CrucibleForge writes after a run. Both are built the same way. <!-- scrub-ok: public project/site URL, deliberate -->
+
 
 `results/report.md` / `report.html` / `report.json` rank every model you ran:
 
@@ -88,6 +264,14 @@ some). Every board case runs once (1 repeat).
 **Board hygiene.** Only rows of the `bench` profile that answer the current
 content of their own case count, latest run per (case, repeat), never more
 repeats than the profile asks for. Editing one case re-runs only that case.
+
+
+---
+
+## Advanced
+
+Everything below is the operator reference: private categories, refreshing a whole board, Docker and per-platform install,
+conformance details, the registry, accounts, design notes, publishing and adding cases.
 
 ### Private categories
 
@@ -164,7 +348,7 @@ terminal), put `KEY=VALUE` lines in a git-ignored `crucibleforge.local.env`
 next to `models.yaml`. Only `CRUCIBLEFORGE_*` keys are read from it, and a
 variable already in the environment wins.
 
-## Install
+### Install
 
 Pick your platform; in each, method 1 is the simplest. CrucibleForge runs from a git checkout (a wheel or `pip install` is not supported:
 the cases, profiles and `models.example.yaml` live outside the Python package). It needs an OpenAI-compatible LLM server to test, such as the
@@ -177,11 +361,11 @@ in `models.yaml` (the key itself stays in an environment variable).
 Native installs run model-written code for the coding cases, so on Linux they need `bubblewrap` (`bwrap`); Windows and macOS have none
 and need `--allow-unsandboxed`. The Docker image avoids both: the container is the sandbox.
 
-### Windows
+#### Windows
 
 Run the blocks in PowerShell. After a `winget install`, close and reopen PowerShell.
 
-#### 1. Docker Desktop (simplest)
+##### 1. Docker Desktop (simplest)
 
 Choose this to get the GUI with no Python and no sandbox flag. Your `models.yaml` and results live on a Docker volume that survives upgrades.
 
@@ -204,7 +388,7 @@ docker compose -f deploy/compose/compose.yml logs app | Select-String "GUI:"   #
 | Data on a named volume; `down` keeps it, updates keep it | The LLM server on the host must accept connections from the container, not only on the host's `127.0.0.1` |
 | Read-only image, non-root, no capabilities | Coding cases run in the container, which can reach the network |
 
-#### 2. Native, `uv` from a clone
+##### 2. Native, `uv` from a clone
 
 Choose this to edit the code or run without Docker.
 
@@ -229,11 +413,11 @@ as you, with no isolation. Use method 1 if that worries you.
 | `uv` fetches Python 3.13 itself (the pin matches the Docker image) | `--detach` needs systemd, and the rig lock is not enforced on Windows |
 | Results sit in the checkout next to `models.yaml` | You manage updates (`git pull`, `uv sync`) |
 
-### Linux
+#### Linux
 
 Blocks assume Ubuntu or Debian (apt).
 
-#### 1. Docker Compose (simplest)
+##### 1. Docker Compose (simplest)
 
 Choose this to get the GUI with no Python and no bubblewrap. Your `models.yaml` and results live on a Docker volume that survives upgrades.
 
@@ -254,7 +438,7 @@ docker compose -f deploy/compose/compose.yml logs app | grep "GUI:"  # open the 
 | Data on a named volume; `down` keeps it, updates keep it | The LLM server on the host must listen on an address the container can reach, not only `127.0.0.1` |
 | Read-only image, non-root, no capabilities | Coding cases run in the container, which can reach the network |
 
-#### 2. Native, `uv` from a clone
+##### 2. Native, `uv` from a clone
 
 Choose this to edit the code, use `--detach` (a `systemd --user` unit), or get bubblewrap isolation for the coding cases. A bare Ubuntu image has none of
 `git`, `curl` or `bwrap`, so the first line installs them.
@@ -278,12 +462,12 @@ If bubblewrap is missing or cannot start (a container, or a kernel that blocks u
 | `--detach` runs long benchmarks as a `systemd --user` unit | You manage updates (`git pull`, `uv sync`) |
 | Edit the code and re-run at once; results sit in the checkout | PEP 668 does not apply (uv makes its own venv), but `pip install .` is unsupported |
 
-### macOS
+#### macOS
 
 The GUI and CLI are plain Python, so a native install should work; there is no bubblewrap on macOS, so every run command needs `--allow-unsandboxed`.
 Docker Desktop avoids that.
 
-#### 1. Docker Desktop (simplest)
+##### 1. Docker Desktop (simplest)
 
 ```bash
 brew install git
@@ -300,7 +484,7 @@ docker compose -f deploy/compose/compose.yml logs app | grep "GUI:"  # open the 
 | No Python, no sandbox flag; data on a named volume | Docker Desktop is a large install |
 | Same files and steps as Linux | Needs Homebrew (<https://brew.sh>) for the commands above |
 
-#### 2. Native, `uv` from a clone
+##### 2. Native, `uv` from a clone
 
 ```bash
 brew install git uv
@@ -316,7 +500,7 @@ uv run crucibleforge --allow-unsandboxed gui    # http://127.0.0.1:8777
 | Smallest; edit the code and re-run at once | No sandbox: graded code runs as you |
 | `uv` fetches Python 3.13 itself | You manage updates (`git pull`, `uv sync`) |
 
-### Docker settings, CLI and backups
+#### Docker settings, CLI and backups
 
 The GUI URL in the log always shows port 8777, the container's port. If you changed `HOST_PORT`, open the same URL with that port instead.
 
@@ -338,7 +522,7 @@ docker compose -f deploy/compose/compose.yml run --rm app cases verify
 docker compose -f deploy/compose/compose.yml run --rm app all --models <label> --fresh --yes
 ```
 
-### Upgrade and uninstall
+#### Upgrade and uninstall
 
 - **Docker:** `git pull` then `docker compose -f deploy/compose/compose.yml up -d --build`. To roll back, `git checkout` the earlier commit and
   run the same `up -d --build`. `models.yaml` and `results/` live only in the `crucibleforge-data` volume, which `down` keeps and a new image reuses;
@@ -355,7 +539,7 @@ docker compose -f deploy/compose/compose.yml run --rm app all --models <label> -
 - **Native:** `git pull && uv sync --python 3.13`. To uninstall, copy `models.yaml` and `results/` somewhere safe, then delete the clone
   (they sit in it unless you set `CRUCIBLEFORGE_CONFIG` or `CRUCIBLEFORGE_RESULTS`).
 
-## Run a benchmark
+### Run a benchmark
 
 From a native install, prefix `uv run`; with Docker use `docker compose -f deploy/compose/compose.yml run --rm app <args>`. Add `--allow-unsandboxed`
 before the subcommand on Windows and macOS.
@@ -384,7 +568,7 @@ Only one benchmark runs at a time: `run`/`all`/`judge`/`recover` take
 `results/.rig.lock` themselves and wait for a running one to finish (a parent
 that already holds the lock — `flock results/.rig.lock …` — is recognised).
 
-### Conformance (`crucibleforge conform`)
+#### Conformance (`crucibleforge conform`)
 
 A model is benched with ONE request protocol, and the protocol differs per
 provider: MiniMax requires its reasoning chain to be sent back (the chain
@@ -411,7 +595,7 @@ harness change can tell which rows are stale. A rig model (StudioForge / LM
 Studio) is only checked while it is loaded — `conform` never loads a model
 behind the bench's back (`--allow-load` does, under the rig lock).
 
-### The gate (`run` / `bench-all`)
+#### The gate (`run` / `bench-all`)
 
 A model is benched only under a request protocol that has been **proven** for
 it. `run` and `bench-all` require a conformance record for the *current*
@@ -427,7 +611,7 @@ re-run"* on the board. `report.md` has a **Conformance** section with each
 model's verdict and the date it was proven on; the board's Notes column says
 `conformance FAIL: <check>` (or a WARN summary).
 
-### Registry (`models.yaml`)
+#### Registry (`models.yaml`)
 
 ```yaml
 providers:
@@ -487,10 +671,10 @@ models:
   rewrites it.
 * **OpenClaw users:** `crucibleforge import-openclaw --write` pulls providers,
   models, prices and `${ENV}` key references straight from
-  `~/.openclaw/openclaw.json` (remote providers by default,
+  an OpenClaw `openclaw.json` (remote providers by default,
   `--include-local` for loopback ones). Literal keys are never copied.
 
-## What it measures
+### What it measures
 
 The board is `profiles/bench.yaml` (33 cases: 29 scored plus the 4 speed probes P1–P4): Coding (CL3–CL8 functions,
 CB-C5/C6 predict-the-output, CB-F1 bug hunt, TZ16/TZ19/TZ20 tool use), Chat
@@ -501,7 +685,7 @@ long-context, instruct, harder coding); they stay runnable with
 All sexual content in the case files is between named, consenting adults with
 stated ages (21 or older).
 
-### What it never benches
+#### What it never benches
 
 The suite scores text answers to chat-formatted prompts, so a model is a
 contestant only when its input and output are text and it chats. `bench-all`
@@ -525,7 +709,7 @@ reference solution is executed against its own tests in the real sandbox (and
 every mutant must fail them), every math/reasoning gold answer is recomputed,
 generated haystacks are rebuilt. It runs in the test suite too.
 
-## GUI
+### GUI
 
 `crucibleforge gui [--host 127.0.0.1] [--port 8777] [--token …]`
 
@@ -538,7 +722,7 @@ run is a background thread; **Stop** finishes the in-flight case).
 `crucibleforge gui token show|rotate` manage a stored token (`<data dir>/gui_token`); a `RESET_LOGIN` file recovers a lost one —
 see [Accounts and lockout recovery](#accounts-and-lockout-recovery).
 
-## Accounts and lockout recovery
+### Accounts and lockout recovery
 
 CrucibleForge has **no user accounts and no password database**. Its one login is the **GUI access token**: required when the GUI is
 reachable from another machine, optional on `127.0.0.1`. Provider API keys are not stored by the app at all (`api_key_env` in
@@ -599,7 +783,7 @@ Only `gui_token` is changed. `models.yaml`, `results/`, the case files and every
 `crucibleforge gui` start-up code only; no HTTP request can create, read or trigger it (`tests/test_accounts_20261019.py` pins this), so
 a reset needs the ability to write into the data dir, which is the same access as reading the token file.
 
-## Design notes worth knowing
+### Design notes worth knowing
 
 * **Thinking models, as deployed** — graders and the judge read the
   *content* channel, never the reasoning. Each model runs with its maker's
@@ -684,7 +868,7 @@ a reset needs the ability to write into the data dir, which is the same access a
 * **Wrong-model guard** — on by default for `lmstudio`/`studioforge`, off for
   hosted APIs that alias ids (`verify_model` per provider).
 
-## Layout
+### Layout
 
 ```
 crucibleforge/       package: cli, config, providers, api, runner, graders,
@@ -708,7 +892,7 @@ CHANGELOG.md         release history (latest: 4.0.0)
 
 `uv run pytest` — no network needed. `uv run crucibleforge cases list|verify`.
 
-## Publishing
+### Publishing
 
 A benchmark working tree is a bad thing to push by accident. `results/`, the
 run logs and `models.yaml` are transcripts of a real rig — its endpoints, its
@@ -738,7 +922,7 @@ whole trap is that a fresh clone passes without them. Add
 when zero were loaded. It belongs in a maintainer's release check, not in CI,
 where the file never exists by design.
 
-## Adding cases
+### Adding cases
 
 Append to the category file (ids unique; `difficulty` easy/medium/hard;
 `smoke: true` for the fast subset). Objective graders: `numeric`, `exact`,
@@ -814,7 +998,7 @@ with its evidence cut to 40 characters.
 (`crucibleforge pack new <category/part>`, `pack verify <file>`) are covered, with a worked
 example, in [`docs/CUSTOM-TESTS.md`](docs/CUSTOM-TESTS.md).
 
-## Content warning
+### Content warning
 
 The benchmark measures refusal calibration and adult-fiction ability, so some
 case files contain material you may not want to read:
@@ -835,6 +1019,33 @@ case files contain material you may not want to read:
 
 Model outputs (`results/`, transcripts, reports) are git-ignored and are never
 part of the repository. Skip categories with `--categories`.
+
+
+## Documentation
+
+| Doc | What |
+| --- | --- |
+| [`docs/OPENCLAW.md`](docs/OPENCLAW.md) | Driving CrucibleForge from an agent framework |
+| [`docs/deploy/docker.md`](docs/deploy/docker.md) | The container image, volumes, settings, backups |
+| [`docs/CHAT.md`](docs/CHAT.md) | The older 3.4 Chat section (historical) |
+| [`docs/CUSTOM-TESTS.md`](docs/CUSTOM-TESTS.md) | Your own private tests and packs |
+| [`docs/differentiation-2026-09-25.md`](docs/differentiation-2026-09-25.md) | The 3.5 round that made cases graded as elements (history) |
+| [`docs/judge-comparison-2026-09-24.md`](docs/judge-comparison-2026-09-24.md) | How the benchmark judge was chosen (history) |
+| [`CHANGELOG.md`](CHANGELOG.md) | Release history |
+| [`SECURITY.md`](SECURITY.md) | Reporting a vulnerability |
+
+On the site: [How CrucibleForge works](https://www.laserlloyd.com/makobench/docs/how-crucibleforge-works/), <!-- scrub-ok: public project/site URL, deliberate -->
+[How MakoBench works](https://www.laserlloyd.com/makobench/docs/how-makobench-works/) and <!-- scrub-ok: public project/site URL, deliberate -->
+[Run CrucibleForge on your own models](https://www.laserlloyd.com/makobench/docs/run-crucibleforge-on-your-own-models/). <!-- scrub-ok: public project/site URL, deliberate -->
+
+## Related projects
+
+Same author:
+
+- [StudioForge](https://github.com/LaserLloyd/StudioForge): a self-hosted llama.cpp server with an OpenAI-compatible API,
+  a common backend for CrucibleForge runs.
+- More projects: [github.com/LaserLloyd](https://github.com/LaserLloyd)
+
 
 ## License
 

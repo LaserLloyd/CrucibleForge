@@ -1,0 +1,69 @@
+<svg viewBox="0 0 700 880" font-family="system-ui, -apple-system, Segoe UI, Roboto, sans-serif" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="cf-t cf-d">
+<title id="cf-t">How CrucibleForge works</title>
+<desc id="cf-d">Five stages from top to bottom. Your models, local server or hosted API. A conformance check of seven quick calls. The test runner with Coding, Chat and a separate NSFW group. Two graders: code is run in a sandbox, chat is judged by a judge model with a yes or no checklist. Scores: Code out of 10 plus Chat out of 10 gives Total out of 20, with NSFW kept apart. Output: the MakoBench board or your own report.</desc>
+<style>svg{--bg-2:#ffffff;--bg-3:#e9eef5;--line:#b9c5d3;--ink:#16212c;--muted:#546675;--accent:#0b78d0;--accent-soft:rgba(11,120,208,.10);--amber:#c27d0e;--amber-soft:rgba(245,166,35,.14)}@media (prefers-color-scheme:dark){svg{--bg-2:#12171e;--bg-3:#171e27;--line:#33414f;--ink:#eaf1f8;--muted:#9aabbc;--accent:#2ea8ff;--accent-soft:rgba(46,168,255,.12);--amber:#ffb64a;--amber-soft:rgba(255,182,74,.10)}}</style>
+<rect width="700" height="880" fill="var(--bg-2, #ffffff)"/>
+<defs><marker id="cf-ar" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="var(--accent, #0b78d0)"/></marker></defs>
+<rect x="40" y="24" width="620" height="132" rx="12" fill="var(--bg-2, #ffffff)" stroke="var(--line, #b9c5d3)"/>
+<text x="60" y="52" font-size="14" fill="var(--muted, #546675)" text-anchor="start" letter-spacing="2">1  YOUR MODELS</text>
+<rect x="60" y="66" width="282" height="76" rx="12" fill="var(--accent-soft, rgba(11,120,208,.10))" stroke="var(--accent, #0b78d0)"/>
+<text x="201" y="92" font-size="17" fill="var(--ink, #16212c)" text-anchor="middle" font-weight="600">Local server</text>
+<text x="201" y="114" font-size="14" fill="var(--muted, #546675)" text-anchor="middle">llama.cpp, LM Studio, Ollama,</text>
+<text x="201" y="132" font-size="14" fill="var(--muted, #546675)" text-anchor="middle">vLLM, StudioForge</text>
+<rect x="358" y="66" width="282" height="76" rx="12" fill="var(--bg-3, #e9eef5)" stroke="var(--line, #b9c5d3)"/>
+<text x="499" y="92" font-size="17" fill="var(--ink, #16212c)" text-anchor="middle" font-weight="600">Hosted API</text>
+<text x="499" y="114" font-size="14" fill="var(--muted, #546675)" text-anchor="middle">DeepSeek, OpenAI, OpenRouter,</text>
+<text x="499" y="132" font-size="14" fill="var(--muted, #546675)" text-anchor="middle">MiniMax, xAI, and similar</text>
+<line x1="350" y1="156" x2="350" y2="196" stroke="var(--accent, #0b78d0)" stroke-width="2" marker-end="url(#cf-ar)"/>
+<text x="362" y="181" font-size="14" fill="var(--muted, #546675)" text-anchor="start">OpenAI-style /chat/completions</text>
+<rect x="40" y="198" width="620" height="96" rx="12" fill="var(--bg-2, #ffffff)" stroke="var(--line, #b9c5d3)"/>
+<text x="60" y="226" font-size="14" fill="var(--muted, #546675)" text-anchor="start" letter-spacing="2">2  CONFORMANCE CHECK</text>
+<text x="60" y="254" font-size="16" fill="var(--ink, #16212c)" text-anchor="start">Seven cheap calls prove the harness talks to this model correctly:</text>
+<text x="60" y="276" font-size="15" fill="var(--muted, #546675)" text-anchor="start">model id, reasoning, memory, tools, sampler, token budget, docs.</text>
+<line x1="350" y1="294" x2="350" y2="334" stroke="var(--accent, #0b78d0)" stroke-width="2" marker-end="url(#cf-ar)"/>
+<text x="362" y="319" font-size="14" fill="var(--muted, #546675)" text-anchor="start">a failed check means: not run</text>
+<rect x="40" y="336" width="620" height="168" rx="12" fill="var(--bg-2, #ffffff)" stroke="var(--line, #b9c5d3)"/>
+<text x="60" y="364" font-size="14" fill="var(--muted, #546675)" text-anchor="start" letter-spacing="2">3  TEST RUNNER</text>
+<rect x="60" y="378" width="190" height="108" rx="12" fill="var(--accent-soft, rgba(11,120,208,.10))" stroke="var(--accent, #0b78d0)"/>
+<text x="155" y="406" font-size="18" fill="var(--ink, #16212c)" text-anchor="middle" font-weight="600">Coding</text>
+<text x="155" y="430" font-size="14" fill="var(--muted, #546675)" text-anchor="middle">functions, predict the</text>
+<text x="155" y="448" font-size="14" fill="var(--muted, #546675)" text-anchor="middle">output, bug hunt,</text>
+<text x="155" y="466" font-size="14" fill="var(--muted, #546675)" text-anchor="middle">tool use</text>
+<rect x="260" y="378" width="190" height="108" rx="12" fill="var(--accent-soft, rgba(11,120,208,.10))" stroke="var(--accent, #0b78d0)"/>
+<text x="355" y="406" font-size="18" fill="var(--ink, #16212c)" text-anchor="middle" font-weight="600">Chat</text>
+<text x="355" y="430" font-size="14" fill="var(--muted, #546675)" text-anchor="middle">long role-play, companion</text>
+<text x="355" y="448" font-size="14" fill="var(--muted, #546675)" text-anchor="middle">chat, characters,</text>
+<text x="355" y="466" font-size="14" fill="var(--muted, #546675)" text-anchor="middle">co-writing</text>
+<rect x="460" y="378" width="180" height="108" rx="12" fill="var(--amber-soft, rgba(245,166,35,.12))" stroke="var(--amber, #f5a623)" stroke-dasharray="6 4"/>
+<text x="550" y="406" font-size="18" fill="var(--ink, #16212c)" text-anchor="middle" font-weight="600">NSFW</text>
+<text x="550" y="430" font-size="14" fill="var(--muted, #546675)" text-anchor="middle">separate, adult</text>
+<text x="550" y="448" font-size="14" fill="var(--muted, #546675)" text-anchor="middle">fiction, never part</text>
+<text x="550" y="466" font-size="14" fill="var(--muted, #546675)" text-anchor="middle">of Total</text>
+<line x1="155" y1="504" x2="155" y2="548" stroke="var(--accent, #0b78d0)" stroke-width="2" marker-end="url(#cf-ar)"/>
+<line x1="355" y1="504" x2="355" y2="548" stroke="var(--accent, #0b78d0)" stroke-width="2" marker-end="url(#cf-ar)"/>
+<line x1="550" y1="504" x2="550" y2="548" stroke="var(--accent, #0b78d0)" stroke-width="2" marker-end="url(#cf-ar)"/>
+<rect x="40" y="550" width="620" height="174" rx="12" fill="var(--bg-2, #ffffff)" stroke="var(--line, #b9c5d3)"/>
+<text x="60" y="578" font-size="14" fill="var(--muted, #546675)" text-anchor="start" letter-spacing="2">4  GRADERS</text>
+<rect x="60" y="592" width="290" height="116" rx="12" fill="var(--bg-3, #e9eef5)" stroke="var(--line, #b9c5d3)"/>
+<text x="205" y="620" font-size="17" fill="var(--ink, #16212c)" text-anchor="middle" font-weight="600">Code is run</text>
+<text x="205" y="644" font-size="14" fill="var(--muted, #546675)" text-anchor="middle">Hidden tests run in a sandbox.</text>
+<text x="205" y="662" font-size="14" fill="var(--muted, #546675)" text-anchor="middle">Exact output is compared.</text>
+<text x="205" y="680" font-size="14" fill="var(--muted, #546675)" text-anchor="middle">No opinions involved.</text>
+<rect x="370" y="592" width="270" height="116" rx="12" fill="var(--bg-3, #e9eef5)" stroke="var(--line, #b9c5d3)"/>
+<text x="505" y="620" font-size="17" fill="var(--ink, #16212c)" text-anchor="middle" font-weight="600">Chat is judged</text>
+<text x="505" y="644" font-size="14" fill="var(--muted, #546675)" text-anchor="middle">A judge model answers a yes/no</text>
+<text x="505" y="662" font-size="14" fill="var(--muted, #546675)" text-anchor="middle">checklist per case, plus plain</text>
+<text x="505" y="680" font-size="14" fill="var(--muted, #546675)" text-anchor="middle">text rules. Local or API judge.</text>
+<line x1="350" y1="724" x2="350" y2="764" stroke="var(--accent, #0b78d0)" stroke-width="2" marker-end="url(#cf-ar)"/>
+<rect x="40" y="766" width="620" height="100" rx="12" fill="var(--bg-2, #ffffff)" stroke="var(--line, #b9c5d3)"/>
+<text x="60" y="794" font-size="14" fill="var(--muted, #546675)" text-anchor="start" letter-spacing="2">5  SCORES, THEN A BOARD OR YOUR OWN REPORT</text>
+<rect x="60" y="806" width="300" height="48" rx="12" fill="var(--accent-soft, rgba(11,120,208,.10))" stroke="var(--accent, #0b78d0)"/>
+<text x="210" y="826" font-size="15" fill="var(--ink, #16212c)" text-anchor="middle" font-weight="600">Code 10 + Chat 10 = Total 20</text>
+<text x="210" y="844" font-size="13" fill="var(--muted, #546675)" text-anchor="middle">each score carries a margin</text>
+<rect x="372" y="806" width="130" height="48" rx="12" fill="var(--bg-3, #e9eef5)" stroke="var(--line, #b9c5d3)"/>
+<text x="437" y="826" font-size="15" fill="var(--ink, #16212c)" text-anchor="middle" font-weight="600">MakoBench</text>
+<text x="437" y="844" font-size="13" fill="var(--muted, #546675)" text-anchor="middle">public board</text>
+<rect x="512" y="806" width="128" height="48" rx="12" fill="var(--bg-3, #e9eef5)" stroke="var(--line, #b9c5d3)"/>
+<text x="576" y="826" font-size="15" fill="var(--ink, #16212c)" text-anchor="middle" font-weight="600">Your report</text>
+<text x="576" y="844" font-size="13" fill="var(--muted, #546675)" text-anchor="middle">report.html</text>
+</svg>
