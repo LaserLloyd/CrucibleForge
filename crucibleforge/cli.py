@@ -2691,6 +2691,9 @@ def main(argv=None):
     p_ba.add_argument("--no-judge", action="store_true",
                       help="generate only: no judge phase and no ladder packs (rows wait "
                            "for the next judged run); implied by --lease-mode day")
+    p_ba.add_argument("--quant-reason", default=None, metavar="REASON",
+                      help="with --only LABEL naming ONE new registration: record why the quant "
+                           "is below Q8_0 in the models.yaml entry (q8_does_not_fit)")
     p_ba.add_argument("--plan-json", action="store_true",
                       help="print the plan as ONE JSON object (per label: missing cases, "
                            "estimated generation/judge minutes, window verdict vs --until); "

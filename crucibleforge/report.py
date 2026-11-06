@@ -2354,8 +2354,14 @@ def row_facts(label: str, meta: dict | None, cfg: dict | None) -> dict:
     tso = entry.get("text_suite_only")
     if tso is None:
         tso = mods != "text->text"
+    qr = entry.get("quant_reason")
+    served = "rig" if local else (str(entry["served"]) if entry.get("served") else
+                                  ("hosted" if ptype else None))
+    sp = entry.get("served_precision")
     return {"scope": {"modalities": mods, "text_suite_only": bool(tso)},
             "quant": quant, "quant_standard": std,
+            "quant_reason": str(qr) if qr else None, "served": served,
+            "served_precision": str(sp) if sp else None,
             "family": str(entry["family"]) if entry.get("family") else None}
 
 
@@ -3820,6 +3826,8 @@ def html_rows(labels: list[str], stats: dict) -> list[dict]:
             "provisional_reason": s.get("provisional_reason"),
             "scope": s.get("scope"), "quant": s.get("quant"),
             "quant_standard": s.get("quant_standard"), "family": s.get("family"),
+            "quant_reason": s.get("quant_reason"), "served": s.get("served"),
+            "served_precision": s.get("served_precision"),
             "judge": ", ".join(str(j).rsplit("/", 1)[-1] for j in judges) if judges else None,
             "components": {component_label(k): c["components"].get(k)
                            for g in c["weights"] for k in c["weights"][g]},

@@ -458,6 +458,10 @@ def plan(cfg: dict, rig_ids: set[str], *, include_api: bool = False,
             "kept_on_board": kept_on_board, "not_benched": not_benched}
 
 
+#: values of the models.yaml entry key ``quant_reason`` (row fact, K8)
+QUANT_REASONS = frozenset({"q8_does_not_fit"})
+
+
 def only_unknown(only_set, by_name, rig_ids, add, skipped_rig) -> list[str]:
     """--only names that are neither a registry label (or its model id) nor
     a rig model about to be registered."""
@@ -610,6 +614,8 @@ def append_registry(path: str | Path, add: list[dict], provider: str, ctx: int =
             block += f"{ind}  arch: {a['arch']}\n"
         if a.get("modalities"):
             block += f"{ind}  modalities: {a['modalities']}\n"
+        if a.get("quant_reason"):
+            block += f"{ind}  quant_reason: {a['quant_reason']}\n"
         eb = a.get("extra_body") or {}
         if eb:
             block += f"{ind}  extra_body:\n"
@@ -1119,6 +1125,17 @@ def execute(args, cfg: dict) -> int:
              and not getattr(args, "no_sync", False))
     p["_provider"] = sf[0]
     p["no_judge"] = no_judge
+    qreason = getattr(args, "quant_reason", None)
+    if qreason:
+        # MakoBench sizing (2026-11-06): a Q6/Q5 registration says why it is not Q8_0
+        if qreason not in QUANT_REASONS:
+            print(f"bench-all: --quant-reason must be one of {', '.join(sorted(QUANT_REASONS))}")
+            return EXIT_USAGE
+        if only is None or len(only) != 1 or len(p["add"]) != 1:
+            print("bench-all: --quant-reason needs --only with ONE label that is a new "
+                  "registration (nothing else gets a quant reason)")
+            return EXIT_USAGE
+        p["add"][0]["quant_reason"] = qreason
     if only is not None and (not only or set(p.get("only_unknown") or []) >= set(only)):
         # --only named nothing that exists: say so, never fall back to "all"
         if getattr(args, "plan_json", False):
