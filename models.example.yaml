@@ -101,6 +101,16 @@ providers:
     api_key_env: OPENROUTER_API_KEY
     concurrency: 8
     headers: {HTTP-Referer: "https://github.com/your/crucibleforge", X-Title: "crucibleforge"}
+  # Hosted runs that must not fall below ~Q6 precision: same API, endpoints pinned to 6-bit or better.
+  openrouter-q5plus:
+    type: openai
+    base_url: https://openrouter.ai/api/v1
+    api_key_env: OPENROUTER_API_KEY
+    concurrency: 8
+    extra_body:
+      provider:
+        quantizations: [fp6, int8, fp8, fp16, bf16, fp32]
+        allow_fallbacks: false
   openai:
     type: openai
     base_url: https://api.openai.com/v1
