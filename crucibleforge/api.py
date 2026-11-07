@@ -402,6 +402,12 @@ class ChatResult:
     prompt_tokens: int | None = None
     completion_tokens: int | None = None
     reasoning_tokens: int | None = None
+    # tokens of an earlier, discarded call that was still billed (the empty-reply
+    # retry); priced into cost_usd but kept OUT of the speed metrics.
+    # completion_tokens already includes reasoning tokens (OpenAI usage shape),
+    # so reasoning is never billed on top.
+    billed_extra_prompt_tokens: int = 0
+    billed_extra_completion_tokens: int = 0
     # WHERE the reasoning arrived: "channel" (the reasoning_content delta
     # field), "inline" (<think> blocks inside the content), or None (no
     # reasoning at all). The conformance check reports it (c2): a model whose

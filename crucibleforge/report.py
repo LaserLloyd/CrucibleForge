@@ -1595,7 +1595,7 @@ def _case_sides(cfg: dict | None) -> dict[str, str]:
     """{case id: "main" | "separate"} for the benchmark profile. "separate" =
     the case belongs to a score with ``in_total: false`` (the NSFW score):
     its cost and blocked replies are reported apart and never reach the main
-    board. Unmapped rows (perf, custom without a side) count as main. {} when
+    board. Unmapped rows (custom without a side) count as main; perf timing rows are left out of the cost. {} when
     the profile cannot be read (everything then counts as main)."""
     try:
         from . import tiers as _tiers
@@ -1637,6 +1637,39 @@ def _counted(r: dict) -> bool:
     return not (r.get("skipped") or r.get("grade") == "skipped")
 
 
+def _tok_p(mt: dict) -> int:
+    """Prompt tokens billed for a row: the metric plus the billed-only extra
+    (a discarded empty-reply attempt; kept out of the speed metrics)."""
+    return (mt.get("prompt_tokens") or 0) + (mt.get("billed_extra_prompt_tokens") or 0)
+
+
+def _tok_c(mt: dict) -> int:
+    return (mt.get("completion_tokens") or 0) + (mt.get("billed_extra_completion_tokens") or 0)
+
+
+def spent_cost(label: str, trows: list[dict], cfg: dict | None, meta: dict | None) -> float | None:
+    """Bookkeeping total over EVERY transcript row (re-runs, bonus sets, perf):
+    the recorded ``cost_usd`` where a row has one, else the token estimate at
+    the entry's price. None when nothing could be priced."""
+    from .providers import cost_usd as _cost
+    entry = _price_entry(label, cfg, meta)
+    total, any_priced = 0.0, False
+    for r in trows:
+        if not _counted(r):
+            continue
+        if r.get("cost_usd") is not None:
+            total += float(r["cost_usd"])
+            any_priced = True
+            continue
+        mt = r.get("metrics") or {}
+        if entry and (_tok_p(mt) or _tok_c(mt)):
+            c = _cost(entry, _tok_p(mt), _tok_c(mt))
+            if c is not None:
+                total += c
+                any_priced = True
+    return round(total, 4) if any_priced else None
+
+
 def run_cost(label: str, rows: list[dict], cfg: dict | None = None,
              meta: dict | None = None, sides: dict[str, str] | None = None) -> dict:
     """Cost of one run's rows in USD. A row's recorded ``cost_usd`` wins; a
@@ -1658,15 +1691,17 @@ def run_cost(label: str, rows: list[dict], cfg: dict | None = None,
     for r in rows:
         if not _counted(r):
             continue
+        if r.get("category") == "perf":
+            continue  # timing probes are not the Code/Chat tests; they stay in cost_spent_usd
         mt = r.get("metrics") or {}
-        has_tok = bool(mt.get("prompt_tokens") or mt.get("completion_tokens"))
+        has_tok = bool(_tok_p(mt) or _tok_c(mt))
         if r.get("cost_usd") is not None:
             if not has_tok:
                 unknown += 1
                 continue
             c, kind = float(r["cost_usd"]), "billed"
         elif has_tok and entry:
-            c, kind = _cost(entry, mt.get("prompt_tokens"), mt.get("completion_tokens")), "est"
+            c, kind = _cost(entry, _tok_p(mt), _tok_c(mt)), "est"
             if c is None:
                 continue
         else:
@@ -2061,8 +2096,7 @@ def model_stats(label: str, cfg: dict | None = None, rows: list[dict] | None = N
     spent = None
     if _BOOT.get() is None and (priced or any(r.get("cost_usd") is not None for r in rows)):
         try:
-            spent = round(sum(float(r["cost_usd"]) for r in load_transcripts(label)
-                              if r.get("cost_usd") is not None), 4)
+            spent = spent_cost(label, load_transcripts(label), cfg, meta)
         except Exception:  # noqa: BLE001
             spent = None
     objective_cats = ("coding", "tooluse", "instruct", "reasoning", "math", "longctx")
@@ -2288,7 +2322,7 @@ def cost_cell(s: dict) -> str:
     v = s.get("cost_main_usd")
     if v is None:
         return "—"
-    t = "<$0.01" if v < 0.005 else f"${v:,.2f}"
+    t = "$0.00" if v == 0 else ("<$0.01" if v < 0.005 else f"${v:,.2f}")
     if s.get("cost_basis") in ("list", "mixed"):
         t = "~" + t
     if s.get("cost_unknown_rows"):

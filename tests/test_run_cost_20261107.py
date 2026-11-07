@@ -177,3 +177,132 @@ def test_unpriced_hosted_is_listed(monkeypatch):
     es = [{"name": "h1"}, {"name": "h2", "price": {"input": 0, "output": 0}},
           {"name": "rig"}]
     assert cli._unpriced_hosted({}, es) == ["h1"]
+
+
+# ------------------------------------------- review fix pass (2026-11-07)
+
+def _call_with_empty_retry():
+    from types import SimpleNamespace
+    from crucibleforge.api import ChatResult
+    replies = [ChatResult(response_text="", finish_reason="stop", prompt_tokens=100,
+                          completion_tokens=40, gen_s=2.0),
+               ChatResult(response_text="answer", finish_reason="stop", prompt_tokens=100,
+                          completion_tokens=60, gen_s=3.0)]
+    ctx = SimpleNamespace(extra_body=None, recovery_enabled=False, budget=lambda m: m,
+                          model_id="m", _chat=lambda msgs, **kw: replies.pop(0),
+                          _overflowed=lambda r: False, _stopped_without_answer=lambda r: False)
+    return runner._Ctx.call(ctx, [{"role": "user", "content": "x"}], max_tokens=10)
+
+
+def test_empty_retry_keeps_speed_metrics_clean_and_bills_the_first_call():
+    r = _call_with_empty_retry()
+    assert (r.prompt_tokens, r.completion_tokens) == (100, 60)       # tok/s inputs untouched
+    assert (r.billed_extra_prompt_tokens, r.billed_extra_completion_tokens) == (100, 40)
+    m = runner._metrics(r)
+    assert m["completion_tokens"] == 60 and m["billed_extra_completion_tokens"] == 40
+    ms = runner._metrics_sum([r, r])
+    assert ms["completion_tokens"] == 120 and ms["billed_extra_completion_tokens"] == 80
+    assert ms["tok_per_s"] == pytest.approx(120 / 6.0, abs=0.01)      # extras never in tok/s
+
+
+def test_estimated_cost_includes_billed_extra_tokens():
+    mt = {"prompt_tokens": 1000, "completion_tokens": 500,
+          "billed_extra_prompt_tokens": 1000, "billed_extra_completion_tokens": 500}
+    r = report.run_cost("m", [{"case_id": CHAT, "grade": "pass", "metrics": mt}], CFG, {}, SIDES)
+    assert r["usd"] == pytest.approx(0.004)                          # twice _row()'s 0.002
+
+
+def test_perf_rows_are_not_in_the_main_cost_but_are_in_spent():
+    perf = _row(category="perf", cost=0.3)
+    chat = _row(cost=0.2)
+    assert report.run_cost("m", [perf, chat], CFG, {}, SIDES)["main_usd"] == pytest.approx(0.2)
+    assert report.spent_cost("m", [perf, chat], CFG, {}) == pytest.approx(0.5)
+
+
+def test_spent_is_estimated_when_no_cost_was_recorded_and_none_when_unpriceable():
+    assert report.spent_cost("m", [_row(), _row()], CFG, {}) == pytest.approx(0.004)
+    assert report.spent_cost("m", [_row()], {"models": []}, {}) is None
+    assert report.spent_cost("m", [_row(cost=0.1), _row()], CFG, {}) == pytest.approx(0.102)
+
+
+def test_cost_cell_zero_and_small_and_tilde_combinations():
+    assert report.cost_cell({"cost_main_usd": 0}) == "$0.00"
+    assert report.cost_cell({"cost_main_usd": 0.004999}) == "<$0.01"
+    assert report.cost_cell({"cost_main_usd": 0.005}) == "$0.01"
+    assert report.cost_cell({"cost_main_usd": 0.001, "cost_basis": "list", "cost_unknown_rows": 1}) == "~<$0.01*"
+    assert report.cost_cell({"cost_main_usd": 0, "cost_basis": "list"}) == "~$0.00"
+
+
+def test_script_js_formats_zero_exactly():
+    from pathlib import Path
+    js = (Path(report.__file__).parent / "templates/board/script.js").read_text(encoding="utf-8")
+    assert "v === 0 ? '$0.00'" in js and "'<$0.01'" in js
+
+
+def test_sanity_trips_when_the_first_replies_are_all_blocked():
+    st = {"sanity_total": 0, "sanity_empty": 0, "block_guard": True}
+    blocked = [{"finish_reason": "content_filter", "response": ""} for _ in range(3)]
+    with pytest.raises(runner.ModelRunError, match="blocked by the provider's content filter"):
+        runner._sanity_check(st, blocked, "m")
+
+
+def test_sanity_does_not_trip_on_a_mix_of_blocked_and_answered():
+    st = {"sanity_total": 0, "sanity_empty": 0, "block_guard": True}
+    rows = [{"finish_reason": "content_filter", "response": ""},
+            {"finish_reason": "stop", "response": "hi"},
+            {"finish_reason": "content_filter", "response": ""}]
+    runner._sanity_check(st, rows, "m")                              # must not raise
+    # blocks AFTER the first N never trip the guard
+    runner._sanity_check(st, [{"finish_reason": "content_filter", "response": ""}] * 5, "m")
+
+
+def _stub_run(monkeypatch, unpriced):
+    from types import SimpleNamespace
+    monkeypatch.setattr(cli, "_refuse_fresh_with_filter", lambda a: None)
+    monkeypatch.setattr(cli, "_apply_profile_arg", lambda a, c: (c, [{"id": "x", "category": "coding"}], {}))
+    monkeypatch.setattr(cli, "resolve_models", lambda c, m: [{"name": "h1"}])
+    monkeypatch.setattr(cli, "_unpriced_hosted", lambda c, e: unpriced)
+
+    class Reached(Exception):
+        pass
+
+    def boom(*a, **k):
+        raise Reached
+    monkeypatch.setattr(cli, "_fail_fast", boom)
+    return SimpleNamespace, Reached
+
+
+def _run_args(**kw):
+    import argparse
+    return argparse.Namespace(cmd="run", models="h1", categories=None, difficulty=None, cases=None,
+                              fresh=False, judge=None, **kw)
+
+
+def test_cmd_run_refuses_an_unpriced_hosted_model_and_allows_it_with_the_flag(monkeypatch):
+    _, Reached = _stub_run(monkeypatch, ["h1"])
+    with pytest.raises(SystemExit, match="--allow-unpriced"):
+        cli.cmd_run(_run_args(), {})
+    with pytest.raises(Reached):                                     # got past the price gate
+        cli.cmd_run(_run_args(allow_unpriced=True), {})
+
+
+def test_bench_all_has_the_flag_and_passes_it_to_cmd_run(monkeypatch):
+    import inspect
+    from crucibleforge import bench_all
+    assert "allow_unpriced=bool(getattr(args, \"allow_unpriced\"" in inspect.getsource(bench_all.execute)
+    seen = {}
+    monkeypatch.setattr(cli, "load_config", lambda p=None: {})
+    monkeypatch.setattr(cli, "cmd_bench_all", lambda a, c: seen.setdefault("a", a) and 0)
+    with pytest.raises(SystemExit):
+        cli.main(["bench-all", "--allow-unpriced"])
+    assert seen["a"].allow_unpriced is True
+
+
+def test_blocked_guard_is_off_for_a_rerun_of_a_label_that_already_has_rows(tmp_path, monkeypatch):
+    # the guard flag is derived from the label's transcript file (first generation only)
+    monkeypatch.setattr(config, "RESULTS_DIR", tmp_path)
+    assert not config.transcript_path("m").exists()
+    config.transcript_path("m").write_text("{}\n", encoding="utf-8")
+    assert config.transcript_path("m").stat().st_size > 0
+    st = {"sanity_total": 0, "sanity_empty": 0, "block_guard": False}
+    runner._sanity_check(st, [{"finish_reason": "content_filter", "response": ""}] * 3, "m")

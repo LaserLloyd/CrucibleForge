@@ -2704,6 +2704,9 @@ def main(argv=None):
                            "that ran out of budget, at the next rung only (off by default)")
     p_ba.add_argument("--no-escalate", action="store_true",
                       help="accepted for compatibility (escalation is off unless --escalate)")
+    p_ba.add_argument("--allow-unpriced", action="store_true",
+                      help="run a hosted model that has no `price:` in models.yaml "
+                           "(its Run cost stays blank)")
     p_ba.add_argument("--skip-conformance", action="store_true",
                       help="do not gate generation on a current conformance "
                            "record (the override is logged)")

@@ -37,7 +37,7 @@ from dataclasses import replace as _dc_replace
 
 from .api import (Aborted, ChatResult, GenerationRejected, RequestRejected, RowTimeout,
                   TransportError, WindowClosed, WrongModelError)
-from .config import CSV_COLUMNS, results_dir, append_transcript, repeats_for
+from .config import CSV_COLUMNS, results_dir, append_transcript, repeats_for, transcript_path
 from .graders import (_extract_tool_calls_from_text, grade, grade_tool_call, prose_metrics)
 from .providers import Provider, cost_usd, merge_extra_body, model_extra_body, provider_for
 from .version import judge_fingerprint as _judge_fp, revision as _revision
@@ -231,7 +231,8 @@ def _metrics_sum(results: list[ChatResult]) -> dict:
         return sum(vals) if vals else None
 
     gen, comp = tot("gen_s"), tot("completion_tokens")
-    return {"ttft_s": results[0].ttft_s, "gen_s": gen, "total_s": tot("total_s"),
+    return {**_billed_extra(results),
+            "ttft_s": results[0].ttft_s, "gen_s": gen, "total_s": tot("total_s"),
             "prompt_tokens": tot("prompt_tokens"), "completion_tokens": comp,
             "reasoning_tokens": tot("reasoning_tokens"),
             "tok_per_s": (round(comp / gen, 2) if gen and comp and comp >= 2 else None),
@@ -239,8 +240,17 @@ def _metrics_sum(results: list[ChatResult]) -> dict:
             "n_turns": len(results)}
 
 
+def _billed_extra(results: list[ChatResult]) -> dict:
+    """Billed-but-discarded tokens (empty-reply retry) over every call; only
+    present when non-zero. Used for cost only, never for speed."""
+    p = sum(r.billed_extra_prompt_tokens for r in results)
+    c = sum(r.billed_extra_completion_tokens for r in results)
+    return {"billed_extra_prompt_tokens": p, "billed_extra_completion_tokens": c} if (p or c) else {}
+
+
 def _metrics(result: ChatResult) -> dict:
     return {
+        **_billed_extra([result]),
         "ttft_s": result.ttft_s, "gen_s": result.gen_s, "total_s": result.total_s,
         "prompt_tokens": result.prompt_tokens,
         "completion_tokens": result.completion_tokens,
@@ -587,11 +597,12 @@ class _Ctx:
             log.warning("%s: empty reply with finish=stop — retrying once", self.model_id)
             again = self._chat(messages, max_tokens=exact or self.budget(max_tokens), **kw)
             again.empty_retry = True
-            # the first call was billed too: fold its tokens into the row
-            if first.prompt_tokens is not None:
-                again.prompt_tokens = (again.prompt_tokens or 0) + first.prompt_tokens
-            if first.completion_tokens is not None:
-                again.completion_tokens = (again.completion_tokens or 0) + first.completion_tokens
+            # the first call was billed too: carry its tokens as billed-only
+            # extras (cost), NOT in prompt/completion_tokens (they feed tok/s)
+            again.billed_extra_prompt_tokens = ((first.prompt_tokens or 0)
+                                                + first.billed_extra_prompt_tokens)
+            again.billed_extra_completion_tokens = ((first.completion_tokens or 0)
+                                                    + first.billed_extra_completion_tokens)
             first = again
         cause = ("overflow" if self._overflowed(first) else
                  "stopped_in_reasoning" if self._stopped_without_answer(first) else None)
@@ -698,7 +709,18 @@ def _sanity_check(state: dict, rows: list[dict], label: str) -> None:
     for row in rows:
         if row.get("skipped") or row.get("error"):
             continue  # not a completion — counted by the transport guard
-        if row.get("finish_reason") == "content_filter":
+        blocked = row.get("finish_reason") == "content_filter"
+        if (state.get("block_guard") and row.get("turn") in (None, 1)
+                and state.get("sanity_seen", 0) < SANITY_CHECK_AFTER):
+            # the first N completions of any kind: all blocked = a provider
+            # that refuses everything (a wrong key tier, a region), not a run
+            state["sanity_seen"] = state.get("sanity_seen", 0) + 1
+            state["sanity_blocked"] = state.get("sanity_blocked", 0) + (1 if blocked else 0)
+            if (state["sanity_seen"] == SANITY_CHECK_AFTER
+                    and state["sanity_blocked"] == SANITY_CHECK_AFTER):
+                raise ModelRunError(f"first {SANITY_CHECK_AFTER} replies all blocked by the "
+                                    f"provider's content filter for {label}")
+        if blocked:
             continue
         if row.get("turn") in (None, 1):
             state["sanity_total"] += 1
@@ -1171,7 +1193,13 @@ def _run_one_model(cfg, entry, cases, csvw: _Csv, smoke,
 
     state = {"rows": 0, "sanity_total": 0, "sanity_empty": 0,
              "speed_samples": [], "speed_gated": False, "skipped": 0,
-             "cost": 0.0, "consecutive_errors": 0, "case_errors": 0}
+             "cost": 0.0, "consecutive_errors": 0, "case_errors": 0,
+             # "first N replies all blocked" only means a refusing provider on a
+             # label's very first generation; a targeted re-run of blocked cases
+             # (the rows already exist) is legitimate
+             "block_guard": (not recover_mode and not rung
+                             and not (transcript_path(label).exists()
+                                      and transcript_path(label).stat().st_size > 0))}
     min_tps = float(cfg["defaults"].get("min_tok_per_s", 0) or 0)
     revision = _revision(cfg)
     judge_fp = _judge_fp(cfg)
@@ -1251,8 +1279,12 @@ def _run_one_model(cfg, entry, cases, csvw: _Csv, smoke,
                              label, len(rows), rows[0].get("case_id"))
                 return
             for row in rows:
-                c = cost_usd(entry, (row.get("metrics") or {}).get("prompt_tokens"),
-                             (row.get("metrics") or {}).get("completion_tokens"))
+                m = row.get("metrics") or {}
+                c = cost_usd(entry,
+                             (m.get("prompt_tokens") or 0) + (m.get("billed_extra_prompt_tokens") or 0)
+                             if m.get("prompt_tokens") is not None or m.get("billed_extra_prompt_tokens") else None,
+                             (m.get("completion_tokens") or 0) + (m.get("billed_extra_completion_tokens") or 0)
+                             if m.get("completion_tokens") is not None or m.get("billed_extra_completion_tokens") else None)
                 if c is not None:
                     row["cost_usd"] = round(c, 6)
                     state["cost"] += c
