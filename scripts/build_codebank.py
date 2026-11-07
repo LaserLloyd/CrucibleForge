@@ -148,7 +148,8 @@ def build_predict(task: dict) -> dict:
         if sn.get("expect") is not None and sn["expect"] != gold:
             raise SystemExit(f"{task['id']} Q{i}: ran {gold!r}, task.yaml says {sn['expect']!r}")
         golds[f"Q{i}"] = gold
-        pat = (rf"(?im)^[ \t>*_-]*\**Q{i}\**[ \t]*[:.)][ \t]*\**`?[ \t]*" + re.escape(gold)
+        # the answer itself is case-sensitive ("\\ud83d" is not "\\uD83D"); only the label is not
+        pat = (rf"(?m)^[ \t>*_-]*\**[Qq]{i}\**[ \t]*[:.)][ \t]*\**`?[ \t]*" + re.escape(gold)
                + r"[ \t]*`?\**[ \t]*$")
         checks.append({"id": f"Q{i}", "type": "regex", "pattern": pat,
                        "last_of": rf"(?i)^[ \t>*_-]*\**Q{i}\**[ \t]*[:.)]"})
