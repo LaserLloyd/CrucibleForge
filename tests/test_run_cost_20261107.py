@@ -55,6 +55,12 @@ def test_declared_basis_list_wins_over_recorded_costs():
     assert report.run_cost("m", [_row(cost=0.1)], cfg, {}, SIDES)["basis"] == "list"
 
 
+def test_basis_list_in_models_yaml_applies_to_a_run_whose_meta_predates_it():
+    cfg = {"models": [{"name": "m", "price": {"input": 1, "output": 2, "basis": "list"}}]}
+    meta = {"price": {"input": 1, "output": 2}}
+    assert report.run_cost("m", [_row(cost=0.1)], cfg, meta, SIDES)["basis"] == "list"
+
+
 def test_transport_error_row_is_unknown_not_free():
     bad = {"case_id": CHAT, "grade": "error", "cost_usd": 0.0, "metrics": {}}
     r = report.run_cost("m", [_row(cost=0.3), bad], CFG, {}, SIDES)

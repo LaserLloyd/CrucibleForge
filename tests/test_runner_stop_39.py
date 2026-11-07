@@ -88,7 +88,8 @@ def _write_cfg(tmp_path: Path, port: int, thinking) -> Path:
         "providers": {"hung": {"type": "openai", "base_url": f"http://127.0.0.1:{port}/v1",
                                "concurrency": 4}},
         "judge": {"candidates": []},
-        "models": [{"name": "m", "provider": "hung", "model_id": "m", "thinking": thinking}],
+        "models": [{"name": "m", "provider": "hung", "model_id": "m", "thinking": thinking,
+                    "price": {"input": 0, "output": 0}}],
     }
     p = tmp_path / "models.yaml"
     p.write_text(yaml.safe_dump(cfg), encoding="utf-8")

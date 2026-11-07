@@ -1683,7 +1683,12 @@ def run_cost(label: str, rows: list[dict], cfg: dict | None = None,
     if not priced:
         return {"usd": None, "main_usd": None, "separate_usd": None,
                 "estimated_rows": 0, "unknown_rows": 0, "basis": None}
-    declared = str(((entry or {}).get("price") or {}).get("basis") or "").lower() == "list"
+    # the basis is a fact about how the provider bills, not about one run's
+    # price: a ``basis: list`` in the run's meta OR today's models.yaml counts
+    declared = any(
+        str(((e or {}).get("price") or {}).get("basis") or "").lower() == "list"
+        for e in (meta, next((m for m in ((cfg or {}).get("models") or [])
+                             if isinstance(m, dict) and m.get("name") == label), None)))
     basis = "list" if declared or not billed else ("mixed" if est else "billed")
     return {"usd": main + sep, "main_usd": main, "separate_usd": sep,
             "estimated_rows": est, "unknown_rows": unknown, "basis": basis}
