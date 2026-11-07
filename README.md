@@ -191,8 +191,22 @@ models:
     provider: deepseek
     model_id: deepseek-flash
     context_length: 131072
-    price: {input: 0.14, output: 0.28}   # USD per 1M tokens; the report totals the cost
+    price: {input: 0.14, output: 0.28}   # USD per 1M tokens; feeds the report's Run cost column
 ```
+
+**Run cost.** The report (`report.md`, `report.html`, `report.json`) shows what ONE run of the standard Code and
+Chat tests cost at the provider's price, per hosted model: the recorded per-request cost, or, for a row with none,
+its token counts times `price`. It leaves out the NSFW tests (kept in separate `cost_separate_usd` fields), bonus
+sets, retries and re-runs, the judge (it runs locally), and cache or off-peak discounts. A provider billed by a flat
+plan instead of per token adds `basis: list` to the price block (`price: {input: 0.15, output: 0.60, basis: list}`);
+its figure shows as `~$0.42`, an estimate at list price. `$0.66*` means some requests returned no usage data, so the
+figure is partial. Local models show `—`. A hosted model without a `price` is refused at run start unless you pass
+`--allow-unpriced`; a free endpoint says `price: {input: 0, output: 0}`.
+
+**Blocked replies.** When a provider's content filter blocks a reply (`finish_reason: content_filter`), the model's
+Notes say how many (and how many were in the NSFW tests, where they count as refusals). A blocked reply scores zero.
+This is computed from the transcripts on every report, so future runs are marked with no hand work. A run whose
+first replies were all blocked is not mistaken for a misconfigured model.
 
 `models.example.yaml` also has entries for OpenAI, xAI, MiniMax and Open WebUI. Claude works directly: Anthropic's
 OpenAI-compatible endpoint is `type: openai` with `base_url: https://api.anthropic.com/v1`. A vendor with no

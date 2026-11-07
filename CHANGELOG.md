@@ -6,6 +6,22 @@ was ever published as Gauntlet, so there is no migration to do — the entries
 below are kept because the engineering they record is real, not to narrate a
 rename.
 
+## Unreleased (2026-11-07)
+
+- **Run cost column and provider-refusal marking.** `report.run_cost` prices one run of the
+  standard Code + Chat tests (recorded `cost_usd`, else tokens x `price`); NSFW cost and blocked
+  counts are separate fields. `basis: list` in a `price:` block marks a flat-plan provider's
+  figure as an estimate (`~$`), travelling in the run meta; `meta.price` wins over today's
+  models.yaml. Failed requests with no usage data count as unknown (`*`), not free; skipped rows
+  and old-suite rows carry no cost; the bootstrap skips it. New keys: `cost_main_usd`,
+  `cost_separate_usd`, `cost_basis`, `cost_estimated_rows`, `cost_unknown_rows`, `cost_spent_usd`
+  (report.json only), `content_filtered {total, main, separate}`; board rows `cost_usd`,
+  `cost_separate_usd`, `cost_basis`, `cost_partial`, `blocked`, `blocked_separate`. report.md and
+  report.html gain a Run cost column; Notes name provider-blocked replies. Runner: the
+  "first N completions all empty" guard ignores `content_filter` replies; an empty-reply retry
+  keeps the first call's tokens in the row's cost; a hosted model without `price` is refused at
+  run start (`--allow-unpriced` overrides). No case or scoring change.
+
 ## Unreleased (2026-11-06)
 
 - **Sizing support for MakoBench (below-Q8 and hosted/rented rows).** Board rows
