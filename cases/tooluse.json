@@ -5004,19 +5004,44 @@
      "max four",
      "re:\\bfive (?:guests|people)\\b",
      "re:\\b5 (?:guests|people)\\b"
+    ],
+    "answer_forbid": [
+     "re:\\b(?:i can|i(?:'|\u2019)ll|i will|let me|i(?:'|\u2019)m going to) (?:\\w+ ){0,6}?(?:switch|move|book|rebook|put)\\w* (?:\\w+ ){0,3}?(?:in)?to (?:room )?r-412\\b"
     ]
    },
    {
     "user": "OK, we stay in R-509. Until when can we still cancel this Bergen booking for free?",
     "expect_no_tool": true,
     "answer_contains": [
-     "11 november",
-     "november 11",
-     "2026-11-11",
-     "11th",
-     "11 nov",
-     "nov 11",
-     "11.11"
+     [
+      "11 november",
+      "november 11",
+      "2026-11-11",
+      "11th",
+      "11 nov",
+      "nov 11",
+      "11.11",
+      "11/11",
+      "11-11-2026",
+      "eleventh"
+     ],
+     [
+      "12:00",
+      "noon",
+      "12 pm",
+      "12pm",
+      "12.00",
+      "11:00 utc",
+      "11:00z",
+      "11:00 gmt",
+      "midday"
+     ]
+    ],
+    "match": "all",
+    "answer_forbid": [
+     "re:\\b12:00 ?a\\.?m\\b",
+     "re:\\b12 ?a\\.?m\\b",
+     "midnight"
     ]
    },
    {
@@ -5061,7 +5086,13 @@
      "only one booking",
      "one booking per",
      "double",
-     "twice"
+     "twice",
+     "two bookings",
+     "listed on",
+     "listed as",
+     "currently on",
+     "re:\\bone booking\\b",
+     "re:\\bmore than one booking\\b"
     ]
    },
    {
@@ -5117,8 +5148,9 @@
      "not refundable"
     ],
     "answer_forbid": [
-     "re:(?:bk-69950|oslo)[^.\\n]{0,80}\\b(?:has been|is now|is|was|now) cancel",
-     "re:\\bcancel(?:l)?ed (?:the |your )?(?:bk-69950|oslo)"
+     "re:(?:bk-69950|oslo)[^.\\n]{0,80}\\b(?:has been|is now|is|was|now)(?: (?!not\\b|never\\b|no\\b)\\w+){0,2} cancel",
+     "re:(?<!not )(?<!n't )(?<!n\u2019t )(?<!never )\\bcancel(?:l)?ed (?:the |your )?(?:bk-69950|oslo)",
+     "re:\\b(?:i(?:'|\u2019)ll|i will|let me|i(?:'|\u2019)m going to) (?:\\w+ ){0,3}?cancel\\b"
     ]
    },
    {
@@ -5301,12 +5333,43 @@
     "user": "Lovely. What time does his class start, and is anyone else still able to get a spot in it?",
     "expect_no_tool": true,
     "answer_contains": [
-     "09:00",
-     "9:00",
-     "9 am",
-     "9am",
-     "nine"
-    ]
+     [
+      "09:00",
+      "9:00",
+      "9 am",
+      "9am",
+      "nine",
+      "9 o'clock",
+      "9 o\u2019clock",
+      "0900",
+      "re:\\b9\\.00\\b"
+     ],
+     [
+      "full",
+      "0 spots",
+      "no spots",
+      "zero spots",
+      "no free",
+      "no one else",
+      "nobody else",
+      "no-one else",
+      "no more",
+      "last spot",
+      "last place",
+      "last space",
+      "none left",
+      "no places",
+      "no place left",
+      "no space",
+      "no room",
+      "no longer",
+      "spots_left",
+      "re:\\bno(?:t)? (?:\\w+ )?(?:spots?|places?|spaces?)\\b",
+      "re:\\b0 (?:\\w+ )?(?:spots?|places?|spaces?)\\b",
+      "re:\\bno,? (?:there|nobody|no one|not)\\b"
+     ]
+    ],
+    "match": "all"
    },
    {
     "user": "Hm, he's still only four, so the Minnows would suit him better - move him to the 09:45 Minnows. The coach there said she can squeeze him in.",
@@ -5346,6 +5409,10 @@
      "can\u2019t",
      "don\u2019t have",
      "isn\u2019t possible"
+    ],
+    "answer_forbid": [
+     "re:\\bsuccessfully (?:moved|enrol+ed|added|switched|transferred|joined|placed)",
+     "re:\\b(?:has been|is now) (?:moved|switched|transferred) to\\b"
     ]
    },
    {
@@ -5364,6 +5431,11 @@
      "november 7",
      "turns five",
      "turns 5"
+    ],
+    "answer_forbid": [
+     "re:\\bsuccessfully (?:moved|enrol+ed|added|switched|transferred|joined|placed)",
+     "re:\\bsure thing\\b",
+     "re:\\b(?:has been|have been|is now) (?:added|placed|put) (?:on|to)\\b"
     ]
    },
    {
@@ -5417,7 +5489,12 @@
      "beyond what i can",
      "i have no tool",
      "there's no tool",
-     "there is no tool"
+     "there is no tool",
+     "isn't something i'm able",
+     "isn\u2019t something i\u2019m able",
+     "isn\u2019t something i'm able",
+     "re:\\bno (?:\\w+ )?tool\\b",
+     "re:\\b(?:aren't|aren\u2019t|isn't|isn\u2019t|not) supported\\b"
     ]
    },
    {
