@@ -2583,7 +2583,9 @@ def row_facts(label: str, meta: dict | None, cfg: dict | None) -> dict:
             # `supersedes`); official defaults to "a hosted model is the vendor's own release"
             "base": _one_line(entry.get("base"), 2, 40),
             "official": entry["official"] if isinstance(entry.get("official"), bool) else (False if local else bool(ptype)),
-            "supersedes": str(entry["supersedes"]) if entry.get("supersedes") else None}
+            "supersedes": str(entry["supersedes"]) if entry.get("supersedes") else None,
+            # the short name people read ("Claude Opus 5.5"); used in report.md's older-versions line
+            "display": _one_line(entry.get("display"), 2, 60)}
 
 
 def _one_line(v, lo: int, hi: int) -> str | None:
@@ -4190,19 +4192,21 @@ def _older_line(labels: list[str], stats: dict) -> str:
     newer = superseded_map(labels, stats)
     if not newer:
         return ""
+    def nm(l: str) -> str:
+        return (stats.get(l) or {}).get("display") or l
     return "Older versions on this board: " + ", ".join(
-        f"{l} (newer: {newer[l]})" for l in rank_labels(labels, stats) if l in newer)
+        f"{nm(l)} (newer: {nm(newer[l])})" for l in rank_labels(labels, stats) if l in newer)
 
 
 def html_part_labels(stats: dict) -> dict[str, str]:
-    """``{"<score>/<part>": "Score / Part"}`` for every sub-score of the board's profile (names a MAX marker)."""
+    """``{"<score>/<part>": "Score / Part"}`` over the sub-scores of EVERY model's profile (names a MAX marker);
+    the first model's definition wins when two disagree."""
+    out: dict[str, str] = {}
     for s in stats.values():
-        defs = (s.get("scorecard") or {}).get("score_defs")
-        if defs:
-            return {f"{d['key']}/{p['key']}": f"{d['label']} / {p['label']}"
-                    for d in defs for p in d.get("parts") or []}
-        break
-    return {}
+        for d in (s.get("scorecard") or {}).get("score_defs") or []:
+            for p in d.get("parts") or []:
+                out.setdefault(f"{d['key']}/{p['key']}", f"{d['label']} / {p['label']}")
+    return out
 
 
 def html_components(stats: dict, cfg: dict | None = None) -> list[dict]:

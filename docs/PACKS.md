@@ -33,7 +33,7 @@ any public board.
   pending. A pack that has not unlocked is locked and counts nothing.
 - **MAXED.** A part is **MAXED** when a model scored at least 90 % on the standard
   questions *and* on every pack that exists, so there is nothing harder left to give it. The
-  board marks the part (and the whole category, when all of its parts are maxed) as MAXED;
+  board marks the part (and the whole category, when all of its parts are maxed) with a **MAX** marker;
   `crucibleforge calibrate` and `pack list` name the models that maxed each part. A part with
   rows excluded by an unparsable verdict is shown as partial, never MAXED. MAXED means: write
   the next pack (see below).
@@ -50,7 +50,7 @@ that question and does not change the suite revision (the questions that live in
 
 On the board, bonus points are folded into the part's points (so a category can exceed 10),
 the sub-score detail shows how far up the ladder the model got, and a maxed part or category
-carries the MAXED marker.
+carries the **MAX** marker.
 
 ## The public packs
 
@@ -87,7 +87,7 @@ character in them is an adult with a stated age of 21 or older.
 
 Write the next pack for a part when:
 
-- any model **maxed** it (`pack list` shows "MAXED by …", the board shows the MAXED marker), or
+- any model **maxed** it (`pack list` shows "MAXED by …", the board shows the MAX marker; `pack list` words the same state as MAXED in its status column), or
 - `crucibleforge calibrate` says the part is **MAXED** or **TOO EASY** (the reference model
   scores at or above `calibration.too_easy`, default 90 %, on the standard questions).
 
@@ -141,7 +141,7 @@ A part nobody has cleared does not need a pack; it needs models.
 5. Run `uv run crucibleforge cases verify` and the tests, run the pack on one strong and one
    weak model, and check the strong one lands in the target band.
 6. Commit. Models that were maxed will pick the new pack up on their next run, and the
-   MAXED marker clears for them until they clear it too.
+   MAX marker clears for them until they clear it too.
 
 ### Versioning
 

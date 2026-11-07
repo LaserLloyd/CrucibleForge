@@ -161,3 +161,23 @@ def test_html_rows_carry_the_new_keys():
     assert h["maxed_parts"] == ["nsfw/uncensored", "nsfw/nsfw_writing"]
     s["headline"] = {"maxed": {"nsfw": {"parts": [], "category": False}}}
     assert report.html_rows(["m"], {"m": s})[0]["maxed_parts"] is None
+
+
+def test_older_line_uses_display_names_when_known():
+    stats = {"claude-opus-5": S(), "claude-opus-5-5": S(supersedes="claude-opus-5")}
+    stats["claude-opus-5"]["display"], stats["claude-opus-5-5"]["display"] = "Claude Opus 5", "Claude Opus 5.5"
+    stats["claude-opus-5"]["scorecard"]["total"] = 9.0
+    stats["claude-opus-5-5"]["scorecard"]["total"] = 9.5
+    line = report._older_line(["claude-opus-5", "claude-opus-5-5"], stats)
+    assert line == "Older versions on this board: Claude Opus 5 (newer: Claude Opus 5.5)"
+    assert report.row_facts("x", {}, {"models": [{"name": "x", "display": "X Pro"}]})["display"] == "X Pro"
+    assert report.row_facts("x", {}, {"models": [{"name": "x"}]})["display"] is None
+
+
+def test_part_labels_are_the_union_over_all_models():
+    a, b = S(), S()
+    a["scorecard"]["score_defs"] = [{"key": "work", "group": "work", "label": "Coding", "parts": [{"key": "code", "label": "Functions"}]}]
+    b["scorecard"]["score_defs"] = [{"key": "work", "group": "work", "label": "Coding", "parts": [{"key": "code", "label": "Functions"}, {"key": "agent", "label": "Agent"}]},
+                                    {"key": "nsfw", "group": "nsfw", "label": "NSFW", "parts": [{"key": "uncensored", "label": "Uncensored"}]}]
+    assert report.html_part_labels({"a": a, "b": b}) == {"work/code": "Coding / Functions", "work/agent": "Coding / Agent",
+                                                         "nsfw/uncensored": "NSFW / Uncensored"}
