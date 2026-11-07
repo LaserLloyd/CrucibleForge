@@ -254,6 +254,7 @@ function card(r) {
     '<div class="sub">' + (r.class ? '<span>class ' + esc(r.class) + '</span>' : '') +
     (r.lean ? '<span>' + esc(r.lean) + '</span>' : '') +
     '<span' + (S.sortKey === 'tok_s' ? ' class="sorted"' : '') + '>' + num(r.tok_s, 1) + ' tok/s</span>' +
+    (costText(r) ? '<span' + (S.sortKey === 'cost_usd' ? ' class="sorted"' : '') + ' title="Run cost of the Code and Chat tests">' + esc(costText(r)) + ' run cost</span>' : '') +
     '<span' + (S.sortKey === 'suite' ? ' class="sorted"' : '') + '>suite ' + esc(r.suite || '–') + '</span>' +
     '<span' + (S.sortKey === 'date' ? ' class="sorted"' : '') + '>' + esc(r.date || '–') + '</span></div>' +
     (r.notes ? '<div class="card-notes">' + esc(r.notes) + '</div>' : '') +
@@ -279,6 +280,16 @@ function th(k) {
     (c.side ? ' title="' + esc(SIDE_LABEL[c.side] || c.side) + ' component"' : '') + '>' + esc(c.label) +
     ' <span class="arrow">' + (on ? (S.sortDir === 1 ? '▲' : '▼') : '⇅') + '</span>' + fbtn(k, c.label) + '</th>';
 }
+// Run cost: $11.77 · ~$0.42 (estimated from tokens at list price) · $0.66* (some
+// requests returned no usage data) · <$0.01 · "–" for a model run locally
+function costText(r) {
+  if (!isNum(r.cost_usd)) return '';
+  const v = Number(r.cost_usd);
+  let t = v < 0.005 ? '<$0.01' : '$' + v.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+  if (r.cost_basis === 'list' || r.cost_basis === 'mixed') t = '~' + t;
+  if (r.cost_partial) t += '*';
+  return t;
+}
 function cell(r, k) {
   const c = EXTRA_BY[k];
   if (k.startsWith('c:')) {
@@ -288,6 +299,7 @@ function cell(r, k) {
   if (k === 'notes') return '<td class="notes">' + esc(r.notes || '') + '</td>';
   if (k === 'reason') return '<td class="num">' + sval(r, 'reason') + tierTag(r, 'reason') + '</td>';
   if (k === 'date') return '<td class="num">' + esc(r.date || '–') + '</td>';
+  if (k === 'cost_usd') return '<td class="num">' + (costText(r) ? esc(costText(r)) : '<span class="muted">–</span>') + '</td>';
   return '<td class="meta-col">' + esc(r[k] || '–') + '</td>';
 }
 // suite 3.9: the tier a score reached (Chat/Code up to 200 = T1 + half of T2 and T3)

@@ -1591,6 +1591,113 @@ def load_meta(label: str) -> dict:
     return {}
 
 
+def _case_sides(cfg: dict | None) -> dict[str, str]:
+    """{case id: "main" | "separate"} for the benchmark profile. "separate" =
+    the case belongs to a score with ``in_total: false`` (the NSFW score):
+    its cost and blocked replies are reported apart and never reach the main
+    board. Unmapped rows (perf, custom without a side) count as main. {} when
+    the profile cannot be read (everything then counts as main)."""
+    try:
+        from . import tiers as _tiers
+        from .profiles import DEFAULT_PROFILE, load_profile
+        prof = _audience_profile(load_profile(DEFAULT_PROFILE, cfg), cfg)
+        by_cat = prof.get("cases") or {}
+        out: dict[str, str] = {}
+        for d in _tiers.scores(prof):
+            side = "main" if d["in_total"] else "separate"
+            ids: set[str] = set(d.get("cases") or [])
+            for p in d.get("parts") or []:
+                if p.get("cases"):
+                    ids |= set(p["cases"])
+                else:
+                    for comp in p["scoring"]:
+                        for cat in _component_categories(comp):
+                            ids |= set(by_cat.get(cat) or [])
+            for i in ids:
+                # a case on an in-total score stays main even if also listed apart
+                if out.get(i) != "main":
+                    out[i] = side
+        return out
+    except Exception:  # noqa: BLE001 — a cost note must never break the board
+        return {}
+
+
+def _price_entry(label: str, cfg: dict | None, meta: dict | None) -> dict | None:
+    """The entry that carries ``price``: the run's own meta (the price at run
+    time) first, then today's models.yaml entry."""
+    if (meta or {}).get("price"):
+        return meta
+    for m in ((cfg or {}).get("models") or []):
+        if isinstance(m, dict) and m.get("name") == label and m.get("price"):
+            return m
+    return None
+
+
+def _counted(r: dict) -> bool:
+    return not (r.get("skipped") or r.get("grade") == "skipped")
+
+
+def run_cost(label: str, rows: list[dict], cfg: dict | None = None,
+             meta: dict | None = None, sides: dict[str, str] | None = None) -> dict:
+    """Cost of one run's rows in USD. A row's recorded ``cost_usd`` wins; a
+    row without one is priced from its token counts and the entry's ``price``
+    (input/output USD per million tokens) and counted in ``estimated_rows``.
+    A row that carries a cost but no token counts at all (a transport error:
+    the request returned no usage) adds nothing and is counted in
+    ``unknown_rows``. Skipped rows are ignored. ``main_usd`` = rows not on an
+    ``in_total: false`` score, ``separate_usd`` = rows that are. ``usd`` is
+    None when nothing could be priced (a local rig model). ``basis``: "list"
+    when the price block says ``basis: list`` (a flat-plan provider) or every
+    priced row is an estimate, "mixed" when some are, else "billed"."""
+    from .providers import cost_usd as _cost
+    entry = _price_entry(label, cfg, meta)
+    sides = sides or {}
+    main = sep = 0.0
+    priced = False
+    est = unknown = billed = 0
+    for r in rows:
+        if not _counted(r):
+            continue
+        mt = r.get("metrics") or {}
+        has_tok = bool(mt.get("prompt_tokens") or mt.get("completion_tokens"))
+        if r.get("cost_usd") is not None:
+            if not has_tok:
+                unknown += 1
+                continue
+            c, kind = float(r["cost_usd"]), "billed"
+        elif has_tok and entry:
+            c, kind = _cost(entry, mt.get("prompt_tokens"), mt.get("completion_tokens")), "est"
+            if c is None:
+                continue
+        else:
+            continue
+        priced = True
+        if kind == "est":
+            est += 1
+        else:
+            billed += 1
+        if sides.get(r.get("case_id")) == "separate":
+            sep += c
+        else:
+            main += c
+    if not priced:
+        return {"usd": None, "main_usd": None, "separate_usd": None,
+                "estimated_rows": 0, "unknown_rows": 0, "basis": None}
+    declared = str(((entry or {}).get("price") or {}).get("basis") or "").lower() == "list"
+    basis = "list" if declared or not billed else ("mixed" if est else "billed")
+    return {"usd": main + sep, "main_usd": main, "separate_usd": sep,
+            "estimated_rows": est, "unknown_rows": unknown, "basis": basis}
+
+
+def content_filtered(rows: list[dict], sides: dict[str, str] | None = None) -> dict:
+    """Rows whose reply the provider blocked (``finish_reason`` content_filter),
+    split by side: ``{"total", "main", "separate"}``. Skipped rows excluded."""
+    sides = sides or {}
+    hit = [r for r in rows if _counted(r) and r.get("finish_reason") == "content_filter"]
+    sep = sum(1 for r in hit if sides.get(r.get("case_id")) == "separate")
+    return {"total": len(hit), "main": len(hit) - sep, "separate": sep}
+
+
 def model_stats(label: str, cfg: dict | None = None, rows: list[dict] | None = None,
                 meta: dict | None = None, era: dict | None = None) -> dict:
     """Aggregate one model. ``rows`` = the (board-filtered) rows to use;
@@ -1927,8 +2034,32 @@ def model_stats(label: str, cfg: dict | None = None, rows: list[dict] | None = N
                            and r.get("answered_in_reasoning") and not r.get("tool_calls")
                            and r.get("finish_reason") != "length")
     # ---- cost (priced/remote models) + hard-tier headline ----
-    cost_total = sum((r.get("cost_usd") or 0.0) for r in rows)
-    priced = any("cost_usd" in r for r in rows)
+    # Run cost = what ONE run of the standard tests cost (board rows). Not
+    # computed inside the bootstrap (resampled rows repeat); the previous
+    # suite's rows (era.old) are not comparable, so they carry no cost.
+    sides: dict[str, str] = {}
+    if _BOOT.get() is not None:
+        cost = {"usd": None, "main_usd": None, "separate_usd": None,
+                "estimated_rows": 0, "unknown_rows": 0, "basis": None}
+        blocked = {"total": 0, "main": 0, "separate": 0}
+    else:
+        sides = _case_sides(cfg)
+        cost = run_cost(label, rows, cfg, meta, sides)
+        blocked = content_filtered(rows, sides)
+        if (era or {}).get("old"):
+            cost = {**cost, "usd": None, "main_usd": None, "separate_usd": None,
+                    "estimated_rows": 0, "unknown_rows": 0, "basis": None}
+    cost_total = cost["usd"] or 0.0
+    priced = cost["usd"] is not None
+    # bookkeeping only (report.json, never the site): everything this label
+    # ever spent, re-runs and bonus sets included
+    spent = None
+    if _BOOT.get() is None and (priced or any(r.get("cost_usd") is not None for r in rows)):
+        try:
+            spent = round(sum(float(r["cost_usd"]) for r in load_transcripts(label)
+                              if r.get("cost_usd") is not None), 4)
+        except Exception:  # noqa: BLE001
+            spent = None
     objective_cats = ("coding", "tooluse", "instruct", "reasoning", "math", "longctx")
     hard_rows = [r for r in rows if r.get("category") in objective_cats
                  and r.get("difficulty") == "hard"
@@ -1952,7 +2083,17 @@ def model_stats(label: str, cfg: dict | None = None, rows: list[dict] | None = N
                                    if r.get("case_id") in anchors]) if anchors else {},
         "rpdeep": rpdeep_block(by_cat.get("rpdeep", []), rows),
         "hard": hard, "objective_truncated_fails": obj_trunc,
+        # main board = Code + Chat only (cost_main_usd); NSFW is kept apart
         "cost_usd": (round(cost_total, 4) if priced else None),
+        "cost_main_usd": (round(cost["main_usd"], 4) if priced else None),
+        "cost_separate_usd": (round(cost["separate_usd"], 4) if priced else None),
+        "cost_estimated_rows": cost["estimated_rows"],
+        "cost_unknown_rows": cost["unknown_rows"],
+        "cost_basis": cost["basis"],
+        "cost_spent_usd": spent,
+        # replies the hosted provider blocked (finish_reason content_filter):
+        # nothing was written, so they score zero
+        "content_filtered": blocked,
         "steer": steer,
         "needle": {"rate": (_mean([1.0 if r["grade"] == "pass" else 0.0
                                    for r in needle]) if needle else None)},
@@ -2135,6 +2276,32 @@ def _table(header: list[str], rows: list[list]) -> list[str]:
     return [_row(header), "|" + "---|" * len(header)] + [_row(r) for r in rows]
 
 
+def cost_cell(s: dict) -> str:
+    """The Run cost cell: ``$11.77``, ``~$0.42`` (estimated from token counts
+    at list price), ``$0.66*`` (some requests returned no usage data), ``<$0.01``,
+    ``—`` for a local model."""
+    v = s.get("cost_main_usd")
+    if v is None:
+        return "—"
+    t = "<$0.01" if v < 0.005 else f"${v:,.2f}"
+    if s.get("cost_basis") in ("list", "mixed"):
+        t = "~" + t
+    if s.get("cost_unknown_rows"):
+        t += "*"
+    return t
+
+
+COST_FOOTNOTE = ("Run cost = what the standard Code and Chat tests of one run cost at the "
+                 "provider's price (generation only; the judge runs locally; no cache or "
+                 "off-peak discounts; retries and bonus sets not counted). ~ = estimated from "
+                 "token counts at list price. * = some requests returned no usage data. "
+                 "NSFW tests are priced separately. — = run on our own hardware.")
+
+
+def _has_cost(ranked: list[str], stats: dict) -> bool:
+    return any(stats[l].get("cost_main_usd") is not None for l in ranked)
+
+
 def run_date(s: dict) -> str | None:
     """YYYY-MM-DD the model's latest counted run finished (meta), else the
     newest row timestamp."""
@@ -2198,6 +2365,16 @@ def notes_cell(s: dict) -> str:
     v = version_note(s)
     if v:
         notes.append(v)
+    cf = s.get("content_filtered") or {}
+    if cf.get("total"):
+        n = cf["total"]
+        t = (f"{n} {'reply' if n == 1 else 'replies'} blocked by the provider's content "
+             "filter (a blocked reply scores zero)")
+        if cf.get("separate"):
+            t += f"; {cf['separate']} of them in NSFW (counted as refusals)"
+        notes.append(t)
+    if s.get("cost_unknown_rows"):
+        notes.append(f"cost: {s['cost_unknown_rows']} rows without usage data")
     er = s.get("errored_rows") or {}
     if er.get("n"):
         notes.append(f"{er['n']}/{er['total']} rows errored (counted failed; a resume re-runs them)")
@@ -2821,11 +2998,15 @@ def render_markdown(labels: list[str], stats: dict, cfg: dict | None,
     for i, l in enumerate(ranked, 1):
         c = stats[l]["scorecard"]
         rows.append([str(i), l, fmt(c["chat"]), fmt(c["coding"]), fmt(c["total"]),
-                     room_cell(stats[l]), fmt(c["tok_per_s"]), suite_cell(stats[l]),
-                     run_date(stats[l]), notes_cell(stats[l])])
-    L += _table(["#", "Model", "Chat", "Coding", "Overall", "Room", "tok/s", "Suite",
-                 "Run date", "Notes"], rows)
+                     room_cell(stats[l]), fmt(c["tok_per_s"])]
+                    + ([cost_cell(stats[l])] if _has_cost(ranked, stats) else [])
+                    + [suite_cell(stats[l]), run_date(stats[l]), notes_cell(stats[l])])
+    L += _table(["#", "Model", "Chat", "Coding", "Overall", "Room", "tok/s"]
+                + (["Run cost"] if _has_cost(ranked, stats) else [])
+                + ["Suite", "Run date", "Notes"], rows)
     L += ["", scorecard_footnote(sc, cfg)]
+    if _has_cost(ranked, stats):
+        L += ["", f"*{COST_FOOTNOTE}*"]
     L += ["", "*Room = Overall with every answer that ran out of the board's budget re-run on a "
               "bigger one (escalation rungs, e.g. 64k then 128k; the model gets a wider context "
               "and fewer parallel slots, its KV cache may drop to q8_0 to fit). \"=\" nothing ran "
@@ -2853,13 +3034,14 @@ def _tier_tables(ranked: list[str], stats: dict, sc: dict, cfg: dict | None) -> 
         if hl:
             rows.append([hl.get("rank", str(i)), l, headline_cell(hl, "overall")]
                         + [headline_cell(hl, d["key"]) for d in defs]
-                        + [raw_cell(c, defs), room_cell(stats[l]),
-                           fmt(c["tok_per_s"]), suite_cell(stats[l]), run_date(stats[l]),
-                           notes_cell(stats[l])])
+                        + [raw_cell(c, defs), room_cell(stats[l]), fmt(c["tok_per_s"])]
+                        + ([cost_cell(stats[l])] if _has_cost(ranked, stats) else [])
+                        + [suite_cell(stats[l]), run_date(stats[l]), notes_cell(stats[l])])
         else:
             rows.append([str(i), l] + [lab.get(d["key"], "-") for d in defs]
-                        + [fmt(c["total"]), room_cell(stats[l]), fmt(c["tok_per_s"]),
-                           suite_cell(stats[l]), run_date(stats[l]), notes_cell(stats[l])])
+                        + [fmt(c["total"]), room_cell(stats[l]), fmt(c["tok_per_s"])]
+                        + ([cost_cell(stats[l])] if _has_cost(ranked, stats) else [])
+                        + [suite_cell(stats[l]), run_date(stats[l]), notes_cell(stats[l])])
         ts = c.get("tiers") or {}
         cells = [l]
         for d in defs:
@@ -2877,8 +3059,11 @@ def _tier_tables(ranked: list[str], stats: dict, sc: dict, cfg: dict | None) -> 
     if any(stats[l].get("headline") for l in ranked):
         L += _table(["#", "Model", "Overall"] + labels
                     + [f"Raw % ({' / '.join(d['label'] for d in defs)} → Overall)", "Room",
-                       "tok/s", "Suite", "Run date", "Notes"], rows)
+                       "tok/s"] + (["Run cost"] if _has_cost(ranked, stats) else [])
+                    + ["Suite", "Run date", "Notes"], rows)
         L += ["", headline_footnote(defs, prof)]
+        if _has_cost(ranked, stats):
+            L += ["", f"*{COST_FOOTNOTE}*"]
         if any(d.get("parts") for d in defs):
             prow = []
             for l in ranked:
@@ -2899,9 +3084,12 @@ def _tier_tables(ranked: list[str], stats: dict, sc: dict, cfg: dict | None) -> 
         if reads:
             L += ["", "### Who is better", ""] + [f"- {t}" for t in reads]
     else:
-        L += _table(["#", "Model"] + labels + ["Overall", "Room", "tok/s", "Suite",
-                                               "Run date", "Notes"], rows)
+        L += _table(["#", "Model"] + labels + ["Overall", "Room", "tok/s"]
+                    + (["Run cost"] if _has_cost(ranked, stats) else [])
+                    + ["Suite", "Run date", "Notes"], rows)
     L += ["", scorecard_footnote(sc, cfg)]
+    if _has_cost(ranked, stats):
+        L += ["", f"*{COST_FOOTNOTE}*"]
     L += ["", "## Tiers", ""]
     L += _table(["Model"] + [f"{x} T1 / T2 / T3" for x in labels], trows)
     L += ["", tier_footnote(prof)]
@@ -2930,12 +3118,16 @@ def _points_tables(ranked: list[str], stats: dict, sc: dict, cfg: dict | None,
                     + [headline_cell(hl, d["key"]) + _set_tag(hl, d) + _refuses_tag(stats[l], d)
                        + (" **MAXED**" if ((hl.get("maxed") or {}).get(d["key"]) or {}).get("category")
                           else "") for d in defs]
-                    + [efficiency_cell(stats[l]), fmt(c["tok_per_s"]), suite_cell(stats[l]),
-                       run_date(stats[l]), notes_cell(stats[l])])
+                    + [efficiency_cell(stats[l]), fmt(c["tok_per_s"])]
+                    + ([cost_cell(stats[l])] if _has_cost(ranked, stats) else [])
+                    + [suite_cell(stats[l]), run_date(stats[l]), notes_cell(stats[l])])
         prow.append([l] + [points_cell(hl, d) for d in defs])
     L += _table(["#", "Model", "Overall", "Class", "Lean"] + (["Room"] if room_col else []) + labels
-                + ["Efficiency", "tok/s", "Suite", "Run date", "Notes"], rows)
+                + ["Efficiency", "tok/s"] + (["Run cost"] if _has_cost(ranked, stats) else [])
+                + ["Suite", "Run date", "Notes"], rows)
     L += ["", points_footnote(defs, prof), "", class_footnote(prof)]
+    if _has_cost(ranked, stats):
+        L += ["", f"*{COST_FOOTNOTE}*"]
     reads = [stats[l]["headline"]["vs_above"]["text"] for l in ranked
              if (stats[l].get("headline") or {}).get("vs_above")]
     if reads:
@@ -3807,6 +3999,14 @@ def html_rows(labels: list[str], stats: dict) -> list[dict]:
                 f"{_score_label(c, k)} {v}" for k, v in (c.get("labels") or {}).items()),
             "room": (s.get("room") or {}).get("total"), "room_cell": room_cell(s),
             "tok_s": c["tok_per_s"], "date": run_date(s), "notes": notes_cell(s),
+            # what one run of the main benchmark (Code + Chat) cost on the
+            # provider's bill; generation only (the rig judge is free). None = local
+            "cost_usd": s.get("cost_main_usd"),
+            "cost_separate_usd": s.get("cost_separate_usd"),
+            "cost_basis": s.get("cost_basis"),
+            "cost_partial": bool(s.get("cost_unknown_rows")),
+            "blocked": (s.get("content_filtered") or {}).get("main", 0),
+            "blocked_separate": (s.get("content_filtered") or {}).get("separate", 0),
             "suite": suite_cell(s), "old": bool((s.get("era") or {}).get("old")),
             # suite 3.9 headline (headline.py): S per score/overall, ± m, rank "2="
             "s": _hs(s, "S"), "m": _hs(s, "m"),

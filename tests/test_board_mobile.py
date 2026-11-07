@@ -45,7 +45,7 @@ def test_page_carries_card_layout_and_phone_controls():
     sel = re.search(r'<select id="sortSel"[^>]*>(.*?)</select>', html).group(1)
     values = re.findall(r'<option value="([^"]*)"', sel)
     assert values == ["rank", "label", "chat", "coding", "overall", "tok_s", "c:RP", "c:Programs",
-                      "suite", "date", "notes", "judge", "coverage", "provider", "room_cell", "reason", "tiers_cell",
+                      "suite", "date", "notes", "judge", "coverage", "provider", "room_cell", "cost_usd", "reason", "tiers_cell",
                       "raw_cell", "vs_above", "points_cell"]
     assert "Chat components" in sel and "Coding components" in sel and "Run info" in sel
     assert 'id="sortDir"' in html
@@ -152,3 +152,15 @@ def test_the_phone_cards_filter_the_same_way_and_carry_their_own_entry_point():
     assert out["menu"] is True and "Greater than" in out["html"]
     assert out["cards"] == out["table"] == "m0,m1"           # coding 50 and 80 pass, 20 does not
     assert out["btn"].endswith("Filters (1)")
+
+
+def test_run_cost_shows_in_card_and_table_for_hosted_rows_only():
+    rows = _rows()
+    rows[0].update(cost_usd=11.774, cost_basis="billed", cost_partial=False)
+    rows[2].update(cost_usd=0.42, cost_basis="list", cost_partial=True)
+    out = run_board(render_html(rows, "sub", components=COMPS), r"""
+      el('viewCards').fire('click');
+      out.cards = el('cards').innerHTML;
+    """)
+    assert out["cards"].count("run cost</span>") == 2      # the local row shows none
+    assert "$11.77 run cost" in out["cards"] and "~$0.42* run cost" in out["cards"]

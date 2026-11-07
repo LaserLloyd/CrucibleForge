@@ -81,7 +81,11 @@ CSS shows one, so rotating a phone keeps the sort, filters and open rows.
 
 Row fields (`report.html_rows`): `rank, label, model_id, provider, chat,
 coding, overall, tok_s, date, notes, tier, coverage, judge,
-components{label: value}`. Component columns: `report.html_components`
+components{label: value}`; hosted-model run cost: `cost_usd` (Code + Chat only,
+None = local), `cost_separate_usd` (NSFW tests, kept apart), `cost_basis`
+(billed / list / mixed; list and mixed show `~`), `cost_partial` (some requests
+had no usage data, shows `*`), `blocked` / `blocked_separate` (replies the
+provider's content filter blocked, Code + Chat / NSFW). Component columns: `report.html_components`
 (`[{label, side}]`).
 
 Regenerate `example.html` (reads results/, writes only this file):

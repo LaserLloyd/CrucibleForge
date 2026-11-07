@@ -89,6 +89,8 @@ HEADLINE_LABELS = {"overall": "Score", "coding": "Code"}
 INFO_COLUMNS = [("suite", "Suite", "text"), ("date", "Run date", "text"), ("notes", "Notes", "text"), ("judge", "Judge", "text"),
                 ("coverage", "Coverage", "text"), ("provider", "Provider", "text"),
                 ("room_cell", "Room", "text"),
+                # what one run of the Code + Chat tests cost at the provider's price
+                ("cost_usd", "Run cost", "num"),
                 # suite 3.9: the Reason score and the tier reached per score
                 ("reason", "Reason", "num"), ("tiers_cell", "Tiers", "text"),
                 # suite 3.9 headline: the raw % behind S, and the paired verdict

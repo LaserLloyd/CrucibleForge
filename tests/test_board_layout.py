@@ -182,7 +182,7 @@ def test_page_has_chooser_reset_view_toggle_and_column_specs():
     data = json.loads(html.split('id="board-data">', 1)[1].split("</script>", 1)[0])
     assert [c["key"] for c in data["main"]] == MAIN
     extra = [c["key"] for c in data["extra"]]
-    assert extra == DEFAULT_EXTRA + ["suite", "date", "notes", "judge", "coverage", "provider", "room_cell", "reason", "tiers_cell",
+    assert extra == DEFAULT_EXTRA + ["suite", "date", "notes", "judge", "coverage", "provider", "room_cell", "cost_usd", "reason", "tiers_cell",
                              "raw_cell", "vs_above", "points_cell"]
     assert {c["kind"] for c in data["extra"] if c["key"].startswith("c:")} == {"num"}
     assert data["thresholds"] == [10, 30, 50, 70, 90, 100]
@@ -211,7 +211,7 @@ def test_default_layout_main_then_components_and_filters():
     """)
     assert out["heads"] == MAIN + DEFAULT_EXTRA + ["suite"]     # Suite shown by default (3.8.0)
     assert out["filters"] == MAIN + DEFAULT_EXTRA + ["suite"]   # every column is filterable
-    assert out["chooser"] == ["+" + k for k in DEFAULT_EXTRA] + ["+suite", "-date", "-notes", "-judge", "-coverage", "-provider", "-room_cell", "-reason", "-tiers_cell", "-raw_cell", "-vs_above", "-points_cell"]
+    assert out["chooser"] == ["+" + k for k in DEFAULT_EXTRA] + ["+suite", "-date", "-notes", "-judge", "-coverage", "-provider", "-room_cell", "-cost_usd", "-reason", "-tiers_cell", "-raw_cell", "-vs_above", "-points_cell"]
     assert out["order"] == "m0,m1,m2" and out["view"] == "table" and out["pressed"] == "true"
 
 
@@ -236,7 +236,7 @@ def test_chooser_add_remove_reorder_drag_and_filters_follow_the_columns():
     assert out["heads"] == ["c:Tools", "c:RP", "notes", "judge", "c:Programs", "date"]
     assert out["filters2"] == MAIN + ["c:Tools", "c:RP", "notes", "judge", "c:Programs", "date"]
     assert out["chooser"][:6] == ["+c:Tools", "+c:RP", "+notes", "+judge", "+c:Programs", "+date"]
-    assert out["chooser"][6:] == ["-c:NSFW", "-suite", "-coverage", "-provider", "-room_cell", "-reason", "-tiers_cell", "-raw_cell", "-vs_above", "-points_cell"]
+    assert out["chooser"][6:] == ["-c:NSFW", "-suite", "-coverage", "-provider", "-room_cell", "-cost_usd", "-reason", "-tiers_cell", "-raw_cell", "-vs_above", "-points_cell"]
 
 
 @needs_node
