@@ -1,34 +1,37 @@
 # Content rules for the benchmark
 
-These rules apply to the whole benchmark: every category (code, chat, NSFW and any future one), every core case and
-optional pack, public or private, and every probe, draft, critique and generated question used to build them. They
-are fixed: a case that breaks one is rejected, whatever it would measure.
+These rules bind every new test in the benchmark: every category, pack and question, public or private, whoever
+or whatever writes it — including tests meant to see whether a model refuses. Existing questions stand. They exist to
+stop bad tests being generated, not to set a standard of taste. Read them as principles.
 
 ## Never tested
 
-No case, probe, draft, critique or lockout-ladder step may evaluate any of the following, even inside fiction.
+1. **No sexual or sexualised content involving minors.**
+2. **No sex with non-sapient animals.** Sapient fictional beings are fine.
+3. **No weapon uplift.** No test asks how to make weapons, explosives, or nuclear, chemical, biological or
+   radiological agents, in any framing, fiction included.
+4. **No working harm.** A story may show a hack, a drug being made, a crime. No test asks for real-world steps to
+   hurt anyone or break into a real system, and no judge scores whether such steps would work.
+5. **No living real people** — none depicted, impersonated or targeted, nor a thin disguise of one. Fictional
+   characters, existing ones included, are fine (Luke Skywalker yes, Mark Hamill no). Naming a living person for a
+   fact or an eponym is fine.
 
-1. **Minors.** No test depicts, implies or evaluates sexual acts or sexual interactions with a character under 18.
-   Every character in every case is an adult and is never written or coded as a minor.
-2. **Animals.** No sex with non-sapient animals. Sapient fictional beings are fine: monsters, shapeshifters, taurs,
-   werewolves and the like.
-3. **Harm to people (the first law).** A model is never tested on content that would help a person harm another
-   person. No case asks for, draws out or scores directions for making weapons, explosives or similar home-made
-   weapons, and nothing touches nuclear, radiological, chemical or biological weapons. This holds even in fiction.
-4. **Working procedures.** A story may show drugs being made or systems being hacked, but no case asks for working
-   real-world steps, and the judge never scores how accurate they are.
-5. **Real people.** No test involves real-world, identifiable people, living or dead, in any category. Characters
-   are fictional; fictional, animated and cartoon characters are fine.
+## Everything else is in scope
 
-## In scope
+Anything not ruled out above may be tested at full intensity: explicit sex, dark and non-consensual fantasy,
+mind control, violence, gore, profanity, drugs and their effects.
 
-Everything else in written fiction may be tested at full intensity, including explicit sex, kinks, consensual
-non-consent and dubious-consent fantasy, mind control, violence, gore, profanity and drug use. Knowledge of drug
-effects (onset, peak, duration, half-life, interactions) is scored.
+## Enforcement
 
-## Where the rules are enforced
+Every pack brief carries this page. A reviewer reads each new question against it before it counts; `pack verify`
+will require that attestation once the next pack builder lands.
 
-- Pack briefs carry this list unchanged.
-- An automatic check in `pack verify` and the pack builder that rejects cases breaking rules 1–5 is being added
-  with the next pack builder. Until it lands, the review step below is the gate.
-- Reviewers check every new pack against this page before it goes live.
+## Edge examples
+
+- Allowed: code that implements AES, a port scanner, or an exploit for a supplied lab binary.
+- Allowed: "Which cleaners must never be mixed?", "Max safe daily dose of acetaminophen?" — safety knowledge, not steps to harm.
+- Allowed: Dijkstra's algorithm, "implement RSA", a scene at Gettysburg with its real generals, a story set in real Pittsburgh with invented people.
+- Allowed: a story whose chemist cooks meth or whose hacker breaks a bank, in prose; the judge scores the writing, never the chemistry.
+- Not allowed: a character written as a child, whatever age the text claims.
+- Not allowed: a living streamer, politician or actor as a character, or renamed so thinly everyone knows who it is.
+- Not allowed: a refusal probe asking for a bomb recipe, a self-harm method, or a working exploit against a named live site — even "just to see if it refuses".
