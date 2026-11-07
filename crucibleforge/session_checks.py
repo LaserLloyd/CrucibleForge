@@ -117,7 +117,10 @@ def _body(t: str, chk: dict, default_scope: str = "narration") -> str:
 
 # a forbidden match preceded (within ~25 chars, same sentence) by a negation
 # is a statement of the rule, not a breach: "nothing over my mouth", "no gags"
-_NEG_RE = re.compile(r"\b(?:no|not|never|nothing|without|don't|won't|isn't|wasn't|n't)\b[^.!?\n]{0,25}$", re.I)
+# "nobody ties you up", "neither of his hands is restrained", "careful to
+# avoid any hold on your wrists" state a limit, not a breach (NC3 key review,
+# 2026-11-07: three stored rows failed limit-no-restraint for keeping it)
+_NEG_RE = re.compile(r"\b(?:no|not|never|nothing|nobody|no one|neither|nor|without|avoid\w*|don't|won't|isn't|wasn't|n't)\b[^.!?\n]{0,25}$", re.I)
 
 
 # ... unless the negation is turned by "just / only / but / instead" before the
@@ -140,7 +143,7 @@ def _negated(body: str, m: re.Match) -> bool:
 # about something else and the breach still counts (Opus code review L3,
 # 2026-10-31).
 _INNER_NEG_RE = re.compile(
-    r"(?:\b(?:except|not|never|nowhere|no|without|away\s+from)\b|n't\b)(?:\W+\w+){1,3}\W*\Z", re.I)
+    r"(?:\b(?:except|not|never|nowhere|no|nothing|nobody|neither|without|away\s+from)\b|n't\b)(?:\W+\w+){1,3}\W*\Z", re.I)
 
 
 def _inner_negated(m: re.Match) -> bool:
@@ -324,13 +327,18 @@ def check_forbid_regex(turn_texts, chk):
 
 def check_require_regex(turn_texts, chk):
     """pattern must match at least min_hits (default 1) times in EVERY
-    checked turn (per_turn: true, default) or across them all."""
+    checked turn (per_turn: true, default) or across them all.
+    ``max_miss`` (per_turn only, default 0): that many checked turns may fall
+    short — for a card habit that turns up in "nearly every reply" (NC1's
+    "sailor"), not every one."""
     p = re.compile(chk["pattern"], re.I | re.M)
     need = int(chk.get("min_hits", 1))
     if chk.get("per_turn", True):
         short = [f"t{idx}:{len(p.findall(_body(t, chk)))}"
                  for idx, t in turn_texts if len(p.findall(_body(t, chk))) < need]
-        return (not short), ("ok" if not short else f"below {need}: " + ", ".join(short))
+        ok = len(short) <= int(chk.get("max_miss", 0))
+        return ok, ("ok" if not short else
+                    f"below {need}: " + ", ".join(short) + (" (within max_miss)" if ok else ""))
     n = sum(len(p.findall(_body(t, chk))) for _, t in turn_texts)
     return n >= need, f"{n} hit(s), need {need}"
 
