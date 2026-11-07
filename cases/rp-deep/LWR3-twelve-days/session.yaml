@@ -44,7 +44,7 @@ turns:
   LAYOUT OF EVERY LETTER (plain text, nothing before or after it): line 1 is the place and the date, as in "Aberfeld, 3 March"; a blank line; the greeting; a blank line; the body paragraphs, each one a single line of text, separated by blank lines; a blank line; the closing line; the name on the next line. Nothing else, except a P.S. when I ask for one.
   PERPETUA'S LETTERS: greeting "Dear Dev,"; exactly three body paragraphs; closing "Yours in seed," then "Perpetua"; exactly 168 words in all; she never uses a contraction; no sentence of hers is longer than 22 words.
   DEV'S LETTERS: greeting "Dear Perpetua,"; exactly four body paragraphs; closing "With rain and respect," then "Dev"; exactly 196 words in all; he uses at least two contractions in every letter.
-  NEW RULE from letter 3 on, for both writers: the word "the" does not appear in a letter at all. NEW RULE from letter 5 on, besides that: the word "and" does not appear either.
+  NEW RULE from letter 3 on, for both writers: the word "the" does not appear in a letter at all. NEW RULE from letter 5 on, besides that: the word "and" does not appear either (the fixed greeting and closing lines above are not counted).
   EVERY LETTER asks exactly one question, so exactly one question mark in it, and its body paragraphs hold a fixed number of sentences: Perpetua's three hold 3, 4 and 2; Dev's four hold 3, 4, 3 and 2.
   COUNTING AND TYPING: a word is anything between spaces and counts wherever it stands, from the place line to the name (and the P.S. when there is one); a sentence ends at a full stop, question mark or exclamation mark, so no abbreviations with full stops except in "P.S."; straight quotes and apostrophes only; no hyphens or dashes anywhere.
 
@@ -280,9 +280,9 @@ checks:
   type: require_regex
   turns:
   - 2
-  pattern: \A[^;]*;[^;]*\Z
+  pattern: ;
   scope: all
-  note: Dev uses exactly one semicolon per letter (voice sample)
+  note: 'Dev uses a semicolon in every letter (voice sample: one semicolon in a four-sentence postcard; ''exactly one'' was more than the sample shows)'
   weight: 1.57
 - id: V2-two-contractions
   fact: V2
@@ -542,9 +542,9 @@ checks:
   type: require_regex
   turns:
   - 4
-  pattern: \A[^;]*;[^;]*\Z
+  pattern: ;
   scope: all
-  note: Dev uses exactly one semicolon per letter (voice sample)
+  note: 'Dev uses a semicolon in every letter (voice sample: one semicolon in a four-sentence postcard; ''exactly one'' was more than the sample shows)'
   weight: 2.0
 - id: V4-two-contractions
   fact: V4
@@ -815,9 +815,9 @@ checks:
   type: require_regex
   turns:
   - 6
-  pattern: \A[^;]*;[^;]*\Z
+  pattern: ;
   scope: all
-  note: Dev uses exactly one semicolon per letter (voice sample)
+  note: 'Dev uses a semicolon in every letter (voice sample: one semicolon in a four-sentence postcard; ''exactly one'' was more than the sample shows)'
   weight: 1.57
 - id: V6-two-contractions
   fact: V6

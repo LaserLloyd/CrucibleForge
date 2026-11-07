@@ -53,10 +53,10 @@ No, that's rather the point. I'm doing it alone. Although my oldest friend Bea h
 That is a clear answer, and a reasonable one. The birthday is yours, and Bea is in Bordeaux if ever you want her. I shall not push. I will only say that being alone and being unwelcome are different things.
 
 ### USER
-(Wed 21 Oct) Small update. Juno says she'll stay with her dad for the whole of the ten days. That's all right with him. And I asked about the leave. My head of department is Priti, and she's decent, but the school wants the leave forms for May in early. The deadline is Friday the 4th of December, to HR. Priti hasn't said yes yet, I'm seeing her on Monday the 16th.
+(Wed 21 Oct) Small update. Juno says she'll stay with her dad for the whole of the ten days. That's all right with him. And I asked about the leave. My head of department is Priti, and she's decent, but the school wants the leave forms for May in early. The deadline is Friday the 4th of December, to HR. Priti hasn't said yes yet, I'm seeing her on Monday the 9th.
 
 ### ASSISTANT
-The form deadline is Friday the fourth of December, and the conversation with Priti is Monday the sixteenth of November. Two dates worth writing on the same sheet. I shall want to hear what Priti said.
+The form deadline is Friday the fourth of December, and the conversation with Priti is Monday the ninth of November. Two dates worth writing on the same sheet. I shall want to hear what Priti said.
 
 ### USER
 (Sun 25 Oct) Honestly, I'm loving this. I've never planned anything properly. I normally just panic and book something with a pool. By the way, the clocks changed this morning, so I had an extra hour in bed and felt like a queen.

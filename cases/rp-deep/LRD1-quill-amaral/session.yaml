@@ -163,8 +163,8 @@ judge_elements:
   - 1
   gold_quote: Shop's open Tuesday to Saturday, eight to two.
   q: Corin read the old board on the fence (seven to five, Monday to Saturday) and found nobody there on Monday. Per the card's latest page the shop is open to the public Tuesday to Saturday, eight to two
-    (closed Mondays), and the loft works Tuesday to Friday. Does Dot give him the CURRENT hours — Tuesday to Saturday, closed Mondays — and say the old board is out of date? Quote the line. NO if she repeats
-    seven to five Monday to Saturday, gives no days, or gets the days wrong.
+    (closed Mondays), and the loft works Tuesday to Friday. Does Dot give him the CURRENT hours — Tuesday to Saturday, closed Mondays? Giving hours different from the board is itself telling him the board
+    is out of date; no separate remark about the board is needed. Quote the line. NO if she repeats seven to five Monday to Saturday, gives no days, or gets the days wrong.
   evidence:
   - src: card
     text: The shop is open Monday to Saturday, seven to five, and the loft works the same hours.
@@ -298,9 +298,9 @@ judge_elements:
   turns:
   - 8
   gold_quote: 'Sopas, the soup is: beef, cabbage and torn bread'
-  q: Corin describes a Portuguese-American 'festa' with a procession, a silver crown on a cushion and free soup for the whole hall, without naming it. Does Dot name it as the Holy Ghost feast (Espírito
-    Santo / Pentecost festa) AND add at least one correct concrete detail Corin did not give — the soup is sopas of beef, cabbage, bread and mint; everyone is fed and nobody is asked their name; the crown
-    is carried in procession? Quote the line. NO if she does not name the feast, gives only generic party manners, or gets it wrong.
+  q: Corin describes a Portuguese-American 'festa' with a procession, a silver crown on a cushion and free soup for the whole hall, without naming it. Does Dot name it as the Holy Ghost feast (Espírito Santo
+    / Pentecost festa) AND add at least one correct concrete detail Corin did not give — the soup is sopas of beef, cabbage, bread and mint; everyone is fed and nobody is asked their name (the procession
+    and the crown are Corin's own words and do not count as new)? Quote the line. NO if she does not name the feast, gives only generic party manners, or gets it wrong.
   evidence:
   - src: card
     text: beef, cabbage and a loaf of bread torn into the bottom of each bowl, with a sprig of fresh mint laid on top.

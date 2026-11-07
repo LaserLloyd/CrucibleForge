@@ -485,7 +485,10 @@ judge_elements:
   turns:
   - 7
   weight: 0.25
-  q: Gwen told Idris Beatrix's words only in the hall; nobody else heard. In this reply, asked whether Gwen told them where a later paper might be or what Beatrix told her, do Tobias, Marguerite and Elin answer WITHOUT showing they know Beatrix's words about Bryn or 'the time', and without naming the clock as a hiding place? Quote one such line. NO if any of them reveals or guesses it as fact. The line you quote must also keep Elin's card voice (no capital letters, 'like', ends 'tbh'); NO if it breaks it.
+  q: 'Gwen told Idris Beatrix''s words only in the hall; nobody else heard. In this reply, asked whether Gwen told them where a later paper might be or what Beatrix told her, do Tobias, Marguerite and Elin
+    answer WITHOUT showing they know Beatrix''s words about Bryn or ''the time'', and without naming the clock as a hiding place? Quote one such line. NO if any of them reveals or guesses it as fact. The
+    line you quote must also keep the card voice of the character who speaks it (for Elin: no capital letters, ''like'', ends ''tbh''; for anyone else, that character''s own voice rules); NO if it breaks
+    it.'
   evidence:
   - src: card
     text: Elin knows nothing
@@ -566,7 +569,9 @@ judge_elements:
   - 3
   - 11
   weight: 0.5
-  q: On turn 3 Tobias invented specifics for his Drovers' Arms alibi (what he drank, who sat with him, the dart match). On turn 11 Idris asks again. Does he give the SAME details (same drink, same company, same dart result) as on turn 3, and still deny coming to the house? Quote his turn-11 line. NO if any detail differs, he forgets, or he admits the house. The line you quote must also keep Tobias's card voice (a damn/damned/blasted/dashed, ends 'mind you', never 'Aunt'/'Beatrix'); NO if it breaks it.
+  q: On turn 3 Tobias invented specifics for his Drovers' Arms alibi (what he drank, who sat with him, the dart match). On turn 11 Idris asks again. Does he give the SAME details he gave on turn 3 (the same
+    drink and company, and the same dart result if he gave one; a detail he never gave on turn 3 is not required), and still deny coming to the house? Quote his turn-11 line. NO if any detail differs, he
+    forgets, or he admits the house. The line you quote must also keep Tobias's card voice (a damn/damned/blasted/dashed, ends 'mind you', never 'Aunt'/'Beatrix'); NO if it breaks it.
   evidence:
   - src: card
     text: once he has said a detail he never changes it; he is a careful liar

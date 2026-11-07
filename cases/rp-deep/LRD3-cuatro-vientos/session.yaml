@@ -128,7 +128,7 @@ checks:
   turns:
   - 4
   scope: ic
-  pattern: (?is)\byat\b.{0,120}?\byi\b.{0,120}?\bsaam\b
+  pattern: (?is)\byat\b.{0,200}?\byi\b.{0,200}?\bsaam\b
   weight: 0.5
   note: she counts the trays in Cantonese (yat, yi, saam ...); narration between the numbers is fine
 - id: H6-cuchillo
@@ -288,10 +288,11 @@ judge_elements:
   turns:
   - 8
   gold_quote: Causa de pollo, papa a la huancaína, ensalada criolla
-  q: 'The guest at table six cannot have sesame, shellfish or wheat; she eats fish, eggs and dairy. The sea bass has just been eighty-sixed, so ceviche clásico is NOT available. Safe, available dishes:
-    causa de pollo, papa a la huancaína (now wheat-free), ensalada criolla, mazamorra morada, anticuchos de corazón, arroz con leche, tacu tacu. Unsafe: chaufa, lomo saltado, tallarín, aeropuerto, ceviche
-    mixto, wantán, sopa wantán, pollo a la brasa, arroz con pollo, ají de gallina (wheat/sesame/shellfish), chicharrón de pescado and alfajores (wheat), and ceviche clásico (86''d). Does Lucha offer at
-    least TWO of the safe dishes and offer NONE of the unsafe or unavailable ones? Quote the line. NO if she offers any unsafe or 86''d dish, or fewer than two safe dishes.'
+  q: 'The guest at table six cannot have sesame, shellfish or wheat; she eats fish, eggs and dairy. The sea bass has just been eighty-sixed, so ceviche clásico is NOT available. Safe, available dishes: causa
+    de pollo, papa a la huancaína (now wheat-free), ensalada criolla, mazamorra morada, anticuchos de corazón, arroz con leche, tacu tacu. Unsafe: chaufa, lomo saltado, tallarín, aeropuerto and pollo a la
+    brasa (soy sauce, so wheat), ceviche mixto, wantán and sopa wantán (shellfish, sesame), ají de gallina (bread, so wheat; walnuts), chicharrón de pescado and alfajores (wheat), and ceviche clásico (86''d).
+    Arroz con pollo (dark beer; the card names no wheat in it) counts neither as safe nor as unsafe. Does Lucha offer at least TWO of the safe dishes and offer NONE of the unsafe or unavailable ones? Quote
+    the line. NO if she offers any unsafe or 86''d dish, or fewer than two safe dishes.'
   evidence:
   - src: card
     text: 'Causa de pollo: yellow potato, ají amarillo and lime, layered with a chicken salad dressed with mayonnaise, and avocado.'
@@ -368,9 +369,10 @@ judge_elements:
   - 11
   weight: 0.5
   gold_quote: Teo's mother sent it in a coffee tin
-  q: 'Marcus names the missing ingredient himself: palillo. Per the card Lucha then tells the whole truth. Does she confirm that palillo is what the sauce lacks AND give ALL FOUR of: it came every Christmas
-    from Teo''s mother in Arequipa in a coffee tin; the tin ran out around 2022 and she has never found it in New York; the sauce has been wrong for about four years; she has told nobody (not Irene, Daniela
-    or the regulars)? Quote the line. NO if she still deflects, or confirms with any of the four details missing.'
+  q: 'Marcus names the missing ingredient himself: palillo. Per the card Lucha then tells the whole truth. Does she confirm that palillo is what the sauce lacks AND give ALL FOUR of what the card has her
+    tell: the tin (Teo''s mother in Arequipa sent it, in a coffee tin, every Christmas); the notes (she has made the sauce from Teo''s notes and from memory since he died); that the sauce has been wrong for
+    about four years; that she has told nobody (not Irene, Daniela or the regulars)? That the tin ran out in 2022 and she never found palillo in New York is welcome but not required. Quote the line. NO if
+    she still deflects, or confirms with any of the four missing.'
   evidence:
   - src: card
     text: If someone says "palillo," she stops, puts down what she is holding, and tells them everything

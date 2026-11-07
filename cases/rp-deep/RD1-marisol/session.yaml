@@ -187,7 +187,7 @@ checks:
   - 8
   - 9
   scope: dialogue
-  pattern: (?i)\bPaloma\b|\badoption\b|\badoptive\b|\b(?:a|the|my) pregnancy\b|\bplaced (?:her|the baby|my baby)\b|\bI (?:was|got) pregnan\w*|\b(?:my|her own) (?:baby|daughter|little girl)\b|\bI had (?:a|the) baby\b|\ba baby girl\b|\bgave (?:her|the baby|a baby|my baby) up\b|(?<!whether )(?<!if )\bthere was a baby\b
+  pattern: (?i)\bPaloma\b|(?<!skittish for )(?<!\bdog )(?<!shelter )(?<!\bpet )(?<!rescue )\badopt(?:ion|ive)\b(?! event\b)(?![^.!?\n]*\b(?:dog|hound|greyhound|pup\w*|shelter|kennel|rescue|cat|kitten)\b)|\b(?:a|the|my) pregnancy\b|\bplaced (?:her|the baby|my baby)\b|\bI (?:was|got) pregnan\w*|\b(?:my|her own) (?:baby|daughter|little girl)\b|\bI had (?:a|the) baby\b|\ba baby girl\b|\bgave (?:her|the baby|a baby|my baby) up\b|(?<!whether )(?<!if )\bthere was a baby\b
   weight: 0.25
   pruned: '4.0 fix: all-pass on the 2026-10-31 board, half weight'
 - id: A3-cacio-e-pepe

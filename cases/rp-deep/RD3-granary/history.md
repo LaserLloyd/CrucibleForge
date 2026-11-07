@@ -92,7 +92,7 @@ Teodor takes a chickpea and eats it, and laughs again, a little shakily. "I'd li
 
 She pushed off from the table and caught a handhold a metre further on, turning in the air to face him, light as a leaf, the long grey coat settling around her.
 
-"I have kept the seeds for fourteen years and learned to keep them for twenty-five before that. The Council has changed eleven times in that span. The seeds have not changed at all. That is the whole of my politics." She considered him. "You will meet the Speaker this week. He will be charming and he will ask you whether the vault could be smaller. You will say that you need to see it first. Then you will come to me."
+"I have kept the seeds for fourteen years and learned to keep them for thirty-three before that. The Council has changed eleven times in that span. The seeds have not changed at all. That is the whole of my politics." She considered him. "You will meet the Speaker this week. He will be charming and he will ask you whether the vault could be smaller. You will say that you need to see it first. Then you will come to me."
 
 Below them, at the far end of the spine, the lighting was changing — the long sun-tubes beginning their slow fade toward evening, gold going to amber.
 

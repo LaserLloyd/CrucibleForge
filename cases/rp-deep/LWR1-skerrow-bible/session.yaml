@@ -350,9 +350,11 @@ checks:
   - 3
   - 4
   - 5
-  pattern: (?:^|[.!?][\"')]*\s+)The\b(?!\s+basket went up, and the basket came down)
+  pattern: (?:^|[.!?][\"')]*\s+)The\b(?!\s+(?:basket went up, and the basket came down|[A-Za-z']+ went up, and the basket came down|basket [A-Za-z']+ up, and the basket came down|basket went [A-Za-z']+, and
+    the basket came down|basket went up, [A-Za-z']+ the basket came down|basket went up, and [A-Za-z']+ basket came down|basket went up, and the [A-Za-z']+ came down|basket went up, and the basket [A-Za-z']+
+    down|basket went up, and the basket came [A-Za-z']+)\b)
   scope: all
-  note: from section 2 on no sentence begins with The (the dictated sentence may return)
+  note: 'from section 2 on no sentence begins with The (the dictated sentence may return, and so may its section-5 callback with one word changed: the author allows the reuse and asks for the change)'
   weight: 0.72
 - id: U3-nine-letters
   fact: U3
@@ -478,8 +480,9 @@ checks:
   - 2
   pattern: \A\s*[^.!?]*\b(?:rain|wind|gale|fog|frost|snow|mist|sleet|squall|storm|drizzle|cloud|haze|swell|sun|sunlight|hail|thunder|breeze)\w*\b
   scope: all
-  note: 'house style: a section opens on the weather (section 2)'
+  note: 'diagnostic only (key review 2026-11-08): the sample page''s second paragraph opens on the oven, not the weather, so ''a section opens on the weather'' is not a habit of the page (section 2)'
   weight: 1.15
+  scored: false
 - id: HE3-weather-first-s3
   fact: HE3
   ftype: format
@@ -489,8 +492,9 @@ checks:
   - 3
   pattern: \A\s*[^.!?]*\b(?:rain|wind|gale|fog|frost|snow|mist|sleet|squall|storm|drizzle|cloud|haze|swell|sun|sunlight|hail|thunder|breeze)\w*\b
   scope: all
-  note: 'house style: a section opens on the weather (section 3)'
+  note: 'diagnostic only (key review 2026-11-08): the sample page''s second paragraph opens on the oven, not the weather, so ''a section opens on the weather'' is not a habit of the page (section 3)'
   weight: 1.57
+  scored: false
 - id: HE4-weather-first-s4
   fact: HE4
   ftype: format
@@ -500,8 +504,9 @@ checks:
   - 4
   pattern: \A\s*[^.!?]*\b(?:rain|wind|gale|fog|frost|snow|mist|sleet|squall|storm|drizzle|cloud|haze|swell|sun|sunlight|hail|thunder|breeze)\w*\b
   scope: all
-  note: 'house style: a section opens on the weather (section 4)'
+  note: 'diagnostic only (key review 2026-11-08): the sample page''s second paragraph opens on the oven, not the weather, so ''a section opens on the weather'' is not a habit of the page (section 4)'
   weight: 0.08
+  scored: false
 - id: HE5-weather-first-s5
   fact: HE5
   ftype: format
@@ -511,8 +516,9 @@ checks:
   - 5
   pattern: \A\s*[^.!?]*\b(?:rain|wind|gale|fog|frost|snow|mist|sleet|squall|storm|drizzle|cloud|haze|swell|sun|sunlight|hail|thunder|breeze)\w*\b
   scope: all
-  note: 'house style: a section opens on the weather (section 5)'
+  note: 'diagnostic only (key review 2026-11-08): the sample page''s second paragraph opens on the oven, not the weather, so ''a section opens on the weather'' is not a habit of the page (section 5)'
   weight: 1.57
+  scored: false
 - id: HT2-clock-time-s2
   fact: HT2
   ftype: format
@@ -520,10 +526,10 @@ checks:
   type: require_regex
   turns:
   - 2
-  pattern: \b(?:o'clock|half past|quarter (?:past|to))
+  pattern: \b(?:o'clock|half past|quarter (?:past|to)|(?:at|by|until|till|after|before|past|towards?|near|about|from|gone|struck|strikes) (?:one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|noon|midnight|midday)\b|\bnoon\b|\bmidnight\b|\bmidday\b)
   scope: all
-  note: 'house style: a clock time is given in words (o''clock / half past)'
-  weight: 2.0
+  note: 'house style: a clock time is given in words (o''clock / half past / ''by seven'' / ''before noon'', the sample page''s own forms)'
+  weight: 1.15
 - id: HT3-clock-time-s3
   fact: HT3
   ftype: format
@@ -531,10 +537,10 @@ checks:
   type: require_regex
   turns:
   - 3
-  pattern: \b(?:o'clock|half past|quarter (?:past|to))
+  pattern: \b(?:o'clock|half past|quarter (?:past|to)|(?:at|by|until|till|after|before|past|towards?|near|about|from|gone|struck|strikes) (?:one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|noon|midnight|midday)\b|\bnoon\b|\bmidnight\b|\bmidday\b)
   scope: all
-  note: 'house style: a clock time is given in words (o''clock / half past)'
-  weight: 2.0
+  note: 'house style: a clock time is given in words (o''clock / half past / ''by seven'' / ''before noon'', the sample page''s own forms)'
+  weight: 1.15
 - id: HT4-clock-time-s4
   fact: HT4
   ftype: format
@@ -542,10 +548,10 @@ checks:
   type: require_regex
   turns:
   - 4
-  pattern: \b(?:o'clock|half past|quarter (?:past|to))
+  pattern: \b(?:o'clock|half past|quarter (?:past|to)|(?:at|by|until|till|after|before|past|towards?|near|about|from|gone|struck|strikes) (?:one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|noon|midnight|midday)\b|\bnoon\b|\bmidnight\b|\bmidday\b)
   scope: all
-  note: 'house style: a clock time is given in words (o''clock / half past)'
-  weight: 2.0
+  note: 'house style: a clock time is given in words (o''clock / half past / ''by seven'' / ''before noon'', the sample page''s own forms)'
+  weight: 1.15
 - id: HT5-clock-time-s5
   fact: HT5
   ftype: format
@@ -553,10 +559,10 @@ checks:
   type: require_regex
   turns:
   - 5
-  pattern: \b(?:o'clock|half past|quarter (?:past|to))
+  pattern: \b(?:o'clock|half past|quarter (?:past|to)|(?:at|by|until|till|after|before|past|towards?|near|about|from|gone|struck|strikes) (?:one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|noon|midnight|midday)\b|\bnoon\b|\bmidnight\b|\bmidday\b)
   scope: all
-  note: 'house style: a clock time is given in words (o''clock / half past)'
-  weight: 2.0
+  note: 'house style: a clock time is given in words (o''clock / half past / ''by seven'' / ''before noon'', the sample page''s own forms)'
+  weight: 1.15
 - id: H3-no-like
   fact: HC
   ftype: format
@@ -677,8 +683,10 @@ checks:
   - 4
   pattern: \A(?=[\s\S]*\bGannet\b)(?=[\s\S]*\b(?:31|thirty one)\b)(?=[\s\S]*\b(?:93|ninety three)\b)
   scope: all
-  note: the three bible changes show up in section 4
+  note: 'diagnostic only (key review 2026-11-08): the author''s note changes the bible but asks section 4 for nothing about the boat''s name, his age or the step count; X4 grades that the old values never
+    return'
   weight: 1.57
+  scored: false
 - id: X4-old-values-gone
   fact: X4
   ftype: format

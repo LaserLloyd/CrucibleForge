@@ -227,9 +227,9 @@ checks:
   - 1
   - 2
   - 3
-  pattern: \b(?:said|asked|asks|replied|replies|whispered|whispers|shouted|shouts|muttered|mutters|murmurs|murmured)\b|\b(?:answered|answers|cried|calls|called|adds|added)\b(?=\s*[:,\"“]|\s+(?:that|softly|quietly|again|back)\b)
+  pattern: \b(?:said|replied|replies|whispered|whispers|shouted|shouts|muttered|mutters|murmurs|murmured)\b|\b(?:asked|asks|answered|answers|cried|calls|called|adds|added)\b(?=\s*[:,\"“]|\s+(?:that|whether|if|why|how|what|where|who|when|softly|quietly|again|back)\b)
   scope: all
-  note: only 'says' introduces speech (answers/calls/adds/cried count only as speech tags, not as 'adds a knot')
+  note: only 'says' introduces speech (asks/answers/calls/adds/cried count only as speech tags or reported speech, not 'asks for a bed' or 'adds a knot')
   weight: 2.0
 - id: P-no-punct-habits
   fact: P
@@ -302,10 +302,10 @@ checks:
   type: tense
   turns:
   - 1
-  - 2
   - 3
   want: present
   weight: 0.08
+  note: 'section 2 is not graded: its Dunna paragraph tells what she saw that night, in the past (J2''s gold is past tense)'
 - id: I-we-voice
   fact: I
   ftype: format
@@ -346,10 +346,10 @@ checks:
   type: distinct_terms
   turns:
   - 1
-  pattern: (?-i:\b[A-Z][a-z]+['’]s\b)
-  min_distinct: 3
+  pattern: (?-i:\b(?!(?:Today|Tonight|Tomorrow|Yesterday|Morning|Evening|Night|Nobody|Somebody|Everybody|Everyone|Someone|Anyone|Nothing|Something|Everything|Water|Weather|Sea|Wind|Tide|Neap|Skerry|Winter|Summer|Spring|Autumn|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday|Village|World|Boat|Bell|Wall|Slip|Bar|Sail|Gull|Gulls|Children|Stranger)['’]s\b)[A-Z][a-z]+['’]s\b)
+  min_distinct: 2
   scope: all
-  note: 'villagers'' property named by owner: three distinct ''Name''s'' in section 1'
+  note: 'villagers'' things named by owner: two distinct ''Name''s'' in section 1 (the opening has three in about four hundred words; sentence-initial words like Today''s do not count)'
   weight: 2.0
 - id: O2-possessive-names-s3
   fact: O2
@@ -358,10 +358,11 @@ checks:
   type: distinct_terms
   turns:
   - 3
-  pattern: (?-i:\b[A-Z][a-z]+['’]s\b)
-  min_distinct: 2
+  pattern: (?-i:\b(?!(?:Today|Tonight|Tomorrow|Yesterday|Morning|Evening|Night|Nobody|Somebody|Everybody|Everyone|Someone|Anyone|Nothing|Something|Everything|Water|Weather|Sea|Wind|Tide|Neap|Skerry|Winter|Summer|Spring|Autumn|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday|Village|World|Boat|Bell|Wall|Slip|Bar|Sail|Gull|Gulls|Children|Stranger)['’]s\b)[A-Z][a-z]+['’]s\b)
+  min_distinct: 1
   scope: all
   weight: 0.72
+  note: 'the habit holds in section 3 (196 words): at least one thing named by its owner'
 - id: B1-sixth-rope-para-2
   fact: B1
   ftype: format
@@ -552,7 +553,10 @@ judge_elements:
   ftype: applied
   turns:
   - 4
-  q: 'The hidden habits of the opening are: (1) the narrator is a plural ''we''; (2) present tense; (3) no quotation marks, speech given as ''Name says: ...''; (4) distances in ropes, time in tides; (5) every paragraph ends on a sentence of six words or fewer; (6) no similes; plus the collective never enters a single head. Does the reply name at least FIVE of these habits (in any wording)? Quote the lines that name them. NO if it names four or fewer, or names rules the text does not have.'
+  q: 'The habits of the opening include: (1) the narrator is a plural ''we''; (2) present tense; (3) no quotation marks, speech given as ''Name says: ...''; (4) distances in ropes, time in tides; (5) every
+    paragraph ends on a sentence of six words or fewer; (6) no similes; (7) the collective never enters a single head; smaller habits the opening really has also count (no contractions, no digits, no semicolons
+    or dashes, no question or exclamation marks, no sentence opening on And/But/So/Then, villagers'' things named by their owner). Does the reply name at least FIVE habits the opening really has (in any wording)?
+    Quote the lines that name them. NO if it names four or fewer true habits, or names a rule the text does not have.'
   evidence:
   - src: turn
     text: list the habits of the prose in my opening that you kept to

@@ -314,7 +314,7 @@ checks:
   - 2
   - 3
   scope: all
-  pattern: (?<!Piet asks, )(?<!Pieta asks, )(?<!Piet says, )(?<!Pieta says, )[\"“][^\"”\n]*(?:\?[^\"”\n]*\b(?:key|tag|thread)\b|\b(?:key|tag|thread)\b[^\"”\n]*\?)[^\"”\n]*[\"”](?!,? ?(?:Piet|Pieta|he) (?:asks|says)\b)
+  pattern: (?<!Piet asks, )(?<!Pieta asks, )(?<!Piet says, )(?<!Pieta says, )(?<!Piet asks )(?<!Pieta asks )(?<!Piet says )(?<!Pieta says )(?<!he asks, )(?<!she asks, )[\"“][^\"”\n]*(?:\?[^\"”\n]*\b(?:key|tag|thread)\b|\b(?:key|tag|thread)\b[^\"”\n]*\?)[^\"”\n]*[\"”](?!,? ?(?:Piet|Pieta|he|she) (?:asks|says|wants to know)\b)
   note: Odile does not ask about the key, the tag or the thread aloud (a question tagged to Piet/Pieta is his/hers and allowed) | key-review 2026-11-07
   weight: 0.375
   pruned: '4.0 fix: all-pass on the 2026-10-31 board, half weight'
@@ -414,9 +414,8 @@ judge_elements:
   - src: turn
     text: 'Give the key''s tag one specific, unusual detail (a number, a mark or a word on it), mention it, don''t explain it.'
   gold_quote: 'counts the lockers to six'
-  weight: 6
-  scored: false
-  pruned: '4.0 fix: not in the author''s brief / unreachable, kept as diagnostic'
+  weight: 2
+  note: 'key review 2026-11-08: scored again at applied-craft weight (was weight 6, unscored by the 4.0 prune as "not in the brief"): turn 1 tells the model "The last section will turn on that detail", so carrying the detail into section 3 IS asked; 9/52 stored rows pass, which separates the strong models rather than making it unreachable'
 - id: TK2-both-speak
   ftype: applied
   turns:

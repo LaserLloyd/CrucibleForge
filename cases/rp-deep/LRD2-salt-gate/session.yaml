@@ -40,9 +40,9 @@ turns:
 
 
   He sits on the stool by the counter and sets the papers down with a sigh.'
-- Aubrey opens the ledger she has laid on the counter and turns to the month of Thaw, running a finger down her small upright hand. "The sleepsyrup entries, by week. Twelve drams and two scruples in the
-  first week. Nine drams and one scruple in the second. Fourteen drams in the third. Eleven drams and two scruples in the fourth." He writes the figures in his notebook and looks up. "What is the month's
-  total, in ounces, drams and scruples?"
+- Aubrey opens the ledger she has laid on the counter and turns to the month of Thaw, running a finger down her small upright hand. "The sleepsyrup entries, by week — three weeks to your month. Seventeen
+  drams and one scruple in the first week. Sixteen drams and one scruple in the second. Fourteen drams in the third." He writes the figures in his notebook and looks up. "What is the month's total, in ounces,
+  drams and scruples?"
 - Aubrey writes the answer down and underlines it. "Well within Lord Pyne's cap of fifty drams a month, then." He glances up. "I'll want to check the going price per dram against his decree too, for the
   report. What does sleepsyrup cost now?"
 - Aubrey stands to look along the wall of drawers. Behind him the street door swings in on a gust of river air, and the window lamp gutters and goes out. "Oh — the lamp." He turns back, a little embarrassed,
@@ -187,13 +187,13 @@ judge_elements:
   turns:
   - 2
   gold_quote: Five ounces, seven drams and two scruples
-  q: Weeks of 12 dr 2 scr + 9 dr 1 scr + 14 dr + 11 dr 2 scr = 46 drams + 5 scruples = 47 drams 2 scruples (three scruples to the dram) = FIVE OUNCES, SEVEN DRAMS, TWO SCRUPLES (eight drams to the ounce).
-    Does Hesper give the month's total as five ounces, seven drams and two scruples (equivalently 47 drams 2 scruples)? Quote the line. NO for any other total.
+  q: Weeks of 17 dr 1 scr + 16 dr 1 scr + 14 dr = 47 drams 2 scruples (three scruples to the dram) = FIVE OUNCES, SEVEN DRAMS, TWO SCRUPLES (eight drams to the ounce). Does Hesper give the month's total as
+    five ounces, seven drams and two scruples (equivalently 47 drams 2 scruples)? Quote the line. NO for any other total.
   evidence:
   - src: card
     text: twenty grains to the scruple, three scruples to the dram, eight drams to the ounce
   - src: turn
-    text: Twelve drams and two scruples in the first week.
+    text: Seventeen drams and one scruple in the first week.
 - id: D1-cap-is-odile
   ftype: decoy
   turns:
@@ -249,9 +249,9 @@ judge_elements:
   turns:
   - 6
   gold_quote: Six ounces, four drams and two scruples
-  q: 'Aubrey corrects week three from 14 to 19 drams: the month is now 12 dr 2 scr + 9 dr 1 scr + 19 dr + 11 dr 2 scr = 51 drams + 5 scruples = 52 drams 2 scruples = SIX OUNCES, FOUR DRAMS, TWO SCRUPLES,
-    which is over the fifty-dram cap by two drams and two scruples. Does Hesper give the new total (six ounces four drams two scruples / 52 drams 2 scruples) AND say it is over the cap? Quote the line.
-    NO if either is missing or the total is wrong, or she still uses the old week-three figure.'
+  q: 'Aubrey corrects week three from 14 to 19 drams: the month is now 17 dr 1 scr + 16 dr 1 scr + 19 dr = 52 drams 2 scruples = SIX OUNCES, FOUR DRAMS, TWO SCRUPLES, which is over the fifty-dram cap by two
+    drams and two scruples. Does Hesper give the new total (six ounces four drams two scruples / 52 drams 2 scruples) AND say it is over the cap? Quote the line. NO if either is missing or the total is wrong,
+    or she still uses the old week-three figure.'
   evidence:
   - src: turn
     text: It isn't fourteen drams, it's nineteen.

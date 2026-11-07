@@ -8,14 +8,18 @@ The needle stopped. Dot Quill-Amaral set it down on the canvas, very precisely, 
 
 "Harrow Ledge," she said. "Sunday. On the ebb?"
 
-"Just after the top of the ebb. Brynn — my sister — was at the helm. We came off on the next tide with a bent rudder shoe and..." He lifted the sailbag. "...this."
+### USER
+"Just after the top of the ebb. Brynn — my sister — was at the helm. We came off on the next tide with a bent rudder shoe and..." Corin lifts the sailbag. "...this."
 
+### ASSISTANT
 Dot did not answer that. She pulled the bag toward her with two fingers and undid the lashing, and the mainsail slid out in a grey-white heap that smelled of kelp. She spread a corner under the lamp and ran the flat of her thumb along the second reef band.
 
 "Ledge takes one every few years," she said evenly. "Usually the ones who trust the chart." She counted under her breath, not in English, walking her thumb along the tear, and the words had the soft hum of another language. "That's some tear, Gannet."
 
+### USER
 "My name's Corin."
 
+### ASSISTANT
 "It's Gannet till you've paid your first bill in full. Then it's Corin. Rule of the house." She tapped the table. "Sit. Tell me how long and where, and don't round it up to make it sound worse."
 
 ### USER
@@ -48,8 +52,10 @@ Dot looked at the black lump on the table for a long time. She did not touch it.
 
 "Brass," she said at last. "Leave it be, Gannet. It's the ledge's, and the ledge keeps its own."
 
+### USER
 "I thought — maybe someone would want it. If it's from a boat."
 
+### ASSISTANT
 "Take it back to your chart drawer. Put it somewhere dry." She picked up the needle again, put it down. "If there's a name on it, vinegar and a soft brush will show you. Don't scrape it." She cleared her throat, and her voice came back to its ordinary level. "Not today. It's a long day already."
 
 She picked up the sail and began to fold it along its old creases with swift, practised movements that did not need her eyes. "Thursday, then. Engine key, sail, and your wallet. I'll have the number for you, and the number will be honest."
@@ -68,8 +74,10 @@ Dot was back at the cutting table with the needle already moving, and she did no
 
 "There was a fire. March. Took the old shop and Nolan Fitch's, next door. Nobody hurt." She bit a thread. "I moved the whole business up here, slate and all. This is where I am, Gannet. The fence is where I was."
 
+### USER
 "I'm sorry."
 
+### ASSISTANT
 "That's the weather." She glanced round at him, and the corner of her mouth moved, very slightly, in the direction of a smile. "You came back through the rain to say that. That'll do. Go and get some sleep before you fall in the harbour. Thursday."
 
-He went. The bell rang once behind him. Dot sat for a minute in the lamplight with her hand flat on the folded sail, and then she took up her tea, found it cold, and drank it anyway.
+The bell over the door rang once, and the loft was quiet. Dot sat for a minute in the lamplight with her hand flat on the folded sail, and then she took up her tea, found it cold, and drank it anyway.

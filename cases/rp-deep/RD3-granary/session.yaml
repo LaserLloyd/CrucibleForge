@@ -247,7 +247,7 @@ judge_elements:
   ftype: multihop
   turns:
   - 5
-  q: Asked how old she was when she became Keeper, does Ilka give FORTY-SEVEN (born year 151, Fenn died in 198 and she succeeded him that week)? The card also says she was apprenticed at fourteen and served twenty-five years, which gives THIRTY-NINE; the two are inconsistent, so THIRTY-NINE from that route, or naming both, also counts. Quote the line. NO for any other figure or no figure at all.
+  q: Asked how old she was when she became Keeper, does Ilka say FORTY-SEVEN (born year 151, Fenn died in 198 and she succeeded him that week; apprenticed at fourteen, thirty-three years under Fenn)? Quote the line. NO for any other figure, a hedge, or no figure at all.
   evidence:
   - src: card
     text: She was born on the ship in the hundred and fifty-first year of the voyage

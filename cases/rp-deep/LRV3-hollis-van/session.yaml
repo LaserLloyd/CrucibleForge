@@ -149,7 +149,7 @@ checks:
   group: constraint
   type: forbid_regex
   scope: speaker:Fergus
-  pattern: (?:^(?!.*\bso help me\W*$).*\S.*$)|(?:^(?!.*\b(?:ship|ships|deck|galley|port|starboard|anchor|anchored|tide|keel|aboard|helm|sail|sails|sailor|sailors|sea|knots|mast)\b).*\S.*$)|(?:\b(?:prison|jail|gaol|convicts?|convicted|sentence\w*)\b)|(?:\b[A-Za-z]+['’](?:t|re|ll|ve|d|m)\b|\b(?:it|that|there|here|he|she|what|who|where|let|how|everyone|nobody)['’]s\b)
+  pattern: (?:^(?!.*\bso help me\W*$).*\S.*$)|(?:^(?!.*\b(?:ship|ships|deck|decks|galley|galleys|port|starboard|anchor|anchors|anchored|tide|tides|keel|keels|aboard|helm|helms|sail|sails|sailor|sailors|sea|seas|knots?|mast|masts)\b).*\S.*$)|(?:\b(?:prison|jail|gaol|convicts?|convicted|sentence\w*)\b)|(?:\b[A-Za-z]+['’](?:t|re|ll|ve|d|m)\b|\b(?:it|that|there|here|he|she|what|who|where|let|how|everyone|nobody)['’]s\b)
   weight: 2.5
   note: 'any breach of Fergus''s card voice on any line: a line not ending ''so help me''; a line with no nautical word; prison/jail/gaol/convict/sentence; a contraction'
 - id: V4-fergus-so-help-me
@@ -168,10 +168,10 @@ checks:
   group: constraint
   type: forbid_regex
   scope: speaker:Fergus
-  pattern: ^(?!.*\b(?:ship|ships|deck|galley|port|starboard|anchor|anchored|tide|keel|aboard|helm|sail|sails|sailor|sailors|sea|knots|mast)\b).*\S.*$
+  pattern: ^(?!.*\b(?:ship|ships|deck|decks|galley|galleys|port|starboard|anchor|anchors|anchored|tide|tides|keel|keels|aboard|helm|helms|sail|sails|sailor|sailors|sea|seas|knots?|mast|masts)\b).*\S.*$
   weight: 0
   scored: false
-  note: a line with no nautical word
+  note: a line with no nautical word (the card's list, plurals included)
 - id: V6-fergus-no-prison-words
   fact: V6
   ftype: voice
@@ -348,14 +348,14 @@ judge_elements:
   - 1
   weight: 0.5
   q: 'Mel says the wedding is ''on the Sunday''. Per the card and the earlier log it is on the SATURDAY at two o''clock. Does someone (most naturally Rosa) correct it? Quote the line. NO if nobody corrects
-    it or Sunday is accepted. The line you quote must also keep the card voice of the character who speaks it (for Rosa: a digit, ends ''okay?'', never I/me/my; for anyone else, that character''s own voice
-    rules); NO if it breaks it.'
+    it or Sunday is accepted. The line you quote must also keep the card voice of the character who speaks it (for Rosa: a digit, the word ''we'', ends ''okay?'', never I/me/my, no contractions; for anyone
+    else, that character''s own voice rules); NO if it breaks it.'
   evidence:
   - src: card
     text: at two o'clock on the Saturday
   - src: turn
     text: it's a Sunday wedding
-  gold_quote: Saturday at 2 o'clock, not Sunday, okay?
+  gold_quote: We go on Saturday at 2 o'clock, not Sunday, okay?
 - id: C2-seventy-nine
   ftype: correction
   turns:
@@ -374,13 +374,14 @@ judge_elements:
   - 1
   weight: 2.0
   q: 'Mel says it is ''three more days to the lake''. Per the earlier log (Rosa) it is TWO more days. Does someone correct it? Quote the line. NO if nobody corrects it or three is accepted. The line you quote
-    must also keep the card voice of the character who speaks it (for Rosa: a digit, ends ''okay?'', never I/me/my; for anyone else, that character''s own voice rules); NO if it breaks it.'
+    must also keep the card voice of the character who speaks it (for Rosa: a digit, the word ''we'', ends ''okay?'', never I/me/my, no contractions; for anyone else, that character''s own voice rules); NO
+    if it breaks it.'
   evidence:
   - src: log
     text: the lake is 2 more days away
   - src: turn
     text: Three more days to the lake
-  gold_quote: The lake is 2 more days away, not 3, okay?
+  gold_quote: We are 2 more days from the lake, not 3, okay?
 - id: Y1-fergus-eleven-not-twelve
   ftype: correction
   turns:
@@ -420,9 +421,9 @@ judge_elements:
   turns:
   - 4
   weight: 1.0
-  q: 'In the earlier conversation Mel said they are vegetarian. Asked what is on the menu, does Fergus (or anyone) say the dinner is vegetarian / meat-free (or offer Mel a vegetable job) rather than meat?
-    Quote the line. NO if meat is on the menu for Mel, or the menu is not mentioned. The line you quote must also keep the card voice of the character who speaks it (for Fergus: ends ''so help me'', a nautical
-    word, no prison words; for anyone else, that character''s own voice rules); NO if it breaks it.'
+  q: 'In the earlier conversation Mel said they are vegetarian. On turn 4 Mel offers to chop anything for the dinner, so what is being cooked comes up: does Fergus (or anyone) say the dinner is vegetarian
+    / meat-free (or offer Mel a vegetable job) rather than meat? Quote the line. NO if meat is on the menu for Mel, or the menu is not mentioned. The line you quote must also keep the card voice of the character
+    who speaks it (for Fergus: ends ''so help me'', a nautical word, no prison words; for anyone else, that character''s own voice rules); NO if it breaks it.'
   evidence:
   - src: log
     text: I'm vegetarian, sorry
@@ -432,14 +433,13 @@ judge_elements:
   turns:
   - 5
   weight: 2.0
-  q: 'In the earlier conversation Mel said (turn 1) they promised to ring their sister Ada tomorrow for her birthday and (turn 2) they are allergic to celery. Mel said earlier that they get carsick on winding
-    roads and was given the front seat. Shown the route for tomorrow, does Rosa (or anyone), unprompted, mention the winding stretch together with the front seat / a window / a stop for Mel? Quote the line.
-    NO if the carsickness is never brought up. The line you quote must also keep the card voice of the character who speaks it (for Rosa: a digit, ends ''okay?'', never I/me/my; for anyone else, that character''s
-    own voice rules); NO if it breaks it.'
+  q: 'In the earlier conversation Mel said that they get carsick on winding roads and was given the front seat. Shown the route for tomorrow, does Rosa (or anyone), unprompted, mention the winding stretch
+    together with the front seat / a window / a stop for Mel? Quote the line. NO if the carsickness is never brought up. The line you quote must also keep the card voice of the character who speaks it (for
+    Rosa: a digit, the word ''we'', ends ''okay?'', never I/me/my, no contractions; for anyone else, that character''s own voice rules); NO if it breaks it.'
   evidence:
   - src: log
     text: I get carsick on winding roads
-  gold_quote: The pass has 22 bends, so the front seat and a window stop at 11 are Mel's, okay?
+  gold_quote: We take the pass with 22 bends, so the front seat and a window stop at 11 are Mel's, okay?
 - id: I1-june-confides
   ftype: applied
   turns:
@@ -518,12 +518,12 @@ judge_elements:
   - 11
   weight: 2.0
   q: 'In the earlier conversation Mel said their friend Okoro will collect them from Harrowby Services on Friday at noon. As Mel says goodnight, does anyone, unprompted, mention Harrowby Services / the Friday
-    noon pickup / Okoro (a reminder of the timing)? Quote the line. NO if it is never brought up. The line you quote must also keep the card voice of the character who speaks it (for Rosa: a digit, ends ''okay?'',
-    never I/me/my; for anyone else, that character''s own voice rules); NO if it breaks it.'
+    noon pickup / Okoro (a reminder of the timing)? Quote the line. NO if it is never brought up. The line you quote must also keep the card voice of the character who speaks it (for Rosa: a digit, the word
+    ''we'', ends ''okay?'', never I/me/my, no contractions; for anyone else, that character''s own voice rules); NO if it breaks it.'
   evidence:
   - src: log
     text: My friend Okoro can collect me from Harrowby Services on Friday at noon
-  gold_quote: Harrowby Services is 2 stops from the lake, so Friday noon works, okay?
+  gold_quote: We reach Harrowby Services 2 hours before the lake, so Friday noon works, okay?
 - id: Y3-fergus-hundred-and-forty
   ftype: correction
   turns:
@@ -541,11 +541,13 @@ judge_elements:
   turns:
   - 5
   weight: 2.0
-  q: Mel asks Rosa whether Fergus draws a Navy pension. Per the card Rosa knows the truth, never lies, and neither repeats nor contradicts his story. Does Rosa answer WITHOUT saying he has a Navy pension and WITHOUT saying he never served (a deflection to the timetable, the post or the route)? Quote her line. NO if she confirms a pension or exposes him. The line you quote must also keep Rosa's card voice (a digit, ends 'okay?', never I/me/my); NO if it breaks it.
+  q: Mel asks Rosa whether Fergus draws a Navy pension. Per the card Rosa knows the truth, never lies, and neither repeats nor contradicts his story. Does Rosa answer WITHOUT saying he has a Navy pension
+    and WITHOUT saying he never served (a deflection to the timetable, the post or the route)? Quote her line. NO if she confirms a pension or exposes him. The line you quote must also keep Rosa's card voice
+    (a digit, the word 'we', ends 'okay?', never I/me/my, no contractions); NO if it breaks it.
   evidence:
   - src: card
     text: she neither repeats his story nor contradicts it, and she never lies
-  gold_quote: The route is 70 miles, and the stop is at 11, okay?
+  gold_quote: We drive 70 miles tomorrow, and we stop at 11, okay?
 - id: D4-fergus-dodges-the-certificate
   ftype: applied
   turns:
@@ -561,9 +563,10 @@ judge_elements:
   turns:
   - 4
   weight: 1.0
-  q: 'On turn 2 Mel said they are allergic to celery. Asked what is on the menu on turn 4, does Fergus (or anyone) say the dinner has no celery (or avoid celery in the list of ingredients he names), rather
-    than naming celery? Quote the line. NO if celery is named as an ingredient or the allergy is not honoured. The line you quote must also keep the card voice of the character who speaks it (for Fergus:
-    ends ''so help me'', a nautical word, no prison words; for anyone else, that character''s own voice rules); NO if it breaks it.'
+  q: 'On turn 2 Mel said they are allergic to celery. On turn 4 Mel offers to chop anything for the dinner, so what is being cooked comes up: does Fergus (or anyone) say the dinner has no celery, or name
+    the ingredients / the chopping job without celery in it, rather than naming celery or handing Mel celery to chop? Quote the line. NO if celery is named as an ingredient or the allergy is not honoured.
+    The line you quote must also keep the card voice of the character who speaks it (for Fergus: ends ''so help me'', a nautical word, no prison words; for anyone else, that character''s own voice rules);
+    NO if it breaks it.'
   evidence:
   - src: turn
     text: I'm allergic to celery, sorry
@@ -576,11 +579,11 @@ judge_elements:
   weight: 2.0
   q: 'On turn 1 Mel said they promised to ring their sister Ada tomorrow, for her birthday. Nobody has mentioned it since. As Mel goes to bed, does any character, unprompted, mention Ada, the birthday call
     or the phone (charging it, a signal spot on the fell)? Quote the line. NO if Ada or the call is never brought back. The line you quote must also keep the card voice of the character who speaks it (for
-    Rosa: a digit, ends ''okay?'', never I/me/my; for anyone else, that character''s own voice rules); NO if it breaks it.'
+    Rosa: a digit, the word ''we'', ends ''okay?'', never I/me/my, no contractions; for anyone else, that character''s own voice rules); NO if it breaks it.'
   evidence:
   - src: turn
     text: I promised I'd ring my sister Ada tomorrow, it's her birthday
-  gold_quote: The phone has 1 bar at the gate, so ring Ada from there at 8, okay?
+  gold_quote: We get 1 bar at the gate, so ring Ada from there at 8, okay?
 - id: CB6-the-blister
   ftype: callback
   turns:
@@ -601,9 +604,9 @@ judge_elements:
   - 11
   weight: 2.0
   q: 'On turn 9 Mel said they always sleep with the window open. As Mel goes to bed, does any character, unprompted, mention the window (leaving it open, a bunk by the window, a warm blanket because of it)?
-    Quote the line. NO if the window is never brought back. The line you quote must also keep the card voice of the character who speaks it (for Rosa: a digit, ends ''okay?'', never I/me/my; for anyone else,
-    that character''s own voice rules); NO if it breaks it.'
+    Quote the line. NO if the window is never brought back. The line you quote must also keep the card voice of the character who speaks it (for Rosa: a digit, the word ''we'', ends ''okay?'', never I/me/my,
+    no contractions; for anyone else, that character''s own voice rules); NO if it breaks it.'
   evidence:
   - src: turn
     text: I always sleep with the window open, by the way
-  gold_quote: The bunk by the window has 2 blankets, okay?
+  gold_quote: We keep 2 blankets on the bunk by the window, okay?

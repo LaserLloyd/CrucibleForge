@@ -191,8 +191,8 @@ checks:
   - 2
   - 3
   scope: all
-  pattern: \b(?:grand(?:dad|pa|papa|father|daughter|ma|mother|kid|child|girl)|granddad|grandad|gramps|grampa|grampy|granny|opa|oma|gran|nan|nana)\b|\b(?:son|daughter|boy|girl)['’]s (?:girl|child|kid|daughter|lass)\b|\b(?:girl|child|kid|daughter|lass) of (?:his|her|Hale['’]s|the old man['’]s) (?:son|daughter|boy|girl)\b
-  note: 'the granddaughter relation shown in section 2 AND section 3: a kinship word (grandad, gran, granddaughter...) or a periphrasis (his son''s girl) on the page | key-review 2026-11-07: + gramps/grampa/granny and ''the child of his son'''
+  pattern: \bgran(?:d)?[ -]?(?:dad|pa|papa|father|daughter|ma|mother|kid|child(?:ren)?|girl|son|boy)\b|\b(?:gramps?|grampa|grampy|granny|gran|nan|nana|opa|oma)\b|\b(?:son|daughter|boy|girl|dad|father|mother|mum|mam)['’]s (?:girl|boy|child|kid|daughter|son|lass|lad)\b|\b(?:girl|child|kid|daughter|son|lass|lad) of (?:his|her|Hale['’]s|Mr\.? Hale['’]s|the old man['’]s) (?:late |dead |only |own )?(?:son|daughter|boy|girl)\b|\b(?:his|Hale['’]s|Mr\.? Hale['’]s|the old man['’]s) (?:late |dead |only |own )?(?:son|daughter|boy|girl)(?:,[^.!?\n]{0,30},)? (?:is|was) her (?:dad|father|mother|mum|mam)\b|\bher (?:dad|father|mother|mum|mam)(?:,[^.!?\n]{0,30},)? (?:is|was) (?:his|Mr\.? Hale['’]s|Hale['’]s|Tobias['’]s?) (?:late |dead |only |own )?(?:son|daughter|boy|girl)\b|\bher (?:dad|father|mother|mum|mam), (?:Mr\.? )?Hale['’]s (?:late |dead |only |own )?(?:son|daughter)\b|\b(?:is|was) from his (?:son|daughter)\b|\w+['’]s (?:daughter|son)\b[^.!?\n]{0,50}\b\w+['’]s (?:daughter|son)\b
+  note: 'the granddaughter relation shown in section 2 AND section 3: a kinship word (grandad, gran, granddaughter...) or a periphrasis (his son''s girl) on the page | key review 2026-11-08: the seven-letter rule makes models write "grand dad" / "grand child" / "granpa", and "his son is her dad", "Margit is from his son", "Ruth''s daughter, and Ruth is Tobias''s daughter" all show the relation (17 stored rows failed with the relation on the page)'
 - id: P4-present-tense-from-note
   fact: P4
   ftype: correction
@@ -348,8 +348,10 @@ checks:
   scope: all
   min_distinct: 2
   pattern: \b(?:boat|deck|hull|gangway|gangplank|mooring|moored|moors?|rope|ropes|cabin|hatch|galley|bow|stern|tiller|berth|dock|quay|towpath|porthole|stove|bilge|gunwale|planks?|rock|rocks|rocked|rocking|sways?|swayed|swaying|bobs?|bobbed|bobbing|lap|laps|lapped|lapping|wake|ripples?)\b
-  note: 'the houseboat is felt on the page: at least three different boat words or boat motions | key-review 2026-11-07: min 2 distinct (the author only asked to call it the boat; ''boat'' + one more physical sign shows the change)'
+  note: 'the houseboat is felt on the page: at least two different boat words or boat motions'
   weight: 1.5
+  scored: false
+  pruned: 'key review 2026-11-08: the author asked only to call it the boat (O5) and drop "flat" (Q5); a second boat word is not in the brief (opus-5-5, sonnet-5/5-5, kimi failed it with "boat" on the page); kept as diagnostic'
 - id: OP1-openers-vary
   fact: OP
   ftype: format
@@ -364,6 +366,30 @@ checks:
   weight: 1.5
   scored: false
   pruned: '4.0 fix: not in the author''s brief / unreachable, kept as diagnostic'
+- id: POV1-first-person-narrator
+  fact: POV
+  ftype: format
+  group: constraint
+  type: forbid_regex
+  turns:
+  - 1
+  - 2
+  - 3
+  scope: narration
+  pattern: '\bWren(?: Adair)? (?:is|was|has|had|steps?|stepped|notes?|noted|says?|said|looks?|looked|watch(?:es|ed)|thinks?|thought|arriv(?:es|ed)|answer(?:s|ed)|kneels?|knelt|sets?|puts?|turns?|turned|nods?|nodded|stands?|stood|sits?|sat|finds?|found|reach(?:es|ed)|open(?:s|ed)|clos(?:es|ed)|tunes?|tuned|lifts?|lifted|holds?|held|pulls?|pulled|takes?|took|runs?|ran|moves?|moved|feels?|felt|walks?|walked|enters?|entered)\b'
+  note: 'the ground rule is first person: narration that writes Wren in the third person ("Wren Adair stepped", "Wren notes") breaks it (key review 2026-11-08; 5 stored rows)'
+  weight: 0.5
+- id: IN1-ines-named-s1
+  fact: IN
+  ftype: format
+  group: constraint
+  type: require_regex
+  turns:
+  - 1
+  scope: all
+  pattern: \bInes\b
+  note: 'turn 1: "his daughter, Ines, booked the visit, so name her" (key review 2026-11-08; every stored row names her)'
+  weight: 0.25
 judge_elements:
 - id: P1-object-pays-off
   ftype: applied

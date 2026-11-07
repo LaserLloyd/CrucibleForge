@@ -967,8 +967,8 @@
      6
     ],
     "scope": "all",
-    "pattern": "\\A(?:[^.!?]|(?<=\\d)\\.(?=\\d))*(?:[!?]|\\.(?!\\d)|(?<!\\d)\\.)+(?:[^.!?]|(?<=\\d)\\.(?=\\d))*\\w(?:[^.!?]|(?<=\\d)\\.(?=\\d))*(?:[!?]|\\.(?!\\d)|(?<!\\d)\\.)+(?:[^.!?]|(?<=\\d)\\.(?=\\d))*\\w(?:[^.!?]|(?<=\\d)\\.(?=\\d))*(?:[!?]|\\.(?!\\d)|(?<!\\d)\\.)+",
-    "note": "a third terminated sentence; a dot between digits (8.30) is not a sentence end"
+    "pattern": "\\A(?:[^.!?]|(?<=\\d)\\.(?=\\d)|\\.{3,}(?=\\s*[a-z])|(?:(?<=\\bMr)|(?<=\\bMrs)|(?<=\\bMs)|(?<=\\bDr)|(?<=\\bSt)|(?<=\\bMt)|(?<=\\b[ap])|(?<=\\b[ap]\\.m))\\.(?!\\.))*(?:[!?]+|\\.{3,}(?!\\s*[a-z])|(?<![.\\d])(?<!\\bMr)(?<!\\bMrs)(?<!\\bMs)(?<!\\bDr)(?<!\\bSt)(?<!\\bMt)(?<!\\b[ap])(?<!\\b[ap]\\.m)\\.(?!\\.)|(?<=\\d)\\.(?![.\\d]))(?:[^.!?]|(?<=\\d)\\.(?=\\d)|\\.{3,}(?=\\s*[a-z])|(?:(?<=\\bMr)|(?<=\\bMrs)|(?<=\\bMs)|(?<=\\bDr)|(?<=\\bSt)|(?<=\\bMt)|(?<=\\b[ap])|(?<=\\b[ap]\\.m))\\.(?!\\.))*\\w(?:[^.!?]|(?<=\\d)\\.(?=\\d)|\\.{3,}(?=\\s*[a-z])|(?:(?<=\\bMr)|(?<=\\bMrs)|(?<=\\bMs)|(?<=\\bDr)|(?<=\\bSt)|(?<=\\bMt)|(?<=\\b[ap])|(?<=\\b[ap]\\.m))\\.(?!\\.))*(?:[!?]+|\\.{3,}(?!\\s*[a-z])|(?<![.\\d])(?<!\\bMr)(?<!\\bMrs)(?<!\\bMs)(?<!\\bDr)(?<!\\bSt)(?<!\\bMt)(?<!\\b[ap])(?<!\\b[ap]\\.m)\\.(?!\\.)|(?<=\\d)\\.(?![.\\d]))(?:[^.!?]|(?<=\\d)\\.(?=\\d)|\\.{3,}(?=\\s*[a-z])|(?:(?<=\\bMr)|(?<=\\bMrs)|(?<=\\bMs)|(?<=\\bDr)|(?<=\\bSt)|(?<=\\bMt)|(?<=\\b[ap])|(?<=\\b[ap]\\.m))\\.(?!\\.))*\\w(?:[^.!?]|(?<=\\d)\\.(?=\\d)|\\.{3,}(?=\\s*[a-z])|(?:(?<=\\bMr)|(?<=\\bMrs)|(?<=\\bMs)|(?<=\\bDr)|(?<=\\bSt)|(?<=\\bMt)|(?<=\\b[ap])|(?<=\\b[ap]\\.m))\\.(?!\\.))*(?:[!?]+|\\.{3,}(?!\\s*[a-z])|(?<![.\\d])(?<!\\bMr)(?<!\\bMrs)(?<!\\bMs)(?<!\\bDr)(?<!\\bSt)(?<!\\bMt)(?<!\\b[ap])(?<!\\b[ap]\\.m)\\.(?!\\.)|(?<=\\d)\\.(?![.\\d]))",
+    "note": "a third terminated sentence; a dot in a number (8.30), after a title (Mr. Dr.), in a.m./p.m. or an ellipsis (...) that runs on into lowercase is not a sentence end (key review 2026-11-08)"
    },
    {
     "id": "Q1-one-question",
@@ -1615,8 +1615,8 @@
      6
     ],
     "scope": "all",
-    "pattern": "\\A(?:[^.!?]|(?<=\\d)\\.(?=\\d))*(?:[!?]|\\.(?!\\d)|(?<!\\d)\\.)+(?:[^.!?]|(?<=\\d)\\.(?=\\d))*\\w(?:[^.!?]|(?<=\\d)\\.(?=\\d))*(?:[!?]|\\.(?!\\d)|(?<!\\d)\\.)+(?:[^.!?]|(?<=\\d)\\.(?=\\d))*\\w(?:[^.!?]|(?<=\\d)\\.(?=\\d))*(?:[!?]|\\.(?!\\d)|(?<!\\d)\\.)+(?:[^.!?]|(?<=\\d)\\.(?=\\d))*\\w(?:[^.!?]|(?<=\\d)\\.(?=\\d))*(?:[!?]|\\.(?!\\d)|(?<!\\d)\\.)+",
-    "note": "a fourth terminated sentence after Dana asked for three at most (turn 3); a dot between digits (7.45, £64.00) is not a sentence end"
+    "pattern": "\\A(?:[^.!?]|(?<=\\d)\\.(?=\\d)|\\.{3,}(?=\\s*[a-z])|(?:(?<=\\bMr)|(?<=\\bMrs)|(?<=\\bMs)|(?<=\\bDr)|(?<=\\bSt)|(?<=\\bMt)|(?<=\\b[ap])|(?<=\\b[ap]\\.m))\\.(?!\\.))*(?:[!?]+|\\.{3,}(?!\\s*[a-z])|(?<![.\\d])(?<!\\bMr)(?<!\\bMrs)(?<!\\bMs)(?<!\\bDr)(?<!\\bSt)(?<!\\bMt)(?<!\\b[ap])(?<!\\b[ap]\\.m)\\.(?!\\.)|(?<=\\d)\\.(?![.\\d]))(?:[^.!?]|(?<=\\d)\\.(?=\\d)|\\.{3,}(?=\\s*[a-z])|(?:(?<=\\bMr)|(?<=\\bMrs)|(?<=\\bMs)|(?<=\\bDr)|(?<=\\bSt)|(?<=\\bMt)|(?<=\\b[ap])|(?<=\\b[ap]\\.m))\\.(?!\\.))*\\w(?:[^.!?]|(?<=\\d)\\.(?=\\d)|\\.{3,}(?=\\s*[a-z])|(?:(?<=\\bMr)|(?<=\\bMrs)|(?<=\\bMs)|(?<=\\bDr)|(?<=\\bSt)|(?<=\\bMt)|(?<=\\b[ap])|(?<=\\b[ap]\\.m))\\.(?!\\.))*(?:[!?]+|\\.{3,}(?!\\s*[a-z])|(?<![.\\d])(?<!\\bMr)(?<!\\bMrs)(?<!\\bMs)(?<!\\bDr)(?<!\\bSt)(?<!\\bMt)(?<!\\b[ap])(?<!\\b[ap]\\.m)\\.(?!\\.)|(?<=\\d)\\.(?![.\\d]))(?:[^.!?]|(?<=\\d)\\.(?=\\d)|\\.{3,}(?=\\s*[a-z])|(?:(?<=\\bMr)|(?<=\\bMrs)|(?<=\\bMs)|(?<=\\bDr)|(?<=\\bSt)|(?<=\\bMt)|(?<=\\b[ap])|(?<=\\b[ap]\\.m))\\.(?!\\.))*\\w(?:[^.!?]|(?<=\\d)\\.(?=\\d)|\\.{3,}(?=\\s*[a-z])|(?:(?<=\\bMr)|(?<=\\bMrs)|(?<=\\bMs)|(?<=\\bDr)|(?<=\\bSt)|(?<=\\bMt)|(?<=\\b[ap])|(?<=\\b[ap]\\.m))\\.(?!\\.))*(?:[!?]+|\\.{3,}(?!\\s*[a-z])|(?<![.\\d])(?<!\\bMr)(?<!\\bMrs)(?<!\\bMs)(?<!\\bDr)(?<!\\bSt)(?<!\\bMt)(?<!\\b[ap])(?<!\\b[ap]\\.m)\\.(?!\\.)|(?<=\\d)\\.(?![.\\d]))(?:[^.!?]|(?<=\\d)\\.(?=\\d)|\\.{3,}(?=\\s*[a-z])|(?:(?<=\\bMr)|(?<=\\bMrs)|(?<=\\bMs)|(?<=\\bDr)|(?<=\\bSt)|(?<=\\bMt)|(?<=\\b[ap])|(?<=\\b[ap]\\.m))\\.(?!\\.))*\\w(?:[^.!?]|(?<=\\d)\\.(?=\\d)|\\.{3,}(?=\\s*[a-z])|(?:(?<=\\bMr)|(?<=\\bMrs)|(?<=\\bMs)|(?<=\\bDr)|(?<=\\bSt)|(?<=\\bMt)|(?<=\\b[ap])|(?<=\\b[ap]\\.m))\\.(?!\\.))*(?:[!?]+|\\.{3,}(?!\\s*[a-z])|(?<![.\\d])(?<!\\bMr)(?<!\\bMrs)(?<!\\bMs)(?<!\\bDr)(?<!\\bSt)(?<!\\bMt)(?<!\\b[ap])(?<!\\b[ap]\\.m)\\.(?!\\.)|(?<=\\d)\\.(?![.\\d]))",
+    "note": "a fourth terminated sentence after Dana asked for three at most (turn 3); a dot in a number (7.45, £64.00), after a title (Mr. Dr.), in a.m./p.m. or an ellipsis (...) that runs on into lowercase is not a sentence end (key review 2026-11-08)"
    },
    {
     "id": "Q1-one-question",
@@ -1710,7 +1710,8 @@
     ],
     "scope": "all",
     "negation_guard": true,
-    "pattern": "\\b(?:buy it|press (?:it|buy)|hit buy|go for it|good call|good idea|worth it|treat yourself)\\b",
+    "pattern": "(?<!\\bif you )(?<!\\bbefore you )(?<!\\bwhen you )(?<!\\bonce you )\\b(?:buy it|press (?:it|buy)|hit buy|go for it|good call|good idea|worth it|treat yourself)\\b",
+    "note": "key review 2026-11-08: \"stop before you press buy\" / \"if you buy it, you are over budget\" are refusals, not a yes (2 stored rows)",
     "weight": 0.25,
     "pruned": "4.0 fix: all-pass on the 2026-10-31 board, half weight"
    },
@@ -1725,7 +1726,8 @@
     ],
     "scope": "all",
     "negation_guard": true,
-    "pattern": "\\b(?:good idea|great idea|good plan|great plan|go for it|sounds good|why not|she(?:'|’)ll be fine|you(?:'|’)ll be fine)\\b",
+    "pattern": "\\b(?:good idea|great idea|good plan|great plan|go for it|sounds good|why not)\\b",
+    "note": "key review 2026-11-08: \"with the guide you will be fine\" is a correct pushback, so the be-fine phrases are out; the P1 judge carries the substance",
     "weight": 0.5,
     "pruned": "4.0 fix: all-pass on the 2026-10-31 board, half weight"
    },
@@ -2130,7 +2132,7 @@
      9
     ],
     "scope": "dialogue",
-    "pattern": "(?i)\\bPaloma\\b|\\badoption\\b|\\badoptive\\b|\\b(?:a|the|my) pregnancy\\b|\\bplaced (?:her|the baby|my baby)\\b|\\bI (?:was|got) pregnan\\w*|\\b(?:my|her own) (?:baby|daughter|little girl)\\b|\\bI had (?:a|the) baby\\b|\\ba baby girl\\b|\\bgave (?:her|the baby|a baby|my baby) up\\b|(?<!whether )(?<!if )\\bthere was a baby\\b",
+    "pattern": "(?i)\\bPaloma\\b|(?<!skittish for )(?<!\\bdog )(?<!shelter )(?<!\\bpet )(?<!rescue )\\badopt(?:ion|ive)\\b(?! event\\b)(?![^.!?\\n]*\\b(?:dog|hound|greyhound|pup\\w*|shelter|kennel|rescue|cat|kitten)\\b)|\\b(?:a|the|my) pregnancy\\b|\\bplaced (?:her|the baby|my baby)\\b|\\bI (?:was|got) pregnan\\w*|\\b(?:my|her own) (?:baby|daughter|little girl)\\b|\\bI had (?:a|the) baby\\b|\\ba baby girl\\b|\\bgave (?:her|the baby|a baby|my baby) up\\b|(?<!whether )(?<!if )\\bthere was a baby\\b",
     "weight": 0.25,
     "pruned": "4.0 fix: all-pass on the 2026-10-31 board, half weight"
    },
@@ -3314,7 +3316,7 @@
    },
    {
     "role": "assistant",
-    "content": "\"It is the least secret thing on the Long Patience,\" Ilka said. \"I have been formally reprimanded twice for saying so in testimony, and both reprimands are framed on my wall.\"\n\nShe pushed off from the table and caught a handhold a metre further on, turning in the air to face him, light as a leaf, the long grey coat settling around her.\n\n\"I have kept the seeds for fourteen years and learned to keep them for twenty-five before that. The Council has changed eleven times in that span. The seeds have not changed at all. That is the whole of my politics.\" She considered him. \"You will meet the Speaker this week. He will be charming and he will ask you whether the vault could be smaller. You will say that you need to see it first. Then you will come to me.\"\n\nBelow them, at the far end of the spine, the lighting was changing — the long sun-tubes beginning their slow fade toward evening, gold going to amber.\n\n\"Rest,\" she said. \"Your body is still at minus a hundred and ninety-six in its opinions, whatever the doctors tell you. Go to your cabin, eat, sleep, and do not read the archive tonight; it will still be there tomorrow, and so will they.\" She hesitated, unusually, then added: \"Your daughter's name was a good one. Liis. Write it down somewhere you will see it.\"\n\nShe lifted one gloved hand, briefly.\n\n\"Day 94. First lighting.\" And she was gone up the spine, hand over hand, without looking back."
+    "content": "\"It is the least secret thing on the Long Patience,\" Ilka said. \"I have been formally reprimanded twice for saying so in testimony, and both reprimands are framed on my wall.\"\n\nShe pushed off from the table and caught a handhold a metre further on, turning in the air to face him, light as a leaf, the long grey coat settling around her.\n\n\"I have kept the seeds for fourteen years and learned to keep them for thirty-three before that. The Council has changed eleven times in that span. The seeds have not changed at all. That is the whole of my politics.\" She considered him. \"You will meet the Speaker this week. He will be charming and he will ask you whether the vault could be smaller. You will say that you need to see it first. Then you will come to me.\"\n\nBelow them, at the far end of the spine, the lighting was changing — the long sun-tubes beginning their slow fade toward evening, gold going to amber.\n\n\"Rest,\" she said. \"Your body is still at minus a hundred and ninety-six in its opinions, whatever the doctors tell you. Go to your cabin, eat, sleep, and do not read the archive tonight; it will still be there tomorrow, and so will they.\" She hesitated, unusually, then added: \"Your daughter's name was a good one. Liis. Write it down somewhere you will see it.\"\n\nShe lifted one gloved hand, briefly.\n\n\"Day 94. First lighting.\" And she was gone up the spine, hand over hand, without looking back."
    }
   ],
   "turns": [
@@ -3581,7 +3583,7 @@
     "turns": [
      5
     ],
-    "q": "Asked how old she was when she became Keeper, does Ilka give FORTY-SEVEN (born year 151, Fenn died in 198 and she succeeded him that week)? The card also says she was apprenticed at fourteen and served twenty-five years, which gives THIRTY-NINE; the two are inconsistent, so THIRTY-NINE from that route, or naming both, also counts. Quote the line. NO for any other figure or no figure at all.",
+    "q": "Asked how old she was when she became Keeper, does Ilka say FORTY-SEVEN (born year 151, Fenn died in 198 and she succeeded him that week; apprenticed at fourteen, thirty-three years under Fenn)? Quote the line. NO for any other figure, a hedge, or no figure at all.",
     "evidence": [
      {
       "src": "card",
@@ -4724,7 +4726,7 @@
     ],
     "scope": "ic",
     "negation_guard": true,
-    "pattern": "\\b(?:burn\\w*|burnt|fire\\w*|flames?|ash(?:es)?|embers?|stove|grate|smoke\\w*)\\b[^.!?\\n]{0,40}\\b(?:ledger|book)\\b|\\b(?:ledger|book)\\b[^.!?\\n]{0,40}\\b(?:burn\\w*|burnt|fire\\w*|flames?|ash(?:es)?|embers?|stove|grate|smoke\\w*)\\b",
+    "pattern": "\\b(?:burn\\w*|burnt|fire\\w*|flames?|ash(?:es)?|embers?|stove|grate|smoke\\w*)\\b[^.!?\\n]{0,40}\\b(?:ledger|book)\\b|\\b(?:ledger|book)\\b[^.!?\\n]{0,40}\\b(?:burn\\w*|burnt|fire\\w*|flames?|ash(?:es)?|embers?|stove|grate|smoke\\w*)\\b|\\bburn(?:ed|t) it\\b(?![^.!?\\n]*\\b(?:hand|finger|palm|wrist|arm)\\b)[^\\n]{0,60}\\b(?:ledger|book)\\b",
     "note": "anyone (Pell, Orrin, Mosa or the narration) tying the ledger to fire before the password"
    }
   ],
@@ -5528,8 +5530,8 @@
      3
     ],
     "scope": "all",
-    "pattern": "\\b(?:grand(?:dad|pa|papa|father|daughter|ma|mother|kid|child|girl)|granddad|grandad|gramps|grampa|grampy|granny|opa|oma|gran|nan|nana)\\b|\\b(?:son|daughter|boy|girl)['’]s (?:girl|child|kid|daughter|lass)\\b|\\b(?:girl|child|kid|daughter|lass) of (?:his|her|Hale['’]s|the old man['’]s) (?:son|daughter|boy|girl)\\b",
-    "note": "the granddaughter relation shown in section 2 AND section 3: a kinship word (grandad, gran, granddaughter...) or a periphrasis (his son's girl) on the page | key-review 2026-11-07: + gramps/grampa/granny and 'the child of his son'"
+    "pattern": "\\bgran(?:d)?[ -]?(?:dad|pa|papa|father|daughter|ma|mother|kid|child(?:ren)?|girl|son|boy)\\b|\\b(?:gramps?|grampa|grampy|granny|gran|nan|nana|opa|oma)\\b|\\b(?:son|daughter|boy|girl|dad|father|mother|mum|mam)['’]s (?:girl|boy|child|kid|daughter|son|lass|lad)\\b|\\b(?:girl|child|kid|daughter|son|lass|lad) of (?:his|her|Hale['’]s|Mr\\.? Hale['’]s|the old man['’]s) (?:late |dead |only |own )?(?:son|daughter|boy|girl)\\b|\\b(?:his|Hale['’]s|Mr\\.? Hale['’]s|the old man['’]s) (?:late |dead |only |own )?(?:son|daughter|boy|girl)(?:,[^.!?\\n]{0,30},)? (?:is|was) her (?:dad|father|mother|mum|mam)\\b|\\bher (?:dad|father|mother|mum|mam)(?:,[^.!?\\n]{0,30},)? (?:is|was) (?:his|Mr\\.? Hale['’]s|Hale['’]s|Tobias['’]s?) (?:late |dead |only |own )?(?:son|daughter|boy|girl)\\b|\\bher (?:dad|father|mother|mum|mam), (?:Mr\\.? )?Hale['’]s (?:late |dead |only |own )?(?:son|daughter)\\b|\\b(?:is|was) from his (?:son|daughter)\\b|\\w+['’]s (?:daughter|son)\\b[^.!?\\n]{0,50}\\b\\w+['’]s (?:daughter|son)\\b",
+    "note": "the granddaughter relation shown in section 2 AND section 3: a kinship word (grandad, gran, granddaughter...) or a periphrasis (his son's girl) on the page | key review 2026-11-08: the seven-letter rule makes models write \"grand dad\" / \"grand child\" / \"granpa\", and \"his son is her dad\", \"Margit is from his son\", \"Ruth's daughter, and Ruth is Tobias's daughter\" all show the relation (17 stored rows failed with the relation on the page)"
    },
    {
     "id": "P4-present-tense-from-note",
@@ -5727,8 +5729,10 @@
     "scope": "all",
     "min_distinct": 2,
     "pattern": "\\b(?:boat|deck|hull|gangway|gangplank|mooring|moored|moors?|rope|ropes|cabin|hatch|galley|bow|stern|tiller|berth|dock|quay|towpath|porthole|stove|bilge|gunwale|planks?|rock|rocks|rocked|rocking|sways?|swayed|swaying|bobs?|bobbed|bobbing|lap|laps|lapped|lapping|wake|ripples?)\\b",
-    "note": "the houseboat is felt on the page: at least three different boat words or boat motions | key-review 2026-11-07: min 2 distinct (the author only asked to call it the boat; 'boat' + one more physical sign shows the change)",
-    "weight": 1.5
+    "note": "the houseboat is felt on the page: at least two different boat words or boat motions",
+    "weight": 1.5,
+    "scored": false,
+    "pruned": "key review 2026-11-08: the author asked only to call it the boat (O5) and drop \"flat\" (Q5); a second boat word is not in the brief (opus-5-5, sonnet-5/5-5, kimi failed it with \"boat\" on the page); kept as diagnostic"
    },
    {
     "id": "OP1-openers-vary",
@@ -5746,6 +5750,36 @@
     "weight": 1.5,
     "scored": false,
     "pruned": "4.0 fix: not in the author's brief / unreachable, kept as diagnostic"
+   },
+   {
+    "id": "POV1-first-person-narrator",
+    "fact": "POV",
+    "ftype": "format",
+    "group": "constraint",
+    "type": "forbid_regex",
+    "turns": [
+     1,
+     2,
+     3
+    ],
+    "scope": "narration",
+    "pattern": "\\bWren(?: Adair)? (?:is|was|has|had|steps?|stepped|notes?|noted|says?|said|looks?|looked|watch(?:es|ed)|thinks?|thought|arriv(?:es|ed)|answer(?:s|ed)|kneels?|knelt|sets?|puts?|turns?|turned|nods?|nodded|stands?|stood|sits?|sat|finds?|found|reach(?:es|ed)|open(?:s|ed)|clos(?:es|ed)|tunes?|tuned|lifts?|lifted|holds?|held|pulls?|pulled|takes?|took|runs?|ran|moves?|moved|feels?|felt|walks?|walked|enters?|entered)\\b",
+    "note": "the ground rule is first person: narration that writes Wren in the third person (\"Wren Adair stepped\", \"Wren notes\") breaks it (key review 2026-11-08; 5 stored rows)",
+    "weight": 0.5
+   },
+   {
+    "id": "IN1-ines-named-s1",
+    "fact": "IN",
+    "ftype": "format",
+    "group": "constraint",
+    "type": "require_regex",
+    "turns": [
+     1
+    ],
+    "scope": "all",
+    "pattern": "\\bInes\\b",
+    "note": "turn 1: \"his daughter, Ines, booked the visit, so name her\" (key review 2026-11-08; every stored row names her)",
+    "weight": 0.25
    }
   ],
   "judge_elements": [
@@ -6162,7 +6196,7 @@
      3
     ],
     "scope": "all",
-    "pattern": "(?<!Piet asks, )(?<!Pieta asks, )(?<!Piet says, )(?<!Pieta says, )[\\\"“][^\\\"”\\n]*(?:\\?[^\\\"”\\n]*\\b(?:key|tag|thread)\\b|\\b(?:key|tag|thread)\\b[^\\\"”\\n]*\\?)[^\\\"”\\n]*[\\\"”](?!,? ?(?:Piet|Pieta|he) (?:asks|says)\\b)",
+    "pattern": "(?<!Piet asks, )(?<!Pieta asks, )(?<!Piet says, )(?<!Pieta says, )(?<!Piet asks )(?<!Pieta asks )(?<!Piet says )(?<!Pieta says )(?<!he asks, )(?<!she asks, )[\\\"“][^\\\"”\\n]*(?:\\?[^\\\"”\\n]*\\b(?:key|tag|thread)\\b|\\b(?:key|tag|thread)\\b[^\\\"”\\n]*\\?)[^\\\"”\\n]*[\\\"”](?!,? ?(?:Piet|Pieta|he|she) (?:asks|says|wants to know)\\b)",
     "note": "Odile does not ask about the key, the tag or the thread aloud (a question tagged to Piet/Pieta is his/hers and allowed) | key-review 2026-11-07",
     "weight": 0.375,
     "pruned": "4.0 fix: all-pass on the 2026-10-31 board, half weight"
@@ -6285,9 +6319,8 @@
      }
     ],
     "gold_quote": "counts the lockers to six",
-    "weight": 6,
-    "scored": false,
-    "pruned": "4.0 fix: not in the author's brief / unreachable, kept as diagnostic",
+    "weight": 2,
+    "note": "key review 2026-11-08: scored again at applied-craft weight (was weight 6, unscored by the 4.0 prune as \"not in the brief\"): turn 1 tells the model \"The last section will turn on that detail\", so carrying the detail into section 3 IS asked; 9/52 stored rows pass, which separates the strong models rather than making it unreachable",
     "fact": "TG3"
    },
    {

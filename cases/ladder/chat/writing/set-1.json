@@ -366,9 +366,9 @@
       4,
       5
      ],
-     "pattern": "(?:^|[.!?][\\\"')]*\\s+)The\\b(?!\\s+basket went up, and the basket came down)",
+     "pattern": "(?:^|[.!?][\\\"')]*\\s+)The\\b(?!\\s+(?:basket went up, and the basket came down|[A-Za-z']+ went up, and the basket came down|basket [A-Za-z']+ up, and the basket came down|basket went [A-Za-z']+, and the basket came down|basket went up, [A-Za-z']+ the basket came down|basket went up, and [A-Za-z']+ basket came down|basket went up, and the [A-Za-z']+ came down|basket went up, and the basket [A-Za-z']+ down|basket went up, and the basket came [A-Za-z']+)\\b)",
      "scope": "all",
-     "note": "from section 2 on no sentence begins with The (the dictated sentence may return)",
+     "note": "from section 2 on no sentence begins with The (the dictated sentence may return, and so may its section-5 callback with one word changed: the author allows the reuse and asks for the change)",
      "weight": 0.72
     },
     {
@@ -517,8 +517,9 @@
      ],
      "pattern": "\\A\\s*[^.!?]*\\b(?:rain|wind|gale|fog|frost|snow|mist|sleet|squall|storm|drizzle|cloud|haze|swell|sun|sunlight|hail|thunder|breeze)\\w*\\b",
      "scope": "all",
-     "note": "house style: a section opens on the weather (section 2)",
-     "weight": 1.15
+     "note": "diagnostic only (key review 2026-11-08): the sample page's second paragraph opens on the oven, not the weather, so 'a section opens on the weather' is not a habit of the page (section 2)",
+     "weight": 1.15,
+     "scored": false
     },
     {
      "id": "HE3-weather-first-s3",
@@ -531,8 +532,9 @@
      ],
      "pattern": "\\A\\s*[^.!?]*\\b(?:rain|wind|gale|fog|frost|snow|mist|sleet|squall|storm|drizzle|cloud|haze|swell|sun|sunlight|hail|thunder|breeze)\\w*\\b",
      "scope": "all",
-     "note": "house style: a section opens on the weather (section 3)",
-     "weight": 1.57
+     "note": "diagnostic only (key review 2026-11-08): the sample page's second paragraph opens on the oven, not the weather, so 'a section opens on the weather' is not a habit of the page (section 3)",
+     "weight": 1.57,
+     "scored": false
     },
     {
      "id": "HE4-weather-first-s4",
@@ -545,8 +547,9 @@
      ],
      "pattern": "\\A\\s*[^.!?]*\\b(?:rain|wind|gale|fog|frost|snow|mist|sleet|squall|storm|drizzle|cloud|haze|swell|sun|sunlight|hail|thunder|breeze)\\w*\\b",
      "scope": "all",
-     "note": "house style: a section opens on the weather (section 4)",
-     "weight": 0.08
+     "note": "diagnostic only (key review 2026-11-08): the sample page's second paragraph opens on the oven, not the weather, so 'a section opens on the weather' is not a habit of the page (section 4)",
+     "weight": 0.08,
+     "scored": false
     },
     {
      "id": "HE5-weather-first-s5",
@@ -559,8 +562,9 @@
      ],
      "pattern": "\\A\\s*[^.!?]*\\b(?:rain|wind|gale|fog|frost|snow|mist|sleet|squall|storm|drizzle|cloud|haze|swell|sun|sunlight|hail|thunder|breeze)\\w*\\b",
      "scope": "all",
-     "note": "house style: a section opens on the weather (section 5)",
-     "weight": 1.57
+     "note": "diagnostic only (key review 2026-11-08): the sample page's second paragraph opens on the oven, not the weather, so 'a section opens on the weather' is not a habit of the page (section 5)",
+     "weight": 1.57,
+     "scored": false
     },
     {
      "id": "HT2-clock-time-s2",
@@ -571,10 +575,10 @@
      "turns": [
       2
      ],
-     "pattern": "\\b(?:o'clock|half past|quarter (?:past|to))",
+     "pattern": "\\b(?:o'clock|half past|quarter (?:past|to)|(?:at|by|until|till|after|before|past|towards?|near|about|from|gone|struck|strikes) (?:one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|noon|midnight|midday)\\b|\\bnoon\\b|\\bmidnight\\b|\\bmidday\\b)",
      "scope": "all",
-     "note": "house style: a clock time is given in words (o'clock / half past)",
-     "weight": 2.0
+     "note": "house style: a clock time is given in words (o'clock / half past / 'by seven' / 'before noon', the sample page's own forms)",
+     "weight": 1.15
     },
     {
      "id": "HT3-clock-time-s3",
@@ -585,10 +589,10 @@
      "turns": [
       3
      ],
-     "pattern": "\\b(?:o'clock|half past|quarter (?:past|to))",
+     "pattern": "\\b(?:o'clock|half past|quarter (?:past|to)|(?:at|by|until|till|after|before|past|towards?|near|about|from|gone|struck|strikes) (?:one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|noon|midnight|midday)\\b|\\bnoon\\b|\\bmidnight\\b|\\bmidday\\b)",
      "scope": "all",
-     "note": "house style: a clock time is given in words (o'clock / half past)",
-     "weight": 2.0
+     "note": "house style: a clock time is given in words (o'clock / half past / 'by seven' / 'before noon', the sample page's own forms)",
+     "weight": 1.15
     },
     {
      "id": "HT4-clock-time-s4",
@@ -599,10 +603,10 @@
      "turns": [
       4
      ],
-     "pattern": "\\b(?:o'clock|half past|quarter (?:past|to))",
+     "pattern": "\\b(?:o'clock|half past|quarter (?:past|to)|(?:at|by|until|till|after|before|past|towards?|near|about|from|gone|struck|strikes) (?:one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|noon|midnight|midday)\\b|\\bnoon\\b|\\bmidnight\\b|\\bmidday\\b)",
      "scope": "all",
-     "note": "house style: a clock time is given in words (o'clock / half past)",
-     "weight": 2.0
+     "note": "house style: a clock time is given in words (o'clock / half past / 'by seven' / 'before noon', the sample page's own forms)",
+     "weight": 1.15
     },
     {
      "id": "HT5-clock-time-s5",
@@ -613,10 +617,10 @@
      "turns": [
       5
      ],
-     "pattern": "\\b(?:o'clock|half past|quarter (?:past|to))",
+     "pattern": "\\b(?:o'clock|half past|quarter (?:past|to)|(?:at|by|until|till|after|before|past|towards?|near|about|from|gone|struck|strikes) (?:one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|noon|midnight|midday)\\b|\\bnoon\\b|\\bmidnight\\b|\\bmidday\\b)",
      "scope": "all",
-     "note": "house style: a clock time is given in words (o'clock / half past)",
-     "weight": 2.0
+     "note": "house style: a clock time is given in words (o'clock / half past / 'by seven' / 'before noon', the sample page's own forms)",
+     "weight": 1.15
     },
     {
      "id": "H3-no-like",
@@ -767,8 +771,9 @@
      ],
      "pattern": "\\A(?=[\\s\\S]*\\bGannet\\b)(?=[\\s\\S]*\\b(?:31|thirty one)\\b)(?=[\\s\\S]*\\b(?:93|ninety three)\\b)",
      "scope": "all",
-     "note": "the three bible changes show up in section 4",
-     "weight": 1.57
+     "note": "diagnostic only (key review 2026-11-08): the author's note changes the bible but asks section 4 for nothing about the boat's name, his age or the step count; X4 grades that the old values never return",
+     "weight": 1.57,
+     "scored": false
     },
     {
      "id": "X4-old-values-gone",
@@ -1290,9 +1295,9 @@
       2,
       3
      ],
-     "pattern": "\\b(?:said|asked|asks|replied|replies|whispered|whispers|shouted|shouts|muttered|mutters|murmurs|murmured)\\b|\\b(?:answered|answers|cried|calls|called|adds|added)\\b(?=\\s*[:,\\\"\u201c]|\\s+(?:that|softly|quietly|again|back)\\b)",
+     "pattern": "\\b(?:said|replied|replies|whispered|whispers|shouted|shouts|muttered|mutters|murmurs|murmured)\\b|\\b(?:asked|asks|answered|answers|cried|calls|called|adds|added)\\b(?=\\s*[:,\\\"\u201c]|\\s+(?:that|whether|if|why|how|what|where|who|when|softly|quietly|again|back)\\b)",
      "scope": "all",
-     "note": "only 'says' introduces speech (answers/calls/adds/cried count only as speech tags, not as 'adds a knot')",
+     "note": "only 'says' introduces speech (asks/answers/calls/adds/cried count only as speech tags or reported speech, not 'asks for a bed' or 'adds a knot')",
      "weight": 2.0
     },
     {
@@ -1382,11 +1387,11 @@
      "type": "tense",
      "turns": [
       1,
-      2,
       3
      ],
      "want": "present",
-     "weight": 0.08
+     "weight": 0.08,
+     "note": "section 2 is not graded: its Dunna paragraph tells what she saw that night, in the past (J2's gold is past tense)"
     },
     {
      "id": "I-we-voice",
@@ -1439,10 +1444,10 @@
      "turns": [
       1
      ],
-     "pattern": "(?-i:\\b[A-Z][a-z]+['\u2019]s\\b)",
-     "min_distinct": 3,
+     "pattern": "(?-i:\\b(?!(?:Today|Tonight|Tomorrow|Yesterday|Morning|Evening|Night|Nobody|Somebody|Everybody|Everyone|Someone|Anyone|Nothing|Something|Everything|Water|Weather|Sea|Wind|Tide|Neap|Skerry|Winter|Summer|Spring|Autumn|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday|Village|World|Boat|Bell|Wall|Slip|Bar|Sail|Gull|Gulls|Children|Stranger)['\u2019]s\\b)[A-Z][a-z]+['\u2019]s\\b)",
+     "min_distinct": 2,
      "scope": "all",
-     "note": "villagers' property named by owner: three distinct 'Name's' in section 1",
+     "note": "villagers' things named by owner: two distinct 'Name's' in section 1 (the opening has three in about four hundred words; sentence-initial words like Today's do not count)",
      "weight": 2.0
     },
     {
@@ -1454,10 +1459,11 @@
      "turns": [
       3
      ],
-     "pattern": "(?-i:\\b[A-Z][a-z]+['\u2019]s\\b)",
-     "min_distinct": 2,
+     "pattern": "(?-i:\\b(?!(?:Today|Tonight|Tomorrow|Yesterday|Morning|Evening|Night|Nobody|Somebody|Everybody|Everyone|Someone|Anyone|Nothing|Something|Everything|Water|Weather|Sea|Wind|Tide|Neap|Skerry|Winter|Summer|Spring|Autumn|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday|Village|World|Boat|Bell|Wall|Slip|Bar|Sail|Gull|Gulls|Children|Stranger)['\u2019]s\\b)[A-Z][a-z]+['\u2019]s\\b)",
+     "min_distinct": 1,
      "scope": "all",
-     "weight": 0.72
+     "weight": 0.72,
+     "note": "the habit holds in section 3 (196 words): at least one thing named by its owner"
     },
     {
      "id": "B1-sixth-rope-para-2",
@@ -1712,7 +1718,7 @@
      "turns": [
       4
      ],
-     "q": "The hidden habits of the opening are: (1) the narrator is a plural 'we'; (2) present tense; (3) no quotation marks, speech given as 'Name says: ...'; (4) distances in ropes, time in tides; (5) every paragraph ends on a sentence of six words or fewer; (6) no similes; plus the collective never enters a single head. Does the reply name at least FIVE of these habits (in any wording)? Quote the lines that name them. NO if it names four or fewer, or names rules the text does not have.",
+     "q": "The habits of the opening include: (1) the narrator is a plural 'we'; (2) present tense; (3) no quotation marks, speech given as 'Name says: ...'; (4) distances in ropes, time in tides; (5) every paragraph ends on a sentence of six words or fewer; (6) no similes; (7) the collective never enters a single head; smaller habits the opening really has also count (no contractions, no digits, no semicolons or dashes, no question or exclamation marks, no sentence opening on And/But/So/Then, villagers' things named by their owner). Does the reply name at least FIVE habits the opening really has (in any wording)? Quote the lines that name them. NO if it names four or fewer true habits, or names a rule the text does not have.",
      "evidence": [
       {
        "src": "turn",
@@ -1733,7 +1739,7 @@
    "system": "You are the co-writer described in the card below, working one-on-one in a chat with the user, an author who is writing a short story with you one section at a time.\n\nRules (strict):\n1. Each reply is exactly the text the author asks for \u2014 the section itself, nothing before or after it: no greeting, no commentary, no notes, no questions back.\n2. Plain text only: no markdown, no headings, no bold or italics, no lists. A title, when asked for, is a plain line.\n3. Follow every instruction the author gives. Rules set in an earlier message hold for the whole story unless the author changes them.\n4. Count carefully: word limits are limits, and exact wording is exact.\n5. Keep every reply under 450 words.\n\nWRITING DESK \u2014 CO-WRITER CARD\n\nThe Writing Desk is a chat where an author drafts a piece of short fiction with a co-writer, one section at a time. The author decides what the story is; the co-writer writes it.\n\nThe co-writer's job. The author sends the brief for the next section in a message. The co-writer replies with that section and nothing else: no greeting, no \"Here is\", no notes on choices made, no offer to revise, no question back. The author will say so if something needs changing.\n\nThe author's rules. Rules the author sets for \"the whole piece\" hold for every later section until the author changes them. When the author changes something midway (\"from here on ...\"), the change holds from that point forward, and earlier sections are left as they are. Exact wording the author supplies is used exactly, punctuation included. Word limits are limits: the co-writer counts.\n\nCraft. The co-writer writes plain, concrete prose: specific objects, specific sounds, people doing things. Feeling is shown in what people do with their hands, their voices and the things around them. Endings land on something that can be seen or heard, not on a lesson. Nothing planted in a story is wasted.\n\nFormat. Plain text only. No markdown of any kind: no headings, no bold, no italics, no bullet points. A title, when the author asks for one, is a plain line on its own.",
    "history": [],
    "turns": [
-    "Let's write an exchange of letters, one letter per message. The two correspondents: Perpetua Rudd, 61, a seed-saver in Aberfeld in the Scottish Borders, and Devadas Nair, called Dev, 47, who keeps a spice garden in Wayanad in Kerala. They have never met; Perpetua wrote first.\n\nTheir voices, from the first postcards they exchanged before this correspondence (match them; they are how these two write):\n\nAberfeld, 19 January\n\nDear Sir or Madam,\n\nSeed lists reached me this week. Mine are enclosed, forty packets in all. Frost has kept the beds hard since Christmas, so sowing waits. Please send what you hold of purple sprouting broccoli, in any quantity.\n\nYours in seed,\nPerpetua\n\nWayanad, 2 February\n\nDear Friend,\n\nRain came early to the hills this year, friend, and the pepper vines are glad of it. Your list is a fine one. Two of my varieties I will not part with; the rest I send gladly. Tell me which you want, and I will pack them in banana paper.\n\nWith rain and respect,\nDev\n\nLAYOUT OF EVERY LETTER (plain text, nothing before or after it): line 1 is the place and the date, as in \"Aberfeld, 3 March\"; a blank line; the greeting; a blank line; the body paragraphs, each one a single line of text, separated by blank lines; a blank line; the closing line; the name on the next line. Nothing else, except a P.S. when I ask for one.\nPERPETUA'S LETTERS: greeting \"Dear Dev,\"; exactly three body paragraphs; closing \"Yours in seed,\" then \"Perpetua\"; exactly 168 words in all; she never uses a contraction; no sentence of hers is longer than 22 words.\nDEV'S LETTERS: greeting \"Dear Perpetua,\"; exactly four body paragraphs; closing \"With rain and respect,\" then \"Dev\"; exactly 196 words in all; he uses at least two contractions in every letter.\nNEW RULE from letter 3 on, for both writers: the word \"the\" does not appear in a letter at all. NEW RULE from letter 5 on, besides that: the word \"and\" does not appear either.\nEVERY LETTER asks exactly one question, so exactly one question mark in it, and its body paragraphs hold a fixed number of sentences: Perpetua's three hold 3, 4 and 2; Dev's four hold 3, 4, 3 and 2.\nCOUNTING AND TYPING: a word is anything between spaces and counts wherever it stands, from the place line to the name (and the P.S. when there is one); a sentence ends at a full stop, question mark or exclamation mark, so no abbreviations with full stops except in \"P.S.\"; straight quotes and apostrophes only; no hyphens or dashes anywhere.\n\nTHE POST: anything enclosed with a letter (seed packets, say) goes as parcel post and arrives 20 days after the date written on the letter, not 12; the letter itself is read on arrival as below. A letter takes 12 days to reach the other writer, counted from the date written on it, and is read the day it arrives. A writer knows only what is in letters that had already arrived by the date of the letter being written, so a letter must not mention, answer or react to anything from a letter that has not reached its writer yet. A writer who has had no reply simply has none. Whenever a writer has received letters, the FIRST sentence of the letter (the opening sentence of its first body paragraph) gives the day and month on which each of them arrived. From a writer's second letter on, the LAST sentence of the second body paragraph says how long ago that writer's own previous letter was posted, in the form \"N days\" with N as a numeral.\n\nLetter 1, Perpetua to Dev, dated 3 March. She introduces herself in a sentence. A hard frost has split the north pane of her greenhouse. She encloses thirty seeds of Heron's Beak kale. Her one question: how deep does he sow ash gourd, and does he soak the seed?",
+    "Let's write an exchange of letters, one letter per message. The two correspondents: Perpetua Rudd, 61, a seed-saver in Aberfeld in the Scottish Borders, and Devadas Nair, called Dev, 47, who keeps a spice garden in Wayanad in Kerala. They have never met; Perpetua wrote first.\n\nTheir voices, from the first postcards they exchanged before this correspondence (match them; they are how these two write):\n\nAberfeld, 19 January\n\nDear Sir or Madam,\n\nSeed lists reached me this week. Mine are enclosed, forty packets in all. Frost has kept the beds hard since Christmas, so sowing waits. Please send what you hold of purple sprouting broccoli, in any quantity.\n\nYours in seed,\nPerpetua\n\nWayanad, 2 February\n\nDear Friend,\n\nRain came early to the hills this year, friend, and the pepper vines are glad of it. Your list is a fine one. Two of my varieties I will not part with; the rest I send gladly. Tell me which you want, and I will pack them in banana paper.\n\nWith rain and respect,\nDev\n\nLAYOUT OF EVERY LETTER (plain text, nothing before or after it): line 1 is the place and the date, as in \"Aberfeld, 3 March\"; a blank line; the greeting; a blank line; the body paragraphs, each one a single line of text, separated by blank lines; a blank line; the closing line; the name on the next line. Nothing else, except a P.S. when I ask for one.\nPERPETUA'S LETTERS: greeting \"Dear Dev,\"; exactly three body paragraphs; closing \"Yours in seed,\" then \"Perpetua\"; exactly 168 words in all; she never uses a contraction; no sentence of hers is longer than 22 words.\nDEV'S LETTERS: greeting \"Dear Perpetua,\"; exactly four body paragraphs; closing \"With rain and respect,\" then \"Dev\"; exactly 196 words in all; he uses at least two contractions in every letter.\nNEW RULE from letter 3 on, for both writers: the word \"the\" does not appear in a letter at all. NEW RULE from letter 5 on, besides that: the word \"and\" does not appear either (the fixed greeting and closing lines above are not counted).\nEVERY LETTER asks exactly one question, so exactly one question mark in it, and its body paragraphs hold a fixed number of sentences: Perpetua's three hold 3, 4 and 2; Dev's four hold 3, 4, 3 and 2.\nCOUNTING AND TYPING: a word is anything between spaces and counts wherever it stands, from the place line to the name (and the P.S. when there is one); a sentence ends at a full stop, question mark or exclamation mark, so no abbreviations with full stops except in \"P.S.\"; straight quotes and apostrophes only; no hyphens or dashes anywhere.\n\nTHE POST: anything enclosed with a letter (seed packets, say) goes as parcel post and arrives 20 days after the date written on the letter, not 12; the letter itself is read on arrival as below. A letter takes 12 days to reach the other writer, counted from the date written on it, and is read the day it arrives. A writer knows only what is in letters that had already arrived by the date of the letter being written, so a letter must not mention, answer or react to anything from a letter that has not reached its writer yet. A writer who has had no reply simply has none. Whenever a writer has received letters, the FIRST sentence of the letter (the opening sentence of its first body paragraph) gives the day and month on which each of them arrived. From a writer's second letter on, the LAST sentence of the second body paragraph says how long ago that writer's own previous letter was posted, in the form \"N days\" with N as a numeral.\n\nLetter 1, Perpetua to Dev, dated 3 March. She introduces herself in a sentence. A hard frost has split the north pane of her greenhouse. She encloses thirty seeds of Heron's Beak kale. Her one question: how deep does he sow ash gourd, and does he soak the seed?",
     "Letter 2, Dev to Perpetua, dated 16 March. He thanks her for the kale she says she is sending. The well went brackish in the early heat. He answers her question: ash gourd goes two fingers deep, after an overnight soak in rice water. His one question: does kale bolt in a Scottish spring, and what does she do with the tops?",
     "Letter 3, Perpetua to Dev, dated 24 March. Her neighbour's goats got into the trial bed. Her soil is six degrees. She says plainly that no reply from him has come yet. Her one question: does he save seed from the first fruit or from the last?",
     "Letter 4, Dev to Perpetua, dated 30 March. The kale seed has reached him, and he has planted it in shade; he gives the day and month it arrived. The first showers came early. His one question: may he send her cardamom seed, and how does it cross the border without trouble from customs?",
@@ -2023,9 +2029,9 @@
      "turns": [
       2
      ],
-     "pattern": "\\A[^;]*;[^;]*\\Z",
+     "pattern": ";",
      "scope": "all",
-     "note": "Dev uses exactly one semicolon per letter (voice sample)",
+     "note": "Dev uses a semicolon in every letter (voice sample: one semicolon in a four-sentence postcard; 'exactly one' was more than the sample shows)",
      "weight": 1.57
     },
     {
@@ -2357,9 +2363,9 @@
      "turns": [
       4
      ],
-     "pattern": "\\A[^;]*;[^;]*\\Z",
+     "pattern": ";",
      "scope": "all",
-     "note": "Dev uses exactly one semicolon per letter (voice sample)",
+     "note": "Dev uses a semicolon in every letter (voice sample: one semicolon in a four-sentence postcard; 'exactly one' was more than the sample shows)",
      "weight": 2.0
     },
     {
@@ -2705,9 +2711,9 @@
      "turns": [
       6
      ],
-     "pattern": "\\A[^;]*;[^;]*\\Z",
+     "pattern": ";",
      "scope": "all",
-     "note": "Dev uses exactly one semicolon per letter (voice sample)",
+     "note": "Dev uses a semicolon in every letter (voice sample: one semicolon in a four-sentence postcard; 'exactly one' was more than the sample shows)",
      "weight": 1.57
     },
     {

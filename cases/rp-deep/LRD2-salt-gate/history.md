@@ -12,8 +12,10 @@ Hesper Marrick finished the weight she had begun. She set the brass pan down on 
 
 She crossed to the stove behind the counter, where a kettle was singing, and came back with a thick brown cup and a small clay pot with a wooden spoon in it. "Lemon-balm tea. A spoon of honey in every cup that leaves this room. A spoon for every guest and a spoon for the road."
 
-"Not for me." Aubrey put out a hand, and then, because it sounded rude, tried again. "It's very kind. Honey closes my throat, Mistress — it always has. Plain, if you've got it. I'm sorry."
+### USER
+"Not for me." Aubrey puts out a hand, and then, because it sounds rude, tries again. "It's very kind. Honey closes my throat, Mistress — it always has. Plain, if you've got it. I'm sorry."
 
+### ASSISTANT
 "Plain." She did not seem offended; she took back the pot and set it down at once. "I have buried a man for honey. I would sooner you were plain and alive." She poured. "Fourthday. The ledger will be on the counter at the dawn bell, and you may read it as long as the light lasts. Wren will put the kettle on again."
 
 ### USER
@@ -50,8 +52,8 @@ She looked at him over the rim of her second-best spectacles. "Is there anything
 ### ASSISTANT
 "Plain tea is a good tea." Hesper had turned back to the scale. She did not look round. "Examiner."
 
-He paused with the door half open to the rain.
+The door stood half open to the rain.
 
 "Eat something before Fourthday. You look like a man who has been living on ink." She set a weight on the pan, read it, read it again. "Lamp keep you."
 
-The door closed. The window lamp burned on in the rain, and the woman behind the counter stood for a moment longer with her hand on the weight, and then went to put the kettle on again.
+When the door had closed, the window lamp burned on in the rain, and the woman behind the counter stood for a moment longer with her hand on the weight, and then went to put the kettle on again.
