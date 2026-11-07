@@ -285,6 +285,10 @@ pack new <category/part>` scaffolds one and `pack verify <file>` checks it;
 a pack should add **at most ~5 minutes** of wall time on a local model
 (`pack verify` warns when its estimate is over).
 
+**Optional packs.** What each pack tests, the unlock rule, the MAXED marker and how to write
+the next pack are in [`docs/PACKS.md`](docs/PACKS.md). `uv run crucibleforge pack list`
+prints every pack per part and which models have maxed it (`--json` for scripts).
+
 **Run time.** Every job runs at once up to the server's parallel slots,
 longest expected job first; a multi-turn session's turns are sequential, so
 the longest session sets the floor. `crucibleforge all --plan` and `bench-all`
@@ -1025,7 +1029,7 @@ with its evidence cut to 40 characters.
 
 **Your own tests and packs.** Private categories and custom test columns (your cases in
 `cases/private/`, declared in a git-ignored `profiles/bench.private.yaml`) and ladder packs
-(`crucibleforge pack new <category/part>`, `pack verify <file>`) are covered, with a worked
+(`crucibleforge pack new <category/part>`, `pack verify <file>`, `pack list`) are covered, with a worked
 example, in [`docs/CUSTOM-TESTS.md`](docs/CUSTOM-TESTS.md).
 
 ### Content warning
@@ -1058,6 +1062,7 @@ part of the repository. Skip categories with `--categories`.
 | [`docs/OPENCLAW.md`](docs/OPENCLAW.md) | Driving CrucibleForge from an agent framework |
 | [`docs/deploy/docker.md`](docs/deploy/docker.md) | The container image, volumes, settings, backups |
 | [`docs/CHAT.md`](docs/CHAT.md) | The older 3.4 Chat section (historical) |
+| [`docs/PACKS.md`](docs/PACKS.md) | The optional (ladder) packs: what each tests, the unlock rule, MAXED, writing a new pack |
 | [`docs/CUSTOM-TESTS.md`](docs/CUSTOM-TESTS.md) | Your own private tests and packs |
 | [`docs/differentiation-2026-09-25.md`](docs/differentiation-2026-09-25.md) | The 3.5 round that made cases graded as elements (history) |
 | [`docs/judge-comparison-2026-09-24.md`](docs/judge-comparison-2026-09-24.md) | How the benchmark judge was chosen (history) |

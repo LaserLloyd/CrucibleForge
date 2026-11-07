@@ -1349,6 +1349,22 @@ def cmd_calibrate(args, cfg):
     return 0
 
 
+def _pack_list(args, cfg, prof) -> int:
+    """`crucibleforge pack list [--json] [--no-board]`: the public optional packs per
+    sub-score, and which board models maxed each part (docs/PACKS.md)."""
+    from . import ladder
+    maxed = None
+    if not getattr(args, "no_board", False):
+        try:
+            from .report import calibration
+            maxed = {r["key"]: r["maxed_by"] for r in calibration(cfg or None)["rows"]}
+        except Exception as e:  # noqa: BLE001 — no readable board: list the packs anyway
+            log.warning("pack list: board not read (%s)", e)
+    ov = ladder.pack_overview(prof, maxed)
+    print(json.dumps(ov, indent=2) if args.json else ladder.render_pack_overview(ov))
+    return 0
+
+
 def cmd_pack(args, cfg):
     """`crucibleforge pack new <category/part>` scaffolds the next ladder pack
     (draft); `crucibleforge pack verify <file>` checks one (docs/CUSTOM-TESTS.md)."""
@@ -1357,6 +1373,8 @@ def cmd_pack(args, cfg):
     from .config import ConfigError as _CE
     from .profiles import DEFAULT_PROFILE, load_profile
     prof = load_profile(DEFAULT_PROFILE, cfg or None)
+    if args.action == "list":
+        return _pack_list(args, cfg, prof)
     try:
         if args.action == "new":
             path = ladder.new_pack(prof, args.subscore, count=args.count,
@@ -2629,7 +2647,7 @@ def main(argv=None):
                                              "(needs a new pack); reads the board only")
     p_cal.add_argument("--reference", default=None,
                        help="reference model label (default: the profile's calibration.reference)")
-    p_pack = sub.add_parser("pack", help="ladder packs: scaffold (new) or check (verify) one")
+    p_pack = sub.add_parser("pack", help="ladder packs: list, scaffold (new) or check (verify) them")
     pks = p_pack.add_subparsers(dest="action", required=True)
     p_pn = pks.add_parser("new", help="scaffold the next pack of a sub-score (category/part)")
     p_pn.add_argument("subscore", help="e.g. work/code")
@@ -2640,6 +2658,9 @@ def main(argv=None):
     p_pn.add_argument("--grading", default=None, choices=["exact", "python_exec", "judged"])
     p_pv = pks.add_parser("verify", help="check one pack file")
     p_pv.add_argument("file")
+    p_pl = pks.add_parser("list", help="list the optional packs per sub-score and which models maxed them")
+    p_pl.add_argument("--json", action="store_true", help="machine-readable output")
+    p_pl.add_argument("--no-board", action="store_true", help="do not read the board (skip maxed data)")
     p_pw = sub.add_parser("pairwise", help="head-to-head A/B Elo on creative categories")
     p_pw.add_argument("--models", default="all")
     p_pw.add_argument("--categories", default="rp,nsfw,story")

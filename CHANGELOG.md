@@ -8,6 +8,11 @@ rename.
 
 ## Unreleased (2026-11-07)
 
+- **Optional-pack guidance.** New `docs/PACKS.md` (what each public pack tests, the 90 % unlock
+  rule, the MAXED marker, how to write and verify the next pack, a frontier-model drafting
+  prompt) and `crucibleforge pack list [--json] [--no-board]`: every part's packs, case ids,
+  planner time estimate and the board models that maxed it. Read-only; no case or scoring change.
+
 - **Run cost column and provider-refusal marking.** `report.run_cost` prices one run of the
   standard Code + Chat tests (recorded `cost_usd`, else tokens x `price`); NSFW cost and blocked
   counts are separate fields. `basis: list` in a `price:` block marks a flat-plan provider's

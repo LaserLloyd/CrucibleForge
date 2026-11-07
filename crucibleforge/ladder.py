@@ -537,3 +537,94 @@ def private_pack_terms() -> tuple[set[str], set[str]]:
             if isinstance(c, dict) and c.get("id"):
                 ids.add(str(c["id"]))
     return ids, paths
+
+
+# ----------------------------------------------------------- pack overview
+
+def _first_sentence(text: str | None, limit: int = 160) -> str:
+    t = " ".join(str(text or "").split())
+    m = re.search(r"(?<=[a-z0-9\)])[.;] ", t)
+    if m and m.start() < limit:
+        t = t[:m.start()]
+    return t if len(t) <= limit else t[:limit - 1].rstrip() + "…"
+
+
+def pack_overview(prof: dict | None, maxed_by: dict[str, list[str]] | None = None,
+                  dirs: list[Path] | None = None, minutes: bool = True) -> dict:
+    """`crucibleforge pack list`: every sub-score with the optional packs that
+    ship in the repo (PUBLIC set files only; private packs are never read or
+    named). ``maxed_by`` = {"<category>/<part>": [model labels]} from the
+    board (report.calibration), or None when no board is readable. A part is
+    ``needs_pack`` when some model maxed it: the next pack is due."""
+    from . import tiers as _tiers
+    dirs = dirs if dirs is not None else [LADDER_DIR]
+    prof = {**(prof or {}), "_public": True}    # never name a private custom score
+    sets = discover(prof, dirs=dirs)
+    drafts: dict[str, int] = {}
+    for key, _n, _f, spec in _readable_sets(dirs, include_drafts=True):
+        if spec.get("draft"):
+            drafts[key] = drafts.get(key, 0) + 1
+    parts = []
+    for d in _tiers.scores(prof):
+        for p in d.get("parts") or []:
+            key = f"{d['key']}/{p['key']}"
+            rows = []
+            for s in sets.get(key, []):
+                mins = None
+                if minutes:
+                    try:
+                        from . import estimate as est
+                        mins = round(est.pack_minutes(
+                            prof, set_cases(prof, key, s["n"], sets=sets),
+                            s.get("budget"), s.get("context")), 1)
+                    except Exception:  # noqa: BLE001 — an estimate never fails a listing
+                        mins = None
+                rows.append({"n": s["n"], "level": s["level"], "cases": len(s["cases"]),
+                             "points": 1, "est_minutes": mins, "budget": s.get("budget"),
+                             "case_ids": list(s["cases"]), "note": _first_sentence(s.get("note"))})
+            mb = None if maxed_by is None else list(maxed_by.get(key, []))
+            parts.append({"key": key, "label": f"{d['label']} / {p['label']}",
+                          "standard_points": p["weight"], "sets": rows,
+                          "bonus_points": len(rows), "drafts": drafts.get(key, 0),
+                          "maxed_by": mb, "needs_pack": bool(mb)})
+    return {"unlock": unlock_share(prof), "pack_minutes_limit": None if not minutes else _limit(),
+            "board_read": maxed_by is not None, "parts": parts}
+
+
+def _limit() -> float | None:
+    try:
+        from . import estimate as est
+        return est.PACK_LIMIT_MIN
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def render_pack_overview(ov: dict) -> str:
+    L = [f"Optional packs (ladder sets): a part unlocks its next set at >= "
+         f"{ov['unlock'] * 100:.0f}% on its standard cases and on every earlier set; "
+         "each set adds up to +1 point.",
+         "Guide: docs/PACKS.md. Private packs (if any) are documented privately and not listed.",
+         ""]
+    L.append(f"{'part':30} {'std':>4} {'sets':>4} {'cases':>5} {'bonus':>5} {'~min':>5}  status")
+    for p in ov["parts"]:
+        n_cases = sum(s["cases"] for s in p["sets"])
+        mins = [s["est_minutes"] for s in p["sets"] if s["est_minutes"] is not None]
+        if p["maxed_by"]:
+            st = "MAXED by " + ", ".join(p["maxed_by"]) + f": next pack is set {max([s['n'] for s in p['sets']], default=0) + 1}"
+        elif p["maxed_by"] is None:
+            st = "board not read (no maxed data)"
+        elif not p["sets"]:
+            st = "no pack yet"
+        else:
+            st = "room left"
+        if p["drafts"]:
+            st += f" ({p['drafts']} draft{'s' if p['drafts'] != 1 else ''} ignored)"
+        L.append(f"{p['label'][:30]:30} {p['standard_points']:>4g} {len(p['sets']):>4} {n_cases:>5} "
+                 f"{'+' + str(p['bonus_points']):>5} {('%.0f' % sum(mins)) if mins else '-':>5}  {st}")
+        for s in p["sets"]:
+            L.append(f"    set {s['n']} (level {s['level']}, {s['cases']} cases"
+                     + (f", ~{s['est_minutes']:g} min" if s["est_minutes"] is not None else "")
+                     + "): " + ", ".join(s["case_ids"]))
+    L.append("")
+    L.append("New pack: `crucibleforge pack new <category/part>`, then `crucibleforge pack verify <file>`.")
+    return "\n".join(L)
