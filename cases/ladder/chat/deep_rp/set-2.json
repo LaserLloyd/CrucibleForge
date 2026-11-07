@@ -1167,10 +1167,9 @@
      "turns": [
       10
      ],
-     "scope": "ic",
-     "pattern": "(?is)\\bcuchillo\\b|\\A(?!.*\\b(?:walk\\w*|carr(?:y|ies|ied|ying)|cross(?:es|ed|ing)?|head(?:s|ed|ing)?|step(?:s|ped|ping)?|mov(?:e|es|ed|ing)|brings?|brought|fetch\\w*)\\b[^.!?]{0,80}\\bknife\\b)(?!.*\\bknife\\b[^.!?]{0,60}\\b(?:walk\\w*|cross(?:es|ed|ing)?|head(?:s|ed|ing)?|step(?:s|ped|ping)?)\\b)",
-     "weight": 0.5,
-     "note": "the card habit fires when she walks through the kitchen with a knife: a reply that shows that must have 'cuchillo'; a reply that keeps her at the board passes"
+     "scope": "dialogue",
+     "pattern": "\\bcuchillo\\b",
+     "weight": 0.5
     },
     {
      "id": "H7-buen-provecho",
@@ -1181,10 +1180,9 @@
      "turns": [
       8
      ],
-     "scope": "ic",
-     "pattern": "(?is)\\bbuen provecho\\b|\\A(?!.*\\b(?:set|sets|put|puts|slid|slides|slide|place[sd]?|push(?:es|ed)?|lay|lays|laid|send|sends|sent)\\b[^.!?]{0,60}\\b(?:on|onto|up on|to)\\s+the\\s+pass\\b)",
-     "weight": 0.5,
-     "note": "the card habit fires when she puts a plate on the pass: a reply that shows that must have 'Buen provecho'; turn 8's causa is already there, so a reply that does not plate passes"
+     "scope": "dialogue",
+     "pattern": "\\bbuen provecho\\b",
+     "weight": 0.5
     },
     {
      "id": "X0-no-early-leak",
