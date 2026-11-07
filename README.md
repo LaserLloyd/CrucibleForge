@@ -205,8 +205,10 @@ figure is partial. Local models show `—`. A hosted model without a `price` is 
 
 **Blocked replies.** When a provider's content filter blocks a reply (`finish_reason: content_filter`), the model's
 Notes say how many (and how many were in the NSFW tests, where they count as refusals). A blocked reply scores zero.
-This is computed from the transcripts on every report, so future runs are marked with no hand work. A run whose
-first replies were all blocked is not mistaken for a misconfigured model.
+This is computed from the transcripts on every report, so future runs are marked with no hand work. A label's first
+generation whose first 3 replies were all blocked stops with `first 3 replies all blocked by the provider's content
+filter` (a provider refusing everything, such as a wrong key tier or region), not the empty-reply "misconfigured
+model" error; blocked replies are otherwise ignored by that empty-reply guard.
 
 `models.example.yaml` also has entries for OpenAI, xAI, MiniMax and Open WebUI. Claude works directly: Anthropic's
 OpenAI-compatible endpoint is `type: openai` with `base_url: https://api.anthropic.com/v1`. A vendor with no
@@ -228,7 +230,7 @@ hold many more; they stay runnable with `run --cases ...` or a profile of your o
 | --- | --- | --- |
 | **Coding /10** | Functions 5, Predict and bug hunt 2.5, Tool use 2.5 | Python functions run against hidden unit tests (partial credit by test group); program output compared exactly; a bug fix checked by running tests; scripted tool-call conversations with traps. No opinions involved. |
 | **Chat /10** | Deep role-play 3, Conversation 3, Character 2, Creative writing 2 | Multi-turn sessions. A judge model answers a yes/no checklist per case, and plain text rules (counts, forbidden phrases) run beside it. |
-| **NSFW /10** | Uncensored 2, NSFW role-play 4, NSFW writing 4 | The same judge method. Shown beside the board and **never added to Overall**. Every character is an adult. |
+| **NSFW /10** | Uncensored 2, NSFW role-play 4, NSFW writing 4 | The same judge method. Shown beside the board and **never added to Overall**. Content rules: [`docs/CONTENT-RULES.md`](docs/CONTENT-RULES.md). |
 
 **Overall /20 = Coding + Chat.** A model that scores 90% or more on a part unlocks a harder bonus pack for it, the only way
 past 10 (see *Ladder packs* below). Chat measures role-play and companion conversation, not plain question answering.
@@ -716,8 +718,7 @@ CB-C5/C6 predict-the-output, CB-F1 bug hunt, TZ16/TZ19/TZ20 tool use), Chat
 NC1, NC2, NC3, NX2, XP3, NW1). The case files hold many more (math, reasoning,
 long-context, instruct, harder coding); they stay runnable with
 `run --cases …` or a profile of your own, and some of them are ladder packs.
-All sexual content in the case files is between named, consenting adults with
-stated ages (21 or older).
+Content rules: what new tests never include → [`docs/CONTENT-RULES.md`](docs/CONTENT-RULES.md).
 
 #### What it never benches
 
@@ -1038,13 +1039,12 @@ The benchmark measures refusal calibration and adult-fiction ability, so some
 case files contain material you may not want to read:
 
 - `cases/nsfw.json` — prompts for explicit sexual fiction, including
-  negotiated kink, between named adult characters with stated ages (all 21 or
-  older) and stated consent; dark-but-legal fiction briefs; and must-refuse
+  negotiated kink; dark-but-legal fiction briefs; and must-refuse
   safety probes (drug synthesis, a phishing email, explicit content about a
   real public figure, and fiction briefs paired with a real-world-harm
-  request). No case asks for sexual content involving minors, non-consent,
-  incest or animals; `tests/test_chat_section.py` enforces this on the whole
-  file.
+  request). What new tests never include is in
+  [`docs/CONTENT-RULES.md`](docs/CONTENT-RULES.md); `tests/test_chat_section.py`
+  enforces the rules on the whole file.
 - `cases/steer.json` — users pressuring a model to break a safe-for-work or
   persona rule, including requests for explicit content.
 - `cases/overrefusal.json` — harmless requests worded to sound alarming.
@@ -1061,6 +1061,7 @@ part of the repository. Skip categories with `--categories`.
 | --- | --- |
 | [`docs/OPENCLAW.md`](docs/OPENCLAW.md) | Driving CrucibleForge from an agent framework |
 | [`docs/deploy/docker.md`](docs/deploy/docker.md) | The container image, volumes, settings, backups |
+| [`docs/CONTENT-RULES.md`](docs/CONTENT-RULES.md) | Content rules: what new tests never include |
 | [`docs/CHAT.md`](docs/CHAT.md) | The older 3.4 Chat section (historical) |
 | [`docs/PACKS.md`](docs/PACKS.md) | The optional (ladder) packs: what each tests, the unlock rule, MAXED, writing a new pack |
 | [`docs/CUSTOM-TESTS.md`](docs/CUSTOM-TESTS.md) | Your own private tests and packs |

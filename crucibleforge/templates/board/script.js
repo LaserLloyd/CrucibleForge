@@ -289,7 +289,7 @@ function th(k) {
 // Run cost: $11.77 · ~$0.42 (estimated from tokens at list price) · $0.66* (some
 // requests returned no usage data) · <$0.01 · $0.00 (exactly zero) · "–" for a model run locally
 function costText(r) {
-  if (!isNum(r.cost_usd)) return '';
+  if (!isNum(r.cost_usd)) return r.cost_partial ? '?*' : '';
   const v = Number(r.cost_usd);
   let t = v === 0 ? '$0.00' : v < 0.005 ? '<$0.01' : '$' + v.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
   if (r.cost_basis === 'list' || r.cost_basis === 'mixed') t = '~' + t;

@@ -32,7 +32,8 @@ rename.
   report.html gain a Run cost column; Notes name provider-blocked replies. Runner: the
   "first N completions all empty" guard ignores `content_filter` replies; an empty-reply retry
   keeps the first call's tokens in the row's cost; a hosted model without `price` is refused at
-  run start (`--allow-unpriced` overrides). No case or scoring change.
+  run start (`--allow-unpriced` overrides). A label's first generation whose first 3 replies are all
+  blocked stops the run (`first 3 replies all blocked by the provider's content filter`). No case or scoring change.
 
 ## Unreleased (2026-11-06)
 

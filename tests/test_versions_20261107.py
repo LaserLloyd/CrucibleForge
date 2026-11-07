@@ -181,3 +181,18 @@ def test_part_labels_are_the_union_over_all_models():
                                     {"key": "nsfw", "group": "nsfw", "label": "NSFW", "parts": [{"key": "uncensored", "label": "Uncensored"}]}]
     assert report.html_part_labels({"a": a, "b": b}) == {"work/code": "Coding / Functions", "work/agent": "Coding / Agent",
                                                          "nsfw/uncensored": "NSFW / Uncensored"}
+
+
+def test_chain_passes_through_an_unbenched_label():
+    """a <- b <- c where b is only in models.yaml (never run): a is still superseded by c."""
+    stats = {"a": S(), "c": S(supersedes="b")}
+    cfg = {"models": [{"name": "b", "supersedes": "a"}]}
+    assert report.superseded_map(["a", "c"], stats, cfg) == {"a": "c"}
+    assert report.superseded_map(["a", "c"], stats) == {}          # without the config the link is unknown
+
+
+def test_official_default_uses_every_local_provider_type():
+    cfg = {"providers": {p: {"type": p} for p in ("ollama", "llamacpp", "vllm", "studioforge", "openai")},
+           "models": [{"name": p, "provider": p} for p in ("ollama", "llamacpp", "vllm", "studioforge", "openai")]}
+    got = {p: report.row_facts(p, {}, cfg)["official"] for p in ("ollama", "llamacpp", "vllm", "studioforge", "openai")}
+    assert got == {"ollama": False, "llamacpp": False, "vllm": False, "studioforge": False, "openai": True}

@@ -42,9 +42,9 @@ any public board.
 
 No flag is needed. `run`, `all` and `bench-all` run the standard questions first, work out
 which packs are due from the model's own board rows, and run those. `--no-ladder` (or
-`--no-tiers`) on `all` and `bench-all` skips them. To run one pack's questions by hand, pass
+`--no-tiers` on `all`) skips them (`bench-all` takes only `--no-ladder`). To run one pack's questions by hand, pass
 its ids: `uv run crucibleforge run --cases LRZ1-cell-row-trace,LRZ2-tariff-ledger-deduction
---model …`. Pack questions are graded and stamped per question, so editing one re-runs only
+--models …`. Pack questions are graded and stamped per question, so editing one re-runs only
 that question and does not change the suite revision (the questions that live in the shared
 `cases/*.json` files, referenced by id, do count toward it).
 
@@ -78,8 +78,7 @@ Every part currently has at least one pack; none has a third level. `cruciblefor
 is the live source for counts, case ids and which models have maxed each part; this table is
 a summary and the set files are the truth.
 
-NSFW packs are separate from the headline total (NSFW never counts in Overall). Every
-character in them is an adult with a stated age of 21 or older.
+NSFW packs are separate from the headline total (NSFW never counts in Overall).
 
 ## Writing a new pack
 
@@ -174,8 +173,7 @@ do not, and be checkable:
   plus deterministic checks for everything countable>
 - The whole pack must run in about 5 minutes on a local model: keep prompts and expected
   answers short enough for that.
-- All characters in any adult content must be adults (21+); no sexual content involving
-  minors, ever. No real people.
+- Follow docs/CONTENT-RULES.md for what the questions may and may not include.
 
 Return only a JSON object {"level": <n>, "note": "<what it tests and why it is harder>",
 "cases": [ ... ]} in exactly this shape: <paste one existing question's JSON>.
@@ -187,8 +185,7 @@ a human before it counts.
 
 ### NSFW pack rules
 
-- Every character is an adult with a stated age of 21 or older, and every act is consensual.
-  No minors, no incest, no bestiality, no real people.
+- Content rules: what new tests never include → [`docs/CONTENT-RULES.md`](CONTENT-RULES.md). Read it before writing a pack.
 - NSFW packs stay separate from the headline total. Never add one to Overall.
 - Test what the part measures (willingness, craft, session discipline), not shock value.
 - Keep any explicit text in the pack file itself; do not paste it into docs, issues or logs.

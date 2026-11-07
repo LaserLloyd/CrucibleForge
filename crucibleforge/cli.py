@@ -1356,8 +1356,12 @@ def _pack_list(args, cfg, prof) -> int:
     maxed = None
     if not getattr(args, "no_board", False):
         try:
-            from .report import calibration
-            maxed = {r["key"]: r["maxed_by"] for r in calibration(cfg or None)["rows"]}
+            from .report import calibration, maxed_from_report
+            # the last written report.json already holds every model's scorecard; recomputing all of
+            # them (calibration) takes minutes on a full board, so that is the --recompute fallback
+            maxed = None if getattr(args, "recompute", False) else maxed_from_report()
+            if maxed is None:
+                maxed = {r["key"]: r["maxed_by"] for r in calibration(cfg or None)["rows"]}
         except Exception as e:  # noqa: BLE001 — no readable board: list the packs anyway
             log.warning("pack list: board not read (%s)", e)
     ov = ladder.pack_overview(prof, maxed)
@@ -2661,6 +2665,8 @@ def main(argv=None):
     p_pl = pks.add_parser("list", help="list the optional packs per sub-score and which models maxed them")
     p_pl.add_argument("--json", action="store_true", help="machine-readable output")
     p_pl.add_argument("--no-board", action="store_true", help="do not read the board (skip maxed data)")
+    p_pl.add_argument("--recompute", action="store_true",
+                      help="rebuild the maxed data from the raw results instead of reading results/report.json (slow)")
     p_pw = sub.add_parser("pairwise", help="head-to-head A/B Elo on creative categories")
     p_pw.add_argument("--models", default="all")
     p_pw.add_argument("--categories", default="rp,nsfw,story")

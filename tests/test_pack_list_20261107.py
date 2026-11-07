@@ -65,6 +65,35 @@ def test_cmd_pack_list_json_uses_calibration(tmp_path, monkeypatch, capsys):
     assert code["maxed_by"] == ["m1", "m2"] and len(code["sets"]) == 2
 
 
+def test_cmd_pack_list_reads_report_json_not_calibration(tmp_path, monkeypatch, capsys):
+    """The default path reads results/report.json (seconds); calibration() rebuilds every model (minutes)
+    and is only the --recompute / no-report fallback."""
+    env = _setup(tmp_path, monkeypatch)
+    _two_sets(env)
+    rj = report.report_json_path()
+    rj.parent.mkdir(parents=True, exist_ok=True)
+    rj.write_text(json.dumps({"generated": "x", "models": {
+        "m1": {"scorecard": {"ladder": {"work": {"code": {"maxed": True}, "reasoning": {"maxed": False}}}}},
+        "m2": {"scorecard": {"ladder": {"work": {"code": {"maxed": True}}}}},
+        "m3": {"scorecard": {}}}}), encoding="utf-8")
+
+    def boom(cfg, ref=None):
+        raise AssertionError("calibration must not run when report.json exists")
+    monkeypatch.setattr(report, "calibration", boom)
+    real = ladder.pack_overview
+    monkeypatch.setattr(ladder, "pack_overview",
+                        lambda p, m: real(p, m, dirs=[env.ladder], minutes=False))
+    rc = cli.cmd_pack(SimpleNamespace(action="list", json=True, no_board=False), env.cfg)
+    out = json.loads(capsys.readouterr().out)
+    assert rc == 0 and out["board_read"]
+    assert next(p for p in out["parts"] if p["key"] == "work/code")["maxed_by"] == ["m1", "m2"]
+    # --recompute goes the slow way
+    monkeypatch.setattr(report, "calibration", lambda cfg, ref=None: {"rows": [{"key": "work/code", "maxed_by": ["z"]}]})
+    cli.cmd_pack(SimpleNamespace(action="list", json=True, no_board=False, recompute=True), env.cfg)
+    out = json.loads(capsys.readouterr().out)
+    assert next(p for p in out["parts"] if p["key"] == "work/code")["maxed_by"] == ["z"]
+
+
 def test_cmd_pack_list_survives_unreadable_board(tmp_path, monkeypatch, capsys):
     env = _setup(tmp_path, monkeypatch)
     _two_sets(env)

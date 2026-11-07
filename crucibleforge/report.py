@@ -1717,7 +1717,7 @@ def run_cost(label: str, rows: list[dict], cfg: dict | None = None,
             main += c
     if not priced:
         return {"usd": None, "main_usd": None, "separate_usd": None,
-                "estimated_rows": 0, "unknown_rows": 0, "basis": None}
+                "estimated_rows": 0, "unknown_rows": unknown, "basis": None}
     # the basis is a fact about how the provider bills, not about one run's
     # price: a ``basis: list`` in the run's meta OR today's models.yaml counts
     declared = any(
@@ -2321,7 +2321,8 @@ def cost_cell(s: dict) -> str:
     ``—`` for a local model."""
     v = s.get("cost_main_usd")
     if v is None:
-        return "—"
+        # a hosted model whose counted rows all lacked usage data: unknown, not "ran on our hardware"
+        return "?*" if s.get("cost_unknown_rows") else "—"
     t = "$0.00" if v == 0 else ("<$0.01" if v < 0.005 else f"${v:,.2f}")
     if s.get("cost_basis") in ("list", "mixed"):
         t = "~" + t
@@ -2338,7 +2339,7 @@ COST_FOOTNOTE = ("Run cost = what the standard Code and Chat tests of one run co
 
 
 def _has_cost(ranked: list[str], stats: dict) -> bool:
-    return any(stats[l].get("cost_main_usd") is not None for l in ranked)
+    return any(stats[l].get("cost_main_usd") is not None or stats[l].get("cost_unknown_rows") for l in ranked)
 
 
 def run_date(s: dict) -> str | None:
@@ -2413,7 +2414,8 @@ def notes_cell(s: dict) -> str:
             t += f"; {cf['separate']} of them in NSFW (counted as refusals)"
         notes.append(t)
     if s.get("cost_unknown_rows"):
-        notes.append(f"cost: {s['cost_unknown_rows']} rows without usage data")
+        n_u = s["cost_unknown_rows"]
+        notes.append(f"cost: {n_u} row{'s' if n_u != 1 else ''} without usage data")
     er = s.get("errored_rows") or {}
     if er.get("n"):
         notes.append(f"{er['n']}/{er['total']} rows errored (counted failed; a resume re-runs them)")
@@ -2582,7 +2584,8 @@ def row_facts(label: str, meta: dict | None, cfg: dict | None) -> dict:
             # 2026-11-07: the "Built on" tag and the version link (models.yaml `base`, `official`,
             # `supersedes`); official defaults to "a hosted model is the vendor's own release"
             "base": _one_line(entry.get("base"), 2, 40),
-            "official": entry["official"] if isinstance(entry.get("official"), bool) else (False if local else bool(ptype)),
+            "official": entry["official"] if isinstance(entry.get("official"), bool) else (
+                False if ptype in LOCAL_PROVIDER_TYPES else bool(ptype)),
             "supersedes": str(entry["supersedes"]) if entry.get("supersedes") else None,
             # the short name people read ("Claude Opus 5.5"); used in report.md's older-versions line
             "display": _one_line(entry.get("display"), 2, 60)}
@@ -2596,19 +2599,24 @@ def _one_line(v, lo: int, hi: int) -> str | None:
     return v if lo <= len(v) <= hi and "\n" not in v else None
 
 
-def superseded_map(labels: list[str], stats: dict) -> dict[str, str]:
+def superseded_map(labels: list[str], stats: dict, cfg: dict | None = None) -> dict[str, str]:
     """``{label: newer label}`` for the board's official rows that have a newer, ranked version on the board.
 
     models.yaml ``supersedes: <label>`` sits on the NEWER row. For each official row, walk the chain of
     successors (passing through labels that are not on this board) and take the newest one that is on the
     board, official, ranked (has an overall score and is not provisional). A provisional or unranked newer row
-    never hides the older one. A fork stops the walk (the site refuses forks and cycles earlier)."""
+    never hides the older one. A fork stops the walk (the site refuses forks and cycles earlier).
+    ``cfg`` adds the links of models.yaml rows that have no results yet (an unbenched label in the middle of
+    a chain a <- b <- c is passed through)."""
     on = set(labels)
     succ: dict[str, list[str]] = {}
     for l, s in stats.items():
         t = s.get("supersedes")
         if t:
             succ.setdefault(t, []).append(l)
+    for e in (cfg or {}).get("models") or []:
+        if isinstance(e, dict) and e.get("name") and e.get("supersedes") and e["name"] not in stats:
+            succ.setdefault(str(e["supersedes"]), []).append(e["name"])
 
     def ranked(l: str) -> bool:
         s = stats.get(l) or {}
@@ -2931,6 +2939,29 @@ def calibration(cfg: dict | None, reference: str | None = None) -> dict:
             "rows": rows}
 
 
+def maxed_from_report(path=None) -> dict[str, list[str]] | None:
+    """{"<score>/<part>": [labels]} of the parts some model maxed, read from the last written
+    results/report.json (the same per-model scorecards `calibration` rebuilds, but without
+    recomputing every model: seconds instead of minutes). None when there is no readable report."""
+    from pathlib import Path as _P
+    p = path or report_json_path()
+    try:
+        data = json.loads(_P(p).read_text(encoding="utf-8"))
+        models = data["models"]
+    except (OSError, ValueError, KeyError, TypeError):
+        return None
+    if not isinstance(models, dict):
+        return None
+    out: dict[str, list[str]] = {}
+    for label, st in models.items():
+        card = (st or {}).get("scorecard") or {}
+        for cat, parts in (card.get("ladder") or {}).items():
+            for pk, det in (parts or {}).items():
+                if (det or {}).get("maxed"):
+                    out.setdefault(f"{cat}/{pk}", []).append(label)
+    return out
+
+
 def render_calibration(res: dict) -> str:
     L = [f"Calibration — reference model {res['reference']}"
          + ("" if res["reference_on_board"] else " (NOT on the board: no reference numbers)"),
@@ -3082,7 +3113,7 @@ def render_markdown(labels: list[str], stats: dict, cfg: dict | None,
     L += ["", "## Scorecard", ""]
     if any("tiers" in stats[l]["scorecard"] for l in ranked):
         L += _tier_tables(ranked, stats, sc, cfg)
-        older = _older_line(labels, stats)
+        older = _older_line(labels, stats, cfg)
         if older:
             L += ["", older]
         L += _conformance_lines(labels, stats, cfg)
@@ -4067,12 +4098,12 @@ def board_stats(labels_arg: str | None, cfg: dict | None) -> tuple[list[str], di
 
 # ------------------------------------------------------------ report.html
 
-def html_rows(labels: list[str], stats: dict) -> list[dict]:
+def html_rows(labels: list[str], stats: dict, cfg: dict | None = None) -> list[dict]:
     """The HTML board's data — built from the SAME computed stats as
     report.md (exact labels, numbers as numbers), never parsed back out of
     the markdown."""
     out = []
-    newer = superseded_map(labels, stats)
+    newer = superseded_map(labels, stats, cfg)
     for i, l in enumerate(rank_labels(labels, stats), 1):
         s = stats[l]
         c = s["scorecard"]
@@ -4187,9 +4218,9 @@ def html_ladder(rows: list[dict]) -> list[str]:
     return out
 
 
-def _older_line(labels: list[str], stats: dict) -> str:
+def _older_line(labels: list[str], stats: dict, cfg: dict | None = None) -> str:
     """"Older versions on this board: a (newer: b), ..." for models.yaml `supersedes` links, else ""."""
-    newer = superseded_map(labels, stats)
+    newer = superseded_map(labels, stats, cfg)
     if not newer:
         return ""
     def nm(l: str) -> str:
@@ -4259,8 +4290,8 @@ def render_report_html(labels: list[str], stats: dict, cfg: dict | None = None,
         legend = HTML_LEGEND + [class_footnote(_tier_profile(cfg)).strip("*")]
         versus = [stats[l]["headline"]["vs_above"]["text"] for l in rank_labels(labels, stats)
                   if (stats[l].get("headline") or {}).get("vs_above")]
-        ladder = html_ladder(html_rows(labels, stats))
-        older = _older_line(labels, stats)
+        ladder = html_ladder(html_rows(labels, stats, cfg))
+        older = _older_line(labels, stats, cfg)
         if older:
             legend = legend + [older]
     footer += [line.strip("*") for line in (archived_note or "").splitlines()]
@@ -4270,7 +4301,7 @@ def render_report_html(labels: list[str], stats: dict, cfg: dict | None = None,
         f"judge actually used: {', '.join(used)}" if used else None,
         f"rendered {now}") if x))
     scores, sides = html_scores({l: stats[l] for l in labels}, public=bool(_hidden(cfg)))
-    return render_html(html_rows(labels, stats), subtitle=subtitle,
+    return render_html(html_rows(labels, stats, cfg), subtitle=subtitle,
                        components=html_components({l: stats[l] for l in labels}, cfg),
                        footer=footer,
                        forbidden=(_hidden(cfg) or {}).get("terms"),

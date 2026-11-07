@@ -306,3 +306,13 @@ def test_blocked_guard_is_off_for_a_rerun_of_a_label_that_already_has_rows(tmp_p
     assert config.transcript_path("m").stat().st_size > 0
     st = {"sanity_total": 0, "sanity_empty": 0, "block_guard": False}
     runner._sanity_check(st, [{"finish_reason": "content_filter", "response": ""}] * 3, "m")
+
+
+def test_all_rows_without_usage_count_as_unknown_not_free():
+    bad = _row(cost=0.2, p=0, c=0)
+    r = report.run_cost("m", [bad, dict(bad), dict(bad)], CFG, {}, SIDES)
+    assert r["usd"] is None and r["unknown_rows"] == 3
+    assert report.cost_cell({"cost_main_usd": None, "cost_unknown_rows": 3}) == "?*"
+    assert report.cost_cell({"cost_main_usd": None, "cost_unknown_rows": 0}) == "—"
+    assert "3 rows without usage data" in report.notes_cell({"cost_unknown_rows": 3})
+    assert "1 row without usage data" in report.notes_cell({"cost_unknown_rows": 1})
