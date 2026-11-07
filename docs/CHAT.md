@@ -158,7 +158,7 @@ first-person, past tense, length. The judge gets the full canon in `judge_key`.
 
 Case field `"checks": [...]`. Types: `no_puppeting`, `forbid_regex`, `require_regex`,
 `require_all`, `ooc_reply`, `ooc_field`, `tense`, `word_range`, `distinct_regex`, and (3.5.0)
-`require_spread` / `distinct_terms`. Scopes: `narration` (quotes and
+`require_spread` / `distinct_terms`, and (2026-11-07) `max_repeat` (cross-turn n-gram reuse). Scopes: `narration` (quotes and
 OOC removed), `dialogue`, `ooc`, `ic`, `all`, plus optional `section` (a markdown heading) and
 `negation_guard`. Groups: `identity`, `continuity`, `ooc`, `constraint`. The row gets
 `checks.{results, groups, rate}`. Every failure carries the offending snippet, so a false

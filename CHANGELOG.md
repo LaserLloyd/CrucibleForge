@@ -8,6 +8,13 @@ rename.
 
 ## Unreleased (2026-11-07)
 
+- **`max_repeat` check (session_checks).** Cross-turn repetition in long sessions: from `from_turn`
+  (default 2) on, a turn may reuse at most `max_share` of its word `n`-grams (default 4) from the
+  earlier assistant turns; worst turn over `max_share` but at most `fail_share` (default 1.5x) = half
+  credit, further = fail. `scope` defaults to `ic` (OOC notes ignored); leave `turns` unset (every
+  earlier turn is the reference). `cases verify` checks its options. No existing case uses it, so no
+  score changes.
+
 - **Built on, latest versions only, MAX.** models.yaml gains optional `base`, `official`, `supersedes`
   (see `models.example.yaml`); `report.superseded_map` finds the newer ranked official version of a model.
   Board rows gain `base`, `official`, `superseded_by`, `maxed_parts` (`"<score>/<part>"`, named by the

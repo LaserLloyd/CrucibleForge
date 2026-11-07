@@ -1011,6 +1011,14 @@ one peak). `distinct_terms` (`pattern`, `min_distinct`): the number of
 DISTINCT matched strings (lower-cased) must reach `min_distinct` — vocabulary
 variety. Both report counts in `detail`.
 
+**Repetition check (2026-11-07).** `max_repeat` (`max_share`, optional `n`
+default 4, `from_turn` default 2, `fail_share` default 1.5 x `max_share`,
+`min_grams` default 20): for each turn from `from_turn` on, the share of its
+word n-grams already used in an earlier assistant turn. Pass when no turn
+exceeds `max_share`, half credit when the worst turn is at most `fail_share`,
+else fail. Default scope `ic`; do not set `turns` (the earlier turns are the
+reference).
+
 **Metric tags (NSFW, 3.5.0).** Two optional case keys, closed value sets
 (`config.CASE_TAGS`; the loader and `cases verify` reject anything else):
 `"explicit_required": true` (erotic rubric only) puts the row in the Explicit

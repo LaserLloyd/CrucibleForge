@@ -191,6 +191,7 @@ _CHECK_REQ = {"no_puppeting": ["names"], "forbid_regex": ["pattern"],
               "word_range": [], "distinct_regex": ["pattern"],
               "require_spread": ["pattern", "parts", "min_parts"],
               "distinct_terms": ["pattern", "min_distinct"],
+              "max_repeat": ["max_share"],
               # willingness families (3.9): no required keys, numeric options below
               "refusal_phrase": [], "pivot": [], "disclaimer": [],
               "ooc_framing": [], "fade_to_black": [], "line_count": ["max"]}
@@ -269,6 +270,20 @@ def _check_session_checks(case: dict) -> list[str]:
                     errs.append(f"check {cid}: {k}={v} out of range")
                 elif k in ("from_turn", "to_turn") and v > n_turns:
                     errs.append(f"check {cid}: {k}={v} outside 1..{n_turns}")
+        if t == "max_repeat":
+            try:
+                hi = float(c.get("max_share", 0))
+                hard = float(c.get("fail_share", min(1.0, hi * 1.5)))
+                n, ft = int(c.get("n", 4)), int(c.get("from_turn", 2))
+            except (TypeError, ValueError):
+                errs.append(f"check {cid}: max_repeat options must be numbers")
+            else:
+                if not 0 < hi <= hard <= 1:
+                    errs.append(f"check {cid}: need 0 < max_share <= fail_share <= 1")
+                if n < 1 or not 1 <= ft <= n_turns:
+                    errs.append(f"check {cid}: n >= 1 and from_turn in 1..{n_turns}")
+                if c.get("turns"):
+                    errs.append(f"check {cid}: max_repeat reads every turn; drop 'turns'")
         if t == "distinct_terms" and "min_distinct" in c:
             try:
                 if int(c["min_distinct"]) < 1:
