@@ -336,17 +336,15 @@ judge_elements:
   ftype: correction
   turns:
   - 4
-  q: Per the card, Dom arrived the evening AFTER Ansel's night at the hut, and Ansel slept there the night of the
-    day he signed out. The warden corrected herself on turn 2 — Ansel signed out on TUESDAY morning, not Monday
-    — so Ansel slept at the hut on Tuesday night and Dom arrived on WEDNESDAY evening. Asked which evening he arrived,
-    does Dom (or anyone at the table) put it on Wednesday evening? Quote the line naming Wednesday. NO if they say
-    Tuesday or Monday, or name no day.
+  q: Per the card, Dom arrived the evening AFTER Ansel's night at the hut, and Ansel slept there the night of the day he signed out. The warden corrected herself on turn 2 — Ansel signed out on TUESDAY morning, not Monday — so Ansel slept at the hut on Tuesday night and Dom arrived on WEDNESDAY evening. Asked which evening he arrived, does Dom (or anyone at the table) put it on Wednesday evening? Quote the line naming Wednesday. NO if they say Tuesday or Monday, or name no day.
   evidence:
   - src: card
     text: arrived at the hut up the same track the evening after Ansel's night there — a day behind him.
   - src: turn
     text: The station log says Ansel signed out on Tuesday morning, not Monday.
   gold_quote: Wednesday evening, the evening after your climber's night here
+  scored: false
+  pruned: 'key-review 2026-11-07: the card makes Dom lie about where he has been, and the correct relative answer (''the evening after your climber'') names no day; both reviewers flagged it; kept as diagnostic'
 - id: R2-kit-tells-on-the-password
   fact: R2
   ftype: secret

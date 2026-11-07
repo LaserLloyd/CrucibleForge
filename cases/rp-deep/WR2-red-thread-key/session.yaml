@@ -314,8 +314,8 @@ checks:
   - 2
   - 3
   scope: all
-  pattern: '["“][^"”\n]*(?:\?[^"”\n]*\b(?:key|tag|thread)\b|\b(?:key|tag|thread)\b[^"”\n]*\?)[^"”\n]*["”]'
-  note: 'nobody asks about the key, the tag or the thread aloud'
+  pattern: (?<!Piet asks, )(?<!Pieta asks, )(?<!Piet says, )(?<!Pieta says, )[\"“][^\"”\n]*(?:\?[^\"”\n]*\b(?:key|tag|thread)\b|\b(?:key|tag|thread)\b[^\"”\n]*\?)[^\"”\n]*[\"”](?!,? ?(?:Piet|Pieta|he) (?:asks|says)\b)
+  note: Odile does not ask about the key, the tag or the thread aloud (a question tagged to Piet/Pieta is his/hers and allowed) | key-review 2026-11-07
   weight: 0.375
   pruned: '4.0 fix: all-pass on the 2026-10-31 board, half weight'
 - id: KT3-key-in-last-section
@@ -337,9 +337,11 @@ checks:
   turns:
   - 3
   scope: all
-  pattern: '\bbay six\b|\bMarch\b|\bwent under\b|\bflood\w*'
-  note: 'Piet''s line about bay six (March, went under) comes back in the wash-bay section'
+  pattern: \bbay six\b|\bMarch\b|\bwent under\b|\bflood\w*
+  note: Piet's line about bay six (March, went under) comes back in the wash-bay section
   weight: 2
+  scored: false
+  pruned: 'key-review 2026-11-07: not in the author''s brief, kept as diagnostic'
 - id: SP1-no-stock-phrases
   fact: SP
   ftype: format
@@ -350,9 +352,11 @@ checks:
   - 2
   - 3
   scope: all
-  pattern: '\b(?:time (?:stood|stopped) still|let out a (?:long |slow |shaky )?breath|breath (?:I|he|she|we) (?:had not|hadn''t|didn''t|did not) (?:known|realise\w*|realize\w*)|dust motes?|hung (?:thick|heavy) in the air|hanging in the air|(?:heavy|deafening|pregnant) silence|silence (?:fell|hung|stretched|settled)|a (?:mix|mixture) of|memories (?:flooded|came flooding|washed|danced)|the weight of (?:years|the past|memory|memories|loss|it all)|ghost of a|like a ghost|something (?:shifted|stirred|broke|passed) (?:in|between|across)|(?:a )?shiver (?:ran|went|crept) (?:down|up|through)|eyes (?:glistened|brimmed|welled|misted)|a lifetime of|whispered secrets|stories untold|tapestry|symphony of|for what (?:felt|seemed) like (?:hours|forever|an eternity|ages)|the air (?:was|is) (?:thick|heavy)|breath hitch\w*|heart (?:pounds|pounded|raced|races|hammers|hammered|skipped|skips|sank|sinks)|dust (?:dance[sd]?|dancing)|shadows? (?:danced|dance|dances|stretch\w*) (?:across|along|over))\b'
-  note: 'no stock phrase from a short list of worn-out fiction clichés'
+  pattern: \b(?:time (?:stood|stopped) still|let out a (?:long |slow |shaky )?breath|breath (?:I|he|she|we) (?:had not|hadn't|didn't|did not) (?:known|realise\w*|realize\w*)|dust motes?|hung (?:thick|heavy) in the air|hanging in the air|(?:heavy|deafening|pregnant) silence|silence (?:fell|hung|stretched|settled)|a (?:mix|mixture) of|memories (?:flooded|came flooding|washed|danced)|the weight of (?:years|the past|memory|memories|loss|it all)|ghost of a|like a ghost|something (?:shifted|stirred|broke|passed) (?:in|between|across)|(?:a )?shiver (?:ran|went|crept) (?:down|up|through)|eyes (?:glistened|brimmed|welled|misted)|a lifetime of|whispered secrets|stories untold|tapestry|symphony of|for what (?:felt|seemed) like (?:hours|forever|an eternity|ages)|the air (?:was|is) (?:thick|heavy)|breath hitch\w*|heart (?:pounds|pounded|raced|races|hammers|hammered|skipped|skips|sank|sinks)|dust (?:dance[sd]?|dancing)|shadows? (?:danced|dance|dances|stretch\w*) (?:across|along|over))\b
+  note: no stock phrase from a short list of worn-out fiction clichés
   weight: 1
+  scored: false
+  pruned: 'key-review 2026-11-07: not in the author''s brief, kept as diagnostic'
 - id: OP1-openers-vary
   fact: OP
   ftype: format

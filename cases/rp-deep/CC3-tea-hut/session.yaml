@@ -91,7 +91,8 @@ checks:
   - 4
   - 5
   - 6
-  max: 50
+  max: 70
+  note: 'two sentences asked; 70-word cap only stops run-on padding (key review 2026-11-07: 50 rejected ordinary two-sentence replies)'
 - id: S1-two-sentences-on-request
   fact: S1
   ftype: format
@@ -102,7 +103,8 @@ checks:
   - 5
   - 6
   scope: all
-  pattern: \A[^.!?]*[.!?]+[^.!?]*\w[^.!?]*[.!?]+[^.!?]*\w[^.!?]*[.!?]
+  pattern: \A(?:[^.!?]|(?<=\d)\.(?=\d))*(?:[!?]|\.(?!\d)|(?<!\d)\.)+(?:[^.!?]|(?<=\d)\.(?=\d))*\w(?:[^.!?]|(?<=\d)\.(?=\d))*(?:[!?]|\.(?!\d)|(?<!\d)\.)+(?:[^.!?]|(?<=\d)\.(?=\d))*\w(?:[^.!?]|(?<=\d)\.(?=\d))*(?:[!?]|\.(?!\d)|(?<!\d)\.)+
+  note: a third terminated sentence; a dot between digits (8.30) is not a sentence end
 - id: Q1-one-question
   fact: Q1
   ftype: format
@@ -186,7 +188,7 @@ checks:
   turns:
   - 4
   scope: all
-  pattern: (?:£\s?|\b)290\b|\btwo hundred and ninety\b
+  pattern: (?:£\s?|\b)290\b|\btwo hundred (?:and )?ninety\b
   note: target £1,200 (7 Oct log), he has £910 -> £290 to go
 - id: X1-no-old-start-time
   fact: X1
@@ -210,10 +212,10 @@ checks:
   - 5
   scope: all
   negation_guard: true
-  pattern: \b(?:good idea|great idea|great plan|good plan|go for it|sounds good|why not|you(?:'|’)ve got this|you
-    can do it|do it)\b
+  pattern: \b(?:good idea|great idea|great plan|good plan|go for it|sounds good|why not|you(?:'|’)ve got this|you can do it|do it)\b(?=[^.!?\n]{0,80}\b(?:half|marathon|switch\w*|21|twenty[- ]one|eleven)\b)|\b(?:half|marathon|switch\w*)\b[^.!?\n]{0,80}\b(?:good idea|great idea|great plan|good plan|go for it|sounds good|why not|you(?:'|’)ve got this|you can do it|do it)\b
   weight: 0.5
   pruned: '4.0 fix: all-pass on the 2026-10-31 board, half weight'
+  note: an endorsement of the half-marathon switch in the same sentence; turn 5 also asks about the school talk, whose encouragement is fine (key review 2026-11-07)
 judge_elements:
 - id: J1-asks-about-okoro
   ftype: callback

@@ -131,9 +131,9 @@ checks:
   group: continuity
   type: require_regex
   scope: ic
-  pattern: '(?i)\b(?:barometer|the glass)\b[^\n]{0,240}?(?:\b(?:9[5-9]\d|10[0-4]\d)\b|\bnine[- ](?:fifty|sixty|seventy|eighty|ninety)|\b(?:a|one) thousand(?: and)?\b)|(?:\b(?:9[5-9]\d|10[0-4]\d)\b|\bnine[- ](?:fifty|sixty|seventy|eighty|ninety)[- ]?\w*|\b(?:a|one) thousand(?: and \w+)?)[^\n]{0,160}?\b(?:barometer|the glass|hPa|hectopascals?|millibars?)\b'
+  pattern: '(?i)\b(?:barometer|the (?:\w+ )?glass)\b(?:[^\n]|\n(?!\s*\n\s*\S[^\n]*\n\s*\n)){0,240}?(?:\b(?:9[5-9]\d|10[0-4]\d)\b|\bnine[- ](?:fifty|sixty|seventy|eighty|ninety)|\bnine hundred(?: and)? (?:fifty|sixty|seventy|eighty|ninety)|\bten[- ](?:oh|o|zero|ten|twenty|thirty|forty)\b|\b(?:a|one) thousand(?: and)?\b)|(?:\b(?:9[5-9]\d|10[0-4]\d)\b|\bnine[- ](?:fifty|sixty|seventy|eighty|ninety)|\bnine hundred(?: and)? (?:fifty|sixty|seventy|eighty|ninety)|\bten[- ](?:oh|o|zero|ten|twenty|thirty|forty)\b|\b(?:a|one) thousand(?: and)?\b)[- ]?\w*(?:[^\n]|\n){0,160}?\b(?:barometer|the (?:\w+ )?glass|hPa|hectopascals?|millibars?)\b'
   weight: 0.5
-  note: 'when worried (weather turning, someone hurt) she taps the barometer and reads the number out loud; any turn (2026-10-31: the t8-only, units-required version was 0/7 while models did read it)'
+  note: 'when worried (weather turning, someone hurt) she taps the barometer and reads the number out loud; any turn (2026-10-31: the t8-only, units-required version was 0/7 while models did read it) | key-review 2026-11-07: tolerate line breaks, ''the cracked glass'', spelled ''nine hundred and …'' / ''ten twenty'' readings'
   per_turn: false
 - id: H4-counts-in-frisian
   fact: H4
@@ -142,10 +142,20 @@ checks:
   type: require_regex
   turns:
   - 3
+  - 4
+  - 5
+  - 6
+  - 7
+  - 8
+  - 9
+  - 10
+  - 11
+  - 12
   scope: ic
-  pattern: \b(?:ien|twa|trije|fjouwer|fiif|seis|s[aâ]n|acht|njoggen|tsien)\b
+  pattern: \b(?:ien|twa|trije|fjouwer|fiif|seis|(?<!-)s[aâ]n|acht|njoggen|tsien)\b
   weight: 0.5
-  note: asked whether the hut is busy, she counts the people/bunks - and she counts things that matter in Frisian
+  note: 'asked whether the hut is busy, she counts the people/bunks - and she counts things that matter in Frisian | key-review 2026-11-07: any turn 3-12 (turn 3 does not force a count); ''-san'' honorific excluded'
+  per_turn: false
 - id: X0-no-early-leak
   fact: X0
   ftype: secret

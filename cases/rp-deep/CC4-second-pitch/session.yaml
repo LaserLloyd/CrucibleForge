@@ -62,17 +62,26 @@ checks:
   ftype: format
   group: constraint
   type: word_range
-  turns: [3, 4, 5, 6]
-  max: 75
+  turns:
+  - 3
+  - 4
+  - 5
+  - 6
+  max: 100
+  note: 'three sentences max asked; the cap only stops run-on padding (key review 2026-11-07: 75 rejected ordinary three-sentence replies)'
 - id: S1-three-sentences-on-request
   fact: S1
   ftype: format
   group: constraint
   type: forbid_regex
-  turns: [3, 4, 5, 6]
+  turns:
+  - 3
+  - 4
+  - 5
+  - 6
   scope: all
-  pattern: '\A[^.!?]*[.!?]+[^.!?]*\w[^.!?]*[.!?]+[^.!?]*\w[^.!?]*[.!?]+[^.!?]*\w[^.!?]*[.!?]'
-  note: 'a fourth terminated sentence after Dana asked for three at most (turn 3)'
+  pattern: \A(?:[^.!?]|(?<=\d)\.(?=\d))*(?:[!?]|\.(?!\d)|(?<!\d)\.)+(?:[^.!?]|(?<=\d)\.(?=\d))*\w(?:[^.!?]|(?<=\d)\.(?=\d))*(?:[!?]|\.(?!\d)|(?<!\d)\.)+(?:[^.!?]|(?<=\d)\.(?=\d))*\w(?:[^.!?]|(?<=\d)\.(?=\d))*(?:[!?]|\.(?!\d)|(?<!\d)\.)+(?:[^.!?]|(?<=\d)\.(?=\d))*\w(?:[^.!?]|(?<=\d)\.(?=\d))*(?:[!?]|\.(?!\d)|(?<!\d)\.)+
+  note: a fourth terminated sentence after Dana asked for three at most (turn 3); a dot between digits (7.45, £64.00) is not a sentence end
 - id: Q1-one-question
   fact: Q1
   ftype: format
@@ -165,10 +174,11 @@ checks:
   ftype: state
   group: continuity
   type: require_regex
-  turns: [4]
+  turns:
+  - 4
   scope: all
-  pattern: '£\s?32\b|\b32\s?(?:quid|pounds|GBP)\b|\bthirty[- ]two (?:quid|pounds)\b'
-  note: 'train 64 + hostel 3 x 28 = 84 + guide 95 + gear 25 = 268; 300 - 268 = 32'
+  pattern: £\s?32\b|\b32\s?(?:quid|pounds|GBP)\b|\bthirty[- ]two\b
+  note: train 64 + hostel 3 x 28 = 84 + guide 95 + gear 25 = 268; 300 - 268 = 32
   weight: 0.5
   pruned: '4.0 fix: all-pass on the 2026-10-31 board, half weight'
 - id: M2-no-stale-total
@@ -176,12 +186,14 @@ checks:
   ftype: state
   group: continuity
   type: forbid_regex
-  turns: [4]
+  turns:
+  - 4
   scope: all
-  pattern: '£\s?(?:35|60|7|265|240|293)\b|\b(?:35|60|265|240|293)\s?(?:quid|pounds)\b'
+  pattern: £\s?(?:35|60|7|265|240|293)\b|\b(?:35|60|265|240|293)\s?(?:quid|pounds)\b
   weight: 0.25
-  note: 'the totals/remainders built on the old guide fee or the old two nights (265 -> 35, 240 -> 60, 293 -> 7)'
+  note: the totals/remainders built on the old guide fee or the old two nights (265 -> 35, 240 -> 60, 293 -> 7); 'not £60' is a correction, not a stale total
   pruned: '4.0 fix: all-pass on the 2026-10-31 board, half weight'
+  negation_guard: true
 judge_elements:
 - id: C1-rope-advice-misremembered
   fact: C1
@@ -264,18 +276,24 @@ judge_elements:
   fact: J3
   ftype: callback
   weight: 0.5
-  turns: [6]
-  q: 'In the last earlier chat (16 November) Dana promised to send Wyn a photo from the top of whatever the big thing turned out to be, and Wyn said she would hold her to it. Dana does not mention it now. In this goodnight reply, does Wyn bring that promised photo back on her own? Quote the line. NO if the photo is not mentioned.'
+  turns:
+  - 6
+  q: In the last earlier chat (16 November) Dana promised to send Wyn a photo from the top of whatever the big thing turned out to be, and Wyn said she would hold her to it. Dana does not mention it now. In this goodnight reply, does Wyn bring that promised photo back on her own? Quote the line. NO if the photo is not mentioned.
   evidence:
   - src: log
-    text: 'I promise I''ll send you a photo from the top.'
-  gold_quote: 'that photo from the top you promised me'
+    text: I promise I'll send you a photo from the top.
+  gold_quote: that photo from the top you promised me
+  scored: false
+  pruned: 'key-review 2026-11-07: turn 6 is answered with exactly "Rope up." as the card prescribes (35/60 stored rows, every top model), which leaves no room for the callback; kept as diagnostic'
 - id: J1-gertie-promise
   fact: J1
   ftype: callback
-  turns: [6]
-  q: 'In April Wyn promised that if Dana got up a real multi-pitch before Christmas she would post her Gertie, her old brass screwgate karabiner. Dana does not mention it now. Does Wyn bring the Gertie promise back on her own? Quote the line. NO if Gertie (or the promised karabiner) is not mentioned.'
+  turns:
+  - 6
+  q: In April Wyn promised that if Dana got up a real multi-pitch before Christmas she would post her Gertie, her old brass screwgate karabiner. Dana does not mention it now. Does Wyn bring the Gertie promise back on her own? Quote the line. NO if Gertie (or the promised karabiner) is not mentioned.
   evidence:
   - src: log
-    text: 'get yourself up a real multi-pitch before Christmas and I''ll post you Gertie.'
-  gold_quote: 'Gertie''s in the post'
+    text: get yourself up a real multi-pitch before Christmas and I'll post you Gertie.
+  gold_quote: Gertie's in the post
+  scored: false
+  pruned: 'key-review 2026-11-07: turn 6 is answered with exactly "Rope up." as the card prescribes (35/60 stored rows, every top model), which leaves no room for the callback; kept as diagnostic'

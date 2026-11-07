@@ -1754,11 +1754,11 @@
      4
     ],
     "scope": "all",
-    "negation_guard": true,
     "pattern": "£\\s?(?:35|60|7|265|240|293)\\b|\\b(?:35|60|265|240|293)\\s?(?:quid|pounds)\\b",
     "weight": 0.25,
     "note": "the totals/remainders built on the old guide fee or the old two nights (265 -> 35, 240 -> 60, 293 -> 7); 'not £60' is a correction, not a stale total",
-    "pruned": "4.0 fix: all-pass on the 2026-10-31 board, half weight"
+    "pruned": "4.0 fix: all-pass on the 2026-10-31 board, half weight",
+    "negation_guard": true
    }
   ],
   "judge_elements": [

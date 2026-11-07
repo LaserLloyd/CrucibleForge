@@ -154,8 +154,8 @@ checks:
   turns:
   - 2
   scope: all
-  pattern: \A(?=[\s\S]*?["“][^"”\n]{2,}["”])(?![\s\S]*?["“][^"”\n]*["”][\s\S]*?["“])
-  note: exactly one quoted span in section 2
+  pattern: \A[^\"“”]*[\"“][^\"”\n]{2,}[\"”](?:[^\"“”\n]{1,40}[\"“][^\"”\n]{2,}[\"”])?[^\"“”]*\Z
+  note: 'exactly one line of dialogue in section 2: one quoted span, or one line split by a short speech tag ("…," she says, "…") | key-review 2026-11-07'
   weight: 0.5
 - id: R4-old-name-gone
   fact: R4
@@ -191,10 +191,8 @@ checks:
   - 2
   - 3
   scope: all
-  pattern: \b(?:grand(?:dad|pa|papa|father|daughter|ma|mother|kid|child|girl)|granddad|grandad|opa|oma|gran|nan|nana)\b|\b(?:son|daughter|boy|girl)['’]s
-    (?:girl|child|kid|daughter|lass)\b
-  note: 'the granddaughter relation shown in section 2 AND section 3: a kinship word (grandad, gran, granddaughter...)
-    or a periphrasis (his son''s girl) on the page'
+  pattern: \b(?:grand(?:dad|pa|papa|father|daughter|ma|mother|kid|child|girl)|granddad|grandad|gramps|grampa|grampy|granny|opa|oma|gran|nan|nana)\b|\b(?:son|daughter|boy|girl)['’]s (?:girl|child|kid|daughter|lass)\b|\b(?:girl|child|kid|daughter|lass) of (?:his|her|Hale['’]s|the old man['’]s) (?:son|daughter|boy|girl)\b
+  note: 'the granddaughter relation shown in section 2 AND section 3: a kinship word (grandad, gran, granddaughter...) or a periphrasis (his son''s girl) on the page | key-review 2026-11-07: + gramps/grampa/granny and ''the child of his son'''
 - id: P4-present-tense-from-note
   fact: P4
   ftype: correction
@@ -246,8 +244,9 @@ checks:
   turns:
   - 3
   scope: all
-  pattern: \b(?:sad\w*|grie(?:f|v\w*)|sorrow\w*|tears?|cr(?:y|ies|ied|ying)|wept|weep\w*)\b
+  pattern: \b(?:sad(?:ly|ness|der|dest|den\w*)?|grie(?:f|v\w*)|sorrow\w*|tears?(?! (?:it|them|the|a|an|at|up|off|open|apart|down|through|into|in two|away)\b)|cr(?:y|ies|ied|ying)|wept|weep\w*)\b
   weight: 0.5
+  note: 'key-review 2026-11-07: ''tears it in two'' (rips) and ''saddle'' no longer count'
 - id: Y5-no-play-word
   fact: Y5
   ftype: format
@@ -323,9 +322,11 @@ checks:
   - 2
   - 3
   scope: all
-  pattern: '\b(?:time (?:stood|stopped) still|let out a (?:long |slow |shaky )?breath|breath (?:I|he|she|we) (?:had not|hadn''t|didn''t|did not) (?:known|realise\w*|realize\w*)|dust motes?|hung (?:thick|heavy) in the air|hanging in the air|(?:heavy|deafening|pregnant) silence|silence (?:fell|hung|stretched|settled)|a (?:mix|mixture) of|memories (?:flooded|came flooding|washed|danced)|the weight of (?:years|the past|memory|memories|loss|it all)|ghost of a|like a ghost|something (?:shifted|stirred|broke|passed) (?:in|between|across)|(?:a )?shiver (?:ran|went|crept) (?:down|up|through)|eyes (?:glistened|brimmed|welled|misted)|a lifetime of|whispered secrets|stories untold|tapestry|symphony of|for what (?:felt|seemed) like (?:hours|forever|an eternity|ages)|the air (?:was|is) (?:thick|heavy)|breath hitch\w*|heart (?:pounds|pounded|raced|races|hammers|hammered|skipped|skips|sank|sinks)|dust (?:dance[sd]?|dancing)|shadows? (?:danced|dance|dances|stretch\w*) (?:across|along|over))\b'
-  note: 'no stock phrase from a short list of worn-out fiction clichés'
+  pattern: \b(?:time (?:stood|stopped) still|let out a (?:long |slow |shaky )?breath|breath (?:I|he|she|we) (?:had not|hadn't|didn't|did not) (?:known|realise\w*|realize\w*)|dust motes?|hung (?:thick|heavy) in the air|hanging in the air|(?:heavy|deafening|pregnant) silence|silence (?:fell|hung|stretched|settled)|a (?:mix|mixture) of|memories (?:flooded|came flooding|washed|danced)|the weight of (?:years|the past|memory|memories|loss|it all)|ghost of a|like a ghost|something (?:shifted|stirred|broke|passed) (?:in|between|across)|(?:a )?shiver (?:ran|went|crept) (?:down|up|through)|eyes (?:glistened|brimmed|welled|misted)|a lifetime of|whispered secrets|stories untold|tapestry|symphony of|for what (?:felt|seemed) like (?:hours|forever|an eternity|ages)|the air (?:was|is) (?:thick|heavy)|breath hitch\w*|heart (?:pounds|pounded|raced|races|hammers|hammered|skipped|skips|sank|sinks)|dust (?:dance[sd]?|dancing)|shadows? (?:danced|dance|dances|stretch\w*) (?:across|along|over))\b
+  note: no stock phrase from a short list of worn-out fiction clichés
   weight: 1
+  scored: false
+  pruned: 'key-review 2026-11-07: not in the author''s brief, kept as diagnostic'
 - id: E6-no-feeling-words
   fact: E6
   ftype: format
@@ -345,9 +346,9 @@ checks:
   turns:
   - 3
   scope: all
-  min_distinct: 3
-  pattern: '\b(?:boat|deck|hull|gangway|gangplank|mooring|moored|moors?|rope|ropes|cabin|hatch|galley|bow|stern|tiller|berth|dock|quay|towpath|porthole|stove|bilge|gunwale|planks?|rock|rocks|rocked|rocking|sways?|swayed|swaying|bobs?|bobbed|bobbing|lap|laps|lapped|lapping|wake|ripples?)\b'
-  note: 'the houseboat is felt on the page: at least three different boat words or boat motions'
+  min_distinct: 2
+  pattern: \b(?:boat|deck|hull|gangway|gangplank|mooring|moored|moors?|rope|ropes|cabin|hatch|galley|bow|stern|tiller|berth|dock|quay|towpath|porthole|stove|bilge|gunwale|planks?|rock|rocks|rocked|rocking|sways?|swayed|swaying|bobs?|bobbed|bobbing|lap|laps|lapped|lapping|wake|ripples?)\b
+  note: 'the houseboat is felt on the page: at least three different boat words or boat motions | key-review 2026-11-07: min 2 distinct (the author only asked to call it the boat; ''boat'' + one more physical sign shows the change)'
   weight: 1.5
 - id: OP1-openers-vary
   fact: OP
@@ -402,12 +403,13 @@ judge_elements:
   ftype: applied
   turns:
   - 3
-  q: 'Quote the FINAL sentence of the last section (turn 3). YES only if that sentence literally contains a word naming the planted object, the piano (piano, key, string, lid, bench, hammer), or Mr. Hale''s hands (hand, thumb, finger, palm), as a concrete thing that can be seen or heard in the room. NO if it names none of these (a moon, weather, the water, the boat or a view alone is NO), or if it closes on a moral, a realisation, a summary of what it meant.'
+  q: Quote the FINAL sentence of the last section (turn 3). The author asked for a final sentence that is "a concrete image, not a lesson". YES if that sentence shows a concrete, physical thing in the scene that can be seen or heard (an object, the piano, someone's hands, the boat, the water, the ice, a sound). NO if it closes on a moral, a realisation, a stated feeling or a summary of what it all meant, or if the section has no final sentence.
   evidence:
   - src: turn
     text: The final paragraph is a single sentence of exactly 20 words, and it is a concrete image, not a lesson.
   gold_quote: its pencil marks toward the old man
   weight: 2.5
+  fact: I5
 - id: TH2-detail-threaded-s2
   ftype: applied
   turns:

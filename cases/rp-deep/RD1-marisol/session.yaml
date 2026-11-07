@@ -125,7 +125,7 @@ checks:
   turns:
   - 2
   scope: ic
-  pattern: 1604|sixteen[- ]oh[- ]four
+  pattern: 1604|sixteen[- ](?:oh|zero|o)[- ]four
   weight: 0.5
   pruned: '4.0 fix: all-pass on the 2026-10-31 board, half weight'
 - id: H3-de-nada-schatz
