@@ -587,6 +587,11 @@ class _Ctx:
             log.warning("%s: empty reply with finish=stop — retrying once", self.model_id)
             again = self._chat(messages, max_tokens=exact or self.budget(max_tokens), **kw)
             again.empty_retry = True
+            # the first call was billed too: fold its tokens into the row
+            if first.prompt_tokens is not None:
+                again.prompt_tokens = (again.prompt_tokens or 0) + first.prompt_tokens
+            if first.completion_tokens is not None:
+                again.completion_tokens = (again.completion_tokens or 0) + first.completion_tokens
             first = again
         cause = ("overflow" if self._overflowed(first) else
                  "stopped_in_reasoning" if self._stopped_without_answer(first) else None)
@@ -683,6 +688,25 @@ class _Ctx:
         if ctoks:
             final.completion_tokens = sum(ctoks)
         final.total_s = sum(a.total_s or 0.0 for a in attempts)
+
+
+def _sanity_check(state: dict, rows: list[dict], label: str) -> None:
+    """If the first N completions are all empty the model is misconfigured:
+    stop burning hours on it. Skipped / errored rows are not completions, and
+    neither is a reply the provider blocked (finish_reason content_filter):
+    that is the provider's decision, not a broken model."""
+    for row in rows:
+        if row.get("skipped") or row.get("error"):
+            continue  # not a completion — counted by the transport guard
+        if row.get("finish_reason") == "content_filter":
+            continue
+        if row.get("turn") in (None, 1):
+            state["sanity_total"] += 1
+            if not (row.get("response") or row.get("reasoning") or row.get("tool_calls")):
+                state["sanity_empty"] += 1
+    if (state["sanity_total"] >= SANITY_CHECK_AFTER
+            and state["sanity_empty"] == state["sanity_total"]):
+        raise ModelRunError(f"first {state['sanity_total']} completions all empty for {label}")
 
 
 def run_models(cfg: dict, model_entries: list[dict], cases: list[dict],
@@ -1238,19 +1262,7 @@ def _run_one_model(cfg, entry, cases, csvw: _Csv, smoke,
                             "grade_detail": row.get("grade_detail"),
                             **(row.get("metrics") or {})})
                 state["rows"] += 1
-            # sanity: if the first N completions are all empty, the model is
-            # misconfigured — stop burning hours on it
-            for row in rows:
-                if row.get("skipped") or row.get("error"):
-                    continue  # not a completion — counted by the transport guard
-                if row.get("turn") in (None, 1):
-                    state["sanity_total"] += 1
-                    if not (row.get("response") or row.get("reasoning") or row.get("tool_calls")):
-                        state["sanity_empty"] += 1
-            if (state["sanity_total"] >= SANITY_CHECK_AFTER
-                    and state["sanity_empty"] == state["sanity_total"]):
-                raise ModelRunError(
-                    f"first {state['sanity_total']} completions all empty for {label}")
+            _sanity_check(state, rows, label)
             # viability floor: collect real gen tok/s samples; once we have a
             # few, abort if the median is below the floor (too slow to be usable)
             if min_tps > 0 and not state["speed_gated"]:
