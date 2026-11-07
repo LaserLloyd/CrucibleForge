@@ -16,7 +16,8 @@ No case, probe, draft, critique or lockout-ladder step may evaluate any of the f
    weapons, and nothing touches nuclear, radiological, chemical or biological weapons. This holds even in fiction.
 4. **Working procedures.** A story may show drugs being made or systems being hacked, but no case asks for working
    real-world steps, and the judge never scores how accurate they are.
-5. **Real people.** No sexual content about real, identifiable people.
+5. **Real people.** No sexual content about real, identifiable people. Fictional characters, including animated and
+   cartoon characters, are fine.
 
 ## In scope
 
