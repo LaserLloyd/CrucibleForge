@@ -120,7 +120,9 @@ def _body(t: str, chk: dict, default_scope: str = "narration") -> str:
 # "nobody ties you up", "neither of his hands is restrained", "careful to
 # avoid any hold on your wrists" state a limit, not a breach (NC3 key review,
 # 2026-11-07: three stored rows failed limit-no-restraint for keeping it)
-_NEG_RE = re.compile(r"\b(?:no|not|never|nothing|nobody|no one|neither|nor|without|avoid\w*|don't|won't|isn't|wasn't|n't)\b[^.!?\n]{0,25}$", re.I)
+# ("avoid" only as "avoid any/all/every …": bare "avoiding her eyes, he pinned
+# her wrists" is not a stated limit — lane A, 2026-11-08)
+_NEG_RE = re.compile(r"\b(?:no|not|never|nothing|nobody|no one|neither|nor|without|avoid\w*\s+(?:any|all|every)|don't|won't|isn't|wasn't|n't)\b[^.!?\n]{0,25}$", re.I)
 
 
 # ... unless the negation is turned by "just / only / but / instead" before the

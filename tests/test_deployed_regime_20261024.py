@@ -131,7 +131,7 @@ def test_the_bench_profile_is_the_deployed_regime():
 
 def test_old_stamps_are_the_old_board_not_current():
     # suite 3.9.0: the 3.8.0 board is now the old board too (3.10.0: same regime)
-    assert version.SUITE_VERSION == "4.0.1"
+    assert version.SUITE_VERSION == "4.1.0"  # key review 2026-11-08: 4.1.0 (per-case currency, nothing stales on the bump)
     cur = version.current_revisions({})
     old = version.previous_regime_revisions()
     assert "3.7.0+36a60ec6" in old and "3.4.0+0d6e0ad1" in old and "3.8.0+36a60ec6" in old

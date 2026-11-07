@@ -165,8 +165,8 @@ def test_the_edit_is_grading_only():
     assert table[CID]["case"] == "b642b7a5"           # the question is untouched
     # the NC3 edit left the suite hash at e3d1c6fb; the 2026-11-07 key review then
     # changed CL3/CL4/CB-C5/CB-C6/TZ20 content on purpose, which moved it
-    assert version.cases_hash() == "68987fe6"
-    assert version.revision() == "4.0.1+68987fe6"
+    assert version.cases_hash() == "04da7abe"  # 4.1.0 key review 2026-11-08: safety probes removed, 16 content fixes
+    assert version.revision() == "4.1.0+04da7abe"
 
 
 def test_a_row_answered_before_the_edit_rejudges_but_does_not_regenerate():

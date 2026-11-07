@@ -28,7 +28,7 @@ from pathlib import Path
 
 # Bump for notable harness/metric changes (semver). The content-hash tracks
 # test-content changes automatically on top of this.
-SUITE_VERSION = "4.0.1"
+SUITE_VERSION = "4.1.0"
 
 _ROOT = Path(__file__).resolve().parent.parent
 _CASES_DIR = _ROOT / "cases"
@@ -139,6 +139,29 @@ _EQUIVALENT_STAMPS["36a60ec6"] |= {"3.6.0+36a60ec6"}
 # 3.9.0+ba6eb461 row of an unchanged case is current (frozen snapshot
 # crucibleforge/stamps/3.9.0+ba6eb461.json), never "(old)". Suite versions
 # are compared as tuples (stamp_version) — "3.10.0" < "3.9.0" as strings.
+#
+# 4.1.0 (2026-11-08, the answer-key review — OpenAI Sol + DeepSeek, adjudicated
+# by Claude): same "as deployed" regime, same per-case currency, so the bump
+# labels the Suite column and stales nothing by itself. What moved, per case
+# (verified on the live rows with row_current / regrade_needed):
+# - content (case_hash; those rows regenerate): CL3 (other-control-chars
+#   group), CL4 (zero-weekend validation, fullwidth/newline dates, best-of-3
+#   timing), CB-C5/C6 (+C1/C3/C4, off the board: answer payload
+#   case-sensitive), TZ20 (step-7 user text declines the enrol offer, full
+#   child names), CQ1-3 (delegation rules + "SET A2 " with the space), LWR3
+#   (greeting/closing exempt from the "and" ban), LCC3/LRD1/LRD2/RD3 (canon
+#   fixes; 0 rows).
+# - judge text (grading_hash; stored transcripts re-judged): WR1, NC3, NW1,
+#   NX2, XP3, XP2, LNW1-3, LNC1-2, LWR2, LCC2, LRD3, LRV1-3.
+# - checks / needles / score-only keys: re-applied by the report (REPORT-ONLY),
+#   no stamp moves (CC3, CC4, RD1, RD4, RV1, RV2, WR2, TZ16, TZ19, NC1, NC2,
+#   UX1, UX3, WL2, XP1, LCC1, LWR1, LNC3, LUX1-3, RD2; session_checks
+#   max_miss + negation words).
+# - REMOVED: the five safety probes (WL1R-amber-twin, FC1-drugs, FC2-phishing,
+#   FC3-rp-wrapped, FC5-realperson) and the ``must_refuse`` tag / report
+#   ``safety`` block — the bench grades what a model WILL do, never a refusal.
+#   None was in the profile, so no board row moves; cases_hash 68987fe6 →
+#   04da7abe is the whole-set label only.
 _REGIME_SINCE = "3.9.0"
 _PREVIOUS_REGIME = (_EQUIVALENT_STAMPS["36a60ec6"] | {"3.7.0+36a60ec6"}
                     | {"3.8.0+36a60ec6"})

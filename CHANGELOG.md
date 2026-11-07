@@ -6,6 +6,59 @@ was ever published as Gauntlet, so there is no migration to do — the entries
 below are kept because the engineering they record is real, not to narrate a
 rename.
 
+## 4.1.0 — the answer-key review (2026-11-08)
+
+Suite 4.1: every bench-profile answer key and every public ladder pack was reviewed by two
+independent readers (OpenAI gpt-6.1-sol and DeepSeek v4-flash, 63 cases each, a second DeepSeek
+read with thinking off for the 13 cases it had run out of output on), every claim adjudicated with
+the stored rows as evidence (`Documents/Research/makobench-cost-20261107/KEY-REVIEW.md`,
+`V41-ACTIONS.md`). The rule applied throughout: a key rewards what the card or brief asks for — no
+hidden requirements, nothing stricter than the brief, nothing easier than the brief warrants, and
+refusal is never credit. Hard stays hard.
+
+- **Safety probes dropped.** `WL1R-amber-twin`, `FC1-drugs`, `FC2-phishing`, `FC3-rp-wrapped` and
+  `FC5-realperson` leave `cases/nsfw.json`; `willing: must_refuse` is no longer a tag value
+  (`config.CASE_TAGS`), `cases verify` refuses the `safety` rubric, and the report has no `safety`
+  block, no must-refuse scoring path and no "Must-refuse twins that complied" section. The bench
+  grades what a model will do, never a refusal (Jake). None of the five was in the profile, so no
+  board row moves. `WL2R-lighthouse-twin` stays: it is a willingness item.
+- **Content fixes (these cases regenerate; their old rows stop counting):** CL3 gains the hidden
+  group `other-control-chars` (`str.split` look-alikes passed); CL4 validates when the weekend count
+  is zero, rejects fullwidth digits and a trailing newline as dates, and times efficiency best-of-3;
+  CB-C5/CB-C6 (and the off-board C1/C3/C4) compare the predicted output case-sensitively (`"\ud83d"`
+  is not `"\uD83D"`; only the `Q`/`q` label is lenient); TZ20's step-7 user turn declines the enrol
+  offer in words (17 of 55 strong rows read "Alright." as a yes) and `child_name` takes the full names
+  the user gave; CQ1/CQ2 ban grader delegation (`sys.modules`/builtins/`re` tricks scored 1.0 — source
+  rules, runtime tripwires, mutants) and CQ3's tests send `SET A2 ` with the space its spec requires
+  (a spec-literal parser scored 0.167); LWR3's turn-1 rule says the fixed greeting and closing are
+  exempt from the "and" ban; LCC3/LRD1/LRD2/RD3 canon fixes (a meeting date, a history that puppeted
+  the user's character, a 3-week ledger, a 33-year apprenticeship) — no stored rows.
+- **Judge questions reworded (grading hash moves; stored transcripts are re-judged, nothing
+  regenerates):** WR1 I5 (a concrete last image, not a prescribed object), NC3 t3 (acknowledge the
+  rule, not recite both limits), NW1 (crossed-out line, sauna's third mention, and `mouth-on-page`
+  split so heat measures heat and "each acts on the other" is a constraints element), NX2 (a real
+  amber reason, aftercare specific to the two of them), XP3 (a check-in said aloud, a specific thing
+  from the twenty years), XP2 (+`humour-handled`), LNW1-3 (+bench order, third orgasm, both limits,
+  condom, left hand, "ready" aloud — one requirement each), LNC1/LNC2 (elements split to one
+  requirement, t7 reworded), LWR2 J4, LCC2 I1, LCC3 O1/H1, LRD1 I2/M3/S1/I1a, LRD2 S1, LRD3 I2a/X3,
+  LRV1-3 (an element that lets anyone supply the fact keeps the voice of whoever speaks it).
+- **Checks, needles and score-only keys (report-time; no stamp moves):** word caps that the user never
+  set (CC3 W2 50→70, CC4 W2 75→100); sentence counts that counted `Mr.`/`a.m.`/`7.45`/`…` as sentence
+  ends; bare-word bans with literal uses (`bit`, `knife`, `drown`, `throb`, `core`, `sigh`→`sight`,
+  `cock(ed)`, `fade(d)`, `trans(fixed)`, `convict(ion)`); mandatory vocabulary the brief never
+  demanded (WR1 three boat terms, NC2 two explicit hits per turn, NC1 "sailor" in every turn — the
+  card says nearly every, LUX1 three swears, LUX2 six "Tidekin"); elements the card makes impossible
+  or never asked for are unscored (CC4 J1/J3 — the card forces "Rope up.", RV2 E1, WR1 SP1/BT3,
+  WR2 SP1/BY3, LWR1 HE/G4) while WR2 TG3 is scored again at applied-craft weight (turn 1 announces
+  that the last section turns on the tag detail); TZ16/TZ19/TZ20 needles accept every correct
+  refusal phrasing and forbid every agreement phrasing (negation-safe); NX2 gains first-person checks
+  and `limit-roz-stays-during`; WL2's method/remorse/explicit checks count only what the brief bans.
+  `session_checks.require_regex` gains `max_miss` (opt-in) and the negation guard knows nobody / no
+  one / neither / nor / avoid any (3 NC3 rows that restated the limit now pass).
+- **Currency:** unchanged since 3.10 — per row, per case. An unchanged case's 4.0 rows stay current
+  under 4.1.0; the content cases above are stale; the reworded cases re-judge. No new stamps
+  snapshot. Suite hash `68987fe6` → `04da7abe` (revision `4.1.0+04da7abe`); `cases verify` 388/0.
+
 ## Unreleased (2026-11-07)
 
 - **`max_repeat` check (session_checks).** Cross-turn repetition in long sessions: from `from_turn`
