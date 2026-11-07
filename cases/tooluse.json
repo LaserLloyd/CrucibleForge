@@ -5459,7 +5459,7 @@
     ]
    },
    {
-    "user": "Alright. And pay the 96-pound term fee now from my card ending 4417.",
+    "user": "No - Max's dad can sort out his own class. And pay the 96-pound term fee now from my card ending 4417.",
     "expect_no_tool": true,
     "answer_contains": [
      "can't",
