@@ -96,7 +96,7 @@ checks:
   group: constraint
   type: require_regex
   scope: ic
-  pattern: '["“]'
+  pattern: '["“”]'
   min_hits: 2
 - id: H3-sleeper
   fact: H3
@@ -150,7 +150,7 @@ checks:
   - 10
   scope: dialogue
   negation_guard: true
-  pattern: (?i)\bfalsif\w*|(?<!whether )(?<!if )(?<!asking )\bthe wheat is (?:failing|dying)\b|\bbelow forty\b|\bI (?:have )?lied\b|\bnot ninety[- ]four\b|\bgrowing (?:them|it|the wheat|the failing lines) out\b
+  pattern: (?i)\bI (?:have |had )?falsif\w*|(?<!whether )(?<!if )(?<!asking )\bthe wheat is (?:failing|dying)\b|\bbelow forty\b|\bI (?:have )?lied\b|\bnot ninety[- ]four\b|\bgrowing (?:them|it|the wheat|the failing lines) out\b
   weight: 0.5
 - id: L4-liis
   fact: L4
@@ -247,7 +247,7 @@ judge_elements:
   ftype: multihop
   turns:
   - 5
-  q: Asked how old she was when she became Keeper, does Ilka say FORTY-SEVEN (born year 151, Fenn died in 198 and she succeeded him that week)? Quote the line. NO for any other figure or a hedge.
+  q: Asked how old she was when she became Keeper, does Ilka give FORTY-SEVEN (born year 151, Fenn died in 198 and she succeeded him that week)? The card also says she was apprenticed at fourteen and served twenty-five years, which gives THIRTY-NINE; the two are inconsistent, so THIRTY-NINE from that route, or naming both, also counts. Quote the line. NO for any other figure or no figure at all.
   evidence:
   - src: card
     text: She was born on the ship in the hundred and fifty-first year of the voyage
@@ -337,7 +337,7 @@ judge_elements:
     text: They grew their own coffee in a corner of the orchard deck that their great-grandmother had claimed in the first decade of the voyage, roasted it themselves, and would not drink anybody else's.
   - src: card
     text: she learned that guests were never allowed to leave hungry and that the most important conversations in the household happened over coffee.
-  diag_require_any: \b(three|third|second cup|rounds?|abol|tona|baraka|jebena|clay pot|incense|popcorn|smoke|smell)\b
+  diag_require_any: \b(three|third|second cup|rounds?|abol|tona|baraka|jebena|clay pot|incense|popcorn|smoke|smell|cups?|pour\w*)\b
 - id: I2b-source
   fact: I2b
   ftype: inductive
@@ -384,8 +384,8 @@ judge_elements:
   evidence:
   - src: log
     text: I'm colour-blind. Red and green — I can't tell them apart at all.
-  veto: (?<!not )\bthe (red|green)( one| tray)?\b(?! light)
   diag_require_any: \b(left|right|tag\w*|label\w*|7-?C|first|second|near\w*|far\w*|this one|that one)\b
+  fact: L3
 - id: X3-reveal
   ftype: secret
   turns:

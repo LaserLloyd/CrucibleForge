@@ -104,7 +104,7 @@ checks:
   group: constraint
   type: require_regex
   scope: ic
-  pattern: '["“]'
+  pattern: '["“”]'
   min_hits: 2
 - id: H1-german-count
   fact: H1

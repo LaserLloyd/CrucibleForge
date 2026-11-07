@@ -92,7 +92,7 @@ checks:
   group: constraint
   type: require_regex
   scope: ic
-  pattern: '["“]'
+  pattern: '["“”]'
   min_hits: 2
 - id: H3-fio-mio
   fact: H3
