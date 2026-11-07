@@ -952,7 +952,8 @@
      5,
      6
     ],
-    "max": 50
+    "max": 70,
+    "note": "two sentences asked; 70-word cap only stops run-on padding (key review 2026-11-07: 50 rejected ordinary two-sentence replies)"
    },
    {
     "id": "S1-two-sentences-on-request",
@@ -966,7 +967,8 @@
      6
     ],
     "scope": "all",
-    "pattern": "\\A[^.!?]*[.!?]+[^.!?]*\\w[^.!?]*[.!?]+[^.!?]*\\w[^.!?]*[.!?]"
+    "pattern": "\\A(?:[^.!?]|(?<=\\d)\\.(?=\\d))*(?:[!?]|\\.(?!\\d)|(?<!\\d)\\.)+(?:[^.!?]|(?<=\\d)\\.(?=\\d))*\\w(?:[^.!?]|(?<=\\d)\\.(?=\\d))*(?:[!?]|\\.(?!\\d)|(?<!\\d)\\.)+(?:[^.!?]|(?<=\\d)\\.(?=\\d))*\\w(?:[^.!?]|(?<=\\d)\\.(?=\\d))*(?:[!?]|\\.(?!\\d)|(?<!\\d)\\.)+",
+    "note": "a third terminated sentence; a dot between digits (8.30) is not a sentence end"
    },
    {
     "id": "Q1-one-question",
@@ -1067,7 +1069,7 @@
      4
     ],
     "scope": "all",
-    "pattern": "(?:£\\s?|\\b)290\\b|\\btwo hundred and ninety\\b",
+    "pattern": "(?:£\\s?|\\b)290\\b|\\btwo hundred (?:and )?ninety\\b",
     "note": "target £1,200 (7 Oct log), he has £910 -> £290 to go"
    },
    {
@@ -1097,9 +1099,10 @@
     ],
     "scope": "all",
     "negation_guard": true,
-    "pattern": "\\b(?:good idea|great idea|great plan|good plan|go for it|sounds good|why not|you(?:'|’)ve got this|you can do it|do it)\\b",
+    "pattern": "\\b(?:good idea|great idea|great plan|good plan|go for it|sounds good|why not|you(?:'|’)ve got this|you can do it|do it)\\b(?=[^.!?\\n]{0,80}\\b(?:half|marathon|switch\\w*|21|twenty[- ]one|eleven)\\b)|\\b(?:half|marathon|switch\\w*)\\b[^.!?\\n]{0,80}\\b(?:good idea|great idea|great plan|good plan|go for it|sounds good|why not|you(?:'|’)ve got this|you can do it|do it)\\b",
     "weight": 0.5,
-    "pruned": "4.0 fix: all-pass on the 2026-10-31 board, half weight"
+    "pruned": "4.0 fix: all-pass on the 2026-10-31 board, half weight",
+    "note": "an endorsement of the half-marathon switch in the same sentence; turn 5 also asks about the school talk, whose encouragement is fine (key review 2026-11-07)"
    }
   ],
   "judge_elements": [
@@ -1596,7 +1599,8 @@
      5,
      6
     ],
-    "max": 75
+    "max": 100,
+    "note": "three sentences max asked; the cap only stops run-on padding (key review 2026-11-07: 75 rejected ordinary three-sentence replies)"
    },
    {
     "id": "S1-three-sentences-on-request",
@@ -1611,8 +1615,8 @@
      6
     ],
     "scope": "all",
-    "pattern": "\\A[^.!?]*[.!?]+[^.!?]*\\w[^.!?]*[.!?]+[^.!?]*\\w[^.!?]*[.!?]+[^.!?]*\\w[^.!?]*[.!?]",
-    "note": "a fourth terminated sentence after Dana asked for three at most (turn 3)"
+    "pattern": "\\A(?:[^.!?]|(?<=\\d)\\.(?=\\d))*(?:[!?]|\\.(?!\\d)|(?<!\\d)\\.)+(?:[^.!?]|(?<=\\d)\\.(?=\\d))*\\w(?:[^.!?]|(?<=\\d)\\.(?=\\d))*(?:[!?]|\\.(?!\\d)|(?<!\\d)\\.)+(?:[^.!?]|(?<=\\d)\\.(?=\\d))*\\w(?:[^.!?]|(?<=\\d)\\.(?=\\d))*(?:[!?]|\\.(?!\\d)|(?<!\\d)\\.)+(?:[^.!?]|(?<=\\d)\\.(?=\\d))*\\w(?:[^.!?]|(?<=\\d)\\.(?=\\d))*(?:[!?]|\\.(?!\\d)|(?<!\\d)\\.)+",
+    "note": "a fourth terminated sentence after Dana asked for three at most (turn 3); a dot between digits (7.45, £64.00) is not a sentence end"
    },
    {
     "id": "Q1-one-question",
@@ -1735,7 +1739,7 @@
      4
     ],
     "scope": "all",
-    "pattern": "£\\s?32\\b|\\b32\\s?(?:quid|pounds|GBP)\\b|\\bthirty[- ]two (?:quid|pounds)\\b",
+    "pattern": "£\\s?32\\b|\\b32\\s?(?:quid|pounds|GBP)\\b|\\bthirty[- ]two\\b",
     "note": "train 64 + hostel 3 x 28 = 84 + guide 95 + gear 25 = 268; 300 - 268 = 32",
     "weight": 0.5,
     "pruned": "4.0 fix: all-pass on the 2026-10-31 board, half weight"
@@ -1750,9 +1754,10 @@
      4
     ],
     "scope": "all",
+    "negation_guard": true,
     "pattern": "£\\s?(?:35|60|7|265|240|293)\\b|\\b(?:35|60|265|240|293)\\s?(?:quid|pounds)\\b",
     "weight": 0.25,
-    "note": "the totals/remainders built on the old guide fee or the old two nights (265 -> 35, 240 -> 60, 293 -> 7)",
+    "note": "the totals/remainders built on the old guide fee or the old two nights (265 -> 35, 240 -> 60, 293 -> 7); 'not £60' is a correction, not a stale total",
     "pruned": "4.0 fix: all-pass on the 2026-10-31 board, half weight"
    }
   ],
@@ -1909,7 +1914,9 @@
       "text": "I promise I'll send you a photo from the top."
      }
     ],
-    "gold_quote": "that photo from the top you promised me"
+    "gold_quote": "that photo from the top you promised me",
+    "scored": false,
+    "pruned": "key-review 2026-11-07: turn 6 is answered with exactly \"Rope up.\" as the card prescribes (35/60 stored rows, every top model), which leaves no room for the callback; kept as diagnostic"
    },
    {
     "id": "J1-gertie-promise",
@@ -1925,7 +1932,9 @@
       "text": "get yourself up a real multi-pitch before Christmas and I'll post you Gertie."
      }
     ],
-    "gold_quote": "Gertie's in the post"
+    "gold_quote": "Gertie's in the post",
+    "scored": false,
+    "pruned": "key-review 2026-11-07: turn 6 is answered with exactly \"Rope up.\" as the card prescribes (35/60 stored rows, every top model), which leaves no room for the callback; kept as diagnostic"
    }
   ],
   "format_gate": "chat",
@@ -2047,7 +2056,7 @@
      2
     ],
     "scope": "ic",
-    "pattern": "1604|sixteen[- ]oh[- ]four",
+    "pattern": "1604|sixteen[- ](?:oh|zero|o)[- ]four",
     "weight": 0.5,
     "pruned": "4.0 fix: all-pass on the 2026-10-31 board, half weight"
    },
@@ -3959,9 +3968,9 @@
     "group": "continuity",
     "type": "require_regex",
     "scope": "ic",
-    "pattern": "(?i)\\b(?:barometer|the glass)\\b[^\\n]{0,240}?(?:\\b(?:9[5-9]\\d|10[0-4]\\d)\\b|\\bnine[- ](?:fifty|sixty|seventy|eighty|ninety)|\\b(?:a|one) thousand(?: and)?\\b)|(?:\\b(?:9[5-9]\\d|10[0-4]\\d)\\b|\\bnine[- ](?:fifty|sixty|seventy|eighty|ninety)[- ]?\\w*|\\b(?:a|one) thousand(?: and \\w+)?)[^\\n]{0,160}?\\b(?:barometer|the glass|hPa|hectopascals?|millibars?)\\b",
+    "pattern": "(?i)\\b(?:barometer|the (?:\\w+ )?glass)\\b(?:[^\\n]|\\n(?!\\s*\\n\\s*\\S[^\\n]*\\n\\s*\\n)){0,240}?(?:\\b(?:9[5-9]\\d|10[0-4]\\d)\\b|\\bnine[- ](?:fifty|sixty|seventy|eighty|ninety)|\\bnine hundred(?: and)? (?:fifty|sixty|seventy|eighty|ninety)|\\bten[- ](?:oh|o|zero|ten|twenty|thirty|forty)\\b|\\b(?:a|one) thousand(?: and)?\\b)|(?:\\b(?:9[5-9]\\d|10[0-4]\\d)\\b|\\bnine[- ](?:fifty|sixty|seventy|eighty|ninety)|\\bnine hundred(?: and)? (?:fifty|sixty|seventy|eighty|ninety)|\\bten[- ](?:oh|o|zero|ten|twenty|thirty|forty)\\b|\\b(?:a|one) thousand(?: and)?\\b)[- ]?\\w*(?:[^\\n]|\\n){0,160}?\\b(?:barometer|the (?:\\w+ )?glass|hPa|hectopascals?|millibars?)\\b",
     "weight": 0.5,
-    "note": "when worried (weather turning, someone hurt) she taps the barometer and reads the number out loud; any turn (2026-10-31: the t8-only, units-required version was 0/7 while models did read it)",
+    "note": "when worried (weather turning, someone hurt) she taps the barometer and reads the number out loud; any turn (2026-10-31: the t8-only, units-required version was 0/7 while models did read it) | key-review 2026-11-07: tolerate line breaks, 'the cracked glass', spelled 'nine hundred and …' / 'ten twenty' readings",
     "per_turn": false
    },
    {
@@ -3971,12 +3980,22 @@
     "group": "continuity",
     "type": "require_regex",
     "turns": [
-     3
+     3,
+     4,
+     5,
+     6,
+     7,
+     8,
+     9,
+     10,
+     11,
+     12
     ],
     "scope": "ic",
-    "pattern": "\\b(?:ien|twa|trije|fjouwer|fiif|seis|s[aâ]n|acht|njoggen|tsien)\\b",
+    "pattern": "\\b(?:ien|twa|trije|fjouwer|fiif|seis|(?<!-)s[aâ]n|acht|njoggen|tsien)\\b",
     "weight": 0.5,
-    "note": "asked whether the hut is busy, she counts the people/bunks - and she counts things that matter in Frisian"
+    "note": "asked whether the hut is busy, she counts the people/bunks - and she counts things that matter in Frisian | key-review 2026-11-07: any turn 3-12 (turn 3 does not force a count); '-san' honorific excluded",
+    "per_turn": false
    },
    {
     "id": "X0-no-early-leak",
@@ -5224,7 +5243,9 @@
       "text": "The station log says Ansel signed out on Tuesday morning, not Monday."
      }
     ],
-    "gold_quote": "Wednesday evening, the evening after your climber's night here"
+    "gold_quote": "Wednesday evening, the evening after your climber's night here",
+    "scored": false,
+    "pruned": "key-review 2026-11-07: the card makes Dom lie about where he has been, and the correct relative answer ('the evening after your climber') names no day; both reviewers flagged it; kept as diagnostic"
    },
    {
     "id": "R2-kit-tells-on-the-password",
@@ -5461,8 +5482,8 @@
      2
     ],
     "scope": "all",
-    "pattern": "\\A(?=[\\s\\S]*?[\"“][^\"”\\n]{2,}[\"”])(?![\\s\\S]*?[\"“][^\"”\\n]*[\"”][\\s\\S]*?[\"“])",
-    "note": "exactly one quoted span in section 2",
+    "pattern": "\\A[^\\\"“”]*[\\\"“][^\\\"”\\n]{2,}[\\\"”](?:[^\\\"“”\\n]{1,40}[\\\"“][^\\\"”\\n]{2,}[\\\"”])?[^\\\"“”]*\\Z",
+    "note": "exactly one line of dialogue in section 2: one quoted span, or one line split by a short speech tag (\"…,\" she says, \"…\") | key-review 2026-11-07",
     "weight": 0.5
    },
    {
@@ -5506,8 +5527,8 @@
      3
     ],
     "scope": "all",
-    "pattern": "\\b(?:grand(?:dad|pa|papa|father|daughter|ma|mother|kid|child|girl)|granddad|grandad|opa|oma|gran|nan|nana)\\b|\\b(?:son|daughter|boy|girl)['’]s (?:girl|child|kid|daughter|lass)\\b",
-    "note": "the granddaughter relation shown in section 2 AND section 3: a kinship word (grandad, gran, granddaughter...) or a periphrasis (his son's girl) on the page"
+    "pattern": "\\b(?:grand(?:dad|pa|papa|father|daughter|ma|mother|kid|child|girl)|granddad|grandad|gramps|grampa|grampy|granny|opa|oma|gran|nan|nana)\\b|\\b(?:son|daughter|boy|girl)['’]s (?:girl|child|kid|daughter|lass)\\b|\\b(?:girl|child|kid|daughter|lass) of (?:his|her|Hale['’]s|the old man['’]s) (?:son|daughter|boy|girl)\\b",
+    "note": "the granddaughter relation shown in section 2 AND section 3: a kinship word (grandad, gran, granddaughter...) or a periphrasis (his son's girl) on the page | key-review 2026-11-07: + gramps/grampa/granny and 'the child of his son'"
    },
    {
     "id": "P4-present-tense-from-note",
@@ -5574,8 +5595,9 @@
      3
     ],
     "scope": "all",
-    "pattern": "\\b(?:sad\\w*|grie(?:f|v\\w*)|sorrow\\w*|tears?|cr(?:y|ies|ied|ying)|wept|weep\\w*)\\b",
-    "weight": 0.5
+    "pattern": "\\b(?:sad(?:ly|ness|der|dest|den\\w*)?|grie(?:f|v\\w*)|sorrow\\w*|tears?(?! (?:it|them|the|a|an|at|up|off|open|apart|down|through|into|in two|away)\\b)|cr(?:y|ies|ied|ying)|wept|weep\\w*)\\b",
+    "weight": 0.5,
+    "note": "key-review 2026-11-07: 'tears it in two' (rips) and 'saddle' no longer count"
    },
    {
     "id": "Y5-no-play-word",
@@ -5674,7 +5696,9 @@
     "scope": "all",
     "pattern": "\\b(?:time (?:stood|stopped) still|let out a (?:long |slow |shaky )?breath|breath (?:I|he|she|we) (?:had not|hadn't|didn't|did not) (?:known|realise\\w*|realize\\w*)|dust motes?|hung (?:thick|heavy) in the air|hanging in the air|(?:heavy|deafening|pregnant) silence|silence (?:fell|hung|stretched|settled)|a (?:mix|mixture) of|memories (?:flooded|came flooding|washed|danced)|the weight of (?:years|the past|memory|memories|loss|it all)|ghost of a|like a ghost|something (?:shifted|stirred|broke|passed) (?:in|between|across)|(?:a )?shiver (?:ran|went|crept) (?:down|up|through)|eyes (?:glistened|brimmed|welled|misted)|a lifetime of|whispered secrets|stories untold|tapestry|symphony of|for what (?:felt|seemed) like (?:hours|forever|an eternity|ages)|the air (?:was|is) (?:thick|heavy)|breath hitch\\w*|heart (?:pounds|pounded|raced|races|hammers|hammered|skipped|skips|sank|sinks)|dust (?:dance[sd]?|dancing)|shadows? (?:danced|dance|dances|stretch\\w*) (?:across|along|over))\\b",
     "note": "no stock phrase from a short list of worn-out fiction clichés",
-    "weight": 1
+    "weight": 1,
+    "scored": false,
+    "pruned": "key-review 2026-11-07: not in the author's brief, kept as diagnostic"
    },
    {
     "id": "E6-no-feeling-words",
@@ -5700,9 +5724,9 @@
      3
     ],
     "scope": "all",
-    "min_distinct": 3,
+    "min_distinct": 2,
     "pattern": "\\b(?:boat|deck|hull|gangway|gangplank|mooring|moored|moors?|rope|ropes|cabin|hatch|galley|bow|stern|tiller|berth|dock|quay|towpath|porthole|stove|bilge|gunwale|planks?|rock|rocks|rocked|rocking|sways?|swayed|swaying|bobs?|bobbed|bobbing|lap|laps|lapped|lapping|wake|ripples?)\\b",
-    "note": "the houseboat is felt on the page: at least three different boat words or boat motions",
+    "note": "the houseboat is felt on the page: at least three different boat words or boat motions | key-review 2026-11-07: min 2 distinct (the author only asked to call it the boat; 'boat' + one more physical sign shows the change)",
     "weight": 1.5
    },
    {
@@ -5769,7 +5793,7 @@
     "turns": [
      3
     ],
-    "q": "Quote the FINAL sentence of the last section (turn 3). YES only if that sentence literally contains a word naming the planted object, the piano (piano, key, string, lid, bench, hammer), or Mr. Hale's hands (hand, thumb, finger, palm), as a concrete thing that can be seen or heard in the room. NO if it names none of these (a moon, weather, the water, the boat or a view alone is NO), or if it closes on a moral, a realisation, a summary of what it meant.",
+    "q": "Quote the FINAL sentence of the last section (turn 3). The author asked for a final sentence that is \"a concrete image, not a lesson\". YES if that sentence shows a concrete, physical thing in the scene that can be seen or heard (an object, the piano, someone's hands, the boat, the water, the ice, a sound). NO if it closes on a moral, a realisation, a stated feeling or a summary of what it all meant, or if the section has no final sentence.",
     "evidence": [
      {
       "src": "turn",
@@ -6137,8 +6161,8 @@
      3
     ],
     "scope": "all",
-    "pattern": "[\"“][^\"”\\n]*(?:\\?[^\"”\\n]*\\b(?:key|tag|thread)\\b|\\b(?:key|tag|thread)\\b[^\"”\\n]*\\?)[^\"”\\n]*[\"”]",
-    "note": "nobody asks about the key, the tag or the thread aloud",
+    "pattern": "(?<!Piet asks, )(?<!Pieta asks, )(?<!Piet says, )(?<!Pieta says, )[\\\"“][^\\\"”\\n]*(?:\\?[^\\\"”\\n]*\\b(?:key|tag|thread)\\b|\\b(?:key|tag|thread)\\b[^\\\"”\\n]*\\?)[^\\\"”\\n]*[\\\"”](?!,? ?(?:Piet|Pieta|he) (?:asks|says)\\b)",
+    "note": "Odile does not ask about the key, the tag or the thread aloud (a question tagged to Piet/Pieta is his/hers and allowed) | key-review 2026-11-07",
     "weight": 0.375,
     "pruned": "4.0 fix: all-pass on the 2026-10-31 board, half weight"
    },
@@ -6168,7 +6192,9 @@
     "scope": "all",
     "pattern": "\\bbay six\\b|\\bMarch\\b|\\bwent under\\b|\\bflood\\w*",
     "note": "Piet's line about bay six (March, went under) comes back in the wash-bay section",
-    "weight": 2
+    "weight": 2,
+    "scored": false,
+    "pruned": "key-review 2026-11-07: not in the author's brief, kept as diagnostic"
    },
    {
     "id": "SP1-no-stock-phrases",
@@ -6184,7 +6210,9 @@
     "scope": "all",
     "pattern": "\\b(?:time (?:stood|stopped) still|let out a (?:long |slow |shaky )?breath|breath (?:I|he|she|we) (?:had not|hadn't|didn't|did not) (?:known|realise\\w*|realize\\w*)|dust motes?|hung (?:thick|heavy) in the air|hanging in the air|(?:heavy|deafening|pregnant) silence|silence (?:fell|hung|stretched|settled)|a (?:mix|mixture) of|memories (?:flooded|came flooding|washed|danced)|the weight of (?:years|the past|memory|memories|loss|it all)|ghost of a|like a ghost|something (?:shifted|stirred|broke|passed) (?:in|between|across)|(?:a )?shiver (?:ran|went|crept) (?:down|up|through)|eyes (?:glistened|brimmed|welled|misted)|a lifetime of|whispered secrets|stories untold|tapestry|symphony of|for what (?:felt|seemed) like (?:hours|forever|an eternity|ages)|the air (?:was|is) (?:thick|heavy)|breath hitch\\w*|heart (?:pounds|pounded|raced|races|hammers|hammered|skipped|skips|sank|sinks)|dust (?:dance[sd]?|dancing)|shadows? (?:danced|dance|dances|stretch\\w*) (?:across|along|over))\\b",
     "note": "no stock phrase from a short list of worn-out fiction clichés",
-    "weight": 1
+    "weight": 1,
+    "scored": false,
+    "pruned": "key-review 2026-11-07: not in the author's brief, kept as diagnostic"
    },
    {
     "id": "OP1-openers-vary",
