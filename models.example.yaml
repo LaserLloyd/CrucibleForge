@@ -215,7 +215,10 @@ judge:
     # a named candidate is selectable with `--judge <name>`
     - {name: local-judge-q8, provider: lmstudio, model_id: "your-other-judge", context_length: 16384, thinking: true}
 
-# models under test.  price = USD per 1M tokens (report shows total cost).
+# models under test.  price = USD per 1M tokens (the report's Run cost column).
+# A flat-plan provider (billed per plan, not per token) adds `basis: list`:
+# price: {input: 0.15, output: 0.60, basis: list} -> shown as ~$ (estimated at list price).
+# A hosted model without `price` is refused at run start (--allow-unpriced overrides).
 # extra_body = per-model request fields (llama.cpp: reasoning_format: deepseek
 # keeps a thinking model's CoT out of `content` so tool JSON/code stay clean).
 models:

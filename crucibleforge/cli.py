@@ -916,6 +916,22 @@ def _refuse_fresh_with_filter(args) -> None:
             "supersede the old ones). Pass --force to archive everything anyway.")
 
 
+def _unpriced_hosted(cfg: dict, entries: list[dict]) -> list[str]:
+    """Labels of hosted (non-rig) models whose entry has no ``price`` block: a
+    run would record no cost, and the board's Run cost would be blank."""
+    from .providers import provider_for
+    from .report import LOCAL_PROVIDER_TYPES
+    out = []
+    for e in entries:
+        try:
+            ptype = provider_for(cfg, e).type
+        except Exception:  # noqa: BLE001 — resolved (and reported) later
+            continue
+        if ptype not in LOCAL_PROVIDER_TYPES and not e.get("price"):
+            out.append(e["name"])
+    return out
+
+
 def cmd_run(args, cfg):
     from .runner import run_models
     # labels the generation phase actually ran (set below once run_models has
@@ -941,6 +957,15 @@ def cmd_run(args, cfg):
         raise SystemExit("no models selected (all disabled? pass --models)")
     if not cases:
         raise SystemExit("no cases selected")
+    unpriced = _unpriced_hosted(cfg, entries)
+    if unpriced:
+        msg = (f"hosted model(s) without a price: {', '.join(unpriced)} — the board's Run cost "
+               "would be missing. Add `price: {input: X, output: Y}` per million tokens to "
+               "models.yaml (`basis: list` for a flat-plan provider billed outside tokens; "
+               "`input: 0, output: 0` for a free endpoint).")
+        if not getattr(args, "allow_unpriced", False):
+            raise SystemExit(msg + " Pass --allow-unpriced to run anyway.")
+        log.warning("%s (--allow-unpriced)", msg)
     if getattr(args, "fresh", False):
         _archive_labels([e["name"] for e in entries])
     needs_judge = any(c.get("rubric") or c.get("turns") for c in cases)
@@ -2531,6 +2556,9 @@ def main(argv=None):
                             "judge cannot be loaded (default: strict — the judge phase fails)")
         p.add_argument("--judge", default=None,
                        help="judge to use: a judge.candidates name, a registry label (e.g. minimax-m3), or provider:model_id. Default: the profile's judge (bench: Gemma-4-31B heretic Q8). A hosted-API judge takes no GPU lease and no rig lock")
+        p.add_argument("--allow-unpriced", action="store_true",
+                       help="run a hosted model that has no `price:` in models.yaml "
+                            "(its Run cost stays blank)")
         p.add_argument("--no-link-check", action="store_true",
                        help="skip the pre-flight provider data-channel probe")
         add_v2_args(p)
