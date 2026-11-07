@@ -219,6 +219,13 @@ judge:
 # A flat-plan provider (billed per plan, not per token) adds `basis: list`:
 # price: {input: 0.15, output: 0.60, basis: list} -> shown as ~$ (estimated at list price).
 # A hosted model without `price` is refused at run start (--allow-unpriced overrides).
+# Optional board tags (all three optional; the board works without them):
+#   base: "Claude Opus"       the "Built on" tag: a hosted model's product line, or a local model's base weights
+#                             ("Gemma 4 31B"); one line, 2-40 characters; display only
+#   official: true            the vendor's own release (default true for a hosted model, false for a local one);
+#                             only official models can be hidden as an older version; fine-tunes never are
+#   supersedes: claude-opus-5 set on the NEWER model: the name of the model it replaces. The "latest versions
+#                             only" box then hides the older one once the newer one has a rank.
 # extra_body = per-model request fields (llama.cpp: reasoning_format: deepseek
 # keeps a thinking model's CoT out of `content` so tool JSON/code stay clean).
 models:

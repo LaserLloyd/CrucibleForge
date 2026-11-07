@@ -2578,7 +2578,56 @@ def row_facts(label: str, meta: dict | None, cfg: dict | None) -> dict:
             "quant": quant, "quant_standard": std,
             "quant_reason": str(qr) if qr else None, "served": served,
             "served_precision": str(sp) if sp else None,
-            "family": str(entry["family"]) if entry.get("family") else None}
+            "family": str(entry["family"]) if entry.get("family") else None,
+            # 2026-11-07: the "Built on" tag and the version link (models.yaml `base`, `official`,
+            # `supersedes`); official defaults to "a hosted model is the vendor's own release"
+            "base": _one_line(entry.get("base"), 2, 40),
+            "official": entry["official"] if isinstance(entry.get("official"), bool) else (False if local else bool(ptype)),
+            "supersedes": str(entry["supersedes"]) if entry.get("supersedes") else None}
+
+
+def _one_line(v, lo: int, hi: int) -> str | None:
+    """A short one-line string from models.yaml (``base``), else None."""
+    if not isinstance(v, str):
+        return None
+    v = v.strip()
+    return v if lo <= len(v) <= hi and "\n" not in v else None
+
+
+def superseded_map(labels: list[str], stats: dict) -> dict[str, str]:
+    """``{label: newer label}`` for the board's official rows that have a newer, ranked version on the board.
+
+    models.yaml ``supersedes: <label>`` sits on the NEWER row. For each official row, walk the chain of
+    successors (passing through labels that are not on this board) and take the newest one that is on the
+    board, official, ranked (has an overall score and is not provisional). A provisional or unranked newer row
+    never hides the older one. A fork stops the walk (the site refuses forks and cycles earlier)."""
+    on = set(labels)
+    succ: dict[str, list[str]] = {}
+    for l, s in stats.items():
+        t = s.get("supersedes")
+        if t:
+            succ.setdefault(t, []).append(l)
+
+    def ranked(l: str) -> bool:
+        s = stats.get(l) or {}
+        return (l in on and s.get("official") is True and not s.get("provisional")
+                and (s.get("scorecard") or {}).get("total") is not None)
+    out: dict[str, str] = {}
+    for l in labels:
+        if (stats.get(l) or {}).get("official") is not True:
+            continue
+        seen, cur, best = {l}, l, None
+        while True:
+            nxt = [n for n in succ.get(cur, []) if n not in seen]
+            if len(nxt) != 1:
+                break
+            cur = nxt[0]
+            seen.add(cur)
+            if ranked(cur):
+                best = cur
+        if best:
+            out[l] = best
+    return out
 
 
 def _headline(labels: list[str], stats: dict, inputs: dict, cfg: dict | None) -> None:
@@ -3031,6 +3080,9 @@ def render_markdown(labels: list[str], stats: dict, cfg: dict | None,
     L += ["", "## Scorecard", ""]
     if any("tiers" in stats[l]["scorecard"] for l in ranked):
         L += _tier_tables(ranked, stats, sc, cfg)
+        older = _older_line(labels, stats)
+        if older:
+            L += ["", older]
         L += _conformance_lines(labels, stats, cfg)
         return _components_md(L, ranked, stats, sc)
     rows = []
@@ -4018,6 +4070,7 @@ def html_rows(labels: list[str], stats: dict) -> list[dict]:
     report.md (exact labels, numbers as numbers), never parsed back out of
     the markdown."""
     out = []
+    newer = superseded_map(labels, stats)
     for i, l in enumerate(rank_labels(labels, stats), 1):
         s = stats[l]
         c = s["scorecard"]
@@ -4059,6 +4112,12 @@ def html_rows(labels: list[str], stats: dict) -> list[dict]:
             "vs_above": ((s.get("headline") or {}).get("vs_above") or {}).get("text"),
             "maxed": [k for k, v in ((s.get("headline") or {}).get("maxed") or {}).items()
                       if v.get("category")] or None,
+            # 2026-11-07: which parts reached the top of every set ("<score>/<part>"); `maxed` above is the
+            # whole-category subset. The site shows a MAX marker and lists the packs that need new questions.
+            "maxed_parts": [f"{k}/{pk}" for k, v in ((s.get("headline") or {}).get("maxed") or {}).items()
+                            for pk in (v.get("parts") or [])] or None,
+            # 2026-11-07: "Built on" tag, vendor-release flag and the newer version on this board, if any
+            "base": s.get("base"), "official": s.get("official"), "superseded_by": newer.get(l),
             "tier": cov.get("tier", 0), "coverage": cov.get("status"),
             # alignment 2026-11-06 (ALIGN-INTERFACE.md)
             "provisional": bool(s.get("provisional")),
@@ -4125,6 +4184,26 @@ def html_ladder(rows: list[dict]) -> list[str]:
     return out
 
 
+def _older_line(labels: list[str], stats: dict) -> str:
+    """"Older versions on this board: a (newer: b), ..." for models.yaml `supersedes` links, else ""."""
+    newer = superseded_map(labels, stats)
+    if not newer:
+        return ""
+    return "Older versions on this board: " + ", ".join(
+        f"{l} (newer: {newer[l]})" for l in rank_labels(labels, stats) if l in newer)
+
+
+def html_part_labels(stats: dict) -> dict[str, str]:
+    """``{"<score>/<part>": "Score / Part"}`` for every sub-score of the board's profile (names a MAX marker)."""
+    for s in stats.values():
+        defs = (s.get("scorecard") or {}).get("score_defs")
+        if defs:
+            return {f"{d['key']}/{p['key']}": f"{d['label']} / {p['label']}"
+                    for d in defs for p in d.get("parts") or []}
+        break
+    return {}
+
+
 def html_components(stats: dict, cfg: dict | None = None) -> list[dict]:
     """The component columns of the HTML board, in report.md order:
     ``[{label, side: "chat"|"coding"}]``."""
@@ -4176,6 +4255,9 @@ def render_report_html(labels: list[str], stats: dict, cfg: dict | None = None,
         versus = [stats[l]["headline"]["vs_above"]["text"] for l in rank_labels(labels, stats)
                   if (stats[l].get("headline") or {}).get("vs_above")]
         ladder = html_ladder(html_rows(labels, stats))
+        older = _older_line(labels, stats)
+        if older:
+            legend = legend + [older]
     footer += [line.strip("*") for line in (archived_note or "").splitlines()]
     footer.append(" · ".join(x for x in (
         f"Suite revision {', '.join(revs or [_current_revision(cfg) or '?'])}"
@@ -4187,7 +4269,8 @@ def render_report_html(labels: list[str], stats: dict, cfg: dict | None = None,
                        components=html_components({l: stats[l] for l in labels}, cfg),
                        footer=footer,
                        forbidden=(_hidden(cfg) or {}).get("terms"),
-                       scores=scores, sides=sides, legend=legend, versus=versus, ladder=ladder)
+                       scores=scores, sides=sides, legend=legend, versus=versus, ladder=ladder,
+                       part_labels=html_part_labels({l: stats[l] for l in labels}))
 
 
 # ------------------------------------------------------------- generate

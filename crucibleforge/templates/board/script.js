@@ -32,7 +32,7 @@ const OP_SYM = {lt: '<', le: '≤', gt: '>', ge: '≥', eq: '=', ne: '≠'};
 const SIDES = DATA.sides || [{key: 'chat', label: 'Chat'}, {key: 'coding', label: 'Coding'}];
 const SIDE_LABEL = {}; SIDES.forEach(x => { SIDE_LABEL[x.key] = x.label; });
 const SCORE_COLS = MAIN.filter(c => c.kind === 'num' && c.key !== 'rank' && c.key !== 'tok_s');
-const TEXT_COLS = new Set(['label', 'class', 'lean', 'suite', 'date', 'notes', 'judge', 'coverage', 'provider', 'tiers_cell', 'raw_cell', 'vs_above', 'points_cell']);
+const TEXT_COLS = new Set(['label', 'base', 'class', 'lean', 'suite', 'date', 'notes', 'judge', 'coverage', 'provider', 'tiers_cell', 'raw_cell', 'vs_above', 'points_cell']);
 const LABELS = new Set(rows.map(r => r.label));
 // quick-filter chips are built from the rows: only values that exist are offered
 const CLASS_ORDER = ['S', 'A', 'B', 'C'];
@@ -40,6 +40,8 @@ const CLASSES = CLASS_ORDER.filter(c => rows.some(r => r.class === c))
   .concat([...new Set(rows.map(r => r.class).filter(c => c && !CLASS_ORDER.includes(c)))]);
 const LEANS = [...new Set(rows.map(r => r.lean).filter(Boolean))];
 const HAS_OLD = rows.some(r => r.old);
+const HAS_OLDER = rows.some(r => r.superseded_by);   // a newer version of some official model is on the board
+const PART_LABELS = DATA.part_labels || {};
 const HAS_WHERE = rows.some(r => r.hosted === true) && rows.some(r => r.hosted === false);
 const STATE_VERSION = 2;                  // bump = every saved layout resets (2: Suite column)
 const STORE_KEY = 'crucibleforge-board-layout';
@@ -48,7 +50,7 @@ const MAX_STATE = 16 * 1024;
 
 function defaults() {
   return {columns: COMPS.map(c => 'c:' + c.label).concat(['suite']), sortKey: 'rank', sortDir: 1,
-          filters: {}, text: '', benched: false, expanded: [], view: 'table',
+          filters: {}, text: '', benched: false, latest: false, expanded: [], view: 'table',
           classes: [], leans: [], current: false, where: ''};
 }
 let S = defaults();
@@ -122,6 +124,7 @@ function sanitize(raw) {
   }
   if (typeof raw.text === 'string') d.text = raw.text.slice(0, 200);
   d.benched = raw.benched === true;
+  d.latest = raw.latest === true && HAS_OLDER;
   if (Array.isArray(raw.expanded)) d.expanded = raw.expanded.filter(l => typeof l === 'string' && LABELS.has(l));
   if (raw.view === 'table' || raw.view === 'cards') d.view = raw.view;
   // quick chips (optional keys: a layout saved before they existed still loads)
@@ -136,7 +139,7 @@ function serialize() {
   return {version: STATE_VERSION, columns: S.columns.slice(), sortKey: S.sortKey, sortDir: S.sortDir,
           filters: Object.assign({}, S.filters), text: S.text, benched: S.benched,
           expanded: [...expanded], view: S.view, classes: S.classes.slice(), leans: S.leans.slice(),
-          current: S.current, where: S.where};
+          current: S.current, where: S.where, ...(S.latest ? {latest: true} : {})};
 }
 const framed = (() => { try { return window.parent !== window; } catch (e) { return true; } })();
 let saveTimer = null, touched = false, bridgeHeard = false;
@@ -172,6 +175,7 @@ function applyState(st) {
   if (openKey) closeMenu(false);
   $('filter').value = S.text;
   $('benched').checked = S.benched;
+  if ($('latestOnly')) $('latestOnly').checked = S.latest;
   renderChips();
   renderFilters();
   renderChooser();
@@ -191,6 +195,7 @@ function compare(a, b) {
 }
 function passes(r) {
   if (S.benched && !isNum(r.overall)) return false;
+  if (S.latest && r.superseded_by) return false;
   if (S.classes.length && !S.classes.includes(r.class)) return false;
   if (S.leans.length && !S.leans.includes(r.lean)) return false;
   if (S.current && r.old) return false;
@@ -198,6 +203,7 @@ function passes(r) {
   if (S.text) {
     const f = S.text.toLowerCase();
     if (!(r.label.toLowerCase().includes(f) || String(r.model_id || '').toLowerCase().includes(f)
+          || String(r.base || '').toLowerCase().includes(f)
           || String(r.provider || '').toLowerCase().includes(f))) return false;
   }
   for (const k in S.filters) {                     // AND across the columns
@@ -319,7 +325,17 @@ function sval(r, k) {
 }
 function rankOf(r) { return esc(r.rank_label || String(r.rank)); }
 function oldTag(r) {
-  return r.old ? ' <span class="old-tag" title="values from an older suite — re-run pending">old</span>' : '';
+  return (r.old ? ' <span class="old-tag" title="values from an older suite — re-run pending">old</span>' : '') +
+    (r.superseded_by ? ' <span class="old-tag" title="A newer version is on the board: ' + esc(r.superseded_by) + '">older version</span>' : '') +
+    maxTag(r);
+}
+// MAX: the model reached the top of every set in these parts, so the tests cannot tell it from the next model
+// until a new pack exists (the name of each part comes from the board's part_labels)
+function maxTag(r) {
+  const ps = Array.isArray(r.maxed_parts) ? r.maxed_parts : [];
+  if (!ps.length) return '';
+  const names = ps.map(k => PART_LABELS[k] || k).join(', ');
+  return ' <span class="max-tag" title="Reached the top of every set in: ' + esc(names) + '. A new pack is needed.">MAX</span>';
 }
 function dirText() {
   if (S.sortKey === 'rank') return S.sortDir === 1 ? '▲ Top first' : '▼ Bottom first';
@@ -361,7 +377,9 @@ function render() {
   $('colsBtn').setAttribute('aria-expanded', String(colsOpen));
   $('colsPanel').classList.toggle('open', colsOpen);
   const ranked = data.filter(r => isNum(r.overall)).length;
+  const hiddenOld = S.latest ? rows.filter(r => r.superseded_by).length : 0;
   $('count').innerHTML = data.length + ' of ' + rows.length + ' models · ' + ranked + ' ranked' +
+    (hiddenOld ? ' · ' + hiddenOld + (hiddenOld === 1 ? ' older version hidden' : ' older versions hidden') : '') +
     '<span class="desk-only"> · click a column head (or Enter on it) to sort · the ▾ in a head filters that column · ▸ opens points, components, notes and judge</span>';
   syncChips();
   $('clearAll').disabled = !anyFilter();
@@ -406,12 +424,12 @@ function onChipClick(e) {
   render(); save();
 }
 function anyFilter() {
-  return !!(S.text || S.benched || S.classes.length || S.leans.length || S.current || S.where ||
+  return !!(S.text || S.benched || S.latest || S.classes.length || S.leans.length || S.current || S.where ||
             Object.keys(S.filters).length);
 }
 function clearAll() {
-  S.text = ''; S.benched = false; S.classes = []; S.leans = []; S.current = false; S.where = ''; S.filters = {};
-  $('filter').value = ''; $('benched').checked = false;
+  S.text = ''; S.benched = false; S.latest = false; S.classes = []; S.leans = []; S.current = false; S.where = ''; S.filters = {};
+  $('filter').value = ''; $('benched').checked = false; if ($('latestOnly')) $('latestOnly').checked = false;
   render(); save();
   if (openKey) updateActive();
 }
@@ -844,6 +862,7 @@ function resetLayout() {
 function init() {
   $('filter').addEventListener('input', e => { S.text = e.target.value; render(); save(); });
   $('benched').addEventListener('change', e => { S.benched = !!e.target.checked; render(); save(); });
+  if ($('latestOnly')) $('latestOnly').addEventListener('change', e => { S.latest = !!e.target.checked; render(); save(); });
   $('chips').addEventListener('click', onChipClick);
   $('clearAll').addEventListener('click', clearAll);
   $('sortSel').addEventListener('change', e => { S.sortKey = e.target.value; S.sortDir = defaultDir(S.sortKey); render(); save(); });

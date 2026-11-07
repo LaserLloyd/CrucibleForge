@@ -88,6 +88,19 @@ had no usage data, shows `*`), `blocked` / `blocked_separate` (replies the
 provider's content filter blocked, Code + Chat / NSFW). Component columns: `report.html_components`
 (`[{label, side}]`).
 
+## 2026-11-07: Built on, latest versions only, MAX
+
+- **Built on** (`base`) is a choosable column and the text filter matches it. models.yaml sets `base` (one line,
+  2-40 characters), `official` (true = the vendor's own release; default true for a hosted model, false for a
+  local one) and `supersedes` (on the NEWER model: the label it replaces).
+- **Latest versions only** (toolbar box, shown when any row has `superseded_by`; saved with the layout as
+  `latest`) hides a row when a newer, ranked, official version of it is on the board. Fine-tunes (`official`
+  false) are never hidden. Rows carry `base`, `official`, `superseded_by`; the older row shows an "older version"
+  tag.
+- **MAX** tag next to a model name: it reached the top of every set in one or more sub-scores
+  (`maxed_parts`: `"<score>/<part>"`, named by the payload's `part_labels`). The tests cannot tell such models
+  apart until a new pack exists. `maxed` (whole categories) is unchanged.
+
 Regenerate `example.html` (reads results/, writes only this file):
 
 ```bash

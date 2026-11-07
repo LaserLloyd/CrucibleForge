@@ -98,8 +98,12 @@ INFO_COLUMNS = [("suite", "Suite", "text"), ("date", "Run date", "text"), ("note
                 ("points_cell", "Points", "text")]
 
 
+#: shown only when some row carries a ``base`` (models.yaml "Built on" tag), so a board without tags is unchanged
+BASE_COLUMN = ("base", "Built on", "text")
+
+
 def columns(comps: list[dict], headline: bool = False,
-            scores: list[dict] | None = None) -> tuple[list[dict], list[dict]]:
+            scores: list[dict] | None = None, has_base: bool = False) -> tuple[list[dict], list[dict]]:
     """``(main, extra)`` column specs baked into the page. ``extra`` is what
     the ⚙ Columns chooser offers: every component (the default right-hand
     set, in scoring order), then the run-info columns. ``scores`` = a
@@ -120,7 +124,8 @@ def columns(comps: list[dict], headline: bool = False,
         main = [{**c, "label": HEADLINE_LABELS.get(c["key"], c["label"])} for c in main]
     extra = [{"key": f"c:{c['label']}", "label": c["label"], "kind": "num", "side": c["side"],
               "group": f"{c['side'].title()} component"} for c in comps]
-    extra += [{"key": k, "label": t, "kind": kind, "group": "Run info"} for k, t, kind in INFO_COLUMNS]
+    info = INFO_COLUMNS[:1] + ([BASE_COLUMN] if has_base else []) + INFO_COLUMNS[1:]
+    extra += [{"key": k, "label": t, "kind": kind, "group": "Run info"} for k, t, kind in info]
     return main, extra
 
 
@@ -151,7 +156,8 @@ def render_html(rows: list[dict], subtitle: str = "",
                 sides: list[dict] | None = None,
                 legend: list[str] | None = None,
                 versus: list[str] | None = None,
-                ladder: list[str] | None = None) -> str:
+                ladder: list[str] | None = None,
+                part_labels: dict | None = None) -> str:
     """The full HTML document.
 
     ``rows``: ``report.html_rows`` shape. ``components``: ordered
@@ -175,7 +181,8 @@ def render_html(rows: list[dict], subtitle: str = "",
         comps = [c for c in comps if c["label"].lower() not in bad]
         rows = [{**r, "components": {k: v for k, v in (r.get("components") or {}).items()
                                      if k.lower() not in bad}} for r in rows]
-    main, extra = columns(comps, headline=any(r.get("s") for r in rows), scores=scores)
+    has_base = any(r.get("base") for r in rows)
+    main, extra = columns(comps, headline=any(r.get("s") for r in rows), scores=scores, has_base=has_base)
     sides = sides or [{"key": "chat", "label": "Chat"}, {"key": "coding", "label": "Coding"}]
     esc = html.escape
     # phone Sort select (the table headers sort too): every sortable key
@@ -188,7 +195,8 @@ def render_html(rows: list[dict], subtitle: str = "",
         if grp:
             sort_opts += f'<optgroup label="{title}">{grp}</optgroup>'
     sort_opts += '<optgroup label="Run info">' + "".join(
-        f'<option value="{k}">{esc(t)}</option>' for k, t, _ in INFO_COLUMNS) + "</optgroup>"
+        f'<option value="{k}">{esc(t)}</option>'
+        for k, t, _ in (INFO_COLUMNS[:1] + ([BASE_COLUMN] if has_base else []) + INFO_COLUMNS[1:])) + "</optgroup>"
     mobile = ('<div class="viewtog m-only" role="group" aria-label="phone layout">'
               '<button id="viewTable" type="button" aria-pressed="true">Table</button>'
               '<button id="viewCards" type="button" aria-pressed="false">Cards</button></div>'
@@ -197,6 +205,9 @@ def render_html(rows: list[dict], subtitle: str = "",
               '<button id="sortDir" type="button" aria-label="sort direction">Top first</button></div>'
               '<button id="filtersBtn" type="button" aria-expanded="false" '
               'aria-controls="filtersRow">Filters</button>')
+    latest = ('<label class="latest" title="Hide older versions of a model when a newer version is on the board. '
+              'Fine-tunes are never hidden."><input type="checkbox" id="latestOnly"> latest versions only</label>'
+              if any(r.get("superseded_by") for r in rows) else "")
     chooser = ('<section class="cols-panel" id="colsPanel" aria-label="choose columns">'
                '<div class="cols-head"><strong>Right-hand columns</strong>'
                '<span class="muted">tick to show · drag or ↑↓ to order · saved for you</span>'
@@ -204,7 +215,9 @@ def render_html(rows: list[dict], subtitle: str = "",
                '<ol class="cols-list" id="colsList"></ol></section>')
     below = _below(footer, legend, versus, ladder)
     payload = data_json({"rows": rows, "components": comps, "thresholds": THRESHOLDS,
-                         "main": main, "extra": extra, "sides": sides})
+                         "main": main, "extra": extra, "sides": sides,
+                         # "<score>/<part>" -> "Score / Part": names a row's maxed_parts
+                         "part_labels": scrub(part_labels or {})})
     page = (
         '<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">'
         '<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">'
@@ -217,6 +230,7 @@ def render_html(rows: list[dict], subtitle: str = "",
         'aria-label="search models">'
         f'{mobile}'
         '<label class="benched"><input type="checkbox" id="benched"> ranked only</label>'
+        f'{latest}'
         '<button id="colsBtn" type="button" aria-expanded="false" aria-controls="colsPanel">⚙ Columns</button>'
         '<button id="clearAll" type="button" title="Clear the search, the chips and the score filters">'
         'Clear filters</button>'

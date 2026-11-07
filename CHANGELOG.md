@@ -8,6 +8,13 @@ rename.
 
 ## Unreleased (2026-11-07)
 
+- **Built on, latest versions only, MAX.** models.yaml gains optional `base`, `official`, `supersedes`
+  (see `models.example.yaml`); `report.superseded_map` finds the newer ranked official version of a model.
+  Board rows gain `base`, `official`, `superseded_by`, `maxed_parts` (`"<score>/<part>"`, named by the
+  payload's `part_labels`). report.md prints an "Older versions on this board" line; report.html gets a
+  Built on column (when any row has a tag), a "latest versions only" box, an "older version" tag and a MAX
+  tag. No case or scoring change.
+
 - **Optional-pack guidance.** New `docs/PACKS.md` (what each public pack tests, the 90 % unlock
   rule, the MAXED marker, how to write and verify the next pack, a frontier-model drafting
   prompt) and `crucibleforge pack list [--json] [--no-board]`: every part's packs, case ids,
