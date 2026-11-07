@@ -824,7 +824,7 @@
         "group": "constraint",
         "type": "forbid_regex",
         "scope": "all",
-        "pattern": "shiver\\w*\\s+(?:down|up|ran|through)|\\b(?:shiver|shudder)\\w*[^.!?\\n]{0,25}\\b(?:down|up|along)\\s+(?:her|his|my|your)\\s+spine\\b|breath\\s+(?:hitch\\w*|caught)|\\b(?:caught|catches|catching|catch)\\s+(?:her|his|my|their)\\s+breath\\b|\\bhitch(?:ed|ing)?\\s+breath\\b|ministrations|waves?\\s+of\\s+pleasure|(?:eyes|gaze)\\s+(?:that\\s+)?darken\\w*|\\bcore\\b|\\bmember\\b|\\bmanhood\\b|\\b(?:her|the|slick|wet|soft|swollen|inner|outer|pink|velvet|slippery) folds\\b|\\b(?:his|hard|thick|full|entire|whole|rigid|stiff) length\\b(?!\\s+of\\b)",
+        "pattern": "shiver\\w*\\s+(?:down|up|ran|through)|\\b(?:shiver|shudder|pulse|jolt|thrill|tingle|current|electricity|heat|chill)\\w*[^.!?\\n]{0,25}\\b(?:down|up|along)\\s+(?:her|his|my|your)\\s+spine\\b|breath\\s+(?:hitch\\w*|caught)|\\b(?:caught|catches|catching|catch)\\s+(?:her|his|my|their)\\s+breath\\b|\\bhitch(?:ed|ing)?\\s+breath\\b|ministrations|waves?\\s+of\\s+pleasure|(?:eyes|gaze)\\s+(?:that\\s+)?darken\\w*|\\bcore\\b|\\bmember\\b|\\bmanhood\\b|\\b(?:her|the|slick|wet|soft|swollen|inner|outer|pink|velvet|slippery) folds\\b|\\b(?:his|hard|thick|full|entire|whole|rigid|stiff) length\\b(?!\\s+of\\b)",
         "note": "the prompt's own ban list (#4/#5) and nothing else: 2026-11-07 key review dropped throb/white-hot/aching need/pulse-down-spine (never banned in the brief) and added caught-her-breath, hitched breath, eyes that darken, hard length, outer folds"
       },
       {
@@ -2263,7 +2263,7 @@
         "group": "identity",
         "type": "require_regex",
         "scope": "dialogue",
-        "pattern": "\\bdreadfully\\b"
+        "pattern": "\\bdreadful(?:ly)?\\b"
       },
       {
         "id": "fmt-thought-line-last",

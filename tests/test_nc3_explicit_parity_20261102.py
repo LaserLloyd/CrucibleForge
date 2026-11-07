@@ -163,8 +163,10 @@ def test_the_edit_is_grading_only():
     table = version.current_case_table()
     assert table[CID]["grading"] != "6cdcc84f"        # flipped by the fix
     assert table[CID]["case"] == "b642b7a5"           # the question is untouched
-    assert version.cases_hash() == "e3d1c6fb"         # the suite hash is untouched
-    assert version.revision() == "4.0.1+e3d1c6fb"
+    # the NC3 edit left the suite hash at e3d1c6fb; the 2026-11-07 key review then
+    # changed CL3/CL4/CB-C5/CB-C6/TZ20 content on purpose, which moved it
+    assert version.cases_hash() == "68987fe6"
+    assert version.revision() == "4.0.1+68987fe6"
 
 
 def test_a_row_answered_before_the_edit_rejudges_but_does_not_regenerate():

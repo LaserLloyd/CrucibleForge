@@ -316,7 +316,8 @@ def test_cl7_examples_pin_start_anchored_month_steps():
 # ------------------------------------------------ coordinator round 2 (final validation)
 def test_cl4_speed_is_timed_per_call_at_half_a_second():
     g = _case("CL4-workday-mask", ["coding"])["grader_config"]["test_groups"]["efficiency-large"]
-    assert "max(_t1 - _t0, _t2 - _t1) < 0.5" in g and "_el < 0.3" not in g
+    # key review 2026-11-07: each call timed on its own, best of 3, still under 0.5 s
+    assert "max(_ta, _tb) < 0.5" in g and "def _best(f):" in g and "_el < 0.3" not in g
 
 
 def test_empty_turn_fails_a_turn_bound_requirement():
