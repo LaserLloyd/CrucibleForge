@@ -80,7 +80,7 @@ checks:
   group: constraint
   type: require_regex
   scope: ic
-  pattern: '["“]'
+  pattern: '["“”]'
   min_hits: 2
 - id: H1-once-for-the-guild
   fact: H1
@@ -174,9 +174,9 @@ judge_elements:
   weight: 0.5
   gold_quote: the fifth bell is after I have shut
   q: Aubrey read the Guild register (old odd days, dawn to dusk) and says he plans to come back 'the day after tomorrow, around the fifth bell'. Today is Fourthday, so that is Sixthday. Per the card's latest
-    page the Dispensary opens only on the even days (secondday, fourthday, sixthday, eighthday), from the dawn bell to the FOURTH bell of the afternoon. Does Hesper give the current open days AND tell him
-    she will be shut by the fifth bell (so he must come before the fourth bell; Sixthday itself is an open day)? Quote the line. NO if she repeats the odd days or dusk closing, or agrees to the fifth bell,
-    or does not say when she closes.
+    page the Dispensary opens only on the even days (secondday, fourthday, sixthday, eighthday), from the dawn bell to the FOURTH bell of the afternoon. Does Hesper give the current open days AND make clear
+    she closes at the fourth bell of the afternoon, so that an afternoon fifth bell finds her shut (telling him she will be shut by then, or asking which fifth bell he means while giving the fourth-bell closing;
+    Sixthday itself is an open day)? Quote the line. NO if she repeats the odd days or dusk closing, or agrees to the fifth bell, or does not say when she closes.
   evidence:
   - src: card
     text: the Dispensary is open on the even days of the nineday week only

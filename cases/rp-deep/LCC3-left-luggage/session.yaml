@@ -82,8 +82,9 @@ checks:
   - 10
   - 11
   scope: all
-  pattern: \A[^.!?]*[.!?]+[^.!?]*\w[^.!?]*[.!?]+[^.!?]*\w[^.!?]*[.!?]
+  pattern: \A(?:[^.!?]|(?<=\d)\.(?=\d)|(?:(?<=\bMr)|(?<=\bMrs)|(?<=\bMs)|(?<=\bDr)|(?<=\bSt)|(?<=\bMt)|(?<=\b[ap])|(?<=\b[ap]\.m))\.)*(?:[!?]|(?<!\bMr)(?<!\bMrs)(?<!\bMs)(?<!\bDr)(?<!\bSt)(?<!\bMt)(?<!\b[ap])(?<!\b[ap]\.m)(?:\.(?!\d)|(?<!\d)\.))+(?:[^.!?]|(?<=\d)\.(?=\d)|(?:(?<=\bMr)|(?<=\bMrs)|(?<=\bMs)|(?<=\bDr)|(?<=\bSt)|(?<=\bMt)|(?<=\b[ap])|(?<=\b[ap]\.m))\.)*\w(?:[^.!?]|(?<=\d)\.(?=\d)|(?:(?<=\bMr)|(?<=\bMrs)|(?<=\bMs)|(?<=\bDr)|(?<=\bSt)|(?<=\bMt)|(?<=\b[ap])|(?<=\b[ap]\.m))\.)*(?:[!?]|(?<!\bMr)(?<!\bMrs)(?<!\bMs)(?<!\bDr)(?<!\bSt)(?<!\bMt)(?<!\b[ap])(?<!\b[ap]\.m)(?:\.(?!\d)|(?<!\d)\.))+(?:[^.!?]|(?<=\d)\.(?=\d)|(?:(?<=\bMr)|(?<=\bMrs)|(?<=\bMs)|(?<=\bDr)|(?<=\bSt)|(?<=\bMt)|(?<=\b[ap])|(?<=\b[ap]\.m))\.)*\w(?:[^.!?]|(?<=\d)\.(?=\d)|(?:(?<=\bMr)|(?<=\bMrs)|(?<=\bMs)|(?<=\bDr)|(?<=\bSt)|(?<=\bMt)|(?<=\b[ap])|(?<=\b[ap]\.m))\.)*(?:[!?]|(?<!\bMr)(?<!\bMrs)(?<!\bMs)(?<!\bDr)(?<!\bSt)(?<!\bMt)(?<!\b[ap])(?<!\b[ap]\.m)(?:\.(?!\d)|(?<!\d)\.))
   weight: 1
+  note: a third terminated sentence; a dot in a number (8.30), after a title (Mr. Mrs. Ms. Dr. St. Mt.) or in a.m./p.m. does not end a sentence
 - id: Q2-no-questions-on-request
   fact: Q2
   ftype: format
@@ -124,7 +125,8 @@ checks:
   scope: all
   negation_guard: true
   weight: 0.5
-  pattern: \b(?:try|order|have|eat|enjoy|get|grab|sample)\b[^.!?]{0,40}\b(?:jam[o\u00f3]n|ham|chorizo|pork|beef|lamb|steak|sausages?|morcilla|bacon)\b
+  pattern: \b(?:try|order|have|eat|enjoy|get|grab|sample)\b(?:(?!\b(?:skip|avoid|leave|without|instead|except|but|not|no|never)\b)[^.!?;]){0,40}\b(?:jam[o\u00f3]n|ham|chorizo|pork|beef|lamb|steak|sausages?|morcilla|bacon)\b
+  note: no meat suggested to a pescatarian (a meat word she is told to skip or leave is fine)
 judge_elements:
 - id: J1-asks-about-priti
   ftype: callback
@@ -227,11 +229,10 @@ judge_elements:
   ftype: inductive
   turns:
   - 8
-  q: 'Tamsin dreads changing stations in Paris with her case. From the earlier chats: she has a frozen left shoulder (nothing
-    above chest height, no lifting), travels only with a wheeled case, no hauling up steps, and she can only manage one
-    change of train. Does Odile give a concrete way to make the Paris transfer easy that fits that: a taxi between the stations,
-    leaving a long gap, a direct metro, an overnight in Paris, a wheeled case with no stairs, or someone to help? Quote
-    the line. NO if she gives generic reassurance only, or suggests lifting or carrying the case on stairs.'
+  q: 'Tamsin dreads changing stations in Paris with her case. From the earlier chats: she has a frozen left shoulder (nothing above chest height, no lifting), travels only with a wheeled case, no hauling
+    up steps, and she can only manage one change of train. Does Odile give a concrete way to make the Paris transfer easy that fits that: a taxi between the stations, leaving a long gap, an overnight in Paris,
+    a wheeled case with no stairs, or someone to help? Quote the line. NO if she gives generic reassurance only, or suggests lifting or carrying the case on stairs (a plain ''take the metro'' is not enough:
+    Paris metro transfers mean stairs).'
   evidence:
   - src: log
     text: Left shoulder, frozen since 2024. The physio says nothing above chest height, no lifting, so I travel with a wheeled
@@ -254,10 +255,10 @@ judge_elements:
   ftype: combination
   turns:
   - 10
-  q: 'Tamsin asks for the route in order. From the earlier chats and this conversation: Monday 17 May London to Paris by
-    Eurostar, a TGV south to Bordeaux where Bea lives (her birthday is Wednesday 19 May), then on to Hendaye and San Sebastian.
-    Does Odile give a route in the correct order that includes the Paris change, Bordeaux (with Bea / the birthday on the
-    19th) BEFORE San Sebastian? Quote the line. NO if Bordeaux is missing or after San Sebastian, or the route flies.'
+  q: 'Tamsin asks for the route in order. From the earlier chats and this conversation: Monday 17 May London to Paris by Eurostar, across Paris to Montparnasse, a TGV south (Bordeaux, where her friend Bea
+    lives, is on that line and her birthday is Wednesday 19 May), then Hendaye and San Sebastian, with Bilbao after. Does Odile give the route in the correct order: Paris (with the change of station) before
+    the train south, and San Sebastian before Bilbao? A stop in Bordeaux with Bea for the birthday is a good touch but is not required (Tamsin declined Bea''s offer and never took it up); if Bordeaux is named
+    it must come between Paris and San Sebastian. Quote the line. NO if the order is wrong, the Paris change is missing, or the route flies.'
   evidence:
   - src: log
     text: By train it is Eurostar to Paris, then a fast train south, and the border town of Hendaye is a few minutes from

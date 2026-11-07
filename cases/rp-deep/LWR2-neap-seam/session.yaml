@@ -227,9 +227,9 @@ checks:
   - 1
   - 2
   - 3
-  pattern: \b(?:said|asked|asks|replied|replies|answered|answers|whispered|whispers|shouted|shouts|muttered|mutters|cried|calls|called|adds|added|murmurs|murmured)\b
+  pattern: \b(?:said|asked|asks|replied|replies|whispered|whispers|shouted|shouts|muttered|mutters|murmurs|murmured)\b|\b(?:answered|answers|cried|calls|called|adds|added)\b(?=\s*[:,\"“]|\s+(?:that|softly|quietly|again|back)\b)
   scope: all
-  note: only 'says' introduces speech
+  note: only 'says' introduces speech (answers/calls/adds/cried count only as speech tags, not as 'adds a knot')
   weight: 2.0
 - id: P-no-punct-habits
   fact: P
@@ -266,9 +266,9 @@ checks:
   - 1
   - 2
   - 3
-  pattern: \b(?:metres?|meters?|kilomet\w+|feet|foot|miles?|yards?|inch(?:es)?|hours?|minutes?|seconds?|fathoms?|leagues?|knots? per hour)\b
+  pattern: \b(?:metres?|meters?|kilomet\w+|miles?|yards?|inch(?:es)?|hours?|minutes?|fathoms?|leagues?|knots? per hour)\b|\b(?:\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|twenty|thirty|forty|fifty|hundred|few|several)\s+(?:feet|foot|seconds?)\b
   scope: all
-  note: distance is in ropes and time in tides; no clock or metric units
+  note: distance is in ropes and time in tides; no clock or metric units (feet/seconds only as measures, not 'his foot' or 'the second rope')
   weight: 1.15
 - id: R-tides-present
   fact: R
@@ -464,12 +464,12 @@ checks:
   group: continuity
   type: forbid_regex
   turns:
-  - 1
   - 2
   - 3
   pattern: \bdaughters?\b
   scope: all
   weight: 0.08
+  note: the ban arrives with section 2 and changes apply forward (the card), so section 1 is not graded
 - id: D2-no-dunna-tag-in-her-paragraph
   fact: D2
   ftype: format
@@ -519,7 +519,10 @@ judge_elements:
   turns:
   - 1
   - 2
-  q: 'The opening never states what any one villager thinks, wants or feels as fact: the narrating we reports only what is said, done, seen and known to everyone (a habit, a record, a fact). Across sections 1 and 2 of the continuation, does the narration keep to that, never entering a villager''s or the stranger''s head? Quote the worst line. NO if any sentence asserts an inner state (e.g. ''Orrin wanted'', ''Hesk was afraid'', ''she felt'', ''Dunna wondered'') as narration; a visible action or a spoken line is fine.'
+  q: 'The opening never states what any one villager thinks, wants or feels as fact: the narrating we reports only what is said, done, seen and known to everyone (a habit, a record, a fact). Across sections
+    1 and 2 of the continuation, does the narration keep to that, never entering a villager''s or the stranger''s head? Quote the worst line. NO if any sentence asserts an inner state (e.g. ''Orrin wanted'',
+    ''Hesk was afraid'', ''she felt'', ''Dunna wondered'') as narration; a visible action or a spoken line is fine, and so is a habitual, publicly known attitude or habit of the kind the opening itself uses
+    (''a poor opinion of the weather'', ''which she does when she wants her hands free'').'
   evidence:
   - src: turn
     text: so that a reader could not find the seam

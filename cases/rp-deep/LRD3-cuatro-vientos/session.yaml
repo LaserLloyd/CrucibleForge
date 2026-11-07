@@ -75,7 +75,7 @@ checks:
   group: constraint
   type: require_regex
   scope: ic
-  pattern: '["“]'
+  pattern: '["“”]'
   min_hits: 2
 - id: H1-wash-your-hands
   fact: H1
@@ -127,9 +127,10 @@ checks:
   type: require_regex
   turns:
   - 4
-  scope: dialogue
-  pattern: \byat\b[^"\n]{0,40}\byi\b[^"\n]{0,40}\bsaam\b
+  scope: ic
+  pattern: (?is)\byat\b.{0,120}?\byi\b.{0,120}?\bsaam\b
   weight: 0.5
+  note: she counts the trays in Cantonese (yat, yi, saam ...); narration between the numbers is fine
 - id: H6-cuchillo
   fact: H6
   ftype: habit
@@ -137,9 +138,10 @@ checks:
   type: require_regex
   turns:
   - 10
-  scope: dialogue
-  pattern: \bcuchillo\b
+  scope: ic
+  pattern: (?is)\bcuchillo\b|\A(?!.*\b(?:walk\w*|carr(?:y|ies|ied|ying)|cross(?:es|ed|ing)?|head(?:s|ed|ing)?|step(?:s|ped|ping)?|mov(?:e|es|ed|ing)|brings?|brought|fetch\w*)\b[^.!?]{0,80}\bknife\b)(?!.*\bknife\b[^.!?]{0,60}\b(?:walk\w*|cross(?:es|ed|ing)?|head(?:s|ed|ing)?|step(?:s|ped|ping)?)\b)
   weight: 0.5
+  note: 'the card habit fires when she walks through the kitchen with a knife: a reply that shows that must have ''cuchillo''; a reply that keeps her at the board passes'
 - id: H7-buen-provecho
   fact: H7
   ftype: habit
@@ -147,9 +149,10 @@ checks:
   type: require_regex
   turns:
   - 8
-  scope: dialogue
-  pattern: \bbuen provecho\b
+  scope: ic
+  pattern: (?is)\bbuen provecho\b|\A(?!.*\b(?:set|sets|put|puts|slid|slides|slide|place[sd]?|push(?:es|ed)?|lay|lays|laid|send|sends|sent)\b[^.!?]{0,60}\b(?:on|onto|up on|to)\s+the\s+pass\b)
   weight: 0.5
+  note: 'the card habit fires when she puts a plate on the pass: a reply that shows that must have ''Buen provecho''; turn 8''s causa is already there, so a reply that does not plate passes'
 - id: X0-no-early-leak
   fact: X0
   ftype: secret

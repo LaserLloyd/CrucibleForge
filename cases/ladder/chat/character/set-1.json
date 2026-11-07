@@ -341,7 +341,7 @@
      "group": "constraint",
      "type": "forbid_regex",
      "scope": "speaker:Barnaby",
-     "pattern": "(?:^(?!\\W*Now then\\b).*\\S.*$)|(?:[.!?][\\\"\u201d\u2019]?[ \\t]+[\\\"\u201c]?[A-Za-z])|(?:^(?!.*\\b(?:bread|soup|pie|tea|stew|cheese|eggs?|loaf|loaves|oven|kettle|supper|broth|brandy|butter|flour|salt|pot|pan|cake|ale)\\b).*\\S.*$)|(?:\\b(?:Ottoline|Brae)\\b)",
+     "pattern": "(?:^(?!\\W*Now then\\b).*\\S.*$)|(?:(?:[!?]|(?<!\\bMr)(?<!\\bMrs)(?<!\\bMs)(?<!\\bDr)(?<!\\bSt)(?<!\\bMt)\\.)[\\\"\u201d\u2019]?[ \\t]+[\\\"\u201c]?[A-Za-z])|(?:^(?!.*\\b(?:bread|soup|pie|tea|stew|cheese|eggs?|loaf|loaves|oven|kettle|supper|broth|brandy|butter|flour|salt|pot|pan|cake|ale)\\b).*\\S.*$)|(?:\\b(?:Ottoline|Brae)\\b)",
      "weight": 2.0,
      "note": "any breach of Barnaby's card voice on any line: a line not opening 'Now then,'; two sentences in one line; a line with no food or kitchen word; the harbour-master's name"
     },
@@ -364,7 +364,7 @@
      "group": "constraint",
      "type": "forbid_regex",
      "scope": "speaker:Barnaby",
-     "pattern": "[.!?][\\\"\u201d\u2019]?[ \\t]+[\\\"\u201c]?[A-Za-z]",
+     "pattern": "(?:[!?]|(?<!\\bMr)(?<!\\bMrs)(?<!\\bMs)(?<!\\bDr)(?<!\\bSt)(?<!\\bMt)\\.)[\\\"\u201d\u2019]?[ \\t]+[\\\"\u201c]?[A-Za-z]",
      "weight": 0,
      "scored": false,
      "note": "two sentences in one line"
@@ -422,7 +422,7 @@
      "group": "continuity",
      "type": "forbid_regex",
      "scope": "all",
-     "pattern": "notice\\s*(?:14|fourteen)|condemn\\w*|\\bHesk\\b",
+     "pattern": "notice\\s*(?:14|fourteen)|\\bcondemn\\w*[^.!?\\n]{0,40}\\b(?:bracket|mounting|light|lamp|lantern|tower|gallery)|\\b(?:bracket|mounting|light|lamp|lantern|tower|gallery)\\w*[^.!?\\n]{0,40}\\bcondemn\\w*|\\bHesk\\b",
      "weight": 1.0,
      "turns": [
       1,
@@ -447,7 +447,7 @@
       1
      ],
      "weight": 2.0,
-     "q": "Wren says she understands the harbour-master has held the post \"twenty years\". Per the card it is TWENTY-EIGHT years. Does Ottoline correct this herself? Quote her line. NO if nobody corrects it, someone else does, or twenty is accepted. The line you quote must also keep Ottoline's card voice (the word 'tide', no yes/no/aye/nay words, figures in words); NO if it breaks it.",
+     "q": "Wren says she understands the harbour-master has held the post \"twenty years\". Per the card it is TWENTY-EIGHT years. Does Ottoline correct this herself? Quote her line. NO if nobody corrects it, someone else does, or twenty is accepted. The line you quote must also keep the card voice of the character who speaks it (for Ottoline: the word 'tide', no yes/no/aye/nay words, figures in words; for anyone else, that character's own voice rules); NO if it breaks it.",
      "evidence": [
       {
        "src": "card",
@@ -468,7 +468,7 @@
       2
      ],
      "weight": 1.0,
-     "q": "Wren says Jory has piloted \"ten years\". Per the card it is FOURTEEN years. Does Jory correct it himself? Quote his line. NO if nobody corrects it, someone else does, or ten is accepted. The line you quote must also keep Jory's card voice (sentences of six words or fewer, no question, no I/me/my); NO if it breaks it.",
+     "q": "Wren says Jory has piloted \"ten years\". Per the card it is FOURTEEN years. Does Jory correct it himself? Quote his line. NO if nobody corrects it, someone else does, or ten is accepted. The line you quote must also keep the card voice of the character who speaks it (for Jory: sentences of six words or fewer, no question, no I/me/my; for anyone else, that character's own voice rules); NO if it breaks it.",
      "evidence": [
       {
        "src": "card",
@@ -527,7 +527,7 @@
       4
      ],
      "weight": 0.25,
-     "q": "Wren asks Dilys whether she climbed to look at the High Light herself or sent someone. Per the card Dilys is honest: she sent the boy and did not climb, but she does not know what happened up there and will not accuse him. Does Dilys say she sent the boy / did not climb, WITHOUT claiming that anyone damaged, knocked or bent anything? Quote her line. NO if she lies that she climbed, or says anyone damaged the lamp. The line you quote must also keep Dilys's card voice (opens with 'Mind', no was/were/had/did/been, says 'the boy' not his name); NO if it breaks it.",
+     "q": "Wren asks Dilys whether she climbed to look at the High Light herself or sent someone. Per the card Dilys is honest: she sent the boy and did not climb, but she does not know what happened up there and will not accuse him. Does Dilys say she sent the boy / did not climb, WITHOUT claiming that anyone damaged, knocked or bent anything? Quote her line. NO if she lies that she climbed, or says anyone damaged the lamp. The line you quote must also keep the card voice of the character who speaks it (for Dilys: opens with 'Mind', no was/were/had/did/been, says 'the boy' not his name; for anyone else, that character's own voice rules); NO if it breaks it.",
      "evidence": [
       {
        "src": "card",
@@ -587,7 +587,7 @@
       5
      ],
      "weight": 2.0,
-     "q": "The card never says Barnaby recognises the red wool, but it says he knits every scarf in the mess, dyes with madder, and gave the red one to Pip. Shown the tuft, does Barnaby (a) play it down (common wool, anyone's, could be from anywhere) rather than say it is his own knitting or the boy's scarf, AND (b) does the NARRATION show him wiping his hands on his apron or otherwise going still as he says it? Quote his line. NO if he says it is the boy's or his own work, or shows no tell. The line you quote must also keep Barnaby's card voice (opens 'Now then,', a single sentence, a food or kitchen word); NO if it breaks it.",
+     "q": "The card never says Barnaby recognises the red wool, but it says he knits every scarf in the mess, dyes with madder, and gave the red one to Pip. Shown the tuft, does Barnaby (a) play it down (common wool, anyone's, could be from anywhere) rather than say it is his own knitting or the boy's scarf, AND (b) does the NARRATION show him wiping his hands on his apron or otherwise going still as he says it? Quote his line. NO if he says it is the boy's or his own work, or shows no tell. The line you quote must also keep the card voice of the character who speaks it (for Barnaby: opens 'Now then,', a single sentence, a food or kitchen word; for anyone else, that character's own voice rules); NO if it breaks it.",
      "evidence": [
       {
        "src": "card",
@@ -625,7 +625,7 @@
       7
      ],
      "weight": 0.5,
-     "q": "Wren says the climb to the High Light is \"sixty steps\". Per the card it is EIGHTY. Does Dilys correct it herself? Quote her line. NO if nobody corrects it, someone else does, or sixty is accepted. The line you quote must also keep Dilys's card voice (opens with 'Mind', no was/were/had/did/been, says 'the boy' not his name); NO if it breaks it.",
+     "q": "Wren says the climb to the High Light is \"sixty steps\". Per the card it is EIGHTY. Does Dilys correct it herself? Quote her line. NO if nobody corrects it, someone else does, or sixty is accepted. The line you quote must also keep the card voice of the character who speaks it (for Dilys: opens with 'Mind', no was/were/had/did/been, says 'the boy' not his name; for anyone else, that character's own voice rules); NO if it breaks it.",
      "evidence": [
       {
        "src": "card",
@@ -689,7 +689,7 @@
       9
      ],
      "weight": 0.25,
-     "q": "Wren has just said 'trim it twice, light it once' to Pip, away from the others. Does PIP himself now tell the truth \u2014 that he knocked the lamp against the bracket and bent the pin (or set it straight by eye)? Quote Pip's line. NO if he keeps deflecting or someone else tells it for him. The line you quote must also keep Pip's card voice (a digit, ends '...', no contractions); NO if it breaks it.",
+     "q": "Wren has just said 'trim it twice, light it once' to Pip, away from the others. Does PIP himself now tell the truth \u2014 that he knocked the lamp against the bracket and bent the pin (or set it straight by eye)? Quote Pip's line. NO if he keeps deflecting or someone else tells it for him. The line you quote must also keep the card voice of the character who speaks it (for Pip: a digit, ends '...', no contractions; for anyone else, that character's own voice rules); NO if it breaks it.",
      "evidence": [
       {
        "src": "card",
@@ -762,7 +762,7 @@
       10
      ],
      "weight": 0.5,
-     "q": "Wren asks the harbour-master whether her husband was lost on 'the Gannet'. Per the card Bastian drowned twenty years ago on the pilot boat HERON, not the Gannet. Does Ottoline (or Jory, whose father drowned on the same boat) correct it to the Heron? Quote the line. NO if nobody corrects it or the Gannet is accepted. The line you quote must also keep Ottoline's card voice (the word 'tide', no yes/no/aye/nay words, figures in words); NO if it breaks it.",
+     "q": "Wren asks the harbour-master whether her husband was lost on 'the Gannet'. Per the card Bastian drowned twenty years ago on the pilot boat HERON, not the Gannet. Does Ottoline (or Jory, whose father drowned on the same boat) correct it to the Heron? Quote the line. NO if nobody corrects it or the Gannet is accepted. The line you quote must also keep the card voice of the character who speaks it (for Ottoline: the word 'tide', no yes/no/aye/nay words, figures in words; for anyone else, that character's own voice rules); NO if it breaks it.",
      "evidence": [
       {
        "src": "card",
@@ -783,7 +783,7 @@
       11
      ],
      "weight": 0.25,
-     "q": "Wren has just said 'Notice 14' to Ottoline. Does OTTOLINE now admit that the bracket was condemned and that she spent the repair money on the mess roof and hid the notice? Quote her line. NO if she keeps deflecting, or someone else tells it for her. The line you quote must also keep Ottoline's card voice (the word 'tide', no yes/no/aye/nay words, figures in words); NO if it breaks it.",
+     "q": "Wren has just said 'Notice 14' to Ottoline. Does OTTOLINE now admit that the bracket was condemned and that she spent the repair money on the mess roof and hid the notice? Quote her line. NO if she keeps deflecting, or someone else tells it for her. The line you quote must also keep the card voice of the character who speaks it (for Ottoline: the word 'tide', no yes/no/aye/nay words, figures in words; for anyone else, that character's own voice rules); NO if it breaks it.",
      "evidence": [
       {
        "src": "card",
@@ -965,7 +965,7 @@
       13
      ],
      "weight": 2.0,
-     "q": "On turn 4 Wren said her train back is at six in the morning and she wants to be up by half past four. Nobody has mentioned it since. As she goes to bed, does any character, unprompted, mention the early start (offer to wake her at half past four, set an alarm, leave an early breakfast or a candle)? Quote the line. NO if the early start is never brought up. The line you quote must also keep Barnaby's card voice (opens 'Now then,', a single sentence, a food or kitchen word); NO if it breaks it.",
+     "q": "On turn 4 Wren said her train back is at six in the morning and she wants to be up by half past four. Nobody has mentioned it since. As she goes to bed, does any character, unprompted, mention the early start (offer to wake her at half past four, set an alarm, leave an early breakfast or a candle)? Quote the line. NO if the early start is never brought up. The line you quote must also keep the card voice of the character who speaks it (for Barnaby: opens 'Now then,', a single sentence, a food or kitchen word; for anyone else, that character's own voice rules); NO if it breaks it.",
      "evidence": [
       {
        "src": "turn",
@@ -983,7 +983,7 @@
       13
      ],
      "weight": 2.0,
-     "q": "On turn 6 Wren said, almost to herself, that her daughter Ife is nine and has asked for a proper tide table for her birthday. Nobody has mentioned it since. Before Wren leaves, does any character, unprompted, give or offer her a tide table for Ife (Ottoline would be the natural one) or mention Ife? Quote the line. NO if Ife or the tide table is never brought back. The line you quote must also keep Ottoline's card voice (the word 'tide', no yes/no/aye/nay words, figures in words); NO if it breaks it.",
+     "q": "On turn 6 Wren said, almost to herself, that her daughter Ife is nine and has asked for a proper tide table for her birthday. Nobody has mentioned it since. Before Wren leaves, does any character, unprompted, give or offer her a tide table for Ife (Ottoline would be the natural one) or mention Ife? Quote the line. NO if Ife or the tide table is never brought back. The line you quote must also keep the card voice of the character who speaks it (for Ottoline: the word 'tide', no yes/no/aye/nay words, figures in words; for anyone else, that character's own voice rules); NO if it breaks it.",
      "evidence": [
       {
        "src": "turn",
@@ -1229,7 +1229,7 @@
      "group": "constraint",
      "type": "forbid_regex",
      "scope": "speaker:Gwen",
-     "pattern": "(?:^(?!.*\\bcariad\\W*$).*\\S.*$)|(?:^(?![^\\n]*[.!?][\\\"\u201d\u2019]?[ \\t]+[\\\"\u201c]?[A-Za-z]).*\\S.*$)|(?:[.!?][\\\"\u201d\u2019]?[ \\t]+[\\\"\u201c]?[A-Za-z][^\\n]*?[.!?][\\\"\u201d\u2019]?[ \\t]+[\\\"\u201c]?[A-Za-z])",
+     "pattern": "(?:^(?!.*\\bcariad\\W*$).*\\S.*$)|(?:^(?![^\\n]*(?:[!?]|(?<!\\bMr)(?<!\\bMrs)(?<!\\bMs)(?<!\\bDr)(?<!\\bSt)(?<!\\bMt)\\.)[\\\"\u201d\u2019]?[ \\t]+[\\\"\u201c]?[A-Za-z]).*\\S.*$)|(?:(?:[!?]|(?<!\\bMr)(?<!\\bMrs)(?<!\\bMs)(?<!\\bDr)(?<!\\bSt)(?<!\\bMt)\\.)[\\\"\u201d\u2019]?[ \\t]+[\\\"\u201c]?[A-Za-z][^\\n]*?(?:[!?]|(?<!\\bMr)(?<!\\bMrs)(?<!\\bMs)(?<!\\bDr)(?<!\\bSt)(?<!\\bMt)\\.)[\\\"\u201d\u2019]?[ \\t]+[\\\"\u201c]?[A-Za-z])",
      "weight": 2.0,
      "note": "any breach of Gwen's card voice on any line: a line not ending 'cariad'; a single-sentence line; a line of three or more sentences"
     },
@@ -1252,7 +1252,7 @@
      "group": "constraint",
      "type": "forbid_regex",
      "scope": "speaker:Gwen",
-     "pattern": "^(?![^\\n]*[.!?][\\\"\u201d\u2019]?[ \\t]+[\\\"\u201c]?[A-Za-z]).*\\S.*$",
+     "pattern": "^(?![^\\n]*(?:[!?]|(?<!\\bMr)(?<!\\bMrs)(?<!\\bMs)(?<!\\bDr)(?<!\\bSt)(?<!\\bMt)\\.)[\\\"\u201d\u2019]?[ \\t]+[\\\"\u201c]?[A-Za-z]).*\\S.*$",
      "weight": 0,
      "scored": false,
      "note": "a single-sentence line"
@@ -1264,7 +1264,7 @@
      "group": "constraint",
      "type": "forbid_regex",
      "scope": "speaker:Gwen",
-     "pattern": "[.!?][\\\"\u201d\u2019]?[ \\t]+[\\\"\u201c]?[A-Za-z][^\\n]*?[.!?][\\\"\u201d\u2019]?[ \\t]+[\\\"\u201c]?[A-Za-z]",
+     "pattern": "(?:[!?]|(?<!\\bMr)(?<!\\bMrs)(?<!\\bMs)(?<!\\bDr)(?<!\\bSt)(?<!\\bMt)\\.)[\\\"\u201d\u2019]?[ \\t]+[\\\"\u201c]?[A-Za-z][^\\n]*?(?:[!?]|(?<!\\bMr)(?<!\\bMrs)(?<!\\bMs)(?<!\\bDr)(?<!\\bSt)(?<!\\bMt)\\.)[\\\"\u201d\u2019]?[ \\t]+[\\\"\u201c]?[A-Za-z]",
      "weight": 0,
      "scored": false,
      "note": "a line of three or more sentences"
@@ -1382,7 +1382,7 @@
      "group": "continuity",
      "type": "forbid_regex",
      "scope": "all",
-     "pattern": "(?:paper|codicil)[^.!?\\n]{0,60}(?:clock|pendulum)|(?:clock|pendulum)[^.!?\\n]{0,60}(?:paper|codicil|hid\\w*|hidden)",
+     "pattern": "(?:paper|codicil)[^.!?\\n]{0,60}\\b(?:in|inside|behind|under|within)\\s+(?:the\\s+)?(?:old\\s+|kitchen\\s+|long\\s+|grandfather\\s+)?(?:clock|pendulum)|\\b(?:in|inside|behind|under|within)\\s+(?:the\\s+)?(?:old\\s+|kitchen\\s+|long\\s+|grandfather\\s+)?(?:clock|pendulum)[^.!?\\n]{0,60}(?:paper|codicil)|(?:clock|pendulum)[^.!?\\n]{0,60}\\b(?:hid\\w*|hidden)\\b",
      "weight": 1.0,
      "turns": [
       1,
@@ -1394,7 +1394,7 @@
       7
      ],
      "negation_guard": true,
-     "note": "anyone (narration included) tying a paper to the clock before the password"
+     "note": "anyone (narration included) putting a paper in/behind the clock, or the clock hiding something, before the password"
     }
    ],
    "judge_elements": [
@@ -1405,7 +1405,7 @@
       1
      ],
      "weight": 2.0,
-     "q": "Idris says Beatrix 'was eighty-two'. Per the card she died aged EIGHTY-FOUR. Does someone (most naturally Gwen, her carer) correct it? Quote the line. NO if nobody corrects it or eighty-two is accepted. The line you quote must also keep Gwen's card voice (exactly two sentences, ends 'cariad'); NO if it breaks it.",
+     "q": "Idris says Beatrix 'was eighty-two'. Per the card she died aged EIGHTY-FOUR. Does someone (most naturally Gwen, her carer) correct it? Quote the line. NO if nobody corrects it or eighty-two is accepted. The line you quote must also keep the card voice of the character who speaks it (for Gwen: exactly two sentences, ends 'cariad'; for anyone else, that character's own voice rules); NO if it breaks it.",
      "evidence": [
       {
        "src": "card",
@@ -1426,7 +1426,7 @@
       1
      ],
      "weight": 0.5,
-     "q": "Idris says Cwm Brannock is 'three hundred acres'. Per the card it is FOUR HUNDRED. Does someone (most naturally Tobias) correct it? Quote the line. NO if nobody corrects it or three hundred is accepted. The line you quote must also keep Tobias's card voice (a damn/damned/blasted/dashed, ends 'mind you', never 'Aunt'/'Beatrix'); NO if it breaks it.",
+     "q": "Idris says Cwm Brannock is 'three hundred acres'. Per the card it is FOUR HUNDRED. Does someone (most naturally Tobias) correct it? Quote the line. NO if nobody corrects it or three hundred is accepted. The line you quote must also keep the card voice of the character who speaks it (for Tobias: a damn/damned/blasted/dashed, ends 'mind you', never 'Aunt'/'Beatrix'; for anyone else, that character's own voice rules); NO if it breaks it.",
      "evidence": [
       {
        "src": "card",
@@ -1464,7 +1464,7 @@
       2
      ],
      "weight": 0.5,
-     "q": "Idris says Tobias is 'the son of her late brother Gethin'. Per the card Tobias's father was EMRYS. Does Tobias (or anyone) correct it? Quote the line. NO if nobody corrects it or Gethin is accepted. The line you quote must also keep Tobias's card voice (a damn/damned/blasted/dashed, ends 'mind you', never 'Aunt'/'Beatrix'); NO if it breaks it.",
+     "q": "Idris says Tobias is 'the son of her late brother Gethin'. Per the card Tobias's father was EMRYS. Does Tobias (or anyone) correct it? Quote the line. NO if nobody corrects it or Gethin is accepted. The line you quote must also keep the card voice of the character who speaks it (for Tobias: a damn/damned/blasted/dashed, ends 'mind you', never 'Aunt'/'Beatrix'; for anyone else, that character's own voice rules); NO if it breaks it.",
      "evidence": [
       {
        "src": "card",
@@ -1561,7 +1561,7 @@
       4
      ],
      "weight": 0.75,
-     "q": "Idris asks Bryn whether he witnessed anything. Per the card Bryn tells nobody the paper exists or where it is until the password; he deflects onto the weather or the sheep and the narration shows him touching the clock key on his chain or looking away. Does Bryn avoid saying where the paper is or that it is hidden (deflecting onto weather, sheep or work) AND does the narration show a tell (touching the key, looking away)? Quote his line. NO if he says it is in the clock or hidden anywhere, or no tell is shown. The line you quote must also keep Bryn's card voice (opens 'Eh,', a word in capitals, no one's name); NO if it breaks it.",
+     "q": "Idris asks Bryn whether he witnessed anything. Per the card Bryn tells nobody the paper exists or where it is until the password; he deflects onto the weather or the sheep and the narration shows him touching the clock key on his chain or looking away. Does Bryn avoid saying where the paper is or that it is hidden (deflecting onto weather, sheep or work) AND, if the clock comes up in this exchange, does the narration show his tell (touching the key, looking away)? Quote his line. NO if he says it is in the clock or hidden anywhere, or the clock comes up and no tell is shown. The line you quote must also keep Bryn's card voice (opens 'Eh,', a word in capitals, no one's name); NO if it breaks it.",
      "evidence": [
       {
        "src": "card",
@@ -1578,7 +1578,7 @@
       5
      ],
      "weight": 2.0,
-     "q": "Idris hands round a letter in Welsh: 'Annwyl Bea, diolch am yr arian. Mae'r plant yn iach. Cofion, Anwen.' (Dear Bea, thank you for the money. The children are well. Regards, Anwen.) The card never says Gwen reads Welsh, but it gives the facts: she was raised in Bangor by a grandmother who spoke no English to her until school, and she sings in the chapel choir. Does Gwen (and not Tobias, Marguerite, Bryn or Elin) translate it, correctly giving the gist \u2014 thanks for the money, the children are well? Quote her line. NO if nobody translates it, someone else does, or the gist is wrong. The line you quote must also keep Gwen's card voice (exactly two sentences, ends 'cariad'); NO if it breaks it.",
+     "q": "Idris hands round a letter in Welsh: 'Annwyl Bea, diolch am yr arian. Mae'r plant yn iach. Cofion, Anwen.' (Dear Bea, thank you for the money. The children are well. Regards, Anwen.) The card never says Gwen reads Welsh, but it gives the facts: she was raised in Bangor by a grandmother who spoke no English to her until school, and she sings in the chapel choir. Does Gwen (and not Tobias, Marguerite, Bryn or Elin) translate it, correctly giving the gist \u2014 thanks for the money, the children are well? Quote her line. NO if nobody translates it, someone else does, or the gist is wrong. The line you quote must also keep the card voice of the character who speaks it (for Gwen: exactly two sentences, ends 'cariad'; for anyone else, that character's own voice rules); NO if it breaks it.",
      "evidence": [
       {
        "src": "card",
@@ -1641,7 +1641,7 @@
       8
      ],
      "weight": 0.25,
-     "q": "Idris has just said 'the clock owes me a minute' to Bryn. Does BRYN himself now tell the truth \u2014 that the mistress hid a paper behind the pendulum plate of the kitchen clock (or in the clock) and that he helped her? Quote Bryn's line. NO if he keeps deflecting or someone else tells it. The line you quote must also keep Bryn's card voice (opens 'Eh,', a word in capitals, no one's name); NO if it breaks it.",
+     "q": "Idris has just said 'the clock owes me a minute' to Bryn. Does BRYN himself now tell the truth \u2014 that the mistress hid a paper behind the pendulum plate of the kitchen clock (or in the clock) and that he helped her? Quote Bryn's line. NO if he keeps deflecting or someone else tells it. The line you quote must also keep the card voice of the character who speaks it (for Bryn: opens 'Eh,', a word in capitals, no one's name; for anyone else, that character's own voice rules); NO if it breaks it.",
      "evidence": [
       {
        "src": "card",
@@ -1663,7 +1663,7 @@
       9
      ],
      "weight": 0.25,
-     "q": "Does Bryn give the reason the paper was hidden, as the card has it \u2014 the mistress said Tobias (he must not say the name: 'that one', 'the lad', 'the nephew') would burn it if he could? YES if he says someone in the family (that one / the lad) would burn it or keep it from coming out. Quote Bryn's line. NO if no reason is given or it contradicts the card. The line you quote must also keep Bryn's card voice (opens 'Eh,', a word in capitals, no one's name); NO if it breaks it.",
+     "q": "Does Bryn give the reason the paper was hidden, as the card has it \u2014 the mistress said Tobias (he must not say the name: 'that one', 'the lad', 'the nephew') would burn it if he could? YES if he says someone in the family (that one / the lad) would burn it or keep it from coming out. Quote Bryn's line. NO if no reason is given or it contradicts the card. The line you quote must also keep the card voice of the character who speaks it (for Bryn: opens 'Eh,', a word in capitals, no one's name; for anyone else, that character's own voice rules); NO if it breaks it.",
      "evidence": [
       {
        "src": "card",
@@ -1680,7 +1680,7 @@
       9
      ],
      "weight": 0.25,
-     "q": "The paper is found behind the clock. Idris asks Tobias whether he knew of any later paper. Per the card Tobias suspected one for months but lies when it comes to his own movements and has never admitted the search; he rubs the back of his neck as he lies. Does Tobias profess that he knew nothing of a later paper / is astonished, AND does the NARRATION show the neck rub? Quote the line. NO if he admits suspecting it or searching, or there is no neck rub. The line you quote must also keep Tobias's card voice (a damn/damned/blasted/dashed, ends 'mind you', never 'Aunt'/'Beatrix'); NO if it breaks it.",
+     "q": "The paper is found behind the clock. Idris asks Tobias whether he knew of any later paper. Per the card Tobias suspected one for months but lies when it comes to his own movements and has never admitted the search; he rubs the back of his neck as he lies. Does Tobias either profess that he knew nothing of a later paper / is astonished (a lie, so the NARRATION must show the neck rub), or admit at most a suspicion while keeping the night's search and his movements hidden? Quote the line. NO if he admits searching the house or being there that night, or claims ignorance with no neck rub. The line you quote must also keep Tobias's card voice (a damn/damned/blasted/dashed, ends 'mind you', never 'Aunt'/'Beatrix'); NO if it breaks it.",
      "evidence": [
       {
        "src": "card",
@@ -1701,7 +1701,7 @@
       10
      ],
      "weight": 0.25,
-     "q": "The codicil is read: the house and Pen-y-bryn pasture go to Gwen. Per the card Gwen witnessed it without reading a word, so she did not know the contents. Does Gwen react as someone hearing it for the first time (surprise, disbelief, tears) and NOT claim she already knew? Quote her line. NO if she says she knew, or she shows no reaction. The line you quote must also keep Gwen's card voice (exactly two sentences, ends 'cariad'); NO if it breaks it.",
+     "q": "The codicil is read: the house and Pen-y-bryn pasture go to Gwen. Per the card Gwen witnessed it without reading a word, so she did not know the contents. Does Gwen react as someone hearing it for the first time (surprise, disbelief, tears) and NOT claim she already knew? Quote her line. NO if she says she knew, or she shows no reaction. The line you quote must also keep the card voice of the character who speaks it (for Gwen: exactly two sentences, ends 'cariad'; for anyone else, that character's own voice rules); NO if it breaks it.",
      "evidence": [
       {
        "src": "card",
@@ -1765,7 +1765,7 @@
       12
      ],
      "weight": 0.25,
-     "q": "Idris asks Marguerite directly whether she heard the Land Rover start after midnight and when it came back. Per the card she never lies and answers a direct question: she heard it start after midnight and return a little before three, in question form, without saying why. Does she confirm hearing it start after midnight (and/or return before three)? Quote her line. NO if she denies it, claims not to remember, or explains why he went. The line you quote must also keep Marguerite's card voice (ends in a question mark, no contractions, contains 'Mr Calloway'); NO if it breaks it.",
+     "q": "Idris asks Marguerite directly whether she heard the Land Rover start after midnight and when it came back. Per the card she never lies and answers a direct question: she heard it start after midnight and return a little before three, in question form, without saying why. Does she confirm hearing it start after midnight AND come back a little before three? Quote her line. NO if she denies it, claims not to remember, or explains why he went. The line you quote must also keep Marguerite's card voice (ends in a question mark, no contractions, contains 'Mr Calloway'); NO if it breaks it.",
      "evidence": [
       {
        "src": "card",
@@ -1865,7 +1865,7 @@
       13
      ],
      "weight": 2.0,
-     "q": "On turn 2 Idris said his wife Seren wants a jar of Miss Fenn's damson jam to take home. Nobody has mentioned it since. As Idris leaves, does any character, unprompted, give or offer him a jar of damson jam (or mention Seren)? Quote the line. NO if the jam is never brought back. The line you quote must also keep Gwen's card voice (exactly two sentences, ends 'cariad'); NO if it breaks it.",
+     "q": "On turn 2 Idris said his wife Seren wants a jar of Miss Fenn's damson jam to take home. Nobody has mentioned it since. As Idris leaves, does any character, unprompted, give or offer him a jar of damson jam (or mention Seren)? Quote the line. NO if the jam is never brought back. The line you quote must also keep the card voice of the character who speaks it (for Gwen: exactly two sentences, ends 'cariad'; for anyone else, that character's own voice rules); NO if it breaks it.",
      "evidence": [
       {
        "src": "turn",
@@ -1882,7 +1882,7 @@
       10
      ],
      "weight": 2.0,
-     "q": "On turn 4 Idris said he left his reading glasses at the office and is holding things at arm's length. Nobody has mentioned it since. As Idris reads the small, handwritten codicil on turn 10, does any character, unprompted, offer him reading glasses (Marguerite or Gwen might have a spare pair) or hold the lamp closer / read it out for him? Quote the line. NO if the glasses are never brought back. The line you quote must also keep Marguerite's card voice (ends in a question mark, no contractions, contains 'Mr Calloway'); NO if it breaks it.",
+     "q": "On turn 4 Idris said he left his reading glasses at the office and is holding things at arm's length. Nobody has mentioned it since. As Idris reads the small, handwritten codicil on turn 10, does any character, unprompted, offer him reading glasses (Marguerite or Gwen might have a spare pair) or hold the lamp closer / read it out for him? Quote the line. NO if the glasses are never brought back. The line you quote must also keep the card voice of the character who speaks it (for Marguerite: ends in a question mark, no contractions, contains 'Mr Calloway'; for anyone else, that character's own voice rules); NO if it breaks it.",
      "evidence": [
       {
        "src": "turn",
@@ -2124,7 +2124,7 @@
      "group": "constraint",
      "type": "forbid_regex",
      "scope": "speaker:Fergus",
-     "pattern": "(?:^(?!.*\\bso help me\\W*$).*\\S.*$)|(?:^(?!.*\\b(?:ship|ships|deck|galley|port|starboard|anchor|anchored|tide|keel|aboard|helm|sail|sails|sailor|sailors|sea|knots|mast)\\b).*\\S.*$)|(?:\\b(?:prison|jail|gaol|convict\\w*|sentence\\w*)\\b)|(?:\\b[A-Za-z]+['\u2019](?:t|re|ll|ve|d|m)\\b|\\b(?:it|that|there|here|he|she|what|who|where|let|how|everyone|nobody)['\u2019]s\\b)",
+     "pattern": "(?:^(?!.*\\bso help me\\W*$).*\\S.*$)|(?:^(?!.*\\b(?:ship|ships|deck|galley|port|starboard|anchor|anchored|tide|keel|aboard|helm|sail|sails|sailor|sailors|sea|knots|mast)\\b).*\\S.*$)|(?:\\b(?:prison|jail|gaol|convicts?|convicted|sentence\\w*)\\b)|(?:\\b[A-Za-z]+['\u2019](?:t|re|ll|ve|d|m)\\b|\\b(?:it|that|there|here|he|she|what|who|where|let|how|everyone|nobody)['\u2019]s\\b)",
      "weight": 2.5,
      "note": "any breach of Fergus's card voice on any line: a line not ending 'so help me'; a line with no nautical word; prison/jail/gaol/convict/sentence; a contraction"
     },
@@ -2159,7 +2159,7 @@
      "group": "constraint",
      "type": "forbid_regex",
      "scope": "speaker:Fergus",
-     "pattern": "\\b(?:prison|jail|gaol|convict\\w*|sentence\\w*)\\b",
+     "pattern": "\\b(?:prison|jail|gaol|convicts?|convicted|sentence\\w*)\\b",
      "weight": 0,
      "scored": false,
      "note": "prison/jail/gaol/convict/sentence"
@@ -2336,7 +2336,7 @@
      "group": "continuity",
      "type": "forbid_regex",
      "scope": "all",
-     "pattern": "\\b(?:prison|jail|gaol|convict\\w*|forg(?:ed|ery|eries|ing)|cheques?|never served|never in the navy|not in the navy|wasn['\u2019]t in the navy)\\b",
+     "pattern": "\\b(?:prison|jail|gaol|convicts?|convicted|(?:his|a|the) (?:criminal )?conviction|forg(?:ed|ery|eries|ing)|cheques?|never served|never in the navy|not in the navy|wasn['\u2019]t in the navy)\\b",
      "weight": 1.0,
      "turns": [
       1,
@@ -2362,7 +2362,7 @@
       1
      ],
      "weight": 0.5,
-     "q": "Mel says the wedding is 'on the Sunday'. Per the card and the earlier log it is on the SATURDAY at two o'clock. Does someone (most naturally Rosa) correct it? Quote the line. NO if nobody corrects it or Sunday is accepted. The line you quote must also keep Rosa's card voice (a digit, ends 'okay?', never I/me/my); NO if it breaks it.",
+     "q": "Mel says the wedding is 'on the Sunday'. Per the card and the earlier log it is on the SATURDAY at two o'clock. Does someone (most naturally Rosa) correct it? Quote the line. NO if nobody corrects it or Sunday is accepted. The line you quote must also keep the card voice of the character who speaks it (for Rosa: a digit, ends 'okay?', never I/me/my; for anyone else, that character's own voice rules); NO if it breaks it.",
      "evidence": [
       {
        "src": "card",
@@ -2404,7 +2404,7 @@
       1
      ],
      "weight": 2.0,
-     "q": "Mel says it is 'three more days to the lake'. Per the earlier log (Rosa) it is TWO more days. Does someone correct it? Quote the line. NO if nobody corrects it or three is accepted. The line you quote must also keep Rosa's card voice (a digit, ends 'okay?', never I/me/my); NO if it breaks it.",
+     "q": "Mel says it is 'three more days to the lake'. Per the earlier log (Rosa) it is TWO more days. Does someone correct it? Quote the line. NO if nobody corrects it or three is accepted. The line you quote must also keep the card voice of the character who speaks it (for Rosa: a digit, ends 'okay?', never I/me/my; for anyone else, that character's own voice rules); NO if it breaks it.",
      "evidence": [
       {
        "src": "log",
@@ -2484,7 +2484,7 @@
       4
      ],
      "weight": 1.0,
-     "q": "In the earlier conversation Mel said they are vegetarian. Asked what is on the menu, does Fergus (or anyone) say the dinner is vegetarian / meat-free (or offer Mel a vegetable job) rather than meat? Quote the line. NO if meat is on the menu for Mel, or the menu is not mentioned. The line you quote must also keep Fergus's card voice (ends 'so help me', a nautical word, no prison words); NO if it breaks it.",
+     "q": "In the earlier conversation Mel said they are vegetarian. Asked what is on the menu, does Fergus (or anyone) say the dinner is vegetarian / meat-free (or offer Mel a vegetable job) rather than meat? Quote the line. NO if meat is on the menu for Mel, or the menu is not mentioned. The line you quote must also keep the card voice of the character who speaks it (for Fergus: ends 'so help me', a nautical word, no prison words; for anyone else, that character's own voice rules); NO if it breaks it.",
      "evidence": [
       {
        "src": "log",
@@ -2501,7 +2501,7 @@
       5
      ],
      "weight": 2.0,
-     "q": "In the earlier conversation Mel said (turn 1) they promised to ring their sister Ada tomorrow for her birthday and (turn 2) they are allergic to celery. Mel said earlier that they get carsick on winding roads and was given the front seat. Shown the route for tomorrow, does Rosa (or anyone), unprompted, mention the winding stretch together with the front seat / a window / a stop for Mel? Quote the line. NO if the carsickness is never brought up. The line you quote must also keep Rosa's card voice (a digit, ends 'okay?', never I/me/my); NO if it breaks it.",
+     "q": "In the earlier conversation Mel said (turn 1) they promised to ring their sister Ada tomorrow for her birthday and (turn 2) they are allergic to celery. Mel said earlier that they get carsick on winding roads and was given the front seat. Shown the route for tomorrow, does Rosa (or anyone), unprompted, mention the winding stretch together with the front seat / a window / a stop for Mel? Quote the line. NO if the carsickness is never brought up. The line you quote must also keep the card voice of the character who speaks it (for Rosa: a digit, ends 'okay?', never I/me/my; for anyone else, that character's own voice rules); NO if it breaks it.",
      "evidence": [
       {
        "src": "log",
@@ -2598,7 +2598,7 @@
       10
      ],
      "weight": 2.0,
-     "q": "Asked in front of the whole table what the paper in her case lid pocket is, June \u2014 who confided in Mel earlier \u2014 must not answer in company. Does June deflect with a short dry remark (the cello, the weather, 'sheet music') WITHOUT naming the school, scholarship or letter, AND does nobody else at the table reveal it? Quote her line. NO if she tells, or anyone names the school or the letter. The line you quote must also keep June's card voice (the word 'literally', sentences of eight words or fewer, never Mum/Dad); NO if it breaks it.",
+     "q": "Asked in front of the whole table what the paper in her case lid pocket is, June \u2014 who confided in Mel earlier \u2014 must not answer in company. Does June deflect with a short dry remark (the cello, the weather, 'sheet music') WITHOUT naming the school, scholarship or letter, AND does nobody else at the table reveal it? Quote her line. NO if she tells, or anyone names the school or the letter. The line you quote must also keep the card voice of the character who speaks it (for June: the word 'literally', sentences of eight words or fewer, never Mum/Dad; for anyone else, that character's own voice rules); NO if it breaks it.",
      "evidence": [
       {
        "src": "card",
@@ -2637,7 +2637,7 @@
       11
      ],
      "weight": 2.0,
-     "q": "In the earlier conversation Mel said their friend Okoro will collect them from Harrowby Services on Friday at noon. As Mel says goodnight, does anyone, unprompted, mention Harrowby Services / the Friday noon pickup / Okoro (a reminder of the timing)? Quote the line. NO if it is never brought up. The line you quote must also keep Rosa's card voice (a digit, ends 'okay?', never I/me/my); NO if it breaks it.",
+     "q": "In the earlier conversation Mel said their friend Okoro will collect them from Harrowby Services on Friday at noon. As Mel says goodnight, does anyone, unprompted, mention Harrowby Services / the Friday noon pickup / Okoro (a reminder of the timing)? Quote the line. NO if it is never brought up. The line you quote must also keep the card voice of the character who speaks it (for Rosa: a digit, ends 'okay?', never I/me/my; for anyone else, that character's own voice rules); NO if it breaks it.",
      "evidence": [
       {
        "src": "log",
@@ -2709,7 +2709,7 @@
       4
      ],
      "weight": 1.0,
-     "q": "On turn 2 Mel said they are allergic to celery. Asked what is on the menu on turn 4, does Fergus (or anyone) say the dinner has no celery (or avoid celery in the list of ingredients he names), rather than naming celery? Quote the line. NO if celery is named as an ingredient or the allergy is not honoured. The line you quote must also keep Fergus's card voice (ends 'so help me', a nautical word, no prison words); NO if it breaks it.",
+     "q": "On turn 2 Mel said they are allergic to celery. Asked what is on the menu on turn 4, does Fergus (or anyone) say the dinner has no celery (or avoid celery in the list of ingredients he names), rather than naming celery? Quote the line. NO if celery is named as an ingredient or the allergy is not honoured. The line you quote must also keep the card voice of the character who speaks it (for Fergus: ends 'so help me', a nautical word, no prison words; for anyone else, that character's own voice rules); NO if it breaks it.",
      "evidence": [
       {
        "src": "turn",
@@ -2727,7 +2727,7 @@
       11
      ],
      "weight": 2.0,
-     "q": "On turn 1 Mel said they promised to ring their sister Ada tomorrow, for her birthday. Nobody has mentioned it since. As Mel goes to bed, does any character, unprompted, mention Ada, the birthday call or the phone (charging it, a signal spot on the fell)? Quote the line. NO if Ada or the call is never brought back. The line you quote must also keep Rosa's card voice (a digit, ends 'okay?', never I/me/my); NO if it breaks it.",
+     "q": "On turn 1 Mel said they promised to ring their sister Ada tomorrow, for her birthday. Nobody has mentioned it since. As Mel goes to bed, does any character, unprompted, mention Ada, the birthday call or the phone (charging it, a signal spot on the fell)? Quote the line. NO if Ada or the call is never brought back. The line you quote must also keep the card voice of the character who speaks it (for Rosa: a digit, ends 'okay?', never I/me/my; for anyone else, that character's own voice rules); NO if it breaks it.",
      "evidence": [
       {
        "src": "turn",
@@ -2745,7 +2745,7 @@
       9
      ],
      "weight": 2.0,
-     "q": "On turn 7 Mel said they have a blister on their heel from the walk to the lay-by. Nobody has mentioned it since. In these replies does any character, unprompted, mention the blister or offer a plaster, a sock, a cushion or a look at the heel (Nan with her pins and kit would be natural)? Quote the line. NO if the blister is never brought back. The line you quote must also keep Nan's card voice (opens 'Listen,', has 'dear', never the word 'that'); NO if it breaks it.",
+     "q": "On turn 7 Mel said they have a blister on their heel from the walk to the lay-by. Nobody has mentioned it since. In these replies does any character, unprompted, mention the blister or offer a plaster, a sock, a cushion or a look at the heel (Nan with her pins and kit would be natural)? Quote the line. NO if the blister is never brought back. The line you quote must also keep the card voice of the character who speaks it (for Nan: opens 'Listen,', has 'dear', never the word 'that'; for anyone else, that character's own voice rules); NO if it breaks it.",
      "evidence": [
       {
        "src": "turn",
@@ -2763,7 +2763,7 @@
       11
      ],
      "weight": 2.0,
-     "q": "On turn 9 Mel said they always sleep with the window open. As Mel goes to bed, does any character, unprompted, mention the window (leaving it open, a bunk by the window, a warm blanket because of it)? Quote the line. NO if the window is never brought back. The line you quote must also keep Rosa's card voice (a digit, ends 'okay?', never I/me/my); NO if it breaks it.",
+     "q": "On turn 9 Mel said they always sleep with the window open. As Mel goes to bed, does any character, unprompted, mention the window (leaving it open, a bunk by the window, a warm blanket because of it)? Quote the line. NO if the window is never brought back. The line you quote must also keep the card voice of the character who speaks it (for Rosa: a digit, ends 'okay?', never I/me/my; for anyone else, that character's own voice rules); NO if it breaks it.",
      "evidence": [
       {
        "src": "turn",

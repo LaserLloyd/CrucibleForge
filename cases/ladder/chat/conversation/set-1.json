@@ -309,8 +309,9 @@
       11
      ],
      "scope": "all",
-     "pattern": "\\A[^.!?]*[.!?]+[^.!?]*\\w[^.!?]*[.!?]+[^.!?]*\\w[^.!?]*[.!?]",
-     "weight": 1
+     "pattern": "\\A(?:[^.!?]|(?<=\\d)\\.(?=\\d)|(?:(?<=\\bMr)|(?<=\\bMrs)|(?<=\\bMs)|(?<=\\bDr)|(?<=\\bSt)|(?<=\\bMt)|(?<=\\b[ap])|(?<=\\b[ap]\\.m))\\.)*(?:[!?]|(?<!\\bMr)(?<!\\bMrs)(?<!\\bMs)(?<!\\bDr)(?<!\\bSt)(?<!\\bMt)(?<!\\b[ap])(?<!\\b[ap]\\.m)(?:\\.(?!\\d)|(?<!\\d)\\.))+(?:[^.!?]|(?<=\\d)\\.(?=\\d)|(?:(?<=\\bMr)|(?<=\\bMrs)|(?<=\\bMs)|(?<=\\bDr)|(?<=\\bSt)|(?<=\\bMt)|(?<=\\b[ap])|(?<=\\b[ap]\\.m))\\.)*\\w(?:[^.!?]|(?<=\\d)\\.(?=\\d)|(?:(?<=\\bMr)|(?<=\\bMrs)|(?<=\\bMs)|(?<=\\bDr)|(?<=\\bSt)|(?<=\\bMt)|(?<=\\b[ap])|(?<=\\b[ap]\\.m))\\.)*(?:[!?]|(?<!\\bMr)(?<!\\bMrs)(?<!\\bMs)(?<!\\bDr)(?<!\\bSt)(?<!\\bMt)(?<!\\b[ap])(?<!\\b[ap]\\.m)(?:\\.(?!\\d)|(?<!\\d)\\.))+(?:[^.!?]|(?<=\\d)\\.(?=\\d)|(?:(?<=\\bMr)|(?<=\\bMrs)|(?<=\\bMs)|(?<=\\bDr)|(?<=\\bSt)|(?<=\\bMt)|(?<=\\b[ap])|(?<=\\b[ap]\\.m))\\.)*\\w(?:[^.!?]|(?<=\\d)\\.(?=\\d)|(?:(?<=\\bMr)|(?<=\\bMrs)|(?<=\\bMs)|(?<=\\bDr)|(?<=\\bSt)|(?<=\\bMt)|(?<=\\b[ap])|(?<=\\b[ap]\\.m))\\.)*(?:[!?]|(?<!\\bMr)(?<!\\bMrs)(?<!\\bMs)(?<!\\bDr)(?<!\\bSt)(?<!\\bMt)(?<!\\b[ap])(?<!\\b[ap]\\.m)(?:\\.(?!\\d)|(?<!\\d)\\.))",
+     "weight": 1,
+     "note": "a third terminated sentence; a dot in a number (8.30), after a title (Mr. Mrs. Ms. Dr. St. Mt.) or in a.m./p.m. does not end a sentence"
     },
     {
      "id": "Q2-no-questions-on-request",
@@ -377,7 +378,7 @@
       5
      ],
      "scope": "all",
-     "pattern": "\\b(?:5|05)(?::00)?(?:\\s+o(?:'|\u2019)clock)?(?:\\s+on\\s+Monday)?\\s*(?:am|a\\.m\\.|in the morning|morning)\\b|\\bfive(?:\\s+o(?:'|\u2019)clock)?(?:\\s+on\\s+Monday)?\\s+(?:am|a\\.m\\.|in the morning|morning)\\b|\\b05:00\\b",
+     "pattern": "\\b(?:5|05)(?::00)?(?:\\s+o(?:'|\u2019)clock)?(?:\\s+(?:on\\s+)?Monday)?\\s*(?:am|a\\.m\\.|in the morning|morning)(?!\\w)|\\bfive(?:\\s+o(?:'|\u2019)clock)?(?:\\s+(?:on\\s+)?Monday)?\\s+(?:am|a\\.m\\.|in the morning|morning)(?!\\w)|\\b05:00\\b",
      "note": "Perth is 8 h ahead (7 am = 3 pm in the 5 Nov log): 9 pm Sunday = 5 am Monday in Perth"
     },
     {
@@ -390,7 +391,7 @@
       10
      ],
      "scope": "all",
-     "pattern": "(?s)\\A(?=.*\\bMonday)(?=.*(?:\\b(?:2|two)(?::00)?\\s?(?:pm|p\\.m\\.|o(?:'|\u2019)clock)|\\btwo in the afternoon\\b|\\b(?:at|from) (?:2|two)\\b))",
+     "pattern": "(?s)\\A(?=.*\\bMonday)(?=.*(?:\\b(?:2|two)(?::00)?\\s?(?:pm|p\\.m\\.|o(?:'|\u2019)clock)|\\btwo in the afternoon\\b|\\b(?:at|from) (?:2|two)\\b|\\b14[:.]?00\\b))",
      "note": "the slot moved from Monday ten (t6, Joss clash) to Monday two (t7)"
     }
    ],
@@ -894,8 +895,9 @@
       11
      ],
      "scope": "all",
-     "pattern": "\\A[^.!?]*[.!?]+[^.!?]*\\w[^.!?]*[.!?]+[^.!?]*\\w[^.!?]*[.!?]",
-     "weight": 1
+     "pattern": "\\A(?:[^.!?]|(?<=\\d)\\.(?=\\d)|(?:(?<=\\bMr)|(?<=\\bMrs)|(?<=\\bMs)|(?<=\\bDr)|(?<=\\bSt)|(?<=\\bMt)|(?<=\\b[ap])|(?<=\\b[ap]\\.m))\\.)*(?:[!?]|(?<!\\bMr)(?<!\\bMrs)(?<!\\bMs)(?<!\\bDr)(?<!\\bSt)(?<!\\bMt)(?<!\\b[ap])(?<!\\b[ap]\\.m)(?:\\.(?!\\d)|(?<!\\d)\\.))+(?:[^.!?]|(?<=\\d)\\.(?=\\d)|(?:(?<=\\bMr)|(?<=\\bMrs)|(?<=\\bMs)|(?<=\\bDr)|(?<=\\bSt)|(?<=\\bMt)|(?<=\\b[ap])|(?<=\\b[ap]\\.m))\\.)*\\w(?:[^.!?]|(?<=\\d)\\.(?=\\d)|(?:(?<=\\bMr)|(?<=\\bMrs)|(?<=\\bMs)|(?<=\\bDr)|(?<=\\bSt)|(?<=\\bMt)|(?<=\\b[ap])|(?<=\\b[ap]\\.m))\\.)*(?:[!?]|(?<!\\bMr)(?<!\\bMrs)(?<!\\bMs)(?<!\\bDr)(?<!\\bSt)(?<!\\bMt)(?<!\\b[ap])(?<!\\b[ap]\\.m)(?:\\.(?!\\d)|(?<!\\d)\\.))+(?:[^.!?]|(?<=\\d)\\.(?=\\d)|(?:(?<=\\bMr)|(?<=\\bMrs)|(?<=\\bMs)|(?<=\\bDr)|(?<=\\bSt)|(?<=\\bMt)|(?<=\\b[ap])|(?<=\\b[ap]\\.m))\\.)*\\w(?:[^.!?]|(?<=\\d)\\.(?=\\d)|(?:(?<=\\bMr)|(?<=\\bMrs)|(?<=\\bMs)|(?<=\\bDr)|(?<=\\bSt)|(?<=\\bMt)|(?<=\\b[ap])|(?<=\\b[ap]\\.m))\\.)*(?:[!?]|(?<!\\bMr)(?<!\\bMrs)(?<!\\bMs)(?<!\\bDr)(?<!\\bSt)(?<!\\bMt)(?<!\\b[ap])(?<!\\b[ap]\\.m)(?:\\.(?!\\d)|(?<!\\d)\\.))",
+     "weight": 1,
+     "note": "a third terminated sentence; a dot in a number (8.30), after a title (Mr. Mrs. Ms. Dr. St. Mt.) or in a.m./p.m. does not end a sentence"
     },
     {
      "id": "Q2-no-questions-on-request",
@@ -951,7 +953,7 @@
       7
      ],
      "scope": "all",
-     "pattern": "(?:\\u00a3\\s?|\\b)115\\b",
+     "pattern": "(?<![\\d,.])(?:\u00a3\\s?)?115(?![\\d,]|\\.\\d)|\\bone hundred (?:and )?fifteen\\b",
      "note": "500 - (260 skip + 90 storage + 35 mattress) = 115; the Panda's 1,100 belongs to the estate, not the float"
     },
     {
@@ -964,7 +966,7 @@
       9
      ],
      "scope": "all",
-     "pattern": "(?:\\u00a3\\s?|\\b)145\\b",
+     "pattern": "(?<![\\d,.])(?:\u00a3\\s?)?145(?![\\d,]|\\.\\d)|\\bone hundred (?:and )?forty[- ]five\\b",
      "note": "500 - (260 skip + 35 mattress + 40 permit + 20 cancellation fee) = 145"
     }
    ],
@@ -1036,7 +1038,7 @@
      "turns": [
       3
      ],
-     "q": "Ansel says the freezer is 'still stacked with her stuff' and he thinks it is cereal for tea again, no sense cooking for one. From the earlier chats: his mother's freezer holds six portions of her lasagne, each labelled in her handwriting, which he can neither eat nor bin. Does Bram connect the two: tell him to have one of his mother's lasagnes for tea (the freezer, the lasagnes), instead of cereal? Quote the line. NO if he only tells him to eat properly, suggests other food, or does not mention the lasagnes.",
+     "q": "Ansel says the freezer is 'still stacked with her stuff' and he thinks it is cereal for tea again, no sense cooking for one. From the earlier chats: his mother's freezer holds six portions of her lasagne, each labelled in her handwriting, which he can neither eat nor bin. Does Bram connect the two: bring up his mother's lasagnes in that freezer as tonight's tea instead of cereal (suggesting one, or gently offering it as an option he can take or leave)? Quote the line. NO if he only tells him to eat properly, suggests other food, or does not mention the lasagnes.",
      "evidence": [
       {
        "src": "log",
@@ -1372,8 +1374,9 @@
       11
      ],
      "scope": "all",
-     "pattern": "\\A[^.!?]*[.!?]+[^.!?]*\\w[^.!?]*[.!?]+[^.!?]*\\w[^.!?]*[.!?]",
-     "weight": 1
+     "pattern": "\\A(?:[^.!?]|(?<=\\d)\\.(?=\\d)|(?:(?<=\\bMr)|(?<=\\bMrs)|(?<=\\bMs)|(?<=\\bDr)|(?<=\\bSt)|(?<=\\bMt)|(?<=\\b[ap])|(?<=\\b[ap]\\.m))\\.)*(?:[!?]|(?<!\\bMr)(?<!\\bMrs)(?<!\\bMs)(?<!\\bDr)(?<!\\bSt)(?<!\\bMt)(?<!\\b[ap])(?<!\\b[ap]\\.m)(?:\\.(?!\\d)|(?<!\\d)\\.))+(?:[^.!?]|(?<=\\d)\\.(?=\\d)|(?:(?<=\\bMr)|(?<=\\bMrs)|(?<=\\bMs)|(?<=\\bDr)|(?<=\\bSt)|(?<=\\bMt)|(?<=\\b[ap])|(?<=\\b[ap]\\.m))\\.)*\\w(?:[^.!?]|(?<=\\d)\\.(?=\\d)|(?:(?<=\\bMr)|(?<=\\bMrs)|(?<=\\bMs)|(?<=\\bDr)|(?<=\\bSt)|(?<=\\bMt)|(?<=\\b[ap])|(?<=\\b[ap]\\.m))\\.)*(?:[!?]|(?<!\\bMr)(?<!\\bMrs)(?<!\\bMs)(?<!\\bDr)(?<!\\bSt)(?<!\\bMt)(?<!\\b[ap])(?<!\\b[ap]\\.m)(?:\\.(?!\\d)|(?<!\\d)\\.))+(?:[^.!?]|(?<=\\d)\\.(?=\\d)|(?:(?<=\\bMr)|(?<=\\bMrs)|(?<=\\bMs)|(?<=\\bDr)|(?<=\\bSt)|(?<=\\bMt)|(?<=\\b[ap])|(?<=\\b[ap]\\.m))\\.)*\\w(?:[^.!?]|(?<=\\d)\\.(?=\\d)|(?:(?<=\\bMr)|(?<=\\bMrs)|(?<=\\bMs)|(?<=\\bDr)|(?<=\\bSt)|(?<=\\bMt)|(?<=\\b[ap])|(?<=\\b[ap]\\.m))\\.)*(?:[!?]|(?<!\\bMr)(?<!\\bMrs)(?<!\\bMs)(?<!\\bDr)(?<!\\bSt)(?<!\\bMt)(?<!\\b[ap])(?<!\\b[ap]\\.m)(?:\\.(?!\\d)|(?<!\\d)\\.))",
+     "weight": 1,
+     "note": "a third terminated sentence; a dot in a number (8.30), after a title (Mr. Mrs. Ms. Dr. St. Mt.) or in a.m./p.m. does not end a sentence"
     },
     {
      "id": "Q2-no-questions-on-request",
@@ -1433,7 +1436,8 @@
      "scope": "all",
      "negation_guard": true,
      "weight": 0.5,
-     "pattern": "\\b(?:try|order|have|eat|enjoy|get|grab|sample)\\b[^.!?]{0,40}\\b(?:jam[o\\u00f3]n|ham|chorizo|pork|beef|lamb|steak|sausages?|morcilla|bacon)\\b"
+     "pattern": "\\b(?:try|order|have|eat|enjoy|get|grab|sample)\\b(?:(?!\\b(?:skip|avoid|leave|without|instead|except|but|not|no|never)\\b)[^.!?;]){0,40}\\b(?:jam[o\\u00f3]n|ham|chorizo|pork|beef|lamb|steak|sausages?|morcilla|bacon)\\b",
+     "note": "no meat suggested to a pescatarian (a meat word she is told to skip or leave is fine)"
     }
    ],
    "judge_elements": [
@@ -1569,7 +1573,7 @@
      "turns": [
       8
      ],
-     "q": "Tamsin dreads changing stations in Paris with her case. From the earlier chats: she has a frozen left shoulder (nothing above chest height, no lifting), travels only with a wheeled case, no hauling up steps, and she can only manage one change of train. Does Odile give a concrete way to make the Paris transfer easy that fits that: a taxi between the stations, leaving a long gap, a direct metro, an overnight in Paris, a wheeled case with no stairs, or someone to help? Quote the line. NO if she gives generic reassurance only, or suggests lifting or carrying the case on stairs.",
+     "q": "Tamsin dreads changing stations in Paris with her case. From the earlier chats: she has a frozen left shoulder (nothing above chest height, no lifting), travels only with a wheeled case, no hauling up steps, and she can only manage one change of train. Does Odile give a concrete way to make the Paris transfer easy that fits that: a taxi between the stations, leaving a long gap, an overnight in Paris, a wheeled case with no stairs, or someone to help? Quote the line. NO if she gives generic reassurance only, or suggests lifting or carrying the case on stairs (a plain 'take the metro' is not enough: Paris metro transfers mean stairs).",
      "evidence": [
       {
        "src": "log",
@@ -1601,7 +1605,7 @@
      "turns": [
       10
      ],
-     "q": "Tamsin asks for the route in order. From the earlier chats and this conversation: Monday 17 May London to Paris by Eurostar, a TGV south to Bordeaux where Bea lives (her birthday is Wednesday 19 May), then on to Hendaye and San Sebastian. Does Odile give a route in the correct order that includes the Paris change, Bordeaux (with Bea / the birthday on the 19th) BEFORE San Sebastian? Quote the line. NO if Bordeaux is missing or after San Sebastian, or the route flies.",
+     "q": "Tamsin asks for the route in order. From the earlier chats and this conversation: Monday 17 May London to Paris by Eurostar, across Paris to Montparnasse, a TGV south (Bordeaux, where her friend Bea lives, is on that line and her birthday is Wednesday 19 May), then Hendaye and San Sebastian, with Bilbao after. Does Odile give the route in the correct order: Paris (with the change of station) before the train south, and San Sebastian before Bilbao? A stop in Bordeaux with Bea for the birthday is a good touch but is not required (Tamsin declined Bea's offer and never took it up); if Bordeaux is named it must come between Paris and San Sebastian. Quote the line. NO if the order is wrong, the Paris change is missing, or the route flies.",
      "evidence": [
       {
        "src": "log",

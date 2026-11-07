@@ -88,8 +88,9 @@ checks:
   - 10
   - 11
   scope: all
-  pattern: \A[^.!?]*[.!?]+[^.!?]*\w[^.!?]*[.!?]+[^.!?]*\w[^.!?]*[.!?]
+  pattern: \A(?:[^.!?]|(?<=\d)\.(?=\d)|(?:(?<=\bMr)|(?<=\bMrs)|(?<=\bMs)|(?<=\bDr)|(?<=\bSt)|(?<=\bMt)|(?<=\b[ap])|(?<=\b[ap]\.m))\.)*(?:[!?]|(?<!\bMr)(?<!\bMrs)(?<!\bMs)(?<!\bDr)(?<!\bSt)(?<!\bMt)(?<!\b[ap])(?<!\b[ap]\.m)(?:\.(?!\d)|(?<!\d)\.))+(?:[^.!?]|(?<=\d)\.(?=\d)|(?:(?<=\bMr)|(?<=\bMrs)|(?<=\bMs)|(?<=\bDr)|(?<=\bSt)|(?<=\bMt)|(?<=\b[ap])|(?<=\b[ap]\.m))\.)*\w(?:[^.!?]|(?<=\d)\.(?=\d)|(?:(?<=\bMr)|(?<=\bMrs)|(?<=\bMs)|(?<=\bDr)|(?<=\bSt)|(?<=\bMt)|(?<=\b[ap])|(?<=\b[ap]\.m))\.)*(?:[!?]|(?<!\bMr)(?<!\bMrs)(?<!\bMs)(?<!\bDr)(?<!\bSt)(?<!\bMt)(?<!\b[ap])(?<!\b[ap]\.m)(?:\.(?!\d)|(?<!\d)\.))+(?:[^.!?]|(?<=\d)\.(?=\d)|(?:(?<=\bMr)|(?<=\bMrs)|(?<=\bMs)|(?<=\bDr)|(?<=\bSt)|(?<=\bMt)|(?<=\b[ap])|(?<=\b[ap]\.m))\.)*\w(?:[^.!?]|(?<=\d)\.(?=\d)|(?:(?<=\bMr)|(?<=\bMrs)|(?<=\bMs)|(?<=\bDr)|(?<=\bSt)|(?<=\bMt)|(?<=\b[ap])|(?<=\b[ap]\.m))\.)*(?:[!?]|(?<!\bMr)(?<!\bMrs)(?<!\bMs)(?<!\bDr)(?<!\bSt)(?<!\bMt)(?<!\b[ap])(?<!\b[ap]\.m)(?:\.(?!\d)|(?<!\d)\.))
   weight: 1
+  note: a third terminated sentence; a dot in a number (8.30), after a title (Mr. Mrs. Ms. Dr. St. Mt.) or in a.m./p.m. does not end a sentence
 - id: Q2-no-questions-on-request
   fact: Q2
   ftype: format
@@ -127,7 +128,7 @@ checks:
   turns:
   - 7
   scope: all
-  pattern: (?:\u00a3\s?|\b)115\b
+  pattern: (?<![\d,.])(?:£\s?)?115(?![\d,]|\.\d)|\bone hundred (?:and )?fifteen\b
   note: 500 - (260 skip + 90 storage + 35 mattress) = 115; the Panda's 1,100 belongs to the estate, not the float
 - id: M3-left-145
   fact: M3
@@ -137,7 +138,7 @@ checks:
   turns:
   - 9
   scope: all
-  pattern: (?:\u00a3\s?|\b)145\b
+  pattern: (?<![\d,.])(?:£\s?)?145(?![\d,]|\.\d)|\bone hundred (?:and )?forty[- ]five\b
   note: 500 - (260 skip + 35 mattress + 40 permit + 20 cancellation fee) = 145
 judge_elements:
 - id: J1-asks-about-council
@@ -189,11 +190,9 @@ judge_elements:
   ftype: inductive
   turns:
   - 3
-  q: 'Ansel says the freezer is ''still stacked with her stuff'' and he thinks it is cereal for tea again, no sense cooking
-    for one. From the earlier chats: his mother''s freezer holds six portions of her lasagne, each labelled in her handwriting,
-    which he can neither eat nor bin. Does Bram connect the two: tell him to have one of his mother''s lasagnes for tea
-    (the freezer, the lasagnes), instead of cereal? Quote the line. NO if he only tells him to eat properly, suggests other
-    food, or does not mention the lasagnes.'
+  q: 'Ansel says the freezer is ''still stacked with her stuff'' and he thinks it is cereal for tea again, no sense cooking for one. From the earlier chats: his mother''s freezer holds six portions of her
+    lasagne, each labelled in her handwriting, which he can neither eat nor bin. Does Bram connect the two: bring up his mother''s lasagnes in that freezer as tonight''s tea instead of cereal (suggesting
+    one, or gently offering it as an option he can take or leave)? Quote the line. NO if he only tells him to eat properly, suggests other food, or does not mention the lasagnes.'
   evidence:
   - src: log
     text: Her freezer is full of her lasagnes. Six portions, each in a foil tray with a label in her handwriting, Lasagne,

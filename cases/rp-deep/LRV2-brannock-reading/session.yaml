@@ -203,7 +203,8 @@ checks:
   group: constraint
   type: forbid_regex
   scope: speaker:Gwen
-  pattern: (?:^(?!.*\bcariad\W*$).*\S.*$)|(?:^(?![^\n]*[.!?][\"”’]?[ \t]+[\"“]?[A-Za-z]).*\S.*$)|(?:[.!?][\"”’]?[ \t]+[\"“]?[A-Za-z][^\n]*?[.!?][\"”’]?[ \t]+[\"“]?[A-Za-z])
+  pattern: (?:^(?!.*\bcariad\W*$).*\S.*$)|(?:^(?![^\n]*(?:[!?]|(?<!\bMr)(?<!\bMrs)(?<!\bMs)(?<!\bDr)(?<!\bSt)(?<!\bMt)\.)[\"”’]?[ \t]+[\"“]?[A-Za-z]).*\S.*$)|(?:(?:[!?]|(?<!\bMr)(?<!\bMrs)(?<!\bMs)(?<!\bDr)(?<!\bSt)(?<!\bMt)\.)[\"”’]?[
+    \t]+[\"“]?[A-Za-z][^\n]*?(?:[!?]|(?<!\bMr)(?<!\bMrs)(?<!\bMs)(?<!\bDr)(?<!\bSt)(?<!\bMt)\.)[\"”’]?[ \t]+[\"“]?[A-Za-z])
   weight: 2.0
   note: 'any breach of Gwen''s card voice on any line: a line not ending ''cariad''; a single-sentence line; a line of three or more sentences'
 - id: V7-gwen-ends-cariad
@@ -222,7 +223,7 @@ checks:
   group: constraint
   type: forbid_regex
   scope: speaker:Gwen
-  pattern: ^(?![^\n]*[.!?][\"”’]?[ \t]+[\"“]?[A-Za-z]).*\S.*$
+  pattern: ^(?![^\n]*(?:[!?]|(?<!\bMr)(?<!\bMrs)(?<!\bMs)(?<!\bDr)(?<!\bSt)(?<!\bMt)\.)[\"”’]?[ \t]+[\"“]?[A-Za-z]).*\S.*$
   weight: 0
   scored: false
   note: a single-sentence line
@@ -232,7 +233,7 @@ checks:
   group: constraint
   type: forbid_regex
   scope: speaker:Gwen
-  pattern: '[.!?][\"”’]?[ \t]+[\"“]?[A-Za-z][^\n]*?[.!?][\"”’]?[ \t]+[\"“]?[A-Za-z]'
+  pattern: (?:[!?]|(?<!\bMr)(?<!\bMrs)(?<!\bMs)(?<!\bDr)(?<!\bSt)(?<!\bMt)\.)[\"”’]?[ \t]+[\"“]?[A-Za-z][^\n]*?(?:[!?]|(?<!\bMr)(?<!\bMrs)(?<!\bMs)(?<!\bDr)(?<!\bSt)(?<!\bMt)\.)[\"”’]?[ \t]+[\"“]?[A-Za-z]
   weight: 0
   scored: false
   note: a line of three or more sentences
@@ -330,7 +331,7 @@ checks:
   group: continuity
   type: forbid_regex
   scope: all
-  pattern: (?:paper|codicil)[^.!?\n]{0,60}(?:clock|pendulum)|(?:clock|pendulum)[^.!?\n]{0,60}(?:paper|codicil|hid\w*|hidden)
+  pattern: (?:paper|codicil)[^.!?\n]{0,60}\b(?:in|inside|behind|under|within)\s+(?:the\s+)?(?:old\s+|kitchen\s+|long\s+|grandfather\s+)?(?:clock|pendulum)|\b(?:in|inside|behind|under|within)\s+(?:the\s+)?(?:old\s+|kitchen\s+|long\s+|grandfather\s+)?(?:clock|pendulum)[^.!?\n]{0,60}(?:paper|codicil)|(?:clock|pendulum)[^.!?\n]{0,60}\b(?:hid\w*|hidden)\b
   weight: 1.0
   turns:
   - 1
@@ -341,14 +342,16 @@ checks:
   - 6
   - 7
   negation_guard: true
-  note: anyone (narration included) tying a paper to the clock before the password
+  note: anyone (narration included) putting a paper in/behind the clock, or the clock hiding something, before the password
 judge_elements:
 - id: C1-eighty-four
   ftype: correction
   turns:
   - 1
   weight: 2.0
-  q: Idris says Beatrix 'was eighty-two'. Per the card she died aged EIGHTY-FOUR. Does someone (most naturally Gwen, her carer) correct it? Quote the line. NO if nobody corrects it or eighty-two is accepted. The line you quote must also keep Gwen's card voice (exactly two sentences, ends 'cariad'); NO if it breaks it.
+  q: 'Idris says Beatrix ''was eighty-two''. Per the card she died aged EIGHTY-FOUR. Does someone (most naturally Gwen, her carer) correct it? Quote the line. NO if nobody corrects it or eighty-two is accepted.
+    The line you quote must also keep the card voice of the character who speaks it (for Gwen: exactly two sentences, ends ''cariad''; for anyone else, that character''s own voice rules); NO if it breaks
+    it.'
   evidence:
   - src: card
     text: died nine days ago, aged eighty-four
@@ -360,7 +363,9 @@ judge_elements:
   turns:
   - 1
   weight: 0.5
-  q: Idris says Cwm Brannock is 'three hundred acres'. Per the card it is FOUR HUNDRED. Does someone (most naturally Tobias) correct it? Quote the line. NO if nobody corrects it or three hundred is accepted. The line you quote must also keep Tobias's card voice (a damn/damned/blasted/dashed, ends 'mind you', never 'Aunt'/'Beatrix'); NO if it breaks it.
+  q: 'Idris says Cwm Brannock is ''three hundred acres''. Per the card it is FOUR HUNDRED. Does someone (most naturally Tobias) correct it? Quote the line. NO if nobody corrects it or three hundred is accepted.
+    The line you quote must also keep the card voice of the character who speaks it (for Tobias: a damn/damned/blasted/dashed, ends ''mind you'', never ''Aunt''/''Beatrix''; for anyone else, that character''s
+    own voice rules); NO if it breaks it.'
   evidence:
   - src: card
     text: Cwm Brannock is a four-hundred-acre hill farm
@@ -382,7 +387,9 @@ judge_elements:
   turns:
   - 2
   weight: 0.5
-  q: Idris says Tobias is 'the son of her late brother Gethin'. Per the card Tobias's father was EMRYS. Does Tobias (or anyone) correct it? Quote the line. NO if nobody corrects it or Gethin is accepted. The line you quote must also keep Tobias's card voice (a damn/damned/blasted/dashed, ends 'mind you', never 'Aunt'/'Beatrix'); NO if it breaks it.
+  q: 'Idris says Tobias is ''the son of her late brother Gethin''. Per the card Tobias''s father was EMRYS. Does Tobias (or anyone) correct it? Quote the line. NO if nobody corrects it or Gethin is accepted.
+    The line you quote must also keep the card voice of the character who speaks it (for Tobias: a damn/damned/blasted/dashed, ends ''mind you'', never ''Aunt''/''Beatrix''; for anyone else, that character''s
+    own voice rules); NO if it breaks it.'
   evidence:
   - src: card
     text: the son of her late brother Emrys
@@ -438,7 +445,10 @@ judge_elements:
   turns:
   - 4
   weight: 0.75
-  q: Idris asks Bryn whether he witnessed anything. Per the card Bryn tells nobody the paper exists or where it is until the password; he deflects onto the weather or the sheep and the narration shows him touching the clock key on his chain or looking away. Does Bryn avoid saying where the paper is or that it is hidden (deflecting onto weather, sheep or work) AND does the narration show a tell (touching the key, looking away)? Quote his line. NO if he says it is in the clock or hidden anywhere, or no tell is shown. The line you quote must also keep Bryn's card voice (opens 'Eh,', a word in capitals, no one's name); NO if it breaks it.
+  q: Idris asks Bryn whether he witnessed anything. Per the card Bryn tells nobody the paper exists or where it is until the password; he deflects onto the weather or the sheep and the narration shows him
+    touching the clock key on his chain or looking away. Does Bryn avoid saying where the paper is or that it is hidden (deflecting onto weather, sheep or work) AND, if the clock comes up in this exchange,
+    does the narration show his tell (touching the key, looking away)? Quote his line. NO if he says it is in the clock or hidden anywhere, or the clock comes up and no tell is shown. The line you quote must
+    also keep Bryn's card voice (opens 'Eh,', a word in capitals, no one's name); NO if it breaks it.
   evidence:
   - src: card
     text: when the clock is mentioned he looks away, touches the clock key on his chain, and changes the subject to the weather or the sheep
@@ -448,7 +458,10 @@ judge_elements:
   turns:
   - 5
   weight: 2.0
-  q: 'Idris hands round a letter in Welsh: ''Annwyl Bea, diolch am yr arian. Mae''r plant yn iach. Cofion, Anwen.'' (Dear Bea, thank you for the money. The children are well. Regards, Anwen.) The card never says Gwen reads Welsh, but it gives the facts: she was raised in Bangor by a grandmother who spoke no English to her until school, and she sings in the chapel choir. Does Gwen (and not Tobias, Marguerite, Bryn or Elin) translate it, correctly giving the gist — thanks for the money, the children are well? Quote her line. NO if nobody translates it, someone else does, or the gist is wrong. The line you quote must also keep Gwen''s card voice (exactly two sentences, ends ''cariad''); NO if it breaks it.'
+  q: 'Idris hands round a letter in Welsh: ''Annwyl Bea, diolch am yr arian. Mae''r plant yn iach. Cofion, Anwen.'' (Dear Bea, thank you for the money. The children are well. Regards, Anwen.) The card never
+    says Gwen reads Welsh, but it gives the facts: she was raised in Bangor by a grandmother who spoke no English to her until school, and she sings in the chapel choir. Does Gwen (and not Tobias, Marguerite,
+    Bryn or Elin) translate it, correctly giving the gist — thanks for the money, the children are well? Quote her line. NO if nobody translates it, someone else does, or the gist is wrong. The line you quote
+    must also keep the card voice of the character who speaks it (for Gwen: exactly two sentences, ends ''cariad''; for anyone else, that character''s own voice rules); NO if it breaks it.'
   evidence:
   - src: card
     text: Gwen was raised in Bangor by her grandmother, who spoke no English to her until she started school
@@ -484,7 +497,9 @@ judge_elements:
   turns:
   - 8
   weight: 0.25
-  q: Idris has just said 'the clock owes me a minute' to Bryn. Does BRYN himself now tell the truth — that the mistress hid a paper behind the pendulum plate of the kitchen clock (or in the clock) and that he helped her? Quote Bryn's line. NO if he keeps deflecting or someone else tells it. The line you quote must also keep Bryn's card voice (opens 'Eh,', a word in capitals, no one's name); NO if it breaks it.
+  q: 'Idris has just said ''the clock owes me a minute'' to Bryn. Does BRYN himself now tell the truth — that the mistress hid a paper behind the pendulum plate of the kitchen clock (or in the clock) and
+    that he helped her? Quote Bryn''s line. NO if he keeps deflecting or someone else tells it. The line you quote must also keep the card voice of the character who speaks it (for Bryn: opens ''Eh,'', a
+    word in capitals, no one''s name; for anyone else, that character''s own voice rules); NO if it breaks it.'
   evidence:
   - src: card
     text: 'he tells them everything, plainly, in his own voice: that the mistress hid a second paper behind the pendulum plate of the kitchen clock, that he helped her do it, and why'
@@ -497,7 +512,9 @@ judge_elements:
   - 8
   - 9
   weight: 0.25
-  q: 'Does Bryn give the reason the paper was hidden, as the card has it — the mistress said Tobias (he must not say the name: ''that one'', ''the lad'', ''the nephew'') would burn it if he could? YES if he says someone in the family (that one / the lad) would burn it or keep it from coming out. Quote Bryn''s line. NO if no reason is given or it contradicts the card. The line you quote must also keep Bryn''s card voice (opens ''Eh,'', a word in capitals, no one''s name); NO if it breaks it.'
+  q: 'Does Bryn give the reason the paper was hidden, as the card has it — the mistress said Tobias (he must not say the name: ''that one'', ''the lad'', ''the nephew'') would burn it if he could? YES if
+    he says someone in the family (that one / the lad) would burn it or keep it from coming out. Quote Bryn''s line. NO if no reason is given or it contradicts the card. The line you quote must also keep
+    the card voice of the character who speaks it (for Bryn: opens ''Eh,'', a word in capitals, no one''s name; for anyone else, that character''s own voice rules); NO if it breaks it.'
   evidence:
   - src: card
     text: She told Bryn that Tobias would burn it if he could
@@ -507,7 +524,10 @@ judge_elements:
   turns:
   - 9
   weight: 0.25
-  q: The paper is found behind the clock. Idris asks Tobias whether he knew of any later paper. Per the card Tobias suspected one for months but lies when it comes to his own movements and has never admitted the search; he rubs the back of his neck as he lies. Does Tobias profess that he knew nothing of a later paper / is astonished, AND does the NARRATION show the neck rub? Quote the line. NO if he admits suspecting it or searching, or there is no neck rub. The line you quote must also keep Tobias's card voice (a damn/damned/blasted/dashed, ends 'mind you', never 'Aunt'/'Beatrix'); NO if it breaks it.
+  q: The paper is found behind the clock. Idris asks Tobias whether he knew of any later paper. Per the card Tobias suspected one for months but lies when it comes to his own movements and has never admitted
+    the search; he rubs the back of his neck as he lies. Does Tobias either profess that he knew nothing of a later paper / is astonished (a lie, so the NARRATION must show the neck rub), or admit at most
+    a suspicion while keeping the night's search and his movements hidden? Quote the line. NO if he admits searching the house or being there that night, or claims ignorance with no neck rub. The line you
+    quote must also keep Tobias's card voice (a damn/damned/blasted/dashed, ends 'mind you', never 'Aunt'/'Beatrix'); NO if it breaks it.
   evidence:
   - src: card
     text: every time he lies he rubs the back of his neck
@@ -519,7 +539,9 @@ judge_elements:
   turns:
   - 10
   weight: 0.25
-  q: 'The codicil is read: the house and Pen-y-bryn pasture go to Gwen. Per the card Gwen witnessed it without reading a word, so she did not know the contents. Does Gwen react as someone hearing it for the first time (surprise, disbelief, tears) and NOT claim she already knew? Quote her line. NO if she says she knew, or she shows no reaction. The line you quote must also keep Gwen''s card voice (exactly two sentences, ends ''cariad''); NO if it breaks it.'
+  q: 'The codicil is read: the house and Pen-y-bryn pasture go to Gwen. Per the card Gwen witnessed it without reading a word, so she did not know the contents. Does Gwen react as someone hearing it for the
+    first time (surprise, disbelief, tears) and NOT claim she already knew? Quote her line. NO if she says she knew, or she shows no reaction. The line you quote must also keep the card voice of the character
+    who speaks it (for Gwen: exactly two sentences, ends ''cariad''; for anyone else, that character''s own voice rules); NO if it breaks it.'
   evidence:
   - src: card
     text: Gwen signed her name beneath Beatrix's as a witness and did not read a word
@@ -556,7 +578,9 @@ judge_elements:
   turns:
   - 12
   weight: 0.25
-  q: 'Idris asks Marguerite directly whether she heard the Land Rover start after midnight and when it came back. Per the card she never lies and answers a direct question: she heard it start after midnight and return a little before three, in question form, without saying why. Does she confirm hearing it start after midnight (and/or return before three)? Quote her line. NO if she denies it, claims not to remember, or explains why he went. The line you quote must also keep Marguerite''s card voice (ends in a question mark, no contractions, contains ''Mr Calloway''); NO if it breaks it.'
+  q: 'Idris asks Marguerite directly whether she heard the Land Rover start after midnight and when it came back. Per the card she never lies and answers a direct question: she heard it start after midnight
+    and return a little before three, in question form, without saying why. Does she confirm hearing it start after midnight AND come back a little before three? Quote her line. NO if she denies it, claims
+    not to remember, or explains why he went. The line you quote must also keep Marguerite''s card voice (ends in a question mark, no contractions, contains ''Mr Calloway''); NO if it breaks it.'
   evidence:
   - src: card
     text: If she is asked directly whether she heard the Land Rover start after midnight, she says that she did, and when it came back
@@ -615,7 +639,9 @@ judge_elements:
   - 12
   - 13
   weight: 2.0
-  q: On turn 2 Idris said his wife Seren wants a jar of Miss Fenn's damson jam to take home. Nobody has mentioned it since. As Idris leaves, does any character, unprompted, give or offer him a jar of damson jam (or mention Seren)? Quote the line. NO if the jam is never brought back. The line you quote must also keep Gwen's card voice (exactly two sentences, ends 'cariad'); NO if it breaks it.
+  q: 'On turn 2 Idris said his wife Seren wants a jar of Miss Fenn''s damson jam to take home. Nobody has mentioned it since. As Idris leaves, does any character, unprompted, give or offer him a jar of damson
+    jam (or mention Seren)? Quote the line. NO if the jam is never brought back. The line you quote must also keep the card voice of the character who speaks it (for Gwen: exactly two sentences, ends ''cariad'';
+    for anyone else, that character''s own voice rules); NO if it breaks it.'
   evidence:
   - src: turn
     text: a jar of Miss Fenn's famous damson jam
@@ -625,7 +651,10 @@ judge_elements:
   turns:
   - 10
   weight: 2.0
-  q: On turn 4 Idris said he left his reading glasses at the office and is holding things at arm's length. Nobody has mentioned it since. As Idris reads the small, handwritten codicil on turn 10, does any character, unprompted, offer him reading glasses (Marguerite or Gwen might have a spare pair) or hold the lamp closer / read it out for him? Quote the line. NO if the glasses are never brought back. The line you quote must also keep Marguerite's card voice (ends in a question mark, no contractions, contains 'Mr Calloway'); NO if it breaks it.
+  q: 'On turn 4 Idris said he left his reading glasses at the office and is holding things at arm''s length. Nobody has mentioned it since. As Idris reads the small, handwritten codicil on turn 10, does any
+    character, unprompted, offer him reading glasses (Marguerite or Gwen might have a spare pair) or hold the lamp closer / read it out for him? Quote the line. NO if the glasses are never brought back. The
+    line you quote must also keep the card voice of the character who speaks it (for Marguerite: ends in a question mark, no contractions, contains ''Mr Calloway''; for anyone else, that character''s own
+    voice rules); NO if it breaks it.'
   evidence:
   - src: turn
     text: I've left my reading glasses at the office

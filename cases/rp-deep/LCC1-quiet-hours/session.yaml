@@ -85,8 +85,9 @@ checks:
   - 10
   - 11
   scope: all
-  pattern: \A[^.!?]*[.!?]+[^.!?]*\w[^.!?]*[.!?]+[^.!?]*\w[^.!?]*[.!?]
+  pattern: \A(?:[^.!?]|(?<=\d)\.(?=\d)|(?:(?<=\bMr)|(?<=\bMrs)|(?<=\bMs)|(?<=\bDr)|(?<=\bSt)|(?<=\bMt)|(?<=\b[ap])|(?<=\b[ap]\.m))\.)*(?:[!?]|(?<!\bMr)(?<!\bMrs)(?<!\bMs)(?<!\bDr)(?<!\bSt)(?<!\bMt)(?<!\b[ap])(?<!\b[ap]\.m)(?:\.(?!\d)|(?<!\d)\.))+(?:[^.!?]|(?<=\d)\.(?=\d)|(?:(?<=\bMr)|(?<=\bMrs)|(?<=\bMs)|(?<=\bDr)|(?<=\bSt)|(?<=\bMt)|(?<=\b[ap])|(?<=\b[ap]\.m))\.)*\w(?:[^.!?]|(?<=\d)\.(?=\d)|(?:(?<=\bMr)|(?<=\bMrs)|(?<=\bMs)|(?<=\bDr)|(?<=\bSt)|(?<=\bMt)|(?<=\b[ap])|(?<=\b[ap]\.m))\.)*(?:[!?]|(?<!\bMr)(?<!\bMrs)(?<!\bMs)(?<!\bDr)(?<!\bSt)(?<!\bMt)(?<!\b[ap])(?<!\b[ap]\.m)(?:\.(?!\d)|(?<!\d)\.))+(?:[^.!?]|(?<=\d)\.(?=\d)|(?:(?<=\bMr)|(?<=\bMrs)|(?<=\bMs)|(?<=\bDr)|(?<=\bSt)|(?<=\bMt)|(?<=\b[ap])|(?<=\b[ap]\.m))\.)*\w(?:[^.!?]|(?<=\d)\.(?=\d)|(?:(?<=\bMr)|(?<=\bMrs)|(?<=\bMs)|(?<=\bDr)|(?<=\bSt)|(?<=\bMt)|(?<=\b[ap])|(?<=\b[ap]\.m))\.)*(?:[!?]|(?<!\bMr)(?<!\bMrs)(?<!\bMs)(?<!\bDr)(?<!\bSt)(?<!\bMt)(?<!\b[ap])(?<!\b[ap]\.m)(?:\.(?!\d)|(?<!\d)\.))
   weight: 1
+  note: a third terminated sentence; a dot in a number (8.30), after a title (Mr. Mrs. Ms. Dr. St. Mt.) or in a.m./p.m. does not end a sentence
 - id: Q2-no-questions-on-request
   fact: Q2
   ftype: format
@@ -136,8 +137,7 @@ checks:
   turns:
   - 5
   scope: all
-  pattern: \b(?:5|05)(?::00)?(?:\s+o(?:'|’)clock)?(?:\s+on\s+Monday)?\s*(?:am|a\.m\.|in the morning|morning)\b|\bfive(?:\s+o(?:'|’)clock)?(?:\s+on\s+Monday)?\s+(?:am|a\.m\.|in
-    the morning|morning)\b|\b05:00\b
+  pattern: \b(?:5|05)(?::00)?(?:\s+o(?:'|’)clock)?(?:\s+(?:on\s+)?Monday)?\s*(?:am|a\.m\.|in the morning|morning)(?!\w)|\bfive(?:\s+o(?:'|’)clock)?(?:\s+(?:on\s+)?Monday)?\s+(?:am|a\.m\.|in the morning|morning)(?!\w)|\b05:00\b
   note: 'Perth is 8 h ahead (7 am = 3 pm in the 5 Nov log): 9 pm Sunday = 5 am Monday in Perth'
 - id: Z3-gwen-monday-two
   fact: Z3
@@ -147,8 +147,7 @@ checks:
   turns:
   - 10
   scope: all
-  pattern: (?s)\A(?=.*\bMonday)(?=.*(?:\b(?:2|two)(?::00)?\s?(?:pm|p\.m\.|o(?:'|’)clock)|\btwo in the afternoon\b|\b(?:at|from)
-    (?:2|two)\b))
+  pattern: (?s)\A(?=.*\bMonday)(?=.*(?:\b(?:2|two)(?::00)?\s?(?:pm|p\.m\.|o(?:'|’)clock)|\btwo in the afternoon\b|\b(?:at|from) (?:2|two)\b|\b14[:.]?00\b))
   note: the slot moved from Monday ten (t6, Joss clash) to Monday two (t7)
 judge_elements:
 - id: J1-asks-about-ferreira

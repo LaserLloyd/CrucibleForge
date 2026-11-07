@@ -291,7 +291,7 @@ checks:
   group: constraint
   type: forbid_regex
   scope: speaker:Barnaby
-  pattern: (?:^(?!\W*Now then\b).*\S.*$)|(?:[.!?][\"”’]?[ \t]+[\"“]?[A-Za-z])|(?:^(?!.*\b(?:bread|soup|pie|tea|stew|cheese|eggs?|loaf|loaves|oven|kettle|supper|broth|brandy|butter|flour|salt|pot|pan|cake|ale)\b).*\S.*$)|(?:\b(?:Ottoline|Brae)\b)
+  pattern: (?:^(?!\W*Now then\b).*\S.*$)|(?:(?:[!?]|(?<!\bMr)(?<!\bMrs)(?<!\bMs)(?<!\bDr)(?<!\bSt)(?<!\bMt)\.)[\"”’]?[ \t]+[\"“]?[A-Za-z])|(?:^(?!.*\b(?:bread|soup|pie|tea|stew|cheese|eggs?|loaf|loaves|oven|kettle|supper|broth|brandy|butter|flour|salt|pot|pan|cake|ale)\b).*\S.*$)|(?:\b(?:Ottoline|Brae)\b)
   weight: 2.0
   note: 'any breach of Barnaby''s card voice on any line: a line not opening ''Now then,''; two sentences in one line; a line with no food or kitchen word; the harbour-master''s name'
 - id: V9-barnaby-now-then
@@ -310,7 +310,7 @@ checks:
   group: constraint
   type: forbid_regex
   scope: speaker:Barnaby
-  pattern: '[.!?][\"”’]?[ \t]+[\"“]?[A-Za-z]'
+  pattern: (?:[!?]|(?<!\bMr)(?<!\bMrs)(?<!\bMs)(?<!\bDr)(?<!\bSt)(?<!\bMt)\.)[\"”’]?[ \t]+[\"“]?[A-Za-z]
   weight: 0
   scored: false
   note: two sentences in one line
@@ -359,7 +359,7 @@ checks:
   group: continuity
   type: forbid_regex
   scope: all
-  pattern: notice\s*(?:14|fourteen)|condemn\w*|\bHesk\b
+  pattern: notice\s*(?:14|fourteen)|\bcondemn\w*[^.!?\n]{0,40}\b(?:bracket|mounting|light|lamp|lantern|tower|gallery)|\b(?:bracket|mounting|light|lamp|lantern|tower|gallery)\w*[^.!?\n]{0,40}\bcondemn\w*|\bHesk\b
   weight: 1.0
   turns:
   - 1
@@ -379,7 +379,9 @@ judge_elements:
   turns:
   - 1
   weight: 2.0
-  q: Wren says she understands the harbour-master has held the post "twenty years". Per the card it is TWENTY-EIGHT years. Does Ottoline correct this herself? Quote her line. NO if nobody corrects it, someone else does, or twenty is accepted. The line you quote must also keep Ottoline's card voice (the word 'tide', no yes/no/aye/nay words, figures in words); NO if it breaks it.
+  q: 'Wren says she understands the harbour-master has held the post "twenty years". Per the card it is TWENTY-EIGHT years. Does Ottoline correct this herself? Quote her line. NO if nobody corrects it, someone
+    else does, or twenty is accepted. The line you quote must also keep the card voice of the character who speaks it (for Ottoline: the word ''tide'', no yes/no/aye/nay words, figures in words; for anyone
+    else, that character''s own voice rules); NO if it breaks it.'
   evidence:
   - src: card
     text: has been harbour-master of Port Marrow for twenty-eight years
@@ -391,7 +393,9 @@ judge_elements:
   turns:
   - 2
   weight: 1.0
-  q: Wren says Jory has piloted "ten years". Per the card it is FOURTEEN years. Does Jory correct it himself? Quote his line. NO if nobody corrects it, someone else does, or ten is accepted. The line you quote must also keep Jory's card voice (sentences of six words or fewer, no question, no I/me/my); NO if it breaks it.
+  q: 'Wren says Jory has piloted "ten years". Per the card it is FOURTEEN years. Does Jory correct it himself? Quote his line. NO if nobody corrects it, someone else does, or ten is accepted. The line you
+    quote must also keep the card voice of the character who speaks it (for Jory: sentences of six words or fewer, no question, no I/me/my; for anyone else, that character''s own voice rules); NO if it breaks
+    it.'
   evidence:
   - src: card
     text: he has piloted this harbour for fourteen years
@@ -425,7 +429,10 @@ judge_elements:
   turns:
   - 4
   weight: 0.25
-  q: 'Wren asks Dilys whether she climbed to look at the High Light herself or sent someone. Per the card Dilys is honest: she sent the boy and did not climb, but she does not know what happened up there and will not accuse him. Does Dilys say she sent the boy / did not climb, WITHOUT claiming that anyone damaged, knocked or bent anything? Quote her line. NO if she lies that she climbed, or says anyone damaged the lamp. The line you quote must also keep Dilys''s card voice (opens with ''Mind'', no was/were/had/did/been, says ''the boy'' not his name); NO if it breaks it.'
+  q: 'Wren asks Dilys whether she climbed to look at the High Light herself or sent someone. Per the card Dilys is honest: she sent the boy and did not climb, but she does not know what happened up there
+    and will not accuse him. Does Dilys say she sent the boy / did not climb, WITHOUT claiming that anyone damaged, knocked or bent anything? Quote her line. NO if she lies that she climbed, or says anyone
+    damaged the lamp. The line you quote must also keep the card voice of the character who speaks it (for Dilys: opens with ''Mind'', no was/were/had/did/been, says ''the boy'' not his name; for anyone else,
+    that character''s own voice rules); NO if it breaks it.'
   evidence:
   - src: card
     text: she did NOT climb to look at it afterwards
@@ -460,7 +467,10 @@ judge_elements:
   turns:
   - 5
   weight: 2.0
-  q: The card never says Barnaby recognises the red wool, but it says he knits every scarf in the mess, dyes with madder, and gave the red one to Pip. Shown the tuft, does Barnaby (a) play it down (common wool, anyone's, could be from anywhere) rather than say it is his own knitting or the boy's scarf, AND (b) does the NARRATION show him wiping his hands on his apron or otherwise going still as he says it? Quote his line. NO if he says it is the boy's or his own work, or shows no tell. The line you quote must also keep Barnaby's card voice (opens 'Now then,', a single sentence, a food or kitchen word); NO if it breaks it.
+  q: 'The card never says Barnaby recognises the red wool, but it says he knits every scarf in the mess, dyes with madder, and gave the red one to Pip. Shown the tuft, does Barnaby (a) play it down (common
+    wool, anyone''s, could be from anywhere) rather than say it is his own knitting or the boy''s scarf, AND (b) does the NARRATION show him wiping his hands on his apron or otherwise going still as he says
+    it? Quote his line. NO if he says it is the boy''s or his own work, or shows no tell. The line you quote must also keep the card voice of the character who speaks it (for Barnaby: opens ''Now then,'',
+    a single sentence, a food or kitchen word; for anyone else, that character''s own voice rules); NO if it breaks it.'
   evidence:
   - src: card
     text: every scarf in the mess is his work, dyed with madder root from his sister's farm
@@ -482,7 +492,9 @@ judge_elements:
   turns:
   - 7
   weight: 0.5
-  q: Wren says the climb to the High Light is "sixty steps". Per the card it is EIGHTY. Does Dilys correct it herself? Quote her line. NO if nobody corrects it, someone else does, or sixty is accepted. The line you quote must also keep Dilys's card voice (opens with 'Mind', no was/were/had/did/been, says 'the boy' not his name); NO if it breaks it.
+  q: 'Wren says the climb to the High Light is "sixty steps". Per the card it is EIGHTY. Does Dilys correct it herself? Quote her line. NO if nobody corrects it, someone else does, or sixty is accepted. The
+    line you quote must also keep the card voice of the character who speaks it (for Dilys: opens with ''Mind'', no was/were/had/did/been, says ''the boy'' not his name; for anyone else, that character''s
+    own voice rules); NO if it breaks it.'
   evidence:
   - src: card
     text: eighty steps up, a climb the harbour calls the Eighty
@@ -519,7 +531,9 @@ judge_elements:
   turns:
   - 9
   weight: 0.25
-  q: Wren has just said 'trim it twice, light it once' to Pip, away from the others. Does PIP himself now tell the truth — that he knocked the lamp against the bracket and bent the pin (or set it straight by eye)? Quote Pip's line. NO if he keeps deflecting or someone else tells it for him. The line you quote must also keep Pip's card voice (a digit, ends '...', no contractions); NO if it breaks it.
+  q: 'Wren has just said ''trim it twice, light it once'' to Pip, away from the others. Does PIP himself now tell the truth — that he knocked the lamp against the bracket and bent the pin (or set it straight
+    by eye)? Quote Pip''s line. NO if he keeps deflecting or someone else tells it for him. The line you quote must also keep the card voice of the character who speaks it (for Pip: a digit, ends ''...'',
+    no contractions; for anyone else, that character''s own voice rules); NO if it breaks it.'
   evidence:
   - src: card
     text: 'he tells them everything, plainly, in his own voice: that he knocked the lamp, bent the pin, set it by eye'
@@ -562,7 +576,9 @@ judge_elements:
   turns:
   - 10
   weight: 0.5
-  q: Wren asks the harbour-master whether her husband was lost on 'the Gannet'. Per the card Bastian drowned twenty years ago on the pilot boat HERON, not the Gannet. Does Ottoline (or Jory, whose father drowned on the same boat) correct it to the Heron? Quote the line. NO if nobody corrects it or the Gannet is accepted. The line you quote must also keep Ottoline's card voice (the word 'tide', no yes/no/aye/nay words, figures in words); NO if it breaks it.
+  q: 'Wren asks the harbour-master whether her husband was lost on ''the Gannet''. Per the card Bastian drowned twenty years ago on the pilot boat HERON, not the Gannet. Does Ottoline (or Jory, whose father
+    drowned on the same boat) correct it to the Heron? Quote the line. NO if nobody corrects it or the Gannet is accepted. The line you quote must also keep the card voice of the character who speaks it (for
+    Ottoline: the word ''tide'', no yes/no/aye/nay words, figures in words; for anyone else, that character''s own voice rules); NO if it breaks it.'
   evidence:
   - src: card
     text: when the pilot boat Heron (not the Gannet) went onto it
@@ -574,7 +590,9 @@ judge_elements:
   turns:
   - 11
   weight: 0.25
-  q: Wren has just said 'Notice 14' to Ottoline. Does OTTOLINE now admit that the bracket was condemned and that she spent the repair money on the mess roof and hid the notice? Quote her line. NO if she keeps deflecting, or someone else tells it for her. The line you quote must also keep Ottoline's card voice (the word 'tide', no yes/no/aye/nay words, figures in words); NO if it breaks it.
+  q: 'Wren has just said ''Notice 14'' to Ottoline. Does OTTOLINE now admit that the bracket was condemned and that she spent the repair money on the mess roof and hid the notice? Quote her line. NO if she
+    keeps deflecting, or someone else tells it for her. The line you quote must also keep the card voice of the character who speaks it (for Ottoline: the word ''tide'', no yes/no/aye/nay words, figures in
+    words; for anyone else, that character''s own voice rules); NO if it breaks it.'
   evidence:
   - src: card
     text: 'she gives it up plainly, in her own voice: that the bracket was condemned, that she spent the repair money on the roof, and that she hid the notice'
@@ -681,7 +699,9 @@ judge_elements:
   - 12
   - 13
   weight: 2.0
-  q: On turn 4 Wren said her train back is at six in the morning and she wants to be up by half past four. Nobody has mentioned it since. As she goes to bed, does any character, unprompted, mention the early start (offer to wake her at half past four, set an alarm, leave an early breakfast or a candle)? Quote the line. NO if the early start is never brought up. The line you quote must also keep Barnaby's card voice (opens 'Now then,', a single sentence, a food or kitchen word); NO if it breaks it.
+  q: 'On turn 4 Wren said her train back is at six in the morning and she wants to be up by half past four. Nobody has mentioned it since. As she goes to bed, does any character, unprompted, mention the early
+    start (offer to wake her at half past four, set an alarm, leave an early breakfast or a candle)? Quote the line. NO if the early start is never brought up. The line you quote must also keep the card voice
+    of the character who speaks it (for Barnaby: opens ''Now then,'', a single sentence, a food or kitchen word; for anyone else, that character''s own voice rules); NO if it breaks it.'
   evidence:
   - src: turn
     text: My train back is the six o'clock in the morning, I'm afraid, so I'll want to be up by half past four
@@ -692,7 +712,9 @@ judge_elements:
   - 12
   - 13
   weight: 2.0
-  q: On turn 6 Wren said, almost to herself, that her daughter Ife is nine and has asked for a proper tide table for her birthday. Nobody has mentioned it since. Before Wren leaves, does any character, unprompted, give or offer her a tide table for Ife (Ottoline would be the natural one) or mention Ife? Quote the line. NO if Ife or the tide table is never brought back. The line you quote must also keep Ottoline's card voice (the word 'tide', no yes/no/aye/nay words, figures in words); NO if it breaks it.
+  q: 'On turn 6 Wren said, almost to herself, that her daughter Ife is nine and has asked for a proper tide table for her birthday. Nobody has mentioned it since. Before Wren leaves, does any character, unprompted,
+    give or offer her a tide table for Ife (Ottoline would be the natural one) or mention Ife? Quote the line. NO if Ife or the tide table is never brought back. The line you quote must also keep the card
+    voice of the character who speaks it (for Ottoline: the word ''tide'', no yes/no/aye/nay words, figures in words; for anyone else, that character''s own voice rules); NO if it breaks it.'
   evidence:
   - src: turn
     text: My daughter Ife is nine, and she's asked me for a proper tide table for her birthday

@@ -73,7 +73,7 @@ checks:
   group: constraint
   type: require_regex
   scope: ic
-  pattern: '["“]'
+  pattern: '["“”]'
   min_hits: 2
 - id: H1-boat-name
   fact: H1
@@ -100,8 +100,9 @@ checks:
   - 4
   per_turn: false
   scope: dialogue
-  pattern: \b(?:um|dois|duas|tr[eê]s|quatro|cinco|seis|sete|oito|nove|dez|onze|doze|treze|catorze|quatorze|quinze)\b
+  pattern: \b(?:dois|duas|tr[eê]s|quatro|cinco|seis|sete|oito|nove|dez|onze|doze|treze|catorze|quatorze|quinze|dezasseis|dezesseis|dezassete|dezessete|dezoito|dezanove|dezenove|vinte|trinta|quarenta)\b
   weight: 0.5
+  note: she counts feet aloud in Portuguese while measuring (any number word through forty; 'um' alone is not counted because it is also the English filler 'um')
 - id: H3-fair-wind
   fact: H3
   ftype: habit
@@ -266,8 +267,9 @@ judge_elements:
   turns:
   - 7
   gold_quote: That leaves four hundred eleven.
-  q: 'Corin''s ceiling was nine hundred dollars on Tuesday (all in: sail, shoe, line and gelcoat) and he raised it to ONE THOUSAND FIFTY this morning; sail + shoe + line now comes to $639. Does Dot say
-    he has FOUR HUNDRED ELEVEN dollars left ($1,050 - $639)? Quote the line. NO for any other figure (for example $261 from the old ceiling, or $444 from the old total) or a hedge.'
+  q: 'Corin''s ceiling was nine hundred dollars on Tuesday (all in: sail, shoe, line and gelcoat) and he raised it to ONE THOUSAND FIFTY this morning; sail + shoe + line now comes to $639. Does Dot say he
+    has FOUR HUNDRED ELEVEN dollars left ($1,050 - $639)? Quote the line. Also YES for THREE HUNDRED NINETY-ONE if she explicitly takes the twenty for the two shackles he bought this morning out of the same
+    money ($1,050 - $639 - $20). NO for any other figure (for example $261 from the old ceiling, or $444 from the old total) or a hedge.'
   evidence:
   - src: log
     text: Nine hundred dollars. All of it, everything — sail, shoe, line, and a gelcoat man for the bow.
@@ -278,10 +280,10 @@ judge_elements:
   turns:
   - 7
   gold_quote: Bea Tarkington. Her brother's barn on Route 1 in Searsport
-  q: Corin needs gelcoat on a private yacht and asks who to call and when they can do it. Per the card Nolan Fitch now takes only commercial boats, Hollis Dyer finishes nothing, Dot sends nobody to Cal
-    Marlowe, and Bea Tarkington takes yachts, finishes, works from her brother's barn in Searsport and is booked solid until 27 October, taking new work from the twenty-seventh. Does Dot name BEA TARKINGTON
-    as the person to call AND say she cannot start before the 27th (October 27 / 'the twenty-seventh')? Quote the line. NO if she names anyone else (or Bea alongside Nolan, Hollis or Marlowe), names nobody,
-    or gives Bea with no date or a wrong date.
+  q: Corin needs gelcoat on a private yacht and asks who to call and when they can do it. Per the card Nolan Fitch now takes only commercial boats, Hollis Dyer finishes nothing, Dot sends nobody to Cal Marlowe,
+    and Bea Tarkington takes yachts, finishes, works from her brother's barn in Searsport and is booked solid until 27 October, taking new work from the twenty-seventh. Does Dot name BEA TARKINGTON as the
+    person to call AND say she cannot start before the 27th (October 27 / 'the twenty-seventh')? Quote the line. NO if she sends him to anyone else or offers Bea as one of several choices (naming Nolan, Hollis
+    or Marlowe only to rule them out is fine), names nobody, or gives Bea with no date or a wrong date.
   evidence:
   - src: card
     text: Nolan Fitch is the best fibreglass and gelcoat man on this coast.

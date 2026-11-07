@@ -159,7 +159,7 @@ checks:
   type: forbid_regex
   turns:
   - 1
-  pattern: \b(?:\w+n['’]t|I['’](?:m|ve|ll|d)|(?:it|that|there|here|what|who|he|she|let|you|we|they)['’](?:s|re|ve|ll|d))\b
+  pattern: \b(?:\w+n['’]t|\w+['’](?:ve|ll|re)|I['’](?:m|d)|(?:it|that|there|here|what|who|he|she|let|you|we|they|where|how)['’](?:s|d))\b
   scope: all
   note: Perpetua never uses a contraction
   weight: 0.08
@@ -238,6 +238,8 @@ checks:
   scope: all
   note: 'letter 2: nothing from a letter that has not arrived yet'
   weight: 0.72
+  scored: false
+  pruned: 'key review 2026-11-07: letter 2 is written when no letter is unread (letter 1 has arrived), so every term is from a letter not yet written: it can only catch coincidences'
 - id: D2-arrival-dates
   fact: D2
   ftype: format
@@ -289,7 +291,7 @@ checks:
   type: require_regex
   turns:
   - 2
-  pattern: \b(?:\w+n['’]t|I['’](?:m|ve|ll|d)|(?:it|that|there|here|what|who|he|she|let|you|we|they)['’](?:s|re|ve|ll|d))\b
+  pattern: \b(?:\w+n['’]t|\w+['’](?:ve|ll|re)|I['’](?:m|d)|(?:it|that|there|here|what|who|he|she|let|you|we|they|where|how)['’](?:s|d))\b
   min_hits: 2
   per_turn: true
   scope: all
@@ -344,7 +346,7 @@ checks:
   type: require_regex
   turns:
   - 3
-  pattern: \A(?=[\s\S]*\bgoats\b)(?=[\s\S]*\bsix degrees\b)(?=[\s\S]*\bfirst fruit\b)
+  pattern: \A(?=[\s\S]*\bgoats\b)(?=[\s\S]*\b(?:six|6) degrees\b)(?=[\s\S]*\bfirst fruit\b)
   scope: all
   note: 'letter 3: the author''s beats are on the page'
   weight: 0.72
@@ -355,9 +357,9 @@ checks:
   type: forbid_regex
   turns:
   - 3
-  pattern: \b(?:brackish|rice water|two fingers|bolt\w*|tops|showers?|customs|cardamom|germinat\w*|four hours|15 March|28 March|23 March)\b
+  pattern: \b(?:brackish|rice water|two fingers|bolt\w*|tops|15 March|28 March|23 March)\b
   scope: all
-  note: 'letter 3: nothing from a letter that has not arrived yet'
+  note: 'letter 3: nothing from a letter that has not arrived yet (terms from letters not yet written dropped: they can only catch coincidences)'
   weight: 1.15
 - id: N3-days-since-own
   fact: N3
@@ -410,7 +412,7 @@ checks:
   type: forbid_regex
   turns:
   - 3
-  pattern: \b(?:\w+n['’]t|I['’](?:m|ve|ll|d)|(?:it|that|there|here|what|who|he|she|let|you|we|they)['’](?:s|re|ve|ll|d))\b
+  pattern: \b(?:\w+n['’]t|\w+['’](?:ve|ll|re)|I['’](?:m|d)|(?:it|that|there|here|what|who|he|she|let|you|we|they|where|how)['’](?:s|d))\b
   scope: all
   note: Perpetua never uses a contraction
   weight: 0.08
@@ -485,9 +487,9 @@ checks:
   type: forbid_regex
   turns:
   - 4
-  pattern: \b(?:goats?|six degrees|first fruit|snow\w*|butter|mended|germinat\w*|1 April|four hours|5 April)\b
+  pattern: \b(?:goats?|six degrees|first fruit|5 April)\b
   scope: all
-  note: 'letter 4: nothing from a letter that has not arrived yet'
+  note: 'letter 4: nothing from a letter that has not arrived yet (terms from letters not yet written dropped: they can only catch coincidences)'
   weight: 0.72
 - id: D4-arrival-dates
   fact: D4
@@ -551,7 +553,7 @@ checks:
   type: require_regex
   turns:
   - 4
-  pattern: \b(?:\w+n['’]t|I['’](?:m|ve|ll|d)|(?:it|that|there|here|what|who|he|she|let|you|we|they)['’](?:s|re|ve|ll|d))\b
+  pattern: \b(?:\w+n['’]t|\w+['’](?:ve|ll|re)|I['’](?:m|d)|(?:it|that|there|here|what|who|he|she|let|you|we|they|where|how)['’](?:s|d))\b
   min_hits: 2
   per_turn: true
   scope: all
@@ -606,7 +608,7 @@ checks:
   type: require_regex
   turns:
   - 5
-  pattern: \A(?=[\s\S]*\bMay\b)(?=[\s\S]*\bbutter\b)(?=[\s\S]*\btops\b)(?=[\s\S]*\bsnow\b)(?=[\s\S]*\bmended\b)(?=[\s\S]*\b1 April\b)(?=[\s\S]*\brice water\b)(?=[\s\S]*\btwelve\b)
+  pattern: \A(?=[\s\S]*\bMay\b)(?=[\s\S]*\bbutter\b)(?=[\s\S]*\btops\b)(?=[\s\S]*\bsnow\b)(?=[\s\S]*\b(?:mended|repaired|fixed|reglazed)\b)(?=[\s\S]*\b1 April\b)(?=[\s\S]*\brice water\b)(?=[\s\S]*\btwelve\b)
   scope: all
   note: 'letter 5: the author''s beats are on the page'
   weight: 0.08
@@ -617,9 +619,9 @@ checks:
   type: forbid_regex
   turns:
   - 5
-  pattern: \b(?:showers?|customs|cardamom|germinat\w*|four hours|middle of the vine|Edinburgh|11 April|16 April|22 April)\b
+  pattern: \b(?:showers?|customs|cardamom|Edinburgh|11 April|16 April|22 April)\b
   scope: all
-  note: 'letter 5: nothing from a letter that has not arrived yet'
+  note: 'letter 5: nothing from a letter that has not arrived yet (terms from letters not yet written dropped: they can only catch coincidences)'
   weight: 0.72
 - id: D5-arrival-dates
   fact: D5
@@ -683,7 +685,7 @@ checks:
   type: forbid_regex
   turns:
   - 5
-  pattern: \b(?:\w+n['’]t|I['’](?:m|ve|ll|d)|(?:it|that|there|here|what|who|he|she|let|you|we|they)['’](?:s|re|ve|ll|d))\b
+  pattern: \b(?:\w+n['’]t|\w+['’](?:ve|ll|re)|I['’](?:m|d)|(?:it|that|there|here|what|who|he|she|let|you|we|they|where|how)['’](?:s|d))\b
   scope: all
   note: Perpetua never uses a contraction
   weight: 0.08
@@ -747,7 +749,7 @@ checks:
   type: require_regex
   turns:
   - 6
-  pattern: \A(?=[\s\S]*\bmiddle\b)(?=[\s\S]*\bfour hours\b)(?=[\s\S]*\bgoats\b)(?=[\s\S]*\bsix degrees\b)(?=[\s\S]*\bgerminated\b)(?=[\s\S]*\bnine\b)
+  pattern: \A(?=[\s\S]*\bmiddle\b)(?=[\s\S]*\bfour hours\b)(?=[\s\S]*\bgoats\b)(?=[\s\S]*\b(?:six|6) degrees\b)(?=[\s\S]*\b(?:germinated|sprouted|came up)\b)(?=[\s\S]*\bnine\b)
   scope: all
   note: 'letter 6: the author''s beats are on the page'
   weight: 1.57
@@ -824,7 +826,7 @@ checks:
   type: require_regex
   turns:
   - 6
-  pattern: \b(?:\w+n['’]t|I['’](?:m|ve|ll|d)|(?:it|that|there|here|what|who|he|she|let|you|we|they)['’](?:s|re|ve|ll|d))\b
+  pattern: \b(?:\w+n['’]t|\w+['’](?:ve|ll|re)|I['’](?:m|d)|(?:it|that|there|here|what|who|he|she|let|you|we|they|where|how)['’](?:s|d))\b
   min_hits: 2
   per_turn: true
   scope: all
@@ -879,7 +881,7 @@ checks:
   type: require_regex
   turns:
   - 7
-  pattern: \A(?=[\s\S]*\bEdinburgh\b)(?=[\s\S]*\bcertificate\b)(?=[\s\S]*\bhalf past nine\b|\bnine thirty\b|\b9[.:]30\b)(?=[\s\S]*\bfour hours\b)(?=[\s\S]*\b1 April\b)(?=[\s\S]*\btwelve\b)
+  pattern: \A(?=[\s\S]*\bEdinburgh\b)(?=[\s\S]*\bcertificate\b)(?=[\s\S]*(?:\bhalf past nine\b|\bnine thirty\b|\b9[.:]30\b))(?=[\s\S]*\bfour hours\b)(?=[\s\S]*\b1 April\b)(?=[\s\S]*\btwelve\b)
   scope: all
   note: 'letter 7: the author''s beats are on the page'
   weight: 1.15
@@ -945,7 +947,7 @@ checks:
   type: forbid_regex
   turns:
   - 7
-  pattern: \b(?:\w+n['’]t|I['’](?:m|ve|ll|d)|(?:it|that|there|here|what|who|he|she|let|you|we|they)['’](?:s|re|ve|ll|d))\b
+  pattern: \b(?:\w+n['’]t|\w+['’](?:ve|ll|re)|I['’](?:m|d)|(?:it|that|there|here|what|who|he|she|let|you|we|they|where|how)['’](?:s|d))\b
   scope: all
   note: Perpetua never uses a contraction
   weight: 0.08

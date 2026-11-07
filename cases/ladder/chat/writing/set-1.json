@@ -411,7 +411,7 @@
      "turns": [
       2
      ],
-     "pattern": "\\A\\s*(?:[ \t]*(?:[^\\s.!?]+[ \\t]+){4}[^\\s.!?]+[.!?]+[ \\t]*[ \t]*(?:[^\\s.!?]+[ \\t]+){5}[^\\s.!?]+[.!?]+[ \\t]*[ \t]*(?:[^\\s.!?]+[ \\t]+){6}[^\\s.!?]+[.!?]+[ \\t]*)\\n(?:[ \\t]*\\n)+(?:[ \t]*(?:[^\\s.!?]+[ \\t]+){7}[^\\s.!?]+[.!?]+[ \\t]*[ \t]*(?:[^\\s.!?]+[ \\t]+){8}[^\\s.!?]+[.!?]+[ \\t]*)\\n(?:[ \\t]*\\n)+(?:[ \t]*(?:[^\\s.!?]+[ \\t]+){9}[^\\s.!?]+[.!?]+[ \\t]*[ \t]*(?:[^\\s.!?]+[ \\t]+){10}[^\\s.!?]+[.!?]+[ \\t]*[ \t]*(?:[^\\s.!?]+[ \\t]+){11}[^\\s.!?]+[.!?]+[ \\t]*[ \t]*(?:[^\\s.!?]+[ \\t]+){12}[^\\s.!?]+[.!?]+[ \\t]*)\\n(?:[ \\t]*\\n)+(?:[ \t]*(?:[^\\s.!?]+[ \\t]+){13}[^\\s.!?]+[.!?]+[ \\t]*[ \t]*(?:[^\\s.!?]+[ \\t]+){14}[^\\s.!?]+[.!?]+[ \\t]*[ \t]*(?:[^\\s.!?]+[ \\t]+){15}[^\\s.!?]+[.!?]+[ \\t]*)\\s*\\Z",
+     "pattern": "\\A\\s*(?:[ \t]*(?:[^\\s.!?]+[ \\t]+){4}[^\\s.!?]+[.!?]+[\"')]*[ \\t]*[ \t]*(?:[^\\s.!?]+[ \\t]+){5}[^\\s.!?]+[.!?]+[\"')]*[ \\t]*[ \t]*(?:[^\\s.!?]+[ \\t]+){6}[^\\s.!?]+[.!?]+[\"')]*[ \\t]*)\\n(?:[ \\t]*\\n)+(?:[ \t]*(?:[^\\s.!?]+[ \\t]+){7}[^\\s.!?]+[.!?]+[\"')]*[ \\t]*[ \t]*(?:[^\\s.!?]+[ \\t]+){8}[^\\s.!?]+[.!?]+[\"')]*[ \\t]*)\\n(?:[ \\t]*\\n)+(?:[ \t]*(?:[^\\s.!?]+[ \\t]+){9}[^\\s.!?]+[.!?]+[\"')]*[ \\t]*[ \t]*(?:[^\\s.!?]+[ \\t]+){10}[^\\s.!?]+[.!?]+[\"')]*[ \\t]*[ \t]*(?:[^\\s.!?]+[ \\t]+){11}[^\\s.!?]+[.!?]+[\"')]*[ \\t]*[ \t]*(?:[^\\s.!?]+[ \\t]+){12}[^\\s.!?]+[.!?]+[\"')]*[ \\t]*)\\n(?:[ \\t]*\\n)+(?:[ \t]*(?:[^\\s.!?]+[ \\t]+){13}[^\\s.!?]+[.!?]+[\"')]*[ \\t]*[ \t]*(?:[^\\s.!?]+[ \\t]+){14}[^\\s.!?]+[.!?]+[\"')]*[ \\t]*[ \t]*(?:[^\\s.!?]+[ \\t]+){15}[^\\s.!?]+[.!?]+[\"')]*[ \\t]*)\\s*\\Z",
      "scope": "all",
      "note": "every sentence n has n+4 words, in paragraphs of 3, 2, 4, 3",
      "weight": 0.72
@@ -765,7 +765,7 @@
      "turns": [
       4
      ],
-     "pattern": "\\A(?=[\\s\\S]*\\bGannet\\b)(?=[\\s\\S]*\\b31\\b)(?=[\\s\\S]*\\b93\\b)",
+     "pattern": "\\A(?=[\\s\\S]*\\bGannet\\b)(?=[\\s\\S]*\\b(?:31|thirty one)\\b)(?=[\\s\\S]*\\b(?:93|ninety three)\\b)",
      "scope": "all",
      "note": "the three bible changes show up in section 4",
      "weight": 1.57
@@ -875,7 +875,7 @@
      "turns": [
       6
      ],
-     "min": 12,
+     "min": 1,
      "max": 60,
      "scope": "all",
      "weight": 0.08
@@ -898,16 +898,20 @@
        "Gannet"
       ],
       [
-       "29"
+       "29",
+       "twenty nine"
       ],
       [
-       "31"
+       "31",
+       "thirty one"
       ],
       [
-       "91"
+       "91",
+       "ninety one"
       ],
       [
-       "93"
+       "93",
+       "ninety three"
       ]
      ],
      "note": "old and new value of each of the three bible changes",
@@ -1286,9 +1290,9 @@
       2,
       3
      ],
-     "pattern": "\\b(?:said|asked|asks|replied|replies|answered|answers|whispered|whispers|shouted|shouts|muttered|mutters|cried|calls|called|adds|added|murmurs|murmured)\\b",
+     "pattern": "\\b(?:said|asked|asks|replied|replies|whispered|whispers|shouted|shouts|muttered|mutters|murmurs|murmured)\\b|\\b(?:answered|answers|cried|calls|called|adds|added)\\b(?=\\s*[:,\\\"\u201c]|\\s+(?:that|softly|quietly|again|back)\\b)",
      "scope": "all",
-     "note": "only 'says' introduces speech",
+     "note": "only 'says' introduces speech (answers/calls/adds/cried count only as speech tags, not as 'adds a knot')",
      "weight": 2.0
     },
     {
@@ -1334,9 +1338,9 @@
       2,
       3
      ],
-     "pattern": "\\b(?:metres?|meters?|kilomet\\w+|feet|foot|miles?|yards?|inch(?:es)?|hours?|minutes?|seconds?|fathoms?|leagues?|knots? per hour)\\b",
+     "pattern": "\\b(?:metres?|meters?|kilomet\\w+|miles?|yards?|inch(?:es)?|hours?|minutes?|fathoms?|leagues?|knots? per hour)\\b|\\b(?:\\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|twenty|thirty|forty|fifty|hundred|few|several)\\s+(?:feet|foot|seconds?)\\b",
      "scope": "all",
-     "note": "distance is in ropes and time in tides; no clock or metric units",
+     "note": "distance is in ropes and time in tides; no clock or metric units (feet/seconds only as measures, not 'his foot' or 'the second rope')",
      "weight": 1.15
     },
     {
@@ -1585,13 +1589,13 @@
      "group": "continuity",
      "type": "forbid_regex",
      "turns": [
-      1,
       2,
       3
      ],
      "pattern": "\\bdaughters?\\b",
      "scope": "all",
-     "weight": 0.08
+     "weight": 0.08,
+     "note": "the ban arrives with section 2 and changes apply forward (the card), so section 1 is not graded"
     },
     {
      "id": "D2-no-dunna-tag-in-her-paragraph",
@@ -1657,7 +1661,7 @@
       1,
       2
      ],
-     "q": "The opening never states what any one villager thinks, wants or feels as fact: the narrating we reports only what is said, done, seen and known to everyone (a habit, a record, a fact). Across sections 1 and 2 of the continuation, does the narration keep to that, never entering a villager's or the stranger's head? Quote the worst line. NO if any sentence asserts an inner state (e.g. 'Orrin wanted', 'Hesk was afraid', 'she felt', 'Dunna wondered') as narration; a visible action or a spoken line is fine.",
+     "q": "The opening never states what any one villager thinks, wants or feels as fact: the narrating we reports only what is said, done, seen and known to everyone (a habit, a record, a fact). Across sections 1 and 2 of the continuation, does the narration keep to that, never entering a villager's or the stranger's head? Quote the worst line. NO if any sentence asserts an inner state (e.g. 'Orrin wanted', 'Hesk was afraid', 'she felt', 'Dunna wondered') as narration; a visible action or a spoken line is fine, and so is a habitual, publicly known attitude or habit of the kind the opening itself uses ('a poor opinion of the weather', 'which she does when she wants her hands free').",
      "evidence": [
       {
        "src": "turn",
@@ -1865,7 +1869,7 @@
      "turns": [
       1
      ],
-     "pattern": "\\b(?:\\w+n['\u2019]t|I['\u2019](?:m|ve|ll|d)|(?:it|that|there|here|what|who|he|she|let|you|we|they)['\u2019](?:s|re|ve|ll|d))\\b",
+     "pattern": "\\b(?:\\w+n['\u2019]t|\\w+['\u2019](?:ve|ll|re)|I['\u2019](?:m|d)|(?:it|that|there|here|what|who|he|she|let|you|we|they|where|how)['\u2019](?:s|d))\\b",
      "scope": "all",
      "note": "Perpetua never uses a contraction",
      "weight": 0.08
@@ -1964,7 +1968,9 @@
      "pattern": "\\b(?:goats?|six degrees|first fruit|snow\\w*|butter|mended|1 April|23 March)\\b",
      "scope": "all",
      "note": "letter 2: nothing from a letter that has not arrived yet",
-     "weight": 0.72
+     "weight": 0.72,
+     "scored": false,
+     "pruned": "key review 2026-11-07: letter 2 is written when no letter is unread (letter 1 has arrived), so every term is from a letter not yet written: it can only catch coincidences"
     },
     {
      "id": "D2-arrival-dates",
@@ -2031,7 +2037,7 @@
      "turns": [
       2
      ],
-     "pattern": "\\b(?:\\w+n['\u2019]t|I['\u2019](?:m|ve|ll|d)|(?:it|that|there|here|what|who|he|she|let|you|we|they)['\u2019](?:s|re|ve|ll|d))\\b",
+     "pattern": "\\b(?:\\w+n['\u2019]t|\\w+['\u2019](?:ve|ll|re)|I['\u2019](?:m|d)|(?:it|that|there|here|what|who|he|she|let|you|we|they|where|how)['\u2019](?:s|d))\\b",
      "min_hits": 2,
      "per_turn": true,
      "scope": "all",
@@ -2101,7 +2107,7 @@
      "turns": [
       3
      ],
-     "pattern": "\\A(?=[\\s\\S]*\\bgoats\\b)(?=[\\s\\S]*\\bsix degrees\\b)(?=[\\s\\S]*\\bfirst fruit\\b)",
+     "pattern": "\\A(?=[\\s\\S]*\\bgoats\\b)(?=[\\s\\S]*\\b(?:six|6) degrees\\b)(?=[\\s\\S]*\\bfirst fruit\\b)",
      "scope": "all",
      "note": "letter 3: the author's beats are on the page",
      "weight": 0.72
@@ -2115,9 +2121,9 @@
      "turns": [
       3
      ],
-     "pattern": "\\b(?:brackish|rice water|two fingers|bolt\\w*|tops|showers?|customs|cardamom|germinat\\w*|four hours|15 March|28 March|23 March)\\b",
+     "pattern": "\\b(?:brackish|rice water|two fingers|bolt\\w*|tops|15 March|28 March|23 March)\\b",
      "scope": "all",
-     "note": "letter 3: nothing from a letter that has not arrived yet",
+     "note": "letter 3: nothing from a letter that has not arrived yet (terms from letters not yet written dropped: they can only catch coincidences)",
      "weight": 1.15
     },
     {
@@ -2185,7 +2191,7 @@
      "turns": [
       3
      ],
-     "pattern": "\\b(?:\\w+n['\u2019]t|I['\u2019](?:m|ve|ll|d)|(?:it|that|there|here|what|who|he|she|let|you|we|they)['\u2019](?:s|re|ve|ll|d))\\b",
+     "pattern": "\\b(?:\\w+n['\u2019]t|\\w+['\u2019](?:ve|ll|re)|I['\u2019](?:m|d)|(?:it|that|there|here|what|who|he|she|let|you|we|they|where|how)['\u2019](?:s|d))\\b",
      "scope": "all",
      "note": "Perpetua never uses a contraction",
      "weight": 0.08
@@ -2281,9 +2287,9 @@
      "turns": [
       4
      ],
-     "pattern": "\\b(?:goats?|six degrees|first fruit|snow\\w*|butter|mended|germinat\\w*|1 April|four hours|5 April)\\b",
+     "pattern": "\\b(?:goats?|six degrees|first fruit|5 April)\\b",
      "scope": "all",
-     "note": "letter 4: nothing from a letter that has not arrived yet",
+     "note": "letter 4: nothing from a letter that has not arrived yet (terms from letters not yet written dropped: they can only catch coincidences)",
      "weight": 0.72
     },
     {
@@ -2365,7 +2371,7 @@
      "turns": [
       4
      ],
-     "pattern": "\\b(?:\\w+n['\u2019]t|I['\u2019](?:m|ve|ll|d)|(?:it|that|there|here|what|who|he|she|let|you|we|they)['\u2019](?:s|re|ve|ll|d))\\b",
+     "pattern": "\\b(?:\\w+n['\u2019]t|\\w+['\u2019](?:ve|ll|re)|I['\u2019](?:m|d)|(?:it|that|there|here|what|who|he|she|let|you|we|they|where|how)['\u2019](?:s|d))\\b",
      "min_hits": 2,
      "per_turn": true,
      "scope": "all",
@@ -2435,7 +2441,7 @@
      "turns": [
       5
      ],
-     "pattern": "\\A(?=[\\s\\S]*\\bMay\\b)(?=[\\s\\S]*\\bbutter\\b)(?=[\\s\\S]*\\btops\\b)(?=[\\s\\S]*\\bsnow\\b)(?=[\\s\\S]*\\bmended\\b)(?=[\\s\\S]*\\b1 April\\b)(?=[\\s\\S]*\\brice water\\b)(?=[\\s\\S]*\\btwelve\\b)",
+     "pattern": "\\A(?=[\\s\\S]*\\bMay\\b)(?=[\\s\\S]*\\bbutter\\b)(?=[\\s\\S]*\\btops\\b)(?=[\\s\\S]*\\bsnow\\b)(?=[\\s\\S]*\\b(?:mended|repaired|fixed|reglazed)\\b)(?=[\\s\\S]*\\b1 April\\b)(?=[\\s\\S]*\\brice water\\b)(?=[\\s\\S]*\\btwelve\\b)",
      "scope": "all",
      "note": "letter 5: the author's beats are on the page",
      "weight": 0.08
@@ -2449,9 +2455,9 @@
      "turns": [
       5
      ],
-     "pattern": "\\b(?:showers?|customs|cardamom|germinat\\w*|four hours|middle of the vine|Edinburgh|11 April|16 April|22 April)\\b",
+     "pattern": "\\b(?:showers?|customs|cardamom|Edinburgh|11 April|16 April|22 April)\\b",
      "scope": "all",
-     "note": "letter 5: nothing from a letter that has not arrived yet",
+     "note": "letter 5: nothing from a letter that has not arrived yet (terms from letters not yet written dropped: they can only catch coincidences)",
      "weight": 0.72
     },
     {
@@ -2533,7 +2539,7 @@
      "turns": [
       5
      ],
-     "pattern": "\\b(?:\\w+n['\u2019]t|I['\u2019](?:m|ve|ll|d)|(?:it|that|there|here|what|who|he|she|let|you|we|they)['\u2019](?:s|re|ve|ll|d))\\b",
+     "pattern": "\\b(?:\\w+n['\u2019]t|\\w+['\u2019](?:ve|ll|re)|I['\u2019](?:m|d)|(?:it|that|there|here|what|who|he|she|let|you|we|they|where|how)['\u2019](?:s|d))\\b",
      "scope": "all",
      "note": "Perpetua never uses a contraction",
      "weight": 0.08
@@ -2615,7 +2621,7 @@
      "turns": [
       6
      ],
-     "pattern": "\\A(?=[\\s\\S]*\\bmiddle\\b)(?=[\\s\\S]*\\bfour hours\\b)(?=[\\s\\S]*\\bgoats\\b)(?=[\\s\\S]*\\bsix degrees\\b)(?=[\\s\\S]*\\bgerminated\\b)(?=[\\s\\S]*\\bnine\\b)",
+     "pattern": "\\A(?=[\\s\\S]*\\bmiddle\\b)(?=[\\s\\S]*\\bfour hours\\b)(?=[\\s\\S]*\\bgoats\\b)(?=[\\s\\S]*\\b(?:six|6) degrees\\b)(?=[\\s\\S]*\\b(?:germinated|sprouted|came up)\\b)(?=[\\s\\S]*\\bnine\\b)",
      "scope": "all",
      "note": "letter 6: the author's beats are on the page",
      "weight": 1.57
@@ -2713,7 +2719,7 @@
      "turns": [
       6
      ],
-     "pattern": "\\b(?:\\w+n['\u2019]t|I['\u2019](?:m|ve|ll|d)|(?:it|that|there|here|what|who|he|she|let|you|we|they)['\u2019](?:s|re|ve|ll|d))\\b",
+     "pattern": "\\b(?:\\w+n['\u2019]t|\\w+['\u2019](?:ve|ll|re)|I['\u2019](?:m|d)|(?:it|that|there|here|what|who|he|she|let|you|we|they|where|how)['\u2019](?:s|d))\\b",
      "min_hits": 2,
      "per_turn": true,
      "scope": "all",
@@ -2783,7 +2789,7 @@
      "turns": [
       7
      ],
-     "pattern": "\\A(?=[\\s\\S]*\\bEdinburgh\\b)(?=[\\s\\S]*\\bcertificate\\b)(?=[\\s\\S]*\\bhalf past nine\\b|\\bnine thirty\\b|\\b9[.:]30\\b)(?=[\\s\\S]*\\bfour hours\\b)(?=[\\s\\S]*\\b1 April\\b)(?=[\\s\\S]*\\btwelve\\b)",
+     "pattern": "\\A(?=[\\s\\S]*\\bEdinburgh\\b)(?=[\\s\\S]*\\bcertificate\\b)(?=[\\s\\S]*(?:\\bhalf past nine\\b|\\bnine thirty\\b|\\b9[.:]30\\b))(?=[\\s\\S]*\\bfour hours\\b)(?=[\\s\\S]*\\b1 April\\b)(?=[\\s\\S]*\\btwelve\\b)",
      "scope": "all",
      "note": "letter 7: the author's beats are on the page",
      "weight": 1.15
@@ -2867,7 +2873,7 @@
      "turns": [
       7
      ],
-     "pattern": "\\b(?:\\w+n['\u2019]t|I['\u2019](?:m|ve|ll|d)|(?:it|that|there|here|what|who|he|she|let|you|we|they)['\u2019](?:s|re|ve|ll|d))\\b",
+     "pattern": "\\b(?:\\w+n['\u2019]t|\\w+['\u2019](?:ve|ll|re)|I['\u2019](?:m|d)|(?:it|that|there|here|what|who|he|she|let|you|we|they|where|how)['\u2019](?:s|d))\\b",
      "scope": "all",
      "note": "Perpetua never uses a contraction",
      "weight": 0.08
