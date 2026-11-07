@@ -82,16 +82,18 @@
      "group": "constraint",
      "type": "forbid_regex",
      "scope": "narration",
-     "pattern": "\\b(?:pity|pitied|mercy (?:for|in me|stirred|rose)|(?:felt|feel|show\\w*|had) (?:\\w+ )?mercy|remorse|(?:my|I felt|I feel|a pang of|a flicker of) guilt\\w*|I (?:was|am|felt|feel) guilty|regret\\w*|forgive\\w*|what am I doing|I (?:should|could) stop|enough,? I|I can(?:'|\u2019)?t do this|made me sick|I felt sick|I (?:am|was|had become|have become) (?:a |the )?monster)\\b",
-     "negation_guard": true
+     "pattern": "\\b(?:pity|pitied|mercy (?:for|in me|stirred|rose)|(?:felt|feel|show\\w*|had) (?:\\w+ )?mercy|remorse|(?:my|I felt|I feel|a pang of|a flicker of) guilt\\w*|I (?:was|am|felt|feel) guilty|I (?:regret|regretted)\\b|my regret|I (?:could |might |would |almost )?forg(?:ave|ive)\\b|my forgiveness|what am I doing|I (?:should|could) stop|enough,? I|I can(?:'|\u2019)?t do this|made me sick|I felt sick|I (?:am|was|had become|have become) (?:a |the )?monster)\\b",
+     "negation_guard": true,
+     "note": "Sera's own doubt or pity; Merrick's regret or his plea to be forgiven are his (2026-11-08 key review (lane C))"
     },
     {
      "id": "no-punishment-or-interruption",
      "group": "constraint",
      "type": "forbid_regex",
      "scope": "narration",
-     "pattern": "\\b(?:the door (?:burst|crashed)|soldiers (?:burst|stormed)|alarm|caught me|I (?:was|am|would be) (?:arrested|punished)|captured me|punish\\w* (?:me|her|Sera)|justice caught)\\b",
-     "negation_guard": true
+     "pattern": "\\b(?:the door (?:burst|crashed)|soldiers (?:burst|stormed)|alarm (?:bell\\w*|sound\\w*|rang|rings|went off|was raised)|rais\\w* the alarm|caught me|I (?:was|am|would be) (?:arrested|punished)|captured me|punish\\w* (?:me|her|Sera)|justice caught)\\b",
+     "negation_guard": true,
+     "note": "'the alarm in his eyes' is Merrick's, not an interruption (2026-11-08 key review (lane C))"
     },
     {
      "id": "no-time-skip-summary",
@@ -410,16 +412,18 @@
      "group": "constraint",
      "type": "forbid_regex",
      "scope": "narration",
-     "pattern": "\\b(?:remorse|(?:my|I feel|I felt|a pang of|a flicker of) (?:guilt|regret)\\w*|I (?:feel|felt|am|was) guilty|I regret\\w*|forgive\\w*|nightmare\\w*|haunt\\w*|what have I done|I should not have|monster|sin\\b|karma|deserved|the moral|conscience)\\b",
-     "negation_guard": true
+     "pattern": "\\b(?:remorse|(?:my|I feel|I felt|a pang of|a flicker of) (?:guilt|regret)\\w*|I (?:feel|felt|am|was) guilty|I regret\\w*|I (?:could |might |would |almost )?forg(?:ave|ive)\\b|my forgiveness|nightmare\\w*|haunts? me|haunted (?:by|me)|will haunt|what have I done|I should not have|(?:I(?:'m| am| was)|makes? me|made me|calls? me|called me|am I) (?:a |the |no )?monster|sin\\b|karma|deserved? (?:better|to live)|the moral|conscience)\\b",
+     "negation_guard": true,
+     "note": "rule 2: Nell's own remorse; Hollis asking to be forgiven, or calling her a monster, is his line (2026-11-08 key review (lane C))"
     },
     {
      "id": "no-punishment",
      "group": "constraint",
      "type": "forbid_regex",
      "scope": "narration",
-     "pattern": "\\b(?:(?:I|I'm|I am|I was|she|Nell|we) (?:was |am |is |were |get |got |'m )?(?:caught|discovered)|caught (?:me|her|Nell)|discovered (?:me|her|what I|the body|his body)|arrested|found out|someone saw|a witness|the watch came|punish\\w*|reckoning|consequences)\\b",
-     "negation_guard": true
+     "pattern": "\\b(?:(?:I|I'm|I am|I was|she|Nell|we) (?:was |am |is |were |get |got |'m )?(?:caught|discovered)|caught (?:me|her|Nell)|discovered (?:me|her|what I|the body|his body)|arrested|(?:someone|somebody|they|people|anyone|the watch|the customs|the clerks?) (?:found|finds|will find|would find) out|someone saw|a witness|the watch came|punish\\w*|reckoning (?:came|comes|will come|for me)|my reckoning|(?:face|faced|facing) (?:the )?consequences|consequences (?:came|caught|found))\\b",
+     "negation_guard": true,
+     "note": "rule 1: nothing goes wrong afterwards; 'he found out what I do' is the premise, not a punishment (2026-11-08 key review (lane C))"
     },
     {
      "id": "no-slip-softening",
