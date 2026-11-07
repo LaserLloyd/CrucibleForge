@@ -4117,7 +4117,8 @@ def html_rows(labels: list[str], stats: dict) -> list[dict]:
             "maxed_parts": [f"{k}/{pk}" for k, v in ((s.get("headline") or {}).get("maxed") or {}).items()
                             for pk in (v.get("parts") or [])] or None,
             # 2026-11-07: "Built on" tag, vendor-release flag and the newer version on this board, if any
-            "base": s.get("base"), "official": s.get("official"), "superseded_by": newer.get(l),
+            "base": s.get("base"), "official": s.get("official"), "supersedes": s.get("supersedes"),
+            "superseded_by": newer.get(l),
             "tier": cov.get("tier", 0), "coverage": cov.get("status"),
             # alignment 2026-11-06 (ALIGN-INTERFACE.md)
             "provisional": bool(s.get("provisional")),

@@ -157,6 +157,7 @@ def test_html_rows_carry_the_new_keys():
                                "chat": {"parts": [], "category": False}}}
     h = report.html_rows(["m"], {"m": s})[0]
     assert h["base"] == "Claude Opus" and h["official"] is True and h["superseded_by"] is None
+    assert h["supersedes"] is None
     assert h["maxed_parts"] == ["nsfw/uncensored", "nsfw/nsfw_writing"]
     s["headline"] = {"maxed": {"nsfw": {"parts": [], "category": False}}}
     assert report.html_rows(["m"], {"m": s})[0]["maxed_parts"] is None
