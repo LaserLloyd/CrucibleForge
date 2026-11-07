@@ -18,7 +18,7 @@
      "type": "require_regex",
      "scope": "all",
      "per_turn": false,
-     "pattern": "^\\s*#{1,4}\\s*Frost\\s*$[\\s\\S]*^\\s*#{1,4}\\s*Ledger\\s*$[\\s\\S]*^\\s*#{1,4}\\s*Glass\\s*$[\\s\\S]*^\\s*#{1,4}\\s*Bench\\s*$[\\s\\S]*^\\s*#{1,4}\\s*Thaw\\s*$"
+     "pattern": "^##[ \\t]+Frost\\s*$[\\s\\S]*^##[ \\t]+Ledger\\s*$[\\s\\S]*^##[ \\t]+Glass\\s*$[\\s\\S]*^##[ \\t]+Bench\\s*$[\\s\\S]*^##[ \\t]+Thaw\\s*$"
     },
     {
      "id": "slow-build-1",
@@ -26,7 +26,7 @@
      "type": "forbid_regex",
      "scope": "all",
      "section": "Frost",
-     "pattern": "\\b(?:cock|dick|clit\\w*|pussy|cunt|nipples?|orgasm\\w*|thrust\\w*|fuck\\w*|cum\\b|balls|erection|hard-on|naked)"
+     "pattern": "\\b(?:cocks?\\b|dicks?\\b|clit\\w*|pussy|cunt|nipples?|orgasm\\w*|thrust\\w*|fuck\\w*|cum\\b|balls|erection|hard-on|naked)"
     },
     {
      "id": "slow-build-2",
@@ -34,7 +34,7 @@
      "type": "forbid_regex",
      "scope": "all",
      "section": "Ledger",
-     "pattern": "\\b(?:cock|dick|clit\\w*|pussy|cunt|nipples?|orgasm\\w*|thrust\\w*|fuck\\w*|cum\\b|balls|erection|hard-on|naked)"
+     "pattern": "\\b(?:cocks?\\b|dicks?\\b|clit\\w*|pussy|cunt|nipples?|orgasm\\w*|thrust\\w*|fuck\\w*|cum\\b|balls|erection|hard-on|naked)"
     },
     {
      "id": "thaw-no-sex",
@@ -42,7 +42,7 @@
      "type": "forbid_regex",
      "scope": "all",
      "section": "Thaw",
-     "pattern": "\\b(?:cock|dick|clit\\w*|pussy|cunt|thrust\\w*|fuck\\w*|suck\\w*|orgasm\\w*)"
+     "pattern": "\\b(?:cocks?\\b|dicks?\\b|clit\\w*|pussy|cunt|thrust\\w*|fuck\\w*|suck\\w*|orgasm\\w*)"
     },
     {
      "id": "glass-explicit",
@@ -139,27 +139,27 @@
      "group": "constraint",
      "type": "forbid_regex",
      "scope": "all",
-     "pattern": "\\b(?:moan\\w*|gasp\\w*|whimper\\w*|groan\\w*|sigh\\w*)\\b"
+     "pattern": "\\b(?:moan\\w*|gasp\\w*|whimper\\w*|groan\\w*|sigh(?:s|ed|ing)?)\\b"
     },
     {
      "id": "no-clinical-words",
      "group": "constraint",
      "type": "forbid_regex",
      "scope": "all",
-     "pattern": "\\b(?:penis|penises|vagina\\w*|vulva\\w*|semen|ejaculat\\w*|genitals?|genitalia|labia|testicles?|scrotum|phallus|erection|clitoris|member|manhood)\\b"
+     "pattern": "\\b(?:penis|penises|vagina\\w*|vulva\\w*|semen|ejaculat\\w*|genitals?|genitalia|labia|testicles?|scrotum|phallus|erection|clitoris|(?:his|my|your)\\s+member|manhood)\\b"
     },
     {
      "id": "no-banned-phrasing",
      "group": "constraint",
      "type": "forbid_regex",
      "scope": "all",
-     "pattern": "shiver\\w*\\s+(?:down|up|ran|through)|breath\\s+(?:hitch\\w*|caught)|(?:caught|held|hitched)\\s+(?:her|his|my)\\s+breath|ministrations|waves?\\s+of\\s+(?:pleasure|heat|sensation)|(?:eyes|gaze)\\s+darken\\w*|\\bcore\\b|\\bmember\\b|\\bmanhood\\b|\\bfolds\\b|throb\\w*|white-hot|aching\\s+need|molten|electric(?:ity)?\\b|sparks?\\s+(?:of|flew|shot)|tidal|wave\\s+after\\s+wave|world\\s+(?:narrowed|shrank|fell away)|(?:time|everything)\\s+(?:stopped|stood still)|spilled\\s+over\\s+the\\s+edge|unraveled|a\\s+symphony|dance\\s+of|\\bsoul\\b|claimed\\s+(?:her|his)\\s+mouth|\\bdevour\\w*|nothing\\s+(?:else\\s+)?mattered|more\\s+than\\s+(?:she|he)\\s+had\\s+ever\\s+(?:wanted|needed)"
+     "pattern": "shiver\\w*\\s+(?:down|up|ran|through)|breath\\s+(?:hitch\\w*|caught)|(?:caught|held|hitched)\\s+(?:her|his|my)\\s+breath|ministrations|waves?\\s+of\\s+(?:pleasure|heat|sensation)|(?:eyes|gaze)\\s+darken\\w*|\\b(?:her|his|my|your)\\s+core\\b|\\b(?:his|my|your)\\s+member\\b|\\bmanhood\\b|\\b(?:her|my|your|slick|wet|soft|swollen|inner|pink)\\s+folds\\b|white-hot|aching\\s+need|molten|electric(?:ity)?\\b|sparks?\\s+(?:of|flew|shot)|wave\\s+after\\s+wave|world\\s+(?:narrowed|shrank|fell away)|(?:time|everything)\\s+(?:stopped|stood still)|spilled\\s+over\\s+the\\s+edge|a\\s+symphony\\s+of|claimed\\s+(?:her|his)\\s+mouth|\\bdevour\\w*|nothing\\s+(?:else\\s+)?mattered|more\\s+than\\s+(?:she|he)\\s+had\\s+ever\\s+(?:wanted|needed)"
     },
     {
      "id": "length",
      "group": "constraint",
      "type": "word_range",
-     "min": 1000,
+     "min": 1150,
      "max": 1500,
      "scope": "all"
     }
@@ -240,7 +240,7 @@
      "type": "require_regex",
      "scope": "all",
      "per_turn": false,
-     "pattern": "^\\s*#{1,4}\\s*Last Crossing\\s*$[\\s\\S]*^\\s*#{1,4}\\s*Companionway\\s*$[\\s\\S]*^\\s*#{1,4}\\s*The Bunk\\s*$[\\s\\S]*^\\s*#{1,4}\\s*Mooring\\s*$"
+     "pattern": "^##[ \\t]+Last Crossing\\s*$[\\s\\S]*^##[ \\t]+Companionway\\s*$[\\s\\S]*^##[ \\t]+The Bunk\\s*$[\\s\\S]*^##[ \\t]+Mooring\\s*$"
     },
     {
      "id": "slow-build-1",
@@ -248,7 +248,7 @@
      "type": "forbid_regex",
      "scope": "all",
      "section": "Last Crossing",
-     "pattern": "\\b(?:cock|dick|clit\\w*|pussy|cunt|nipples?|orgasm\\w*|thrust\\w*|fuck\\w*|cum\\b|balls|erection|hard-on|naked)"
+     "pattern": "\\b(?:cocks?\\b|dicks?\\b|clit\\w*|pussy|cunt|nipples?|orgasm\\w*|thrust\\w*|fuck\\w*|cum\\b|balls|erection|hard-on|naked)"
     },
     {
      "id": "mooring-no-sex",
@@ -315,7 +315,7 @@
      "group": "constraint",
      "type": "require_regex",
      "scope": "all",
-     "pattern": "[\\\"\u201c][^\\\"\u201c\u201d\\n]{1,28}[\\\"\u201d]\\s*\\Z"
+     "pattern": "[\\\"\u201c]\\s*(?:[^\\s\\\"\u201c\u201d]+\\s+){0,4}[^\\s\\\"\u201c\u201d]+\\s*[\\\"\u201d](?:[ \\t]*,?[ \\t]*I (?:say|said|tell her|told her|whisper|whispered|murmur|murmured)\\.?)?\\s*\\Z"
     },
     {
      "id": "explicit-spread",
@@ -361,27 +361,27 @@
      "group": "constraint",
      "type": "forbid_regex",
      "scope": "all",
-     "pattern": "\\b(?:moan\\w*|gasp\\w*|whimper\\w*|groan\\w*|sigh\\w*)\\b"
+     "pattern": "\\b(?:moan\\w*|gasp\\w*|whimper\\w*|groan\\w*|sigh(?:s|ed|ing)?)\\b"
     },
     {
      "id": "no-clinical-words",
      "group": "constraint",
      "type": "forbid_regex",
      "scope": "all",
-     "pattern": "\\b(?:penis|penises|vagina\\w*|vulva\\w*|semen|ejaculat\\w*|genitals?|genitalia|labia|testicles?|scrotum|phallus|erection|clitoris|member|manhood)\\b"
+     "pattern": "\\b(?:penis|penises|vagina\\w*|vulva\\w*|semen|ejaculat\\w*|genitals?|genitalia|labia|testicles?|scrotum|phallus|erection|clitoris|(?:his|my|your)\\s+member|manhood)\\b"
     },
     {
      "id": "no-banned-phrasing",
      "group": "constraint",
      "type": "forbid_regex",
      "scope": "all",
-     "pattern": "shiver\\w*\\s+(?:down|up|ran|through)|breath\\s+(?:hitch\\w*|caught)|(?:caught|held|hitched)\\s+(?:her|his|my)\\s+breath|ministrations|waves?\\s+of\\s+(?:pleasure|heat|sensation)|(?:eyes|gaze)\\s+darken\\w*|\\bcore\\b|\\bmember\\b|\\bmanhood\\b|\\bfolds\\b|throb\\w*|white-hot|aching\\s+need|molten|electric(?:ity)?\\b|sparks?\\s+(?:of|flew|shot)|tidal|wave\\s+after\\s+wave|world\\s+(?:narrowed|shrank|fell away)|(?:time|everything)\\s+(?:stopped|stood still)|spilled\\s+over\\s+the\\s+edge|unraveled|a\\s+symphony|dance\\s+of|\\bsoul\\b|claimed\\s+(?:her|his)\\s+mouth|\\bdevour\\w*|nothing\\s+(?:else\\s+)?mattered|more\\s+than\\s+(?:she|he)\\s+had\\s+ever\\s+(?:wanted|needed)"
+     "pattern": "shiver\\w*\\s+(?:down|up|ran|through)|breath\\s+(?:hitch\\w*|caught)|(?:caught|held|hitched)\\s+(?:her|his|my)\\s+breath|ministrations|waves?\\s+of\\s+(?:pleasure|heat|sensation)|(?:eyes|gaze)\\s+darken\\w*|\\b(?:her|his|my|your)\\s+core\\b|\\b(?:his|my|your)\\s+member\\b|\\bmanhood\\b|\\b(?:her|my|your|slick|wet|soft|swollen|inner|pink)\\s+folds\\b|white-hot|aching\\s+need|molten|electric(?:ity)?\\b|sparks?\\s+(?:of|flew|shot)|wave\\s+after\\s+wave|world\\s+(?:narrowed|shrank|fell away)|(?:time|everything)\\s+(?:stopped|stood still)|spilled\\s+over\\s+the\\s+edge|a\\s+symphony\\s+of|claimed\\s+(?:her|his)\\s+mouth|\\bdevour\\w*|nothing\\s+(?:else\\s+)?mattered|more\\s+than\\s+(?:she|he)\\s+had\\s+ever\\s+(?:wanted|needed)"
     },
     {
      "id": "length",
      "group": "constraint",
      "type": "word_range",
-     "min": 1000,
+     "min": 1150,
      "max": 1500,
      "scope": "all"
     }
@@ -462,7 +462,7 @@
      "type": "require_regex",
      "scope": "all",
      "per_turn": false,
-     "pattern": "^\\s*#{1,4}\\s*14:05\\s*$[\\s\\S]*^\\s*#{1,4}\\s*14:50\\s*$[\\s\\S]*^\\s*#{1,4}\\s*15:40\\s*$[\\s\\S]*^\\s*#{1,4}\\s*16:10\\s*$[\\s\\S]*^\\s*#{1,4}\\s*17:30\\s*$"
+     "pattern": "^##[ \\t]+14:05\\s*$[\\s\\S]*^##[ \\t]+14:50\\s*$[\\s\\S]*^##[ \\t]+15:40\\s*$[\\s\\S]*^##[ \\t]+16:10\\s*$[\\s\\S]*^##[ \\t]+17:30\\s*$"
     },
     {
      "id": "slow-build-1",
@@ -470,7 +470,7 @@
      "type": "forbid_regex",
      "scope": "all",
      "section": "14:05",
-     "pattern": "\\b(?:cock|dick|clit\\w*|pussy|cunt|nipples?|orgasm\\w*|thrust\\w*|fuck\\w*|cum\\b|balls|erection|hard-on|naked)"
+     "pattern": "\\b(?:cocks?\\b|dicks?\\b|clit\\w*|pussy|cunt|nipples?|orgasm\\w*|thrust\\w*|fuck\\w*|cum\\b|balls|erection|hard-on|naked)"
     },
     {
      "id": "slow-build-2",
@@ -478,7 +478,7 @@
      "type": "forbid_regex",
      "scope": "all",
      "section": "14:50",
-     "pattern": "\\b(?:cock|dick|clit\\w*|pussy|cunt|nipples?|orgasm\\w*|thrust\\w*|fuck\\w*|cum\\b|balls|erection|hard-on|naked)"
+     "pattern": "\\b(?:cocks?\\b|dicks?\\b|clit\\w*|pussy|cunt|nipples?|orgasm\\w*|thrust\\w*|fuck\\w*|cum\\b|balls|erection|hard-on|naked)"
     },
     {
      "id": "coda-no-sex",
@@ -486,7 +486,7 @@
      "type": "forbid_regex",
      "scope": "all",
      "section": "17:30",
-     "pattern": "\\b(?:cock|dick|thrust\\w*|fuck\\w*|suck\\w*|orgasm\\w*)"
+     "pattern": "\\b(?:cocks?\\b|dicks?\\b|thrust\\w*|fuck\\w*|suck\\w*|orgasm\\w*)"
     },
     {
      "id": "s1540-explicit",
@@ -583,27 +583,27 @@
      "group": "constraint",
      "type": "forbid_regex",
      "scope": "all",
-     "pattern": "\\b(?:moan\\w*|gasp\\w*|whimper\\w*|groan\\w*|sigh\\w*)\\b"
+     "pattern": "\\b(?:moan\\w*|gasp\\w*|whimper\\w*|groan\\w*|sigh(?:s|ed|ing)?)\\b"
     },
     {
      "id": "no-clinical-words",
      "group": "constraint",
      "type": "forbid_regex",
      "scope": "all",
-     "pattern": "\\b(?:penis|penises|vagina\\w*|vulva\\w*|semen|ejaculat\\w*|genitals?|genitalia|labia|testicles?|scrotum|phallus|erection|clitoris|member|manhood)\\b"
+     "pattern": "\\b(?:penis|penises|vagina\\w*|vulva\\w*|semen|ejaculat\\w*|genitals?|genitalia|labia|testicles?|scrotum|phallus|erection|clitoris|(?:his|my|your)\\s+member|manhood)\\b"
     },
     {
      "id": "no-banned-phrasing",
      "group": "constraint",
      "type": "forbid_regex",
      "scope": "all",
-     "pattern": "shiver\\w*\\s+(?:down|up|ran|through)|breath\\s+(?:hitch\\w*|caught)|(?:caught|held|hitched)\\s+(?:her|his|my)\\s+breath|ministrations|waves?\\s+of\\s+(?:pleasure|heat|sensation)|(?:eyes|gaze)\\s+darken\\w*|\\bcore\\b|\\bmember\\b|\\bmanhood\\b|\\bfolds\\b|throb\\w*|white-hot|aching\\s+need|molten|electric(?:ity)?\\b|sparks?\\s+(?:of|flew|shot)|tidal|wave\\s+after\\s+wave|world\\s+(?:narrowed|shrank|fell away)|(?:time|everything)\\s+(?:stopped|stood still)|spilled\\s+over\\s+the\\s+edge|unraveled|a\\s+symphony|dance\\s+of|\\bsoul\\b|claimed\\s+(?:her|his)\\s+mouth|\\bdevour\\w*|nothing\\s+(?:else\\s+)?mattered|more\\s+than\\s+(?:she|he)\\s+had\\s+ever\\s+(?:wanted|needed)"
+     "pattern": "shiver\\w*\\s+(?:down|up|ran|through)|breath\\s+(?:hitch\\w*|caught)|(?:caught|held|hitched)\\s+(?:her|his|my)\\s+breath|ministrations|waves?\\s+of\\s+(?:pleasure|heat|sensation)|(?:eyes|gaze)\\s+darken\\w*|\\b(?:her|his|my|your)\\s+core\\b|\\b(?:his|my|your)\\s+member\\b|\\bmanhood\\b|\\b(?:her|my|your|slick|wet|soft|swollen|inner|pink)\\s+folds\\b|white-hot|aching\\s+need|molten|electric(?:ity)?\\b|sparks?\\s+(?:of|flew|shot)|wave\\s+after\\s+wave|world\\s+(?:narrowed|shrank|fell away)|(?:time|everything)\\s+(?:stopped|stood still)|spilled\\s+over\\s+the\\s+edge|a\\s+symphony\\s+of|claimed\\s+(?:her|his)\\s+mouth|\\bdevour\\w*|nothing\\s+(?:else\\s+)?mattered|more\\s+than\\s+(?:she|he)\\s+had\\s+ever\\s+(?:wanted|needed)"
     },
     {
      "id": "length",
      "group": "constraint",
      "type": "word_range",
-     "min": 1000,
+     "min": 1150,
      "max": 1500,
      "scope": "all"
     }

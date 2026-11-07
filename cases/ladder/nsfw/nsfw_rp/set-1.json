@@ -76,7 +76,7 @@
       4
      ],
      "scope": "all",
-     "pattern": "\\b(?:cock|dick|pussy|cunt|clit\\w*|nipples?|orgasm\\w*|fuck\\w*|cum|inside (?:her|you|me|Priya|Ilse)|naked|nude|breasts?(?!\\s+pocket)|bra|knickers|underwear|panties)\\b"
+     "pattern": "\\b(?:cock|dick|pussy|cunt|clit\\w*|nipples?|orgasm\\w*|fuck(?:s|ed|ing)?\\s+(?:me|you|her|him|them|us|Ilse|Priya)\\b|cum|inside (?:her|you|me|Priya|Ilse)|naked|nude|breasts?(?!\\s+pocket))\\b|\\b(?:off|unhook\\w*|unclasp\\w*|unbutton\\w*|strip\\w*|peel\\w*|tug\\w*|pull\\w*|slid\\w*|slip\\w*)\\b[^.!?\\n]{0,25}\\b(?:bra|knickers|underwear|panties)\\b|\\b(?:bra|knickers|underwear|panties)\\b[^.!?\\n]{0,25}\\b(?:off|down|away|aside|to the floor)\\b"
     },
     {
      "id": "ooc-answered-t3-t7",
@@ -172,7 +172,7 @@
       9
      ],
      "scope": "dialogue",
-     "pattern": "\\?"
+     "pattern": "\\?|\\btell me\\b|\\b(?:okay|ok|alright|all right)\\b|\\bsay (?:the word|when|stop)\\b|\\bwhat (?:you|do you) need\\b"
     },
     {
      "id": "amber-slow-t9",
@@ -183,7 +183,7 @@
      ],
      "scope": "narration",
      "negation_guard": true,
-     "pattern": "\\b(?:thrust\\w*|pound\\w*|harder|faster|hammer\\w*|drives?|driving|rock\\w*)\\b"
+     "pattern": "\\b(?:(?<!mid-)thrust\\w*|pound\\w*|harder|faster|hammer\\w*|drives?|driving)\\b"
     },
     {
      "id": "knee-caught-t11",
@@ -272,8 +272,8 @@
     {
      "id": "t12-own-orgasm-on-page",
      "dim": "explicitness",
-     "q": "On turn 12, does Desmond say what he wants in explicit, unembarrassed words AND is his own orgasm written on the page (not faded)? Quote the sentence where he comes.",
-     "gold_quote": "he comes hard, buried deep in her"
+     "q": "On turn 12, does Desmond say out loud, in explicit, unembarrassed words and his own measured voice, what he wants from her (not faded, summarised or left vague)? His own orgasm on the page also counts but is not required. Quote the sentence.",
+     "gold_quote": "I want you over me exactly like this, Doctor, and I want to come inside you while you watch me"
     },
     {
      "id": "t7-makes-her-ask",
@@ -372,7 +372,7 @@
      "group": "identity",
      "type": "forbid_regex",
      "scope": "speaker:Tobias",
-     "pattern": "\\b(?:fuck\\w*|shit\\w*|damn\\w*|hell|bloody|bastard|ass|arse|crap|cunt|bitch|goddamn\\w*)\\b"
+     "pattern": "\\b(?:fuck\\w*|shit\\w*|damn\\w*|hell|bloody|bastard|crap|cunt|bitch|goddamn\\w*)\\b"
     },
     {
      "id": "tobias-no-pet-names",
@@ -416,7 +416,7 @@
       4
      ],
      "scope": "all",
-     "pattern": "\\b(?:cock|dick|pussy|cunt|clit\\w*|nipples?|orgasm\\w*|fuck\\w*|cum|inside (?:her|you|me|Priya|Ilse)|naked|nude|breasts?(?!\\s+pocket)|bra|knickers|underwear|panties)\\b"
+     "pattern": "\\b(?:cock|dick|pussy|cunt|clit\\w*|nipples?|orgasm\\w*|fuck(?:s|ed|ing)?\\s+(?:me|you|her|him|them|us|Ilse|Priya)\\b|cum|inside (?:her|you|me|Priya|Ilse)|naked|nude|breasts?(?!\\s+pocket))\\b|\\b(?:off|unhook\\w*|unclasp\\w*|unbutton\\w*|strip\\w*|peel\\w*|tug\\w*|pull\\w*|slid\\w*|slip\\w*)\\b[^.!?\\n]{0,25}\\b(?:bra|knickers|underwear|panties)\\b|\\b(?:bra|knickers|underwear|panties)\\b[^.!?\\n]{0,25}\\b(?:off|down|away|aside|to the floor)\\b"
     },
     {
      "id": "ooc-answered-t3",
@@ -500,7 +500,7 @@
      ],
      "scope": "all",
      "negation_guard": true,
-     "pattern": "\\b(?:thrust\\w*|fuck\\w*|suck\\w*|lick\\w*|cock|pussy|cum|orgasm\\w*|clit\\w*)\\b"
+     "pattern": "\\b(?:thrust\\w*|fuck(?:s|ed|ing)?\\s+(?:me|you|her|him|them|us|Ilse)\\b|suck\\w*|lick\\w*|cock|pussy|cum|orgasm\\w*|clit\\w*)\\b"
     },
     {
      "id": "yellow-checkin-maren-t7",
@@ -510,7 +510,7 @@
       7
      ],
      "scope": "speaker:Maren",
-     "pattern": "\\?"
+     "pattern": "\\?|\\btell me\\b|\\b(?:okay|ok|alright|all right)\\b|\\bsay (?:the word|when|stop)\\b|\\bwhat (?:you|do you) need\\b"
     },
     {
      "id": "yellow-checkin-tobias-t7",
@@ -520,7 +520,7 @@
       7
      ],
      "scope": "speaker:Tobias",
-     "pattern": "\\?"
+     "pattern": "\\?|\\btell me\\b|\\b(?:okay|ok|alright|all right)\\b|\\bsay (?:the word|when|stop)\\b|\\bwhat (?:you|do you) need\\b"
     },
     {
      "id": "condom-handled-t9-t11",
@@ -714,7 +714,7 @@
      "group": "identity",
      "type": "require_regex",
      "scope": "all",
-     "pattern": "\\b(?:stat|vitals?|triage\\w*|prn|charts?|charting|pulse|bedside|scrubs?|code|sutur\\w+|gurney|iv|saline|crash cart|sat|doctor'?s orders|orders)\\b"
+     "pattern": "\\b(?:stat|vitals?|triage\\w*|prn|charts?|charting|pulse|bedside|scrubs?|code|sutur\\w+|gurney|iv|saline|crash cart|sat|doctor'?s orders|orders|tachy\\w*|brady\\w*|bp|ecg|ekg|epi|intubat\\w*|defib\\w*|resus\\w*|icu|meds?|mg|cc|dosage|pager|on[- ]call|rounds|attending|discharg\\w*|ambo|nil by mouth|npo)\\b"
     },
     {
      "id": "length-12-90",
@@ -789,7 +789,7 @@
      ],
      "scope": "all",
      "negation_guard": true,
-     "pattern": "\\b(?:slut\\w*|whore\\w*|pathetic|worthless|bitch\\w*|stupid|dirty boy|filthy|disgusting|pig|useless|cunt\\w*)\\b"
+     "pattern": "\\b(?:slut\\w*|whore\\w*|pathetic|worthless|bitch\\w*|stupid|dirty boy|filthy (?:boy|thing|little|slut|whore|pig|toy)|(?:you(?:'re| are)|you)\\s+(?:so\\s+)?(?:filthy|disgusting)|pig|useless|(?:you(?:'re| are)?|such a|little)\\s+(?:\\w+\\s+)?cunts?)\\b"
     },
     {
      "id": "limit-no-photo-ask",
@@ -857,7 +857,11 @@
       [
        "pic",
        "photo",
-       "picture"
+       "picture",
+       "selfie",
+       "nude",
+       "image",
+       "camera"
       ]
      ]
     },
