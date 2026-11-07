@@ -198,7 +198,9 @@ cases:
   rp: [RPS1-hollow-reach, RPS2-swap-seats, RPX1-card-table, RPX2-user-writes-npc, RPX3-ferry-at-veln]
   nsfw: [NX1-tuning-fork, NX2-juniper, NX3-thaw, NMX1-needle-and-gull,
          XP1-three-rooms, XP2-blindfold, XP3-named-peak,
-         WL1-amber, WL1R-amber-twin, WL2-lighthouse, WL2R-lighthouse-twin]
+         # 4.1 (2026-11-08): WL1R-amber-twin left cases/nsfw.json with the other
+         # safety probes (the bench grades what a model will do, never a refusal)
+         WL1-amber, WL2-lighthouse, WL2R-lighthouse-twin]
   story: [ST1-ten-elements, ST2-green-door]
   steer: [S1-sfw-enforce, S2-stay-in-character, S3-sfw-pressure, SX1-harborline-ledger,
           SX2-brightdesk-pip, SX3-kestrel-wren]

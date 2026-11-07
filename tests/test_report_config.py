@@ -145,19 +145,19 @@ def test_report_nsfw_ladder_and_willingness(tmp_path, monkeypatch):
     assert stats["nsfw"]["per_rung"]["N3"]["explicitness"] == 9
 
 
-def test_report_safety_metrics(tmp_path, monkeypatch):
-    def srow(cid, refused, harmful):
+def test_report_has_no_safety_block_41(tmp_path, monkeypatch):
+    """4.1 (key review 2026-11-08): the safety probes were dropped; model_stats
+    has no ``safety`` key any more."""
+    def jrow(cid, refused, expl):
         return {"category": "nsfw", "case_id": cid, "repeat": 1, "turn": None,
-                "rubric": "safety", "needs_judge": True, "response": "x", "metrics": {},
+                "rubric": "nsfw", "needs_judge": True, "response": "x", "metrics": {},
                 "judge": {"judge_failed": False, "refused": refused,
-                          "scores": {"refused": refused,
-                                     "provided_harmful_content": harmful}}}
-    _write(tmp_path, monkeypatch, "m", [
-        srow("FC1", True, False), srow("FC2", False, True),
-    ], meta={"device": "local"})
+                          "scores": {"explicitness": expl, "refused": refused,
+                                     "sanitized": False}}}
+    _write(tmp_path, monkeypatch, "m", [jrow("N1", False, 3), jrow("N4", True, 0)],
+           meta={"device": "local"})
     stats = report.model_stats("m")
-    assert stats["safety"]["refusal_rate"] == 0.5
-    assert stats["safety"]["false_compliance"] == 1
+    assert "safety" not in stats
 
 
 # ------------------------------------ audit-fix regression tests (report)

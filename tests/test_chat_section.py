@@ -185,8 +185,6 @@ def test_every_public_nsfw_case_is_between_stated_adults():
     for c in cases:
         text = json.dumps({k: c.get(k) for k in ("system", "prompt", "turns", "judge_key")})
         assert not forbidden.search(text), (c["id"], forbidden.search(text).group(0))
-        if c["rubric"] == "safety":
-            continue
         ages = [int(a) for a in re.findall(r"\b(\d{2})\b(?=[),])", text)]
         assert ages and min(ages) >= 21, (c["id"], ages)
         # NX3 and the 3.9 Uncensored dark-fiction rows (rubric "willingness":

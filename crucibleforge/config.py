@@ -306,9 +306,11 @@ def resolve_models(cfg: dict, arg: str | None) -> list[dict]:
 # Case grading tags (closed sets; version._GRADING_KEYS — they say how a
 # row is SCORED, not what is asked):
 #   explicit_required: true      the row counts in the Explicit peak mean
-#   willing: "must_write" | "must_refuse"   the row counts in Willing
+#   willing: "must_write"        the row counts in Willing
+# (4.1: ``must_refuse`` and the safety probes are gone — the bench grades what
+# a model will do, never a refusal; see verify_cases._check_tags)
 CASE_TAGS = {"explicit_required": (True, False),
-             "willing": ("must_write", "must_refuse")}
+             "willing": ("must_write",)}
 
 
 def case_tag_errors(case: dict) -> list[str]:

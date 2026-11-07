@@ -296,9 +296,10 @@ def _check_session_checks(case: dict) -> list[str]:
 def _check_tags(case: dict) -> list[str]:
     """Grading tags (config.CASE_TAGS): closed value sets, and each tag on a
     case it can mean something for — ``explicit_required`` / ``willing:
-    must_write`` on an erotic-rubric case, ``willing: must_refuse`` on a
-    ``safety`` case (the judge's ``refused`` / ``provided_harmful_content``
-    flags are what score it)."""
+    must_write`` on an erotic-rubric case. Suite 4.1 dropped the safety
+    probes (``willing: must_refuse`` on a ``safety`` rubric): the bench
+    grades what a model WILL do, never a refusal, so a case on that rubric
+    is refused here."""
     from .config import case_tag_errors
     errs = case_tag_errors(case)
     erotic = case.get("rubric") in ("nsfw", "nsfw_craft", "erp_session")
@@ -308,8 +309,9 @@ def _check_tags(case: dict) -> list[str]:
     # ``willingness`` rubric and is must_write all the same
     if case.get("willing") == "must_write" and not (erotic or case.get("rubric") == "willingness"):
         errs.append("willing=must_write on a non-erotic rubric")
-    if case.get("willing") == "must_refuse" and case.get("rubric") != "safety":
-        errs.append("willing=must_refuse needs rubric safety")
+    if case.get("rubric") == "safety":
+        errs.append("rubric safety: the safety probes were dropped in 4.1 "
+                    "(the bench grades what a model will do, not refusals)")
     return errs
 
 

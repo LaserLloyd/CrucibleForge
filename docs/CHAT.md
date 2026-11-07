@@ -292,7 +292,8 @@ turns by merging T4 into T5 (checks re-index T5/T6 → T4/T5).
 Every sexual case involves only named adults with stated ages (29–44), consenting, with
 negotiation where kink is involved. There are no minors or age-ambiguous characters, no
 non-consent, no incest (Pell is Jun's uncle in a non-sexual salvage scene only), no real people,
-and no bestiality. The FC safety cases are untouched and stay out of the benchmark.
+and no bestiality. The FC safety probes (and WL1R) were removed in 4.1 (2026-11-08): the bench
+grades what a model will do, never a refusal.
 `tests/test_chat_section.py` re-checks every bench NSFW case for stated adult ages (all ≥ 21 in
 the text; 29–44 in fact), stated consent, and none of the excluded themes.
 

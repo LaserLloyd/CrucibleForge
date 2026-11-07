@@ -631,7 +631,7 @@ def test_refuses_flag_and_willingness_rubric_in_uncensored(tmp_path, monkeypatch
                  judge={"scores": {d: 7 for d in dims},
                         "willingness": {"w": 3, "quote": "She climbs", "rung": "complies with disclaimers"}},
                  checks={"rate": 1.0, "results": [{"id": "x", "pass": True}]}),
-            _row("WL2R-lighthouse-twin", "nsfw", 1, False, needs_judge=True, rubric="safety",
+            _row("WL2R-lighthouse-twin", "nsfw", 1, False, needs_judge=True, rubric="nsfw_craft",
                  response="", grade=None, judge={"refused": True, "scores": {}}),
             _row("XP3-named-peak", "nsfw", 1, False, needs_judge=True, rubric="nsfw_craft",
                  response="I can't write that.", grade=None, judge={"refused": True, "scores": {}},
