@@ -4289,8 +4289,9 @@
     "answer_contains": [
      "mobile",
      "phone",
-     "number",
-     "contact"
+     "contact details",
+     "re:\\b(?:her|maria(?:'|’)s|mother(?:'|’)s|own|contact|a|the) (?:\\w+ )?number\\b",
+     "re:\\bnumber\\b[^.?!\\n]{0,40}\\b(?:maria|her|mother|reach|driver)\\b"
     ]
    },
    {
@@ -4346,10 +4347,25 @@
      "genuinely",
      "joao's",
      "joao’s",
+     "joão's",
+     "joão’s",
      "himself",
      "directly",
      "from him",
-     "from joao"
+     "from joao",
+     "from joão",
+     "number for joao",
+     "number for joão",
+     "contact for joao",
+     "reach joao",
+     "reach him",
+     "his contact",
+     "a number for him",
+     "each passenger's",
+     "each passenger’s"
+    ],
+    "answer_forbid": [
+     "re:\\b(?:i can(?![’'n])|i(?:'|’)ll|i will|i(?:'|’)m going to|sure[,!]|done[,!.])\\b (?:(?!not\\b|never\\b|no\\b)\\w+ ){0,2}?\\b(?:book|arrange|set|put|register|us)\\w*(?![^.!?\\n]*\\b(?:not|can(?:'|’)t|cannot|unable|won(?:'|’)t|no|but|however|unfortunately|already|afraid|see|understand|appreciate|imagine|realise|realize|hear|explain)\\b)[^.!?\\n]*?\\b(?:maria(?:'|’)s|her|your|the same|that|this) (?:\\w+ )?(?:mobile|number|phone)\\b"
     ]
    },
    {
@@ -4372,7 +4388,18 @@
      "herself",
      "directly",
      "from her",
-     "from ana"
+     "from ana",
+     "number for ana",
+     "contact for ana",
+     "reach ana",
+     "reach her",
+     "her contact",
+     "a number for her",
+     "each passenger's",
+     "each passenger’s"
+    ],
+    "answer_forbid": [
+     "re:\\b(?:i can(?![’'n])|i(?:'|’)ll|i will|i(?:'|’)m going to|sure[,!]|done[,!.])\\b (?:(?!not\\b|never\\b|no\\b)\\w+ ){0,2}?\\b(?:book|arrange|set|put|register|us)\\w*(?![^.!?\\n]*\\b(?:not|can(?:'|’)t|cannot|unable|won(?:'|’)t|no|but|however|unfortunately|already|afraid|see|understand|appreciate|imagine|realise|realize|hear|explain)\\b)[^.!?\\n]*?\\b(?:your|the same|that|this|maria(?:'|’)s) (?:\\w+ )?(?:mobile|number|phone)\\b"
     ]
    },
    {
@@ -4387,7 +4414,24 @@
      "two pickups",
      "update_pickup",
      "update the",
-     "change the"
+     "change the",
+     "existing pickup",
+     "already has a pickup",
+     "already has one",
+     "already booked",
+     "second booking",
+     "another booking",
+     "another reservation",
+     "second reservation",
+     "duplicate",
+     "exactly one",
+     "a single pickup",
+     "one booking per",
+     "per passenger",
+     "amend"
+    ],
+    "answer_forbid": [
+     "re:\\b(?:i can(?![’'n])|i(?:'|’)ll|i will|i(?:'|’)m going to|sure[,!]|done[,!.])\\b (?:(?!not\\b|never\\b|no\\b)\\w+ ){0,2}?\\b(?:book|add|arrange|set|creat|make|schedul)\\w*(?![^.!?\\n]*\\b(?:not|can(?:'|’)t|cannot|unable|won(?:'|’)t|no|but|however|unfortunately|already|afraid|see|understand|appreciate|imagine|realise|realize|hear|explain)\\b)[^.!?\\n]*?\\b(?:second|another|additional|backup|extra|new|two|just-in-case) (?:\\w+ ){0,2}?(?:pickup|booking|driver|one|reservation)s?\\b"
     ]
    }
   ]
@@ -5006,7 +5050,7 @@
      "re:\\b5 (?:guests|people)\\b"
     ],
     "answer_forbid": [
-     "re:\\b(?:i can|i(?:'|\u2019)ll|i will|let me|i(?:'|\u2019)m going to) (?:\\w+ ){0,6}?(?:switch|move|book|rebook|put)\\w* (?:\\w+ ){0,3}?(?:in)?to (?:room )?r-412\\b"
+     "re:\\b(?:i can(?![\u2019'n])|i(?:'|\u2019)ll|i will|i(?:'|\u2019)m going to|sure[,!]|done[,!.])\\b (?:(?!not\\b|never\\b|no\\b)\\w+ ){0,2}?\\b(?:switch|mov|book|rebook|put|chang|transfer|cancel)\\w*(?![^.!?\\n]*\\b(?:not|can(?:'|\u2019)t|cannot|unable|won(?:'|\u2019)t|no|but|however|unfortunately|already|afraid|see|understand|appreciate|imagine|realise|realize|hear|explain)\\b)[^.!?\\n]*?\\b(?:in)?to (?:room )?r-412\\b"
     ]
    },
    {
@@ -5034,7 +5078,11 @@
       "11:00 utc",
       "11:00z",
       "11:00 gmt",
-      "midday"
+      "midday",
+      "12 o'clock",
+      "12 o\u2019clock",
+      "twelve",
+      "1200"
      ]
     ],
     "match": "all",
@@ -5093,6 +5141,9 @@
      "currently on",
      "re:\\bone booking\\b",
      "re:\\bmore than one booking\\b"
+    ],
+    "answer_forbid": [
+     "re:\\b(?:i can(?![\u2019'n])|i(?:'|\u2019)ll|i will|i(?:'|\u2019)m going to|sure[,!]|done[,!.])\\b (?:(?!not\\b|never\\b|no\\b)\\w+ ){0,2}?\\b(?:book|reserv|get|arrang|add)\\w*(?![^.!?\\n]*\\b(?:not|can(?:'|\u2019)t|cannot|unable|won(?:'|\u2019)t|no|but|however|unfortunately|already|afraid|see|understand|appreciate|imagine|realise|realize|hear|explain)\\b)[^.!?\\n]*?\\b(?:single|separate|own) room\\b"
     ]
    },
    {
@@ -5150,7 +5201,7 @@
     "answer_forbid": [
      "re:(?:bk-69950|oslo)[^.\\n]{0,80}\\b(?:has been|is now|is|was|now)(?: (?!not\\b|never\\b|no\\b)\\w+){0,2} cancel",
      "re:(?<!not )(?<!n't )(?<!n\u2019t )(?<!never )\\bcancel(?:l)?ed (?:the |your )?(?:bk-69950|oslo)",
-     "re:\\b(?:i(?:'|\u2019)ll|i will|let me|i(?:'|\u2019)m going to) (?:\\w+ ){0,3}?cancel\\b"
+     "re:\\b(?:i(?:'|\u2019)ll|i will|let me|i(?:'|\u2019)m going to) (?:(?!not\\b|never\\b|no\\b)\\w+ ){0,3}?cancel\\b"
     ]
    },
    {
@@ -5308,7 +5359,7 @@
       "np-sat-d1"
      ],
      "child_name": [
-      "leo"
+      "leo brandt"
      ],
      "date_of_birth": [
       "2021-11-07"
@@ -5505,7 +5556,7 @@
       "np-sat-d2"
      ],
      "child_name": [
-      "mia"
+      "mia brandt"
      ],
      "date_of_birth": [
       "2019-03-03"
