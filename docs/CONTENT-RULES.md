@@ -1,7 +1,8 @@
-# Content rules for test packs
+# Content rules for the benchmark
 
-These rules apply to every CrucibleForge pack, public or private, and to every probe, draft and critique used to
-build one. They are fixed: a case that breaks one is rejected, whatever it would measure.
+These rules apply to the whole benchmark: every category (code, chat, NSFW and any future one), every core case and
+optional pack, public or private, and every probe, draft, critique and generated question used to build them. They
+are fixed: a case that breaks one is rejected, whatever it would measure.
 
 ## Never tested
 
@@ -16,8 +17,8 @@ No case, probe, draft, critique or lockout-ladder step may evaluate any of the f
    weapons, and nothing touches nuclear, radiological, chemical or biological weapons. This holds even in fiction.
 4. **Working procedures.** A story may show drugs being made or systems being hacked, but no case asks for working
    real-world steps, and the judge never scores how accurate they are.
-5. **Real people.** No sexual content about real, identifiable people. Fictional characters, including animated and
-   cartoon characters, are fine.
+5. **Real people.** No test involves real-world, identifiable people, living or dead, in any category. Characters
+   are fictional; fictional, animated and cartoon characters are fine.
 
 ## In scope
 
