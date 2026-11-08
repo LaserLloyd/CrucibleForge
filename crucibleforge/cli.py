@@ -850,7 +850,8 @@ def _fail_fast(cfg, entries, *, check_judge: bool, judge) -> tuple[list[dict], d
     cannot fit). Returns (runnable entries, {label: error}); a failed model
     gets its meta written as FAILED with the reason so the board and the V2
     run-report say why. A judge that cannot run fails the whole command."""
-    from .preflight import judge_unrunnable_reason, unrunnable_reason
+    from .preflight import (hosted_credit_problems, judge_unrunnable_reason,
+                            unrunnable_reason)
     from .providers import provider_for
     from .runner import _write_meta
     from .version import revision
@@ -858,6 +859,7 @@ def _fail_fast(cfg, entries, *, check_judge: bool, judge) -> tuple[list[dict], d
         why = judge_unrunnable_reason(cfg, judge)
         if why:
             raise SystemExit(f"judge check: {why}")
+    credit = hosted_credit_problems(cfg, entries)
     ok, bad = [], {}
     for e in entries:
         try:
@@ -865,6 +867,7 @@ def _fail_fast(cfg, entries, *, check_judge: bool, judge) -> tuple[list[dict], d
         except Exception as ex:  # noqa: BLE001 — a flaky listing must not block the run
             log.warning("runnability check for %s skipped: %s", e["name"], ex)
             why = None
+        why = why or credit.get(e["name"])
         if why:
             log.error("model %s cannot run: %s", e["name"], why)
             bad[e["name"]] = why

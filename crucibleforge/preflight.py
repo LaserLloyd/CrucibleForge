@@ -128,6 +128,83 @@ def check_link_health(cfg: dict, entries: list[dict]) -> None:
         log.info("link check passed: %s reachable, data channel OK", pname)
 
 
+# ------------------------------------------------ hosted credit preflight
+# 2026-11-08: eight API models sat behind "conformance FAIL ... HTTP 401" and
+# a spent plan answered 402 only after five retries per call.  One cheap
+# request per hosted provider says "out of credit" up front, by name.
+
+_BILLING_RE = re.compile(
+    r"insufficient|balance|spending.?limit|usage limit|out of credit|billing"
+    r"|payment required|exceeded your (?:current )?quota", re.IGNORECASE)
+
+#: provider host -> the account-balance URL (a GET that costs nothing)
+_BALANCE_URLS = {"api.deepseek.com": "https://api.deepseek.com/user/balance"}
+
+
+def _is_billing_answer(status: int, body: str) -> bool:
+    if status == 402:
+        return True
+    return status in (400, 403, 429) and bool(_BILLING_RE.search(body or ""))
+
+
+def hosted_credit_problem(prov: Provider, model_id: str) -> str | None:
+    """Why ``prov`` cannot be billed right now, or None (fine, or unknown).
+
+    One request, no retries.  DeepSeek: ``GET /user/balance`` ->
+    ``is_available``.  Any other hosted provider: a 1-token completion; only
+    a billing answer (402, or an insufficient-balance / spending-limit body)
+    counts -- a bad model id or sampler is the link check's business.  The
+    key is never logged.  Any failure of the check itself returns None."""
+    from urllib.parse import urlparse
+    from . import api
+    from .conformance import _is_hosted
+    if prov.type in ("studioforge", "lmstudio") or not _is_hosted(prov):
+        return None
+    host = (urlparse(prov.base_url or "").hostname or "").lower()
+    headers = {"Authorization": f"Bearer {prov.api_key}"} if prov.api_key else {}
+    try:
+        with api.httpx.Client(timeout=20.0) as http:
+            url = _BALANCE_URLS.get(host)
+            if url:
+                resp = http.get(url, headers=headers)
+                if resp.status_code != 200:
+                    return None
+                if resp.json().get("is_available") is False:
+                    return f"{prov.name}: account balance is empty (DeepSeek is_available=false) - top up, then re-run"
+                return None
+            resp = http.post(f"{prov.base_url.rstrip('/')}/chat/completions",
+                             headers={**headers, "Content-Type": "application/json"},
+                             json={"model": model_id, "max_tokens": 1,
+                                   "messages": [{"role": "user", "content": "Hi"}]})
+            body = resp.text if isinstance(resp.text, str) else ""
+            if _is_billing_answer(resp.status_code, body):
+                return (f"{prov.name}: out of credit or over its spending limit "
+                        f"(HTTP {resp.status_code}) - fix the plan, then re-run")
+    except Exception as e:  # noqa: BLE001 - a flaky probe must not block a run
+        log.debug("credit check for %s skipped: %s", prov.name, type(e).__name__)
+    return None
+
+
+def hosted_credit_problems(cfg: dict, entries: list[dict]) -> dict[str, str]:
+    """{label: reason} for every entry whose hosted provider is out of
+    credit; one request per provider."""
+    verdict: dict[str, str | None] = {}
+    bad: dict[str, str] = {}
+    for e in entries:
+        pname = e["provider"]
+        if pname not in verdict:
+            try:
+                prov = get_provider(cfg, pname)
+                verdict[pname] = hosted_credit_problem(prov, e["model_id"])
+            except Exception:  # noqa: BLE001
+                verdict[pname] = None
+            if verdict[pname]:
+                log.error("credit check: %s", verdict[pname])
+        if verdict[pname]:
+            bad[e["name"]] = verdict[pname]
+    return bad
+
+
 # ------------------------------------------------ fail-fast runnability
 # 2026-09-23: three of the last board's failures took minutes (a lease, a
 # load attempt) to say something knowable in one GET: the model id is not
