@@ -55,6 +55,12 @@ refusal is never credit. Hard stays hard.
   and `limit-roz-stays-during`; WL2's method/remorse/explicit checks count only what the brief bans.
   `session_checks.require_regex` gains `max_miss` (opt-in) and the negation guard knows nobody / no
   one / neither / nor / avoid any (3 NC3 rows that restated the limit now pass).
+- **Late follow-ups (report time only, no stamp moves):** the negation guard now reads every `n't`
+  contraction (can't, didn't, couldn't …) and `cannot` — the leading `\b` had hidden all but four;
+  CC3/CC4 `S1` count `...`/`…` before a capital as a sentence end (the lowercase lookahead had been
+  made case-blind by `re.I`); CC4 `M2` excuses a £7.50 price; RV1 `X0` catches "The ledger? I burned
+  it."; NX2 Roz-stays no longer fires on Roz staying close; NC3 restraint catches wrists held in other
+  word orders. 0 verdict flips on the 1,187 current public rows.
 - **Currency:** unchanged since 3.10 — per row, per case. An unchanged case's 4.0 rows stay current
   under 4.1.0; the content cases above are stale; the reworded cases re-judge. No new stamps
   snapshot. Suite hash `68987fe6` → `04da7abe` (revision `4.1.0+04da7abe`); `cases verify` 388/0.
