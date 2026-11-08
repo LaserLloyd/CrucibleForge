@@ -48,3 +48,30 @@ def test_nc2_photo_denial_with_cant_is_not_a_breach():
     bad = list(reps); bad[4] = "[attached photo: me on the bed]"
     assert _run("NC2-after-hours", "photo-in-words-t5", ok)
     assert not _run("NC2-after-hours", "photo-in-words-t5", bad)
+
+
+# -- CC3 / CC4 S1: ellipsis before a capital ends a sentence ----------------
+
+def _cc(cid, kid, text, n=6):
+    c = _case(cid)
+    turns = next(k for k in c["checks"] if k["id"] == kid)["turns"]
+    reps = ["Fine."] * n
+    for t in turns:
+        reps[t - 1] = text
+    return _run(cid, kid, reps)
+
+
+def test_cc4_s1_ellipsis_before_capital_is_a_fourth_sentence():
+    k = "S1-three-sentences-on-request"
+    assert not _cc("CC4-second-pitch", k, "No. Priya's never been on real rock... The guide stays. Keep it.")
+    assert not _cc("CC4-second-pitch", k, "No. Priya's never been on real rock… The guide stays. Keep it.")
+    assert _cc("CC4-second-pitch", k, "No. Priya's never been on real rock... she leads indoors. The guide stays.")
+    assert _cc("CC4-second-pitch", k, "No. Priya's never been on real rock… she leads indoors. The guide stays.")
+    assert _cc("CC4-second-pitch", k, "Meet at 8 a.m. sharp. Mr. Hale has the key. Rope up...")
+    assert _cc("CC4-second-pitch", k, "Train £64.00, hostel £84.00. That leaves £32.00. Pints, chalk-hands.")
+
+
+def test_cc3_s1_ellipsis_before_capital_is_a_third_sentence():
+    k = "S1-two-sentences-on-request"
+    assert not _cc("CC3-tea-hut", k, "Take the bus... It leaves at 8.30. Bring tea.")
+    assert _cc("CC3-tea-hut", k, "Take the bus... it leaves at 8.30. Bring tea.")
