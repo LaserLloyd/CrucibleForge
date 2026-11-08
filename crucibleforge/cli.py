@@ -2121,6 +2121,24 @@ def cmd_cases(args, cfg):
     return 1
 
 
+def cmd_reverify_quotes(args, cfg) -> int:
+    """Dry-run report of verdicts the quote verifier would flip now."""
+    from . import judge
+    from .config import results_dir
+    rep = judge.reverify_quotes(results_dir())
+    if getattr(args, "json", False):
+        print(json.dumps(rep, indent=2))
+        return 0
+    print(f"rows with element verdicts scanned: {rep['rows_scanned']}")
+    print(f"would flip to PASS: {rep['flip_count']}   possible (sample count unknown): "
+          f"{rep['possible_count']}")
+    for key in ("flips", "possible"):
+        for x in rep[key]:
+            print(f"  [{key}] {x['model']} {x['case_id']} {x['element']}: {x['quote']!r}")
+    print("nothing was written (dry run; use `judge --force` / regrade to apply)")
+    return 0
+
+
 def cmd_conform(args, cfg):
     """Prove the harness's request protocol works for the selected models.
 
@@ -2814,6 +2832,12 @@ def main(argv=None):
         pc.add_argument("--difficulty", default=None)
         pc.add_argument("--verbose", "-v", action="store_true")
 
+    p_rq = sub.add_parser(
+        "reverify-quotes", help="read-only: list stored element verdicts that "
+                                "the current quote verifier would flip to PASS "
+                                "(no judge call, writes nothing)")
+    p_rq.add_argument("--json", action="store_true", help="print the report as JSON")
+
     p_conf = sub.add_parser(
         "conform", help="check that the harness's request protocol works for "
                         "a model (served / reasoning / chain / tools / sampler "
@@ -2902,7 +2926,7 @@ def main(argv=None):
                "pack": cmd_pack, "pairwise": cmd_pairwise, "all": cmd_all,
                "gui": cmd_gui, "import-openclaw": cmd_import_openclaw,
                "models": cmd_models, "cases": cmd_cases, "bench-all": cmd_bench_all,
-               "conform": cmd_conform}[args.cmd]
+               "conform": cmd_conform, "reverify-quotes": cmd_reverify_quotes}[args.cmd]
     # WP-BENCH FIX-6: `run`/`all` are the two commands that do real benched
     # work end to end, so they are the ones tracked by the fleet-wide
     # runs/<id>/{report.md,meta.json} contract. This wraps the dispatch

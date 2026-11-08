@@ -1445,8 +1445,14 @@ _QUOTE_CHARS = str.maketrans({"\u201c": '"', "\u201d": '"', "\u2018": "'", "\u20
                               "\u2014": "-", "\u2013": "-"})
 
 
+#: markdown emphasis the judge may drop or keep (``**23 February**``, ``*x*``,
+#: ``__x__``): removed on BOTH sides before every substring check
+_EMPHASIS = re.compile(r"[*_]+")
+
+
 def _norm_quote(s: str) -> str:
-    return " ".join(str(s).translate(_QUOTE_CHARS).split()).casefold()
+    s = _EMPHASIS.sub("", str(s).translate(_QUOTE_CHARS))
+    return " ".join(s.split()).casefold()
 
 
 #: a quote under QUOTE_MIN_CHARS still verifies when it is a WHOLE sentence /
@@ -1460,7 +1466,8 @@ _SENT_END = ".!?\u2026"
 
 def _norm_lines(s: str) -> str:
     """Like _norm_quote but keeps line breaks (a line is a sentence boundary)."""
-    lines = (" ".join(ln.split()) for ln in str(s).translate(_QUOTE_CHARS).splitlines())
+    lines = (" ".join(_EMPHASIS.sub("", ln).split())
+             for ln in str(s).translate(_QUOTE_CHARS).splitlines())
     return "\n".join(lines).casefold()
 
 
@@ -1518,7 +1525,26 @@ def _sentence_fragments_found(quote: str, hay: str) -> bool:
     return len(frags) >= 2 and _frags_in_order(frags, hay)
 
 
+#: a piece of a " / " splice must carry this much text to verify on its own
+SPLICE_PIECE_MIN_CHARS = 12
+_SPLICE = re.compile(r"\s+/\s+")
+
+
 def quote_found(quote: str, text: str, short_ok: bool = False) -> bool:
+    """The quote verifies whole, or -- when the judge spliced two passages
+    with " / " -- when EVERY piece (each at least SPLICE_PIECE_MIN_CHARS
+    long, no short-sentence exemption) verifies by itself. Strict otherwise:
+    no fuzzy matching."""
+    if _quote_found_one(quote, text, short_ok):
+        return True
+    pieces = [p.strip() for p in _SPLICE.split(str(quote))]
+    if len(pieces) < 2:
+        return False
+    return all(len(_norm_quote(p)) >= SPLICE_PIECE_MIN_CHARS
+               and _quote_found_one(p, text, False) for p in pieces)
+
+
+def _quote_found_one(quote: str, text: str, short_ok: bool = False) -> bool:
     """Is the judge's quote really in the assistant's text? Whitespace, case
     and curly/straight quote marks are normalised; an elided quote ("a ...
     b" / "a … b") must have every fragment present, in order; the quote must
@@ -1532,6 +1558,51 @@ def quote_found(quote: str, text: str, short_ok: bool = False) -> bool:
         return len(frags) == 1 and _short_quote_found(frags[0], text, short_ok)
     hay = _norm_quote(text)
     return _frags_in_order(frags, hay) or _sentence_fragments_found(quote, hay)
+
+
+_PARTIAL = re.compile(r"only (\d+)/(\d+) samples")
+
+
+def reverify_quotes(results_dir) -> dict:
+    """Read-only audit: which stored element verdicts would flip to PASS under
+    the current quote verifier, without calling a judge. Scans
+    ``transcripts_*.jsonl`` in ``results_dir`` and never writes.
+
+    Only an element the judge passed (``judge_pass``) but the quote guard
+    failed can flip, and only its one stored (failed) quote is known, so a
+    flip is certain when it tips the majority (``flips``) and merely possible
+    otherwise (``possible``; a sample count that is not stored)."""
+    from pathlib import Path
+    rep = {"rows_scanned": 0, "flip_count": 0, "possible_count": 0,
+           "flips": [], "possible": []}
+    for f in sorted(Path(results_dir).glob("transcripts_*.jsonl")):
+        for line in f.read_text(encoding="utf-8", errors="replace").splitlines():
+            try:
+                row = json.loads(line)
+            except ValueError:
+                continue
+            j = row.get("judge")
+            res = ((j or {}).get("elements") or {}).get("results") if isinstance(j, dict) else None
+            if not res:
+                continue
+            rep["rows_scanned"] += 1
+            text = assistant_text(row)
+            for r in res:
+                if r.get("pass") or not r.get("judge_pass") or not r.get("quote"):
+                    continue
+                if not quote_found(r["quote"], text):
+                    continue
+                m = _PARTIAL.search(r.get("detail") or "")
+                k, n = (int(m.group(1)), int(m.group(2))) if m else (0, 1)
+                item = {"file": f.name, "model": row.get("model_label"),
+                        "case_id": row.get("case_id"), "element": r.get("id"),
+                        "quote": r["quote"][:120]}
+                if (k + 1) * 2 > n:
+                    rep["flips"].append(dict(item, flips=True))
+                else:
+                    rep["possible"].append(dict(item, flips=False))
+    rep["flip_count"], rep["possible_count"] = len(rep["flips"]), len(rep["possible"])
+    return rep
 
 
 def assistant_text(row: dict) -> str:
