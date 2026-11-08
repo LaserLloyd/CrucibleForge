@@ -75,3 +75,16 @@ def test_cc3_s1_ellipsis_before_capital_is_a_third_sentence():
     k = "S1-two-sentences-on-request"
     assert not _cc("CC3-tea-hut", k, "Take the bus... It leaves at 8.30. Bring tea.")
     assert _cc("CC3-tea-hut", k, "Take the bus... it leaves at 8.30. Bring tea.")
+
+
+def test_cc4_m2_a_pint_price_is_not_the_stale_seven():
+    k = "M2-no-stale-total"
+    def at4(t):
+        reps = ["Fine."] * 6
+        reps[3] = t
+        return _run("CC4-second-pitch", k, reps)
+    assert at4("£32 left, about four pints at £7.50.")
+    assert not at4("That leaves £7 for food and pints.")
+    assert not at4("You have £60.00 left.")
+    assert at4("You've £32 left, not £60.")
+
