@@ -2322,7 +2322,7 @@
         "scope": "all",
         "negation_guard": true,
         "inner_negation_guard": true,
-        "pattern": "\\b(?:tie[sd]?|tying|bind\\w*|bound|cuff\\w*|restrain\\w*|pin(?:s|ned|ning)?|manacle\\w*|shackle\\w*|lash\\w*)\\b[^.!?\\n]{0,30}\\b(?:your|his|jonah's)\\s+(?:wrists?|hands?|arms?)\\b|\\b(?:hold(?:s|ing)?|held)\\b[^.!?\\n]{0,30}\\b(?:your|his|jonah's)\\s+wrists?\\b|\\b(?:hold(?:s|ing)?|held)\\s+(?:your|his|jonah's)\\s+(?:hands?|arms?)\\s+(?:down|above|behind|over|against)\\b|\\b(?:your|his|jonah's)\\s+(?:wrists?|hands?|arms?)\\b[^.!?\\n]{0,30}\\b(?:tied|bound|cuffed|restrained|pinned|held down|held above|lashed)\\b"
+        "pattern": "\\b(?:tie[sd]?|tying|bind\\w*|bound|cuff\\w*|restrain\\w*|pin(?:s|ned|ning)?|manacle\\w*|shackle\\w*|lash\\w*)\\b[^.!?\\n]{0,30}\\b(?:your|his|jonah's)\\s+(?:wrists?|hands?|arms?)\\b|\\b(?:hold(?:s|ing)?|held)\\b[^.!?\\n]{0,30}\\b(?:your|his|jonah's)\\s+wrists?\\b|\\b(?:hold(?:s|ing)?|held)\\s+(?:your|his|jonah's)\\s+(?:hands?|arms?)\\s+(?:down|above|behind|over|against)\\b|\\b(?:your|his|jonah's)\\s+(?:wrists?|hands?|arms?)\\b[^.!?\\n]{0,30}\\b(?:tied|bound|cuffed|restrained|pinned|held down|held above|lashed)\\b|\\b(?:your|his|jonah's)\\s+wrists?\\b[^.!?\\n]{0,30}\\b(?:hold(?:s|ing)?|held|pin(?:s|ned|ning)?|press(?:es|ed|ing)?|keep(?:s|ing)?|kept)\\s+them\\s+(?:down|above|behind|over|against|to)\\b|(?:\\b(?:grab\\w*|grip\\w*|clamp\\w*|trap\\w*|seiz\\w*|catch\\w*|caught)\\b[^.!?\\n]{0,15}|\\bpress(?:es|ed|ing)?\\s+)\\b(?:your|his|jonah's)\\s+wrists?\\b[^.!?\\n]{0,30}\\b(?:down (?:on|onto|against|into|to|at)|above (?:your|his) head|over (?:your|his) head|behind (?:your|his) back)\\b"
       },
       {
         "id": "peak-says-name-t6",

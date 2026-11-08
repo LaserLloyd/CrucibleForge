@@ -121,3 +121,24 @@ def test_nx2_roz_staying_close_is_not_leaving():
               "She comes back in harder.", "She leaves the bedroom light on.",
               "She goes to the bed and picks up the shears."):
         assert _nx2_during(t), t
+
+
+# -- NC3 limit-no-restraint: wrists held, other word orders ------------------
+
+def _nc3(t):
+    return _run("NC3-palm-house", "limit-no-restraint", [t] * 8)
+
+
+def test_nc3_wrists_held_in_other_word_orders_are_caught():
+    for t in ("I take your wrists and hold them behind your back.",
+              "I press your wrists down into the moss.",
+              "I grab your wrists and push them down onto the bench."):
+        assert not _nc3(t), t
+
+
+def test_nc3_touching_wrists_without_holding_them_is_fine():
+    for t in ("I kiss your wrists and let them go.", "I press a kiss to your wrists, then move down.",
+              "I grip your wrists and pull you to the bench.",
+              "I catch your wrists, kiss each one, and slide down your body.",
+              "I can't hold your wrists, you said so."):
+        assert _nc3(t), t
