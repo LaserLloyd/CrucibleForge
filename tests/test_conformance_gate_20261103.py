@@ -460,3 +460,69 @@ def test_the_docs_check_is_part_of_the_record():
     conformance.conform(cfg, cfg["models"])
     rec = _record()
     assert "c7" in {c["id"] for c in rec["checks"]}
+
+
+# ------------------------------------------- stale transport FAILs (2026-11-08)
+
+def _status_script(status):
+    def script(body):
+        return status, ['{"error": {"message": "nope"}}']
+    return script
+
+
+def _probes_since(n):
+    return [b for b in _FakeClient.bodies[n:]
+            if "single word: ready" in _last_text(b or {})]
+
+
+@pytest.mark.parametrize("status", [401, 402, 403, 429])
+def test_a_stored_auth_or_billing_fail_is_re_probed(status, caplog):
+    """A FAIL from HTTP 401/402/403/429 says nothing about the protocol: the
+    next gate probes again, and a fixed key lets the model run."""
+    _FakeClient.script = _status_script(status)
+    cfg = _cfg()
+    ok, bad = _gate(cfg)
+    assert ok == [] and "conformance FAIL" in bad["m"]
+    assert conformance.transient_fail(_record())
+    _FakeClient.script = _default_script       # the key / credit is fixed
+    n = len(_FakeClient.bodies)
+    with caplog.at_level("WARNING"):
+        ok, bad = _gate(cfg)
+    assert ok and not bad
+    assert _probes_since(n)
+    assert _record()["verdict"] == conformance.PASS
+    assert any("re-probed" in r.getMessage() for r in caplog.records)
+
+
+def test_a_genuine_protocol_fail_is_still_remembered():
+    """A 404 / protocol FAIL under the current suite revision is reused."""
+    _FakeClient.script = _not_found_script
+    cfg = _cfg()
+    _gate(cfg)
+    assert not conformance.transient_fail(_record())
+    n = len(_FakeClient.bodies)
+    ok, bad = _gate(cfg)
+    assert ok == [] and bad["m"]
+    assert _probes_since(n) == []
+
+
+def test_a_genuine_fail_from_an_older_suite_revision_is_re_probed():
+    _FakeClient.script = _not_found_script
+    cfg = _cfg()
+    _gate(cfg)
+    path = config.results_dir() / "conformance" / "m.json"
+    rec = _record()
+    rec["suite_revision"] = "0.0.1+old"
+    path.write_text(json.dumps(rec), encoding="utf-8")
+    n = len(_FakeClient.bodies)
+    _gate(cfg)
+    assert _probes_since(n)
+
+
+def test_transient_fail_needs_every_failing_check_to_be_transient():
+    rec = {"verdict": "FAIL", "checks": [
+        {"id": "c1", "status": "FAIL", "detail": "the API rejected the call (HTTP 401): x"},
+        {"id": "c3", "status": "FAIL", "detail": "chain dropped"}]}
+    assert not conformance.transient_fail(rec)
+    assert not conformance.transient_fail({"verdict": "PASS", "checks": []})
+    assert not conformance.transient_fail(None)

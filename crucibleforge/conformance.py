@@ -759,6 +759,34 @@ def record_is_current(rec: dict | None, protocol: dict) -> bool:
     return (rec.get("protocol") or {}) == protocol
 
 
+#: a FAIL check whose detail matches this failed because the call never got a
+#: fair answer (auth, billing, rate limit, server error, no connection), not
+#: because the model's protocol is wrong
+_TRANSIENT_RE = re.compile(
+    r"HTTP (?:401|402|403|408|429|5\d\d)\b"
+    r"|the (?:call|reasoning probe|tool request|tool result turn|sampler probe|"
+    r"coding prompt) failed:"
+    r"|insufficient balance|spending.limit|quota", re.I)
+
+
+def transient_fail(rec: dict | None) -> bool:
+    """True for a stored FAIL whose every failing check is a transport,
+    auth or billing error (HTTP 401/402/403/408/429/5xx, no connection).
+    Such a record says nothing about the protocol, so the gate re-probes
+    instead of reusing it; a genuine protocol FAIL is not matched."""
+    if not rec or (rec.get("verdict") or "") != FAIL:
+        return False
+    fails = [c for c in (rec.get("checks") or []) if c.get("status") == FAIL]
+    return bool(fails) and all(
+        _TRANSIENT_RE.search(str(c.get("detail") or "")) for c in fails)
+
+
+def _fail_record_outdated(cfg: dict, rec: dict) -> bool:
+    """A stored genuine FAIL made under an older suite revision is re-probed."""
+    from .version import current_revisions
+    return str(rec.get("suite_revision") or "") not in current_revisions(cfg)
+
+
 def fail_reason(rec: dict) -> str:
     """The line the run summary and the board show for a model that is not
     benched: "conformance FAIL: <check> - <why>"."""
@@ -793,7 +821,17 @@ def gate(cfg: dict, entry: dict, *, provider=None, ctx=None,
                     reason="conformance skipped (--skip-conformance)",
                     skipped=True)
     rec = read_record(label)
-    if record_is_current(rec, protocol):
+    reprobe = ""
+    if record_is_current(rec, protocol) and \
+            str(rec.get("verdict") or "") == FAIL:
+        if transient_fail(rec):
+            reprobe = "its stored FAIL was a transport/auth/billing error"
+        elif _fail_record_outdated(cfg, rec):
+            reprobe = "its stored FAIL is from an older suite revision"
+    if reprobe:
+        log.warning("conformance gate: %s is re-probed: %s (%s)", label,
+                    reprobe, fail_reason(rec))
+    if record_is_current(rec, protocol) and not reprobe:
         verdict = str(rec.get("verdict") or PASS)
         if verdict == FAIL:
             return Gate(ok=False, verdict=FAIL, reason=fail_reason(rec),
