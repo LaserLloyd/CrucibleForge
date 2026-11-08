@@ -122,7 +122,11 @@ def _body(t: str, chk: dict, default_scope: str = "narration") -> str:
 # 2026-11-07: three stored rows failed limit-no-restraint for keeping it)
 # ("avoid" only as "avoid any/all/every …": bare "avoiding her eyes, he pinned
 # her wrists" is not a stated limit — lane A, 2026-11-08)
-_NEG_RE = re.compile(r"\b(?:no|not|never|nothing|nobody|no one|neither|nor|without|avoid\w*\s+(?:any|all|every)|don't|won't|isn't|wasn't|n't)\b[^.!?\n]{0,25}$", re.I)
+# "n't" carries no word boundary of its own ("can't", "didn't"): before 4.1.1
+# the leading \b made every contraction but the four spelled out invisible, so
+# "I can't attach anything" failed a negation-guarded check (NC2 photo, NC3
+# restraint; key review 2026-11-08, 0 stored flips on the public rows)
+_NEG_RE = re.compile(r"(?:\b(?:no|not|never|nothing|nobody|no one|neither|nor|without|cannot|avoid\w*\s+(?:any|all|every)|don't|won't|isn't|wasn't)\b|n't\b)[^.!?\n]{0,25}$", re.I)
 
 
 # ... unless the negation is turned by "just / only / but / instead" before the
