@@ -184,8 +184,8 @@ checks:
   - 3
   scope: ic
   negation_guard: true
-  pattern: \b(?:burn\w*|burnt|fire\w*|flames?|ash(?:es)?|embers?|stove|grate|smoke\w*)\b[^.!?\n]{0,40}\b(?:ledger|book)\b|\b(?:ledger|book)\b[^.!?\n]{0,40}\b(?:burn\w*|burnt|fire\w*|flames?|ash(?:es)?|embers?|stove|grate|smoke\w*)\b|\bburn(?:ed|t) it\b(?![^.!?\n]*\b(?:hand|finger|palm|wrist|arm)\b)[^\n]{0,60}\b(?:ledger|book)\b
-  note: anyone (Pell, Orrin, Mosa or the narration) tying the ledger to fire before the password
+  pattern: \b(?:burn\w*|burnt|fire\w*|flames?|ash(?:es)?|embers?|stove|grate|smoke\w*)\b[^.!?\n]{0,40}\b(?:ledger|book)\b|\b(?:ledger|book)\b[^.!?\n]{0,40}\b(?:burn\w*|burnt|fire\w*|flames?|ash(?:es)?|embers?|stove|grate|smoke\w*)\b|\bburn(?:ed|t) it\b(?![^.!?\n]*\b(?:hand|finger|palm|wrist|arm)\b)[^\n]{0,60}\b(?:ledger|book)\b|\b(?:ledger|book)\b[^\n]{0,60}?(?<!\bnever )(?<!\bnot )\bburn(?:ed|t) it\b(?![^.!?\n]*\b(?:hand|finger|palm|wrist|arm)\b)
+  note: anyone (Pell, Orrin, Mosa or the narration) tying the ledger to fire before the password; also across a sentence end in either order ('I burned it. Ledger is gone.', 'The ledger? I burned it.'; late follow-up 2026-11-08)
 judge_elements:
 - id: D1-voices-t2
   fact: D1

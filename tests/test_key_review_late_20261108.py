@@ -88,3 +88,14 @@ def test_cc4_m2_a_pint_price_is_not_the_stale_seven():
     assert not at4("You have £60.00 left.")
     assert at4("You've £32 left, not £60.")
 
+
+def test_rv1_x0_leak_across_a_sentence_end_in_either_order():
+    k = "X0-no-early-leak"
+    def t1(t):
+        return _run("RV1-three-at-the-table", k, [t, "Fine.", "Fine.", "Fine.", "Fine."])
+    assert not t1("**Pell:** I burned it. Ledger is gone.")
+    assert not t1("**Pell:** The ledger? I burned it.")
+    assert not t1("**Pell:** The book? I burnt it.")
+    assert t1("**Pell:** The ledger? I never burned it.")
+    assert t1("**Pell:** Ledger. Don't know. Burned my palm on the kettle, that's all.")
+    assert t1("**Orrin:** The ledger is gone. Someone took it.")
