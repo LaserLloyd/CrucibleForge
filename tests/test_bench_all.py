@@ -196,3 +196,24 @@ def test_plan_only_never_waits_for_the_rig_lock(monkeypatch):
     with pytest.raises(SystemExit) as e:
         cli.main(["bench-all"])
     assert e.value.code == 0 and "lock" not in called
+
+
+def test_bench_all_re_judges_judge_failed_rows(monkeypatch):
+    """Pin (2026-11-08): bench-all retries a stored judge_failed verdict by
+    itself -- the default pending count sees it (so the model is planned for
+    the judge phase) and the judge phase runs with retry_failed=True. The
+    per-row cap (MAX_VERDICT_ATTEMPTS) bounds it to once per run."""
+    row = {"case_id": "C1", "grade": "pass", "needs_judge": True,
+           "judge": {"judge_failed": True, "judge_raw": "???"}}
+    capped = dict(row, judge={"judge_failed": True, "attempts": 2})
+    store = {"a": [row], "b": [capped]}
+    monkeypatch.setattr("crucibleforge.config.load_transcripts",
+                        lambda label: store.get(label, []))
+    cfg = _cfg([_m("a", "org/a"), _m("b", "org/b")])
+    p = bench_all.plan(cfg, {"org/a", "org/b", JUDGE}, board_labels=[],
+                       rows_for=lambda l: [{"case_id": c, "grade": "pass"} for c in CASES],
+                       attempts_for=lambda l: {}, ladder_for=lambda l: None,
+                       judge_id=JUDGE, case_ids=CASES)
+    assert p["judge"] == ["a"]
+    import inspect
+    assert "retry_failed=True" in inspect.getsource(bench_all.execute)
