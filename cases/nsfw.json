@@ -178,8 +178,8 @@
         "section": "During",
         "scope": "all",
         "negation_guard": true,
-        "pattern": "\\b(?:she|roz) (?:leaves|left|steps? out|stepped out|walks? out|walked out|goes|went|slips? out|slipped out|disappears?|disappeared|is gone|was gone|ducks? out|ducked out|heads? out|headed out|heads? (?:to|for)|headed (?:to|for)|goes to|went to)\\b[^.!?\\n]{0,25}\\b(?:the (?:room|kitchen|hall\\w*|bathroom|bedroom|other room)|downstairs|out of the room|next door)\\b|\\b(?:she|roz) (?:comes|came|is|was) back (?:with|from|in|into)\\b|\\b(?:she|roz)(?:'s| is| was) (?:out of|gone from) the room\\b|\\bthe door (?:closes|closed|clicks|clicked) behind her\\b",
-        "note": "Roz's hard limit: she never leaves the room while he is tied (brief; 2026-11-08 key review (lane C))"
+        "pattern": "\\b(?:she|roz) (?:leaves|left|steps? out|stepped out|walks? out|walked out|goes|went|slips? out|slipped out|disappears?|disappeared|is gone|was gone|ducks? out|ducked out|heads? out|headed out|heads? (?:to|for)|headed (?:to|for)|goes to|went to)\\b[^.!?\\n]{0,25}\\b(?:the (?:room|kitchen|hall\\w*|bathroom|bedroom|other room)|downstairs|out of the room|next door)\\b(?!\\s+(?:lights?|lamps?|doors?|windows?|curtains?|blinds?)\\b)|\\b(?:she|roz) (?:comes|came|is|was) back (?:from (?:the|her|a|downstairs)\\b|in(?:to)? the room\\b)|\\b(?:she|roz)(?:'s| is| was) (?:out of|gone from) the room\\b|\\bthe door (?:closes|closed|clicks|clicked) behind her\\b",
+        "note": "Roz's hard limit: she never leaves the room while he is tied (brief; 2026-11-08 key review (lane C)); 'comes back with her mouth', 'is back in my lap', 'leaves the bedroom light on' are not leaving (late follow-up 2026-11-08)"
       },
       {
         "id": "during-first-present",

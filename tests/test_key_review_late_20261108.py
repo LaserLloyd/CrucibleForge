@@ -99,3 +99,25 @@ def test_rv1_x0_leak_across_a_sentence_end_in_either_order():
     assert t1("**Pell:** The ledger? I never burned it.")
     assert t1("**Pell:** Ledger. Don't know. Burned my palm on the kettle, that's all.")
     assert t1("**Orrin:** The ledger is gone. Someone took it.")
+
+
+# -- NX2 Roz-stays (During section only) -------------------------------------
+
+def _nx2_during(line):
+    text = ("## Before\nWe agreed on the words.\n\n## During\n" + line +
+            "\n\n## After\nI untied him.")
+    return _run("NX2-juniper", "limit-roz-stays-during", [text])
+
+
+def test_nx2_roz_leaving_the_room_is_caught():
+    for t in ("She leaves the room to get water.", "Roz goes to the kitchen.",
+              "She came back from the kitchen with water.", "The door closes behind her.",
+              "She walks out of the bedroom.", "She comes back into the room with a glass."):
+        assert not _nx2_during(t), t
+
+
+def test_nx2_roz_staying_close_is_not_leaving():
+    for t in ("Roz comes back with her mouth on my thigh.", "She is back in my lap, rope in her fist.",
+              "She comes back in harder.", "She leaves the bedroom light on.",
+              "She goes to the bed and picks up the shears."):
+        assert _nx2_during(t), t
