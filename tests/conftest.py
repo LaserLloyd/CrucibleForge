@@ -36,6 +36,18 @@ def _no_real_network_attempts():
 
 
 @pytest.fixture(autouse=True)
+def _no_lease_keepalive_threads(monkeypatch):
+    """A provider that takes a lease starts a daemon keepalive thread that
+    sleeps >= 30 s, then touches the lease on its (made-up) host.  Left
+    running it outlives the test that made it and resolves "sf.invalid" in
+    whichever later test is on the clock then -- the netguard blames that
+    one (test_case_set_verifies_clean, 2026-11-08).  Tests never need the
+    thread: they fake the lease calls themselves."""
+    from crucibleforge import providers
+    monkeypatch.setattr(providers.Provider, "_start_keepalive", lambda self: None)
+
+
+@pytest.fixture(autouse=True)
 def _no_lease_release_hooks_at_exit(monkeypatch):
     """Tests build providers against made-up hosts ("x", "rig"). A provider that
     takes a lease registers ``release_lease`` with atexit; left in place it fires
