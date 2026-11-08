@@ -119,7 +119,10 @@ def _stored_quote_ok(r: dict, replies: list[str], case: dict) -> dict:
     raw = "\n".join(replies[t - 1] for t in e.get("turns") or [] if 0 < t <= len(replies))
     # several short sentences joined by the judge (suite 4.0 lite, RV1 K1): the
     # judge-time guard now accepts those; this applies it to stored verdicts
-    if "quote not in the reply" in (r.get("detail") or "") \
+    # (the single-sample wording "its quote is not in the reply" counts too: one
+    # sample, so the stored quote alone is the whole majority)
+    d = r.get("detail") or ""
+    if ("quote not in the reply" in d or "quote is not in the reply" in d) \
             and quote_found(r.get("quote") or "", raw):
         return {**r, "pass": True, "detail": "judge: yes; quote verified (fragments)"}
     if len(q) < SHORT_QUOTE_MIN:

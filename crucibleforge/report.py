@@ -3968,8 +3968,42 @@ def _recheck(rows: list[dict]) -> list[dict]:
             # their stored verdict); an unchanged case returns the row as is
             from .stepgrade import regrade_tool_row
             r = regrade_tool_row(r, case)
+        r = _recheck_quotes(r, case)
         out.append(r)
     return out
+
+
+_QUOTE_FLIPS_LOGGED: set = set()
+
+
+def _recheck_quotes(r: dict, case: dict | None) -> dict:
+    """Board-time quote re-verification (4.1.0): a stored element verdict
+    that failed ONLY because its quote did not verify under the verifier of
+    the day is counted again under the current one, when the stored quote
+    verifies now and tips the majority (judge.recheck_flips). Deterministic,
+    no judge call; the row is copied, never rewritten on disk; every flip is
+    logged once as case/model/element. rpdeep rows are scored by rpdeep
+    (graded-turn text) and dialogue-scoped elements keep their own check."""
+    j = r.get("judge")
+    res = ((j or {}).get("elements") or {}).get("results") if isinstance(j, dict) else None
+    if not res or r.get("category") == "rpdeep":
+        return r
+    from .judge import assistant_text, recheck_flips
+    skip = {e.get("id") for e in (case or {}).get("judge_elements") or []
+            if e.get("quote_scope") == "dialogue"}
+    ids = recheck_flips(res, assistant_text(r), skip)
+    if not ids:
+        return r
+    for i in ids:
+        key = (r.get("model_label"), r.get("case_id"), r.get("repeat"), i)
+        if key not in _QUOTE_FLIPS_LOGGED:
+            _QUOTE_FLIPS_LOGGED.add(key)
+            log.info("quote recheck: flipped %s / %s / %s to pass", r.get("case_id"),
+                     r.get("model_label"), i)
+    new = [{**e, "pass": True, "detail": "judge: yes; quote verified at board time"}
+           if e.get("id") in ids else e for e in res]
+    rate = round(sum(1 for e in new if e.get("pass")) / len(new), 3)
+    return {**r, "judge": {**j, "elements": {**j["elements"], "results": new, "rate": rate}}}
 
 
 def _meta_counts(meta: dict, cfg: dict | None) -> bool:

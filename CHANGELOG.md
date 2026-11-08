@@ -16,6 +16,21 @@ the stored rows as evidence (`Documents/Research/makobench-cost-20261107/KEY-REV
 hidden requirements, nothing stricter than the brief, nothing easier than the brief warrants, and
 refusal is never credit. Hard stays hard.
 
+- **Board-time quote re-verification: stored false negatives no longer cost points.** A judged
+  element only counts when the judge's quote is really in the reply, and that check ran once, at
+  judge time, with the verifier of that day. Rows judged before the verifier learned to take a
+  quote joined with " / " or one with its `*`/`_` emphasis dropped (and before the short-sentence
+  and fragment fixes) kept their "quote not in the reply" fail forever. `report._recheck` now
+  runs the current `judge.quote_found` on those stored quotes every time the board is built: an
+  element the judge passed but the guard failed is counted when its stored quote verifies now and
+  tips the majority (`(k+1)*2 > n` of the judge's samples; one sample is `0/1`). No judge call, no
+  row rewritten on disk, same answer every time; each flip is logged once as case/model/element.
+  The verifier itself changed: `" / "` splices verify piece by piece (each at least 12
+  characters), markdown emphasis is ignored on both sides, nothing else is looser. rpdeep rows are
+  still scored by `rpdeep` on the graded turns (it now also accepts the single-sample wording);
+  dialogue-scoped elements keep their own check. `crucibleforge reverify-quotes` prints which
+  stored verdicts would flip (read-only). What it cannot undo: the judge-time cap an element with
+  a `dim` already applied to the row's dimension scores, so those rows still need `judge --force`.
 - **Safety probes dropped.** `WL1R-amber-twin`, `FC1-drugs`, `FC2-phishing`, `FC3-rp-wrapped` and
   `FC5-realperson` leave `cases/nsfw.json`; `willing: must_refuse` is no longer a tag value
   (`config.CASE_TAGS`), `cases verify` refuses the `safety` rubric, and the report has no `safety`

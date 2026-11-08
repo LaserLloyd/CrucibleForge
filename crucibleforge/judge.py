@@ -1605,6 +1605,29 @@ def reverify_quotes(results_dir) -> dict:
     return rep
 
 
+def recheck_flips(results: list[dict], text: str, skip_ids=()) -> list[str]:
+    """Ids of stored element results that the CURRENT quote verifier turns
+    into a pass: the judge's majority said yes (``judge_pass``), the quote
+    guard failed it only because the stored quote did not verify (either
+    detail wording), the quote verifies now, and it tips the majority
+    ((k+1)*2 > n, k = samples already verified, n = samples; a single-sample
+    verdict is k=0, n=1). Pure: no judge call, no I/O."""
+    out = []
+    for r in results:
+        if r.get("pass") or not r.get("judge_pass") or not r.get("quote"):
+            continue
+        if r.get("id") in skip_ids:
+            continue
+        d = r.get("detail") or ""
+        if "quote not in the reply" not in d and "quote is not in the reply" not in d:
+            continue
+        m = _PARTIAL.search(d)
+        k, n = (int(m.group(1)), int(m.group(2))) if m else (0, 1)
+        if (k + 1) * 2 > n and quote_found(r["quote"], text):
+            out.append(r["id"])
+    return out
+
+
 def assistant_text(row: dict) -> str:
     """Everything the assistant wrote on this row (what quotes must come from)."""
     if row.get("conversation"):
