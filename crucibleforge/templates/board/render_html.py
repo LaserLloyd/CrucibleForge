@@ -27,6 +27,7 @@ IPs, URLs or hostnames: every string is passed through :func:`scrub`.
 """
 from __future__ import annotations
 
+import base64
 import html
 import json
 import re
@@ -34,6 +35,15 @@ from importlib import resources
 
 _PKG = "crucibleforge.templates.board"
 CSS = resources.files(_PKG).joinpath("styles.css").read_text(encoding="utf-8")
+# MakoBench brand display face (Unbounded subset, OFL), inlined so the board
+# stays one self-contained file. Header title only.
+_FONT_B64 = base64.b64encode(
+    resources.files(_PKG).joinpath("fonts/unbounded-makobench.woff2").read_bytes()
+).decode("ascii")
+FONT_CSS = (
+    '@font-face{font-family:"Unbounded MakoBench";font-style:normal;font-weight:200 900;'
+    'font-display:swap;src:url(data:font/woff2;base64,' + _FONT_B64 + ') format("woff2");}\n'
+)
 JS = resources.files(_PKG).joinpath("script.js").read_text(encoding="utf-8")
 
 #: min-score choices in every "Filter by element →" dropdown
@@ -226,7 +236,7 @@ def render_html(rows: list[dict], subtitle: str = "",
         '<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">'
         '<meta name="color-scheme" content="dark light">'
         '<title>CrucibleForge Board</title>'
-        f"<style>{CSS}</style></head><body data-view=\"table\">"
+        f"<style>{FONT_CSS}{CSS}</style></head><body data-view=\"table\">"
         "<header><h1>CrucibleForge — Chat &amp; Coding</h1>"
         f'<div class="meta">{esc(scrub(subtitle))}</div>'
         '<div class="toolbar"><input id="filter" type="search" placeholder="search model / provider…" '

@@ -5,7 +5,7 @@ html,body{margin:0;padding:0;min-height:100%;font-family:-apple-system,BlinkMacS
 body{display:flex;flex-direction:column;}
 button:focus-visible,th:focus-visible,summary:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:1px;}
 header{padding:10px 16px;border-bottom:1px solid var(--border);flex:none;}
-h1{font-size:16px;margin:0 0 4px 0;font-weight:600;}
+h1{font-family:"Unbounded MakoBench",ui-rounded,"Segoe UI",system-ui,sans-serif;font-size:16px;margin:0 0 4px 0;font-weight:600;letter-spacing:-.015em;line-height:1.2;}
 .meta{font-size:12px;color:var(--muted);margin:4px 0 8px;}
 .toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:6px;}
 .toolbar input[type=search],.toolbar button,.filters-row button{background:var(--row);color:var(--fg);border:1px solid var(--border);border-radius:6px;padding:5px 10px;font-size:13px;cursor:pointer;}
