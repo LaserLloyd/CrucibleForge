@@ -26,7 +26,7 @@ A profile is a YAML file (``<repo>/profiles/<name>.yaml`` or
 Profiles only SELECT from the case files (ids must exist); scores of a case are
 comparable across profiles. Rows/meta are stamped with the profile name.
 
-Private content (README "Private categories") never sits in a tracked file:
+Private content (docs/CASES.md "Private categories") never sits in a tracked file:
 
 - ``profiles/<name>.private.yaml`` is an OVERLAY merged into ``<name>.yaml``
   (``cases``/``repeats``/``max_tokens``/``labels`` merge per key,

@@ -64,7 +64,7 @@ _BASE_CATEGORIES = ["perf", "rp", "nsfw", "coding", "tooluse", "instruct",
 # scrubbed from every public artifact (report --public). A category is private
 # because of WHERE its file lives — profiles.private_scope() is the one
 # place that turns that (plus a profile's ``private:`` list) into the set of
-# names/ids to hide. See README "Private categories".
+# names/ids to hide. See docs/CASES.md "Private categories".
 PRIVATE_CASES_DIR = CASES_DIR / "private"
 #: CRUCIBLEFORGE_NO_PRIVATE=1 = behave exactly like a clean clone: no private
 #: case files, no private profiles/overlays. The test-suite sets it (conftest)
