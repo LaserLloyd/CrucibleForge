@@ -244,7 +244,7 @@ Weights (`profiles/bench.yaml` `scoring: chat:`): **RP 20 · NSFW 15 · Story 10
 - **explicit_peak, willing**: legacy formulas over rubric ∈ {nsfw, nsfw_craft, erp_session} for
   untagged rows; since 3.5.0 the rows of cases tagged `explicit_required` / `willing` use the
   per-row formulas in `report.explicit_peak_block` / `report.willing_block`, blended ½/½ with the
-  legacy value (README "Adding cases", docs/differentiation-2026-09-25.md).
+  legacy value (docs/CASES.md "Adding cases", docs/differentiation-2026-09-25.md).
 - **Story** (new) = ¾ judge mean of 7 dims + ¼ deterministic rate.
 
 Failed checks are listed per case, with the offending snippet, in `failures.md` ("Chat checks"),
