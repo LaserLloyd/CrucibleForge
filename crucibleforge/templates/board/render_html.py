@@ -208,6 +208,9 @@ def render_html(rows: list[dict], subtitle: str = "",
     latest = ('<label class="latest" title="Hide older versions of a model when a newer version is on the board. '
               'Fine-tunes are never hidden."><input type="checkbox" id="latestOnly"> latest versions only</label>'
               if any(r.get("superseded_by") for r in rows) else "")
+    hide_inc = ('<label class="hide-inc" title="Hide models whose run is not finished yet (Incomplete tag)">'
+                '<input type="checkbox" id="hideIncomplete"> hide incomplete</label>'
+                if any(r.get("incomplete") for r in rows) else "")
     chooser = ('<section class="cols-panel" id="colsPanel" aria-label="choose columns">'
                '<div class="cols-head"><strong>Right-hand columns</strong>'
                '<span class="muted">tick to show · drag or ↑↓ to order · saved for you</span>'
@@ -230,7 +233,7 @@ def render_html(rows: list[dict], subtitle: str = "",
         'aria-label="search models">'
         f'{mobile}'
         '<label class="benched"><input type="checkbox" id="benched"> ranked only</label>'
-        f'{latest}'
+        f'{latest}{hide_inc}'
         '<button id="colsBtn" type="button" aria-expanded="false" aria-controls="colsPanel">⚙ Columns</button>'
         '<button id="clearAll" type="button" title="Clear the search, the chips and the score filters">'
         'Clear filters</button>'

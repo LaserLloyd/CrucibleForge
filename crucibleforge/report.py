@@ -4046,10 +4046,13 @@ def board_stats(labels_arg: str | None, cfg: dict | None) -> tuple[list[str], di
 
 # ------------------------------------------------------------ report.html
 
-def html_rows(labels: list[str], stats: dict, cfg: dict | None = None) -> list[dict]:
+def html_rows(labels: list[str], stats: dict, cfg: dict | None = None,
+              completeness: dict | None = None) -> list[dict]:
     """The HTML board's data — built from the SAME computed stats as
     report.md (exact labels, numbers as numbers), never parsed back out of
-    the markdown."""
+    the markdown. ``completeness`` ({label: bench_all.completeness(...)}) adds
+    the display-only ``incomplete`` / ``incomplete_why`` keys (the Incomplete
+    tag); no score, rank or order depends on it."""
     out = []
     newer = superseded_map(labels, stats, cfg)
     for i, l in enumerate(rank_labels(labels, stats), 1):
@@ -4114,6 +4117,10 @@ def html_rows(labels: list[str], stats: dict, cfg: dict | None = None) -> list[d
             # every scoring group's value under its own key (work/chat/nsfw)
             **{g: c.get(g) for g in c["weights"] if g not in ("chat", "coding", "reason")},
         })
+        comp = (completeness or {}).get(l)
+        if comp is not None:
+            out[-1]["incomplete"] = not comp["complete"]
+            out[-1]["incomplete_why"] = " · ".join(comp["reasons"]) or None
     return out
 
 
@@ -4212,8 +4219,15 @@ def html_scores(stats: dict, public: bool = False) -> tuple[list[dict] | None, l
     return None, None
 
 
+INCOMPLETE_LEGEND = ("Incomplete: this model's run on the current suite is not finished (cases not run, "
+                     "rows waiting for the judge, ladder packs due or escalation owed), so its numbers may "
+                     "still move. Hover the tag for what is missing. Its rank shows as — and 'hide incomplete' "
+                     "removes it from the table.")
+
+
 def render_report_html(labels: list[str], stats: dict, cfg: dict | None = None,
-                       archived_note: str | None = None) -> str:
+                       archived_note: str | None = None,
+                       completeness: dict | None = None) -> str:
     """report.html: the element-filter board (templates/board)."""
     from .templates.board import render_html
     now = datetime.now().strftime("%Y-%m-%d %H:%M")
@@ -4242,6 +4256,8 @@ def render_report_html(labels: list[str], stats: dict, cfg: dict | None = None,
         older = _older_line(labels, stats, cfg)
         if older:
             legend = legend + [older]
+    if any(c and not c["complete"] for c in (completeness or {}).values()):
+        legend = list(legend) + [INCOMPLETE_LEGEND]
     footer += [line.strip("*") for line in (archived_note or "").splitlines()]
     footer.append(" · ".join(x for x in (
         f"Suite revision {', '.join(revs or [_current_revision(cfg) or '?'])}"
@@ -4249,7 +4265,7 @@ def render_report_html(labels: list[str], stats: dict, cfg: dict | None = None,
         f"judge actually used: {', '.join(used)}" if used else None,
         f"rendered {now}") if x))
     scores, sides = html_scores({l: stats[l] for l in labels}, public=bool(_hidden(cfg)))
-    return render_html(html_rows(labels, stats, cfg), subtitle=subtitle,
+    return render_html(html_rows(labels, stats, cfg, completeness), subtitle=subtitle,
                        components=html_components({l: stats[l] for l in labels}, cfg),
                        footer=footer,
                        forbidden=(_hidden(cfg) or {}).get("terms"),
@@ -4270,6 +4286,19 @@ def scorecard_section(md: str) -> str:
 
 def public_dir():
     return results_dir() / "public"
+
+
+def _completeness(labels: list[str], cfg: dict | None) -> dict | None:
+    """{label: bench_all.completeness} for the Incomplete tag, or None when it
+    cannot be worked out (the board then renders without the tag)."""
+    if not labels:
+        return None
+    try:
+        from .bench_all import board_completeness
+        return board_completeness(cfg, labels)
+    except Exception as e:  # noqa: BLE001 — a tag must never stop the board
+        log.warning("Incomplete tags unavailable: %s", e)
+        return None
 
 
 def generate(labels_arg: str | None = None, write: bool = True,
@@ -4325,7 +4354,8 @@ def generate(labels_arg: str | None = None, write: bool = True,
                             else "# CrucibleForge — failures\n\nNo results.\n"),
             "report.json": json.dumps({"generated": datetime.now().isoformat(),
                                        "models": stats}, indent=2, default=str),
-            "report.html": render_report_html(labels, stats, cfg, archived),
+            "report.html": render_report_html(labels, stats, cfg, archived,
+                                              completeness=_completeness(labels, cfg)),
         }
         if public:
             leaks = {name: public_leaks(text, scope) for name, text in out.items()}

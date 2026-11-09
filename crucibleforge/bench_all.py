@@ -482,14 +482,17 @@ def rejudge_cases(label: str) -> set[str]:
             if r.get("needs_judge") and verdict_outdated(r)}
 
 
-def ladder_due(cfg: dict, label: str, attempts: dict[str, int] | None = None) -> dict | None:
+def ladder_due(cfg: dict, label: str, attempts: dict[str, int] | None = None,
+               prof: dict | None = None) -> dict | None:
     """The ladder sets ``label`` would run now (cli.ladder_todo on its
     current board rows: due sets, jobs without a usable row), minus jobs of
     a case that already errored MAX_CASE_ATTEMPTS times (so the nightly's
-    done-check converges). None when the profile has no ladder."""
+    done-check converges). None when the profile has no ladder. ``prof`` =
+    the profile as a given audience sees it (the public board passes the
+    public view, so a private pack is neither counted nor named)."""
     from . import cli, ladder
     from .profiles import DEFAULT_PROFILE, apply_profile, load_profile
-    prof = load_profile(DEFAULT_PROFILE, cfg)
+    prof = prof or load_profile(DEFAULT_PROFILE, cfg)
     sets = ladder.discover(prof)
     if not sets:
         return None
@@ -498,6 +501,98 @@ def ladder_due(cfg: dict, label: str, attempts: dict[str, int] | None = None) ->
     attempts = attempts or {}
     jobs = {j for j in jobs if attempts.get(j[1], 0) < MAX_CASE_ATTEMPTS}
     return {"names": names, "jobs": len(jobs), "cases": cases, "job_set": jobs}
+
+
+def completeness(rows: list[dict], case_ids: list[str], *,
+                 repeats: dict[str, int] | None = None,
+                 attempts: dict[str, int] | None = None,
+                 judge_rows: list[dict] | None = None,
+                 ladder: dict | None = None,
+                 escalation_jobs: int = 0) -> dict:
+    """Is a model's run on the board FINISHED? (the board's "Incomplete" tag).
+    Pure: it only combines the same checks bench-all uses to decide what is
+    still to do, so the tag and the nightly agree on "done":
+
+    * cases: :func:`missing_cases` over the label's CURRENT board ``rows`` (a
+      case short of its repeats and not yet errored MAX_CASE_ATTEMPTS times,
+      or errored with a retryable error);
+    * judge: ``judge_rows`` (the board rows, escalations included) that
+      :func:`judge.needs_verdict` (``retry_failed``) still sends to the judge
+      — never judged, a failed verdict with attempts left, or a verdict out
+      of date; a verdict that failed MAX_VERDICT_ATTEMPTS times is final;
+    * ladder: ``ladder`` = :func:`ladder_due`'s answer; ``jobs`` still due;
+    * escalation: ``escalation_jobs`` still owed on the top rung.
+
+    Returns ``{"complete", "cases", "judge", "ladder", "escalation",
+    "reasons"}`` where ``reasons`` is the tooltip text. A final error (a
+    permanent one, or MAX_CASE_ATTEMPTS used up) is complete."""
+    from .judge import needs_verdict
+    miss = missing_cases(rows, case_ids, attempts, repeats)
+    j_rows = rows if judge_rows is None else judge_rows
+    waiting = sum(1 for r in j_rows if needs_verdict(r, retry_failed=True))
+    lad = list((ladder or {}).get("names") or [])
+    lad_jobs = int((ladder or {}).get("jobs") or 0)
+    reasons = []
+    if miss:
+        reasons.append(f"{len(miss)} case{'s' if len(miss) != 1 else ''} not run")
+    if waiting:
+        reasons.append(f"{waiting} row{'s' if waiting != 1 else ''} awaiting judge")
+    if lad_jobs:
+        reasons.append("ladder: " + (", ".join(lad) if lad else f"{lad_jobs} job(s)") + " due")
+    if escalation_jobs:
+        reasons.append(f"{escalation_jobs} escalation job{'s' if escalation_jobs != 1 else ''} owed")
+    return {"complete": not reasons, "cases": len(miss), "judge": waiting,
+            "ladder": lad if lad_jobs else [], "escalation": int(escalation_jobs),
+            "reasons": reasons}
+
+
+def board_completeness(cfg: dict | None, labels: list[str]) -> dict[str, dict | None]:
+    """:func:`completeness` for each board label, from the live results — the
+    inputs are exactly :func:`plan`'s (case ids and repeats of the benchmark
+    profile as this board's audience sees it, current board rows with the
+    registry's replay rule, error attempts, escalation rungs, ladder_due).
+    A label whose inputs cannot be read maps to None (no tag — never a
+    guessed verdict)."""
+    from . import report
+    from .profiles import DEFAULT_PROFILE, apply_profile, load_profile
+    cfg = cfg or {}
+    out: dict[str, dict | None] = {}
+    try:
+        ids = report._profile_case_ids(cfg)
+        prof = load_profile(DEFAULT_PROFILE, cfg)
+        reps = report._profile_case_repeats(cfg)
+        if ids is None or not reps:
+            return {l: None for l in labels}
+        case_ids = sorted(i for i in reps if i in ids)
+        repeats = {i: reps[i] for i in case_ids}
+        prof_view = report._audience_profile(prof, cfg)
+        rungs = []
+        try:
+            from .runner import escalation_rungs
+            rungs = escalation_rungs(apply_profile(prof, cfg)[0])
+        except Exception:  # noqa: BLE001 — no escalation readable: none owed
+            rungs = []
+    except Exception as e:  # noqa: BLE001 — the board never fails on a tag
+        log.warning("completeness: profile unreadable (%s) — no Incomplete tags", e)
+        return {l: None for l in labels}
+    by_name = {m["name"]: m for m in (cfg.get("models") or [])}
+    for label in labels:
+        try:
+            att = error_attempts(label)
+            rows = report.board_filter(label, cfg)
+            room = report.board_filter(label, cfg, with_rungs=True)
+            esc = 0
+            if rungs:
+                from .runner import escalation_todo
+                esc = len(escalation_todo(room, label, rungs))
+            out[label] = completeness(
+                replay_rows(by_name.get(label), rows), case_ids, repeats=repeats,
+                attempts=att, judge_rows=room,
+                ladder=ladder_due(cfg, label, att, prof=prof_view), escalation_jobs=esc)
+        except Exception as e:  # noqa: BLE001
+            log.warning("completeness for %s unavailable: %s", label, e)
+            out[label] = None
+    return out
 
 
 def nothing_to_do(p: dict) -> bool:

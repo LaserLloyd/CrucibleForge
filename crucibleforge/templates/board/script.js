@@ -42,6 +42,7 @@ const LEANS = [...new Set(rows.map(r => r.lean).filter(Boolean))];
 const HAS_OLD = rows.some(r => r.old);
 const HAS_OLDER = rows.some(r => r.superseded_by);   // a newer version of some official model is on the board
 const PART_LABELS = DATA.part_labels || {};
+const HAS_INCOMPLETE = rows.some(r => r.incomplete === true);   // a model whose run is not finished
 const HAS_WHERE = rows.some(r => r.hosted === true) && rows.some(r => r.hosted === false);
 const STATE_VERSION = 2;                  // bump = every saved layout resets (2: Suite column)
 const STORE_KEY = 'crucibleforge-board-layout';
@@ -51,7 +52,7 @@ const MAX_STATE = 16 * 1024;
 function defaults() {
   return {columns: COMPS.map(c => 'c:' + c.label).concat(['suite']), sortKey: 'rank', sortDir: 1,
           filters: {}, text: '', benched: false, latest: false, expanded: [], view: 'table',
-          classes: [], leans: [], current: false, where: ''};
+          classes: [], leans: [], current: false, where: '', hideInc: false};
 }
 let S = defaults();
 let expanded = new Set();
@@ -125,6 +126,7 @@ function sanitize(raw) {
   if (typeof raw.text === 'string') d.text = raw.text.slice(0, 200);
   d.benched = raw.benched === true;
   d.latest = raw.latest === true && HAS_OLDER;
+  d.hideInc = raw.hideInc === true && HAS_INCOMPLETE;
   if (Array.isArray(raw.expanded)) d.expanded = raw.expanded.filter(l => typeof l === 'string' && LABELS.has(l));
   if (raw.view === 'table' || raw.view === 'cards') d.view = raw.view;
   // quick chips (optional keys: a layout saved before they existed still loads)
@@ -139,7 +141,7 @@ function serialize() {
   return {version: STATE_VERSION, columns: S.columns.slice(), sortKey: S.sortKey, sortDir: S.sortDir,
           filters: Object.assign({}, S.filters), text: S.text, benched: S.benched,
           expanded: [...expanded], view: S.view, classes: S.classes.slice(), leans: S.leans.slice(),
-          current: S.current, where: S.where, ...(S.latest ? {latest: true} : {})};
+          current: S.current, where: S.where, ...(S.latest ? {latest: true} : {}), ...(S.hideInc ? {hideInc: true} : {})};
 }
 const framed = (() => { try { return window.parent !== window; } catch (e) { return true; } })();
 let saveTimer = null, touched = false, bridgeHeard = false;
@@ -176,6 +178,7 @@ function applyState(st) {
   $('filter').value = S.text;
   $('benched').checked = S.benched;
   if ($('latestOnly')) $('latestOnly').checked = S.latest;
+  if ($('hideIncomplete')) $('hideIncomplete').checked = S.hideInc;
   renderChips();
   renderFilters();
   renderChooser();
@@ -196,6 +199,7 @@ function compare(a, b) {
 function passes(r) {
   if (S.benched && !isNum(r.overall)) return false;
   if (S.latest && r.superseded_by) return false;
+  if (S.hideInc && r.incomplete === true) return false;
   if (S.classes.length && !S.classes.includes(r.class)) return false;
   if (S.leans.length && !S.leans.includes(r.lean)) return false;
   if (S.current && r.old) return false;
@@ -212,7 +216,7 @@ function passes(r) {
   return true;
 }
 function metaGroups(r) {
-  return '<div class="group"><h4>Judge</h4><div class="meta-line">' + esc(r.judge || '–') + '</div></div>' +
+  return (r.incomplete === true ? '<div class="group wide"><h4>Incomplete</h4><div class="meta-line">' + esc(r.incomplete_why || 'run not finished') + '</div></div>' : '') + '<div class="group"><h4>Judge</h4><div class="meta-line">' + esc(r.judge || '–') + '</div></div>' +
     '<div class="group"><h4>Coverage</h4><div class="meta-line">' + esc(r.coverage || '–') + '</div></div>' +
     '<div class="group"><h4>Model id</h4><div class="meta-line">' + esc(r.model_id || '–') + '</div></div>' +
     '<div class="group"><h4>Provider</h4><div class="meta-line">' + esc(r.provider || '–') + '</div></div>';
@@ -323,9 +327,14 @@ function sval(r, k) {
   return '<span class="sv" title="raw ' + num(r[k], 1) + ' %"><b class="s-main">' + t[0] + '</b>.' + t[1] +
     (isNum(m) ? '<span class="pm"> ± ' + m.toFixed(1) + '</span>' : '') + '</span>';
 }
-function rankOf(r) { return esc(r.rank_label || String(r.rank)); }
+// an unfinished model is not ranked: "—" instead of the number (the order and every other rank are unchanged)
+function rankOf(r) { return r.incomplete === true ? '<span class="rank-inc" title="not ranked until the run is finished">—</span>' : esc(r.rank_label || String(r.rank)); }
+function incTag(r) {
+  return r.incomplete === true
+    ? ' <span class="inc-tag" title="' + esc('Incomplete: ' + (r.incomplete_why || 'run not finished')) + '">Incomplete</span>' : '';
+}
 function oldTag(r) {
-  return (r.old ? ' <span class="old-tag" title="values from an older suite — re-run pending">old</span>' : '') +
+  return incTag(r) + (r.old ? ' <span class="old-tag" title="values from an older suite — re-run pending">old</span>' : '') +
     (r.superseded_by ? ' <span class="old-tag" title="A newer version is on the board: ' + esc(r.superseded_by) + '">older version</span>' : '') +
     maxTag(r);
 }
@@ -378,7 +387,10 @@ function render() {
   $('colsPanel').classList.toggle('open', colsOpen);
   const ranked = data.filter(r => isNum(r.overall)).length;
   const hiddenOld = S.latest ? rows.filter(r => r.superseded_by).length : 0;
+  const nInc = rows.filter(r => r.incomplete === true).length;
+  const hiddenInc = S.hideInc ? nInc : 0;
   $('count').innerHTML = data.length + ' of ' + rows.length + ' models · ' + ranked + ' ranked' +
+    (nInc ? ' · ' + nInc + ' incomplete' + (hiddenInc ? ' (hidden)' : '') : '') +
     (hiddenOld ? ' · ' + hiddenOld + (hiddenOld === 1 ? ' older version hidden' : ' older versions hidden') : '') +
     '<span class="desk-only"> · click a column head (or Enter on it) to sort · the ▾ in a head filters that column · ▸ opens points, components, notes and judge</span>';
   syncChips();
@@ -424,12 +436,12 @@ function onChipClick(e) {
   render(); save();
 }
 function anyFilter() {
-  return !!(S.text || S.benched || S.latest || S.classes.length || S.leans.length || S.current || S.where ||
+  return !!(S.text || S.benched || S.latest || S.hideInc || S.classes.length || S.leans.length || S.current || S.where ||
             Object.keys(S.filters).length);
 }
 function clearAll() {
-  S.text = ''; S.benched = false; S.latest = false; S.classes = []; S.leans = []; S.current = false; S.where = ''; S.filters = {};
-  $('filter').value = ''; $('benched').checked = false; if ($('latestOnly')) $('latestOnly').checked = false;
+  S.text = ''; S.benched = false; S.latest = false; S.hideInc = false; S.classes = []; S.leans = []; S.current = false; S.where = ''; S.filters = {};
+  $('filter').value = ''; $('benched').checked = false; if ($('latestOnly')) $('latestOnly').checked = false; if ($('hideIncomplete')) $('hideIncomplete').checked = false;
   render(); save();
   if (openKey) updateActive();
 }
@@ -862,6 +874,7 @@ function resetLayout() {
 function init() {
   $('filter').addEventListener('input', e => { S.text = e.target.value; render(); save(); });
   $('benched').addEventListener('change', e => { S.benched = !!e.target.checked; render(); save(); });
+  if ($('hideIncomplete')) $('hideIncomplete').addEventListener('change', e => { S.hideInc = !!e.target.checked; render(); save(); });
   if ($('latestOnly')) $('latestOnly').addEventListener('change', e => { S.latest = !!e.target.checked; render(); save(); });
   $('chips').addEventListener('click', onChipClick);
   $('clearAll').addEventListener('click', clearAll);
