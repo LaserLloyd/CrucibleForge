@@ -160,7 +160,7 @@ CHAT_KEYS = ["rp", "nsfw", "story", "explicit_peak", "willing", "steer"]
 CODING_KEYS = ["coding", "tooluse", "instruct", "reasoning"]
 # categories with a hand-written aggregate below; any OTHER judged category
 # gets the generic one (see _generic_judged) and can join Chat just by being
-# given a weight — see docs/CASES.md "Adding a Chat component"
+# given a weight — see docs/CASES.md "Adding cases"
 # rpdeep has its own scorer (scripts/rpdeep_score.py; report block at merge
 # time): its rubric has no dims, so the generic path would score a REFUSED
 # row 1.0 from its first flag — it must never reach _generic_judged.
