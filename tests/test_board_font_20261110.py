@@ -2,7 +2,6 @@
 import importlib
 import re
 
-import importlib
 rh = importlib.import_module("crucibleforge.templates.board.render_html")
 
 

@@ -6,7 +6,6 @@ estimated from tokens at list price and marked.
 """
 from __future__ import annotations
 
-import json
 
 import pytest
 

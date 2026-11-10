@@ -5,7 +5,7 @@ import json
 
 import pytest
 
-from crucibleforge import config, judge, report, session_checks, verify_cases, version
+from crucibleforge import config, report, session_checks, verify_cases, version
 from crucibleforge.config import load_cases
 
 W = r"\b(?:alpha|beta|gamma)\b"

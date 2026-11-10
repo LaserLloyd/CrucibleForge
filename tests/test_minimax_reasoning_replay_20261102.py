@@ -29,7 +29,6 @@ from pathlib import Path
 import pytest
 
 from crucibleforge import api, runner
-from crucibleforge.api import ChatResult
 from crucibleforge.providers import clear_cache, get_provider
 
 ROOT = Path(__file__).resolve().parent.parent
