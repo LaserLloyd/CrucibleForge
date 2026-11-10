@@ -141,6 +141,27 @@ _BILLING_RE = re.compile(
 _BALANCE_URLS = {"api.deepseek.com": "https://api.deepseek.com/user/balance"}
 
 
+_ROW_STATUS_RE = re.compile(r"\bHTTP (\d{3})\b")
+
+
+def billing_error_row(r: dict) -> bool:
+    """True for a stored benchmark row that failed because the hosted
+    provider would not bill the request (4.1 release blocker F1): an errored
+    transport row whose message says HTTP 402 or 429, or carries a billing
+    wording (credit balance too low, insufficient balance, suspended account,
+    spending limit, usage limit ...).  Such a row says nothing about the
+    model: it never counts toward the attempt limit, and the pack it belongs
+    to reads "pending", not 0.  A timeout, a 5xx or a malformed reply is not
+    billing."""
+    if r.get("grade") != "error" or r.get("error_kind") != "transport":
+        return False
+    msg = str(r.get("error") or r.get("grade_detail") or "")
+    m = _ROW_STATUS_RE.search(msg)
+    if m and m.group(1) in ("402", "429"):
+        return True
+    return bool(_BILLING_RE.search(msg) or re.search(r"suspended", msg, re.IGNORECASE))
+
+
 def _is_billing_answer(status: int, body: str) -> bool:
     if status == 402:
         return True

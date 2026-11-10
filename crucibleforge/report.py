@@ -595,6 +595,7 @@ def points_scorecard(s: dict, sc: dict, prof: dict) -> dict:
     c1 = scorecard(s, {g: w for g, w in sc.items()}, partial=partial)
     subsets = s.get("subset_stats") or {}
     lstats = s.get("ladder_stats") or {}
+    blocked = set(s.get("packs_blocked") or ())    # 4.1 F1: billing-refused packs
     sets = _ladder_sets(prof)
     unlock = _ladder.unlock_share(prof)
     pending = bool(s.get("pending_judge"))
@@ -616,6 +617,7 @@ def points_scorecard(s: dict, sc: dict, prof: dict) -> dict:
         std_pts = earned = meas = total_max = no_items = 0.0
         reached = 0
         partial_parts = []
+        cat_blocked = False
         for p in d.get("parts") or []:
             pkey = f"{key}/{p['key']}"
             weights = {k: v for k, v in (pw.get(key, {}).get(p["key"]) or {}).items()
@@ -650,7 +652,9 @@ def points_scorecard(s: dict, sc: dict, prof: dict) -> dict:
                 ls = lstats.get(f"{pkey}#{st_['n']}")
                 sw = _set_weights(prof, st_["cases"], p.get("scoring"))
                 v = None
-                if ls is not None and sw and not (ls.get("pending_judge") and _judged_weights(sw)):
+                if f"{pkey}#{st_['n']}" in blocked:
+                    cat_blocked = True       # provider credit: not run, not 0
+                elif ls is not None and sw and not (ls.get("pending_judge") and _judged_weights(sw)):
                     v = scorecard(ls, {g: sw}, partial=partial)[g]
                 set_shares[st_["n"]] = None if v is None else v / 100.0
                 set_ex[st_["n"]] = _part_excluded(ls, None, sw or {})
@@ -710,8 +714,10 @@ def points_scorecard(s: dict, sc: dict, prof: dict) -> dict:
             val = std + earned
         else:
             val = std = None
-        if partial_parts:
+        if partial_parts or cat_blocked:
             partial_cats.append(key)
+        if cat_blocked and not d["in_total"]:
+            val = None      # a score outside the Total sorts on its own value
         totals[key] = val
         card["t1"][g] = std
         card[g] = val
@@ -722,6 +728,8 @@ def points_scorecard(s: dict, sc: dict, prof: dict) -> dict:
             lab += f" [{total_max - meas:g} pts pending]"
         if val is not None and partial_parts:
             lab += " partial"
+        if val is not None and cat_blocked:
+            lab += " (packs pending)"
         n_cat_ex = sum(det.get("n_excluded") or 0 for det in detail.values())
         if val is not None and n_cat_ex:
             lab += _excluded_tag(n_cat_ex)
@@ -2794,6 +2802,29 @@ def _errored_as_failed(by_t: dict, ran_out: bool = False,
     return out, {"n": n, "total": total, "ran_out": n_out}
 
 
+def _drop_billing_jobs(prof: dict, by_t: dict) -> tuple[dict, set, int]:
+    """(rows without the billing-refused jobs, the ladder sets they touch as
+    "<score>/<part>#<n>", jobs dropped).  ``by_t`` is returned unchanged
+    (same object) when no row is a billing error."""
+    from .preflight import billing_error_row
+    if not any(billing_error_row(r) for rows in by_t.values() for r in rows):
+        return by_t, set(), 0
+    lad = _ladder_levels(prof) if points_mode(prof) else {}
+    blocked: set[str] = set()
+    n = 0
+    out = {}
+    for t, rows in by_t.items():
+        bad = {k for k, rs in _jobs(rows).items() if any(billing_error_row(r) for r in rs)}
+        n += len(bad)
+        if t == 2:
+            for k in bad:
+                key, num = lad.get(k[0], (None, None))
+                if key:
+                    blocked.add(f"{key}#{num}")
+        out[t] = [r for r in rows if _job_key(r) not in bad] if bad else rows
+    return out, blocked, n
+
+
 def stats_from_tier_rows(label: str, cfg: dict | None, prof: dict,
                          by_t: dict[int, list[dict]], meta: dict | None,
                          era: dict | None) -> dict:
@@ -2803,6 +2834,10 @@ def stats_from_tier_rows(label: str, cfg: dict | None, prof: dict,
     and the headline bootstrap."""
     from . import tiers as _tiers
     errored = {"n": 0, "total": 0}
+    # 4.1 F1: a job the hosted provider refused to bill (credit spent, spend
+    # limit) is neither scored nor counted failed: it leaves the rows, its
+    # pack reads "pending" and its category partial (points_scorecard)
+    by_t, blocked_sets, n_billing = _drop_billing_jobs(prof, by_t)
     # B4 (review 2026-10-29): on the points board a job that ran out of its
     # budget with no successful escalated re-run counts as FAILED (the
     # footnote's rule); old-suite rows keep the rules they were scored under
@@ -2821,6 +2856,9 @@ def stats_from_tier_rows(label: str, cfg: dict | None, prof: dict,
     st = model_stats(label, cfg, rows=by_t[1], meta=meta, era=era)
     st["errored_rows"] = errored
     st["ran_out_failed"] = ran_out_jobs
+    if n_billing:
+        st["packs_blocked"] = sorted(blocked_sets)
+        st["billing_blocked_jobs"] = n_billing
     # S3: the standard cases with no row (the old-values view is a previous
     # suite's set: not compared against today's profile)
     # (a bootstrap resample drops cases by design: coverage is the point
@@ -4032,6 +4070,28 @@ def _archived_note() -> str | None:
             f"results/archive-*/ dirs — not on this board.*")
 
 
+PACKS_PENDING_REASON = ("Bonus packs pending a re-run: the provider's API credit ran out "
+                        "before they ran. Standard tests are complete.")
+
+
+def _packs_pending_provisional(st: dict, cfg: dict | None) -> None:
+    """4.1 F1: a bonus pack refused by the provider's billing inside a part
+    of the Total (Code, Chat) leaves the model unranked: provisional, with
+    the reason.  A pack outside the Total (the adult test) only blanks its
+    own score (points_scorecard)."""
+    blocked = st.get("packs_blocked")
+    prof = _tier_profile(cfg)
+    if not blocked or not prof:
+        return
+    from . import tiers as _tiers
+    in_total = {d["key"] for d in _tiers.scores(prof) if d["in_total"]}
+    if not any(b.split("/", 1)[0] in in_total for b in blocked):
+        return
+    st["provisional"] = True
+    old = st.get("provisional_reason")
+    st["provisional_reason"] = PACKS_PENDING_REASON + (f" ({old})" if old else "")
+
+
 def board_stats(labels_arg: str | None, cfg: dict | None) -> tuple[list[str], dict, int]:
     """(labels on the board, their stats, number of labels left off)."""
     if labels_arg:
@@ -4061,6 +4121,7 @@ def board_stats(labels_arg: str | None, cfg: dict | None) -> tuple[list[str], di
         cov = stats[label].get("coverage") or {}
         stats[label]["provisional"] = bool(cov.get("provisional"))
         stats[label]["provisional_reason"] = cov.get("provisional_reason")
+        _packs_pending_provisional(stats[label], cfg)
         stats[label].update(row_facts(label, meta, cfg))
         inputs[label] = (rows, meta, era)
         stats[label]["latest_ts"] = max((str(r.get("ts") or "") for r in rows), default=None)

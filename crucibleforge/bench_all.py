@@ -175,9 +175,15 @@ def error_attempts(label: str) -> dict[str, int]:
     whether the case can run now — 3.8.0 re-runs every case)."""
     from .config import load_transcripts
     from .profiles import DEFAULT_PROFILE
+    from .preflight import billing_error_row
     from .version import row_current
     out: dict[str, int] = {}
     for r in load_transcripts(label):
+        if billing_error_row(r):
+            # 4.1 F1: a provider that would not bill the request (credit
+            # spent, rate/spend limit) says nothing about the case; it is due
+            # again, never final
+            continue
         # 3.10 (D1): an error counts while its row answers the current case
         # content under the current regime (an edited case starts over)
         if (r.get("profile") == DEFAULT_PROFILE and r.get("grade") == "error"
