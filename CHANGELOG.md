@@ -79,8 +79,31 @@ refusal is never credit. Hard stays hard.
 - **Currency:** unchanged since 3.10 — per row, per case. An unchanged case's 4.0 rows stay current
   under 4.1.0; the content cases above are stale; the reworded cases re-judge. No new stamps
   snapshot. Suite hash `68987fe6` → `04da7abe` (revision `4.1.0+04da7abe`); `cases verify` 388/0.
+- **Billing-refused packs are pending, never 0 (release fix F1).** A hosted provider that will not
+  bill a request (HTTP 402, HTTP 429, "credit balance is too low", "insufficient balance",
+  suspended account, spending limit) says nothing about the model. `preflight.billing_error_row`
+  is the one predicate. Those rows no longer count toward `MAX_CASE_ATTEMPTS`
+  (`bench_all.error_attempts`), so `ladder_due` and the Incomplete tag list the jobs as due again.
+  In the report they are no longer counted failed (`errored_rows: fail`): a bonus pack with a
+  billing-refused job reads **pending**, its category is partial, and a pending pack in Code or
+  Chat leaves the model's Total empty. The model is provisional and unranked, reason "Bonus packs
+  pending a re-run ...". A pending pack in the NSFW part blanks only the NSFW score. Every label
+  without billing rows renders byte-identically. Before this, ten credit-blocked hosted models were
+  ranked on a Total that counted their blocked packs as 0.
+- **Conformance re-probe (`7553728`).** A stored conformance FAIL caused by an auth, billing or
+  transport error is probed again instead of staying on the board as a protocol failure.
+- **Credit preflight (`209af0b`).** One cheap request per hosted provider before a run; an
+  out-of-credit answer stops the run early, by provider name, without a key in any log.
+- **Re-judge pin (`151c581`).** A test pins that `bench-all` re-judges `judge_failed` rows once per
+  run.
+- **Incomplete tag (`0eb9e62`).** A model whose run is not finished (`bench_all.completeness`:
+  cases, judge, ladder, escalation) shows an Incomplete tag in `report.html`. The tag only reads
+  state.
+- **Board display face (`760c759`).** The board header title is set in the MakoBench display face.
+- **README and docs split (`3af9eb0`).** The README is rewritten for 4.1; the operator reference
+  moved to `docs/`.
 
-## Unreleased (2026-11-07)
+## Also in 4.1.0 (developed 2026-11-07)
 
 - **`max_repeat` check (session_checks).** Cross-turn repetition in long sessions: from `from_turn`
   (default 2) on, a turn may reuse at most `max_share` of its word `n`-grams (default 4) from the
@@ -116,7 +139,7 @@ refusal is never credit. Hard stays hard.
   run start (`--allow-unpriced` overrides). A label's first generation whose first 3 replies are all
   blocked stops the run (`first 3 replies all blocked by the provider's content filter`). No case or scoring change.
 
-## Unreleased (2026-11-06)
+## Also in 4.1.0 (developed 2026-11-06)
 
 - **Sizing support for MakoBench (below-Q8 and hosted/rented rows).** Board rows
   carry three more facts, travelling like `quant` / `quant_standard`:
@@ -163,7 +186,7 @@ refusal is never credit. Hard stays hard.
   scope). Without the new flags bench-all behaves as before. No case content,
   scoring or suite revision change.
 
-## Unreleased (2026-11-03)
+## Also in 4.1.0 (developed 2026-11-03)
 
 - **Local-only custom tests are harder to leak and easy to back up.**
   `scripts/scrub_check.py` now derives every name the local private layer
@@ -203,7 +226,9 @@ refusal is never credit. Hard stays hard.
   "≥ that number"), so nobody loses a saved board and the state version did
   not move.
 
-## 4.0.5 — the conformance gate, the board notes and the protocol stamp (2026-11-03)
+## Also in 4.1.0 (developed 2026-11-03): the conformance gate, the board notes and the protocol stamp
+
+(Developed as 4.0.5; never tagged on its own.)
 
 (the suite version stays 4.0.1: no case content changed, so no row goes stale)
 

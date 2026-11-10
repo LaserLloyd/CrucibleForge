@@ -130,7 +130,9 @@ flowchart TD
 
 **Overall /20 = Coding + Chat.** The only way past 10 in a group is a bonus pack. Every score carries a 90%
 bootstrap margin. A model missing cases is **partial**: its numbers show, but it has no Overall, class or rank
-until it is complete.
+until it is complete. The same holds for a model whose bonus pack is **pending**
+because the provider's API credit ran out before the pack ran: it shows no Total and is unranked ("Bonus packs
+pending a re-run") until the pack runs. A pending pack is never scored as 0.
 
 **Bonus packs.** A pack is a small set of harder questions, worth +1 point in total. A part unlocks its packs
 only when the model scored at least 90% on the part's standard questions and on every pack of every lower level.
@@ -284,7 +286,8 @@ flowchart TD
 
 **Incomplete tag (new in 4.1).** A model whose run is not finished shows an **Incomplete** tag in `report.html`.
 Its rank shows as a dash, and a "hide incomplete" box removes it from the table. The tag only reads state; no
-score, rank order or file changes because of it.
+score, rank order or file changes because of it. A bonus pack that a provider's billing refused (credit spent, spend limit) is never
+final: the Incomplete tag lists it as due, and until it runs the model has no Total and no rank.
 
 ```mermaid
 flowchart TD
