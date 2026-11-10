@@ -2962,6 +2962,13 @@ def main(argv=None):
         if v2_tracked:
             _v2_finish(args.cmd, args, cfg, _exit_code_from_exception(e), v2_state)
         raise
+    finally:
+        # Drop the module-level handle so an in-process caller (the test
+        # suite) does not leave a stale lock that makes later rig_phase()s
+        # no-ops. A real run exits right after, which released it anyway.
+        if rig_lock is not None:
+            _RIG_LOCK["f"] = None
+            rig_lock.close()
     if stopflag.ABORT.is_set():
         rc = TERM_EXIT
     if v2_tracked:

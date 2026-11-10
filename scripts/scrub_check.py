@@ -292,9 +292,54 @@ def _layer_yaml(path: Path) -> dict:
             return data if isinstance(data, dict) else {}
         except Exception:  # noqa: BLE001 — a broken overlay must not crash the gate
             pass
-    # no PyYAML: pull `labels: {key: "Label"}` / `key: Label` pairs by hand
-    labels = dict(re.findall(r"""([\w.-]+)\s*:\s*["']([^"'\n]{4,})["']""", text))
-    return {"labels": labels}
+    # no PyYAML: read the three sections the gate needs by hand. Block style,
+    # quoted or bare scalars (PyYAML itself dumps labels bare, and an unquoted
+    # label slipping through here made the gate fail OPEN on a system
+    # Python without PyYAML, which is what a Windows hook runs).
+    def scalar(v: str) -> str:
+        v = v.strip()
+        if len(v) >= 2 and v[0] == v[-1] and v[0] in "\"'":
+            return v[1:-1]
+        return v.split(" #", 1)[0].strip()
+
+    private: list[str] = []
+    labels: dict[str, str] = {}
+    custom: dict[str, dict] = {}
+    section, custom_indent = "", None
+    for raw in text.splitlines():
+        if not raw.strip() or raw.lstrip().startswith("#"):
+            continue
+        indent = len(raw) - len(raw.lstrip())
+        line = raw.strip()
+        if indent == 0 and section == "private" and line.startswith("- "):
+            private.append(scalar(line[2:]))   # PyYAML dumps list items unindented
+            continue
+        if indent == 0:
+            key, _, rest = line.partition(":")
+            section = key.strip() if key.strip() in ("private", "labels", "custom") else ""
+            custom_indent = None
+            if section == "private" and rest.strip().startswith("["):
+                private += [scalar(x) for x in rest.strip().strip("[]").split(",") if x.strip()]
+            continue
+        if section == "private" and line.startswith("- "):
+            private.append(scalar(line[2:]))
+        elif section == "labels" and ":" in line:
+            k, _, v = line.partition(":")
+            if scalar(v):
+                labels[scalar(k)] = scalar(v)
+        elif section == "custom" and ":" in line:
+            k, _, v = line.partition(":")
+            if custom_indent is None:
+                custom_indent = indent
+            if indent == custom_indent:
+                custom.setdefault(scalar(k), {})
+                last = scalar(k)
+            elif k.strip() == "label" and scalar(v):
+                custom.setdefault(last, {})["label"] = scalar(v)
+    # keep the older quoted-pair sweep too, as a superset
+    for k, v in re.findall(r"""([\w.-]+)\s*:\s*["']([^"'\n]{4,})["']""", text):
+        labels.setdefault(k, v)
+    return {"private": private, "labels": labels, "custom": custom}
 
 
 def private_layer_terms() -> set[str]:

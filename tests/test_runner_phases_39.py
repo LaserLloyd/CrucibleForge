@@ -137,6 +137,8 @@ def _locked(path) -> bool:
 def test_a_rig_phase_holds_the_lock_only_for_its_duration(tmp_path, monkeypatch):
     monkeypatch.setattr(config, "RESULTS_DIR", tmp_path)
     monkeypatch.setattr(cli, "_ancestor_holds", lambda p: False)
+    # isolate from a lock another test's main() left in this xdist worker
+    monkeypatch.setitem(cli._RIG_LOCK, "f", None)
     lock = tmp_path / ".rig.lock"
     with cli.rig_phase(needed=True, what="judge phase"):
         assert _locked(lock)
