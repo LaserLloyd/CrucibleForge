@@ -1576,7 +1576,9 @@ def done_jobs(rows: list[dict]) -> set[tuple]:
     row (grade ``error``: transport failure, rejected request) is not done
     — a resumed run retries it (EVAL-FABLE M4; bench_all.missing_cases has
     the same rule, bounded by MAX_CASE_ATTEMPTS)."""
-    return {(r.get("case_id"), r.get("repeat")) for r in rows if r.get("grade") != "error"}
+    from .preflight import billing_error_row
+    return {(r.get("case_id"), r.get("repeat")) for r in rows
+            if r.get("grade") != "error" and not billing_error_row(r)}
 
 
 def _tier_phases(args, cfg, labels: list[str]) -> int:

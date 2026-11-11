@@ -153,6 +153,13 @@ def billing_error_row(r: dict) -> bool:
     model: it never counts toward the attempt limit, and the pack it belongs
     to reads "pending", not 0.  A timeout, a 5xx or a malformed reply is not
     billing."""
+    if r.get("grade") == "fail" and not r.get("error_kind"):
+        # an agentic episode whose provider call was refused for billing was
+        # graded as the model's own failure by older engines (Fable 5.2 LAG1-3,
+        # HTTP 400 "credit balance is too low"): recognise the stored shape
+        end = str((r.get("agent") or {}).get("end") or "")
+        return (end.startswith("request rejected mid-episode")
+                and bool(_BILLING_RE.search(end) or re.search(r"suspended", end, re.IGNORECASE)))
     if r.get("grade") != "error" or r.get("error_kind") != "transport":
         return False
     msg = str(r.get("error") or r.get("grade_detail") or "")
@@ -165,7 +172,16 @@ def billing_error_row(r: dict) -> bool:
 def _is_billing_answer(status: int, body: str) -> bool:
     if status == 402:
         return True
-    return status in (400, 403, 429) and bool(_BILLING_RE.search(body or ""))
+    return status in (400, 401, 403, 429) and bool(
+        _BILLING_RE.search(body or "") or re.search(r"suspended", body or "", re.IGNORECASE))
+
+
+def billing_rejection(e: Exception) -> bool:
+    """True when a RequestRejected is the provider refusing to bill (credit,
+    quota, spend limit, suspended account), whatever its HTTP status: that is
+    infra, never the model's answer."""
+    status = getattr(e, "status", None)
+    return isinstance(status, int) and _is_billing_answer(status, str(getattr(e, "body", "") or e))
 
 
 def hosted_credit_problem(prov: Provider, model_id: str) -> str | None:

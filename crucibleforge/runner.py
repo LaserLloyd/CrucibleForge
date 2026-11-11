@@ -166,6 +166,20 @@ FEW_SLOTS_WARN = 2
 _CASE_LOCAL_REJECT_STATUSES = (400, 413, 422)
 
 
+def _billing_rejection(e: Exception) -> bool:
+    from .preflight import billing_rejection
+    return billing_rejection(e)
+
+
+def _rejection_kind(case: dict, e: Exception) -> str:
+    """error_kind of a row stored for a rejected request: a code-bank case's own
+    rejection is the model failing ("generation"), but a billing refusal (any
+    status) is infra ("transport": excluded, pending, re-queued)."""
+    if _billing_rejection(e):
+        return "transport"
+    return "generation" if case.get("category") in BANK_CATEGORIES else "transport"
+
+
 class ModelRunError(RuntimeError):
     pass
 
@@ -631,6 +645,8 @@ class _Ctx:
                 r = self._chat(messages, max_tokens=max_tokens, **no_think)
                 spent.append(r)
             except RequestRejected as e:
+                if _billing_rejection(e):
+                    raise
                 # hosted API that validates request fields — remember, and
                 # fall through to the continuation rung without the kwarg
                 log.warning("%s: provider rejects chat_template_kwargs (%s) — "
@@ -1408,7 +1424,7 @@ def _run_one_model(cfg, entry, cases, csvw: _Csv, smoke,
                 # code bank: a request the model's window cannot take (or any
                 # other case-local rejection) is the model FAILING the task at
                 # this budget, never an excluded row (review 2026-10-26)
-                kind = "generation" if case.get("category") in BANK_CATEGORIES else "transport"
+                kind = _rejection_kind(case, e)
                 persist([_error_row(base_row, case, f"request rejected: {e}", kind=kind)])
                 return
             with ctx.lock:
@@ -2231,8 +2247,8 @@ def _run_env_loop(case, base_row, ctx: _Ctx, max_tokens, temperature, seed, top_
                               recover=ctx.recover_for(case),
                               temperature=temperature, top_p=top_p, seed=seed, tools=codeenv.TOOLS)
         except RequestRejected as e:
-            if e.status not in _CASE_LOCAL_REJECT_STATUSES:
-                raise
+            if e.status not in _CASE_LOCAL_REJECT_STATUSES or _billing_rejection(e):
+                raise       # a billing refusal is infra: an errored row, never the model's 0
             # mid-episode 400/422 (typically the context window): the work so
             # far is graded as it stands, like the context cap
             end_reason = f"request rejected mid-episode: {str(e)[:120]}"
