@@ -14,6 +14,10 @@ whole process.
   stop the model run (runner.MAX_CONSECUTIVE_TRANSPORT_ERRORS). Calls already
   in flight when the cap is crossed still complete and are counted, so the
   final total can pass the cap by at most (concurrency) calls.
+- ``CF_SPEND_ALLOW_CASES`` (comma list of case ids): a staged run. A priced
+  call made for any other case is refused unsent the same way (billing path:
+  that job stays pending). A call with no case context (preflight, conformance)
+  is refused too while it is set.
 - ``CF_SPEND_JOURNAL`` (path): one JSON line per priced call — ts, model,
   provider, label/case/repeat when known, the token split, the call's cost
   and the running total — plus one ``"refused": true`` line per call the cap
@@ -84,8 +88,27 @@ def _now() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="milliseconds")
 
 
+def allowed_cases() -> set[str] | None:
+    raw = os.environ.get("CF_SPEND_ALLOW_CASES", "").strip()
+    return {x.strip() for x in raw.split(",") if x.strip()} or None
+
+
 def check(model: str, provider: str | None = None) -> None:
-    """Refuse the call (billing path) when the cap is reached."""
+    """Refuse the call (billing path) when the cap is reached, or when
+    ``CF_SPEND_ALLOW_CASES`` is set and this job's case is not in it (a staged
+    run: only the named cases may spend; the others are refused unsent and
+    stay pending)."""
+    allow = allowed_cases()
+    if allow is not None:
+        cid = _context().get("case_id")
+        if cid not in allow:
+            with _LOCK:
+                _journal({"ts": _now(), "model": model, "provider": provider, **_context(),
+                          "refused": True, "reason": "case not in CF_SPEND_ALLOW_CASES"})
+            from .api import RequestRejected
+            raise RequestRejected(
+                402, f"crucibleforge spend gate: case {cid!r} is not in CF_SPEND_ALLOW_CASES "
+                     f"- spending limit, call not sent")
     c = cap()
     if c is None:
         return

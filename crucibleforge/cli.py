@@ -2467,7 +2467,7 @@ DETACH_STOP_TIMEOUT_S = 45
 
 
 #: spend-cap variables a detached re-launch carries into its unit (spend.py)
-SPEND_ENV = ("CF_SPEND_CAP_USD", "CF_SPEND_JOURNAL")
+SPEND_ENV = ("CF_SPEND_CAP_USD", "CF_SPEND_JOURNAL", "CF_SPEND_ALLOW_CASES")
 
 
 def _detach_argv(args, argv: list[str] | None) -> tuple[str, list[str], str]:

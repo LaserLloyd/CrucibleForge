@@ -517,3 +517,28 @@ def test_detach_carries_the_spend_cap_into_the_unit(monkeypatch):
     monkeypatch.delenv("CF_SPEND_CAP_USD")
     _, cmd2, _ = cli._detach_argv(args, ["bench-all", "--detach"])
     assert not any(a.startswith("--setenv=CF_SPEND_CAP_USD") for a in cmd2)
+
+
+def test_allow_cases_gates_a_staged_run(mock, monkeypatch, tmp_path):
+    """Stage 1 of the recipe: only LAG1 may spend; LAG2/3 are refused unsent
+    on the billing path (pending, never a score)."""
+    journal = tmp_path / "j.jsonl"
+    monkeypatch.setenv("CF_SPEND_JOURNAL", str(journal))
+    monkeypatch.setenv("CF_SPEND_ALLOW_CASES", "LAG1-potkeeper-yearend")
+    m = mock((200, reply(text="ok")))
+    p = _prov(m)
+    spend.set_context(label=MODEL, case_id="LAG2-seedbank-units", repeat=1)
+    with pytest.raises(RequestRejected) as ei:
+        p.chat(MODEL, [{"role": "user", "content": "Hi"}], max_tokens=8)
+    assert ei.value.status == 402 and preflight.billing_rejection(ei.value)
+    assert m.requests == []
+    spend.set_context(label=MODEL, case_id="LAG1-potkeeper-yearend", repeat=1)
+    assert p.chat(MODEL, [{"role": "user", "content": "Hi"}], max_tokens=8).response_text == "ok"
+    lines = [json.loads(x) for x in journal.read_text().splitlines()]
+    assert lines[0]["refused"] and lines[0]["case_id"] == "LAG2-seedbank-units"
+    assert lines[1]["case_id"] == "LAG1-potkeeper-yearend" and "refused" not in lines[1]
+    import types
+    monkeypatch.setattr(cli, "ENV_FILE", None)
+    _, cmd, _ = cli._detach_argv(types.SimpleNamespace(cmd="bench-all", models=None, run_id="r"),
+                                 ["bench-all", "--detach"])
+    assert "--setenv=CF_SPEND_ALLOW_CASES=LAG1-potkeeper-yearend" in cmd
