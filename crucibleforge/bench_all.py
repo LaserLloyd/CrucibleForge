@@ -144,8 +144,11 @@ def missing_cases(rows: list[dict], case_ids: list[str],
     across the label's whole transcript history). A case short of repeats is
     re-run whole (``run --cases`` runs every repeat; the newest row of each
     repeat counts)."""
+    from .preflight import billing_error_row
     reps: dict[str, set] = {}
     for r in rows:
+        if billing_error_row(r):
+            continue  # a billing refusal says nothing about the model (ed5630a)
         if r.get("grade") != "error" or _permanent_error(r):
             reps.setdefault(r.get("case_id"), set()).add(r.get("repeat") or 1)
     attempts = attempts or {}
