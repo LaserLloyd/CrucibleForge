@@ -13,6 +13,9 @@ Three provider types cover every backend CrucibleForge talks to:
   guard: LM Studio answers 200 from whatever is loaded even for a bogus id.
 - ``studioforge`` — a llama.cpp-based multi-model server (StudioForge) that
   JIT-loads on first request; "load" = a warm-up completion timed as load_s.
+- ``anthropic`` — Anthropic's NATIVE Messages API (``/v1/messages``) with
+  prompt caching (2026-11-11). Hosted like ``openai`` (no load management);
+  the wire translation and its parity rules live in anthropic_native.py.
 
 Every provider exposes the same small surface, so the runner/judge/pairwise
 code never branches on backend. Per-provider ``concurrency`` lets remote APIs
@@ -31,10 +34,14 @@ from urllib.parse import urlparse
 
 import httpx
 
-from . import lms, studioforge
+from . import lms, spend, studioforge
 from .config import ConfigError, provider_of
 
 log = logging.getLogger(__name__)
+
+#: provider types that are a hosted API (no load management, optimistic
+#: liveness, configured concurrency, no served-model check by default)
+HOSTED_TYPES = ("openai", "anthropic")
 
 #: Hosts that serve MiniMax's OpenAI-compatible API. Every model behind them
 #: thinks, and MiniMax documents that the chain must be sent back: "the
@@ -172,6 +179,9 @@ class Provider:
     # names ONE card that no priority-1/2 or pinned model is recorded on, and
     # the run refuses rather than widen onto a protected card.
     day_single_card: bool = False
+    # model_id -> the registry ``price`` block of every model on this provider
+    # (get_provider): Provider.chat prices each call for the spend cap/journal
+    prices: dict = field(default_factory=dict, repr=False)
     _vacated_render: bool = field(default=False, repr=False)
     # remembers what /models returned (None = endpoint doesn't support listing)
     _models_cache: set | None = field(default=None, repr=False)
@@ -207,11 +217,14 @@ class Provider:
                     return True
                 # Some gateways 401/404 on /models but serve completions fine.
                 # Treat "reachable but no listing" as alive for openai type.
-                return self.type == "openai" and resp.status_code in (401, 403, 404, 405)
+                return self.type in HOSTED_TYPES and resp.status_code in (401, 403, 404, 405)
         except Exception:
             return False
 
     def _headers(self, client_name: str | None = None) -> dict:
+        if self.type == "anthropic":
+            from .anthropic_native import request_headers
+            return request_headers(self.api_key, self.headers)
         h = {"Content-Type": "application/json", **self.headers}
         if self.api_key:
             h["Authorization"] = f"Bearer {self.api_key}"
@@ -272,7 +285,7 @@ class Provider:
         if not ids:
             # listing unsupported: optimistic — the wrong-model / transport
             # errors on the first call are the real check
-            return self.type == "openai"
+            return self.type in HOSTED_TYPES
         return model_id in ids
 
     # ------------------------------------------------------ load control
@@ -586,7 +599,7 @@ class Provider:
         configured concurrency. studioforge: the loaded model's parallel slot
         count, capped by the configured concurrency when one is set
         (``concurrency: auto`` = follow the server). lmstudio: 1."""
-        if self.type == "openai":
+        if self.type in HOSTED_TYPES:
             return self.concurrency
         if self.type == "studioforge":
             slots = studioforge.loaded_parallel(model_id, self.base_url, self.api_key,
@@ -771,9 +784,19 @@ class Provider:
         if self.type == "studioforge":
             headers.setdefault("X-SF-Client", client_name or studioforge.LEASE_HOLDER)
             kw.setdefault("priority", self.request_priority)
-        return stream_chat_retried(self.base_url, self.api_key, model_id, messages,
-                                   headers=headers, verify_model=self.verify_model,
-                                   extra_body=body_extra, **kw)
+        if self.type == "anthropic":
+            kw["wire"] = "anthropic"
+        price = self.prices.get(model_id)
+        if price:
+            spend.check(model_id, self.name)
+        r = stream_chat_retried(self.base_url, self.api_key, model_id, messages,
+                                headers=headers, verify_model=self.verify_model,
+                                extra_body=body_extra, **kw)
+        if price:
+            c = call_cost_usd({"price": price}, r)
+            if c is not None:
+                spend.record(model_id, self.name, r, c)
+        return r
 
 
 # ------------------------------------------------------------- registry
@@ -816,7 +839,7 @@ def get_provider(cfg: dict, name: str) -> Provider:
         return _CACHE[key][1]
     p = provider_of(cfg, name)
     ptype = p.get("type", "openai")
-    conc_raw = p.get("concurrency", API_DEFAULT_CONCURRENCY if ptype == "openai"
+    conc_raw = p.get("concurrency", API_DEFAULT_CONCURRENCY if ptype in HOSTED_TYPES
                      else 1 if ptype != "studioforge" else "auto")
     conc_auto = str(conc_raw).lower() == "auto"
     prov = Provider(
@@ -825,7 +848,7 @@ def get_provider(cfg: dict, name: str) -> Provider:
         concurrency=1 if conc_auto else max(1, int(conc_raw)),
         concurrency_explicit=not conc_auto,
         recommended_load=bool(p.get("recommended_load", True)),
-        verify_model=bool(p.get("verify_model", ptype != "openai")),
+        verify_model=bool(p.get("verify_model", ptype not in HOSTED_TYPES)),
         headers={k: _expand_env(v) for k, v in (p.get("headers") or {}).items()},
         timeout=float(p.get("timeout", 900)),
         extra_body=dict(p.get("extra_body") or {}),
@@ -848,6 +871,9 @@ def get_provider(cfg: dict, name: str) -> Provider:
         busy_unload_after_s=(float(p["busy_unload_after_s"])
                              if p.get("busy_unload_after_s") not in (None, False, "") else None),
     )
+    prov.prices = {str(m.get("model_id")): dict(m["price"]) for m in (cfg.get("models") or [])
+                   if isinstance(m, dict) and m.get("provider") == name
+                   and isinstance(m.get("price"), dict) and m.get("model_id")}
     if ptype == "studioforge" and LEASE_MODE[0]:
         apply_lease_mode(prov, LEASE_MODE[0])
     _CACHE[key] = (cfg, prov)
@@ -929,8 +955,56 @@ def price_of(entry: dict) -> tuple[float, float] | None:
         return None
 
 
-def cost_usd(entry: dict, prompt_tokens: int | None, completion_tokens: int | None) -> float | None:
+#: prompt-cache multipliers of the input price when a ``price`` block names no
+#: ``cache_write`` / ``cache_read`` (Anthropic's 5-minute-TTL write premium
+#: and the generic read rate, claude-api skill shared/prompt-caching.md)
+CACHE_WRITE_FACTOR = 1.25
+CACHE_READ_FACTOR = 0.1
+
+
+def cache_prices(entry: dict) -> tuple[float, float] | None:
+    """(cache_write, cache_read) USD per 1M tokens for a priced entry."""
     p = price_of(entry)
     if not p:
         return None
-    return ((prompt_tokens or 0) * p[0] + (completion_tokens or 0) * p[1]) / 1_000_000
+    price = entry.get("price") or {}
+    try:
+        cw = float(price["cache_write"]) if price.get("cache_write") is not None \
+            else p[0] * CACHE_WRITE_FACTOR
+        cr = float(price["cache_read"]) if price.get("cache_read") is not None \
+            else p[0] * CACHE_READ_FACTOR
+    except (TypeError, ValueError):
+        return p[0] * CACHE_WRITE_FACTOR, p[0] * CACHE_READ_FACTOR
+    return cw, cr
+
+
+def cost_usd(entry: dict, prompt_tokens: int | None, completion_tokens: int | None,
+             cache_read_tokens: int | None = None,
+             cache_write_tokens: int | None = None) -> float | None:
+    """USD for a call / row. ``prompt_tokens`` is the TOTAL input; the cache
+    split (when the provider reported one) is priced at the cache rates and
+    only the remainder at the input rate."""
+    p = price_of(entry)
+    if not p:
+        return None
+    pt = prompt_tokens or 0
+    cr = max(0, cache_read_tokens or 0)
+    cw = max(0, cache_write_tokens or 0)
+    if cr or cw:
+        cwp, crp = cache_prices(entry)
+        uncached = max(0, pt - cr - cw)
+        return (uncached * p[0] + cw * cwp + cr * crp
+                + (completion_tokens or 0) * p[1]) / 1_000_000
+    return (pt * p[0] + (completion_tokens or 0) * p[1]) / 1_000_000
+
+
+def call_cost_usd(entry: dict, r) -> float | None:
+    """Billed cost of one ChatResult (its billed-extra tokens included)."""
+    if r.prompt_tokens is None and r.completion_tokens is None and not (
+            r.billed_extra_prompt_tokens or r.billed_extra_completion_tokens):
+        return None
+    return cost_usd(entry,
+                    (r.prompt_tokens or 0) + (r.billed_extra_prompt_tokens or 0),
+                    (r.completion_tokens or 0) + (r.billed_extra_completion_tokens or 0),
+                    (r.cache_read_tokens or 0) + (r.billed_extra_cache_read_tokens or 0),
+                    (r.cache_write_tokens or 0) + (r.billed_extra_cache_write_tokens or 0))

@@ -39,6 +39,7 @@ from .api import (Aborted, ChatResult, GenerationRejected, RequestRejected, RowT
                   TransportError, WindowClosed, WrongModelError)
 from .config import CSV_COLUMNS, results_dir, append_transcript, repeats_for, transcript_path
 from .graders import (_extract_tool_calls_from_text, grade, grade_tool_call, prose_metrics)
+from . import spend
 from .providers import Provider, cost_usd, merge_extra_body, model_extra_body, provider_for
 from .version import judge_fingerprint as _judge_fp, revision as _revision
 from .version import private_category_hash
@@ -245,7 +246,7 @@ def _metrics_sum(results: list[ChatResult]) -> dict:
         return sum(vals) if vals else None
 
     gen, comp = tot("gen_s"), tot("completion_tokens")
-    return {**_billed_extra(results),
+    return {**_billed_extra(results), **_cache_split(results),
             "ttft_s": results[0].ttft_s, "gen_s": gen, "total_s": tot("total_s"),
             "prompt_tokens": tot("prompt_tokens"), "completion_tokens": comp,
             "reasoning_tokens": tot("reasoning_tokens"),
@@ -259,12 +260,28 @@ def _billed_extra(results: list[ChatResult]) -> dict:
     present when non-zero. Used for cost only, never for speed."""
     p = sum(r.billed_extra_prompt_tokens for r in results)
     c = sum(r.billed_extra_completion_tokens for r in results)
-    return {"billed_extra_prompt_tokens": p, "billed_extra_completion_tokens": c} if (p or c) else {}
+    out = {"billed_extra_prompt_tokens": p, "billed_extra_completion_tokens": c} if (p or c) else {}
+    cr = sum(getattr(r, "billed_extra_cache_read_tokens", 0) or 0 for r in results)
+    cw = sum(getattr(r, "billed_extra_cache_write_tokens", 0) or 0 for r in results)
+    if cr or cw:
+        out.update(billed_extra_cache_read_tokens=cr, billed_extra_cache_write_tokens=cw)
+    return out
+
+
+def _cache_split(results: list[ChatResult]) -> dict:
+    """Prompt-cache split of the rows' ``prompt_tokens`` (native Anthropic,
+    2026-11-11): present only when a provider reported it. Cost only —
+    ``prompt_tokens`` stays the total input."""
+    rd = [r.cache_read_tokens for r in results if getattr(r, "cache_read_tokens", None) is not None]
+    wr = [r.cache_write_tokens for r in results if getattr(r, "cache_write_tokens", None) is not None]
+    if not rd and not wr:
+        return {}
+    return {"cache_read_tokens": sum(rd), "cache_write_tokens": sum(wr)}
 
 
 def _metrics(result: ChatResult) -> dict:
     return {
-        **_billed_extra([result]),
+        **_billed_extra([result]), **_cache_split([result]),
         "ttft_s": result.ttft_s, "gen_s": result.gen_s, "total_s": result.total_s,
         "prompt_tokens": result.prompt_tokens,
         "completion_tokens": result.completion_tokens,
@@ -617,6 +634,10 @@ class _Ctx:
                                                 + first.billed_extra_prompt_tokens)
             again.billed_extra_completion_tokens = ((first.completion_tokens or 0)
                                                     + first.billed_extra_completion_tokens)
+            again.billed_extra_cache_read_tokens = ((first.cache_read_tokens or 0)
+                                                    + first.billed_extra_cache_read_tokens)
+            again.billed_extra_cache_write_tokens = ((first.cache_write_tokens or 0)
+                                                     + first.billed_extra_cache_write_tokens)
             first = again
         cause = ("overflow" if self._overflowed(first) else
                  "stopped_in_reasoning" if self._stopped_without_answer(first) else None)
@@ -714,6 +735,10 @@ class _Ctx:
             final.prompt_tokens = sum(ptoks)
         if ctoks:
             final.completion_tokens = sum(ctoks)
+        for attr in ("cache_read_tokens", "cache_write_tokens"):
+            vals = [getattr(a, attr) for a in attempts if getattr(a, attr, None) is not None]
+            if vals:
+                setattr(final, attr, sum(vals))
         final.total_s = sum(a.total_s or 0.0 for a in attempts)
 
 
@@ -1300,7 +1325,9 @@ def _run_one_model(cfg, entry, cases, csvw: _Csv, smoke,
                              (m.get("prompt_tokens") or 0) + (m.get("billed_extra_prompt_tokens") or 0)
                              if m.get("prompt_tokens") is not None or m.get("billed_extra_prompt_tokens") else None,
                              (m.get("completion_tokens") or 0) + (m.get("billed_extra_completion_tokens") or 0)
-                             if m.get("completion_tokens") is not None or m.get("billed_extra_completion_tokens") else None)
+                             if m.get("completion_tokens") is not None or m.get("billed_extra_completion_tokens") else None,
+                             (m.get("cache_read_tokens") or 0) + (m.get("billed_extra_cache_read_tokens") or 0),
+                             (m.get("cache_write_tokens") or 0) + (m.get("billed_extra_cache_write_tokens") or 0))
                 if c is not None:
                     row["cost_usd"] = round(c, 6)
                     state["cost"] += c
@@ -1333,6 +1360,8 @@ def _run_one_model(cfg, entry, cases, csvw: _Csv, smoke,
         check_abort()
         if abort.is_set():
             return
+        # every priced call this job makes is journalled under it (spend.py)
+        spend.set_context(label=label, case_id=case.get("id"), repeat=repeat)
         temperature, top_p = ctx.sampling(case)
         max_tokens = case["max_tokens"]
         # a sampled row (any temperature but 0) gets a seed per repeat, so

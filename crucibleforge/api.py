@@ -187,6 +187,22 @@ class RequestRejected(TransportError):
         self.body = body
 
 
+class ProtocolRejected(TransportError):
+    """A vendor-protocol refusal of the HARNESS's request shape, not of the
+    model's work: the native Anthropic Messages API answering HTTP 400 about
+    the conversation's thinking blocks / signatures (anthropic_native.py drops
+    thinking from the replayed history for parity with the compat layer). Not
+    a RequestRejected on purpose: the runner grades a mid-episode 400 as the
+    model's work, and this must never score — it is stored as an errored
+    transport row (excluded, pending). Never retried (the identical request
+    gets the identical answer)."""
+
+    def __init__(self, status: int, body: str):
+        super().__init__(f"HTTP {status} (harness protocol): {body}")
+        self.status = status
+        self.body = body
+
+
 class GenerationRejected(TransportError):
     """The server could not deliver what the model generated — e.g. llama-server
     answers HTTP 500 "Failed to parse tool call arguments as JSON" when the
@@ -419,6 +435,16 @@ class ChatResult:
     # set by the runner when the answer came from a reasoning-overflow
     # recovery pass (see runner._Ctx.call); None for a plain completion
     recovery: dict | None = None
+    # Prompt-cache split of ``prompt_tokens`` (native Anthropic Messages API,
+    # 2026-11-11). ``prompt_tokens`` stays the TOTAL input (uncached + cache
+    # write + cache read) so token and speed columns compare across providers;
+    # these two only price it. None = the provider reports no split.
+    cache_read_tokens: int | None = None
+    cache_write_tokens: int | None = None
+    billed_extra_cache_read_tokens: int = 0
+    billed_extra_cache_write_tokens: int = 0
+    # native Anthropic stop_reason when it does not map 1:1 (``refusal``)
+    native_stop_reason: str | None = None
 
     def scoreable_text(self) -> str:
         """The model's effective answer. Thinking models sometimes emit the
@@ -461,8 +487,13 @@ def stream_chat(base_url: str, api_key: str, model: str, messages: list[dict], *
                 max_wall_s: float | None = None,
                 deadline: float | None = None,
                 rename_params: dict | None = None,
-                drop_params: list | tuple | None = None) -> ChatResult:
+                drop_params: list | tuple | None = None,
+                wire: str = "openai") -> ChatResult:
     """One streaming chat completion with timing + real token usage.
+
+    wire="anthropic" (provider type ``anthropic``, 2026-11-11): the request
+    goes to the native Messages API instead — see anthropic_native.py for the
+    translation and the parity decisions. Same ChatResult, same exceptions.
 
     rename_params / drop_params (provider config, 2026-11-06): vendor quirks on
     the request body, applied last. OpenAI's reasoning models (gpt-5+, o-series)
@@ -487,6 +518,14 @@ def stream_chat(base_url: str, api_key: str, model: str, messages: list[dict], *
     deadline: an absolute ``time.time()``; past it the request is dropped
     with WindowClosed (the run's time window, not this row's fault).
     """
+    if wire == "anthropic":
+        from . import anthropic_native
+        return anthropic_native.stream_messages(
+            base_url, api_key, model, messages, max_tokens=max_tokens, tools=tools,
+            headers=headers, verify_model=verify_model, timeout=timeout, stall_s=stall_s,
+            max_wall_s=max_wall_s, deadline=deadline)
+    if wire != "openai":
+        raise ValueError(f"unknown wire protocol {wire!r}")
     body: dict = {
         "model": model,
         "messages": messages,
@@ -714,7 +753,7 @@ def stream_chat_retried(base_url: str, api_key: str, model: str, messages: list[
         try:
             return stream_chat(base_url, api_key, model, messages, **kwargs)
         except (WrongModelError, RequestRejected, GenerationRejected, VramExhausted,
-                StreamStalled, RowTimeout, Aborted, WindowClosed):
+                StreamStalled, RowTimeout, Aborted, WindowClosed, ProtocolRejected):
             # retrying an identical bad request / bad generation / full VRAM
             # cannot succeed, and a stalled or over-budget row must not cost
             # the run its ceiling three times over

@@ -87,7 +87,7 @@ JUDGED_CATEGORIES = {"rp", "nsfw", "story", "steer", "overrefusal", "planning", 
 
 DIFFICULTIES = ["easy", "medium", "hard"]
 
-PROVIDER_TYPES = ("openai", "lmstudio", "studioforge")
+PROVIDER_TYPES = ("openai", "lmstudio", "studioforge", "anthropic")
 
 CSV_COLUMNS = [
     "bench_run_id", "bench_revision", "run_id", "ts", "model_label", "model_id",
@@ -195,7 +195,7 @@ def validate_config(cfg: dict) -> None:
                               f"(known: {PROVIDER_TYPES})")
         if not p.get("base_url"):
             raise ConfigError(f"provider {pname}: base_url is required")
-        if p.get("api_key") and ptype == "openai" and not p.get("allow_literal_key"):
+        if p.get("api_key") and ptype in ("openai", "anthropic") and not p.get("allow_literal_key"):
             # A literal key for a remote provider would end up in the repo.
             key = str(p["api_key"])
             if key and len(key) > 12 and not key.startswith("${"):

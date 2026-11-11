@@ -209,10 +209,17 @@ def hosted_credit_problem(prov: Provider, model_id: str) -> str | None:
                 if resp.json().get("is_available") is False:
                     return f"{prov.name}: account balance is empty (DeepSeek is_available=false) - top up, then re-run"
                 return None
-            resp = http.post(f"{prov.base_url.rstrip('/')}/chat/completions",
-                             headers={**headers, "Content-Type": "application/json"},
-                             json={"model": model_id, "max_tokens": 1,
-                                   "messages": [{"role": "user", "content": "Hi"}]})
+            if prov.type == "anthropic":
+                # native Messages API: x-api-key + version/workspace headers
+                resp = http.post(f"{prov.base_url.rstrip('/')}/messages",
+                                 headers=prov._headers(),
+                                 json={"model": model_id, "max_tokens": 1,
+                                       "messages": [{"role": "user", "content": "Hi"}]})
+            else:
+                resp = http.post(f"{prov.base_url.rstrip('/')}/chat/completions",
+                                 headers={**headers, "Content-Type": "application/json"},
+                                 json={"model": model_id, "max_tokens": 1,
+                                       "messages": [{"role": "user", "content": "Hi"}]})
             body = resp.text if isinstance(resp.text, str) else ""
             if _is_billing_answer(resp.status_code, body):
                 return (f"{prov.name}: out of credit or over its spending limit "
