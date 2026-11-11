@@ -500,3 +500,20 @@ def test_credit_preflight_speaks_native(monkeypatch, mock):
     h, body = m.requests[0]
     assert h["x-api-key"] == "test-key-not-real" and "authorization" not in h
     assert json.loads(body)["max_tokens"] == 1
+
+
+def test_detach_carries_the_spend_cap_into_the_unit(monkeypatch):
+    """A systemd --user unit does not inherit the caller's environment: a
+    detached bench would otherwise run with NO cap."""
+    import types
+    monkeypatch.setattr(cli, "ENV_FILE", None)
+    monkeypatch.setenv("CF_SPEND_CAP_USD", "25")
+    monkeypatch.setenv("CF_SPEND_JOURNAL", "/var/tmp/x/spend.jsonl")
+    args = types.SimpleNamespace(cmd="bench-all", models=None, run_id="r-1")
+    _, cmd, _ = cli._detach_argv(args, ["bench-all", "--only", MODEL, "--go", "--detach"])
+    assert "--setenv=CF_SPEND_CAP_USD=25" in cmd
+    assert "--setenv=CF_SPEND_JOURNAL=/var/tmp/x/spend.jsonl" in cmd
+    assert cmd.index("--setenv=CF_SPEND_CAP_USD=25") < cmd.index("/bin/bash")
+    monkeypatch.delenv("CF_SPEND_CAP_USD")
+    _, cmd2, _ = cli._detach_argv(args, ["bench-all", "--detach"])
+    assert not any(a.startswith("--setenv=CF_SPEND_CAP_USD") for a in cmd2)

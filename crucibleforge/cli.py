@@ -2466,6 +2466,10 @@ def acquire_rig_lock():
 DETACH_STOP_TIMEOUT_S = 45
 
 
+#: spend-cap variables a detached re-launch carries into its unit (spend.py)
+SPEND_ENV = ("CF_SPEND_CAP_USD", "CF_SPEND_JOURNAL")
+
+
 def _detach_argv(args, argv: list[str] | None) -> tuple[str, list[str], str]:
     """(unit name, systemd-run argv, run id) for a detached re-launch."""
     run_id = _resolve_run_id(args)
@@ -2487,6 +2491,10 @@ def _detach_argv(args, argv: list[str] | None) -> tuple[str, list[str], str]:
            # after DETACH_STOP_TIMEOUT_S
            f"--property=TimeoutStopSec={DETACH_STOP_TIMEOUT_S}", "--property=KillMode=mixed",
            f"--setenv=CRUCIBLEFORGE_RUN_ID={run_id}",
+           # the spend cap and journal (spend.py) must reach the unit: a
+           # systemd --user unit does not inherit the caller's environment,
+           # and a cap that silently stays behind is no cap
+           *[f"--setenv={k}={os.environ[k]}" for k in SPEND_ENV if os.environ.get(k)],
            f"--working-directory={cwd}", "/bin/bash", "-c", script]
     return unit, cmd, run_id
 
