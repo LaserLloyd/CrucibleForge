@@ -120,6 +120,16 @@ providers:
     rename_params:
       max_tokens: max_completion_tokens
     drop_params: [top_p, temperature]
+  # anthropic:                     # Claude via the NATIVE Messages API with prompt caching
+  #   type: anthropic               # (crucibleforge/anthropic_native.py; x-api-key auth)
+  #   base_url: https://api.anthropic.com/v1
+  #   api_key_env: ANTHROPIC_API_KEY
+  #   concurrency: 4
+  #   headers:
+  #     anthropic-version: '2023-06-01'
+  # A Claude model row may price the cache: price: {input, output, cache_write, cache_read}
+  # (defaults: write 1.25x input, read 0.1x input). Spend cap: CF_SPEND_CAP_USD;
+  # per-call journal: CF_SPEND_JOURNAL (crucibleforge/spend.py).
   xai:                            # Grok (xAI's OpenAI-compatible API)
     type: openai
     base_url: https://api.x.ai/v1
