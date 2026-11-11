@@ -912,7 +912,8 @@ def _protocol_mix_note(rows: list[dict], meta: dict, cfg: dict | None) -> str | 
     request protocol: the rows cannot be compared with each other, so the
     model has to be re-run under the current one.
     """
-    protos = [r.get("protocol") for r in rows if r.get("protocol")]
+    from .conformance import comparable_protocol
+    protos = [comparable_protocol(r.get("protocol")) for r in rows if r.get("protocol")]
     uniq = {json.dumps(p, sort_keys=True) for p in protos}
     if len(uniq) < 2:
         return None

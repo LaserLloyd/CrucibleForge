@@ -756,7 +756,25 @@ def record_is_current(rec: dict | None, protocol: dict) -> bool:
         return False
     if (rec.get("verdict") or "") == SKIP:
         return False
-    return (rec.get("protocol") or {}) == protocol
+    return comparable_protocol(rec.get("protocol") or {}) == comparable_protocol(protocol)
+
+
+#: provider types whose rows compare with another type's (2026-11-11): the
+#: native Anthropic Messages path (anthropic_native.py) is built for parity
+#: with Anthropic's OpenAI-compatible layer -- same prompts, tools, budgets,
+#: no sampler, no thinking replay -- and differs only in billing (prompt
+#: caching). A Claude model moved from one to the other keeps its rows and
+#: its conformance record. Remove the entry to treat them as different.
+PARITY_PROVIDER_TYPES = {"anthropic": "openai"}
+
+
+def comparable_protocol(protocol: dict | None) -> dict:
+    """``protocol`` with parity-equivalent provider types folded together."""
+    p = dict(protocol or {})
+    t = p.get("provider_type")
+    if t in PARITY_PROVIDER_TYPES:
+        p["provider_type"] = PARITY_PROVIDER_TYPES[t]
+    return p
 
 
 #: a FAIL check whose detail matches this failed because the call never got a
