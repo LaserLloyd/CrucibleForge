@@ -56,6 +56,25 @@ def boot_mode():
         _BOOT.reset(tok)
 
 
+# One board build (generate): read-only per-build caches. The cfg object is
+# held next to its id so a reused id can never alias another cfg.
+_SCOPE: contextvars.ContextVar = contextvars.ContextVar("crucibleforge_report_scope", default=None)
+
+
+@contextlib.contextmanager
+def report_scope():
+    if _SCOPE.get() is not None:
+        yield
+        return
+    from . import version as _version
+    tok = _SCOPE.set({"profile": {}})
+    try:
+        with _version.pinned_case_files():
+            yield
+    finally:
+        _SCOPE.reset(tok)
+
+
 def boot_set_mult(mult: dict[str, int]) -> None:
     b = _BOOT.get()
     if b is not None:
@@ -869,8 +888,7 @@ def _expected_case_count(cfg: dict | None, profile: str | None) -> int | None:
     """How many distinct cases a complete run of the benchmark contains — the
     denominator for coverage."""
     try:
-        from .profiles import DEFAULT_PROFILE, apply_profile, load_profile
-        _, cases = apply_profile(load_profile(profile or DEFAULT_PROFILE, cfg), cfg or {})
+        _, _, cases = _profile_applied(cfg, profile)
     except Exception:
         return None
     hidden = _hidden(cfg)
@@ -1184,10 +1202,32 @@ def _bank_profile(cfg: dict | None):
 
 def _bank_profile_load(cfg: dict | None):
     try:
-        from .profiles import DEFAULT_PROFILE, apply_profile, load_profile
-        return apply_profile(load_profile(DEFAULT_PROFILE, cfg), cfg or {})
+        _, cfg_p, cases = _profile_applied(cfg)
+        return cfg_p, cases
     except Exception:  # noqa: BLE001
         return None, None
+
+
+def _profile_applied(cfg: dict | None, name: str | None = None) -> tuple[dict, dict, list[dict]]:
+    """(profile, applied cfg, cases) of ``name`` (default: the benchmark
+    profile). Inside one board build (:func:`report_scope`) it is read once per
+    cfg and SHARED: callers only read it, as the bootstrap always did with its
+    own copy (report profile 2026-11-12: ~1800 profile + case loads per full
+    board). A failure is raised every time, never cached."""
+    from .profiles import DEFAULT_PROFILE, apply_profile, load_profile
+    name = name or DEFAULT_PROFILE
+    sc = _SCOPE.get()
+    key = (name, id(cfg))
+    if sc is not None:
+        hit = sc["profile"].get(key)
+        if hit is not None and hit[0] is cfg:
+            return hit[1]
+    prof = load_profile(name, cfg)
+    cfg_p, cases = apply_profile(prof, cfg or {})
+    res = (prof, cfg_p, cases)
+    if sc is not None:
+        sc["profile"][key] = (cfg, res)
+    return res
 
 
 def bank_anchors(cfg: dict | None) -> set[str]:
@@ -2477,12 +2517,83 @@ def model_boots(labels: list[str], inputs: dict, cfg: dict | None,
     allowed = _profile_case_ids(cfg, with_tiers=True)
     st = _h.strata(prof, sc, allowed)
     mults = _h.draws(st, hs["resamples"], hs["seed"])
-    out = {}
+    jobs = []
     for l in labels:
         rows, meta, era = inputs[l]
-        out[l] = _h.boot_model(tier_rows(prof, rows, era), l, cfg, meta, era, prof, sc, st,
-                               mults, two_level=hs["two_level"])
-    return out
+        jobs.append(((tier_rows(prof, rows, era), l, cfg, meta, era, prof, sc, st, mults),
+                     {"two_level": hs["two_level"]}))
+    results = _parallel_boots(jobs)
+    return dict(zip(labels, results))
+
+
+# ------------------------------------------------- multi-core bootstrap
+# The headline bootstrap is ~1000 model_stats calls per model and was one
+# core at 100% for minutes on a full board (2026-11-12). Each model's samples
+# depend only on that model's rows and the SHARED draws, so models are spread
+# over a few forked worker processes and merged back in label order: the
+# result is identical to the serial loop. Workers inherit the parent's state
+# by fork (results dir, private layer, loaded cases) and return only the
+# small samples dict. CRUCIBLEFORGE_REPORT_WORKERS=1 forces the serial path.
+_BOOT_JOBS: list | None = None
+#: a worker that has not answered after this long is given up on and the
+#: remaining models run serially (a fork can inherit a lock held by another
+#: thread; a hung report is worse than a slow one)
+BOOT_WORKER_TIMEOUT_S = 1800
+
+
+def report_workers(n_jobs: int) -> int:
+    """Worker processes for ``n_jobs`` models: $CRUCIBLEFORGE_REPORT_WORKERS,
+    else min(4, cpu_count // 2) — a few cores, not the whole box."""
+    import os
+    env = os.environ.get("CRUCIBLEFORGE_REPORT_WORKERS", "").strip()
+    try:
+        w = int(env) if env else min(4, (os.cpu_count() or 2) // 2)
+    except ValueError:
+        w = 1
+    return max(1, min(w, n_jobs))
+
+
+def _boot_job(i: int) -> dict:
+    from . import headline as _h
+    a, kw = _BOOT_JOBS[i]
+    return _h.boot_model(*a, **kw)
+
+
+def _parallel_boots(jobs: list) -> list[dict]:
+    """boot_model over every job, in job order (parallel when it pays)."""
+    global _BOOT_JOBS
+    from . import headline as _h
+    workers = report_workers(len(jobs))
+    import multiprocessing as _mp
+    if workers > 1 and _BOOT.get() is None and "fork" in _mp.get_all_start_methods():
+        import concurrent.futures as _cf
+        import warnings
+        _BOOT_JOBS = jobs
+        out: list = [None] * len(jobs)
+        try:
+            with warnings.catch_warnings():
+                # 3.12+ warns on fork with other threads alive; the workers
+                # only compute (no leases, no I/O but reads) — see above
+                warnings.simplefilter("ignore", DeprecationWarning)
+                ex = _cf.ProcessPoolExecutor(max_workers=workers, mp_context=_mp.get_context("fork"))
+            try:
+                futs = [ex.submit(_boot_job, i) for i in range(len(jobs))]
+                for i, f in enumerate(futs):
+                    out[i] = f.result(timeout=BOOT_WORKER_TIMEOUT_S)
+            except BaseException:
+                ex.shutdown(wait=False, cancel_futures=True)
+                for p in list((getattr(ex, "_processes", None) or {}).values()):
+                    p.kill()     # a hung or interrupted worker must not outlive the report
+                raise
+            ex.shutdown(wait=True)
+            return out
+        except Exception as e:  # noqa: BLE001 — never lose the board to the pool
+            log.warning("report: parallel bootstrap failed (%s) — finishing serially", e)
+            return [o if o is not None else _h.boot_model(*a, **kw)
+                    for o, (a, kw) in zip(out, jobs)]
+        finally:
+            _BOOT_JOBS = None
+    return [_h.boot_model(*a, **kw) for a, kw in jobs]
 
 
 def _provisional(s: dict) -> bool:
@@ -3800,8 +3911,7 @@ def _profile_case_repeats(cfg: dict | None) -> dict[str, int]:
     when it cannot be read)."""
     try:
         from .config import repeats_for
-        from .profiles import DEFAULT_PROFILE, apply_profile, load_profile
-        cfg_p, cases = apply_profile(load_profile(DEFAULT_PROFILE, cfg), cfg or {})
+        _, cfg_p, cases = _profile_applied(cfg)
         return {c["id"]: repeats_for(cfg_p, c["category"], case=c) for c in cases}
     except Exception:  # noqa: BLE001 — the profile-id filter already logs this
         return {}
@@ -3826,9 +3936,8 @@ def room_stats(label: str, cfg: dict | None, board_rows: list[dict], meta: dict,
     the rig cannot serve (runner.blocked_rungs) is left out of ``pending``."""
     from .judge import needs_verdict
     from .runner import escalation_jobs, escalation_rungs, escalation_todo
-    from .profiles import DEFAULT_PROFILE, apply_profile, load_profile
     try:
-        cfg_p, _ = apply_profile(load_profile(DEFAULT_PROFILE, cfg), cfg or {})
+        _, cfg_p, _ = _profile_applied(cfg)
     except Exception:  # noqa: BLE001 — no profile readable: no escalation known
         cfg_p = cfg or {}
     rungs = escalation_rungs(cfg_p)
@@ -3935,9 +4044,7 @@ def _profile_case_ids(cfg: dict | None, with_tiers: bool = False) -> set[str] | 
     rows entered the pass rates and inflated coverage past the profile (51/49
     read as "full" and would have hidden two genuinely missing cases)."""
     try:
-        from .profiles import DEFAULT_PROFILE, apply_profile, load_profile
-        prof = load_profile(DEFAULT_PROFILE, cfg)
-        _, cases = apply_profile(prof, cfg or {})
+        prof, _, cases = _profile_applied(cfg)
         if with_tiers:
             # suite 3.9: tier-2/3 rows are on the board too (tiers.py); a
             # model's run is COMPLETE on its tier-1 cases alone
@@ -4400,6 +4507,13 @@ def _completeness(labels: list[str], cfg: dict | None) -> dict | None:
 
 def generate(labels_arg: str | None = None, write: bool = True,
              public: bool = False, out_dir=None, cfg: dict | None = None) -> str:
+    """Render the board (see :func:`_generate`) inside one :func:`report_scope`."""
+    with report_scope():
+        return _generate(labels_arg, write, public, out_dir, cfg)
+
+
+def _generate(labels_arg: str | None = None, write: bool = True,
+              public: bool = False, out_dir=None, cfg: dict | None = None) -> str:
     """Render the board for ``labels_arg`` (or every model in results/).
 
     ``write=True`` (the CLI default) (re)writes report.md, failures.md,

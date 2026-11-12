@@ -22,6 +22,8 @@ block are unchanged.
 """
 from __future__ import annotations
 
+import contextlib
+import contextvars
 import hashlib
 import json
 from pathlib import Path
@@ -192,7 +194,40 @@ def _hash_case_file(h, p: Path) -> None:
     h.update(json.dumps(data, sort_keys=True, ensure_ascii=False).encode())
 
 
+# One board build (report.report_scope) reads the case-set revision tens of
+# thousands of times; it re-globbed, re-stat'ed (and for cases_hash re-parsed
+# and re-serialised) every case and ladder file each time — ~60 s of a full
+# board (report profile 2026-11-12). Inside ``pinned_case_files()`` the files
+# are read once and taken as unchanged until the block ends.
+_PIN: contextvars.ContextVar = contextvars.ContextVar("crucibleforge_case_files_pin", default=None)
+
+
+@contextlib.contextmanager
+def pinned_case_files():
+    if _PIN.get() is not None:
+        yield
+        return
+    tok = _PIN.set({})
+    try:
+        yield
+    finally:
+        _PIN.reset(tok)
+
+
+def _pinned(name: str, fn):
+    pin = _PIN.get()
+    if pin is None:
+        return fn()
+    if name not in pin:
+        pin[name] = fn()
+    return pin[name]
+
+
 def cases_hash() -> str:
+    return _pinned("cases_hash", _cases_hash)
+
+
+def _cases_hash() -> str:
     """Stable short hash over the PUBLIC case files' TEST CONTENT (prompts,
     turns, budgets, rubrics, answer keys) — grading-only keys excluded.
 
@@ -325,6 +360,10 @@ _CASE_TABLE: dict = {}
 
 
 def _files_key() -> tuple:
+    return _pinned("files_key", _files_key_now)
+
+
+def _files_key_now() -> tuple:
     from . import ladder
     files = sorted(_CASES_DIR.glob("*.json")) + [f for _k, _n, f in ladder._set_files()]
     key = []

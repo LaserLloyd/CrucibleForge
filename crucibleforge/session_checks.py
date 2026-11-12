@@ -33,7 +33,20 @@ turns is skipped rather than failed a second time.
 """
 from __future__ import annotations
 
+import copy
+import functools
+import hashlib
+import json
 import re
+
+
+@functools.lru_cache(maxsize=None)
+def _rx(pattern: str, flags: int = 0) -> re.Pattern:
+    """``re.compile`` memoised per (pattern, flags) for the life of the
+    process. The ``re`` module's own cache holds 512 patterns; a full board
+    reads several thousand distinct case patterns and thrashed it (report
+    profile 2026-11-12)."""
+    return re.compile(pattern, flags)
 
 # ------------------------------------------------------------------ scopes
 # straight and curly double quotes; single quotes are left alone (apostrophes)
@@ -58,18 +71,25 @@ def normalize_quotes(text: str) -> str:
     return (text or "").translate(_APOS)
 
 
+# The scope functions are pure functions of the text; each check of a case
+# re-reads the same turns through them, so they are memoised (bounded: the
+# texts are a few KB, the cache only holds the recent working set).
+@functools.lru_cache(maxsize=4096)
 def ooc_segment(text: str) -> str:
     return "\n".join(m.group(0) for m in _OOC_RE.finditer(text))
 
 
+@functools.lru_cache(maxsize=4096)
 def in_character(text: str) -> str:
     return _OOC_RE.sub(" ", text)
 
 
+@functools.lru_cache(maxsize=4096)
 def narration(text: str) -> str:
     return _QUOTE_RE.sub(" ", in_character(text))
 
 
+@functools.lru_cache(maxsize=4096)
 def dialogue(text: str) -> str:
     return "\n".join(m.group(0) for m in _QUOTE_RE.finditer(in_character(text)))
 
@@ -85,6 +105,11 @@ def _section(text: str, name: str | None) -> str:
     heading check itself is a separate require_regex."""
     if not name:
         return text
+    return _section_cached(text, name)
+
+
+@functools.lru_cache(maxsize=4096)
+def _section_cached(text: str, name: str) -> str:
     m = re.search(rf"^\s*#{{1,4}}\s*{re.escape(name)}\b[^\n]*\n(.*?)(?=^\s*#{{1,4}}\s|\Z)",
                   text, re.I | re.M | re.S)
     return m.group(1) if m else ""
@@ -96,8 +121,8 @@ def speaker_lines(text: str, name: str) -> str:
     ``Name:`` (any case of the tag's asterisks); the text after the tag, with
     surrounding quote marks removed. Several characters in one scene become
     gradeable per speaker."""
-    pat = re.compile(rf"^[ \t]*(?:\*\*|__)?{re.escape(name)}(?:\*\*|__)?[ \t]*:[ \t]*(?:\*\*|__)?[ \t]*(.+)$",
-                     re.M)
+    pat = _rx(rf"^[ \t]*(?:\*\*|__)?{re.escape(name)}(?:\*\*|__)?[ \t]*:[ \t]*(?:\*\*|__)?[ \t]*(.+)$",
+              re.M)
     return "\n".join(m.group(1).strip().strip('"“”').strip() for m in pat.finditer(in_character(text)))
 
 
@@ -112,7 +137,12 @@ def _scope_fn(scope: str):
 
 
 def _body(t: str, chk: dict, default_scope: str = "narration") -> str:
-    return _scope_fn(chk.get("scope", default_scope))(_section(t, chk.get("section")))
+    return _body_cached(t, chk.get("scope", default_scope), chk.get("section"))
+
+
+@functools.lru_cache(maxsize=4096)
+def _body_cached(t: str, scope: str, section: str | None) -> str:
+    return _scope_fn(scope)(_section(t, section))
 
 
 # a forbidden match preceded (within ~25 chars, same sentence) by a negation
@@ -263,6 +293,11 @@ def _puppet_patterns(names: list[str], second_person: bool) -> list[re.Pattern]:
     return pats
 
 
+@functools.lru_cache(maxsize=1024)
+def _puppet_patterns_cached(names: tuple[str, ...], second_person: bool) -> list[re.Pattern]:
+    return _puppet_patterns(list(names), second_person)
+
+
 # "When Theo asked about the morning, she answered..." recaps what the USER
 # just wrote (the user's own turn asked it); it does not write a new line for
 # the user character (RD4 P1, deepseek-pro t12, 2026-10-31). Only speech verbs
@@ -282,7 +317,7 @@ def check_no_puppeting(turn_texts, chk):
     max_hits: tolerated hits across the checked turns (default 0). A speech
     verb in a subordinate recap of the user's own turn ("When Theo asked
     about the morning, ...") is not a hit."""
-    pats = _puppet_patterns(chk["names"], chk.get("second_person", False))
+    pats = _puppet_patterns_cached(tuple(chk["names"]), bool(chk.get("second_person", False)))
     hits = []
     for idx, t in turn_texts:
         body = _body(t, chk)
@@ -316,7 +351,7 @@ def check_forbid_regex(turn_texts, chk):
     ``figurative_guard``: a stock figure of speech is skipped;
     ``hearsay_guard``: a match reported as what others say or think ("you're
     not the first to think the warden's going blind") is skipped."""
-    p = re.compile(chk["pattern"], re.I | re.M)
+    p = _rx(chk["pattern"], re.I | re.M)
     lim = int(chk.get("max_hits_per_turn", 0))
     bad = []
     for idx, t in turn_texts:
@@ -337,7 +372,7 @@ def check_require_regex(turn_texts, chk):
     ``max_miss`` (per_turn only, default 0): that many checked turns may fall
     short — for a card habit that turns up in "nearly every reply" (NC1's
     "sailor"), not every one."""
-    p = re.compile(chk["pattern"], re.I | re.M)
+    p = _rx(chk["pattern"], re.I | re.M)
     need = int(chk.get("min_hits", 1))
     if chk.get("per_turn", True):
         short = [f"t{idx}:{len(p.findall(_body(t, chk)))}"
@@ -356,7 +391,7 @@ def check_line_count(turn_texts, chk):
     messages, at most one *action* line, end with 🎻" counted a lone 🎻 or the
     action line as a fifth message (2026-10-31)."""
     lo, hi = int(chk.get("min", 1)), int(chk.get("max", 10 ** 9))
-    ign = re.compile(chk["ignore"], re.I) if chk.get("ignore") else None
+    ign = _rx(chk["ignore"], re.I) if chk.get("ignore") else None
     bad = []
     for idx, t in turn_texts:
         lines = [ln for ln in _body(t, chk, "all").splitlines() if ln.strip()]
@@ -496,7 +531,7 @@ def check_distinct_regex(turn_texts, chk):
     collapsed) must all differ across the turns — e.g. "never recommend the
     same exhibit twice". A turn with no match is skipped here (a separate
     require_regex owns the format)."""
-    p = re.compile(chk["pattern"], re.I | re.M)
+    p = _rx(chk["pattern"], re.I | re.M)
     seen: dict[str, int] = {}
     dup = []
     for idx, t in turn_texts:
@@ -522,7 +557,7 @@ def check_require_spread(turn_texts, chk):
     text into ``parts`` equal slices BY WORDS and pass iff at least
     ``min_parts`` slices contain a ``pattern`` match (a match cut by a slice
     boundary is not counted — the slices are long, the cost is negligible)."""
-    p = re.compile(chk["pattern"], re.I | re.M)
+    p = _rx(chk["pattern"], re.I | re.M)
     n, need = int(chk["parts"]), int(chk["min_parts"])
     words = _scoped_all(turn_texts, chk).split()
     size = len(words) / n if n else 0
@@ -538,7 +573,7 @@ def check_require_spread(turn_texts, chk):
 def check_distinct_terms(turn_texts, chk):
     """Vocabulary variety: the number of DISTINCT matched strings (case-folded,
     whitespace collapsed) of ``pattern`` must be at least ``min_distinct``."""
-    p = re.compile(chk["pattern"], re.I | re.M)
+    p = _rx(chk["pattern"], re.I | re.M)
     need = int(chk["min_distinct"])
     body = _scoped_all(turn_texts, chk)
     terms = {" ".join(m.group(0).split()).casefold() for m in p.finditer(body)}
@@ -843,11 +878,58 @@ _REQUIRE_TYPES = {"require_regex", "require_all", "require_spread", "distinct_te
                   "ooc_reply", "ooc_field", "line_count"}
 
 
+# ------------------------------------------------------------------ memo
+# run_checks is a pure function of (the case's ``checks`` list, the replies).
+# The board re-runs it on every stored row several times per report (board
+# filter, rpdeep scoring, the headline bootstrap) — 20+ minutes of one core on
+# a full board (2026-11-12). Results are memoised for the life of the process,
+# keyed by the canonical JSON of the check list plus a digest of the replies
+# (the texts themselves are not retained). Every hit returns a deep copy, so a
+# caller that edits its result never changes another caller's.
+_MEMO: dict[tuple[str, str], dict | None] = {}
+_MEMO_MAX = 200_000
+MEMO_ENABLED = True
+
+
+def clear_memo() -> None:
+    """Drop the run_checks memo and the scope/pattern caches."""
+    _MEMO.clear()
+    for f in (_rx, ooc_segment, in_character, narration, dialogue, _section_cached,
+              _body_cached, _puppet_patterns_cached):
+        f.cache_clear()
+
+
+def _memo_key(specs, replies) -> tuple[str, str] | None:
+    try:
+        spec_key = json.dumps(specs, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+    except (TypeError, ValueError):
+        return None  # a spec that is not plain JSON: never memoised
+    h = hashlib.blake2b(digest_size=20)
+    for r in replies:
+        b = (r if isinstance(r, str) else str(r)).encode("utf-8", "surrogatepass")
+        h.update(len(b).to_bytes(8, "little"))
+        h.update(b)
+    return spec_key, h.hexdigest() + f":{len(replies)}"
+
+
 def run_checks(case: dict, replies: list[str]) -> dict | None:
     """replies = assistant contents in turn order (single-turn: [response])."""
     specs = case.get("checks")
     if not specs:
         return None
+    if not MEMO_ENABLED or any(not isinstance(r, str) for r in replies):
+        return _run_checks(specs, replies)
+    key = _memo_key(specs, replies)
+    if key is None:
+        return _run_checks(specs, replies)
+    if key not in _MEMO:
+        if len(_MEMO) >= _MEMO_MAX:
+            _MEMO.clear()
+        _MEMO[key] = _run_checks(specs, replies)
+    return copy.deepcopy(_MEMO[key])
+
+
+def _run_checks(specs: list, replies: list[str]) -> dict:
     results = []
     groups: dict[str, list[int]] = {}
 

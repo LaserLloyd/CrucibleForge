@@ -98,15 +98,32 @@ def _merge_overlay(prof: dict, over: dict, name: str) -> dict:
     return out
 
 
+# Parsed profile YAML, per (path, mtime_ns, size): the board re-loads the
+# benchmark profile several hundred times per report and the pure-Python YAML
+# parser was a third of its time (report profile 2026-11-12). A changed file
+# has a new stat key and is parsed again; every caller gets its own deep copy.
+_YAML_CACHE: dict[tuple[str, int, int], object] = {}
+
+
+def _yaml_file(p: Path):
+    st = p.stat()
+    key = (str(p), st.st_mtime_ns, st.st_size)
+    if key not in _YAML_CACHE:
+        if len(_YAML_CACHE) > 256:
+            _YAML_CACHE.clear()
+        _YAML_CACHE[key] = yaml.safe_load(p.read_text(encoding="utf-8"))
+    return copy.deepcopy(_YAML_CACHE[key])
+
+
 def load_profile(name: str, cfg: dict | None = None) -> dict:
     for d in _dirs(cfg):
         p = d / f"{name}.yaml"
         if p.exists():
-            prof = yaml.safe_load(p.read_text(encoding="utf-8")) or {}
+            prof = _yaml_file(p) or {}
             prof.setdefault("name", name)
             over_p = p.with_name(f"{name}.private.yaml")
             if _config.PRIVATE_ENABLED and over_p.exists():
-                over = yaml.safe_load(over_p.read_text(encoding="utf-8")) or {}
+                over = _yaml_file(over_p) or {}
                 prof = _merge_overlay(prof, over, name)
                 prof["_overlay"] = str(over_p)
             prof["_path"] = str(p)
