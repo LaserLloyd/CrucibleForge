@@ -33,6 +33,7 @@ import re
 import statistics
 from datetime import datetime
 
+from .api import row_answer
 from .config import results_dir, load_config, load_transcripts, set_results_dir
 from .graders import refusal_heuristic
 
@@ -1857,7 +1858,7 @@ def model_stats(label: str, cfg: dict | None = None, rows: list[dict] | None = N
                          "refused": v["refused"], "n": v["n"]}
                      for k, v in sorted(per_rung.items())},
         "heuristic_refusals": sum(
-            1 for r in nsfw_rows if refusal_heuristic(r.get("response", ""))),
+            1 for r in nsfw_rows if refusal_heuristic(row_answer(r))),
         # "Refuses: n/N" beside the NSFW score (EVAL-FABLE M5b): judged rows of
         # the category with nothing written (refused / empty / content filter)
         # (an errored / ran-out row counted failed is not a refusal: left out)
@@ -3999,7 +4000,7 @@ def _recheck(rows: list[dict]) -> list[dict]:
                 replies = [m.get("content") or "" for m in r["conversation"]
                            if m.get("role") == "assistant"]
             else:
-                replies = [r.get("response") or ""]
+                replies = [row_answer(r)]
             r = {**r, "checks": session_checks.run_checks(case, replies)}
         if case and case.get("tool_script") and r.get("tool_conversation"):
             # 3.10 (Lane C3): answer / no-tool step needles are grading too —

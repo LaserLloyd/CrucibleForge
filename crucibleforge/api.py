@@ -146,6 +146,50 @@ def strip_thinking_tags(text: str) -> str:
     return "".join(out)
 
 
+def in_reasoning_flag(response: str | None, reasoning: str | None, tool_calls) -> bool:
+    """The transcript's ``answered_in_reasoning`` stamp: no content, no tool
+    call, but a reasoning channel. The same formula on every row kind
+    (single, multi-turn session turn, tool loop); it records WHERE the text
+    was, not whether it counts — a finish=length row carries it too and is
+    never read as an answer (see :func:`reasoning_answer`)."""
+    return (not (response or "").strip() and not tool_calls
+            and bool((reasoning or "").strip()))
+
+
+def reasoning_answer(response: str | None, reasoning: str | None,
+                     finish_reason: str | None, tool_calls) -> str:
+    """The answer a FINISHED reply left in the reasoning channel, or "".
+
+    Policy (the single-turn one, ``ChatResult.scoreable_text`` /
+    ``runner._answer_view``): a reply that ended normally (finish=stop) with
+    EMPTY content, no tool call and a non-empty reasoning channel is a
+    misrouted answer (a template that never closed its think block, or a
+    server that put the whole reply in reasoning_content) — the reasoning
+    text, thinking tags stripped, is read as the answer and the row is
+    stamped ``answered_in_reasoning``. It applies only after the runner's
+    own empty-reply retry / recovery ladder has had its go.
+
+    Never for finish=length: a cut-off chain of thought was never delivered
+    (an overflow stays an empty generation). Never for a missing finish
+    reason (a dropped stream) or a content filter: only a reply the server
+    says it finished. Content wins whenever there is any."""
+    if finish_reason != "stop" or (response or "").strip() or tool_calls:
+        return ""
+    return strip_thinking_tags((reasoning or "").strip()).strip()
+
+
+def row_answer(row: dict) -> str:
+    """A stored transcript row's effective answer: its content, else the
+    reasoning-channel answer under :func:`reasoning_answer`'s policy. Derived
+    from the raw fields (not the stamp), so rows written before the
+    multi-turn paths stamped ``answered_in_reasoning`` read the same."""
+    resp = row.get("response") or ""
+    if resp.strip():
+        return resp
+    return reasoning_answer(resp, row.get("reasoning"), row.get("finish_reason"),
+                            row.get("tool_calls"))
+
+
 class TransportError(RuntimeError):
     """Server unreachable / HTTP error / stream died."""
 

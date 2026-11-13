@@ -2141,6 +2141,59 @@ def cmd_reverify_quotes(args, cfg) -> int:
     return 0
 
 
+def cmd_rejudge_reasoning(args, cfg) -> int:
+    """List (default) or repair the judged rows whose answer sat in the
+    reasoning channel of a FINISHED reply (finish=stop, empty content, no
+    tool call) and were judged as empty — see :mod:`reasoning_repair`. No
+    generation and no judge call: ``--apply`` appends repaired, PENDING rows
+    and prints the ``judge`` command that re-judges exactly those cases."""
+    from . import reasoning_repair as rr
+    from .config import load_cases
+    labels = (rr.labels_all() if args.models in (None, "", "all")
+              else _parse_list(args.models))
+    cases_by_id = {c["id"]: c for c in load_cases()}
+    if args.apply:
+        # never append beside a benchmark that is still writing the file
+        try:
+            import fcntl
+            path = _rig_lock_path()
+            if path.exists():
+                with open(path, "a+", encoding="utf-8") as f:
+                    try:
+                        fcntl.flock(f.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+                        fcntl.flock(f.fileno(), fcntl.LOCK_UN)
+                    except BlockingIOError:
+                        print(f"a benchmark holds {path} — run --apply after it ends",
+                              file=sys.stderr)
+                        return 4
+        except ImportError:
+            pass
+    rep = rr.run(labels, apply=bool(args.apply), cases_by_id=cases_by_id)
+    if getattr(args, "json", False):
+        print(json.dumps(rep, indent=2))
+        return 0
+    total = 0
+    for label, got in rep.items():
+        items = got["rows"]
+        for sk in got["skipped"]:
+            print(f"{label}: skip {sk['case_id']} repeat={sk['repeat']} turns {sk['turns']}: "
+                  f"{sk['why']}")
+        if not items:
+            continue
+        total += len(items)
+        print(f"{label}: {len(items)} judged row(s) answered in the reasoning channel")
+        for it in items:
+            turns = f" turns {it['turns']}" if it["turns"] else ""
+            print(f"  {it['case_id']} repeat={it['repeat']} run={it['bench_run_id']} "
+                  f"[{it['kind']}{turns}] stored verdict: {it['verdict']}")
+        ids = sorted({it["case_id"] for it in items})
+        print(f"  re-judge: crucibleforge judge --models {label} --cases {','.join(ids)}")
+    print(f"total: {total} row(s)")
+    if not args.apply:
+        print("nothing was written (dry run; --apply appends the repaired rows as pending)")
+    return 0
+
+
 def cmd_conform(args, cfg):
     """Prove the harness's request protocol works for the selected models.
 
@@ -2848,6 +2901,17 @@ def main(argv=None):
                                 "(no judge call, writes nothing)")
     p_rq.add_argument("--json", action="store_true", help="print the report as JSON")
 
+    p_rr = sub.add_parser(
+        "rejudge-reasoning",
+        help="list (or with --apply, make pending) judged rows whose finished answer "
+             "sat in the reasoning channel and was judged empty; no generation")
+    p_rr.add_argument("--models", default="all",
+                      help="comma-separated transcript labels (default: every transcript)")
+    p_rr.add_argument("--apply", action="store_true",
+                      help="append the repaired rows (verdict moved aside, so they are "
+                           "pending for `judge`); refused while a benchmark holds the rig lock")
+    p_rr.add_argument("--json", action="store_true", help="print the report as JSON")
+
     p_conf = sub.add_parser(
         "conform", help="check that the harness's request protocol works for "
                         "a model (served / reasoning / chain / tools / sampler "
@@ -2936,7 +3000,8 @@ def main(argv=None):
                "pack": cmd_pack, "pairwise": cmd_pairwise, "all": cmd_all,
                "gui": cmd_gui, "import-openclaw": cmd_import_openclaw,
                "models": cmd_models, "cases": cmd_cases, "bench-all": cmd_bench_all,
-               "conform": cmd_conform, "reverify-quotes": cmd_reverify_quotes}[args.cmd]
+               "conform": cmd_conform, "reverify-quotes": cmd_reverify_quotes,
+               "rejudge-reasoning": cmd_rejudge_reasoning}[args.cmd]
     # WP-BENCH FIX-6: `run`/`all` are the two commands that do real benched
     # work end to end, so they are the ones tracked by the fleet-wide
     # runs/<id>/{report.md,meta.json} contract. This wraps the dispatch

@@ -27,6 +27,8 @@ from __future__ import annotations
 
 import re
 
+from .api import row_answer
+
 _LIST_LINE = re.compile(r"^\s*(?:[-*•]|\d{1,2}[.)])\s+\S", re.M)
 _HEADING = re.compile(r"^\s*#{1,6}\s", re.M)
 # "As <Name>," / "Facts:" / "Summary:" / "Note:" framing counts only at the TOP
@@ -248,7 +250,7 @@ def score_row(row: dict, case: dict, turn_rows: list[dict] | None = None) -> dic
                               if t.get("context_overflow_possible") or t.get("context_overflow")],
         "overflow_actual": [t.get("turn") for t in turn_rows if t.get("context_overflow_actual")],
         "truncated": [t.get("turn") for t in turn_rows if t.get("finish_reason") == "length"],
-        "empty_turns": [t.get("turn") for t in turn_rows if not (t.get("response") or "").strip()],
+        "empty_turns": [t.get("turn") for t in turn_rows if not row_answer(t).strip()],
         "ooc_turns": {t: r for t, r in ooc.items() if r},
         "turns_over_350_words": sum(1 for n in words.values() if n > 350),
         "prompt_tokens_last": max([(t.get("metrics") or {}).get("prompt_tokens") or 0

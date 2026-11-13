@@ -6,6 +6,28 @@ was ever published as Gauntlet, so there is no migration to do — the entries
 below are kept because the engineering they record is real, not to narrate a
 rename.
 
+## Unreleased
+
+- **A finished answer left in the reasoning channel is read the same way on every path.** Some
+  models end a reply with finish=stop, an empty content channel, no tool call and the whole answer
+  in `reasoning` (Nanbeige4.3-33B on 27 of 122 rows, deepseek-r1-0528-8b ~12%, Dark-Scarlett
+  v2/v3 ~6%). The single-turn objective graders already read that text (`scoreable_text`) and
+  stamped `answered_in_reasoning`; the multi-turn runner, the tool loop's prose steps, the judge
+  (single-turn and session rows), the report's check re-run, pairwise and rpdeep's empty-turn
+  count read only `response`, so a session such as RD1-marisol was judged on twelve empty replies.
+  One policy now (`api.reasoning_answer` / `api.row_answer`, `runner.reply_of`): after the
+  runner's own empty-reply retry or recovery ladder, a FINISHED reply's reasoning text (thinking
+  tags stripped) is the answer and the row is stamped `answered_in_reasoning`; it is what the
+  next session turn is sent as the assistant's reply (not replayed a second time as
+  `reasoning_content`), what the judged conversation shows and what the checks read. Never for
+  finish=length (an overflow is not an answer), a missing finish reason or a content filter.
+- **`crucibleforge rejudge-reasoning [--models L] [--apply]`** lists the judged rows of existing
+  transcripts that this policy changes, without generating or judging; `--apply` (refused while a
+  benchmark holds the rig lock) appends repaired rows — session conversations rebuilt from each
+  turn's reasoning answer, the old verdict kept as `judge_before_reasoning_repair` — so they are
+  pending, and prints the `crucibleforge judge --models L --cases …` command that re-judges them.
+  Sessions whose judged final turn is still an overflow are skipped (the verdict cannot change).
+
 ## 4.1.0 — the answer-key review (2026-11-08)
 
 Suite 4.1: every bench-profile answer key and every public ladder pack was reviewed by two

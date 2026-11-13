@@ -100,6 +100,7 @@ leak, 4 the server is busy, 5 the server is unreachable.
 | `calibrate [--reference <label>]` | Flag sub-scores the reference model aces (too easy) and sub-scores a model maxed (needs a new pack). Reads the board only. |
 | `pack list [--json] [--no-board] [--recompute]` | Every pack per part, its questions, planner time estimate, and the models that maxed the part. |
 | `reverify-quotes [--json]` | Read-only: which stored judge verdicts the current quote verifier would flip to PASS. |
+| `rejudge-reasoning [--models L] [--apply] [--json]` | Lists judged rows whose finished answer sat in the reasoning channel (finish=stop, empty content) and was judged empty. Read-only by default; `--apply` appends repaired, pending rows (refused while a benchmark holds the rig lock), then run the printed `judge --models L --cases …`. No generation. |
 
 ## Work on the cases
 

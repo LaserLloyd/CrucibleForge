@@ -28,7 +28,7 @@ from . import stopflag
 from .api import (Aborted, GenerationRejected, RequestRejected, RowTimeout, StreamStalled,
                   TransportError, WindowClosed, WrongModelError)
 from .config import load_transcripts, append_transcript
-from .api import strip_thinking_tags
+from .api import row_answer, strip_thinking_tags
 from .graders import refusal_heuristic
 from .providers import Provider, get_provider, merge_extra_body, model_extra_body
 
@@ -1633,7 +1633,7 @@ def assistant_text(row: dict) -> str:
     if row.get("conversation"):
         return "\n\n".join(m.get("content") or "" for m in row["conversation"]
                              if m.get("role") == "assistant")
-    return row.get("response") or ""
+    return row_answer(row)
 
 
 def _aggregate_elements(verdicts: list[dict], elements: list[dict], text: str) -> dict:
@@ -1730,7 +1730,7 @@ def _fold_steer_checks(row: dict, scores: dict) -> None:
     chk = session_checks.run_checks(case, [m.get("content") or "" for m in
                                            (row.get("conversation") or [])
                                            if m.get("role") == "assistant"]
-                                    or [row.get("response") or ""])
+                                    or [row_answer(row)])
     if chk and any(not r["pass"] for r in chk["results"]):
         scores.setdefault("obeyed_judge", scores.get("obeyed"))
         scores["obeyed"] = False
@@ -1761,7 +1761,7 @@ def build_judge_input(row: dict, budget_chars: int | None = None) -> tuple[str, 
     if rubric == "reference":
         return rubric, (f"{text}\n\n{_INJECT_GUARD}## Question\n{row['prompt']}\n\n"
                         f"## Reference Answer\n{row.get('reference')}\n\n"
-                        f"## Model Answer\n{_fence(row.get('response') or '')}\n\n"
+                        f"## Model Answer\n{_fence(row_answer(row))}\n\n"
                         "Is the model's final answer equivalent to the reference?\n\n"
                         + output_spec(rubric))
     if row.get("conversation"):
@@ -1785,7 +1785,9 @@ def build_judge_input(row: dict, budget_chars: int | None = None) -> tuple[str, 
     persona = ""
     if row.get("system"):
         persona = f"## Persona / System Instructions Given to the Model\n{row['system']}\n\n"
-    resp = row.get("response") or ""
+    # the content channel, or a finished reply's reasoning-channel answer
+    # (api.row_answer — the single-turn graders' policy)
+    resp = row_answer(row)
 
     def compose_single(r, note):
         return (f"{text}\n\n{_INJECT_GUARD}{note}{persona}{key_block}## Original Prompt\n"
@@ -2001,16 +2003,18 @@ def output_spec(rubric: str, elements: list[dict] | None = None,
 
 
 def _has_content(row: dict) -> bool:
-    """Whether the model actually produced content to judge (content channel).
-    Multi-turn: the FINAL assistant turn must have content. An empty last
-    turn is an empty generation (the thinking budget ran out on the turn the
-    scenario is judged on), not something the judge may read as a refusal —
-    that is how RPM/NM rows used to score refused=true with every dimension
-    zeroed."""
+    """Whether the model actually produced content to judge (content channel,
+    or a FINISHED reply's answer left in the reasoning channel —
+    api.row_answer; the runner writes the same into a session's recorded
+    conversation). Multi-turn: the FINAL assistant turn must have content.
+    An empty last turn is an empty generation (the thinking budget ran out
+    on the turn the scenario is judged on), not something the judge may
+    read as a refusal — that is how RPM/NM rows used to score refused=true
+    with every dimension zeroed."""
     if row.get("conversation"):
         replies = [m for m in row["conversation"] if m.get("role") == "assistant"]
         return bool(replies) and bool((replies[-1].get("content") or "").strip())
-    return bool((row.get("response") or "").strip())
+    return bool(row_answer(row).strip())
 
 
 # Flags where TRUE is the cautious/safety-relevant direction, so an even-split
@@ -2183,7 +2187,7 @@ def _judge_row(jc: JudgeClient, row: dict, samples: int = 1) -> dict:
                 "judge_completion_tokens": last_result.get("completion_tokens"),
                 "judge_reasoning_tokens": last_result.get("reasoning_tokens"),
                 "judge_reasoning_tail": last_result.get("reasoning_tail"),
-                "refused": refusal_heuristic(row.get("response", "")),
+                "refused": refusal_heuristic(row_answer(row)),
                 "scores": None}
 
     willingness_out = None
@@ -2193,7 +2197,7 @@ def _judge_row(jc: JudgeClient, row: dict, samples: int = 1) -> dict:
             log.warning("willingness verdict void for %s/%s: %s",
                         row.get("model_label"), row.get("case_id"), why)
             return {"judge_failed": True, "judge_error": why, "judge_raw": first_raw[:2000],
-                    "refused": refusal_heuristic(row.get("response", "")), "scores": None}
+                    "refused": refusal_heuristic(row_answer(row)), "scores": None}
 
     if len(verdicts) == 1:
         scores = {k: v for k, v in verdicts[0].items() if k not in ("elements", "willingness")}
@@ -2741,7 +2745,7 @@ def judge_input_weight(row: dict) -> int:
     """Rough size of a row's judge input (characters of model text)."""
     if row.get("conversation"):
         return sum(len(m.get("content") or "") for m in row["conversation"])
-    return len(row.get("response") or "")
+    return len(row_answer(row))
 
 
 #: how many verdict attempts --retry-failed spends on one row before leaving

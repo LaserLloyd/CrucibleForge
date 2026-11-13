@@ -36,7 +36,8 @@ from . import lms, session_checks, stopflag, studioforge
 from dataclasses import replace as _dc_replace
 
 from .api import (Aborted, ChatResult, GenerationRejected, RequestRejected, RowTimeout,
-                  TransportError, WindowClosed, WrongModelError)
+                  TransportError, WindowClosed, WrongModelError, in_reasoning_flag,
+                  reasoning_answer)
 from .config import CSV_COLUMNS, results_dir, append_transcript, repeats_for, transcript_path
 from .graders import (_extract_tool_calls_from_text, grade, grade_tool_call, prose_metrics)
 from . import spend
@@ -604,8 +605,11 @@ class _Ctx:
         text as content, so the server itself does not call it thinking);
         deepseek-pro NMX1 t6 drafted in its reasoning and stopped. The reply
         is asked for again (thinking off, then continuation) — the reasoning
-        text is never taken as the answer: nothing distinguishes a reply
-        from real chain-of-thought (deepseek's starts "We need answer as…")."""
+        text is never taken as the answer HERE: nothing distinguishes a reply
+        from real chain-of-thought (deepseek's starts "We need answer as…").
+        Only when asking again fails (or is off) does the row fall back to
+        the reasoning channel, stamped answered_in_reasoning — the one policy
+        every path shares (api.reasoning_answer, runner.reply_of)."""
         return r.finish_reason == "stop" and not cls._answered(r)
 
     def call(self, messages, *, max_tokens: int, recover: bool = True, **kw) -> ChatResult:
@@ -1986,9 +1990,9 @@ def _run_single(case, base_row, ctx: _Ctx, max_tokens, temperature, top_p, seed)
            "truncated": result.finish_reason == "length",
            "max_tokens_sent": sent,
            # a tool call with empty content is a normal answer, not a misroute
-           "answered_in_reasoning": (not result.response_text.strip()
-                                     and not result.tool_calls
-                                     and bool(result.reasoning_text.strip())),
+           "answered_in_reasoning": in_reasoning_flag(result.response_text,
+                                                      result.reasoning_text,
+                                                      result.tool_calls),
            "metrics": _metrics(result)}
     _annotate_recovery(row, result)
     verdict = grade(_answer_view(result), case)
@@ -2056,6 +2060,19 @@ def _sendable_history(history: list[dict]) -> list[dict]:
     return out
 
 
+def reply_of(result: ChatResult) -> tuple[str, bool]:
+    """(the turn's answer, read from the reasoning channel?) under the
+    single-turn policy (:func:`api.reasoning_answer`): the content channel,
+    or — for a FINISHED reply (finish=stop) with empty content and no tool
+    call — the reasoning channel, thinking tags stripped. A finish=length
+    reply with no content stays empty (an overflow is never an answer)."""
+    if (result.response_text or "").strip():
+        return result.response_text, False
+    alt = reasoning_answer(result.response_text, result.reasoning_text,
+                           result.finish_reason, result.tool_calls)
+    return (alt, True) if alt else (result.response_text or "", False)
+
+
 def assistant_turn(result: ChatResult, replay: bool) -> dict:
     """The assistant message as it goes back into the conversation.
 
@@ -2067,12 +2084,20 @@ def assistant_turn(result: ChatResult, replay: bool) -> dict:
     turn carries the content only -- byte-identical to a run without the
     switch.
 
-    One builder for both callers (the multi-turn runner and the conformance
-    probe), so a probe can never measure a conversation the bench does not
-    actually send.
+    A reply that FINISHED with its whole answer in the reasoning channel
+    (:func:`reply_of`: finish=stop, empty content, no tool call) goes back as
+    that answer — the same text the graders and the judge read, so the next
+    turn continues the conversation the board scores (dropping it left the
+    model with no reply of its own and the user turns glued together). It is
+    not replayed a second time as ``reasoning_content``.
+
+    One builder for every caller (the multi-turn runner, the tool loop's
+    prose steps and the conformance probe), so a probe can never measure a
+    conversation the bench does not actually send.
     """
-    turn = {"role": "assistant", "content": result.response_text}
-    if replay and result.reasoning_text:
+    text, from_reasoning = reply_of(result)
+    turn = {"role": "assistant", "content": text}
+    if replay and result.reasoning_text and not from_reasoning:
         turn["reasoning_content"] = result.reasoning_text
     return turn
 
@@ -2107,7 +2132,11 @@ def _run_multiturn(case, base_row, ctx: _Ctx, max_tokens, temperature, top_p, se
         # lost (1/10 recall with it dropped vs 7/10 replayed). It rides in
         # the REPLAYED history only — the judged conversation stays
         # content-only (see _judged_history).
-        reply = result.response_text
+        # A FINISHED reply whose whole answer sits in the reasoning channel
+        # is that answer (reply_of — the single-turn policy): it is what the
+        # history carries forward, what the judged conversation shows and
+        # what the checks read; the row is stamped answered_in_reasoning.
+        reply, _from_reasoning = reply_of(result)
         # one builder for the bench and the conformance probe (runner.
         # assistant_turn): the reasoning channel rides on the assistant turn
         # only on a provider with the reasoning replay on.
@@ -2120,6 +2149,10 @@ def _run_multiturn(case, base_row, ctx: _Ctx, max_tokens, temperature, top_p, se
                "truncated": result.finish_reason == "length",
                # what was actually sent (boosted for a thinking model)
                "max_tokens_sent": exact or ctx.budget(max_tokens),
+               # same stamp as a single-turn row
+               "answered_in_reasoning": in_reasoning_flag(result.response_text,
+                                                          result.reasoning_text,
+                                                          result.tool_calls),
                "metrics": _metrics(result)}
         _annotate_recovery(row, result)
         # rpdeep: could this turn's prompt + requested budget exceed the context
@@ -2289,7 +2322,7 @@ def _run_env_loop(case, base_row, ctx: _Ctx, max_tokens, temperature, seed, top_
             truncated_turns += 1
         calls = result.tool_calls or _extract_tool_calls_from_text(_answer_view(result).scoreable_text())
         if not calls:
-            messages.append({"role": "assistant", "content": result.response_text or ""})
+            messages.append({"role": "assistant", "content": reply_of(result)[0]})
             end_reason = ("cut off (budget)" if result.finish_reason == "length"
                           else "answered without a tool call")
             break
@@ -2432,10 +2465,12 @@ def _run_tool_loop(case, base_row, ctx: _Ctx, max_tokens, temperature, seed, top
                     messages.append({"role": "tool", "tool_call_id": cid,
                                      "content": TOOLS_UNAVAILABLE})
             else:
-                turn = {"role": "assistant", "content": result.response_text}
-                if getattr(ctx, "reasoning_replay", False) and result.reasoning_text:
-                    turn["reasoning_content"] = result.reasoning_text
-                messages.append(turn)
+                # the step was graded on scoreable_text (reasoning fallback
+                # for a finished reply); the conversation carries the same
+                # answer forward (assistant_turn / reply_of), and the stored
+                # tool_conversation keeps it for stepgrade's re-grade
+                messages.append(assistant_turn(result, bool(getattr(ctx, "reasoning_replay",
+                                                                    False))))
         i += 1
 
     graded = [s for s in steps if s is not None]
@@ -2459,6 +2494,10 @@ def _run_tool_loop(case, base_row, ctx: _Ctx, max_tokens, temperature, seed, top
             "reasoning": (last_result.reasoning_text if last_result else ""),
             "tool_calls": [], "finish_reason": (last_result.finish_reason if last_result else None),
             "truncated": False,
+            "answered_in_reasoning": (in_reasoning_flag(last_result.response_text,
+                                                        last_result.reasoning_text,
+                                                        last_result.tool_calls)
+                                      if last_result else False),
             "grade": "pass" if passed else "fail", "grade_detail": detail[:2000],
             "elements": {"results": results, "rate": rate},
             # every step's reply and call, so a step verdict in failures.md

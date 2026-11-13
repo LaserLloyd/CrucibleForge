@@ -19,7 +19,7 @@ import logging
 import math
 import re
 
-from .api import TransportError, WrongModelError
+from .api import TransportError, WrongModelError, row_answer
 from .config import results_dir, load_transcripts
 from .judge import JUDGE_SYSTEM, JudgeClient, JudgeError, _fence, select_judge
 
@@ -171,7 +171,7 @@ def _written_rows(label: str, category: str) -> dict[str, dict]:
             continue
         if r.get("rubric") not in ("rp_single", "nsfw", "rp_scene", "nsfw_craft", "story"):
             continue
-        resp = (r.get("response") or "").strip()
+        resp = row_answer(r).strip()
         if not resp:
             continue
         j = r.get("judge") or {}
