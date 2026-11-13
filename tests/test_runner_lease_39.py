@@ -61,7 +61,7 @@ def test_cards_another_holder_leases_are_never_requested(monkeypatch):
 
 def test_foreign_held_devices_skip_our_own_and_vacatable_render_leases():
     leases = [SPEECH,
-              {"id": "R", "holder": "clawforge2", "holder_family": "clawforge", "kind": "render",
+              {"id": "R", "holder": "render-tenant", "holder_family": "image-render", "kind": "render",
                "devices": [2]},
               {"id": "J", "holder": "crucibleforge-judge", "devices": [0, 1]}]
     assert studioforge.foreign_held_devices(leases) == {2, 3}

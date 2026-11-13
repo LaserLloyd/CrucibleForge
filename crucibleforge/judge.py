@@ -849,7 +849,7 @@ JUDGE_NEVER_DEVICES = frozenset({3})
 # resident on the same GPUs is unlikely to yield mid-judge") on the theory
 # that a clean error beats a 10-minute wait. It cost 22 aborted judge runs in
 # a single day (2026-09-04), 8 of them 45s apart, every one a TRANSIENT
-# co-tenant (ClawForge's captioner) that released the cards on its own within
+# co-tenant (an image server's captioner) that released the cards on its own within
 # the window this patch refused to wait for — the work was never impossible,
 # the client just would not wait 7 minutes. Removed; use
 # ``provider.wait_busy_s`` at the call site below instead of a judge-specific

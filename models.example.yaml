@@ -63,7 +63,7 @@
 #                      (idle residents are evicted, then reloaded at the end)
 #   lease_devices_preferred: [0, 1]   lease only these cards when the rig's
 #                      planner says the model fits there, else lease_devices
-#   clawforge_mcp: http://localhost:8700/mcp   ClawForge endpoint asked to vacate
+#   render_vacate_mcp: http://localhost:8700/mcp   image-server endpoint asked to vacate
 #                      a render lease on the wanted cards (resumed afterwards)
 #   busy_unload_after_s: 60           with force_evict: unload a resident still
 #                      mid-request after this long (cuts its stream)

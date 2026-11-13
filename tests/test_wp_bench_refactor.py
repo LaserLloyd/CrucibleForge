@@ -149,7 +149,7 @@ def test_tier_refusal_reason_distinguishes_d46_from_lease_conflict():
 
     conflict = studioforge._tier_refusal_reason(
         409, {"code": "lease_conflict"},
-        "lease 9f502a16fb45 (clawforge2) holds CUDA [1]")
+        "lease 9f502a16fb45 (render-tenant) holds CUDA [1]")
     assert conflict is not None and "lease_conflict" in conflict and "D46" not in conflict
 
     both = studioforge._tier_refusal_reason(
@@ -166,7 +166,7 @@ def test_acquire_lease_logs_the_lease_conflict_cause_not_d46(monkeypatch, caplog
     """End-to-end through acquire_lease's own retry loop: a plain
     lease_conflict refusal must not be misreported as a D46 tier hit in the
     WARNING line an operator actually reads."""
-    body = {"code": "lease_conflict", "detail": "lease 9f502a16fb45 (clawforge2) holds CUDA [1]"}
+    body = {"code": "lease_conflict", "detail": "lease 9f502a16fb45 (render-tenant) holds CUDA [1]"}
     answers = iter([(409, body), (200, {"lease_id": "OK"})])
     monkeypatch.setattr(studioforge, "_mgmt", lambda *a, **k: next(answers))
     monkeypatch.setattr(studioforge.time, "sleep", lambda s: None)

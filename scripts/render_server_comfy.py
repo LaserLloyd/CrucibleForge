@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""clawforge_comfy.py <free_vram|stop|start|restart|status> [--url URL]
+"""render_server_comfy.py <free_vram|stop|start|restart|status> [--url URL]
 
-Drive ClawForge's ComfyUI (a FOREIGN VRAM holder a StudioForge lease cannot
+Drive the image server's ComfyUI (a FOREIGN VRAM holder a StudioForge lease cannot
 evict) before/after a CrucibleForge phase. `free_vram` unloads its models but
-leaves it running — ClawForge's own recommendation "before running another
+leaves it running — the image server's own recommendation "before running another
 GPU job". Exit 0 on success, 2 on a tool error, 3 when the MCP endpoint is
 unreachable (not fatal for a benchmark: the lease path reports the real
-shortfall). Stdlib only; MCP streamable-http, no auth (ClawForge default)."""
+shortfall). Stdlib only; MCP streamable-http, no auth (image-server default)."""
 import json
 import os
 import re
@@ -14,9 +14,9 @@ import sys
 import urllib.error
 import urllib.request
 
-# The rig that serves ClawForge is site-specific: set CLAWFORGE_MCP_URL (or
+# The rig that serves images is site-specific: set RENDER_SERVER_MCP_URL (or
 # pass --url). The default assumes it is on this machine.
-DEFAULT_URL = os.environ.get("CLAWFORGE_MCP_URL", "http://localhost:8700/mcp")
+DEFAULT_URL = os.environ.get("RENDER_SERVER_MCP_URL", "http://localhost:8700/mcp")
 
 
 def _post(url, body, sid=None):
@@ -48,7 +48,7 @@ def main(argv):
         res, _ = _post(url, {"jsonrpc": "2.0", "id": 2, "method": "tools/call",
                              "params": {"name": tool, "arguments": args}}, sid)
     except (urllib.error.URLError, OSError, ValueError) as e:
-        print(f"clawforge unreachable: {e}", file=sys.stderr)
+        print(f"image server unreachable: {e}", file=sys.stderr)
         return 3
     result = res.get("result") or {}
     text = " ".join(b.get("text", "") for b in result.get("content", []) if isinstance(b, dict))

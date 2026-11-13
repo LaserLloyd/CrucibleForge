@@ -8,7 +8,7 @@
       "message": "the GPUs this request needs are inside a lease",
       "studioforge": {
         "retry_after_s": 30,
-        "lease": {"id": "lease-1", "holder": "clawforge", "holder_family": "clawforge", "kind": "render"}
+        "lease": {"id": "lease-1", "holder": "image-render", "holder_family": "image-render", "kind": "render"}
       }
     }
   }

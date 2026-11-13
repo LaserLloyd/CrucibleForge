@@ -56,7 +56,7 @@ GPU etiquette on a shared server.
   lease claim with `force=true` (idle residents are evicted, reloaded when the
   run ends, and the policy is logged). `lease_devices_preferred: [0, 1]`
   leases only those cards when the rig's planner says the model fits there,
-  else `lease_devices`. `clawforge_mcp: <url>` asks a ClawForge image server
+  else `lease_devices`. `render_vacate_mcp: <url>` asks an image server
   holding a render lease on those cards to vacate and resumes it afterwards;
   a refused vacate is an error, never a reason to run anyway.
   `busy_unload_after_s: N` (only with `force_evict`) unloads a resident still

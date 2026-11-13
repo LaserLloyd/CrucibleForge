@@ -779,10 +779,10 @@ def cmd_status(args, cfg):
                 print(f"    leases: {[(l.get('holder'), l.get('devices'), l.get('model_ids')) for l in leases] or 'none'}"
                       f"   lease mode: {'ON' if p.lease else 'off'}"
                       f"{pin_warn}")
-                if p.force_evict_policy or p.lease_devices_preferred or p.clawforge_mcp:
+                if p.force_evict_policy or p.lease_devices_preferred or p.render_vacate_mcp:
                     print(f"    bench-first: force_evict={'ON' if p.force_evict_policy else 'off'}"
                           f"  preferred cards={p.lease_devices_preferred or '-'} (else {p.lease_devices or 'all'})"
-                          f"  vacate render lease via ClawForge={'yes' if p.clawforge_mcp else 'no'}"
+                          f"  render-lease vacate={'yes' if p.render_vacate_mcp else 'no'}"
                           f"  cut a mid-request resident after={('%.0fs' % p.busy_unload_after_s) if p.busy_unload_after_s else 'never'}")
             except Exception as e:  # noqa: BLE001
                 print(f"    (management API: {e})")
@@ -1413,7 +1413,7 @@ def cmd_bench_all(args, cfg):
     providers.set_lease_mode(mode)
     log.info("bench-all: lease mode %s — %s", mode,
              "force idle residents only, never cut a busy one, priority 2" if mode == "night"
-             else "no force, no ClawForge vacate, one unprotected card, priority 3, no judge")
+             else "no force, no render-lease vacate, one unprotected card, priority 3, no judge")
     try:
         return execute(args, cfg)
     finally:
@@ -2842,7 +2842,7 @@ def main(argv=None):
                            "every other model is left alone (no prune of other rows)")
     p_ba.add_argument("--lease-mode", choices=("night", "day"), default=None,
                       help="override the models.yaml lease policy: night = evict IDLE "
-                           "residents only, never cut a busy one; day = no force, no ClawForge "
+                           "residents only, never cut a busy one; day = no force, no render-lease "
                            "vacate, one card no priority-1/2/pinned model is on (else "
                            "refuse), request priority 3, no judge. Default: models.yaml")
     p_ba.add_argument("--no-judge", action="store_true",

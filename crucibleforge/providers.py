@@ -163,11 +163,11 @@ class Provider:
     # "bench-first"): ``force_evict: true`` is the STANDING authorisation
     # (every run behaves as if --force-evict were passed);
     # ``lease_devices_preferred`` is tried first when the rig's planner says
-    # the model fits there empty; ``clawforge_mcp`` lets a foreign render
+    # the model fits there empty; ``render_vacate_mcp`` lets a foreign render
     # lease on the wanted cards be vacated (and resumed afterwards).
     force_evict_policy: bool = False
     lease_devices_preferred: list | None = None
-    clawforge_mcp: str | None = None
+    render_vacate_mcp: str | None = None
     # Bench-first: a resident that stays mid-request on the wanted cards for
     # longer than this is unloaded (its stream cut) — see
     # studioforge.acquire_lease(busy_unload_after_s). None = wait, then fail.
@@ -654,7 +654,7 @@ class Provider:
         ``lease_devices_preferred`` when the planner says the model fits
         there empty, else ``lease_devices`` (or every card). Then, if a
         foreign RENDER lease stands on those cards, vacate it through
-        ClawForge and remember to resume it on release. ``exclude``: cards
+        the image server and remember to resume it on release. ``exclude``: cards
         never named, whatever the config or the planner says (the judge's
         GPU 3 rule, judge.JUDGE_NEVER_DEVICES)."""
         exclude = {int(d) for d in exclude or ()}
@@ -667,7 +667,7 @@ class Provider:
         try:
             busy = studioforge.foreign_held_devices(
                 studioforge.list_leases(self.base_url, self.api_key, hdrs),
-                vacatable_render=bool(self.clawforge_mcp))
+                vacatable_render=bool(self.render_vacate_mcp))
         except studioforge.StudioForgeError as e:
             log.warning("lease list unavailable (%s) — cannot see other holders' cards", e)
             busy = set()
@@ -693,7 +693,7 @@ class Provider:
                                                    preferred, fallback, busy=busy)
         devices = [d for d in devices if int(d) not in exclude]
         if studioforge.vacate_render_leases(self.base_url, self.api_key, hdrs, devices,
-                                            self.clawforge_mcp):
+                                            self.render_vacate_mcp):
             self._vacated_render = True
         return devices
 
@@ -708,10 +708,10 @@ class Provider:
         if self._vacated_render:
             self._vacated_render = False
             try:
-                studioforge.clawforge_control(self.clawforge_mcp, "resume", timeout=60)
-                log.info("ClawForge resumed (render lease handed back)")
+                studioforge.render_server_control(self.render_vacate_mcp, "resume", timeout=60)
+                log.info("image server resumed (render lease handed back)")
             except studioforge.StudioForgeError as e:
-                log.warning("ClawForge resume failed — image generation stays vacated "
+                log.warning("image server resume failed — image generation stays vacated "
                             "until someone runs comfy_control(resume): %s", e)
 
     def _remember_plan(self, model_id: str, live: dict | None = None) -> None:
@@ -1002,11 +1002,20 @@ def _resolve_key(p: dict) -> str:
 API_DEFAULT_CONCURRENCY = 8
 
 
+#: provider-block keys ending ``_mcp`` that the loader understands; any other
+#: ``*_mcp`` key is a typo or a stale setting and is refused, never ignored
+KNOWN_MCP_KEYS = frozenset({"render_vacate_mcp"})
+
+
 def get_provider(cfg: dict, name: str) -> Provider:
     key = (id(cfg), name)
     if key in _CACHE:
         return _CACHE[key][1]
     p = provider_of(cfg, name)
+    for _k in p:
+        if str(_k).endswith("_mcp") and _k not in KNOWN_MCP_KEYS:
+            raise ConfigError(f"providers.{name}: unknown key {_k!r} "
+                              f"(known: {', '.join(sorted(KNOWN_MCP_KEYS))})")
     ptype = p.get("type", "openai")
     conc_raw = p.get("concurrency", API_DEFAULT_CONCURRENCY if ptype in HOSTED_TYPES
                      else 1 if ptype != "studioforge" else "auto")
@@ -1037,7 +1046,7 @@ def get_provider(cfg: dict, name: str) -> Provider:
         force_evict_policy=bool(p.get("force_evict", False)) and ptype == "studioforge",
         lease_devices_preferred=(list(p["lease_devices_preferred"])
                                  if p.get("lease_devices_preferred") else None),
-        clawforge_mcp=(str(p["clawforge_mcp"]).strip() or None) if p.get("clawforge_mcp") else None,
+        render_vacate_mcp=(str(p["render_vacate_mcp"]).strip() or None) if p.get("render_vacate_mcp") else None,
         busy_unload_after_s=(float(p["busy_unload_after_s"])
                              if p.get("busy_unload_after_s") not in (None, False, "") else None),
     )
@@ -1060,7 +1069,7 @@ def get_provider(cfg: dict, name: str) -> Provider:
 #                         night                       day
 #   force=true            idle residents (policy)     never
 #   busy_unload_after_s   None (never cut a reply)    None
-#   ClawForge vacate      yes (policy)                never
+#   render-lease vacate   yes (policy)                never
 #   request priority      2                           3
 #   devices               planner / preferred cards   one unprotected card, else refuse
 LEASE_MODES = ("night", "day")
@@ -1076,7 +1085,7 @@ def apply_lease_mode(prov: "Provider", mode: str) -> "Provider":
     if mode == "day":
         prov.force_evict_policy = False
         prov.force_evict = False
-        prov.clawforge_mcp = None
+        prov.render_vacate_mcp = None
         prov.lease_devices_preferred = None
         prov.request_priority = 3
         prov.day_single_card = True

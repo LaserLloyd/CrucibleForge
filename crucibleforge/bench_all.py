@@ -39,7 +39,7 @@ MakoBench operator flags (2026-11-06, OPERATOR-PLAN-v2 §6.3):
 ``--only LABELS`` scopes EVERYTHING above to those labels (the run never
 registers, prunes, generates, escalates, ladders or judges another model);
 ``--lease-mode night|day`` overrides the models.yaml lease policy (night =
-force idle residents only, never cut a busy one; day = no force, no ClawForge
+force idle residents only, never cut a busy one; day = no force, no render-lease
 vacate, one unprotected card or refuse, request priority 3, no judge);
 ``--no-judge`` generates only; ``--plan-json`` prints the plan as one JSON
 object. A registry row with ``keep_on_board: true`` is never pruned. With

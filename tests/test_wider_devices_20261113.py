@@ -178,8 +178,8 @@ def test_spare_cards_never_take_a_leased_or_occupied_card(monkeypatch):
         {"model_id": M, "plan": {"devices": [0, 1]}}]})
     assert _prov()._spare_cards(M, [0, 1]) == [2]
     # a render lease is NOT vacated for a widening (it is for the base claim)
-    leases[0] = {"holder": "clawforge2", "kind": "render", "devices": [2]}
-    assert _prov(clawforge_mcp="http://cf.invalid/mcp")._spare_cards(M, [0, 1]) == [3]
+    leases[0] = {"holder": "render-tenant", "kind": "render", "devices": [2]}
+    assert _prov(render_vacate_mcp="http://cf.invalid/mcp")._spare_cards(M, [0, 1]) == [3]
 
 
 @pytest.fixture

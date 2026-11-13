@@ -8,6 +8,7 @@ rename.
 
 ## Unreleased
 
+- **Render-lease vacate setting renamed to `render_vacate_mcp`.** The provider loader now refuses unknown `*_mcp` keys (a typo no longer silently disables the vacate), and render leases are recognised by `kind: render` only.
 - **A finished answer left in the reasoning channel is read the same way on every path.** Some
   models end a reply with finish=stop, an empty content channel, no tool call and the whole answer
   in `reasoning` (Nanbeige4.3-33B on 27 of 122 rows, deepseek-r1-0528-8b ~12%, Dark-Scarlett
@@ -1344,7 +1345,7 @@ rig while other tenants were on it. Version string stays 3.2.0 (no release).
 - **`answered_in_reasoning`**: a tool call with empty `content` is an answer,
   not a misrouted reply — this was stamping false "read from reasoning" notes
   on perfectly good tool-use rows.
-- `scripts/clawforge_comfy.py`: free rig VRAM (ComfyUI) before a phase.
+- `scripts/render_server_comfy.py`: free rig VRAM (ComfyUI) before a phase.
 - `scripts/queue-overnight.sh`: the reference campaign wrapper (flock on
   `results/.rig.lock`, env sourced in-shell for the lease PIN, run→judge per
   model, one report, rc checked per phase).

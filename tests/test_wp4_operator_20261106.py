@@ -194,12 +194,12 @@ def test_no_judge_window_keeps_no_judge_reserve():
 
 def _sf_cfg():
     return _cfg([], force_evict=True, busy_unload_after_s=60, lease_devices_preferred=[0, 1],
-                clawforge_mcp="http://cf:8700/mcp")
+                render_vacate_mcp="http://cf:8700/mcp")
 
 
 def test_no_flag_keeps_the_models_yaml_policy():
     p = providers.get_provider(_sf_cfg(), "sf")
-    assert p.force_evict_policy and p.busy_unload_after_s == 60 and p.clawforge_mcp
+    assert p.force_evict_policy and p.busy_unload_after_s == 60 and p.render_vacate_mcp
     assert p.request_priority == 2 and not p.day_single_card
 
 
@@ -207,7 +207,7 @@ def test_night_mode_never_cuts_a_busy_resident_but_keeps_bench_first():
     providers.set_lease_mode("night")
     p = providers.get_provider(_sf_cfg(), "sf")
     assert p.busy_unload_after_s is None
-    assert p.force_evict_policy and p.clawforge_mcp and p.lease_devices_preferred == [0, 1]
+    assert p.force_evict_policy and p.render_vacate_mcp and p.lease_devices_preferred == [0, 1]
     assert p.request_priority == 2
 
 
@@ -215,7 +215,7 @@ def test_day_mode_policy_fields():
     providers.set_lease_mode("day")
     p = providers.get_provider(_sf_cfg(), "sf")
     assert p.busy_unload_after_s is None and not p.force_evict_policy and not p.force_evict
-    assert p.clawforge_mcp is None and p.lease_devices_preferred is None
+    assert p.render_vacate_mcp is None and p.lease_devices_preferred is None
     assert p.request_priority == 3 and p.day_single_card
 
 
@@ -287,7 +287,7 @@ def test_day_mode_refuses_when_the_model_fits_only_on_protected_cards(monkeypatc
 
 def test_day_mode_never_takes_a_card_leased_by_a_render_tenant(monkeypatch):
     rig = _FakeRig(protected_on=(0, 1), fits=(2, 3),
-                   leases=[{"holder": "clawforge-comfy", "kind": "render", "devices": [2]}])
+                   leases=[{"holder": "render-tenant", "kind": "render", "devices": [2]}])
     monkeypatch.setattr(studioforge, "_mgmt", rig.mgmt)
     assert studioforge.choose_day_card("u", "", None, "org/m", exclude=()) == [3]
     rig.fits = {2}

@@ -1,5 +1,5 @@
 """Bench-first policy (2026-09-08): standing force, planner-driven device
-choice, and vacating a foreign render lease through ClawForge."""
+choice, and vacating a foreign render lease through the image server."""
 import pytest
 
 from crucibleforge import studioforge
@@ -16,12 +16,12 @@ def _cfg(**prov_extra):
 
 def test_provider_reads_policy_keys():
     p = get_provider(_cfg(force_evict=True, lease_devices_preferred=[0, 1],
-                          clawforge_mcp="http://rig:8700/mcp"), "studioforge")
+                          render_vacate_mcp="http://rig:8700/mcp"), "studioforge")
     assert p.force_evict_policy is True
     assert p.lease_devices_preferred == [0, 1]
-    assert p.clawforge_mcp == "http://rig:8700/mcp"
+    assert p.render_vacate_mcp == "http://rig:8700/mcp"
     q = get_provider(_cfg(), "studioforge")
-    assert q.force_evict_policy is False and q.lease_devices_preferred is None and q.clawforge_mcp is None
+    assert q.force_evict_policy is False and q.lease_devices_preferred is None and q.render_vacate_mcp is None
 
 
 def test_guard_applies_standing_force(monkeypatch):
@@ -65,7 +65,7 @@ def test_choose_devices_prefers_5090s_when_planner_says_fit(monkeypatch):
 
 def test_foreign_render_lease_filter():
     leases = [
-        {"id": "a", "holder": "clawforge2", "holder_family": "clawforge", "kind": "render", "devices": [2]},
+        {"id": "a", "holder": "render-tenant", "holder_family": "image-render", "kind": "render", "devices": [2]},
         {"id": "b", "holder": "crucibleforge-judge", "holder_family": "crucibleforge", "kind": "benchmark", "devices": [0, 1, 2, 3]},
         {"id": "c", "holder": "someone", "holder_family": "other", "kind": "agent", "devices": [3]},
     ]
@@ -76,13 +76,13 @@ def test_foreign_render_lease_filter():
 def test_vacate_waits_for_release_and_refuses_without_url(monkeypatch):
     calls = []
     state = {"n": 0}
-    render = [{"id": "a", "holder": "clawforge2", "holder_family": "clawforge", "kind": "render", "devices": [2]}]
+    render = [{"id": "a", "holder": "render-tenant", "holder_family": "image-render", "kind": "render", "devices": [2]}]
 
     def fake_list(*a, **k):
         state["n"] += 1
         return render if state["n"] < 3 else []
     monkeypatch.setattr(studioforge, "list_leases", fake_list)
-    monkeypatch.setattr(studioforge, "clawforge_control", lambda url, action, **k: calls.append((url, action)) or {})
+    monkeypatch.setattr(studioforge, "render_server_control", lambda url, action, **k: calls.append((url, action)) or {})
     monkeypatch.setattr(studioforge.time, "sleep", lambda s: None)
     assert studioforge.vacate_render_leases("u", "", None, [0, 1, 2, 3], "http://cf/mcp") is True
     assert calls == [("http://cf/mcp", "vacate")]
@@ -91,9 +91,9 @@ def test_vacate_waits_for_release_and_refuses_without_url(monkeypatch):
     calls.clear()
     assert studioforge.vacate_render_leases("u", "", None, [0, 1], "http://cf/mcp") is False
     assert calls == []
-    # a render lease in the way and no ClawForge URL → loud refusal
+    # a render lease in the way and no vacate URL → loud refusal
     state["n"] = 0
-    with pytest.raises(studioforge.StudioForgeError, match="clawforge_mcp"):
+    with pytest.raises(studioforge.StudioForgeError, match="render_vacate_mcp"):
         studioforge.vacate_render_leases("u", "", None, [0, 1, 2, 3], None)
     # never released → loud, not "run anyway"
     monkeypatch.setattr(studioforge, "list_leases", lambda *a, **k: render)
@@ -101,10 +101,10 @@ def test_vacate_waits_for_release_and_refuses_without_url(monkeypatch):
         studioforge.vacate_render_leases("u", "", None, [2], "http://cf/mcp", wait_s=0.01)
 
 
-def test_release_resumes_clawforge_only_if_we_vacated(monkeypatch):
-    p = get_provider(_cfg(clawforge_mcp="http://cf/mcp"), "studioforge")
+def test_release_resumes_render_server_only_if_we_vacated(monkeypatch):
+    p = get_provider(_cfg(render_vacate_mcp="http://cf/mcp"), "studioforge")
     calls = []
-    monkeypatch.setattr(studioforge, "clawforge_control", lambda url, action, **k: calls.append(action) or {})
+    monkeypatch.setattr(studioforge, "render_server_control", lambda url, action, **k: calls.append(action) or {})
     monkeypatch.setattr(studioforge, "release_lease", lambda *a, **k: True)
     p._lease = {"_lease_id": "L", "_model_id": "m"}
     p.release_lease()
@@ -170,3 +170,17 @@ def test_link_check_canary_never_jit_loads_in_lease_mode(monkeypatch):
     assert preflight._pick_studioforge_canary({}, p, ["x/y/benched"]) is None
     # an explicit override still wins
     assert preflight._pick_studioforge_canary({"link_check": {"canary_model_id": "o/v"}}, p, ["x"]) == "o/v"
+
+
+def test_render_lease_needs_kind_not_holder_name():
+    leases = [{"id": "n", "holder": "image-render", "holder_family": "image-render",
+               "devices": [2]}]
+    assert studioforge.foreign_render_leases(leases, [2]) == []
+    assert studioforge.foreign_render_leases(
+        [dict(leases[0], kind="render")], [2])
+
+
+def test_unknown_mcp_key_is_refused():
+    from crucibleforge.config import ConfigError
+    with pytest.raises(ConfigError, match=r"unknown key 'foo_mcp'.*render_vacate_mcp"):
+        get_provider(_cfg(foo_mcp="http://x/mcp"), "studioforge")

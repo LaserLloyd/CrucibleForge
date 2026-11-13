@@ -535,7 +535,7 @@ def _tier_refusal_reason(code: int, res: dict, detail: str) -> str | None:
     Distinguishes (WP-BENCH review M3) a genuine D46 priority-tier refusal
     (the message markers below) from a plain structured ``lease_conflict``
     — observed in practice as another StudioForge CLIENT already holding
-    one of these cards (e.g. ``lease 9f5... (clawforge2) holds CUDA [1]``),
+    one of these cards (e.g. ``lease 9f5... (render-tenant) holds CUDA [1]``),
     which is a co-tenant lease, not a priority tier. Checking the message
     markers FIRST matters: a future server could plausibly send
     ``code: lease_conflict`` on a genuine tier refusal too, and the message
@@ -1000,9 +1000,9 @@ def list_leases(base_url: str, api_key: str, headers: dict | None = None) -> lis
 #   lease_devices_preferred: [0,1] — ask the rig's own planner whether the
 #                                  model fits those cards empty; lease only
 #                                  them if so, else ``lease_devices`` (all).
-#   clawforge_mcp: <url>         — a foreign RENDER lease (ClawForge/ComfyUI)
+#   render_vacate_mcp: <url>     — a foreign RENDER lease (the image server)
 #                                  on the wanted cards is vacated through
-#                                  ClawForge's own ``comfy_control("vacate")``
+#                                  the image server's own ``comfy_control("vacate")``
 #                                  (drain, free VRAM, release its lease) and
 #                                  resumed when ours is released.
 # force=true never breaks a foreign LEASE (the rig treats leases as
@@ -1035,8 +1035,8 @@ def placement_fits(base_url: str, api_key: str, headers: dict | None,
 def foreign_held_devices(leases: list[dict], *, vacatable_render: bool = False,
                          our_family: str = LEASE_HOLDER) -> set[int]:
     """Cards held by SOMEONE ELSE's lease (not a ``crucibleforge*`` holder).
-    A render lease (ClawForge's ComfyUI) is left out when ``vacatable_render``
-    — bench-first vacates it through ClawForge and resumes it afterwards.
+    A render lease (the image server's ComfyUI) is left out when ``vacatable_render``
+    — bench-first vacates it through the image server and resumes it afterwards.
     Everything else (SpeechForge's voice lease on GPU 3, another tenant) is
     never asked for: STEP4 defect 2 (2026-10-28) was a judge lease naming all
     four cards, GPU 3 included, while speechforge held it."""
@@ -1046,7 +1046,7 @@ def foreign_held_devices(leases: list[dict], *, vacatable_render: bool = False,
         fam = str(l.get("holder_family") or "")
         if holder.startswith(our_family) or fam == our_family:
             continue
-        render = l.get("kind") == "render" or fam == "clawforge" or holder.startswith("clawforge")
+        render = l.get("kind") == "render"
         if render and vacatable_render:
             continue
         out.update(int(d) for d in (l.get("devices") or []))
@@ -1220,8 +1220,8 @@ def release_stale_leases(base_url: str, api_key: str, headers: dict | None, hold
 
 def foreign_render_leases(leases: list[dict], devices: list[int],
                           our_families=("crucibleforge",)) -> list[dict]:
-    """Standing leases held by someone else's RENDER tenant (ClawForge's
-    ComfyUI) that touch ``devices``. Family/kind match, never the exact
+    """Standing leases held by someone else's RENDER tenant (an image
+    server's ComfyUI) that touch ``devices``. Family/kind match, never the exact
     holder string (the judge-phase outage was an exact-string match)."""
     want = set(int(d) for d in devices)
     out = []
@@ -1230,7 +1230,7 @@ def foreign_render_leases(leases: list[dict], devices: list[int],
         holder = str(l.get("holder") or "")
         if fam in our_families or holder.startswith("crucibleforge"):
             continue
-        render = l.get("kind") == "render" or fam == "clawforge" or holder.startswith("clawforge")
+        render = l.get("kind") == "render"
         if not render:
             continue
         if want & set(int(d) for d in (l.get("devices") or [])):
@@ -1238,8 +1238,8 @@ def foreign_render_leases(leases: list[dict], devices: list[int],
     return out
 
 
-def clawforge_control(mcp_url: str, action: str, timeout: float = 180.0) -> dict:
-    """``comfy_control(action)`` over ClawForge's streamable-http MCP
+def render_server_control(mcp_url: str, action: str, timeout: float = 180.0) -> dict:
+    """``comfy_control(action)`` over the image server's streamable-http MCP
     endpoint (minimal streamable-http client). Raises
     StudioForgeError on any refusal so callers never mistake a failed vacate
     for a free card."""
@@ -1261,7 +1261,7 @@ def clawforge_control(mcp_url: str, action: str, timeout: float = 180.0) -> dict
             sid = r.headers.get("mcp-session-id")
             body = _body(r)
             if not sid or "error" in body:
-                raise StudioForgeError(f"ClawForge MCP init failed: {body.get('error') or 'no session id'}")
+                raise StudioForgeError(f"image server MCP init failed: {body.get('error') or 'no session id'}")
             hdr["mcp-session-id"] = sid
             http.post(mcp_url, json={"jsonrpc": "2.0", "method": "notifications/initialized"}, headers=hdr)
             call = {"jsonrpc": "2.0", "id": 2, "method": "tools/call",
@@ -1269,18 +1269,18 @@ def clawforge_control(mcp_url: str, action: str, timeout: float = 180.0) -> dict
             r = http.post(mcp_url, json=call, headers=hdr)
             body = _body(r)
     except httpx.HTTPError as e:
-        raise StudioForgeError(f"ClawForge MCP {action}: {e}") from e
+        raise StudioForgeError(f"image server MCP {action}: {e}") from e
     if "error" in body:
-        raise StudioForgeError(f"ClawForge comfy_control({action}) refused: {str(body['error'])[:300]}")
+        raise StudioForgeError(f"image server comfy_control({action}) refused: {str(body['error'])[:300]}")
     res = body.get("result") or {}
     if res.get("isError"):
-        raise StudioForgeError(f"ClawForge comfy_control({action}) failed: {str(res)[:300]}")
+        raise StudioForgeError(f"image server comfy_control({action}) failed: {str(res)[:300]}")
     return res
 
 
 def vacate_render_leases(base_url: str, api_key: str, headers: dict | None, devices: list[int],
-                         clawforge_mcp: str | None, wait_s: float = 240.0) -> bool:
-    """If a foreign render lease stands on ``devices``, ask ClawForge to
+                         render_vacate_mcp: str | None, wait_s: float = 240.0) -> bool:
+    """If a foreign render lease stands on ``devices``, ask the image server to
     vacate (drain + free VRAM + release its lease) and wait for the lease to
     disappear. Returns True when WE vacated it (so the caller resumes it
     later). Raises StudioForgeError if the lease is still there after
@@ -1295,12 +1295,12 @@ def vacate_render_leases(base_url: str, api_key: str, headers: dict | None, devi
     if not foreign:
         return False
     names = [(l.get("holder"), l.get("devices")) for l in foreign]
-    if not clawforge_mcp:
+    if not render_vacate_mcp:
         raise StudioForgeError(
-            f"render lease(s) {names} hold cards {devices} and no clawforge_mcp is configured "
-            f"to vacate them (providers.<name>.clawforge_mcp in models.yaml)")
-    log.warning("bench-first: render lease(s) %s hold %s — asking ClawForge to vacate", names, devices)
-    clawforge_control(clawforge_mcp, "vacate")
+            f"render lease(s) {names} hold cards {devices} and no render_vacate_mcp is configured "
+            f"to vacate them (providers.<name>.render_vacate_mcp in models.yaml)")
+    log.warning("bench-first: render lease(s) %s hold %s — asking the image server to vacate", names, devices)
+    render_server_control(render_vacate_mcp, "vacate")
     t0 = time.monotonic()
     while time.monotonic() - t0 < wait_s:
         _sleep(5)
