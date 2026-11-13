@@ -970,7 +970,10 @@ def _coverage(rows: list[dict], meta: dict, cfg: dict | None,
         rejudge = sum(1 for r in rows if verdict_outdated(r))
     except Exception:  # noqa: BLE001 — a coverage note must never break the board
         rejudge = 0
-    failed = bool(meta.get("failed")) and not old
+    # 2026-11-13: while a sampler regenerate is incomplete the board shows the
+    # PREVIOUS set (sampler_select); the new run's meta does not apply to it
+    regen = any(r.get("_sampler_previous") for r in rows)
+    failed = bool(meta.get("failed")) and not old and not regen
     # which judge scored this model's judged rows vs the benchmark's judge
     judges = sorted({r["judge_model"] for r in rows if r.get("judge_model")
                      and (r.get("rubric") or "") != "reference"})
@@ -983,6 +986,8 @@ def _coverage(rows: list[dict], meta: dict, cfg: dict | None,
                      and not (r.get("judge") or {}).get("empty_generation"))
     errored = sum(1 for r in rows if r.get("grade") == "error")
     notes: list[str] = []
+    if regen:
+        notes.append("measured before its recommended sampler was set — re-test due")
     if failed:
         notes.append("FAILED: " + _cut(str(meta.get("error") or "?"), 70))
     if complete is False and cases:
@@ -3093,7 +3098,8 @@ def ladder_progress(label: str, cfg: dict) -> dict[str, dict]:
     prof = _tier_profile(cfg)
     if not points_mode(prof):
         return {}
-    rows = board_filter(label, cfg)
+    # the run side: rows under the current sampler only (sampler_select)
+    rows = board_filter(label, cfg, sampler_view="current")
     st = tier_model_stats(label, cfg, rows, load_meta(label), {"old": False})
     card = tier_scorecard(st, scoring_config(cfg), prof)
     out = {}
@@ -3851,6 +3857,17 @@ def _sampler_norm(params: dict | None) -> dict:
     return out
 
 
+#: labels whose superseded-sampler rows are owed again in THIS process. Only
+#: an explicit target regenerates (bench-all --only sets it): adding a rule
+#: never starts a mass re-run by itself -- a plain bench-all/nightly leaves
+#: stale rows standing (the board marks them). None = every label.
+SAMPLER_RETEST: set | None = set()
+
+
+def sampler_retest(label: str) -> bool:
+    return SAMPLER_RETEST is None or label in SAMPLER_RETEST
+
+
 def sampler_want(label: str, cfg: dict | None) -> dict | None:
     """The sampler params ``label`` is measured with NOW
     (runner.resolve_sampler under the benchmark profile), or None when that
@@ -3858,6 +3875,17 @@ def sampler_want(label: str, cfg: dict | None) -> dict | None:
     own sampler, an unreadable profile) -- None makes no row stale."""
     if not cfg:
         return None
+    sc = _SCOPE.get()
+    key = ("sampler_want", label, id(cfg))
+    if sc is not None and key in sc:
+        return sc[key]
+    out = _sampler_want(label, cfg)
+    if sc is not None:
+        sc[key] = out
+    return out
+
+
+def _sampler_want(label: str, cfg: dict) -> dict | None:
     entry = next((m for m in (cfg.get("models") or []) if m.get("name") == label), None)
     if entry is None:
         return None
@@ -3901,7 +3929,7 @@ def sampler_select(rows: list[dict], want: dict | None, view: str = "board") -> 
     stale rows drop. Ladder-pack rows do not hold the switch (their sets are
     re-climbed from the new standard scores afterwards). The label shows as
     Incomplete meanwhile (bench_all.completeness reads the current view)."""
-    if want is None:
+    if want is None or view == "none":
         return rows
     stale = [r for r in rows if sampler_stale(r, want)]
     if not stale:
@@ -3911,13 +3939,35 @@ def sampler_select(rows: list[dict], want: dict | None, view: str = "board") -> 
         return fresh
     stamped_fresh = [r for r in fresh if isinstance((r.get("protocol") or {}).get("sampler"), dict)]
     owed = {(r.get("case_id"), r.get("repeat") or 1) for r in stale
-            if not r.get("ladder_revision") and not r.get("budget_rung")}
-    done = {(r.get("case_id"), r.get("repeat") or 1) for r in stamped_fresh
-            if not (r.get("needs_judge") and r.get("judge") is None)}
+            if not r.get("ladder_revision") and not r.get("budget_rung") and int(r.get("tier") or 1) <= 1}
+    from .bench_all import MAX_CASE_ATTEMPTS, _permanent_error
+    from .preflight import billing_error_row
+    errs: dict = {}
+    for r in stamped_fresh:
+        if r.get("grade") == "error" and not billing_error_row(r):
+            errs[r.get("case_id")] = errs.get(r.get("case_id"), 0) + 1
+
+    def settled(r):
+        # a row bench-all will not redo: a result (judged when it needs a
+        # verdict), a permanent error, or an error out of attempts. A
+        # billing refusal or a retryable error keeps the old set up.
+        if billing_error_row(r):
+            return False
+        if r.get("grade") == "error":
+            return _permanent_error(r) or errs.get(r.get("case_id"), 0) >= MAX_CASE_ATTEMPTS
+        j = r.get("judge")
+        if r.get("needs_judge") and (j is None or (isinstance(j, dict) and j.get("judge_failed")
+                                                   and not j.get("empty_generation"))):
+            return False
+        return True
+    done = {(r.get("case_id"), r.get("repeat") or 1) for r in stamped_fresh if settled(r)}
     if owed <= done:
         return fresh
     ids = {id(r) for r in stamped_fresh}
-    return [r for r in rows if id(r) not in ids]
+    # the old set, marked: the board says the model is being re-measured and
+    # does not read the new run's meta (failed / load time) onto it
+    return [dict(r, _sampler_previous=True) if id(r) not in ids and sampler_stale(r, want) else r
+            for r in rows if id(r) not in ids]
 
 
 def board_filter(label: str, cfg: dict | None, rows: list[dict] | None = None,
@@ -3986,7 +4036,8 @@ def board_filter(label: str, cfg: dict | None, rows: list[dict] | None = None,
                 if r.get("case_id") not in reps or int(r.get("repeat") or 1) <= reps[r["case_id"]]]
     if revisions is None:
         # 2026-11-13: rows under a superseded sampler (sampler_select)
-        keep = sampler_select(keep, sampler_want(label, cfg), sampler_view)
+        view = sampler_view if (sampler_view != "current" or sampler_retest(label)) else "none"
+        keep = sampler_select(keep, sampler_want(label, cfg), view)
     return _recheck(_board_rows(keep))
 
 

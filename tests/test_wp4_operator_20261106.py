@@ -19,6 +19,15 @@ _REAL_PLAN = bench_all.plan
 
 
 @pytest.fixture(autouse=True)
+def _settings_gate_passes(monkeypatch):
+    """These fixtures carry no recommended sampler; the settings gate (2026-11-13) has its own
+    tests (test_settings_gate_20261113.py), so here every model passes it."""
+    from crucibleforge import settings_gate
+    monkeypatch.setattr(settings_gate, "check", lambda cfg_p, entry, *a, **k: settings_gate.Verdict(
+        ok=True, label=str(entry.get("name") or entry.get("model_id") or ""), basis="test"))
+
+
+@pytest.fixture(autouse=True)
 def _reset_lease_mode():
     providers.set_lease_mode(None)
     yield

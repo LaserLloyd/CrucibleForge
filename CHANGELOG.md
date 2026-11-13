@@ -8,6 +8,8 @@ rename.
 
 ## Unreleased
 
+- **Rows under a superseded sampler are regenerated.** A row whose protocol stamp names another sampler than the model resolves to now is stale: `bench-all --only <label>` regenerates it (a plain `bench-all` does not — retests are targeted), and the board keeps the old set until the new one covers every standard job (generated and judged), then switches whole — never a mix. Rows without a sampler stamp count as current.
+- **Recommended-settings gate + `card-check`.** A rig model with no recommended sampler (no profile rule, no registry `sampler:`) is not run unless its entry carries `settings_checked: {sampler: none_published|card_says_defaults, source: <card URL>, template: <note>}`; `bench-all` plans it as `settings_unchecked` and says what to add. `conform` prints the gate and the chat template's facts (forced `<think>`, `enable_thinking` / `preserve_thinking` switches) as INFO/WARN. `crucibleforge card-check <label|repo>` reads the HF card chain and template and proposes the entry. Hosted APIs are exempt.
 - **Render-lease vacate setting renamed to `render_vacate_mcp`.** The provider loader now refuses unknown `*_mcp` keys (a typo no longer silently disables the vacate), and render leases are recognised by `kind: render` only.
 - **A finished answer left in the reasoning channel is read the same way on every path.** Some
   models end a reply with finish=stop, an empty content channel, no tool call and the whole answer

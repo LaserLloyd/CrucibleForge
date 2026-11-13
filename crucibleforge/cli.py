@@ -903,6 +903,27 @@ def _conformance_gate(cfg, entries, *, skip: bool = False) -> tuple[list[dict], 
     return ok, bad
 
 
+def _settings_gate(cfg, entries) -> tuple[list[dict], dict]:
+    """(runnable entries, {label: why}) under settings_gate.check. Nothing is
+    written: a refused model keeps whatever it has on the board."""
+    from . import settings_gate
+    from .providers import provider_for
+    ok, bad = [], {}
+    for e in entries:
+        try:
+            ptype = provider_for(cfg, e).type
+        except Exception:  # noqa: BLE001 — resolved (and reported) later
+            ok.append(e)
+            continue
+        v = settings_gate.check(cfg, e, ptype)
+        if v.ok:
+            ok.append(e)
+        else:
+            log.error("model %s is not benched: %s\n%s", e.get("name"), v.reason, v.fix)
+            bad[e["name"]] = "needs recommended settings: " + v.reason
+    return ok, bad
+
+
 def _refuse_fresh_with_filter(args) -> None:
     """``--fresh`` archives the model's WHOLE result set; combined with a
     ``--cases``/``--categories`` filter it would re-run a handful of cases
@@ -974,6 +995,11 @@ def cmd_run(args, cfg):
     needs_judge = any(c.get("rubric") or c.get("turns") for c in cases)
     entries, unrunnable = _fail_fast(cfg, entries, judge=getattr(args, "judge", None),
                                      check_judge=args.cmd == "all" and needs_judge)
+    # 2026-11-13: no rig model is benched before its recommended settings
+    # were checked (settings_gate; registry sampler, profile rule or
+    # settings_checked)
+    entries, settings_bad = _settings_gate(cfg, entries)
+    unrunnable.update(settings_bad)
     # the conformance gate (Part 3): a model is benched only under a request
     # protocol that has been proven for it
     entries, gate_bad = _conformance_gate(
@@ -1097,6 +1123,8 @@ def cmd_escalate(args, cfg):
     # tier-1 row (the jobs come from the rows; this is only what is selectable)
     cases = all_tier_cases(prof, smoke=getattr(args, "smoke", False))
     entries = resolve_models(cfg, args.models)
+    # 2026-11-13: an escalation re-run is generation too (settings_gate)
+    entries, _bad = _settings_gate(cfg, entries)
     if not entries:
         raise SystemExit("no models selected (pass --models)")
     rungs = escalation_rungs(cfg)
@@ -1541,7 +1569,7 @@ def tier_progress(label: str, cfg: dict, prof: dict) -> dict:
     """{score: tiers.combine entry} for ``label`` from its CURRENT board rows
     (report.board_filter): what it scored per tier, and which tiers are open."""
     from . import report
-    rows = report.board_filter(label, cfg)
+    rows = report.board_filter(label, cfg, sampler_view="current")
     st = report.tier_model_stats(label, cfg, rows, report.load_meta(label), {"old": False})
     return report.tier_scorecard(st, report.scoring_config(cfg), prof)["tiers"]
 
@@ -2210,6 +2238,29 @@ def cmd_rejudge_reasoning(args, cfg) -> int:
     return 0
 
 
+def cmd_card_check(args, cfg):
+    """``card-check``: the settings proposal for one model (cardcheck.py)."""
+    from . import cardcheck, settings_gate
+    tpl = None
+    _, mid, entry = cardcheck.repo_of(cfg, args.model)
+    if mid:
+        try:
+            from .providers import get_provider
+            prov = get_provider(cfg, (entry or {}).get("provider") or next(
+                n for n, p in (cfg.get("providers") or {}).items()
+                if (p or {}).get("type") == "studioforge"))
+            if prov.type == "studioforge":
+                tpl = settings_gate.rig_templates(prov).get(mid)
+        except Exception:  # noqa: BLE001 — the rig template is a bonus
+            tpl = None
+    res = cardcheck.check(cfg, args.model, rig_template=tpl)
+    if getattr(args, "json", False):
+        print(json.dumps(res, indent=2, ensure_ascii=False))
+    else:
+        print(cardcheck.format_check(res))
+    return 0 if any(c["found"] for c in res["cards"]) else 1
+
+
 def cmd_conform(args, cfg):
     """Prove the harness's request protocol works for the selected models.
 
@@ -2237,22 +2288,59 @@ def cmd_conform(args, cfg):
             return False
 
     need_lock = bool(getattr(args, "allow_load", False)) and any(_is_rig(e) for e in entries)
+    # 2026-11-13: the recommended-settings gate + the chat template's facts
+    # (settings_gate). A model that fails it is not probed: it would not be
+    # benched either.
+    from . import settings_gate
+    templates = {}
+    if any(_is_rig(e) for e in entries):
+        try:
+            from .providers import provider_for
+            rig = next(provider_for(cfg, e) for e in entries if _is_rig(e))
+            templates = settings_gate.rig_templates(rig)
+        except Exception:  # noqa: BLE001 — facts are information only
+            templates = {}
+    verdicts = {}
+    for e in entries:
+        try:
+            ptype = get_provider(cfg, e.get("provider")).type
+        except Exception:  # noqa: BLE001
+            ptype = None
+        verdicts[e["name"]] = settings_gate.check(cfg, e, ptype, templates.get(e.get("model_id")))
+    blocked = [e for e in entries if not verdicts[e["name"]].ok]
+    runnable = [e for e in entries if verdicts[e["name"]].ok]
     with rig_phase(needed=need_lock, what="conform (--allow-load)"):
         records = conformance.conform(
-            cfg, entries, allow_load=bool(getattr(args, "allow_load", False)))
+            cfg, runnable, allow_load=bool(getattr(args, "allow_load", False))) if runnable else []
     if getattr(args, "json", False):
-        print(json.dumps([r.to_dict() for r in records], indent=2))
+        out = [dict(r.to_dict(), settings=verdicts[r.label].to_dict())
+               if r.label in verdicts else r.to_dict() for r in records]
+        out += [{"label": e["name"], "model_id": e.get("model_id"), "verdict": "SETTINGS",
+                 "settings": verdicts[e["name"]].to_dict()} for e in blocked]
+        print(json.dumps(out, indent=2))
     else:
+        for e in blocked:
+            v = verdicts[e["name"]]
+            print(f"\n{e['name']} ({e.get('model_id')}) — NOT CHECKED: needs recommended settings")
+            print(f"  settings BLOCK {v.reason}")
+            print("  " + v.fix.replace("\n", "\n  "))
+            for line in settings_gate.format_facts(v.facts):
+                print(line)
         for r in records:
             print(f"\n{r.label} ({r.model_id}) via {r.provider} [{r.provider_type}]"
                   f" — {r.verdict}")
             for c in r.checks:
                 print(f"  {c.id} {c.status:4s} {c.detail}")
+            v = verdicts.get(r.label)
+            if v is not None:
+                print(f"  settings OK   {v.basis}")
+                for line in settings_gate.format_facts(v.facts):
+                    print(line)
             if r.note:
                 print(f"  note: {r.note}")
             print(f"  record: {conformance.record_path(r.label)}")
     # a FAIL is the gate's signal: the model is not benched as it is
-    return 1 if any(r.verdict == conformance.FAIL for r in records) else 0
+    return 1 if blocked or any(r.verdict == conformance.FAIL for r in records) else 0
 
 
 # ------------------------------------------------------------------- main
@@ -2949,6 +3037,12 @@ def main(argv=None):
                         help="the benchmark profile whose sampler and budgets "
                              "the checks use (default: bench)")
 
+    p_cc = sub.add_parser(
+        "card-check", help="read a model's Hugging Face card(s) and chat template and PROPOSE "
+                           "its recommended sampler / settings_checked entry (writes nothing)")
+    p_cc.add_argument("model", help="a registry label, a rig model id, or an HF repo")
+    p_cc.add_argument("--json", action="store_true", help="print the proposal as JSON")
+
     args = parser.parse_args(argv)
     if args.cmd == "bench-all" and args.plan_json and (args.go or args.detach):
         parser.error("--plan-json is a plan only: drop --go/--detach")
@@ -3020,7 +3114,7 @@ def main(argv=None):
                "pack": cmd_pack, "pairwise": cmd_pairwise, "all": cmd_all,
                "gui": cmd_gui, "import-openclaw": cmd_import_openclaw,
                "models": cmd_models, "cases": cmd_cases, "bench-all": cmd_bench_all,
-               "conform": cmd_conform, "reverify-quotes": cmd_reverify_quotes,
+               "conform": cmd_conform, "card-check": cmd_card_check, "reverify-quotes": cmd_reverify_quotes,
                "rejudge-reasoning": cmd_rejudge_reasoning}[args.cmd]
     # WP-BENCH FIX-6: `run`/`all` are the two commands that do real benched
     # work end to end, so they are the ones tracked by the fleet-wide

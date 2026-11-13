@@ -70,7 +70,8 @@ def test_board_keeps_the_old_set_until_the_new_one_is_complete():
     old = [_row(c, OLD) for c in CASES]
     half = old + [_row("C1", NEW, run="r-new", ts="2026-11-13T00:00:00")]
     board = report.sampler_select(half, WANT, "board")
-    assert board == old                                   # no new row leaks in
+    assert [{k: v for k, v in r.items() if k != "_sampler_previous"} for r in board] == old
+    assert all(r["_sampler_previous"] for r in board)     # no new row leaks in; marked
     assert report.sampler_select(half, WANT, "current") == [half[-1]]
     full = old + [_row(c, NEW, run="r-new", ts="2026-11-13T00:00:00") for c in CASES]
     assert report.sampler_select(full, WANT, "board") == full[3:]     # switched whole
@@ -81,7 +82,7 @@ def test_an_unjudged_new_row_does_not_complete_the_set():
     old = [_row(c, OLD) for c in CASES]
     new = [_row(c, NEW, run="r-new", needs_judge=True,
                 judge=({"score": 1} if c != "C3" else None)) for c in CASES]
-    assert report.sampler_select(old + new, WANT, "board") == old
+    assert [r["bench_run_id"] for r in report.sampler_select(old + new, WANT, "board")] == ["r-old"] * 3
     new[2]["judge"] = {"score": 1}
     assert report.sampler_select(old + new, WANT, "board") == new
 
@@ -114,14 +115,16 @@ def test_board_filter_applies_the_rule(tmp_path, monkeypatch):
     rows = old + [new1]
     got = report.board_filter("nb", _cfg(), rows=list(rows))
     assert sorted(r["bench_run_id"] for r in got) == ["r-old"] * 3
+    monkeypatch.setattr(report, "SAMPLER_RETEST", {"nb"})
     got = report.board_filter("nb", _cfg(), rows=list(rows), sampler_view="current")
     assert [r["bench_run_id"] for r in got] == ["r-new"]
 
 
 # ------------------------------------------------------ bench-all regenerates
 
-def _plan(cfg, rows):
+def _plan(cfg, rows, only=("nb", "p")):
     return bench_all.plan(cfg, {"org/nb-Q8_0", "org/p-Q8_0"}, board_labels=["nb", "p"],
+                          only=list(only) if only is not None else None,
                           rows_for=lambda l: rows[l], pending_for=lambda l: 0,
                           attempts_for=lambda l: {}, judge_id="j/j", case_ids=CASES,
                           rejudge_for=lambda l: set(), rungs=[], ladder_for=lambda l: None)
@@ -139,6 +142,17 @@ def test_bench_all_regenerates_stale_rows_only(monkeypatch):
     assert _plan(_cfg(), rows)["groups"] == [{"models": ["nb"], "cases": ["C2", "C3"]}]
 
 
+def test_a_plain_bench_all_never_starts_a_sampler_rerun(monkeypatch):
+    """Adding a rule must not re-run every board model it now covers: only a
+    run that names the label (--only) regenerates its stale rows."""
+    monkeypatch.setattr(report, "sampler_want",
+                        lambda label, cfg: WANT if label == "nb" else {})
+    rows = {"nb": [_row(c, OLD) for c in CASES], "p": [_row(c, OLD) for c in CASES]}
+    assert _plan(_cfg(), rows, only=None)["groups"] == []
+    assert report.SAMPLER_RETEST == set()
+    assert _plan(_cfg(), rows, only=["nb"])["groups"] == [{"models": ["nb"], "cases": CASES}]
+
+
 def test_unstamped_rows_trigger_nothing(monkeypatch):
     monkeypatch.setattr(report, "sampler_want", lambda label, cfg: WANT)
     rows = {"nb": [_row(c, None) for c in CASES], "p": [_row(c, None) for c in CASES]}
@@ -151,9 +165,30 @@ def test_errors_under_the_old_sampler_do_not_use_up_attempts(tmp_path, monkeypat
     cfgmod.set_results_dir(tmp_path)
     monkeypatch.setattr(_version, "row_current", lambda r, cfg=None: True)
     monkeypatch.setattr(report, "sampler_want", lambda label, cfg: WANT)
+    monkeypatch.setattr(report, "SAMPLER_RETEST", {"nb"})
     import json
     with (tmp_path / "transcripts_nb.jsonl").open("w", encoding="utf-8") as f:
         for i in range(3):
             f.write(json.dumps(_row("C1", OLD, run=f"o{i}", grade="error")) + "\n")
         f.write(json.dumps(_row("C2", NEW, run="n1", grade="error")) + "\n")
     assert bench_all.error_attempts("nb", _cfg()) == {"C2": 1}
+
+
+def test_a_retryable_error_or_failed_verdict_keeps_the_old_set():
+    old = [_row(c, OLD) for c in CASES]
+    new = [_row(c, NEW, run="r-new") for c in CASES]
+    new[0] = dict(new[0], grade="error", error_kind="transport")
+    got = report.sampler_select(old + new, WANT, "board")
+    assert [r["bench_run_id"] for r in got] == ["r-old"] * 3 and all(r["_sampler_previous"] for r in got)
+    new2 = [_row(c, NEW, run="r-new", needs_judge=True,
+                 judge={"judge_failed": True} if c == "C2" else {"score": 1}) for c in CASES]
+    assert all(r["bench_run_id"] == "r-old" for r in report.sampler_select(old + new2, WANT, "board"))
+
+
+def test_the_new_runs_failed_meta_does_not_land_on_the_old_set():
+    rows = [dict(_row(c, OLD), _sampler_previous=True) for c in CASES]
+    cov = report._coverage(rows, {"failed": True, "error": "conformance FAIL c3"}, None, {"old": False})
+    assert not cov["failed"] and any("re-test due" in n for n in cov["notes"])
+    cov = report._coverage([_row(c, NEW) for c in CASES], {"failed": True, "error": "x"}, None,
+                           {"old": False})
+    assert cov["failed"]

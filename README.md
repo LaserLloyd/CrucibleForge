@@ -327,6 +327,7 @@ One file, `models.yaml`, found in this order: `--config`, `$CRUCIBLEFORGE_CONFIG
 | `providers.<name>.docs`, `docs_verified` | Where a hosted provider's request format was read, and when. `conform` warns if missing or older than 120 days. |
 | `models[].price` | USD per 1M tokens. Add `basis: list` for a flat-plan provider (the cost then shows as an estimate). |
 | `models[].extra_body` | Extra request fields, for example `reasoning_format: deepseek`. |
+| `models[].sampler`, `models[].settings_checked` | The model's recommended sampler (or a `recommended_samplers` rule in the profile). A rig model with neither is **not run** until its card was read: `settings_checked: {sampler: none_published, source: <card URL>, template: <what the chat template does>}`. `crucibleforge card-check <label>` proposes it. Hosted APIs are exempt. |
 | `judge.candidates`, `judge.samples` | The judge to use, and the default number of passes. |
 | `CRUCIBLEFORGE_GUI_TOKEN`, `CRUCIBLEFORGE_ENV_FILE`, `CRUCIBLEFORGE_V2_RUNS_ROOT` | GUI token, a file sourced by detached runs, and a folder for run reports. |
 
@@ -342,6 +343,7 @@ Prefix with `uv run` on a native install.
 | `crucibleforge status` | Providers, keys, judge, case counts. |
 | `crucibleforge models discover <provider>` | List the model ids a server offers. |
 | `crucibleforge conform --models <label>` | Prove the request format works for a model. |
+| `crucibleforge card-check <label or HF repo>` | Read the model's HF card(s) and chat template; propose its recommended sampler or `settings_checked` entry. Writes nothing. |
 | `crucibleforge all --models <label> --judge <spec> --plan` | Print what would run. Calls nothing. |
 | `crucibleforge all --models <label> --judge <spec> --yes` | Generate, judge, ladder packs, report. |
 | `crucibleforge all --smoke ...` | A small end-to-end check. Not a score. |

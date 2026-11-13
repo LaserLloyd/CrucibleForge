@@ -181,6 +181,8 @@ def current_rows(cfg: dict | None, label: str, entry: dict | None,
     counts). Idempotent: rows already picked by
     ``report.board_filter(..., sampler_view="current")`` pass unchanged."""
     from . import report
+    if not report.sampler_retest(label):
+        return replay_rows(entry, rows)
     want = report.sampler_want(label, cfg)
     return replay_rows(entry, [r for r in rows if not report.sampler_stale(r, want)])
 
@@ -194,7 +196,7 @@ def error_attempts(label: str, cfg: dict | None = None) -> dict[str, int]:
     from .preflight import billing_error_row
     from .version import row_current
     from . import report
-    want = report.sampler_want(label, cfg)
+    want = report.sampler_want(label, cfg) if report.sampler_retest(label) else None
     out: dict[str, int] = {}
     for r in load_transcripts(label):
         if report.sampler_stale(r, want):
@@ -339,6 +341,11 @@ def plan(cfg: dict, rig_ids: set[str], *, include_api: bool = False,
     def benched(m):
         return m.get("bench", True) is not False and not out_of_scope(m.get("model_id"))
 
+    # 2026-11-13: superseded-sampler rows are owed again only for labels this
+    # run names (--only); a plain bench-all never starts a mass re-run
+    report.SAMPLER_RETEST = (
+        {m["name"] for m in models if wanted(m["name"], m.get("model_id"))} if only_set is not None
+        else set())
     candidates, not_on_rig, kept_on_board, not_benched = [], [], [], []
     for m in models:
         if m.get("enabled", True) is False or not wanted(m["name"], m.get("model_id")):
@@ -609,10 +616,10 @@ def board_completeness(cfg: dict | None, labels: list[str]) -> dict[str, dict | 
     for label in labels:
         try:
             att = error_attempts(label, cfg)
-            # the RUN view: a label regenerating under a new sampler is
-            # Incomplete while the board still shows its old set
-            rows = report.board_filter(label, cfg, sampler_view="current")
-            room = report.board_filter(label, cfg, with_rungs=True, sampler_view="current")
+            # the board's own view (a label re-measured under a new sampler
+            # shows its previous set, marked, until the new one is complete)
+            rows = report.board_filter(label, cfg)
+            room = report.board_filter(label, cfg, with_rungs=True)
             esc = 0
             if rungs:
                 from .runner import escalation_todo
@@ -645,6 +652,8 @@ def format_plan(p: dict) -> str:
         L.append(f"  ! --only {o}: no registry entry and not on the rig — nothing to do for it")
     for label in p["not_on_rig"]:
         L.append(f"  ! {label}: enabled but not on the rig — skipped (disable it or re-download)")
+    from .settings_gate import plan_lines as _settings_lines
+    L += _settings_lines(p)
     for label in p.get("not_benched") or []:
         L.append(f"  · {label}: out of scope (bench: false / not a text chat model) — never benched")
     for label in p.get("kept_on_board") or []:
@@ -691,7 +700,9 @@ def format_plan(p: dict) -> str:
             + " — hosted models need an attended `bench-all --include-api` run (metered)")
     for w in p.get("window") or []:
         L.append(w)
-    if nothing_to_do(p):
+    if nothing_to_do(p) and p.get("settings_blocked"):
+        L.append("  nothing runnable — the models above wait for their recommended settings")
+    elif nothing_to_do(p):
         L.append("  nothing to do — every contestant is complete and judged"
                  + (" (hosted rows pending)" if p.get("hosted_pending") else ""))
     text = "\n".join(L)
@@ -708,7 +719,8 @@ def format_plan(p: dict) -> str:
 #: registry keys that change HOW a model is called or scored; a re-test of the same model at another quant
 #: (``bench-all --inherit-from``) carries these over. Identity/size/provider keys (name, model_id, context_length,
 #: provider, enabled, price, arch, quant*, base, family...) are never copied.
-INHERIT_KEYS = ("reasoning_replay", "thinking", "censored", "sampler", "max_output_tokens", "text_suite_only")
+INHERIT_KEYS = ("reasoning_replay", "thinking", "censored", "sampler", "max_output_tokens", "text_suite_only",
+                "settings_checked")
 
 
 def inherited_settings(cfg: dict, label: str) -> dict:
@@ -1118,7 +1130,9 @@ def plan_json(p: dict, cfg: dict, *, until: str | None, start: datetime,
     esc = {e["model"]: int(e.get("jobs") or 0) for e in p.get("escalate") or []}
     lad = {lp["model"]: lp for lp in p.get("ladder") or []}
     labels = list(dict.fromkeys(list(p.get("candidates") or [])
-                                + [a["name"] for a in p.get("add") or []]))
+                                + [a["name"] for a in p.get("add") or []]
+                                + list(p.get("settings_blocked") or [])))
+    blocked = set(p.get("settings_blocked") or [])
     models = {}
     for label in labels:
         pm = (p.get("per_model") or {}).get(label) or {}
@@ -1130,7 +1144,11 @@ def plan_json(p: dict, cfg: dict, *, until: str | None, start: datetime,
             waiting = 0.0
         jeq = float(srow.get("judge_eq") or 0.0) + waiting
         lp = lad.get(label)
-        if miss:
+        if label in blocked:
+            # settings_gate: not run until its recommended settings are checked
+            verdict = "settings_unchecked"
+            miss = []
+        elif miss:
             verdict = srow.get("verdict", "no_window" if win is None else "does_not_fit")
         elif lp:
             verdict = "ladder_only"
@@ -1156,6 +1174,9 @@ def plan_json(p: dict, cfg: dict, *, until: str | None, start: datetime,
             "slot": ({"start": srow["start"], "end": srow["end"]}
                      if srow.get("start") else None),
         }
+        sv = (p.get("settings") or {}).get(label)
+        if sv is not None:
+            models[label]["settings"] = sv
     fits = [l for l, m in models.items() if m["verdict"] in ("fits", "oversize_first")]
     left = [l for l, m in models.items() if m["verdict"] == "does_not_fit"]
     out = {
@@ -1304,6 +1325,10 @@ def execute(args, cfg: dict) -> int:
             return EXIT_USAGE
         if len(p["add"]) == 1:
             p["add"][0]["inherit"] = inh
+    # 2026-11-13: no rig model runs without its recommended settings checked
+    # (settings_gate) -- a blocked model is planned out, a new one still registered
+    from . import settings_gate
+    settings_gate.gate_plan(p, cfg, templates=settings_gate.rig_templates(prov))
     if only is not None and (not only or set(p.get("only_unknown") or []) >= set(only)):
         # --only named nothing that exists: say so, never fall back to "all"
         if getattr(args, "plan_json", False):
@@ -1363,6 +1388,14 @@ def execute(args, cfg: dict) -> int:
     for label in p["not_on_rig"]:
         notes.append(f"{label}: enabled but not on the rig — skipped")
     rc = EXIT_OK
+    for label in p.get("settings_blocked") or []:
+        # settings_gate: refused, never a silent "nothing to do"
+        notes.append(f"{label}: NOT RUN — needs recommended settings "
+                     f"(crucibleforge card-check {label})")
+        log.error("bench-all: %s not run: %s", label,
+                  ((p.get("settings") or {}).get(label) or {}).get("reason"))
+        if p.get("only") is not None:
+            rc = EXIT_MODEL_FAILED    # a targeted run of a blocked model fails loudly
     import threading
     from . import runner
     _, hard_end = deadlines(getattr(args, "until", None),
