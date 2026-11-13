@@ -1105,7 +1105,8 @@ def cmd_escalate(args, cfg):
     if not rungs:
         print("escalation is off for this profile (no escalation_rungs above the cap)")
         return 0
-    todo = {e["name"]: len(escalation_todo(report.board_filter(e["name"], cfg, with_rungs=True),
+    todo = {e["name"]: len(escalation_todo(report.board_filter(e["name"], cfg, with_rungs=True,
+                                                                           sampler_view="current"),
                                            e["name"], rungs)) for e in entries}
     print(f"escalation rungs {rungs} — jobs out of budget: " +
           ", ".join(f"{k}={v}" for k, v in todo.items()))
@@ -1564,7 +1565,7 @@ def tier_todo(label: str, cfg: dict, prof: dict, tier: int,
             prev[score] = e.get(f"t{below}") if (e.get("state") or {}).get(below) == "scored" else None
     scores = _tiers.unlocked(prof, tier, prev)
     cases = tier_cases(prof, tier, scores=scores, smoke=smoke) if scores else []
-    have = done_jobs(report.board_filter(label, cfg))
+    have = done_jobs(report.board_filter(label, cfg, sampler_view="current"))
     jobs = {(None, c["id"], r) for c in cases
             for r in range(1, repeats_for(cfg, c["category"], smoke, c) + 1)
             if (c["id"], r) not in have}
@@ -1666,7 +1667,7 @@ def ladder_todo(label: str, cfg: dict, prof: dict, sets: dict, unlock: float,
             if cs:
                 cases += cs
                 names.append(f"{key}#{n}")
-    have = done_jobs(report.board_filter(label, cfg))
+    have = done_jobs(report.board_filter(label, cfg, sampler_view="current"))
     jobs = {(None, c["id"], r) for c in cases
             for r in range(1, repeats_for(cfg, c["category"], smoke, c) + 1)
             if (c["id"], r) not in have and (c["id"], r) not in (tried or set())}

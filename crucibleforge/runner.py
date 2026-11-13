@@ -1863,7 +1863,7 @@ def escalate_models(cfg: dict, model_entries: list[dict], cases: list[dict],
         from . import report
 
         def room_rows(label):
-            return report.board_filter(label, cfg, with_rungs=True)
+            return report.board_filter(label, cfg, with_rungs=True, sampler_view="current")
     rungs = sorted(rungs if rungs is not None else escalation_rungs(cfg))
     out: dict[int, dict] = {}
     for rung in rungs:

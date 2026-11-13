@@ -3840,8 +3840,89 @@ def _board_rows(rows: list[dict]) -> list[dict]:
             == r.get("bench_run_id")]
 
 
+def _sampler_norm(params: dict | None) -> dict:
+    """A sampler dict in comparable form (1 == 1.0, key order ignored)."""
+    out = {}
+    for k, v in (params or {}).items():
+        if isinstance(v, bool) or not isinstance(v, (int, float)):
+            out[str(k)] = v
+        else:
+            out[str(k)] = float(v)
+    return out
+
+
+def sampler_want(label: str, cfg: dict | None) -> dict | None:
+    """The sampler params ``label`` is measured with NOW
+    (runner.resolve_sampler under the benchmark profile), or None when that
+    cannot be said (no cfg, no registry row, a regime that sends each case's
+    own sampler, an unreadable profile) -- None makes no row stale."""
+    if not cfg:
+        return None
+    entry = next((m for m in (cfg.get("models") or []) if m.get("name") == label), None)
+    if entry is None:
+        return None
+    try:
+        from .runner import REGIME_DEPLOYED, resolve_sampler
+        cfg_p = _profile_applied(cfg)[1]
+        if (cfg_p.get("defaults") or {}).get("regime") != REGIME_DEPLOYED:
+            return None
+        return _sampler_norm(resolve_sampler(cfg_p, entry)[0])
+    except Exception as e:  # noqa: BLE001 -- unknown sampler: nothing is stale
+        log.warning("sampler for %s unreadable (%s) -- no row treated as stale", label, e)
+        return None
+
+
+def sampler_stale(r: dict, want: dict | None) -> bool:
+    """A row measured with another sampler than the model's current one
+    (2026-11-13, Nanbeige4.3 ran on server defaults before its card's rule
+    was added). Only a row whose protocol stamp NAMES a sampler can be stale:
+    a row without the stamp (older harness) counts as current, and a
+    ``case`` stamp (fixed regime: each case's own sampler) is not comparable."""
+    if want is None:
+        return False
+    s = (r.get("protocol") or {}).get("sampler")
+    if not isinstance(s, dict) or s.get("source") == "case":
+        return False
+    return _sampler_norm(s.get("params")) != want
+
+
+def sampler_select(rows: list[dict], want: dict | None, view: str = "board") -> list[dict]:
+    """Pick the rows of ONE label by sampler currency (rows already filtered
+    to the board's profile/regime/cases, before the latest-per-job pick).
+
+    ``view="current"`` (the run side: bench-all, ladder, tiers, escalation):
+    only rows under the current sampler -- the stale ones are owed again.
+
+    ``view="board"`` (every published number): NEVER a mix. While a label has
+    stale rows and its current-sampler rows do not yet cover every standard
+    job (case, repeat) the stale rows cover -- generated AND judged -- the
+    board keeps the OLD set (the current-sampler rows are left out); the
+    moment the new set is complete the board switches to it whole and the
+    stale rows drop. Ladder-pack rows do not hold the switch (their sets are
+    re-climbed from the new standard scores afterwards). The label shows as
+    Incomplete meanwhile (bench_all.completeness reads the current view)."""
+    if want is None:
+        return rows
+    stale = [r for r in rows if sampler_stale(r, want)]
+    if not stale:
+        return rows
+    fresh = [r for r in rows if not sampler_stale(r, want)]
+    if view == "current":
+        return fresh
+    stamped_fresh = [r for r in fresh if isinstance((r.get("protocol") or {}).get("sampler"), dict)]
+    owed = {(r.get("case_id"), r.get("repeat") or 1) for r in stale
+            if not r.get("ladder_revision") and not r.get("budget_rung")}
+    done = {(r.get("case_id"), r.get("repeat") or 1) for r in stamped_fresh
+            if not (r.get("needs_judge") and r.get("judge") is None)}
+    if owed <= done:
+        return fresh
+    ids = {id(r) for r in stamped_fresh}
+    return [r for r in rows if id(r) not in ids]
+
+
 def board_filter(label: str, cfg: dict | None, rows: list[dict] | None = None,
-                 revisions: set[str] | None = None, with_rungs: bool | None = None) -> list[dict]:
+                 revisions: set[str] | None = None, with_rungs: bool | None = None,
+                 sampler_view: str = "board") -> list[dict]:
     """The rows of ``label`` that count on the board: the benchmark profile,
     the current suite revision (or the given ``revisions``), latest run per
     (case, repeat). Escalation rows (``budget_rung``, a bigger budget than the
@@ -3903,6 +3984,9 @@ def board_filter(label: str, cfg: dict | None, rows: list[dict] | None = None,
     if reps:
         keep = [r for r in keep
                 if r.get("case_id") not in reps or int(r.get("repeat") or 1) <= reps[r["case_id"]]]
+    if revisions is None:
+        # 2026-11-13: rows under a superseded sampler (sampler_select)
+        keep = sampler_select(keep, sampler_want(label, cfg), sampler_view)
     return _recheck(_board_rows(keep))
 
 

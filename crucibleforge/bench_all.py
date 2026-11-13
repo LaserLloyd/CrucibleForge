@@ -172,7 +172,20 @@ def replay_rows(entry: dict | None, rows: list[dict]) -> list[dict]:
             if bool((r.get("protocol") or {}).get("reasoning_replay", False)) == want]
 
 
-def error_attempts(label: str) -> dict[str, int]:
+def current_rows(cfg: dict | None, label: str, entry: dict | None,
+                 rows: list[dict]) -> list[dict]:
+    """The rows of ``label`` that still count for the RUN side: measured
+    under the registry's reasoning replay (:func:`replay_rows`) and under the
+    sampler the model is measured with now (report.sampler_stale -- a row
+    whose stamp names another sampler is owed again; an unstamped row
+    counts). Idempotent: rows already picked by
+    ``report.board_filter(..., sampler_view="current")`` pass unchanged."""
+    from . import report
+    want = report.sampler_want(label, cfg)
+    return replay_rows(entry, [r for r in rows if not report.sampler_stale(r, want)])
+
+
+def error_attempts(label: str, cfg: dict | None = None) -> dict[str, int]:
     """Errored benchmark rows per case id over the label's history at the
     CURRENT suite revision (an error under an older regime says nothing about
     whether the case can run now — 3.8.0 re-runs every case)."""
@@ -180,8 +193,14 @@ def error_attempts(label: str) -> dict[str, int]:
     from .profiles import DEFAULT_PROFILE
     from .preflight import billing_error_row
     from .version import row_current
+    from . import report
+    want = report.sampler_want(label, cfg)
     out: dict[str, int] = {}
     for r in load_transcripts(label):
+        if report.sampler_stale(r, want):
+            # 2026-11-13: an error under a superseded sampler says nothing
+            # about whether the case runs under the current one
+            continue
         if billing_error_row(r):
             # 4.1 F1: a provider that would not bill the request (credit
             # spent, rate/spend limit) says nothing about the case; it is due
@@ -257,15 +276,16 @@ def plan(cfg: dict, rig_ids: set[str], *, include_api: bool = False,
     if judge_id is None:
         j = profile_judge(load_profile(DEFAULT_PROFILE, cfg))
         judge_id = j.get("model_id") if isinstance(j, dict) else j
-    rows_for = rows_for or (lambda label: report.board_filter(label, cfg))
-    room_for = room_for or (lambda label: report.board_filter(label, cfg, with_rungs=True))
+    rows_for = rows_for or (lambda label: report.board_filter(label, cfg, sampler_view="current"))
+    room_for = room_for or (lambda label: report.board_filter(label, cfg, with_rungs=True,
+                                                              sampler_view="current"))
     if rungs is None:
         from .runner import escalation_rungs
         try:
             rungs = escalation_rungs(apply_profile(load_profile(DEFAULT_PROFILE, cfg), cfg)[0])
         except Exception:  # noqa: BLE001 — no profile readable: no escalation planned
             rungs = []
-    attempts_for = attempts_for or error_attempts
+    attempts_for = attempts_for or (lambda label: error_attempts(label, cfg))
     rejudge_for = rejudge_for or rejudge_cases
     if pending_for is None:
         def pending_for(label):
@@ -351,7 +371,8 @@ def plan(cfg: dict, rig_ids: set[str], *, include_api: bool = False,
     groups: dict[tuple, list[str]] = {}
     for label in candidates:
         new = label in {a["name"] for a in add}
-        miss = tuple(missing_cases([] if new else replay_rows(by_name.get(label), rows_for(label)),
+        miss = tuple(missing_cases([] if new else current_rows(cfg, label, by_name.get(label),
+                                                               rows_for(label)),
                                    case_ids,
                                    {} if new else attempts_for(label), repeats))
         if miss:
@@ -587,9 +608,11 @@ def board_completeness(cfg: dict | None, labels: list[str]) -> dict[str, dict | 
     by_name = {m["name"]: m for m in (cfg.get("models") or [])}
     for label in labels:
         try:
-            att = error_attempts(label)
-            rows = report.board_filter(label, cfg)
-            room = report.board_filter(label, cfg, with_rungs=True)
+            att = error_attempts(label, cfg)
+            # the RUN view: a label regenerating under a new sampler is
+            # Incomplete while the board still shows its old set
+            rows = report.board_filter(label, cfg, sampler_view="current")
+            room = report.board_filter(label, cfg, with_rungs=True, sampler_view="current")
             esc = 0
             if rungs:
                 from .runner import escalation_todo
