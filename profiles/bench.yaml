@@ -127,6 +127,10 @@ recommended_samplers:
     match: 'Qwen2\.5-'
     sampler: {temperature: 0.7, top_p: 0.8, top_k: 20, min_p: 0.0, repeat_penalty: 1.1}
     source: https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct (generation_config)
+  - id: nanbeige4
+    match: 'Nanbeige4'
+    sampler: {temperature: 0.6, top_p: 0.95}
+    source: https://huggingface.co/Nanbeige/Nanbeige4.3-33B ("Reasoning and chat tasks" row; agentic row is 1.0 / 0.95; preserve_thinking False for chat = reasoning_replay off)
   - id: gemma4
     match: 'gemma-4|Goetia|Spectre|Broken-Tutu'
     sampler: {temperature: 1.0, top_p: 0.95, top_k: 64, min_p: 0.0}
