@@ -753,6 +753,155 @@ def load_model(model_id: str, base_url: str, api_key: str,
     return time.perf_counter() - t0
 
 
+# ------------------------------------------ wider placement (2026-11-13)
+# Nanbeige4.3-33B Q8_0 (2026-11-13): full attention on every layer, ~113 KB
+# of q8_0 KV per token. On the two 5090s at the run's 73728-token window the
+# rig fitted 2 slots (3 was short by ~1.7 GB), so 32 thinking jobs queued two
+# at a time: ~96 tok/s aggregate and a 4.7 h generation, while the two idle
+# 3090s were never asked. When the preferred cards end up below ``min_slots``
+# the provider now asks the rig's own dry-run planner (GET /plan, nothing is
+# loaded) how many slots wider card sets would hold at the SAME ctx per slot,
+# scores each as slots x the rig's per-stream speed estimate for that set, and
+# moves only when the gain is clear (3090s are slower; a 4-card layer split
+# runs each stream at ~60 % of the 5090-pair speed). Budgets, ctx and every
+# scoring input are unchanged -- only placement and slot count move.
+
+#: A wider placement must promise at least this much more aggregate
+#: throughput (slots x per-stream tok/s) than the current one to be worth a
+#: reload and holding extra cards for the run.
+WIDEN_DEVICES_MIN_GAIN = 1.5
+
+
+def placement_speeds(base_url: str, api_key: str, headers: dict | None,
+                     model_id: str) -> dict[tuple[int, ...], float]:
+    """The rig's single-stream generation estimate (``est_gen_tps``) per
+    device set, from ``GET /api/models/{id}/options`` -- the ``placements``
+    table plus the per-context ``options`` rows. Keys are sorted device
+    tuples; the best estimate per set wins. Empty when unavailable."""
+    try:
+        code, data = _mgmt("GET", base_url, api_key, headers,
+                           f"/api/models/{_quote(model_id)}/options", timeout=60)
+    except StatusUnavailable as e:
+        log.warning("placement speeds for %s unavailable: %s", model_id, e)
+        return {}
+    if code != 200 or not isinstance(data, dict):
+        return {}
+    model = data.get("model") if isinstance(data.get("model"), dict) else data
+    rows = []
+    for pl in model.get("placements") or []:
+        opt = pl.get("optimal") if isinstance(pl.get("optimal"), dict) else {}
+        rows.append((opt.get("devices") or pl.get("devices"), opt.get("est_gen_tps")))
+    for o in model.get("options") or []:
+        if isinstance(o, dict):
+            rows.append((o.get("devices"), o.get("est_gen_tps")))
+    out: dict[tuple[int, ...], float] = {}
+    for devs, tps in rows:
+        try:
+            key = tuple(sorted(int(d) for d in devs or ()))
+            val = float(tps)
+        except (TypeError, ValueError):
+            continue
+        if key and val > 0:
+            out[key] = max(out.get(key, 0.0), val)
+    return out
+
+
+def per_slot_speed(speeds: dict[tuple[int, ...], float], devices) -> float | None:
+    """Per-stream tok/s estimate for ``devices``: the exact set's estimate,
+    else the SLOWEST known superset's (more slow cards never make a layer
+    split faster, so that is a pessimistic stand-in), else None."""
+    key = tuple(sorted(int(d) for d in devices))
+    if key in speeds:
+        return speeds[key]
+    sup = [v for k, v in speeds.items() if set(key) < set(k)]
+    return min(sup) if sup else None
+
+
+def own_vram_bytes(base_url: str, api_key: str, headers: dict | None,
+                   model_id: str) -> dict[int, int]:
+    """Bytes ``model_id``'s own engine holds per card right now (measured
+    ``vram_processes``, else the live plan's estimate). A dry-run plan counts
+    them as occupied; a reload frees them first."""
+    st = status(base_url, api_key, headers)
+    for p in st.get("vram_processes") or []:
+        if isinstance(p, dict) and p.get("alias") == model_id and p.get("per_gpu_bytes"):
+            try:
+                return {int(k): int(v) for k, v in p["per_gpu_bytes"].items()}
+            except (TypeError, ValueError, AttributeError):
+                break
+    for m in st.get("loaded") or []:
+        if m.get("model_id") == model_id:
+            try:
+                return {int(k): int(v) for k, v in
+                        ((m.get("plan") or {}).get("per_gpu_bytes") or {}).items()}
+            except (TypeError, ValueError, AttributeError):
+                return {}
+    return {}
+
+
+def dry_run_fits(base_url: str, api_key: str, headers: dict | None, model_id: str,
+                 devices, ctx: int, kv: str, parallel: int, credit_bytes: int = 0) -> bool:
+    """Would a load of ``model_id`` at exactly (devices, ctx per slot, KV,
+    parallel) fit? ``GET /api/models/{id}/plan`` is the rig's dry run --
+    nothing is loaded -- but it answers against the cards as they stand, so
+    the bytes this model itself holds there (``credit_bytes``, freed by the
+    reload) are credited against a capacity shortfall. Any other refusal
+    (no shortfall figure) is a no."""
+    from urllib.parse import urlencode
+    q = [("ctx_size", int(ctx)), ("kv_cache_type", kv), ("kv_cache_type_v", kv),
+         ("parallel", int(parallel))] + [("devices", int(d)) for d in devices]
+    try:
+        code, data = _mgmt("GET", base_url, api_key, headers,
+                           f"/api/models/{_quote(model_id)}/plan?{urlencode(q)}", timeout=60)
+    except StatusUnavailable:
+        return False
+    if code != 200 or not isinstance(data, dict):
+        return False
+    if data.get("fits"):
+        return True
+    short = data.get("shortfall_bytes")
+    try:
+        return short is not None and int(short) <= int(credit_bytes)
+    except (TypeError, ValueError):
+        return False
+
+
+def max_slots_dry_run(base_url: str, api_key: str, headers: dict | None, model_id: str,
+                      devices, ctx: int, kv: str, widths, credit_bytes: int = 0) -> int:
+    """The widest of ``widths`` (tried widest first) the dry run accepts, else 0."""
+    for n in sorted(set(int(w) for w in widths), reverse=True):
+        if dry_run_fits(base_url, api_key, headers, model_id, devices, ctx, kv, n,
+                        credit_bytes):
+            return n
+    return 0
+
+
+def choose_wider_placement(current: dict, candidates: list[dict],
+                           min_gain: float = WIDEN_DEVICES_MIN_GAIN,
+                           cap_slots: int | None = None) -> dict | None:
+    """Pure decision: the candidate with the best expected aggregate
+    throughput (``slots`` x per-stream ``tps``), if it beats ``current`` by at
+    least ``min_gain``; None keeps the current placement. Slots count only up
+    to ``cap_slots`` (the run's ``target_slots``). Ties go to fewer cards
+    (leave the rest of the rig free)."""
+    def score(c):
+        slots = int(c.get("slots") or 0)
+        if cap_slots:
+            slots = min(slots, int(cap_slots))
+        return slots * float(c.get("tps") or 0.0)
+
+    base = score(current)
+    best = None
+    for c in candidates:
+        if not c.get("slots") or not c.get("tps"):
+            continue
+        if best is None or (score(c), -len(c["devices"])) > (score(best), -len(best["devices"])):
+            best = c
+    if best is None or base <= 0 or score(best) < base * float(min_gain):
+        return None
+    return {**best, "gain": score(best) / base}
+
+
 # ---------------------------------------------------------------- unloading
 
 def unload_all(base_url: str = DEFAULT_BASE_URL, api_key: str = DEFAULT_API_KEY,

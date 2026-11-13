@@ -172,6 +172,12 @@ class Provider:
     # names ONE card that no priority-1/2 or pinned model is recorded on, and
     # the run refuses rather than widen onto a protected card.
     day_single_card: bool = False
+    # Wider placement (2026-11-13): below min_slots on the leased cards, ask
+    # the rig's dry-run planner whether more cards hold clearly more slots at
+    # the same ctx and move there. "thinking" (default) = only for models the
+    # rig marks as thinking; "always"; "never".
+    widen_devices: str = "thinking"
+    _atexit_release: bool = field(default=False, repr=False)
     _vacated_render: bool = field(default=False, repr=False)
     # remembers what /models returned (None = endpoint doesn't support listing)
     _models_cache: set | None = field(default=None, repr=False)
@@ -393,14 +399,7 @@ class Provider:
                                              studioforge.LEASE_HOLDER, model_id)
             devices = self.claim_devices(model_id)
             try:
-                lease = studioforge.acquire_lease(
-                    self.base_url, self.api_key, hdrs, devices, model_ids=[model_id],
-                    reason=f"crucibleforge benchmark: {model_id.rsplit('/', 1)[-1]}",
-                    idle_ttl_s=self.lease_idle_ttl_s, wait_busy_s=self.wait_busy_s,
-                    force=self.force_evict and not self.day_single_card,
-                    busy_unload_after_s=(self.busy_unload_after_s
-                                         if self.force_evict and not self.day_single_card
-                                         else None))
+                self._acquire(model_id, devices)
             except studioforge.StudioForgeError as e:
                 if e.status in (401, 403, 404, 405) and self.day_single_card:
                     # the lease-less path unloads idle residents: never by day
@@ -413,13 +412,39 @@ class Provider:
                     self.lease = False
                     return self.switch_model(model_id, context_length)
                 raise
-            lease["_model_id"] = model_id
-            self._lease = lease
-            # a lease can evict residents (force_evict): they are restored
-            # even when the phase fails before any load (review S5)
-            self._touched = True
+        self._load_under_lease(model_id, context_length)
+        if self._wants_wider_devices(model_id):
+            self._widen_devices(model_id, context_length)
+        plan = self._plans.get(model_id) or {}
+        log.info("%s serving under lease %s: parallel=%s ctx=%s devices=%s", model_id,
+                 self._lease.get("_lease_id"), plan.get("parallel"), plan.get("ctx_size"),
+                 plan.get("devices"))
+        return time.perf_counter() - t0
+
+    def _acquire(self, model_id: str, devices: list[int]) -> dict:
+        """Take the run's GPU lease on ``devices`` (the provider's force /
+        busy-unload policy) and start its keepalive."""
+        lease = studioforge.acquire_lease(
+            self.base_url, self.api_key, self.mgmt_headers(), devices, model_ids=[model_id],
+            reason=f"crucibleforge benchmark: {model_id.rsplit('/', 1)[-1]}",
+            idle_ttl_s=self.lease_idle_ttl_s, wait_busy_s=self.wait_busy_s,
+            force=self.force_evict and not self.day_single_card,
+            busy_unload_after_s=(self.busy_unload_after_s
+                                 if self.force_evict and not self.day_single_card
+                                 else None))
+        lease["_model_id"] = model_id
+        lease["_devices"] = [int(d) for d in devices]
+        self._lease = lease
+        # a lease can evict residents (force_evict): they are restored
+        # even when the phase fails before any load (review S5)
+        self._touched = True
+        if not self._atexit_release:
             atexit.register(self.release_lease)
-            self._start_keepalive()
+            self._atexit_release = True
+        self._start_keepalive()
+        return lease
+
+    def _load_under_lease(self, model_id: str, context_length: int | None) -> None:
         # A lease names the model but its load is the server's own business:
         # it sizes slots itself (observed parallel=1) and a load that does not
         # fit fails SILENTLY (the lease stands, loaded[] stays empty — seen
@@ -428,6 +453,7 @@ class Provider:
         # when the lease already produced a ready, multi-slot load at that
         # context, and otherwise answers with a structured 507 (retry_after_s /
         # per-mode suggestions) instead of silence.
+        hdrs = self.mgmt_headers()
         try:
             # poll (every READY_POLL_S = 2 s): a lease that is loading the
             # model is waited for; one that did not start a load is detected
@@ -443,14 +469,157 @@ class Provider:
                                wait_busy_s=self.wait_busy_s,
                                min_slots=self.min_slots, target_slots=self.target_slots)
         self._remember_plan(model_id)
+
+    # ------------------------------------------- wider placement (2026-11-13)
+    def _wants_wider_devices(self, model_id: str) -> bool:
+        """Below ``min_slots`` on the leased cards, for a model the policy
+        covers (``widen_devices``: ``thinking`` = models the rig marks as
+        thinking -- long outputs that queue badly; ``always``; ``never``).
+        Never in day mode (one card, by contract)."""
+        if self.day_single_card or self.widen_devices == "never" or not self.min_slots:
+            return False
         plan = self._plans.get(model_id) or {}
-        log.info("%s serving under lease %s: parallel=%s ctx=%s devices=%s", model_id,
-                 self._lease.get("_lease_id"), plan.get("parallel"), plan.get("ctx_size"),
-                 plan.get("devices"))
-        return time.perf_counter() - t0
+        if not plan.get("parallel") or int(plan["parallel"]) >= self.min_slots:
+            return False      # wide enough, or no live plan to judge from
+        leased = set((self._lease or {}).get("_devices") or ())
+        if self.lease_devices and set(int(d) for d in self.lease_devices) <= leased:
+            return False      # the lease already names every card the config allows
+        if self.widen_devices == "thinking":
+            try:
+                return "thinking" in self.model_capabilities(model_id)
+            except Exception as e:  # noqa: BLE001 — a listing error just skips the move
+                log.info("capabilities of %s unreadable (%s) — not widening onto more cards",
+                         model_id, e)
+                return False
+        return True
+
+    def _spare_cards(self, model_id: str, current: list[int]) -> list[int]:
+        """Rig cards a wider placement may ADD: in ``lease_devices`` (else
+        every card), not leased by anyone else (a render lease included --
+        widening never vacates), and with no other model resident (widening
+        never evicts: the memory embedder or a chat model there stays)."""
+        hdrs = self.mgmt_headers()
+        pool = (list(self.lease_devices) if self.lease_devices
+                else studioforge.gpu_indices(self.base_url, self.api_key, hdrs))
+        held = studioforge.foreign_held_devices(
+            studioforge.list_leases(self.base_url, self.api_key, hdrs), vacatable_render=False)
+        occupied: set[int] = set()
+        for m in studioforge.status(self.base_url, self.api_key, hdrs).get("loaded") or []:
+            if m.get("model_id") != model_id:
+                occupied.update(int(d) for d in ((m.get("plan") or {}).get("devices") or []))
+        return [int(d) for d in pool
+                if int(d) not in current and int(d) not in held and int(d) not in occupied]
+
+    def _wider_choice(self, model_id: str, ctx: int, live: dict) -> dict | None:
+        """Ask the rig's dry-run planner what every wider card set would hold
+        at the same ctx per slot and pick one (studioforge.choose_wider_placement)."""
+        from itertools import combinations
+        hdrs = self.mgmt_headers()
+        current = sorted(int(d) for d in (live.get("devices")
+                                          or (self._lease or {}).get("_devices") or []))
+        have = int(live.get("parallel") or 1)
+        spare = self._spare_cards(model_id, current)
+        if not spare:
+            log.info("%s: %d slot(s) on %s and no spare card to widen onto", model_id, have,
+                     current)
+            return None
+        speeds = studioforge.placement_speeds(self.base_url, self.api_key, hdrs, model_id)
+        base_tps = studioforge.per_slot_speed(speeds, current)
+        if base_tps is None:
+            log.info("%s: no speed estimate for %s — not widening", model_id, current)
+            return None
+        ours = studioforge.own_vram_bytes(self.base_url, self.api_key, hdrs, model_id)
+        kv_live = str(live.get("kv_cache_type") or "f16").lower()
+        kvs = [kv_live] + (["q8_0"] if kv_live not in studioforge._KV_Q8_OR_SMALLER else [])
+        widths = range(have + 1, max(self.target_slots, have + 1) + 1)
+        cands = []
+        for k in range(1, len(spare) + 1):
+            for extra in combinations(spare, k):
+                devs = sorted(current + list(extra))
+                tps = studioforge.per_slot_speed(speeds, devs)
+                if tps is None:
+                    continue
+                credit = sum(ours.get(d, 0) for d in devs)
+                best = {"devices": devs, "slots": 0, "kv": kv_live, "tps": tps}
+                for kv in kvs:
+                    n = studioforge.max_slots_dry_run(self.base_url, self.api_key, hdrs,
+                                                      model_id, devs, ctx, kv, widths, credit)
+                    if n > best["slots"]:
+                        best.update(slots=n, kv=kv)
+                log.info("%s: dry run on %s — %d slot(s) at ctx %d (KV %s), ~%.1f tok/s "
+                         "per stream", model_id, devs, best["slots"], ctx, best["kv"], tps)
+                cands.append(best)
+        return studioforge.choose_wider_placement(
+            {"devices": current, "slots": have, "tps": base_tps}, cands,
+            cap_slots=self.target_slots)
+
+    def _widen_devices(self, model_id: str, context_length: int | None) -> None:
+        """Move the run onto a wider card set when the dry run promises a
+        clear throughput gain (see studioforge "wider placement"). Same ctx
+        per slot, same budgets; only placement, slot count and (as the
+        existing slot widening already allows) a q8_0 KV cache can change.
+        Any failure puts the model back on the cards it had."""
+        hdrs = self.mgmt_headers()
+        live = dict(self._plans.get(model_id) or {})
+        ctx = int(live.get("ctx_size") or context_length or 32768)
+        have = int(live.get("parallel") or 1)
+        old_devices = sorted(int(d) for d in (live.get("devices")
+                                              or (self._lease or {}).get("_devices") or []))
+        try:
+            choice = self._wider_choice(model_id, ctx, live)
+        except studioforge.StudioForgeError as e:
+            log.warning("%s: wider placement check failed (%s) — staying on %s", model_id, e,
+                        old_devices)
+            return
+        if choice is None:
+            log.info("%s: no wider card set beats %d slot(s) on %s by %.1fx — staying",
+                     model_id, have, old_devices, studioforge.WIDEN_DEVICES_MIN_GAIN)
+            return
+        log.warning("%s: only %d slot(s) on %s — moving to %s for an estimated %d slot(s) at "
+                    "ctx %d (KV %s), ~%.1fx the aggregate throughput", model_id, have,
+                    old_devices, choice["devices"], choice["slots"], ctx, choice["kv"],
+                    choice["gain"])
+        new = None
+        try:
+            studioforge.unload_model(self.base_url, self.api_key, hdrs, model_id)
+            self._drop_lease_only()
+            self._acquire(model_id, choice["devices"])
+            try:
+                studioforge.wait_ready(model_id, self.base_url, self.api_key, headers=hdrs,
+                                       never_appeared_grace_s=studioforge.READY_POLL_S,
+                                       timeout_s=600)
+            except studioforge.StudioForgeError:
+                pass  # _try_widths (re)loads it explicitly either way
+            body = {"ctx_size": ctx, "devices": list(choice["devices"]),
+                    "kv_cache_type": choice["kv"], "kv_cache_type_v": choice["kv"]}
+            new = studioforge._try_widths(model_id, self.base_url, self.api_key, hdrs, body,
+                                          list(range(int(choice["slots"]), have, -1)), have)
+        except studioforge.StudioForgeError as e:
+            log.warning("%s: moving to %s failed (%s)", model_id, choice["devices"], e)
+        if new is not None:
+            self._remember_plan(model_id, live=new)
+            return
+        log.warning("%s: the wider placement did not come up — back to %s", model_id,
+                    old_devices)
+        if self._lease is not None:
+            studioforge.unload_model(self.base_url, self.api_key, hdrs, model_id)
+            self._drop_lease_only()
+        self._acquire(model_id, old_devices)
+        self._load_under_lease(model_id, context_length)
+
+    def _drop_lease_only(self) -> None:
+        """Release the GPU lease WITHOUT handing a vacated render tenant its
+        card back (the run is only re-leasing, not ending)."""
+        lease, self._lease = self._lease, None
+        if lease is not None:
+            studioforge.release_lease(self.base_url, self.api_key, self.mgmt_headers(),
+                                      lease["_lease_id"])
 
     def _start_keepalive(self) -> None:
-        if self._keepalive is not None or not self.lease_idle_ttl_s:
+        # a re-lease (wider placement) can outlive a keepalive that saw no
+        # lease for a moment and exited: start a fresh one then
+        if ((self._keepalive is not None and self._keepalive.is_alive())
+                or not self.lease_idle_ttl_s):
             return
         period = max(30.0, float(self.lease_idle_ttl_s) * _LEASE_TOUCH_FRACTION)
 
@@ -840,6 +1009,7 @@ def get_provider(cfg: dict, name: str) -> Provider:
         min_slots=int(p.get("min_slots", 4)),
         target_slots=int(p.get("target_slots", 8)),
         restore_residents=bool(p.get("restore_residents", True)),
+        widen_devices=str(p.get("widen_devices", "thinking")).lower(),
         use_resident=bool(p.get("use_resident", True)),
         force_evict_policy=bool(p.get("force_evict", False)) and ptype == "studioforge",
         lease_devices_preferred=(list(p["lease_devices_preferred"])
