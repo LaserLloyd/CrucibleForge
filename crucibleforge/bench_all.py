@@ -682,6 +682,25 @@ def format_plan(p: dict) -> str:
 
 # --------------------------------------------------------------- actions
 
+#: registry keys that change HOW a model is called or scored; a re-test of the same model at another quant
+#: (``bench-all --inherit-from``) carries these over. Identity/size/provider keys (name, model_id, context_length,
+#: provider, enabled, price, arch, quant*, base, family...) are never copied.
+INHERIT_KEYS = ("reasoning_replay", "thinking", "censored", "sampler", "max_output_tokens", "text_suite_only")
+
+
+def inherited_settings(cfg: dict, label: str) -> dict:
+    """Model-behaviour settings (+ extra_body and tags) of registry entry ``label``; ValueError when it is unknown."""
+    import copy
+    e = next((m for m in cfg.get("models") or [] if m.get("name") == label), None)
+    if e is None:
+        raise ValueError(f"--inherit-from {label!r}: no such registry entry")
+    out = {k: copy.deepcopy(e[k]) for k in INHERIT_KEYS if k in e}
+    if e.get("extra_body"):
+        out["extra_body"] = copy.deepcopy(e["extra_body"])
+    out["tags"] = [t for t in (e.get("tags") or []) if t != "auto-added"]
+    return out
+
+
 def append_registry(path: str | Path, add: list[dict], provider: str, ctx: int = 32768) -> None:
     """Add entries to the END of the ``models:`` list of models.yaml as TEXT
     (save_config would drop every comment in the file). The result is parsed
@@ -714,13 +733,21 @@ def append_registry(path: str | Path, add: list[dict], provider: str, ctx: int =
                   f"{ind}  context_length: {ctx}\n"
                   f"{ind}  provider: {provider}\n"
                   f"{ind}  tags:\n{ind}  - rig\n{ind}  - auto-added\n")
+        inh = a.get("inherit") or {}
+        for t in inh.get("tags") or []:
+            if t not in ("rig", "auto-added"):
+                block += f"{ind}  - {t}\n"
+        for k in INHERIT_KEYS:
+            if k in inh:
+                val = yaml.safe_dump(inh[k], default_flow_style=True, width=10**6).strip()
+                block += f"{ind}  {k}: {val.removesuffix(chr(10) + '...').removesuffix('...').strip()}\n"
         if a.get("arch"):
             block += f"{ind}  arch: {a['arch']}\n"
         if a.get("modalities"):
             block += f"{ind}  modalities: {a['modalities']}\n"
         if a.get("quant_reason"):
             block += f"{ind}  quant_reason: {a['quant_reason']}\n"
-        eb = a.get("extra_body") or {}
+        eb = {**(a.get("extra_body") or {}), **(inh.get("extra_body") or {})}
         if eb:
             block += f"{ind}  extra_body:\n"
             for line in yaml.safe_dump(eb, default_flow_style=False,
@@ -1240,6 +1267,20 @@ def execute(args, cfg: dict) -> int:
                   "registration (nothing else gets a quant reason)")
             return EXIT_USAGE
         p["add"][0]["quant_reason"] = qreason
+    inherit = getattr(args, "inherit_from", None)
+    if inherit:
+        # MakoBench requant (2026-11-13): a Q8_0 re-test is the SAME model, so its new registry entry must be called
+        # exactly like the original (reasoning replay, thinking, censored, extra_body...). Conformance c3 fails otherwise.
+        if only is None or len(only) != 1:
+            print("bench-all: --inherit-from needs --only with ONE label")
+            return EXIT_USAGE
+        try:
+            inh = inherited_settings(cfg, inherit)
+        except ValueError as e:
+            print(f"bench-all: {e}")
+            return EXIT_USAGE
+        if len(p["add"]) == 1:
+            p["add"][0]["inherit"] = inh
     if only is not None and (not only or set(p.get("only_unknown") or []) >= set(only)):
         # --only named nothing that exists: say so, never fall back to "all"
         if getattr(args, "plan_json", False):

@@ -2836,6 +2836,10 @@ def main(argv=None):
     p_ba.add_argument("--quant-reason", default=None, metavar="REASON",
                       help="with --only LABEL naming ONE new registration: record why the quant "
                            "is below Q8_0 in the models.yaml entry (q8_does_not_fit)")
+    p_ba.add_argument("--inherit-from", default=None, metavar="LABEL",
+                      help="with --only LABEL: when LABEL is a NEW registration, copy the model-behaviour "
+                           "settings (reasoning_replay, thinking, censored, sampler, max_output_tokens, "
+                           "extra_body, tags) of registry entry LABEL; for a re-test of the same model at another quant")
     p_ba.add_argument("--plan-json", action="store_true",
                       help="print the plan as ONE JSON object (per label: missing cases, "
                            "estimated generation/judge minutes, window verdict vs --until); "
