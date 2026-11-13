@@ -2141,6 +2141,18 @@ def cmd_reverify_quotes(args, cfg) -> int:
     return 0
 
 
+def _rejudge_hint(label: str, case_ids: set, known: set | None) -> str:
+    """The ``judge`` command that re-judges a label's repaired rows. ``judge --cases`` only knows the profile's
+    standard cases and refuses the whole run on a ladder-pack case id ("unknown case id(s)", 2026-11-13), so with
+    one of those among the repaired rows the hint drops the filter: every pending row of the model is judged."""
+    ids = sorted(case_ids)
+    if known is not None and not set(ids) <= known:
+        return (f"crucibleforge judge --models {label}   (no --cases: "
+                f"{', '.join(i for i in ids if i not in known)} are ladder-pack cases the filter does not know; "
+                f"this judges every pending row of the model)")
+    return f"crucibleforge judge --models {label} --cases {','.join(ids)}"
+
+
 def cmd_rejudge_reasoning(args, cfg) -> int:
     """List (default) or repair the judged rows whose answer sat in the
     reasoning channel of a FINISHED reply (finish=stop, empty content, no
@@ -2169,6 +2181,10 @@ def cmd_rejudge_reasoning(args, cfg) -> int:
         except ImportError:
             pass
     rep = rr.run(labels, apply=bool(args.apply), cases_by_id=cases_by_id)
+    try:  # the ids `judge --cases` accepts (the profile's standard cases; ladder-pack cases are not among them)
+        known = {c["id"] for c in _apply_profile_arg(copy.copy(args), cfg)[1]}
+    except (SystemExit, Exception):  # noqa: BLE001 — the hint is advice, never a reason to fail
+        known = None
     if getattr(args, "json", False):
         print(json.dumps(rep, indent=2))
         return 0
@@ -2186,8 +2202,7 @@ def cmd_rejudge_reasoning(args, cfg) -> int:
             turns = f" turns {it['turns']}" if it["turns"] else ""
             print(f"  {it['case_id']} repeat={it['repeat']} run={it['bench_run_id']} "
                   f"[{it['kind']}{turns}] stored verdict: {it['verdict']}")
-        ids = sorted({it["case_id"] for it in items})
-        print(f"  re-judge: crucibleforge judge --models {label} --cases {','.join(ids)}")
+        print("  re-judge: " + _rejudge_hint(label, {it["case_id"] for it in items}, known))
     print(f"total: {total} row(s)")
     if not args.apply:
         print("nothing was written (dry run; --apply appends the repaired rows as pending)")

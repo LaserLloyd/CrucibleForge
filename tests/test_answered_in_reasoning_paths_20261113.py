@@ -290,3 +290,15 @@ def test_rejudge_single_turn_row(tmp_path):
                        "judge": {"empty_generation": True}}])
     rows = rr.run(["m"])["m"]["rows"]
     assert [r["case_id"] for r in rows] == ["C"]
+
+
+def test_rejudge_hint_drops_the_case_filter_for_ladder_pack_cases():
+    """2026-11-13: the printed `judge --cases` command died on "unknown case id(s)" when a repaired row belonged to
+    a ladder pack (LNC1-glasshouse-keys), leaving every repaired row of the batch pending."""
+    from crucibleforge.cli import _rejudge_hint
+    known = {"RD1-marisol", "NC2-after-hours"}
+    assert _rejudge_hint("m", {"NC2-after-hours", "RD1-marisol"}, known) == \
+        "crucibleforge judge --models m --cases NC2-after-hours,RD1-marisol"
+    h = _rejudge_hint("m", {"RD1-marisol", "LNC1-glasshouse-keys"}, known)
+    assert h.startswith("crucibleforge judge --models m ") and "--cases " not in h and "LNC1-glasshouse-keys" in h
+    assert "--cases RD1-marisol" in _rejudge_hint("m", {"RD1-marisol"}, None)   # profile unreadable: old hint
