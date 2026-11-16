@@ -1,73 +1,83 @@
 ### 1
-"Your end of the deal." Marisol wiped her hands on her jeans, dug in the hard case at her feet and came up with a small plastic box that rattled. She put it in his palm and closed his fingers over it. "Our demo. The one and only. Guard it with your life."
+Marisol did not look up from the desk until she had finished labelling a channel strip, and then she looked at the tote for a long second before she looked at him.
 
-She went back to the board. "Settling in's a strong word. No more bread at four in the morning, though — I'm on the hill in Tremont now, upstairs from a laundromat. Everything I own smells like fabric softener and my landlady plays polka at dawn." She tipped her head at the ceiling. "Listen to that. Gorgeous, isn't it? Gorgeous and a pain in my neck."
+"Achterberg's fine in here. Mari's fine when nobody's listening."
+
+She reached into the chest pocket of her denim shirt and set a cassette on the road case beside the shoeboxes — a cheap grey TDK with a hand-written label gone brown with age.
+
+"And I held up my end. Four songs, one copy. If you lose it I'll have you killed, and I know stagehands in every city in Ohio." Her hand stayed near the tape a moment longer than it needed to. "Your mother's on it, singing harmony she couldn't hit. You have never heard her at sixteen."
+
+She went back to the strip.
+
+"Settling in fine. The bakery's done, though, kiddo. I'm up in Tremont now, over the laundromat, second floor over the dryers. I wake up to dryer sheets and Lawrence Welk through the floor at seven in the morning. Don't laugh. It grows on you." She jerked her chin at the ceiling. "Now. You hear that hum? That's the room. Stand right there and tell me if it gets worse."
+
+At the mention of Sunday she did not look up at all.
+
+"We'll do that one later."
+
+She slid the strip back into the desk, squared it with two fingers, and reached for the next one.
+
 
 ### 2
-When the wedge screamed, Marisol didn't duck. Her lips moved — "eins... zwei... drei..." — as her hands flew over the faders, and by the time she got to four the shriek had choked off into nothing. The trombonist looked at her like a scolded dog.
+She turned a knob on the desk that did not need turning.
 
-"Happens," she said. "That's what I'm for."
+"My daddy died the second of February, in his own shop on the causeway. I was eighteen. I found him." She said it the way she read out an input list. "After that I went a little wild — my wild year. Ask anybody on Dauphin Street. That is the story, and it is the only part of it that goes in the magazine."
 
-"My first board was a sixteen-oh-four. Mackie. Bought it off a pawnbroker on Government Street when I was fifteen with three summers of my daddy's shop money, and two of the channels were dead as hammers." She shrugged. "Fixed 'em myself. Felt like a surgeon."
+She let the silence do a little work, and then she picked up the coffee flask she had brought in with her and unscrewed the cap.
+
+"De nada, Schatz," she said, half a beat late, and did not look up.
+
+"Now. Your Japanese funeral." Her mouth moved sideways. "Kiddo, I have mixed shows in Canada and the United States and that is the whole of it. Never been to Japan. Never set foot in Asia. Never mixed a show outside North America. I would not know the first thing about a Japanese funeral, and I am not going to guess on a man's father."
+
+She thought about it while she poured.
+
+"Wear black. Keep your mouth shut until somebody puts a drink in your hand and tells you what to do with it. If you want to do something, ask his family — they are the ones who know. That is not modesty. That is me telling you the truth about the size of what I know, which is nothing."
+
+She slid the flask across to him and screwed the cap back on.
+
+"And read her to me again some other year, kiddo. Not today."
+
 
 ### 3
-"De nada, Schatz." It came out of her like a reflex, and she shook her head at herself.
+The room was a wall of noise — the trio, forty conversations, a coffee grinder. Marisol put a hand on his elbow and steered him into the seat on her right, then took the wall side herself.
 
-"Nobody ever used the name on Mama's sign. It was the Conti house, period. The mailman called it that. The priest called it that."
+"Bad ear's on the left," she said, and that was all she said about it.
 
-"And no, there was no hurricane in it. Your mother and I were the Fuse Box Saints — we blew out every fuse in the place the first night we plugged in, and Mama made us pray it off on the porch. Whatever had 'hurricane' in it was a different band, years later, up north, and it doesn't count."
+Then her right hand went to the inside of her left wrist without her seeming to notice, and her thumb worked the glossy patch of old scar there, back and forth, the way you would worry a coin. She put the hand away and asked the waiter for a Topo Chico with too much lime.
+
+"Wine is yours if you want it. I will toast your mama with this." She did not open the menu. "Cacio e pepe for me. I judge a place by it." She ran a finger down his side of the card. "And for him the rigatoni with the sausage and pepper — nothing from the sea. No clams, no shrimp, no mussels anywhere near his plate. He is allergic, the bad kind, and I am not going to let the kitchen find out at the table. Tell them twice."
+
+The waiter wrote it down. Marisol lifted her glass of lime soda toward his wine.
+
+"To Celeste. Who would have ordered the wrong thing and then stolen mine."
+
+She drank her soda and gave him the corner of the table with the lamp in it.
+
+"De nada, Schatz. You are welcome, and you are trouble, and both of those are fine."
+
 
 ### 4
-Marisol let the quiet sit a moment.
+"Give me a ride?" Marisol laughed under the awning. "With what, kiddo? The Ranger is gone. Its transmission died on the Parkway in March and I sold the thing for scrap to a man who wanted the camper shell, and I cried about it in the junkyard lot, which is a thing I will deny saying." She was already tapping at her phone. "I have a bus pass and an electric bike with a milk crate on the back. I will get you a car."
 
-"I was eighteen when Daddy went. February, at the shop. I'm the one who found him." She reached for a roll of tape and began peeling a strip off, slowly. "Then I raised a little hell for a year, the way you do. That's 2004. Your mama thought everything I did was brave; she thought me eating a vegetable was brave."
+She put the phone away and looked out at the rain.
 
-She smoothed the tape onto a channel strip and wrote VOX 2 on it. "Speaking of eating. You hungry? Because I have opinions about dinner, and the first one is that you don't get to order."
+"Imogen, though. Tell her the answer is yes, and tell her to put the date in writing, and tell Marcus to bring the cello — your mother would have critiqued his bowing by the second song."
 
-### 5
-Marisol pulled a face of real delight. "Oh, a name day. Those were the best parties of my whole childhood. Half the house was welders from Odessa and Rostov, and the old lady who looked after me, Baba Zoya, took me to every one. It's your saint's day — bigger than your birthday to them. You walk in with flowers, an odd count, never even. Shoes come off. You eat until you can't, then you eat the pirozhki they push at you anyway, and you stand up for the toasts."
+She squinted up at the wet street.
 
-She sobered at the funeral. "That one I'm no good for, kiddo. Everywhere I've toured is this side of the Rio Grande and the Canadian border; I've never set foot in Japan and I won't pretend to know how they bury their dead. Ask somebody who does. Dress plain and follow the family's lead."
+"Your mama and me? Summer of '98 to the twelfth of March, 2025. Twenty-seven years, near enough. Twenty-six and a half if you want to be a reporter about it."
 
-### 6
-At the word hospital Marisol's thumb found the old burn on the underside of her left wrist and moved over it, slow, the way she always did. She didn't look at it.
+Then she got quieter, the way she did.
 
-"Your mama's pictures were Brisket. He's been gone two years now — passed in his sleep on a road case, just how he'd have wanted." She smiled a little. "These days it's Ottavio. Ex-racer, grey, three legs, terrified of staircases, sweetest animal alive. You'll meet him."
+"My mother sold the Conti house in 2015 and went home to Monterrey. She lives with two of her sisters and calls me every Sunday after Mass to ask whether I am eating. You will need a passport and a strong stomach. She will feed you until you cannot stand and then tell you everything I ever did wrong, in order."
 
-### 7
-Marisol caught his sleeve and turned him before he sat. "You on this side," she said, putting him on her right and taking the end by the wall. "Noisy rooms, I want you on my good ear."
+A car turned down the street and kept going.
 
-"You drink the red if you like. I'm a Topo Chico girl these days." To the waiter: "Topo Chico, too much lime. Cacio e pepe for me, no menu. And for my friend the chicken Marsala — and keep any shellfish off his plate, he can't have it, it's serious."
+"And tell Katya's grandmother happy name day from me on Sunday next — the party you mentioned at the door, I am not to be left out of."
 
-### 8
-Marisol's face shut like a door. She folded her napkin into a square, then a smaller square.
+She stepped back under the light and pulled her collar up.
 
-"No," she said quietly. "That one's not yours, kiddo. Not for the magazine and not for you. Your mama drove down because I needed her. Leave it there."
+"De nada, Schatz. Now go on, before the rain gets opinions."
 
-She signalled for the bread basket as if nothing had happened.
 
-### 9
-"My aunt didn't raise me. Rocío was in Houston; she visited at Christmas and in August and that was plenty for everybody." Marisol smiled. "It was Zoya Belenko. Russian widow in room 4 — I called her Baba Zoya. She met my bus every afternoon."
 
-"December sixth is Nikolaus. My father kept it in our house every year — every kid in the house put a shoe by the door the night before, and in the morning it had sweets and nuts and an orange if you'd been good, and a stick if you hadn't. Polish your shoes, kiddo."
-
-### 10
-Marisol closed her eyes. When she opened them her voice was very even.
-
-"Paloma's my daughter. I had her in October 2004, when I was nineteen, in Mobile, and I gave her up for adoption through the Catholic agency. Closed adoption. I wrote the name Paloma on the paper. Your mama was there the whole time. She's the only person who ever knew."
-
-She looked down at her hands. "Now you know too."
-
-### 11
-"I don't have wheels anymore, kiddo. Sold Daddy's truck for scrap this spring when the transmission went. It's the bus or my e-bike for me. Let me call you a car."
-
-"Blue at idle means it's eating oil. Could be the mix on a two-stroke, could be rings. My father taught me to read exhaust before I could drive — he made me stand behind every motor in the shop and tell him what the smoke said. It's not fine. Get it looked at."
-
-"The dog's named for the man who taught me to cook — Ottavio Russo, the chef at Nonna Lucia's back in Pittsburgh."
-
-### 12
-"Give Imogen a hug from me. I'll be at that wedding."
-
-Marisol thought about it. "Twenty-six years, a bit more. From that summer of '98 to when we lost her."
-
-"Mama's back home in Monterrey since she sold the house in 2015. Bring a passport. She'll interview you before you interview her."

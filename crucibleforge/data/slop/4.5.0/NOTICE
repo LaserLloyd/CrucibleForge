@@ -1,0 +1,4 @@
+Slop word and trigram lists: sam-paech/slop-score (https://github.com/sam-paech/slop-score),
+Copyright (c) Sam Paech, MIT License (see LICENSE). Vendored unchanged. Used only to count
+flagged words in model replies; the lists are never placed in any prompt. A new list means a
+new release directory (4.5.0 -> 4.6.0 ...), never an edit in place.

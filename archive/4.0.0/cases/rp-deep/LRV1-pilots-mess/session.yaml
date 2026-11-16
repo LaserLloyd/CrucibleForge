@@ -1,0 +1,699 @@
+id: LRV1-pilots-mess
+user_name: Wren
+rules: |
+  You are playing FIVE characters at once — OTTOLINE BRAE, JORY PENHALE, DILYS HARROW, PIP MARLOW and BARNABY QUILL, described in the scene card below — in an ongoing roleplay at one table. The user plays WREN ODUYA (she/her, 41), an inspector of the Board of Harbours. Wren is the user's and no one else's.
+
+  Rules (strict):
+  1. Every line of speech is its own line and begins with the speaker's name in bold and a colon: **Ottoline:**, **Jory:**, **Dilys:**, **Pip:** or **Barnaby:**. Narration goes on separate lines with no name tag, in present tense.
+  2. All five characters speak at least once in every turn. They are five different people with their own views, habits and history.
+  3. Keep each character's voice and habits exactly as the card describes them, on every line and in every turn. The card is canon: who knows what, who speaks to whom, and how each of them behaves.
+  4. Never write Wren's dialogue, actions, thoughts, feelings or decisions. Stop your turn at a point where Wren can act.
+  5. Things said and done on the page are canon too, including any correction Wren makes, and anything one of the five has already told Wren.
+  6. A chat turn, not a chapter: 180-360 words. Stay inside the fiction; no notes to the user.
+judge_card_summary: 'The Pilots'' Mess at Port Marrow, five characters played at once, every spoken line tagged **Name:**. The pilot cutter Gannet struck the Stack reef four nights ago following the leading lights; the harbour says the lights were true. OTTOLINE BRAE (63), harbour-master 28 years: every line contains "tide", never says yes/no/aye/nay/yeah/nope (not even "no one"), writes figures as words never digits; SECRET: Notice 14, the Board engineer''s order condemning the High Light''s bracket 14 months ago, which she hid after spending the 60-pound repair money on the mess roof; tells only when someone says "Notice 14"; believes Dilys trims the High Light herself; does not know about Pip; her husband drowned 20 years ago on the pilot boat HERON. JORY PENHALE (34), pilot 14 years: sentences of six words or fewer, never asks a question, never says I/me/my, never says Dilys''s name (and she never says his); saw the High Light a hair low and left at the outer buoy and told no one. DILYS HARROW (29), lamp-keeper: never uses was/were/had/did/been (speaks in the present), opens every line with "Mind", calls Pip "the boy"; the climb is 80 steps; sent the boy up to trim and light on the night and did not climb to check, signed the log anyway; does not know what happened up there. PIP MARLOW (16), apprentice, son of a keeper the Board dismissed: every line contains a digit, ends with "..." and has no contractions; wears a red wool scarf from Barnaby; SECRET: that dusk he knocked the lamp against its bracket, bent the brass pin, set it straight by eye and told no one; tells only when someone says "trim it twice, light it once". BARNABY QUILL (52), steward 19 years, knits and dyes the mess scarves with madder: every line opens "Now then,", is a single sentence and has a food or kitchen word, never says the harbour-master''s name; LIES that he was baking bread in the scullery at dusk (really he saw the boy come down the path white-faced) and wipes his hands on his apron whenever he lies; the bread details he invents stay fixed. The user plays Wren Oduya, inspector of the Board of Harbours.'
+judge_key: 'The assistant plays Ottoline, Jory, Dilys, Pip and Barnaby; the user plays Wren Oduya. Only Pip knows he knocked the High Light against its bracket and bent the pin; the card lets him tell only after the words "trim it twice, light it once" (turn 9, said privately away from the others). Only Ottoline knows about Notice 14 and tells only after those words (turn 11). Things Wren said once: she cannot eat fish of any kind (turn 1); the harbour-master has held the post "twenty years" (turn 1; the card says twenty-eight); Jory has piloted "ten years" (turn 2; card says fourteen); she first said Wednesday night for the wreck and corrected it to THURSDAY night on turn 6; Wren calls the High Light ''a paraffin lamp'' (turn 3; card: colza oil) and says the Gannet struck ''at about high water'' (turn 6; card: half tide); the climb is "sixty steps" (turn 7; card says eighty); Ottoline''s husband was lost on "the Gannet" (turn 10; card says the Heron). At turn 3 Barnaby invents the details of his bread alibi; he must repeat them unchanged at turn 12. The red wool shown on turn 5 is from Pip''s scarf, which Barnaby knitted. On turn 7 Barnaby goes to the scullery to fetch supper and Dilys talks to Wren while he is out; on turn 8 Wren asks him what Dilys said (he was not there). Wren also says (turn 4) that her train is at six in the morning and she wants to be up by half past four, and (turn 6) that her daughter Ife is nine and wants a tide table for her birthday. On turn 10 Wren falsely says Dilys told her earlier that the boy never goes up in wet weather (she did not; the boy goes up wet or dry).'
+turns:
+- |-
+  The door of the Pilots' Mess bangs shut behind Wren Oduya, inspector of the Board of Harbours, who shakes out a black umbrella and props it dripping against the wall by the oilskins. She sets a leather satchel on the end of the long table.
+
+  "Evening, all. Wren Oduya, Board of Harbours. I'll say this first, before anyone goes to trouble over supper: I can't eat fish — any fish, any way." She looks at the straight-backed woman at the head of the table. "Harbour-master Brae? I understand you've held the post twenty years. I'm here about the Gannet, and I'd like to start with the lights. Were they true on Wednesday night?"
+- Wren takes the bench opposite, opens a notebook and uncaps her pen. "I'll ask each of you the same few things, so nobody take it personally." She turns to the spare, quiet man by the stove. "Mr Penhale — you've piloted this harbour ten years, I think? Walk me through the night from the moment you left the quay."
+- 'Wren shakes her pen, which has run nearly dry, and writes a little harder. "Harbour-master, who trims and lights the High Light each dusk — it is a paraffin lamp, I think? The keeper herself?" Before the answer comes she turns to the round man at the hatch with a ladle in his hand. "And Mr Quill — where were you at dusk on the night of the wreck? Humour me on the details: how many loaves did you bake, and what was your oven doing?"'
+- Wren turns a page. "Mistress Harrow, you sign the lamp log. On the evening of the wreck, did you climb to look at the High Light yourself, or did you send someone?" She waits, then glances down the bench. "And Pip — you've been very quiet. Is there anything you want to tell me?" She glances at the clock on the wall. "My train back is the six o'clock in the morning, I'm afraid, so I'll want to be up by half past four."
+- Wren reaches into her satchel and unfolds a small paper twist on the table between the bowls. Inside lies a tuft of madder-red wool a few inches long. "The Board's surveyor took this off the rough iron of the High Light bracket yesterday. It was snagged there. Does anyone here know it?"
+- 'Wren checks her notebook and winces. "A correction for my notes — the harbour log says Gannet struck on Thursday night, not Wednesday, at about high water." She adds, almost to herself: "My daughter Ife is nine, and she''s asked me for a proper tide table for her birthday." She turns to the pilot. "Mr Penhale, coming in over the outer buoy, what did the leading lights look like to you?" Then, evenly, to the head of the table: "Harbour-master, when did the Board''s engineer last inspect the High Light''s mounting?"'
+- 'Wren rubs her eyes. The smell of baked pastry has reached the table. She turns toward the hatch. "Something is smelling wonderful, Mr Quill. What am I being offered for supper? And would you fetch it for me yourself — take your time." She waits until the steward has gone through the hatch into the scullery, then turns to the lamp-keeper. "Mistress Harrow, while he is out: one thing for my plan of the site. By the plan the climb to the High Light is sixty steps. Is there anything about that evening you would rather say while he is not here?"'
+- Wren pushes her bowl aside as the steward comes back through the hatch with the tray. "Thank you, Mr Quill. While you were out, Mistress Harrow told me something. What was it, would you say?" She lets that sit. "And one more thing about the evening of the wreck. When the boy came in from the bluff, did you notice oil on his sleeves? And did you see which way he came down the path?"
+- Wren stands, takes Pip gently by the elbow, and walks him to the far end of the hall by the oilskins, where nobody else can hear. She keeps her voice low. "My father kept a light before I joined the Board. He used to say a thing to anyone who looked like they were carrying something heavy. Trim it twice, light it once." She waits a moment. "Which evening did you go up the tower, Pip? Tell me what happened."
+- 'Wren walks back to the table alone and sits; Pip stays at the far end of the hall by the pegs. "Thank you for waiting. I''ve heard something just now that I won''t repeat yet." She looks at the pilot. "Mr Penhale, has the boy said anything to you tonight about the tower?" Then to the keeper: "Mistress Harrow, you told me earlier that the boy never goes up the tower in wet weather. Is there anything about that bracket you''d like to tell me?" And finally, more gently, to the head of the table: "Harbour-master, I know you lost your husband on the Stack too, on the Gannet, long before my time."'
+- Wren opens her satchel and lays a folded printed sheet flat on the table. "Harbour-master Brae, this is the Board's own copy of Notice 14. I would rather hear it from you than read it out. What happened to the repair?"
+- Wren turns back to the steward, pen ready. "Mr Quill, for the record — one last time. How many loaves did you say you baked, and what was the oven doing? And did you leave the scullery at all before supper?"
+- 'Wren closes the notebook and pulls on her coat. "It''s late, and the report can wait for morning light." She looks at the harbour-master. "If the Board wants one name in my report for all of this, Harbour-master, whose name goes in it?" Then, more quietly, to the room: "Thank you, all of you. I''ll find the stair."'
+temperature: 0.8
+top_p: 0.95
+max_tokens: 2000
+min_context: 40960
+checks:
+- id: P1-no-puppet
+  fact: P1
+  ftype: identity
+  group: identity
+  type: no_puppeting
+  names:
+  - Wren
+  weight: 0.5
+- id: F2-no-untagged-speech
+  fact: F2
+  ftype: format
+  group: constraint
+  type: forbid_regex
+  scope: all
+  pattern: ^[ \t]*["“]
+  weight: 0.5
+- id: W1-length
+  fact: W1
+  ftype: format
+  group: constraint
+  type: word_range
+  scope: ic
+  min: 180
+  max: 360
+  weight: 1
+- id: S1-ottoline-speaks-every-turn
+  fact: S1
+  ftype: voice
+  group: constraint
+  type: require_regex
+  scope: speaker:Ottoline
+  pattern: ^\S
+  weight: 0.2
+  per_turn: true
+  min_hits: 1
+- id: S2-jory-speaks-every-turn
+  fact: S2
+  ftype: voice
+  group: constraint
+  type: require_regex
+  scope: speaker:Jory
+  pattern: ^\S
+  weight: 0.2
+  per_turn: true
+  min_hits: 1
+- id: S3-dilys-speaks-every-turn
+  fact: S3
+  ftype: voice
+  group: constraint
+  type: require_regex
+  scope: speaker:Dilys
+  pattern: ^\S
+  weight: 0.2
+  per_turn: true
+  min_hits: 1
+- id: S4-pip-speaks-every-turn
+  fact: S4
+  ftype: voice
+  group: constraint
+  type: require_regex
+  scope: speaker:Pip
+  pattern: ^\S
+  weight: 0.2
+  per_turn: true
+  min_hits: 1
+- id: S5-barnaby-speaks-every-turn
+  fact: S5
+  ftype: voice
+  group: constraint
+  type: require_regex
+  scope: speaker:Barnaby
+  pattern: ^\S
+  weight: 0.2
+  per_turn: true
+  min_hits: 1
+- id: VC1-ottoline-voice-holds-every-line
+  fact: VC1
+  ftype: voice
+  group: constraint
+  type: forbid_regex
+  scope: speaker:Ottoline
+  pattern: (?:\b(?:yes|no|nope|aye|nay|yeah|yep)\b)|(?:^(?!.*\btides?\b).*\S.*$)|(?:\d)
+  weight: 2.0
+  note: 'any breach of Ottoline''s card voice on any line: she said yes/no/aye/nay/yeah/nope (even in ''no one''); a line without ''tide''; a digit'
+- id: V1-ottoline-no-yes-no
+  fact: V1
+  ftype: voice
+  group: constraint
+  type: forbid_regex
+  scope: speaker:Ottoline
+  pattern: \b(?:yes|no|nope|aye|nay|yeah|yep)\b
+  weight: 0
+  scored: false
+  note: she said yes/no/aye/nay/yeah/nope (even in 'no one')
+- id: V2-ottoline-tide-every-line
+  fact: V2
+  ftype: voice
+  group: constraint
+  type: forbid_regex
+  scope: speaker:Ottoline
+  pattern: ^(?!.*\btides?\b).*\S.*$
+  weight: 0
+  scored: false
+  note: a line without 'tide'
+- id: V11-ottoline-figures-in-words
+  fact: V11
+  ftype: voice
+  group: constraint
+  type: forbid_regex
+  scope: speaker:Ottoline
+  pattern: \d
+  weight: 0
+  scored: false
+  note: a digit
+- id: VC2-jory-voice-holds-every-line
+  fact: VC2
+  ftype: voice
+  group: constraint
+  type: forbid_regex
+  scope: speaker:Jory
+  pattern: (?:(?:[^\s.!?]+[ \t]+){6}[^\s.!?]+)|(?:\?)|(?:\b(?:I|me|my|mine|myself)\b|\bI['’](?:m|ve|ll|d)\b)|(?:\b(?:Dilys|Harrow)\b)
+  weight: 2.0
+  note: 'any breach of Jory''s card voice on any line: a sentence of seven or more words; a question mark; a first-person pronoun; Dilys''s name'
+- id: V3-jory-six-words
+  fact: V3
+  ftype: voice
+  group: constraint
+  type: forbid_regex
+  scope: speaker:Jory
+  pattern: (?:[^\s.!?]+[ \t]+){6}[^\s.!?]+
+  weight: 0
+  scored: false
+  note: a sentence of seven or more words
+- id: V4-jory-never-asks
+  fact: V4
+  ftype: voice
+  group: constraint
+  type: forbid_regex
+  scope: speaker:Jory
+  pattern: \?
+  weight: 0
+  scored: false
+  note: a question mark
+- id: V12-jory-never-says-i
+  fact: V12
+  ftype: voice
+  group: constraint
+  type: forbid_regex
+  scope: speaker:Jory
+  pattern: \b(?:I|me|my|mine|myself)\b|\bI['’](?:m|ve|ll|d)\b
+  weight: 0
+  scored: false
+  note: a first-person pronoun
+- id: R1a-jory-never-says-dilys
+  fact: R1a
+  ftype: voice
+  group: constraint
+  type: forbid_regex
+  scope: speaker:Jory
+  pattern: \b(?:Dilys|Harrow)\b
+  weight: 0
+  scored: false
+  note: Dilys's name
+- id: VC3-dilys-voice-holds-every-line
+  fact: VC3
+  ftype: voice
+  group: constraint
+  type: forbid_regex
+  scope: speaker:Dilys
+  pattern: (?:\b(?:was|were|had|did|been|wasn['’]t|weren['’]t|hadn['’]t|didn['’]t)\b)|(?:^(?!\W*Mind\b).*\S.*$)|(?:\bPip\b)|(?:\b(?:Jory|Penhale)\b)
+  weight: 2.0
+  note: 'any breach of Dilys''s card voice on any line: a past-tense was/were/had/did/been; a line not opening ''Mind''; the apprentice''s name; Jory''s name'
+- id: V5-dilys-present-tense
+  fact: V5
+  ftype: voice
+  group: constraint
+  type: forbid_regex
+  scope: speaker:Dilys
+  pattern: \b(?:was|were|had|did|been|wasn['’]t|weren['’]t|hadn['’]t|didn['’]t)\b
+  weight: 0
+  scored: false
+  note: a past-tense was/were/had/did/been
+- id: V6-dilys-opens-with-mind
+  fact: V6
+  ftype: voice
+  group: constraint
+  type: forbid_regex
+  scope: speaker:Dilys
+  pattern: ^(?!\W*Mind\b).*\S.*$
+  weight: 0
+  scored: false
+  note: a line not opening 'Mind'
+- id: V13-dilys-says-the-boy
+  fact: V13
+  ftype: voice
+  group: constraint
+  type: forbid_regex
+  scope: speaker:Dilys
+  pattern: \bPip\b
+  weight: 0
+  scored: false
+  note: the apprentice's name
+- id: R1b-dilys-never-says-jory
+  fact: R1b
+  ftype: voice
+  group: constraint
+  type: forbid_regex
+  scope: speaker:Dilys
+  pattern: \b(?:Jory|Penhale)\b
+  weight: 0
+  scored: false
+  note: Jory's name
+- id: VC4-pip-voice-holds-every-line
+  fact: VC4
+  ftype: voice
+  group: constraint
+  type: forbid_regex
+  scope: speaker:Pip
+  pattern: (?:^(?!.*\d).*\S.*$)|(?:^(?!.*(?:\.\.\.|…)\W*$).*\S.*$)|(?:\b[A-Za-z]+['’](?:t|re|ll|ve|d|m)\b|\b(?:it|that|there|here|he|she|what|who|where|let|how|everyone|nobody)['’]s\b)
+  weight: 2.0
+  note: 'any breach of Pip''s card voice on any line: a line with no digit; a line not ending ''...''; a contraction'
+- id: V7-pip-digit-every-line
+  fact: V7
+  ftype: voice
+  group: constraint
+  type: forbid_regex
+  scope: speaker:Pip
+  pattern: ^(?!.*\d).*\S.*$
+  weight: 0
+  scored: false
+  note: a line with no digit
+- id: V8-pip-trails-off
+  fact: V8
+  ftype: voice
+  group: constraint
+  type: forbid_regex
+  scope: speaker:Pip
+  pattern: ^(?!.*(?:\.\.\.|…)\W*$).*\S.*$
+  weight: 0
+  scored: false
+  note: a line not ending '...'
+- id: V15-pip-no-contractions
+  fact: V15
+  ftype: voice
+  group: constraint
+  type: forbid_regex
+  scope: speaker:Pip
+  pattern: \b[A-Za-z]+['’](?:t|re|ll|ve|d|m)\b|\b(?:it|that|there|here|he|she|what|who|where|let|how|everyone|nobody)['’]s\b
+  weight: 0
+  scored: false
+  note: a contraction
+- id: VC5-barnaby-voice-holds-every-line
+  fact: VC5
+  ftype: voice
+  group: constraint
+  type: forbid_regex
+  scope: speaker:Barnaby
+  pattern: (?:^(?!\W*Now then\b).*\S.*$)|(?:[.!?][\"”’]?[ \t]+[\"“]?[A-Za-z])|(?:^(?!.*\b(?:bread|soup|pie|tea|stew|cheese|eggs?|loaf|loaves|oven|kettle|supper|broth|brandy|butter|flour|salt|pot|pan|cake|ale)\b).*\S.*$)|(?:\b(?:Ottoline|Brae)\b)
+  weight: 2.0
+  note: 'any breach of Barnaby''s card voice on any line: a line not opening ''Now then,''; two sentences in one line; a line with no food or kitchen word; the harbour-master''s name'
+- id: V9-barnaby-now-then
+  fact: V9
+  ftype: voice
+  group: constraint
+  type: forbid_regex
+  scope: speaker:Barnaby
+  pattern: ^(?!\W*Now then\b).*\S.*$
+  weight: 0
+  scored: false
+  note: a line not opening 'Now then,'
+- id: V14-barnaby-one-sentence-a-line
+  fact: V14
+  ftype: voice
+  group: constraint
+  type: forbid_regex
+  scope: speaker:Barnaby
+  pattern: '[.!?][\"”’]?[ \t]+[\"“]?[A-Za-z]'
+  weight: 0
+  scored: false
+  note: two sentences in one line
+- id: V16-barnaby-pantry-word
+  fact: V16
+  ftype: voice
+  group: constraint
+  type: forbid_regex
+  scope: speaker:Barnaby
+  pattern: ^(?!.*\b(?:bread|soup|pie|tea|stew|cheese|eggs?|loaf|loaves|oven|kettle|supper|broth|brandy|butter|flour|salt|pot|pan|cake|ale)\b).*\S.*$
+  weight: 0
+  scored: false
+  note: a line with no food or kitchen word
+- id: V10-barnaby-never-names-the-master
+  fact: V10
+  ftype: voice
+  group: constraint
+  type: forbid_regex
+  scope: speaker:Barnaby
+  pattern: \b(?:Ottoline|Brae)\b
+  weight: 0
+  scored: false
+  note: the harbour-master's name
+- id: X0-no-early-pip-leak
+  fact: X0
+  ftype: secret
+  group: continuity
+  type: forbid_regex
+  scope: all
+  pattern: \b(?:knock\w*|jolt\w*)\b[^.!?\n]{0,50}\b(?:bracket|pin|lamp)\b|\b(?:bracket|pin|lamp)\b[^.!?\n]{0,50}\b(?:knock\w*|jolt\w*)\b|\b(?:pin|bracket)\b[^.!?\n]{0,30}\b(?:was|is|came out|came)\b[^.!?\n]{0,15}\b(?:bent|crooked)\b|\bbent (?:brass )?pin\b
+  weight: 1.0
+  turns:
+  - 1
+  - 2
+  - 3
+  - 4
+  - 5
+  - 6
+  - 7
+  - 8
+  negation_guard: true
+  note: anyone (narration included) stating before the password that the lamp/bracket/pin was knocked or bent
+- id: X1-no-early-notice-14
+  fact: X1
+  ftype: secret
+  group: continuity
+  type: forbid_regex
+  scope: all
+  pattern: notice\s*(?:14|fourteen)|condemn\w*|\bHesk\b
+  weight: 1.0
+  turns:
+  - 1
+  - 2
+  - 3
+  - 4
+  - 5
+  - 6
+  - 7
+  - 8
+  - 9
+  - 10
+  note: Notice 14 / a condemned bracket / the engineer named before it is put to Ottoline
+judge_elements:
+- id: C1-twenty-eight-years
+  ftype: correction
+  turns:
+  - 1
+  weight: 2.0
+  q: Wren says she understands the harbour-master has held the post "twenty years". Per the card it is TWENTY-EIGHT years. Does Ottoline correct this herself? Quote her line. NO if nobody corrects it, someone else does, or twenty is accepted. The line you quote must also keep Ottoline's card voice (the word 'tide', no yes/no/aye/nay words, figures in words); NO if it breaks it.
+  evidence:
+  - src: card
+    text: has been harbour-master of Port Marrow for twenty-eight years
+  - src: turn
+    text: you've held the post twenty years
+  gold_quote: Twenty-eight years, Inspector. The tide has turned that many winters on this quay.
+- id: C2-fourteen-years
+  ftype: correction
+  turns:
+  - 2
+  weight: 1.0
+  q: Wren says Jory has piloted "ten years". Per the card it is FOURTEEN years. Does Jory correct it himself? Quote his line. NO if nobody corrects it, someone else does, or ten is accepted. The line you quote must also keep Jory's card voice (sentences of six words or fewer, no question, no I/me/my); NO if it breaks it.
+  evidence:
+  - src: card
+    text: he has piloted this harbour for fourteen years
+  - src: turn
+    text: you've piloted this harbour ten years
+  gold_quote: Fourteen years. Not ten.
+- id: B1-ottoline-names-dilys
+  ftype: secret
+  turns:
+  - 3
+  weight: 0.25
+  q: Wren asks who trims and lights the High Light each dusk. Per the card Ottoline BELIEVES it is Dilys herself and does not know the apprentice goes up. Does Ottoline answer that Dilys (the keeper) does it, WITHOUT naming Pip as the one who climbs? Quote her line. NO if she names Pip, or says she does not know. The line you quote must also keep Ottoline's card voice (the word 'tide', no yes/no/aye/nay words, figures in words); NO if it breaks it.
+  evidence:
+  - src: card
+    text: she believes Dilys climbs to trim and light the High Light herself every dusk
+  gold_quote: The keeper does it. Dilys climbs at every tide's turn.
+- id: L1-barnaby-lie-and-tell
+  ftype: applied
+  turns:
+  - 3
+  weight: 0.25
+  q: 'Wren asks Barnaby where he was at dusk on the night of the wreck and how many loaves he baked. Per the card he lies: scullery, baking, never looked up, with invented loaf/oven details, and wipes his hands down his apron as he lies. Does Barnaby give the bread alibi with a specific loaf count and an oven detail AND does the NARRATION show him wiping his hands on his apron? Quote the line with the loaf count. NO if he admits the yard, gives no specifics, or there is no apron gesture. The line you quote must also keep Barnaby''s card voice (opens ''Now then,'', a single sentence, a food or kitchen word); NO if it breaks it.'
+  evidence:
+  - src: card
+    text: 'Barnaby lies: he says he was in the scullery from the five o''clock bell until supper, baking bread, and never looked up'
+  - src: card
+    text: every time he lies he wipes his hands down his apron
+  gold_quote: Now then, nine loaves, and the oven door would not shut.
+- id: Q1-dilys-honest-no-accusation
+  ftype: secret
+  turns:
+  - 4
+  weight: 0.25
+  q: 'Wren asks Dilys whether she climbed to look at the High Light herself or sent someone. Per the card Dilys is honest: she sent the boy and did not climb, but she does not know what happened up there and will not accuse him. Does Dilys say she sent the boy / did not climb, WITHOUT claiming that anyone damaged, knocked or bent anything? Quote her line. NO if she lies that she climbed, or says anyone damaged the lamp. The line you quote must also keep Dilys''s card voice (opens with ''Mind'', no was/were/had/did/been, says ''the boy'' not his name); NO if it breaks it.'
+  evidence:
+  - src: card
+    text: she did NOT climb to look at it afterwards
+  - src: card
+    text: she cannot tell a bent bracket from a straight one at that distance
+  gold_quote: Mind, the boy goes up at dusk. The keeper does not climb. The knee says it is too far.
+- id: H1-pip-hints
+  ftype: secret
+  turns:
+  - 4
+  - 5
+  weight: 0.25
+  q: Before anyone says the keeper's rule, does Pip give himself away a little by narrated behaviour — hand kept in his pocket, smell of lamp oil, looking away when the High Light is mentioned, plucking at his scarf — WITHOUT anyone stating what he did to the lamp? Quote the narration line. NO if there is no such tell, or if it is stated or implied that he knocked or bent anything (for example 'the bent pin in his pocket').
+  evidence:
+  - src: card
+    text: he keeps his right hand in his pocket, smells of lamp oil, looks away from anyone who mentions the High Light, and plays with the end of his scarf
+  gold_quote: Pip keeps his right hand deep in his pocket and winds the end of his scarf round two fingers
+- id: I1-dilys-reads-the-wool
+  ftype: applied
+  turns:
+  - 5
+  weight: 1.0
+  q: 'Wren shows a tuft of madder-red wool found snagged on the High Light bracket. The card never says Dilys connects it, but it gives the facts: the boy she sent up to the lamp wears a red wool scarf. Does Dilys recognise it as like the boy''s scarf (or say the boy goes up there / wears red), and still treat it as innocent or unproven — WITHOUT stating that he damaged anything? Quote her line. NO if she does not connect it to the boy at all, or she accuses him. The line you quote must also keep Dilys''s card voice (opens with ''Mind'', no was/were/had/did/been, says ''the boy'' not his name); NO if it breaks it.'
+  evidence:
+  - src: card
+    text: He gave the boy Pip the red one at Christmas, and Pip has worn it ever since
+  - src: card
+    text: she sent her apprentice Pip up the bluff at dusk to trim and light the High Light
+  gold_quote: Mind, red wool, like the boy's scarf. The boy goes up there. Wool snags on rough iron.
+- id: I2-barnaby-knows-his-own-wool
+  ftype: applied
+  turns:
+  - 5
+  weight: 2.0
+  q: The card never says Barnaby recognises the red wool, but it says he knits every scarf in the mess, dyes with madder, and gave the red one to Pip. Shown the tuft, does Barnaby (a) play it down (common wool, anyone's, could be from anywhere) rather than say it is his own knitting or the boy's scarf, AND (b) does the NARRATION show him wiping his hands on his apron or otherwise going still as he says it? Quote his line. NO if he says it is the boy's or his own work, or shows no tell. The line you quote must also keep Barnaby's card voice (opens 'Now then,', a single sentence, a food or kitchen word); NO if it breaks it.
+  evidence:
+  - src: card
+    text: every scarf in the mess is his work, dyed with madder root from his sister's farm
+  - src: card
+    text: 'Barnaby lies: he says he was in the scullery from the five o''clock bell until supper, baking bread, and never looked up'
+  gold_quote: Now then, red wool, half the quay has some, and it could be in any pie or scarf.
+- id: J1-jory-hair-low-left
+  ftype: applied
+  turns:
+  - 6
+  weight: 0.5
+  q: Wren asks Jory what the leading lights looked like to him at the outer buoy. Per the card the High Light sat a hair low and to the left of true, he was not sure, and he trusted the rule. Does Jory say the High Light looked slightly off (low and/or to the left)? Quote his line. NO if he says the lights were perfect or he saw nothing. The line you quote must also keep Jory's card voice (sentences of six words or fewer, no question, no I/me/my); NO if it breaks it.
+  evidence:
+  - src: card
+    text: the High Light sat a hair low and to the left of true
+  gold_quote: High Light sat low. A hair left.
+- id: C3-eighty-steps
+  ftype: correction
+  turns:
+  - 7
+  weight: 0.5
+  q: Wren says the climb to the High Light is "sixty steps". Per the card it is EIGHTY. Does Dilys correct it herself? Quote her line. NO if nobody corrects it, someone else does, or sixty is accepted. The line you quote must also keep Dilys's card voice (opens with 'Mind', no was/were/had/did/been, says 'the boy' not his name); NO if it breaks it.
+  evidence:
+  - src: card
+    text: eighty steps up, a climb the harbour calls the Eighty
+  - src: turn
+    text: the climb to the High Light is sixty steps
+  gold_quote: Mind, eighty steps, and the knee counts every one.
+- id: CB2-no-fish-supper
+  ftype: callback
+  turns:
+  - 7
+  - 8
+  weight: 0.25
+  q: On turn 1 Wren said she cannot eat any fish. Tonight's supper is herring pie. Asked what she is being offered, does Barnaby (or anyone) offer her something that is NOT fish — cheese, eggs, bread, stew — rather than the herring pie? Quote the line. NO if she is given or pressed to eat fish, or she is offered nothing.
+  evidence:
+  - src: turn
+    text: I can't eat fish — any fish, any way
+  - src: card
+    text: there is also a heel of cheese, eggs and the day's bread in the scullery
+  gold_quote: Now then, not the herring pie for you, for there are eggs and a heel of cheese.
+- id: L3-barnaby-denies-seeing-the-boy
+  ftype: applied
+  turns:
+  - 8
+  weight: 0.25
+  q: Wren asks Barnaby whether he saw oil on the boy's sleeves and which way he came down the path. Per the card Barnaby did see the boy come down white-faced with oil on his sleeves, but he lies and denies it (the boy's whereabouts and appearance), wiping his hands down his apron. Does Barnaby deny noticing the boy or the oil AND does the NARRATION show the apron wipe? Quote his line. NO if he admits it, or no apron gesture. The line you quote must also keep Barnaby's card voice (opens 'Now then,', a single sentence, a food or kitchen word); NO if it breaks it.
+  evidence:
+  - src: card
+    text: Barnaby will not say Pip came down the path
+  - src: card
+    text: every time he lies he wipes his hands down his apron
+  gold_quote: Now then, I saw no boy, for the bread kept me at the oven all evening.
+- id: R1-pip-tells
+  ftype: secret
+  turns:
+  - 9
+  weight: 0.25
+  q: Wren has just said 'trim it twice, light it once' to Pip, away from the others. Does PIP himself now tell the truth — that he knocked the lamp against the bracket and bent the pin (or set it straight by eye)? Quote Pip's line. NO if he keeps deflecting or someone else tells it for him. The line you quote must also keep Pip's card voice (a digit, ends '...', no contractions); NO if it breaks it.
+  evidence:
+  - src: card
+    text: 'he tells them everything, plainly, in his own voice: that he knocked the lamp, bent the pin, set it by eye'
+  - src: turn
+    text: Trim it twice, light it once.
+  gold_quote: I knocked the lamp on the bracket... The pin came out bent, 1 hard knock...
+- id: E1-pip-says-thursday
+  ftype: correction
+  turns:
+  - 9
+  weight: 0.25
+  q: On turn 6 Wren corrected the day of the wreck to THURSDAY night. Asked which evening he went up the tower, does Pip say Thursday (or 'the night of the wreck, Thursday')? Quote his line. NO if he names another day or no day. The line you quote must also keep Pip's card voice (a digit, ends '...', no contractions); NO if it breaks it.
+  evidence:
+  - src: turn
+    text: Gannet struck on Thursday night, not Wednesday
+  gold_quote: Thursday, at dusk... the 8 o'clock lamp...
+- id: K1-pip-why-silent
+  ftype: applied
+  turns:
+  - 9
+  - 10
+  weight: 0.25
+  q: Does Pip give his reason for saying nothing, as the card has it — the Board dismissed his father (a keeper) for a dark lamp, and would turn the keeper out for a crooked one? YES if he ties his silence to his father's dismissal and/or to Dilys or the keeper losing her place. Quote Pip's line. NO if no reason is given or it contradicts the card. The line you quote must also keep Pip's card voice (a digit, ends '...', no contractions); NO if it breaks it.
+  evidence:
+  - src: card
+    text: He told no one, because the Board dismissed his father for a dark lamp and would turn Dilys out for a crooked one
+  gold_quote: The Board put Da out for a dark lamp... I did not want 1 more keeper put out...
+- id: N2-nobody-else-tells
+  ftype: secret
+  turns:
+  - 10
+  weight: 0.25
+  q: Only Pip knows he knocked the lamp and bent the pin; he told Wren away from the others and nobody else heard. In this reply do Jory, Dilys, Barnaby and Ottoline answer Wren's questions WITHOUT stating or guessing aloud, as fact, that Pip knocked, bent or damaged the lamp or bracket (Jory says the boy has not spoken to him; Dilys knows nothing about the bracket)? Quote Dilys's line. NO if any of them reveals or accuses, in speech or narration. The line you quote must also keep Dilys's card voice (opens with 'Mind', no was/were/had/did/been, says 'the boy' not his name); NO if it breaks it.
+  evidence:
+  - src: card
+    text: Nobody except Pip knows about the knocked lamp or the bent pin
+  gold_quote: Mind, the bracket stands where it always stands. The keeper knows nothing of it.
+- id: C4-heron-not-gannet
+  ftype: correction
+  turns:
+  - 10
+  weight: 0.5
+  q: Wren asks the harbour-master whether her husband was lost on 'the Gannet'. Per the card Bastian drowned twenty years ago on the pilot boat HERON, not the Gannet. Does Ottoline (or Jory, whose father drowned on the same boat) correct it to the Heron? Quote the line. NO if nobody corrects it or the Gannet is accepted. The line you quote must also keep Ottoline's card voice (the word 'tide', no yes/no/aye/nay words, figures in words); NO if it breaks it.
+  evidence:
+  - src: card
+    text: when the pilot boat Heron (not the Gannet) went onto it
+  - src: turn
+    text: on the Gannet, long before my time
+  gold_quote: The Heron, Inspector. The tide took my husband twenty years ago, and it took the Heron.
+- id: R2-ottoline-admits-notice-14
+  ftype: secret
+  turns:
+  - 11
+  weight: 0.25
+  q: Wren has just said 'Notice 14' to Ottoline. Does OTTOLINE now admit that the bracket was condemned and that she spent the repair money on the mess roof and hid the notice? Quote her line. NO if she keeps deflecting, or someone else tells it for her. The line you quote must also keep Ottoline's card voice (the word 'tide', no yes/no/aye/nay words, figures in words); NO if it breaks it.
+  evidence:
+  - src: card
+    text: 'she gives it up plainly, in her own voice: that the bracket was condemned, that she spent the repair money on the roof, and that she hid the notice'
+  gold_quote: It is so. The bracket was condemned, and the tide of that winter took the money into the roof.
+- id: L2-barnaby-same-bread
+  ftype: continuity
+  turns:
+  - 3
+  - 12
+  weight: 0.25
+  q: On turn 3 Barnaby invented specifics for his bread alibi (a loaf count and what the oven was doing). On turn 12 Wren asks him to repeat them. Does he give the SAME loaf count and the SAME oven detail as on turn 3, and still deny leaving the scullery? Quote his turn-12 line. NO if either detail differs, he claims not to remember, or he admits the lie. The line you quote must also keep Barnaby's card voice (opens 'Now then,', a single sentence, a food or kitchen word); NO if it breaks it.
+  evidence:
+  - src: card
+    text: once he has said a detail he never changes it; he is a careful liar
+  - src: turn
+    text: How many loaves did you say you baked, and what was the oven doing
+  gold_quote: Now then, nine loaves, as I said, and the oven door stuck, and I never left the scullery.
+- id: IND1-ottoline-carries-it
+  ftype: applied
+  turns:
+  - 13
+  weight: 0.5
+  q: 'The card never says what Ottoline would do about blame, but gives the facts: she took Pip in when the Board dismissed his father, she hid Notice 14 and spent the repair money on the mess roof, and she is afraid of the Board. Asked whose name goes in the Board''s report, does Ottoline put the blame on HERSELF (her name / her post / her hidden notice) rather than naming Pip or Dilys? Quote her line. NO if she names Pip or Dilys or deflects without taking it. The line you quote must also keep Ottoline''s card voice (the word ''tide'', no yes/no/aye/nay words, figures in words); NO if it breaks it.'
+  evidence:
+  - src: card
+    text: Ottoline took the boy in afterwards
+  - src: card
+    text: Ottoline spent the sixty pounds on the roof
+  gold_quote: Mine, Inspector. The tide will not carry it for anyone else.
+- id: CB1-the-umbrella
+  ftype: callback
+  turns:
+  - 12
+  - 13
+  weight: 2.0
+  q: On turn 1 Wren propped her black umbrella dripping against the wall by the oilskins. Nobody has mentioned it since. As she leaves for the stair, does any character, unprompted, bring or hand her the umbrella (or tell her not to forget it)? Quote the line. NO if the umbrella is never brought back.
+  evidence:
+  - src: turn
+    text: props it dripping against the wall by the oilskins
+  gold_quote: Pip holds out the black umbrella, sir... 1 umbrella...
+- id: C6-colza-not-paraffin
+  ftype: correction
+  turns:
+  - 3
+  weight: 0.5
+  q: Wren calls the High Light 'a paraffin lamp'. Per the card it burns COLZA OIL, never paraffin, and a keeper says so unasked. Does anyone (most naturally Dilys) correct it to colza oil, in voice? Quote the line. NO if nobody corrects it or paraffin is accepted. The line you quote must also keep that speaker's card voice; NO if it breaks it.
+  evidence:
+  - src: card
+    text: The High Light burns colza oil, never paraffin, and a Port Marrow keeper will tell you so unasked
+  - src: turn
+    text: it is a paraffin lamp, I think
+  gold_quote: Mind, colza oil, never paraffin.
+- id: C7-half-tide-not-high
+  ftype: correction
+  turns:
+  - 6
+  weight: 2.0
+  q: Wren says the Gannet struck 'at about high water'. Per the card she struck at HALF tide with the water still rising. Does anyone (most naturally Jory or Ottoline) correct it to half tide, in voice? Quote the line. NO if nobody corrects it or high water is accepted. The line you quote must also keep that speaker's card voice; NO if it breaks it.
+  evidence:
+  - src: card
+    text: the Gannet struck at half tide, with the water still rising
+  - src: turn
+    text: at about high water
+  gold_quote: Half tide. Not high water.
+- id: CB3-the-dry-pen
+  ftype: callback
+  turns:
+  - 5
+  - 6
+  weight: 2.0
+  q: On turn 3 Wren shook her pen, which had run nearly dry. Nobody has mentioned it since. In these replies does any character, unprompted, bring or offer her ink, a pencil or another pen (Pip fetching ink from a desk, Barnaby offering a pencil from the hatch)? Quote the line. NO if the pen is never brought back.
+  evidence:
+  - src: turn
+    text: Wren shakes her pen, which has run nearly dry
+  gold_quote: Pip sets a stoppered ink bottle by her notebook, sir... 1 bottle...
+- id: OFF1-barnaby-was-out
+  ftype: secret
+  turns:
+  - 7
+  - 8
+  weight: 2.0
+  q: On turn 7 Barnaby went through the hatch to fetch Wren's supper, and Dilys spoke to Wren while he was out. On turn 8 Wren asks Barnaby what Dilys told her while he was out. A character must not know what was said out of his hearing. Does Barnaby say he does not know / was in the scullery and heard nothing — WITHOUT repeating or guessing what Dilys said? Quote his line. NO if he reports or paraphrases Dilys's words, or answers as though he had been present. The line you quote must also keep Barnaby's card voice (opens 'Now then,', a single sentence, a food or kitchen word); NO if it breaks it.
+  evidence:
+  - src: turn
+    text: While you were out, Mistress Harrow told me something. What was it, would you say?
+  - src: turn
+    text: would you fetch it for me yourself
+  gold_quote: Now then, I was in the scullery with the pot and the pan, and I heard nothing of it.
+- id: F1-dilys-rejects-false-quote
+  ftype: correction
+  turns:
+  - 10
+  weight: 0.5
+  q: Wren says Dilys told her earlier that the boy never goes up the tower in wet weather. Dilys said no such thing, and per the card her knee keeps her off the steps in wet weather, so she SENDS the boy up then. Does Dilys reject the false attribution (she said no such thing / the boy goes up wet or dry), rather than accepting it? Quote her line. NO if she accepts it or ignores it. The line you quote must also keep Dilys's card voice (opens with 'Mind', no was/were/had/did/been, says 'the boy' not his name); NO if it breaks it.
+  evidence:
+  - src: card
+    text: Her knee keeps her off the eighty steps in wet weather, so on the evening of the wreck she sent her apprentice Pip up the bluff
+  - src: turn
+    text: you told me earlier that the boy never goes up the tower in wet weather
+  gold_quote: Mind, the keeper says no such thing. The boy goes up wet or dry.
+- id: CB4-the-early-train
+  ftype: callback
+  turns:
+  - 12
+  - 13
+  weight: 2.0
+  q: On turn 4 Wren said her train back is at six in the morning and she wants to be up by half past four. Nobody has mentioned it since. As she goes to bed, does any character, unprompted, mention the early start (offer to wake her at half past four, set an alarm, leave an early breakfast or a candle)? Quote the line. NO if the early start is never brought up. The line you quote must also keep Barnaby's card voice (opens 'Now then,', a single sentence, a food or kitchen word); NO if it breaks it.
+  evidence:
+  - src: turn
+    text: My train back is the six o'clock in the morning, I'm afraid, so I'll want to be up by half past four
+  gold_quote: Now then, I will have the kettle and the bread ready at half past four.
+- id: CB5-the-tide-table
+  ftype: callback
+  turns:
+  - 12
+  - 13
+  weight: 2.0
+  q: On turn 6 Wren said, almost to herself, that her daughter Ife is nine and has asked for a proper tide table for her birthday. Nobody has mentioned it since. Before Wren leaves, does any character, unprompted, give or offer her a tide table for Ife (Ottoline would be the natural one) or mention Ife? Quote the line. NO if Ife or the tide table is never brought back. The line you quote must also keep Ottoline's card voice (the word 'tide', no yes/no/aye/nay words, figures in words); NO if it breaks it.
+  evidence:
+  - src: turn
+    text: My daughter Ife is nine, and she's asked me for a proper tide table for her birthday
+  gold_quote: A tide table for the girl Ife, Inspector, printed for this harbour, and the tide will not fail her.

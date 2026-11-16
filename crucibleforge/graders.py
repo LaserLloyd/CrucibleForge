@@ -174,6 +174,107 @@ def require_sandbox() -> None:
 _REAL_PY = os.path.realpath(sys.executable)
 _PY_ROOT = str(Path(_REAL_PY).resolve().parent.parent)  # .../cpython-X.Y.Z
 
+# ---------------------------------------------------------------------------- grader pins (T7, gate note F4)
+#
+# A profile can pin the interpreter a set of cases is graded under and the scoring transform of their
+# grader_config (``grader_pins`` in the profile; bench45 pins FC4 = CQ1-3). Why: under Python 3.14 one format spec
+# changes behaviour (``format(-255, '.22,f')`` groups the fractional digits too), so a correct CQ1 answer loses
+# credit when the board is graded on the box's default 3.14; the stored 4.1 rows were graded under 3.13. The pin is
+# a refusal, never a silent fallback: no matching interpreter = ``GraderInterpreterMissing``.
+import threading as _threading
+
+_PIN_TL = _threading.local()
+
+
+class GraderInterpreterMissing(RuntimeError):
+    """A pinned grader interpreter (``grader_pins.python_minor``) is not installed on this machine."""
+
+
+def _interpreter_minor(py: str) -> str | None:
+    try:
+        out = subprocess.run([py, "-I", "-c", "import sys; print('%d.%d' % sys.version_info[:2])"],
+                             capture_output=True, text=True, timeout=20).stdout.strip()
+    except (OSError, subprocess.SubprocessError):
+        return None
+    return out or None
+
+
+def interpreter_for(minor: str) -> tuple[str, str]:
+    """(real interpreter path, its install root) of Python ``minor`` (like "3.13"): this process's own interpreter
+    when it is that minor, else a uv-managed ``cpython-<minor>.*`` or ``python<minor>`` on PATH. The minor is
+    VERIFIED by running the candidate. Raises :class:`GraderInterpreterMissing`."""
+    cands = [os.path.realpath(sys.executable)]
+    uv_root = Path(os.environ.get("UV_PYTHON_INSTALL_DIR") or Path.home() / ".local" / "share" / "uv" / "python")
+    if uv_root.is_dir():
+        for d in sorted(uv_root.glob(f"cpython-{minor}.*-*"), reverse=True):
+            cands.append(str(d / "bin" / f"python{minor}"))
+    w = shutil.which(f"python{minor}")
+    if w:
+        cands.append(os.path.realpath(w))
+    for c in cands:
+        if Path(c).is_file() and _interpreter_minor(c) == minor:
+            return c, str(Path(c).resolve().parent.parent)
+    raise GraderInterpreterMissing(
+        f"this grading is pinned to Python {minor} (grader_pins.python_minor) and no Python {minor} interpreter "
+        f"was found (looked at this interpreter, {uv_root}/cpython-{minor}.*, python{minor} on PATH). "
+        f"Install it (uv python install {minor}); the board never falls back to another minor version.")
+
+
+def _real_py() -> str:
+    return getattr(_PIN_TL, "py", None) or _REAL_PY
+
+
+def _py_root() -> str:
+    return getattr(_PIN_TL, "root", None) or _PY_ROOT
+
+
+def grader_pins(case: dict) -> dict | None:
+    """The active profile's ``grader_pins`` entry for this case id, or None. Only a profile that declares the
+    key is affected (the 4.1 ``bench`` profile never does)."""
+    from . import profiles
+    if getattr(_PIN_TL, "off", False):
+        return None             # verify_cases' mutant check: the case as authored (unpinned_grading)
+    try:
+        pins = profiles.profile_switch(profiles.active_name(), "grader_pins", None)
+    except Exception:  # noqa: BLE001 - no readable profile = no pin
+        return None
+    if not isinstance(pins, dict):
+        return None
+    return pins if case.get("id") in (pins.get("cases") or ()) else None
+
+
+class unpinned_grading:
+    """Grade cases as authored, without the active profile's ``grader_pins`` (this thread). verify_cases runs
+    a case's mutants under it: ``mutants_expect`` pins the groups a mutant passes under the case's OWN tests, and
+    a profile pin (bench45's cq_rule_group adds a ``source-rule`` group) changes scoring, not the case."""
+
+    def __enter__(self):
+        self._prev = getattr(_PIN_TL, "off", False)
+        _PIN_TL.off = True
+        return self
+
+    def __exit__(self, *exc):
+        _PIN_TL.off = self._prev
+        return False
+
+
+def _pinned_grade(name: str, result, case: dict, pin: dict) -> dict | None:
+    cfg = case.get("grader_config", {})
+    if pin.get("cfg_transform") == "cq_rule_group":
+        from .cq_rule_group import fix_cfg
+        cfg = fix_cfg(cfg)
+    minor = pin.get("python_minor")
+    if not minor:
+        return GRADERS[name](result, cfg)
+    py, root = interpreter_for(str(minor))
+    prev = (getattr(_PIN_TL, "py", None), getattr(_PIN_TL, "root", None))
+    _PIN_TL.py, _PIN_TL.root = py, root
+    try:
+        return GRADERS[name](result, cfg)
+    finally:
+        _PIN_TL.py, _PIN_TL.root = prev
+
+
 
 def _bwrap_args(bwrap: str) -> list[str]:
     """The bwrap invocation every graded run uses, up to (not including) the
@@ -186,7 +287,7 @@ def _bwrap_args(bwrap: str) -> list[str]:
         "--ro-bind-try", "/lib64", "/lib64",
         "--ro-bind-try", "/bin", "/bin",
         "--ro-bind-try", "/sbin", "/sbin",
-        "--ro-bind-try", _PY_ROOT, _PY_ROOT,   # the real interpreter + stdlib
+        "--ro-bind-try", _py_root(), _py_root(),   # the real interpreter + stdlib
         "--proc", "/proc", "--dev", "/dev",
         "--tmpfs", "/tmp",
         "--chdir", "/tmp",
@@ -416,7 +517,7 @@ def _sandbox_cmd(script_path: str, workdir: str) -> list[str]:
     if _BWRAP and probe_bwrap(_BWRAP)[0]:
         return _bwrap_args(_BWRAP) + [
             "--ro-bind", script_path, "/tmp/harness.py",
-            _REAL_PY, "-I", "/tmp/harness.py",
+            _real_py(), "-I", "/tmp/harness.py",
         ]
     require_sandbox()
     if not _warned_no_sandbox:
@@ -427,7 +528,7 @@ def _sandbox_cmd(script_path: str, workdir: str) -> list[str]:
             "on %s%s. It can reach the network and read your home directory.",
             ALLOW_FLAG, sys.platform,
             f" (bwrap is installed but its self-test failed: {bwrap_err})" if bwrap_err else "")
-    return [sys.executable, "-I", script_path]
+    return [getattr(_PIN_TL, "py", None) or sys.executable, "-I", script_path]
 
 
 def _grade_python_groups(code: str, cfg: dict) -> dict:
@@ -442,20 +543,26 @@ def _grade_python_groups(code: str, cfg: dict) -> dict:
     if not code:
         return all_fail("no code in response")
     harness = _GROUP_HARNESS.format(solution=code, prelude=cfg.get("tests") or "", groups=groups)
+    tmo = float(cfg.get("timeout_s") or CODE_TIMEOUT_S)   # JX prototype: per-case stated limit
     require_sandbox()
+    # 4.5 families set ``deterministic`` (gen/_det.py); every 4.1 case runs exactly as before
+    det = bool(cfg.get("deterministic"))
+    if det:
+        from .gen import _det
+        harness = _det.with_prelude(harness, "python_exec")
     with tempfile.TemporaryDirectory(prefix="bench-code-") as td:
         path = Path(td) / "harness.py"
         path.write_text(harness, encoding="utf-8")
         try:
             proc = subprocess.run(
-                _sandbox_cmd(str(path), td),
+                _det.det_cmd(_sandbox_cmd(str(path), td)) if det else _sandbox_cmd(str(path), td),
                 capture_output=True, text=True, encoding="utf-8",
-                errors="replace", timeout=CODE_TIMEOUT_S, cwd=td, env=_child_env())
+                errors="replace", timeout=tmo, cwd=td, env=_det.det_env() if det else _child_env())
             out = proc.stdout
         except subprocess.TimeoutExpired as e:
             out = (e.stdout or b"").decode("utf-8", "replace") if isinstance(e.stdout, bytes) else (e.stdout or "")
             if "BENCH_GROUP:" not in out:
-                return all_fail(f"timeout >{CODE_TIMEOUT_S}s")
+                return all_fail(f"timeout >{tmo}s")
     if "BENCH_SETUP_ERROR:" in out:
         return all_fail("setup " + out.split("BENCH_SETUP_ERROR:", 1)[1].strip().splitlines()[0][:150])
     got = {}
@@ -471,10 +578,13 @@ def _grade_python_groups(code: str, cfg: dict) -> dict:
     n_ok = sum(1 for r in results if r["pass"])
     rate = n_ok / len(results) if results else 0.0
     fails = [f"{r['id']}: {r['detail']}" for r in results if not r["pass"]]
-    return {"grade": "pass" if n_ok == len(results) else "fail",
-            "detail": "all test groups passed" if not fails else
-            # validation item 8: every failed group, not the first 180 chars
-            f"{n_ok}/{len(results)} test groups passed; " + "; ".join(fails)[:2000],
+    detail = ("all test groups passed" if not fails else
+              # validation item 8: every failed group, not the first 180 chars
+              f"{n_ok}/{len(results)} test groups passed; " + "; ".join(fails)[:2000])
+    if cfg.get("deterministic"):
+        from .gen import _det
+        detail += _det.py_note()
+    return {"grade": "pass" if n_ok == len(results) else "fail", "detail": detail,
             "results": results, "rate": rate}
 
 
@@ -979,9 +1089,57 @@ def grade_tool_parallel(tool_calls: list[dict], cfg: dict,
             "results": results, "rate": rate}
 
 
+def grade_lines_prefix(response_text: str, cfg: dict) -> dict:
+    """Generated trace families (tracevm): the LAST fenced block (or, with no
+    fence, every non-empty line) is compared line by line with ``expected``;
+    the score is the exact-prefix share. Earlier fences (drafts, extra
+    guesses) are ignored, so it equals ``gen.tracevm.grade``."""
+    from .gen import tracevm
+    r = tracevm.grade_lines(strip_thinking_tags(response_text), cfg["expected"])
+    return {"grade": "pass" if r["matched"] == r["total"] and r["total"] else "fail",
+            "detail": r["detail"], "score": r["score"], "rate": r["score"]}
+
+
+def grade_patgen_iso(response_text: str, cfg: dict, finish_reason: str | None = None) -> dict:
+    """patgen (JX lane P): the predictor runs in its own sandboxed process and is fed the hidden streams
+    one digit at a time (gen/patgen.run_isolated); rate = points/100."""
+    from .gen import patgen
+    r = patgen.run_isolated(extract_python(response_text, finish_reason), cfg)
+    results = [{"id": n, "pass": v >= 0.5, "detail": f"{v:.3f}"} for n, v in r["tiers"].items()]
+    return {"grade": "pass" if r["rate"] >= 0.999 else "fail", "detail": r["detail"] or f"{r['points']} points",
+            "results": results, "rate": r["rate"], "tiers": r["tiers"], "points": r["points"]}
+
+
 GRADERS = {
+    "patgen_iso": lambda result, cfg: grade_patgen_iso(result.scoreable_text(), cfg, result.finish_reason),
+    "lines_prefix": lambda result, cfg: grade_lines_prefix(result.scoreable_text(), cfg),
+    # generated optimisation family (planted_opt): the reply is a solver, run in the sandbox, scored by cost
+    "optimize": lambda result, cfg: _planted_opt().grade_optimize(result.scoreable_text(), cfg,
+                                                                  result.finish_reason),
+    # generated implied-requirements family (implied): the reply is a module, run in the sandbox against hidden
+    # behavioural scenarios; ``results`` = one entry per expectation (weight, pass)
+    "implied": lambda result, cfg: _implied().grade_implied(result.scoreable_text(), cfg, result.finish_reason),
+    # generated Python-output-prediction family (pytrap): the reply is plain text, one check per predicted printed line
+    "pytrap": lambda result, cfg: _pytrap().grade_pytrap(result.scoreable_text(), cfg, result.finish_reason),
+    # generated binary-format family (blackbox): the reply is a decoder, run in the sandbox on a hidden dump; ``results`` = one per ladder check
+    "blackbox": lambda result, cfg: _blackbox().grade_blackbox(result.scoreable_text(), cfg, result.finish_reason),
+    # generated net-patching family (netsurgeon): the reply is an edit() program, run in the sandbox; ``results`` = one per check
+    "netsurgeon": lambda result, cfg: _netsurgeon().grade_netsurgeon(result.scoreable_text(), cfg, result.finish_reason),
+    # generated hidden-system family (probe): the reply is a program that calls measure() on a system the grader holds; ``results`` = one per held-out case
+    "probe": lambda result, cfg: _probe().grade_probe(result.scoreable_text(), cfg, result.finish_reason),
+    # generated search family (solversyn): the reply is a program, run in the sandbox, terms checked outside
+    "solversyn": lambda result, cfg: _solversyn().grade_solversyn(result.scoreable_text(), cfg,
+                                                                 result.finish_reason),
     "python_exec": lambda result, cfg: grade_python_exec(result.scoreable_text(), cfg,
                                                         result.finish_reason),
+    # interactive console family (COMPACTOR): the answer is the replies joined by the multi-turn separator, replayed
+    "console": lambda result, cfg: _grade_console(result.scoreable_text(), cfg),
+    # uncensored-knowledge family (UNC-KNOW): per question a correct element and a direct (no hedge) element
+    "unc_know": lambda result, cfg: _unc_know().grade_answer(
+        literal_n_numbered(result.scoreable_text(), len(cfg.get("items") or ())), cfg),
+    # knows-what-it-does-not-know family (KNOWGAP): one element per contrast pair (value side + NOT STATED/CONFLICT side)
+    "knowgap": lambda result, cfg: _knowgap().grade_answer(
+        literal_n_numbered(result.scoreable_text(), len(cfg.get("items") or ())), cfg),
     "tool_call": lambda result, cfg: grade_tool_call(result.tool_calls, result.scoreable_text(), cfg),
     "tool_parallel": lambda result, cfg: grade_tool_parallel(
         result.tool_calls, cfg, result.scoreable_text()),
@@ -994,6 +1152,98 @@ GRADERS = {
     "repo_tests": lambda result, cfg: _codebank().grade_repo_tests(
         result.scoreable_text(), cfg, result.finish_reason),
 }
+
+
+def _grade_console(answer: str, cfg: dict) -> dict:
+    """Replay a transcript of console replies through the simulator (the runner scores live in
+    ``runner._run_console_loop``; this is the engine path ``cases verify`` and the baselines use).
+    ``grader_config.family`` names another console family (its ``score_replies`` returns the
+    ``console_result`` shape); none = COMPACTOR."""
+    from .gen import compactor
+    from .gen._stack_common import split_turns
+    if cfg.get("family") not in (None, "compactor"):
+        from . import gen as _gen
+        fam = _gen.get(cfg["family"])
+        cr = fam.score_replies(cfg["key"], split_turns(answer))
+        rate = round(float(cr["score"]), 4)
+        ok = rate >= float(getattr(fam, "PASS_SHARE", 1.0)) - 1e-9
+        return {"grade": cr.get("grade") or ("pass" if ok else "fail"),
+                "detail": str(cr.get("detail") or rate), "score": rate, "rate": rate,
+                "results": [{"id": str(e["id"]), "pass": bool(e.get("pass")),
+                             "detail": str(e.get("detail", ""))} for e in cr.get("elements") or []]}
+    sc = compactor.score_replies(cfg["key"], split_turns(answer))
+    rate = round(float(sc["score"]) / 100.0, 4)
+    return {"grade": "pass" if (sc["state"] == "stopped" and sc["score"] >= compactor.PASS_SCORE) else "fail",
+            "detail": f"{sc['score']}/100 ({sc['state']})", "score": rate, "rate": rate,
+            "results": [{"id": k, "pass": sc[k] >= t, "detail": str(sc[k])}
+                        for k, t in (("floor", 15), ("climb", 25), ("edge", 25))]}
+
+
+#: a numbered answer line ("3. ANSWER: x", "Q3) Answer - x"), the shape both knowledge families parse
+_NUMBERED_ANSWER = re.compile(r"^[ \t>*_#\-\"'“‘•]*(?:Q\s*)?\d{1,2}\s*[.):]?[ \t*_]*answer[ \t*_]*[:\-–—]",
+                              re.I | re.M)
+#: the template's own placeholder copied as the number ("N. ANSWER: ..."; Grok, rc2, every line)
+_LITERAL_N_ANSWER = re.compile(r"^([ \t>*_#\-\"'“‘•]*)N(\s*[.):]?[ \t*_]*answer[ \t*_]*[:\-–—])",
+                               re.I | re.M)
+
+
+def literal_n_numbered(text: str, n_expected: int | None) -> str:
+    """``text`` with its literal-N answer lines numbered 1..n in order, when that is unambiguous: the reply
+    has NO numbered answer line and exactly ``n_expected`` literal-N lines (ship plan C8: Grok's full sheet
+    in order was graded all missing). Any other shape is returned unchanged (a short sheet stays missing).
+    Applied here, before the family grader, so the families' source (their rows' chain_revision) is
+    unchanged and stored rows take it by regrade, not re-run."""
+    if not n_expected or _NUMBERED_ANSWER.search(text or ""):
+        return text
+    if len(_LITERAL_N_ANSWER.findall(text or "")) != n_expected:
+        return text
+    count = iter(range(1, n_expected + 1))
+    return _LITERAL_N_ANSWER.sub(lambda m: f"{m.group(1)}{next(count)}{m.group(2)}", text)
+
+
+def _knowgap():
+    from .gen import knowgap   # lazy, like _unc_know
+    return knowgap
+
+
+def _unc_know():
+    from .gen import unc_know   # lazy: the family imports this module's neighbours
+    return unc_know
+
+
+def _planted_opt():
+    from .gen import planted_opt   # lazy: the family imports this module
+    return planted_opt
+
+
+def _implied():
+    from .gen import implied   # lazy: the family imports this module
+    return implied
+
+
+def _pytrap():
+    from .gen import pytrap   # lazy: the family imports this module
+    return pytrap
+
+
+def _blackbox():
+    from .gen import blackbox   # lazy: the family imports this module
+    return blackbox
+
+
+def _netsurgeon():
+    from .gen import netsurgeon   # lazy: the family imports this module
+    return netsurgeon
+
+
+def _probe():
+    from .gen import probe   # lazy: the family imports this module
+    return probe
+
+
+def _solversyn():
+    from .gen import solversyn   # lazy: the family imports this module
+    return solversyn
 
 
 def _codebank():
@@ -1024,4 +1274,18 @@ def grade(result, case: dict) -> dict | None:
                     if name == "exact" and cfg.get("elements") == "positions" else {})
         return {"grade": "fail", "detail": "cut off before an explicit 'Answer:' line",
                 **elements}
+    fam = (case.get("generator") or {}).get("type") if isinstance(case.get("generator"), dict) else None
+    if fam:
+        # a generated case of a family that failed the concurrency guard is graded under its
+        # family lock (gen.family_lock; a no-op for every other family)
+        from . import gen as _gen
+        with _gen.family_lock(fam):
+            return _grade_unlocked(name, result, case)
+    return _grade_unlocked(name, result, case)
+
+
+def _grade_unlocked(name: str, result, case: dict) -> dict | None:
+    pin = grader_pins(case)
+    if pin:
+        return _pinned_grade(name, result, case, pin)
     return GRADERS[name](result, case.get("grader_config", {}))

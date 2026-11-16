@@ -108,6 +108,7 @@ def _old(lid, model="m"):
             "reason": f"crucibleforge benchmark: {model}"}
 
 
+@pytest.mark.archive_default
 def test_a_crashed_runs_lease_is_released_before_a_new_one(monkeypatch, lease_calls):
     leases = [
         _old("ORPHAN"),                                  # left by a run that died

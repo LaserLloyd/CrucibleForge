@@ -1,0 +1,41 @@
+{
+ "level": 1,
+ "points": 1.0,
+ "item": "RPSESSION-TALLY",
+ "draft": true,
+ "budget": 16384,
+ "context": 73728,
+ "note": "H2 Tally pack (PACKS2): the counted-quantity checks of the three rpsession cards that carry one (a quantity the user changes over 4+ turns inside the story, asked once at turn 9+, checked against the exact number), judge off. What the standard Tally cell (session_ledger L1) does not ask: a count kept in the background of a role-play while other demands press, never announced as a ledger. Cost: the pack re-generates each session (variant tally = the same card and seed as role-play's scene unit, judge off): one more 8-12-turn session per card per model that opens it, about 6 reference stream-minutes per card on the rig, hosted cents. A seed_case alias onto the scene rows is NOT possible as the engine stands: report.alias_refusal needs the pack case to materialise byte-identical to the stored row (grader config included), and the tally variant's check list differs from scene's; aliasing would need either CHAT-RP to give scene and tally one materialisation (the pack scoring a named check subset) or an engine change in alias_refusal (K). DRAFT until rpsession is merged (branch chat-rp-ship45), the case check passes and the hosted maxers screen below 90%. Screen 2026-11-14 (hosted, every failing reply read): as graded DeepSeek flash 0/3, MiniMax 2/3, Sonnet (validation) 0/3; read, 2/3, 2/3, 3/3. Two key faults: (1) bakery tally@9 regex fails correct answers ('Eight you're paying for', 'Eight, all told'); (2) STRUCTURAL: on ferry and arctic the count depends on the character's own moves (Abigail may refuse or hand back the dollars; Signe may or may not hand over the outgoing sack), but the key is one fixed number (3), so a model that tells a consistent story with a different count is marked wrong (DeepSeek and Sonnet ferry 'One' are right for their own sessions). Fix: user turns that fix the count whatever the character does, or a key read from the session. HOLD until CHAT-RP's fixes land and the rows are regraded. Cards are named per case in this file (nothing hard-coded in the engine): if the pilot gives these six sessions to the standard Role-play part and the eight deep role-play cases become the packs instead, only this file's cases change. Not live until the lead rules on the pilot. RE-SCREEN on CHAT-RP's fixed keys (87adba3; ferry and arctic rewritten so the user's own actions fix the count): DeepSeek flash 3/3, MiniMax 2/3 (bakery 'five rolls'), Sonnet 3/3. The maxer is at 100% on 3 units: NOT a pack.",
+ "cases": [
+  {
+   "id": "PK-H2-LEDGER-RPS-01",
+   "category": "rpdeep",
+   "generator": {
+    "type": "rpsession",
+    "variant": "tally",
+    "level": 1,
+    "card": "RPS6-arctic"
+   }
+  },
+  {
+   "id": "PK-H2-LEDGER-RPS-02",
+   "category": "rpdeep",
+   "generator": {
+    "type": "rpsession",
+    "variant": "tally",
+    "level": 1,
+    "card": "RPS4-ferry"
+   }
+  },
+  {
+   "id": "PK-H2-LEDGER-RPS-03",
+   "category": "rpdeep",
+   "generator": {
+    "type": "rpsession",
+    "variant": "tally",
+    "level": 1,
+    "card": "RPS3-bakery"
+   }
+  }
+ ]
+}

@@ -1,0 +1,38 @@
+{
+ "level": 1,
+ "points": 1,
+ "item": "COMPACTOR",
+ "budget": 65536,
+ "context": 73728,
+ "note": "FC3 COMPACTOR (console family, interactive loop in runner._run_console_loop), seeds s1-s3. Read-everything baseline 38.7 on s1-s3 (31.2 on s1-s6). PROVISIONAL (T7, 2026-11-13): weights and counts are one number each; gates re-opened 16:15.",
+ "cases": [
+  {
+   "id": "FC3-compactor-s1",
+   "category": "coding",
+   "generator": {
+    "type": "compactor",
+    "level": 1,
+    "key": "s1"
+   }
+  },
+  {
+   "id": "FC3-compactor-s2",
+   "category": "coding",
+   "generator": {
+    "type": "compactor",
+    "level": 1,
+    "key": "s2"
+   }
+  },
+  {
+   "id": "FC3-compactor-s3",
+   "category": "coding",
+   "generator": {
+    "type": "compactor",
+    "level": 1,
+    "key": "s3"
+   }
+  }
+ ],
+ "frontier": true
+}

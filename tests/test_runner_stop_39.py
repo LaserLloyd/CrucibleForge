@@ -106,6 +106,8 @@ def _launch(tmp_path, cfg_path, grace_s):
                CRUCIBLEFORGE_NO_PRIVATE="1")
     argv = [sys.executable, "-m", "crucibleforge.cli", "--allow-unsandboxed",
             "--config", str(cfg_path), "--results", str(tmp_path / "results"), "run",
+            # the release flip made bench45 the bare default; these are 4.1 cases (archive_default)
+            "--profile", "bench",
             "--models", "m", "--no-link-check",
             # the conformance gate would refuse the model before the run even
             # starts: the host here hangs, so the probes hang with it.  This
@@ -193,9 +195,11 @@ def test_request_stop_returns_run_models_within_seconds(tmp_path, monkeypatch):
     monkeypatch.setattr(config, "RESULTS_DIR", tmp_path)
     monkeypatch.setenv("CRUCIBLEFORGE_STOP_GRACE_S", "3600")   # the watchdog must not fire
     hang = threading.Event()
+    released = threading.Event()   # set when a blocked chat call returns
 
     def chat(self, model_id, messages, **kw):
         hang.wait(60)
+        released.set()
         return ChatResult(response_text="ok", finish_reason="stop", served_model="m")
 
     monkeypatch.setattr(providers.Provider, "chat", chat)
@@ -206,9 +210,14 @@ def test_request_stop_returns_run_models_within_seconds(tmp_path, monkeypatch):
     t0 = time.time()
     try:
         summary = runner.run_models(_cfg(), [entry], _cases())
+        returned_before_release = not released.is_set()
     finally:
         hang.set()
-    assert time.time() - t0 < 5
+    # load-robust (2026-11-14): the property is that run_models does not wait for the
+    # blocked call (60 s), not a wall-clock figure -- "< 5 s" failed at box load ~16
+    # on the baseline too. Ordering + a generous bound instead.
+    assert returned_before_release
+    assert time.time() - t0 < 30
     assert summary["m"]["failed"] and summary["m"]["stopped"]
     meta = json.loads((tmp_path / "meta_m.json").read_text(encoding="utf-8"))
     assert meta["stopped"] is True and meta["finished"] and meta["failed"] is True

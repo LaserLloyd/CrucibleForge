@@ -1,0 +1,102 @@
+"""Meeting booker for one person's WORK calendar.
+
+Meetings are placed only in the person's local working hours
+(Mon-Fri, 09:00-17:00 local time = UTC + tz), never in the past,
+and never overlapping the existing calendar or each other.
+Requests with an explicit, valid, free start are placed first (so they
+are honoured); the rest are placed in request order at the earliest slot.
+Meetings longer than a working day cannot fit in one, so they must start
+within working hours and may run past closing time.
+"""
+from bisect import bisect_right
+
+WORK_START = 9 * 60
+WORK_END = 17 * 60
+DAY = 1440
+
+
+def book_meetings(requests, existing, now, tz) -> list:
+    now = int(now)
+    tz = int(tz)
+
+    ivs = sorted((int(e["start"]), int(e["end"]))
+                 for e in (existing or [])
+                 if int(e["end"]) > int(e["start"]))
+    # merge into disjoint sorted intervals
+    starts, ends = [], []
+    for s, e in ivs:
+        if ends and s <= ends[-1]:
+            if e > ends[-1]:
+                ends[-1] = e
+        else:
+            starts.append(s)
+            ends.append(e)
+
+    def conflict_end(t, d):
+        """End of first busy interval overlapping [t, t+d), else None."""
+        d = max(d, 1)
+        i = bisect_right(starts, t) - 1
+        if i >= 0 and ends[i] > t:
+            return ends[i]
+        j = i + 1
+        if j < len(starts) and starts[j] < t + d:
+            return ends[j]
+        return None
+
+    def fit(t, d):
+        """Earliest time >= t inside working hours where a meeting of
+        length d starts (and ends by closing, unless longer than a day)."""
+        oversize = d > WORK_END - WORK_START
+        while True:
+            local = t + tz
+            day = local // DAY
+            m = local - day * DAY
+            if day % 7 >= 5:
+                t += DAY - m
+                continue
+            if m < WORK_START:
+                t += WORK_START - m
+                m = WORK_START
+            if oversize:
+                if m < WORK_END:
+                    return t
+            elif m + d <= WORK_END:
+                return t
+            t += DAY - m
+
+    def add(t, d):
+        d = max(d, 1)
+        i = bisect_right(starts, t)
+        starts.insert(i, t)
+        ends.insert(i, t + d)
+
+    reqs = list(requests or [])
+    result = [None] * len(reqs)
+    durs = [max(int(r.get("duration", 0) or 0), 0) for r in reqs]
+
+    # Pass 1: explicit starts that are valid and free
+    for i, r in enumerate(reqs):
+        st = r.get("start")
+        if st is None:
+            continue
+        st = int(st)
+        d = durs[i]
+        if st >= now and fit(st, d) == st and conflict_end(st, d) is None:
+            add(st, d)
+            result[i] = st
+
+    # Pass 2: everything else, earliest available slot
+    for i, r in enumerate(reqs):
+        if result[i] is not None:
+            continue
+        d = durs[i]
+        t = fit(now, d)
+        while True:
+            c = conflict_end(t, d)
+            if c is None:
+                break
+            t = fit(c, d)
+        add(t, d)
+        result[i] = t
+
+    return [{"id": r["id"], "start": result[i]} for i, r in enumerate(reqs)]

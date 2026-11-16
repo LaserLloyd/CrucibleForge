@@ -1,0 +1,14 @@
+{
+ "item": "PACK-NSFW-WRITING",
+ "level": 1,
+ "note": "classic-fixed (4.5): the 4.1 text, byte for byte, so the stored 4.1 rows stay reusable (reuse.ids in profiles/bench45.yaml). Left Core in 4.5. Includes XP1 and XP2 (the 3.8 explicit-peak briefs of the old nsfw_writing set-1).",
+ "classic_fixed": true,
+ "cases": [
+  "NX2-juniper",
+  "XP3-named-peak",
+  "NW1-salt-and-cedar",
+  "XP1-three-rooms",
+  "XP2-blindfold"
+ ],
+ "rows": "reusable"
+}

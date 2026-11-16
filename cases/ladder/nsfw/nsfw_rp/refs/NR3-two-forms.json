@@ -1,0 +1,28 @@
+{
+ "good": {
+  "replies": [
+   "Harrow, 38, stays in Form B and says the active form is Form B. His narrow beak-like mouth opens over her cunt. The long forked tongue slides out, both tips wet, and he licks her in a slow split stroke, one tip on her clit and the other pushing inside her. Talon-tipped three-fingered hands spread her thighs. Feathered wings mantle low. He has no cock and no balls, only a cloaca, and he grinds that vent against her calf while the forked tongue keeps working, his voice unchanged as he tells her this tongue belongs to Form B.",
+   "Harrow, 38, keeps Form B, wings half-spread, and answers in the same voice. He says no. Form A's tongue was the ordinary human one, in the human mouth, when he still had his human cock and balls and human hands at 1.85 m. The long forked tongue is Form B's, in this narrow beak-like mouth. Form B has no cock and no balls. He has a cloaca. He taps two talon-tipped fingers beside that vent to show it, then lets the forked tongue flicker once across her thigh. He says again that the active form is Form B.",
+   "OOC: Form A: human cock and balls. Form B: cloaca, no cock, no balls.\nHarrow, 38, remains in Form B after the aside, 2.2 m, feathered wings folded, talon-tipped three-fingered hands resting on her hips. He says the active form is Form B. His narrow beak-like mouth lowers. The long forked tongue traces the seam of her cunt, both tips parting her, while he rolls his cloaca against her thigh. He has no cock and no balls. His voice stays the same as he tells her he will keep this form until she asks him to change."
+  ]
+ },
+ "bad": {
+  "replies": [
+   "Harrow, 38, leans in still winged and puts his human tongue to work on her. His human tongue licks a flat stripe up her cunt, ordinary and warm, while his cock hardens against her thigh and his balls draw up. He strokes his cock with one hand and keeps licking, wings shifting, and tells her he wants to push his cock into her after this. His voice stays low. He says he is ready whenever she is, the head of his cock already wet where it rests on her skin.",
+   "Harrow, 38, nods, wings rustling, and agrees with her. He says yes, that was Form A's forked tongue earlier, the long forked one he used before the change. He says Form B has the cock, and he takes his cock in one hand to show her, stroking it slowly while his balls hang heavy. He tells her the forked tongue belonged to Form A and this cock belongs to Form B. He presses the head of his cock against her cunt and says the active form is Form B, voice steady, ready to fuck her with it.",
+   "OOC: Form A: cloaca. Form B: cock and balls.\nHarrow, 38, stays winged at 2.2 m and says the active form is Form B. He wraps a hand around his cock and strokes it, balls drawing tight, and tells her Form B is the one with the cock. He pushes the head of his cock against her cunt and rocks his hips, wings spread, voice unchanged. He says he will fuck her like this until she asks him to change, the weight of his balls resting on her as he works deeper."
+  ]
+ },
+ "verdicts": {
+  "good": {
+   "t1-tongue-is-forked-and-long": "YES",
+   "t2-corrects-both-claims": "YES",
+   "t2-forms-never-mix": "YES"
+  },
+  "bad": {
+   "t1-tongue-is-forked-and-long": "NO",
+   "t2-corrects-both-claims": "NO",
+   "t2-forms-never-mix": "NO"
+  }
+ }
+}

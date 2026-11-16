@@ -14,7 +14,9 @@ MULTI = ("judge said yes but only {k}/{n} samples quoted the reply verbatim "
 
 
 def _row(results, **kw):
+    # the board-time recheck is a bench45 switch (`quote_recheck`); bench is 4.1 as is
     row = {"case_id": "ZZ1", "model_label": "m", "repeat": 1, "category": "steer",
+           "profile": "bench45",
            "response": TEXT,
            "judge": {"elements": {"results": results, "rate": 0.0}}}
     row.update(kw)
@@ -100,5 +102,14 @@ def test_rpdeep_accepts_the_single_sample_wording():
     case = {"judge_elements": [{"id": "e1", "turns": [1]}]}
     # a spliced quote: only quote_found (not the verbatim short path) accepts it
     r = _el(SINGLE, quote="opened on 23 February by the clerk / Later the gate closed")
-    out = rpdeep._stored_quote_ok(r, [TEXT], case)
+    out = rpdeep._stored_quote_ok(r, [TEXT], case, recheck=True)
     assert out["pass"] is True
+    # off (the bench profile): the single-sample wording keeps its stored fail
+    assert rpdeep._stored_quote_ok(r, [TEXT], case)["pass"] is False
+
+
+def test_the_bench_profile_runs_the_legacy_recheck(monkeypatch):
+    # lead decision 2026-11-09 (bench.yaml `quote_recheck: legacy`): bench is the 4.1.0 recheck,
+    # which flips the single-sample wording; it is not off, and it skips the F22 dimension guard
+    out = _re(_row([_el(SINGLE)], profile="bench"), monkeypatch)
+    assert _res(out)[0]["pass"] is True

@@ -28,6 +28,7 @@ PRICE = {"price": {"input": 1.0, "output": 2.0}}
 CFG = {"models": [{"name": "m", **PRICE}]}
 
 
+@pytest.mark.archive_default
 def test_real_profile_sides():
     s = report._case_sides(None)
     assert s[NSFW] == "separate" and s[CHAT] == "main"
@@ -119,6 +120,7 @@ def _stats(rows, meta=None, era=None, cfg=None):
     return report.model_stats("m", cfg or CFG, rows=rows, meta=meta or {}, era=era)
 
 
+@pytest.mark.archive_default
 def test_model_stats_keys_and_main_scope():
     rows = [_row(CHAT, cost=0.4), _row(NSFW, cost=0.1, finish_reason="content_filter")]
     s = _stats(rows)

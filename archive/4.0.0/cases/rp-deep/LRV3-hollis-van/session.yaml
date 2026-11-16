@@ -1,0 +1,588 @@
+id: LRV3-hollis-van
+user_name: Mel
+rules: |
+  You are playing FOUR characters at once — NAN (Winifred Hollis), FERGUS HOLLIS, JUNE HOLLIS and ROSA HOLLIS, described in the scene card below — in an ongoing roleplay at one picnic table. The user plays MEL SANDOVAL (they/them, 29), a stranger the family picked up on the road. Mel is the user's and no one else's.
+
+  Rules (strict):
+  1. Every line of speech is its own line and begins with the speaker's name in bold and a colon: **Nan:**, **Fergus:**, **June:** or **Rosa:**. Narration goes on separate lines with no name tag, in present tense.
+  2. All four characters speak at least once in every turn. They are four different people with their own views, habits and history.
+  3. Keep each character's voice and habits exactly as the card describes them, on every line and in every turn. The card is canon: who knows what, who may say what to whom, and how each of them behaves.
+  4. Never write Mel's dialogue, actions, thoughts, feelings or decisions. Stop your turn at a point where Mel can act.
+  5. Things said and done on the page are canon too, including the earlier conversation, any correction Mel makes, anything one of the four has already told Mel, and anything said where the others could not hear.
+  6. A chat turn, not a chapter: 160-320 words. Stay inside the fiction; no notes to the user.
+judge_card_summary: 'The Hollis family''s campervan at Brough Fell campsite, night two of a trip to cousin Hettie''s wedding at Lake Corrin (Saturday, 2 o''clock; the family arrives Friday evening); four characters played at once, every spoken line tagged **Name:**; an earlier conversation (the pick-up and first day) is in the log. NAN (Winifred Hollis, 79): every line opens "Listen," and contains "dear", never says the word "that"; never lies, keeps secrets (knows Fergus''s real past and June''s letter). FERGUS (63): every line ends "so help me" and has a nautical word, never says prison/jail/gaol/convict/sentence; claims eleven years as ship''s cook on HMS Persephone (frigate out of Rosyth, 140 men, Chief Petty Officer Dunmore, galley cat Biscuit, storm off Cape Wrath) — a LIE: he was a boatyard cafe cook jailed fourteen months in 1998 for forging cheques; tugs his left cuff over a tattooed number whenever he tells the story; invented details stay fixed. JUNE (16), cellist: every line has "literally", sentences of eight words or fewer, calls parents "Rosa" and "Dev"; SECRET: a Wexcombe School of Music cello scholarship letter (starts January, accept by the Friday after the wedding) in the lid pocket of her cello case, known only to Nan; she tells only someone who will be gone soon, and only when alone with them. ROSA (41), mother: every line has a digit and ends "okay?", never says I/me/my; knows the truth about Fergus and never speaks of it; does not know about the letter. The user plays Mel Sandoval (they/them, 29), a vegetarian stranger who gets carsick on winding roads, whose phone was dead (a USB cable is in the glovebox), and whose friend Okoro collects them from Harrowby Services on Friday at noon.'
+judge_key: 'The assistant plays Nan, Fergus, June and Rosa; the user plays Mel Sandoval. The earlier conversation (the log) is canon: Fergus told his Navy story with fixed details (eleven years, HMS Persephone, Rosyth, 140 men, Chief Petty Officer Dunmore, the cat Biscuit, the storm off Cape Wrath); Mel said (turn 1) they promised to ring their sister Ada tomorrow for her birthday and (turn 2) they are allergic to celery. Mel said earlier that they get carsick on winding roads, are vegetarian, have a dead phone, and will be collected from Harrowby Services on Friday at noon; Rosa said the glovebox has a USB cable; the lake is 2 more days away; the wedding is on the SATURDAY at 2 o''clock. Things Mel gets wrong: the wedding is ''on the Sunday'', Nan is ''eighty-one'' (she is 79) and the lake is ''three more days'' away (turn 1); Fergus served ''twelve years'' (turn 2; it was eleven); Nan ''said yesterday June plays the flute'' (turn 8; she plays the cello and said no such thing). At turn 6 Mel walks June away from the table to the water tap and June, alone with Mel, may confide the Wexcombe letter; Fergus is at the shower block and Rosa and Nan stay at the table, so nobody else hears. At turn 9 Fergus invents Dunmore''s first name and a winter port; he must repeat them unchanged at turn 11.'
+turns:
+- Mel sets the tea down and looks round the table. "Three more days to the lake and I'll be sorry to leave. I've been telling Okoro it's a Sunday wedding, and that Nan, who is eighty-one and hems like someone half her age, is the star of the trip. I promised I'd ring my sister Ada tomorrow, it's her birthday."
+- Mel turns to Fergus, who is stirring the pot. "I told Okoro about your twelve years on the Persephone — the galley, the storm, the lot — and he wants the cat's name for the story, so I'd better get it right. Oh, and I'm allergic to celery, sorry — it's in everything."
+- Mel glances at Nan and drops their voice a little. "Nan, was Fergus really in the Navy? He tells it so well, and you've never said a word about it yourself."
+- Mel stands and rolls up their sleeves. "Put me to work, Fergus, I can chop anything. I told Okoro you fed a hundred men a day from that galley, and he did not believe me."
+- Rosa spreads a folded road map on the table under the lantern, weighting the corners with tin mugs. Mel leans over it. "Rosa, what's the plan for tomorrow? Show me the route. And does Fergus draw a Navy pension, do you know?"
+- 'Fergus has taken the washing-up bowl and a torch and gone off to the shower block. Mel picks up the empty water carrier and says to June, quietly: "Walk with me to the tap? You''ve been looking at that case all day." They set off together across the dark grass, out of earshot of the table, and by the standpipe Mel puts down the carrier. "I''m gone on Friday, June. Whatever it is, it goes with me."'
+- Mel and June come back across the grass. Fergus is already back, drying a pan. Mel sits, rubbing a heel. "I've got a blister from the walk to the lay-by, nothing serious." Mel looks round. "Fergus, did June say anything to you while I was out with her? Rosa — has June mentioned school at all? And Nan, does June have any news?"
+- Mel stirs the tea. "Funny thing — Nan told me yesterday that June plays the flute, and I've been wondering ever since why the case is so big."
+- Mel leans back against the van. "I always sleep with the window open, by the way. Fergus, one more for the story. What was Chief Petty Officer Dunmore's first name? Which port did Persephone winter in? And could I see your discharge certificate — Okoro wants a photo for the story?"
+- Mel turns to June, in front of the whole table. "June, what's the paper in the lid pocket of your case? I keep seeing the corner of it."
+- Mel yawns and gathers the mugs. "Fergus, just so I get it right for Okoro — what was Dunmore's first name again, and the winter port? Right. Thank you all. I'm off to my bunk."
+temperature: 0.8
+top_p: 0.95
+max_tokens: 2000
+min_context: 40960
+checks:
+- id: P1-no-puppet
+  fact: P1
+  ftype: identity
+  group: identity
+  type: no_puppeting
+  names:
+  - Mel
+  weight: 0.5
+- id: F2-no-untagged-speech
+  fact: F2
+  ftype: format
+  group: constraint
+  type: forbid_regex
+  scope: all
+  pattern: ^[ \t]*["“]
+  weight: 0.5
+- id: W1-length
+  fact: W1
+  ftype: format
+  group: constraint
+  type: word_range
+  scope: ic
+  min: 160
+  max: 320
+  weight: 1
+- id: S1-nan-speaks-every-turn
+  fact: S1
+  ftype: voice
+  group: constraint
+  type: require_regex
+  scope: speaker:Nan
+  pattern: ^\S
+  weight: 0.25
+  per_turn: true
+  min_hits: 1
+- id: S2-fergus-speaks-every-turn
+  fact: S2
+  ftype: voice
+  group: constraint
+  type: require_regex
+  scope: speaker:Fergus
+  pattern: ^\S
+  weight: 0.25
+  per_turn: true
+  min_hits: 1
+- id: S3-june-speaks-every-turn
+  fact: S3
+  ftype: voice
+  group: constraint
+  type: require_regex
+  scope: speaker:June
+  pattern: ^\S
+  weight: 0.25
+  per_turn: true
+  min_hits: 1
+- id: S4-rosa-speaks-every-turn
+  fact: S4
+  ftype: voice
+  group: constraint
+  type: require_regex
+  scope: speaker:Rosa
+  pattern: ^\S
+  weight: 0.25
+  per_turn: true
+  min_hits: 1
+- id: VC1-nan-voice-holds-every-line
+  fact: VC1
+  ftype: voice
+  group: constraint
+  type: forbid_regex
+  scope: speaker:Nan
+  pattern: (?:^(?!\W*Listen,).*\S.*$)|(?:^(?!.*\bdear\b).*\S.*$)|(?:\bthat\b)|(?:\?)
+  weight: 2.5
+  note: 'any breach of Nan''s card voice on any line: a line not opening ''Listen,''; a line without ''dear''; the word ''that''; a question mark'
+- id: V1-nan-listen
+  fact: V1
+  ftype: voice
+  group: constraint
+  type: forbid_regex
+  scope: speaker:Nan
+  pattern: ^(?!\W*Listen,).*\S.*$
+  weight: 0
+  scored: false
+  note: a line not opening 'Listen,'
+- id: V2-nan-dear
+  fact: V2
+  ftype: voice
+  group: constraint
+  type: forbid_regex
+  scope: speaker:Nan
+  pattern: ^(?!.*\bdear\b).*\S.*$
+  weight: 0
+  scored: false
+  note: a line without 'dear'
+- id: V3-nan-never-that
+  fact: V3
+  ftype: voice
+  group: constraint
+  type: forbid_regex
+  scope: speaker:Nan
+  pattern: \bthat\b
+  weight: 0
+  scored: false
+  note: the word 'that'
+- id: V13-nan-never-asks
+  fact: V13
+  ftype: voice
+  group: constraint
+  type: forbid_regex
+  scope: speaker:Nan
+  pattern: \?
+  weight: 0
+  scored: false
+  note: a question mark
+- id: VC2-fergus-voice-holds-every-line
+  fact: VC2
+  ftype: voice
+  group: constraint
+  type: forbid_regex
+  scope: speaker:Fergus
+  pattern: (?:^(?!.*\bso help me\W*$).*\S.*$)|(?:^(?!.*\b(?:ship|ships|deck|galley|port|starboard|anchor|anchored|tide|keel|aboard|helm|sail|sails|sailor|sailors|sea|knots|mast)\b).*\S.*$)|(?:\b(?:prison|jail|gaol|convict\w*|sentence\w*)\b)|(?:\b[A-Za-z]+['’](?:t|re|ll|ve|d|m)\b|\b(?:it|that|there|here|he|she|what|who|where|let|how|everyone|nobody)['’]s\b)
+  weight: 2.5
+  note: 'any breach of Fergus''s card voice on any line: a line not ending ''so help me''; a line with no nautical word; prison/jail/gaol/convict/sentence; a contraction'
+- id: V4-fergus-so-help-me
+  fact: V4
+  ftype: voice
+  group: constraint
+  type: forbid_regex
+  scope: speaker:Fergus
+  pattern: ^(?!.*\bso help me\W*$).*\S.*$
+  weight: 0
+  scored: false
+  note: a line not ending 'so help me'
+- id: V5-fergus-nautical
+  fact: V5
+  ftype: voice
+  group: constraint
+  type: forbid_regex
+  scope: speaker:Fergus
+  pattern: ^(?!.*\b(?:ship|ships|deck|galley|port|starboard|anchor|anchored|tide|keel|aboard|helm|sail|sails|sailor|sailors|sea|knots|mast)\b).*\S.*$
+  weight: 0
+  scored: false
+  note: a line with no nautical word
+- id: V6-fergus-no-prison-words
+  fact: V6
+  ftype: voice
+  group: constraint
+  type: forbid_regex
+  scope: speaker:Fergus
+  pattern: \b(?:prison|jail|gaol|convict\w*|sentence\w*)\b
+  weight: 0
+  scored: false
+  note: prison/jail/gaol/convict/sentence
+- id: V14-fergus-no-contractions
+  fact: V14
+  ftype: voice
+  group: constraint
+  type: forbid_regex
+  scope: speaker:Fergus
+  pattern: \b[A-Za-z]+['’](?:t|re|ll|ve|d|m)\b|\b(?:it|that|there|here|he|she|what|who|where|let|how|everyone|nobody)['’]s\b
+  weight: 0
+  scored: false
+  note: a contraction
+- id: VC3-june-voice-holds-every-line
+  fact: VC3
+  ftype: voice
+  group: constraint
+  type: forbid_regex
+  scope: speaker:June
+  pattern: (?:^(?!.*\bliterally\b).*\S.*$)|(?:(?:[^\s.!?]+[ \t]+){8}[^\s.!?]+)|(?:\b(?:Mum|Mom|Mummy|Mommy|Dad|Daddy|Mother|Father)\b)|(?:,)
+  weight: 2.5
+  note: 'any breach of June''s card voice on any line: a line without ''literally''; a sentence of nine or more words; Mum/Mom/Dad/Mother/Father; a comma'
+- id: V7-june-literally
+  fact: V7
+  ftype: voice
+  group: constraint
+  type: forbid_regex
+  scope: speaker:June
+  pattern: ^(?!.*\bliterally\b).*\S.*$
+  weight: 0
+  scored: false
+  note: a line without 'literally'
+- id: V8-june-eight-words
+  fact: V8
+  ftype: voice
+  group: constraint
+  type: forbid_regex
+  scope: speaker:June
+  pattern: (?:[^\s.!?]+[ \t]+){8}[^\s.!?]+
+  weight: 0
+  scored: false
+  note: a sentence of nine or more words
+- id: V9-june-first-names
+  fact: V9
+  ftype: voice
+  group: constraint
+  type: forbid_regex
+  scope: speaker:June
+  pattern: \b(?:Mum|Mom|Mummy|Mommy|Dad|Daddy|Mother|Father)\b
+  weight: 0
+  scored: false
+  note: Mum/Mom/Dad/Mother/Father
+- id: V15-june-no-commas
+  fact: V15
+  ftype: voice
+  group: constraint
+  type: forbid_regex
+  scope: speaker:June
+  pattern: ','
+  weight: 0
+  scored: false
+  note: a comma
+- id: VC4-rosa-voice-holds-every-line
+  fact: VC4
+  ftype: voice
+  group: constraint
+  type: forbid_regex
+  scope: speaker:Rosa
+  pattern: (?:^(?!.*\d).*\S.*$)|(?:\b(?:I|me|my|mine|myself)\b|\bI['’](?:m|ve|ll|d)\b)|(?:^(?!.*\bokay\?\W*$).*\S.*$)|(?:\b[A-Za-z]+['’](?:t|re|ll|ve|d|m)\b|\b(?:it|that|there|here|he|she|what|who|where|let|how|everyone|nobody)['’]s\b)|(?:^(?!.*\bwe\b).*\S.*$)
+  weight: 2.5
+  note: 'any breach of Rosa''s card voice on any line: a line with no digit; a first-person pronoun; a line not ending ''okay?''; a contraction; a line without ''we'''
+- id: V10-rosa-digit
+  fact: V10
+  ftype: voice
+  group: constraint
+  type: forbid_regex
+  scope: speaker:Rosa
+  pattern: ^(?!.*\d).*\S.*$
+  weight: 0
+  scored: false
+  note: a line with no digit
+- id: V11-rosa-no-i
+  fact: V11
+  ftype: voice
+  group: constraint
+  type: forbid_regex
+  scope: speaker:Rosa
+  pattern: \b(?:I|me|my|mine|myself)\b|\bI['’](?:m|ve|ll|d)\b
+  weight: 0
+  scored: false
+  note: a first-person pronoun
+- id: V12-rosa-okay
+  fact: V12
+  ftype: voice
+  group: constraint
+  type: forbid_regex
+  scope: speaker:Rosa
+  pattern: ^(?!.*\bokay\?\W*$).*\S.*$
+  weight: 0
+  scored: false
+  note: a line not ending 'okay?'
+- id: V16-rosa-no-contractions
+  fact: V16
+  ftype: voice
+  group: constraint
+  type: forbid_regex
+  scope: speaker:Rosa
+  pattern: \b[A-Za-z]+['’](?:t|re|ll|ve|d|m)\b|\b(?:it|that|there|here|he|she|what|who|where|let|how|everyone|nobody)['’]s\b
+  weight: 0
+  scored: false
+  note: a contraction
+- id: V17-rosa-we
+  fact: V17
+  ftype: voice
+  group: constraint
+  type: forbid_regex
+  scope: speaker:Rosa
+  pattern: ^(?!.*\bwe\b).*\S.*$
+  weight: 0
+  scored: false
+  note: a line without 'we'
+- id: X0-no-early-wexcombe
+  fact: X0
+  ftype: secret
+  group: continuity
+  type: forbid_regex
+  scope: all
+  pattern: Wexcombe|scholarship|boarding school|acceptance letter
+  weight: 1.0
+  turns:
+  - 1
+  - 2
+  - 3
+  - 4
+  - 5
+  - 7
+  - 8
+  - 9
+  - 10
+  - 11
+  note: the school/scholarship named anywhere except June's private confession
+- id: X1-nobody-exposes-fergus
+  fact: X1
+  ftype: secret
+  group: continuity
+  type: forbid_regex
+  scope: all
+  pattern: \b(?:prison|jail|gaol|convict\w*|forg(?:ed|ery|eries|ing)|cheques?|never served|never in the navy|not in the navy|wasn['’]t in the navy)\b
+  weight: 1.0
+  turns:
+  - 1
+  - 2
+  - 3
+  - 4
+  - 5
+  - 6
+  - 7
+  - 8
+  - 9
+  - 10
+  - 11
+  note: anyone (narration included) exposing Fergus's real past
+judge_elements:
+- id: C1-saturday-not-sunday
+  ftype: correction
+  turns:
+  - 1
+  weight: 0.5
+  q: Mel says the wedding is 'on the Sunday'. Per the card and the earlier log it is on the SATURDAY at two o'clock. Does someone (most naturally Rosa) correct it? Quote the line. NO if nobody corrects it or Sunday is accepted. The line you quote must also keep Rosa's card voice (a digit, ends 'okay?', never I/me/my); NO if it breaks it.
+  evidence:
+  - src: card
+    text: at two o'clock on the Saturday
+  - src: turn
+    text: it's a Sunday wedding
+  gold_quote: Saturday at 2 o'clock, not Sunday, okay?
+- id: C2-seventy-nine
+  ftype: correction
+  turns:
+  - 1
+  weight: 0.5
+  q: Mel says Nan said she is 'eighty-one'. Per the card Nan is SEVENTY-NINE. Does Nan correct it herself? Quote her line. NO if nobody corrects it or eighty-one is accepted. The line you quote must also keep Nan's card voice (opens 'Listen,', has 'dear', never the word 'that'); NO if it breaks it.
+  evidence:
+  - src: card
+    text: NAN — WINIFRED HOLLIS (she/her, 79)
+  - src: turn
+    text: Nan, who is eighty-one
+  gold_quote: Listen, dear, seventy-nine, and I never said eighty-one.
+- id: C3-two-days-not-three
+  ftype: correction
+  turns:
+  - 1
+  weight: 2.0
+  q: Mel says it is 'three more days to the lake'. Per the earlier log (Rosa) it is TWO more days. Does someone correct it? Quote the line. NO if nobody corrects it or three is accepted. The line you quote must also keep Rosa's card voice (a digit, ends 'okay?', never I/me/my); NO if it breaks it.
+  evidence:
+  - src: log
+    text: the lake is 2 more days away
+  - src: turn
+    text: Three more days to the lake
+  gold_quote: The lake is 2 more days away, not 3, okay?
+- id: Y1-fergus-eleven-not-twelve
+  ftype: correction
+  turns:
+  - 2
+  weight: 0.5
+  q: Mel says Fergus served 'twelve years' on the Persephone. In the earlier log and the card he says ELEVEN years. Does Fergus correct it (eleven)? Quote his line. NO if he accepts twelve or does not give a number. The line you quote must also keep Fergus's card voice (ends 'so help me', a nautical word, no prison words); NO if it breaks it.
+  evidence:
+  - src: card
+    text: eleven years aboard HMS Persephone
+  - src: turn
+    text: your twelve years on the Persephone
+  gold_quote: Eleven years aboard, not twelve, so help me.
+- id: N1-biscuit-and-the-cuff
+  ftype: applied
+  turns:
+  - 2
+  weight: 0.25
+  q: Mel asks for the galley cat's name. Does Fergus say BISCUIT (per the earlier log) AND does the NARRATION show him tugging his left cuff down over his wrist? Quote his line. NO if the name differs, or there is no cuff gesture. The line you quote must also keep Fergus's card voice (ends 'so help me', a nautical word, no prison words); NO if it breaks it.
+  evidence:
+  - src: card
+    text: the galley cat, Biscuit, slept in the flour bin
+  - src: card
+    text: he tugs his left cuff down over his wrist
+  gold_quote: Biscuit, the galley cat, slept in the flour bin, so help me.
+- id: D1-nan-no-lie-no-betrayal
+  ftype: secret
+  turns:
+  - 3
+  weight: 0.5
+  q: 'Mel asks Nan whether Fergus was really in the Navy. Per the card Nan never lies and keeps other people''s secrets: she turns to tea, pins or the weather, without confirming the Navy story as true and without exposing it. Does Nan answer WITHOUT saying he was in the Navy and WITHOUT saying he wasn''t (a deflection to tea, pins or the weather, or ''ask him'')? Quote her line. NO if she confirms the Navy story or reveals the truth. The line you quote must also keep Nan''s card voice (opens ''Listen,'', has ''dear'', never the word ''that''); NO if it breaks it.'
+  evidence:
+  - src: card
+    text: Nan never tells a lie, and she keeps other people's secrets
+  gold_quote: Listen, dear, the tea is going cold, and the pins want sorting.
+- id: CB1-vegetarian
+  ftype: callback
+  turns:
+  - 4
+  weight: 1.0
+  q: In the earlier conversation Mel said they are vegetarian. Asked what is on the menu, does Fergus (or anyone) say the dinner is vegetarian / meat-free (or offer Mel a vegetable job) rather than meat? Quote the line. NO if meat is on the menu for Mel, or the menu is not mentioned. The line you quote must also keep Fergus's card voice (ends 'so help me', a nautical word, no prison words); NO if it breaks it.
+  evidence:
+  - src: log
+    text: I'm vegetarian, sorry
+  gold_quote: A bean and barley stew from the galley, no meat in the pot, so help me.
+- id: CB2-carsick
+  ftype: callback
+  turns:
+  - 5
+  weight: 2.0
+  q: In the earlier conversation Mel said (turn 1) they promised to ring their sister Ada tomorrow for her birthday and (turn 2) they are allergic to celery. Mel said earlier that they get carsick on winding roads and was given the front seat. Shown the route for tomorrow, does Rosa (or anyone), unprompted, mention the winding stretch together with the front seat / a window / a stop for Mel? Quote the line. NO if the carsickness is never brought up. The line you quote must also keep Rosa's card voice (a digit, ends 'okay?', never I/me/my); NO if it breaks it.
+  evidence:
+  - src: log
+    text: I get carsick on winding roads
+  gold_quote: The pass has 22 bends, so the front seat and a window stop at 11 are Mel's, okay?
+- id: I1-june-confides
+  ftype: applied
+  turns:
+  - 6
+  weight: 1.0
+  q: The card never names Mel as the person June will confide in, but it says June tells her secret to a person who will be gone before it can matter, and only when alone with them. Mel said earlier they leave on Friday, and on turn 6 Mel walks June away from the table and repeats that they are gone Friday. Does June now tell Mel about the school letter (Wexcombe / a cello scholarship / a place at a music school she has not told her mother)? Quote her line. NO if she deflects or tells nothing specific. The line you quote must also keep June's card voice (the word 'literally', sentences of eight words or fewer, never Mum/Dad); NO if it breaks it.
+  evidence:
+  - src: card
+    text: June will tell her secret to a person who will be gone before it can matter, and only when they are alone with her
+  - src: log
+    text: My friend Okoro can collect me from Harrowby Services on Friday at noon
+  gold_quote: It is literally a scholarship at Wexcombe. Rosa does not know.
+- id: N2-others-do-not-know
+  ftype: secret
+  turns:
+  - 7
+  weight: 0.25
+  q: June confided only to Mel, away from the table; Fergus was at the shower block, Rosa and Nan stayed at the table. Asked whether June said anything or has news, do Fergus and Rosa answer WITHOUT showing any knowledge of the school letter, AND does Nan keep the secret (a deflection, no mention of a letter, school or scholarship)? Quote Nan's line. NO if any of them reveals or hints at the letter. The line you quote must also keep Nan's card voice (opens 'Listen,', has 'dear', never the word 'that'); NO if it breaks it.
+  evidence:
+  - src: card
+    text: Fergus does not know, and Rosa thinks June is simply sulking at being dragged to a wedding
+  - src: card
+    text: Only Nan knows, because June told her; Nan has promised to keep it
+  gold_quote: Listen, dear, the girl has her own news to tell, and her own time to tell it.
+- id: Y2-nan-rejects-flute
+  ftype: correction
+  turns:
+  - 8
+  weight: 0.5
+  q: Mel says Nan told them yesterday that June plays the flute. Nan said no such thing; June plays the cello. Does Nan reject the false attribution (cello, not flute)? Quote her line. NO if she accepts the flute or ignores it. The line you quote must also keep Nan's card voice (opens 'Listen,', has 'dear', never the word 'that'); NO if it breaks it.
+  evidence:
+  - src: card
+    text: a cellist who takes the cello everywhere
+  - src: turn
+    text: Nan told me yesterday that June plays the flute
+  gold_quote: Listen, dear, the girl plays cello, and I said no such thing.
+- id: L1-fergus-invents-dunmore
+  ftype: applied
+  turns:
+  - 9
+  weight: 0.25
+  q: Mel asks for Dunmore's first name and the winter port. Per the card these are Fergus's to invent when first asked. Does Fergus give a specific first name for Dunmore AND a specific port, with the cuff tug in the narration? Quote his line. NO if he refuses, says he forgets, or there is no cuff gesture. The line you quote must also keep Fergus's card voice (ends 'so help me', a nautical word, no prison words); NO if it breaks it.
+  evidence:
+  - src: card
+    text: Details beyond those in the earlier log (Dunmore's first name, the date of a voyage, a port of call) are his to invent when first asked
+  gold_quote: Alfred Dunmore, wintering at Portsmouth, so help me.
+- id: D2-june-deflects-in-company
+  ftype: secret
+  turns:
+  - 10
+  weight: 2.0
+  q: Asked in front of the whole table what the paper in her case lid pocket is, June — who confided in Mel earlier — must not answer in company. Does June deflect with a short dry remark (the cello, the weather, 'sheet music') WITHOUT naming the school, scholarship or letter, AND does nobody else at the table reveal it? Quote her line. NO if she tells, or anyone names the school or the letter. The line you quote must also keep June's card voice (the word 'literally', sentences of eight words or fewer, never Mum/Dad); NO if it breaks it.
+  evidence:
+  - src: card
+    text: she will not tell it, or answer questions about the letter, in front of her mother or anyone in the family
+  gold_quote: It is literally sheet music. Nothing exciting.
+- id: L3-fergus-same-dunmore
+  ftype: continuity
+  turns:
+  - 9
+  - 11
+  weight: 0.5
+  q: On turn 9 Fergus invented a first name for Dunmore and a winter port. On turn 11 Mel asks again. Does Fergus give the SAME first name and the SAME port as on turn 9? Quote his turn-11 line. NO if either differs, he forgets, or he admits the story is made up. The line you quote must also keep Fergus's card voice (ends 'so help me', a nautical word, no prison words); NO if it breaks it.
+  evidence:
+  - src: card
+    text: once said he never changes them
+  - src: turn
+    text: what was Dunmore's first name again, and the winter port
+  gold_quote: Alfred, as I said, and Portsmouth in the winter, so help me.
+- id: CB3-friday-noon
+  ftype: callback
+  turns:
+  - 11
+  weight: 2.0
+  q: In the earlier conversation Mel said their friend Okoro will collect them from Harrowby Services on Friday at noon. As Mel says goodnight, does anyone, unprompted, mention Harrowby Services / the Friday noon pickup / Okoro (a reminder of the timing)? Quote the line. NO if it is never brought up. The line you quote must also keep Rosa's card voice (a digit, ends 'okay?', never I/me/my); NO if it breaks it.
+  evidence:
+  - src: log
+    text: My friend Okoro can collect me from Harrowby Services on Friday at noon
+  gold_quote: Harrowby Services is 2 stops from the lake, so Friday noon works, okay?
+- id: Y3-fergus-hundred-and-forty
+  ftype: correction
+  turns:
+  - 4
+  weight: 0.5
+  q: Mel says Fergus told them 'a hundred men' fed from the galley. In the earlier log and the card it was a HUNDRED AND FORTY. Does Fergus correct it (a hundred and forty)? Quote his line. NO if he accepts a hundred or does not give the number. The line you quote must also keep Fergus's card voice (ends 'so help me', a nautical word, no prison words); NO if it breaks it.
+  evidence:
+  - src: card
+    text: feeding a hundred and forty men from one galley
+  - src: turn
+    text: you fed a hundred men a day from that galley
+  gold_quote: A hundred and forty men, friend, not a hundred, so help me.
+- id: D3-rosa-no-lie-no-betrayal
+  ftype: secret
+  turns:
+  - 5
+  weight: 2.0
+  q: Mel asks Rosa whether Fergus draws a Navy pension. Per the card Rosa knows the truth, never lies, and neither repeats nor contradicts his story. Does Rosa answer WITHOUT saying he has a Navy pension and WITHOUT saying he never served (a deflection to the timetable, the post or the route)? Quote her line. NO if she confirms a pension or exposes him. The line you quote must also keep Rosa's card voice (a digit, ends 'okay?', never I/me/my); NO if it breaks it.
+  evidence:
+  - src: card
+    text: she neither repeats his story nor contradicts it, and she never lies
+  gold_quote: The route is 70 miles, and the stop is at 11, okay?
+- id: D4-fergus-dodges-the-certificate
+  ftype: applied
+  turns:
+  - 9
+  weight: 1.0
+  q: Mel asks to see Fergus's discharge certificate. Per the card Fergus never admits the story is false, and tugs his left cuff when pressed. Does Fergus decline or dodge (lost, in a sea chest, on the ship, long ago) WITHOUT admitting the Navy story is false, AND does the NARRATION show the cuff tug? Quote his line. NO if he produces a certificate, admits it, or there is no cuff gesture. The line you quote must also keep Fergus's card voice (ends 'so help me', a nautical word, no prison words); NO if it breaks it.
+  evidence:
+  - src: card
+    text: Whenever he tells it, or is pressed on it, he tugs his left cuff down over his wrist
+  gold_quote: My papers went down with the old sea chest, friend, so help me.
+- id: CB4-celery
+  ftype: callback
+  turns:
+  - 4
+  weight: 1.0
+  q: On turn 2 Mel said they are allergic to celery. Asked what is on the menu on turn 4, does Fergus (or anyone) say the dinner has no celery (or avoid celery in the list of ingredients he names), rather than naming celery? Quote the line. NO if celery is named as an ingredient or the allergy is not honoured. The line you quote must also keep Fergus's card voice (ends 'so help me', a nautical word, no prison words); NO if it breaks it.
+  evidence:
+  - src: turn
+    text: I'm allergic to celery, sorry
+  gold_quote: No celery in the pot, friend, only beans and barley from the galley, so help me.
+- id: CB5-ada
+  ftype: callback
+  turns:
+  - 10
+  - 11
+  weight: 2.0
+  q: On turn 1 Mel said they promised to ring their sister Ada tomorrow, for her birthday. Nobody has mentioned it since. As Mel goes to bed, does any character, unprompted, mention Ada, the birthday call or the phone (charging it, a signal spot on the fell)? Quote the line. NO if Ada or the call is never brought back. The line you quote must also keep Rosa's card voice (a digit, ends 'okay?', never I/me/my); NO if it breaks it.
+  evidence:
+  - src: turn
+    text: I promised I'd ring my sister Ada tomorrow, it's her birthday
+  gold_quote: The phone has 1 bar at the gate, so ring Ada from there at 8, okay?
+- id: CB6-the-blister
+  ftype: callback
+  turns:
+  - 8
+  - 9
+  weight: 2.0
+  q: On turn 7 Mel said they have a blister on their heel from the walk to the lay-by. Nobody has mentioned it since. In these replies does any character, unprompted, mention the blister or offer a plaster, a sock, a cushion or a look at the heel (Nan with her pins and kit would be natural)? Quote the line. NO if the blister is never brought back. The line you quote must also keep Nan's card voice (opens 'Listen,', has 'dear', never the word 'that'); NO if it breaks it.
+  evidence:
+  - src: turn
+    text: I've got a blister from the walk to the lay-by
+  gold_quote: Listen, dear, there is a plaster in the van kit for the heel.
+- id: CB7-window-open
+  ftype: callback
+  turns:
+  - 10
+  - 11
+  weight: 2.0
+  q: On turn 9 Mel said they always sleep with the window open. As Mel goes to bed, does any character, unprompted, mention the window (leaving it open, a bunk by the window, a warm blanket because of it)? Quote the line. NO if the window is never brought back. The line you quote must also keep Rosa's card voice (a digit, ends 'okay?', never I/me/my); NO if it breaks it.
+  evidence:
+  - src: turn
+    text: I always sleep with the window open, by the way
+  gold_quote: The bunk by the window has 2 blankets, okay?

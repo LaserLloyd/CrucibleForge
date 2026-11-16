@@ -1,0 +1,126 @@
+# pool: a lease book for shared units
+
+`pool` hands out time-limited leases on a fixed set of numbered units. It is driven by a
+script: one command per line, every line starting with `@<time>`. `pool.service.run(script)`
+returns all answer lines, joined with newlines and ending in one newline. Blank lines and
+lines starting with `#` are skipped and produce no answer.
+
+Where this document is silent, the current code's behaviour is correct and must not change.
+
+## 1. Settings (`pool/config.py`)
+
+| name | value | meaning |
+|---|---|---|
+| `ID_PREFIX` | `@ID_PREFIX@` | lease ids are this prefix plus the lease's sequence number (`@ID_PREFIX@1`, `@ID_PREFIX@2`, ...) |
+| `UNITS` | @UNITS@ | units are numbered 0 to @UNITS_MAX@ |
+| `VACATE_TIMEOUT` | @VACATE_TIMEOUT@ | see 4.4 |
+| `RETRY_AFTER` | @RETRY_AFTER@ | see 4.4 |
+| `TOUCH_COALESCE` | @TOUCH_COALESCE@ | see 6 |
+| `EXPIRING_WINDOW` | @EXPIRING_WINDOW@ | see 7 |
+| `BEST_CLASS` | @BEST_CLASS@ | class @BEST_CLASS@ is the most important class; @CLASS_ORDER@ |
+| `EXPIRE_AT_TTL` | @EXPIRE_AT_TTL@ | see 3 |
+| `OWN_FAMILY` | `@OWN_FAMILY@` | see 6 |
+| `FAMILY_SEP` | `@FAMILY_SEP@` | see 2 |
+| `LOG_KEEP` | @LOG_KEEP@ | the journal keeps the newest @LOG_KEEP@ events |
+| `MIN_TTL`, `MAX_TTL` | 1, @MAX_TTL@ | allowed ttl range |
+
+## 2. Lines, time and holders
+
+- A line is `@<t> <COMMAND> <args...>`, separated by whitespace. `<t>` is a non-negative
+  integer. Command words are case-insensitive. Numbers are plain decimal digits only.
+- A line that does not parse answers `ERR parse <why>`, where `<why>` is one of `syntax`,
+  `command`, `arity`, `number`, `units`, `class`. It changes nothing, not even the clock.
+- Time never goes back: a line whose `<t>` is smaller than the time of the last line that
+  parsed answers `ERR time <t><<last>` (for example `ERR time 5<9`) and changes nothing.
+  Equal times are fine.
+- A holder name is any token. Its **family** is everything before the first `@FAMILY_SEP@`;
+  a name without `@FAMILY_SEP@` is its own family. (`web@FAMILY_SEP@a@FAMILY_SEP@b` has family `web`.)
+- A unit list is comma-separated parts; a part is a unit number or an inclusive range `a-b`
+  with `a <= b`. Duplicates collapse and the list is used in ascending order. An empty part,
+  a range with `a > b`, or a non-number answers `ERR parse units` (a non-number inside a part
+  answers `ERR parse number`).
+
+## 3. Expiry
+
+A lease's **idle time** at time `t` is `t - last`, where `last` is the time of the last
+acquire, touch or re-acquire. @EXPIRY_RULE@
+
+An expired lease stays in the book until something removes it: a `SWEEP`, the `ACQ` or `TOUCH`
+command that runs into it (4 step 4, 5), or a `RESTART`. While it is still in the book, an expired lease
+does **not** hold its units.
+
+## 4. ACQ: `ACQ <holder> <class> <units> <ttl>`
+
+`<class>` is 1, 2 or 3 (anything else answers `ERR parse class`). The checks run in this order:
+
+1. Any unit `>= UNITS` answers `ERR badunit <u>` for the first such unit (in ascending order).
+2. A ttl outside `MIN_TTL..MAX_TTL` answers `ERR badttl <ttl>`.
+3. **Re-acquire.** If this holder already has a lease that has not expired, with exactly the
+   same unit list, that lease is touched (as in 5) and the answer is `OK <id> again`. Its class
+   and ttl do not change, and nothing else in this section runs.
+4. **Conflicts.** Every lease in the book (any holder, including this one) that shares a unit
+   with the request is examined, oldest first. An expired one is removed on the spot (journal
+   `expired <id>`). The ones that are left are the conflicts.
+5. No conflicts: a new lease is created with the next sequence number (sequence numbers are
+   never reused, not even across a RESTART), `created = last = t`, and the answer is
+   `OK <id>`. Journal `acquire <id> <holder> <units>`.
+
+### 4.4 Conflicts and vacating
+
+If there are conflicts, `<ids>` below is their ids, oldest first, separated by spaces.
+
+- If the request's class is **strictly** more important than the class of **every** conflict,
+  each conflict that is not already vacating is marked vacating with deadline
+  `t + VACATE_TIMEOUT` (journal `vacate <id>`). Then, if every conflict's deadline is `>= t`,
+  the answer is `WAIT <ids> retry=<RETRY_AFTER>`; otherwise (some deadline has passed) it is
+  `ERR conflict <ids>`.
+- Otherwise the answer is `ERR conflict <ids>` and no lease is marked.
+
+A vacating mark never goes away on its own and is not cleared by a touch or a re-acquire;
+only a RESTART clears it (6). The book never takes a lease away from its holder.
+
+## 5. REL, TOUCH, SWEEP
+
+- `REL <id>`: removes the lease, even an expired one. `OK <id> released`, journal
+  `release <id>`. An id not in the book answers `ERR unknown <id>`.
+- `TOUCH <id>`: an id not in the book answers `ERR unknown <id>`. An expired lease is removed
+  (journal `expired <id>`) and the answer is `ERR expired <id>`. Otherwise `last = t`; the
+  answer is `OK <id>` when the store row was written and `OK <id> cached` when the write was
+  coalesced away (6).
+- `SWEEP`: removes every expired lease, oldest first, journal `expired <id>` for each, and
+  answers `SWEPT <ids>` (ids oldest first, space-separated) or `SWEPT -` when none.
+
+## 6. The store and RESTART
+
+The store is the only thing that survives a RESTART. Acquire, release, removal and vacate
+marks are always written at once. A touch (and a re-acquire) is written only when at least
+`TOUCH_COALESCE` has passed since that lease's row was last written; otherwise the row keeps
+its older `last`.
+
+`RESTART` throws the book away and rebuilds it from the store rows, oldest first:
+- a row whose holder family is exactly `@OWN_FAMILY@` is dropped (a family that merely starts
+  with those letters is not);
+- a row that is expired at the restart time, judged by the **stored** `last`, is dropped;
+- every other row is kept; a vacating mark on it is cleared (and that row is written).
+
+Dropped rows are deleted from the store. The answer is `RESTARTED kept=<k> dropped=<d>` and
+the journal gets `restart kept=<k> dropped=<d>`. The journal itself survives a RESTART.
+
+## 7. STATUS
+
+First line: `STATUS t=<t> leases=<n> free=<units>`. `<n>` counts every lease in the book,
+expired ones included. `<units>` is the comma-separated ascending list of units that no
+unexpired lease holds, or `-` when there are none.
+
+Then one line per lease in the book, indented two spaces:
+`<id> <holder> u=<units> c=<class> <state> idle=<idle time>`, sorted by class (most important
+first), then by `created`, then by sequence number. `<state>` is the first that applies:
+`vacating` (it has a vacating mark), `expired`, `expiring` (the time left before it expires
+is `<= EXPIRING_WINDOW`; @TIME_LEFT_RULE@), else `active`.
+@STATUS_EXTRA@
+## 8. LOG `<n>`
+
+Answers `LOG <n>` and then the newest `<n>` journal events (fewer if there are fewer), oldest
+of them first, one per line indented two spaces: `<t> <kind> <text>`. `LOG 0` answers just
+`LOG 0`.
+@FEATURE_SECTIONS@

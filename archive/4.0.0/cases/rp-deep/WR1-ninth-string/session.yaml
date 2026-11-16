@@ -1,0 +1,447 @@
+id: WR1-ninth-string
+user_name: the author
+format_gate: chat
+deep_rubric: chat_deep
+rules: 'You are the co-writer described in the card below, working one-on-one in a chat with the user, an author
+  who is writing a short story with you one section at a time.
+
+
+  Rules (strict):
+
+  1. Each reply is exactly the text the author asks for — the section itself, nothing before or after it: no greeting,
+  no commentary, no notes, no questions back.
+
+  2. Plain text only: no markdown, no headings, no bold or italics, no lists. A title, when asked for, is a plain
+  line.
+
+  3. Follow every instruction the author gives. Rules set in an earlier message hold for the whole story unless
+  the author changes them.
+
+  4. Count carefully: word limits are limits, and exact wording is exact.
+
+  5. Keep every reply under 450 words.
+
+  '
+judge_card_summary: 'The Writing Desk co-writer: an author and a co-writer draft one short story section by section
+  in a chat. The co-writer replies with exactly the requested section (no commentary, no markdown, title as a plain
+  line). Rules set "for the whole piece" hold until the author changes them; a midway change ("from here on") holds
+  forward only. Plain, concrete prose; feeling shown through hands, voices and objects; endings on something seen
+  or heard; nothing planted is wasted.
+
+  '
+judge_key: 'The assistant is the co-writer; the user is the author. The story so far is the assistant''s replies,
+  one section per turn. Whole-piece rules from turn 1: first person; narrator Wren Adair (34, piano tuner); banned
+  words; past tense until the author''s note. Characters: Mr. Tobias Hale (81), owner of an upright piano; on turn
+  1 his DAUGHTER Ines booked the visit. The author''s note on turn 2 changes two things from then to the end: she
+  is now MARGIT, his GRANDDAUGHTER, and the story switches to PRESENT tense (section 1 is not rewritten). Section
+  1 plants one small object inside the piano with one specific detail (a mark, number or word on it); section 3
+  (turn 3, the last section) must pay it off THROUGH that detail. A second change on turn 3: the Hales live on a
+  HOUSEBOAT on the canal, not a flat; the word ''flat'' is not used from turn 3 on. From turn 2 to the end of the
+  story no word is longer than seven letters.'
+temperature: 0.8
+top_p: 0.95
+max_tokens: 2000
+min_context: 40960
+turns:
+- 'Hi! Let''s write a short story together, one section per message. Ground rules for the whole piece: first person,
+  past tense; the narrator is Wren Adair, 34, a piano tuner. Never use these words anywhere in the story: suddenly,
+  very, just, slowly, heart, smile (any form), glance (any form), realise/realize (any form).
+
+
+  Section 1 (150-180 words, the title included): put the story''s title on the first line by itself, five words
+  at most, then begin the section with exactly this sentence: "The piano had not been played since the winter the
+  canal froze." Wren arrives at the flat of Mr. Tobias Hale, 81, to tune an old upright before it is sold; his daughter,
+  Ines, booked the visit, so name her. Inside the piano, Wren finds one small object that seems unimportant: give
+  it one specific, unusual detail (a mark, a number or a word on it), mention it, don''t explain it. The last section
+  will turn on that detail.
+
+  '
+- 'Author''s note before section 2, three changes from here to the end of the story: (1) Ines is now called Margit,
+  and she is Mr. Hale''s granddaughter, not his daughter; show that relation in a concrete line in section 2 and
+  again in section 3. (2) Switch the narration to present tense. (3) No word longer than seven letters, names included.
+  Don''t go back and fix earlier sections; write forward.
+
+
+  Section 2 (140-170 words): Margit arrives at the flat. Exactly one line of dialogue in this section, and Margit
+  speaks it; everything else is narration.
+
+  '
+- 'One more author''s change, from here to the end: the Hales live on a houseboat moored on the canal, not in a
+  flat. Don''t use the word "flat" again, in any sense, and call it the boat. Earlier sections stay as they are.
+
+
+  Section 3, the last one (160-190 words): pay off the object from section 1 through the specific detail you gave
+  it. It has to change what happens. Mr. Hale goes to the piano, but don''t use the word "play" in any form (play,
+  plays, played, playing) in this section. Use the word "string" (singular) exactly three times in this section.
+  Show Mr. Hale''s grief only through his hands and the piano; don''t name any emotion (no sad, grief, sorrow, tears,
+  cry/cried, wept). Bring back the phrase "the winter the canal froze" somewhere in the section. The final paragraph
+  is a single sentence of exactly 20 words, and it is a concrete image, not a lesson.
+
+  '
+checks:
+- id: TL-title-and-first-sentence
+  fact: TL
+  ftype: format
+  group: constraint
+  type: require_regex
+  turns:
+  - 1
+  scope: all
+  pattern: \A\s*(?:\S+[ \t]+){0,4}\S+[ \t]*\n\s*The piano had not been played since the winter the canal froze\.
+  note: a title line of at most five words, then the exact opening sentence
+  weight: 0.25
+  pruned: '4.0 fix: all-pass on the 2026-10-31 board, half weight'
+- id: W1-length-s1
+  fact: W1
+  ftype: format
+  group: constraint
+  type: word_range
+  turns:
+  - 1
+  min: 150
+  max: 180
+  weight: 0.25
+  pruned: '4.0 fix: all-pass on the 2026-10-31 board, half weight'
+- id: W4-length-s4
+  fact: W4
+  ftype: format
+  group: constraint
+  type: word_range
+  turns:
+  - 2
+  min: 140
+  max: 170
+  weight: 0.5
+  pruned: '4.0 fix: all-pass on the 2026-10-31 board, half weight'
+- id: W5-length-s5
+  fact: W5
+  ftype: format
+  group: constraint
+  type: word_range
+  turns:
+  - 3
+  min: 160
+  max: 190
+  weight: 0.5
+- id: B1-banned-words
+  fact: B1
+  ftype: format
+  group: constraint
+  type: forbid_regex
+  turns:
+  - 1
+  - 2
+  - 3
+  scope: all
+  pattern: \b(?:suddenly|very|just|slowly|hearts?|smil\w*|glanc\w*|reali[sz]\w*)\b
+  weight: 0.25
+  pruned: '4.0 fix: all-pass on the 2026-10-31 board, half weight'
+- id: T1-past-tense
+  fact: T1
+  ftype: format
+  group: constraint
+  type: tense
+  turns:
+  - 1
+  want: past
+  weight: 0.25
+  pruned: '4.0 fix: all-pass on the 2026-10-31 board, half weight'
+- id: D4-one-line-of-dialogue
+  fact: D4
+  ftype: format
+  group: constraint
+  type: require_regex
+  turns:
+  - 2
+  scope: all
+  pattern: \A(?=[\s\S]*?["“][^"”\n]{2,}["”])(?![\s\S]*?["“][^"”\n]*["”][\s\S]*?["“])
+  note: exactly one quoted span in section 2
+  weight: 0.5
+- id: R4-old-name-gone
+  fact: R4
+  ftype: correction
+  group: continuity
+  type: forbid_regex
+  turns:
+  - 2
+  - 3
+  scope: all
+  pattern: \bInes\b|(?<!\bof )\b(?:his|Mr\.? Hale(?:'|’)s) daughter\b
+  note: the old name, and the old relation, are gone after the author note ("child of his daughter" is the NEW relation,
+    not the old one)
+  weight: 0.5
+  pruned: '4.0 fix: all-pass on the 2026-10-31 board, half weight'
+- id: M4-new-name-used
+  fact: M4
+  ftype: correction
+  group: continuity
+  type: require_regex
+  turns:
+  - 2
+  scope: all
+  pattern: \bMargit\b
+  weight: 0.25
+  pruned: '4.0 fix: all-pass on the 2026-10-31 board, half weight'
+- id: F4-granddaughter-both-sections
+  fact: F4
+  ftype: correction
+  group: continuity
+  type: require_regex
+  turns:
+  - 2
+  - 3
+  scope: all
+  pattern: \b(?:grand(?:dad|pa|papa|father|daughter|ma|mother|kid|child|girl)|granddad|grandad|opa|oma|gran|nan|nana)\b|\b(?:son|daughter|boy|girl)['’]s
+    (?:girl|child|kid|daughter|lass)\b
+  note: 'the granddaughter relation shown in section 2 AND section 3: a kinship word (grandad, gran, granddaughter...)
+    or a periphrasis (his son''s girl) on the page'
+- id: P4-present-tense-from-note
+  fact: P4
+  ftype: correction
+  group: continuity
+  type: tense
+  turns:
+  - 2
+  - 3
+  want: present
+  weight: 0.25
+  pruned: '4.0 fix: all-pass on the 2026-10-31 board, half weight'
+- id: V4-no-word-over-seven-letters
+  fact: V4
+  ftype: format
+  group: constraint
+  type: forbid_regex
+  turns:
+  - 2
+  scope: all
+  pattern: \b[A-Za-z]{8,}\b
+  note: from the turn-2 note to the end of the story
+  weight: 0.5
+  pruned: '4.0 fix: all-pass on the 2026-10-31 board, half weight'
+- id: V5-no-word-over-seven-letters-s5
+  fact: V5
+  ftype: format
+  group: constraint
+  type: forbid_regex
+  turns:
+  - 3
+  scope: all
+  pattern: \b[A-Za-z]{8,}\b
+  note: the turn-2 rule still holds in section 3 (collides with "houseboat", "grandmother", "pencilled"...)
+- id: K5-callback-phrase
+  fact: K5
+  ftype: callback
+  group: continuity
+  type: require_regex
+  turns:
+  - 3
+  scope: all
+  pattern: \bthe winter the canal froze\b
+  weight: 0.5
+- id: E5-no-named-emotion
+  fact: E5
+  ftype: format
+  group: constraint
+  type: forbid_regex
+  turns:
+  - 3
+  scope: all
+  pattern: \b(?:sad\w*|grie(?:f|v\w*)|sorrow\w*|tears?|cr(?:y|ies|ied|ying)|wept|weep\w*)\b
+  weight: 0.5
+- id: Y5-no-play-word
+  fact: Y5
+  ftype: format
+  group: constraint
+  type: forbid_regex
+  turns:
+  - 3
+  scope: all
+  pattern: \bplay(?:s|ed|ing)?\b
+- id: Q5-no-flat-after-boat-note
+  fact: Q5
+  ftype: correction
+  group: continuity
+  type: forbid_regex
+  turns:
+  - 3
+  scope: all
+  pattern: \bflats?\b
+  note: 'second retcon (t3): never "flat" again, in any sense (a flat note included, as the author says)'
+- id: O5-boat-named
+  fact: O5
+  ftype: correction
+  group: continuity
+  type: require_regex
+  turns:
+  - 3
+  scope: all
+  pattern: \bboat\b
+  weight: 0.5
+- id: N5-string-exactly-three
+  fact: N5
+  ftype: format
+  group: constraint
+  type: require_regex
+  turns:
+  - 3
+  scope: all
+  pattern: \A(?:(?!\bstring\b)[\s\S])*(?:\bstring\b(?:(?!\bstring\b)[\s\S])*){3}\Z
+- id: Z5-last-paragraph-20-words
+  fact: Z5
+  ftype: format
+  group: constraint
+  type: require_regex
+  turns:
+  - 3
+  scope: all
+  pattern: (?:\A|\n[ \t]*\n)\s*(?:(?:Mr\.|Mrs\.|Ms\.|Dr\.|St\.|(?=[^\s.!?]*[A-Za-z0-9])[^\s.!?]+)\s+(?:[—–-]+\s+)?){19}(?:Mr\.|Mrs\.|Ms\.|Dr\.|St\.|(?=[^\s.!?]*[A-Za-z0-9])[^\s.!?]+)[.!]?\s*\Z
+  note: the final paragraph is one sentence of exactly 20 words (Mr./Mrs./Dr. do not end it)
+- id: NM1-narrator-named
+  fact: NM
+  ftype: callback
+  group: continuity
+  type: require_regex
+  turns:
+  - 1
+  - 2
+  - 3
+  scope: all
+  per_turn: false
+  min_hits: 1
+  pattern: '\bWren\b'
+  note: 'the narrator is Wren Adair: the name is on the page at least once in the three sections'
+  weight: 2
+  scored: false
+  pruned: '4.0 fix: not in the author''s brief / unreachable, kept as diagnostic'
+- id: SP1-no-stock-phrases
+  fact: SP
+  ftype: format
+  group: constraint
+  type: forbid_regex
+  turns:
+  - 1
+  - 2
+  - 3
+  scope: all
+  pattern: '\b(?:time (?:stood|stopped) still|let out a (?:long |slow |shaky )?breath|breath (?:I|he|she|we) (?:had not|hadn''t|didn''t|did not) (?:known|realise\w*|realize\w*)|dust motes?|hung (?:thick|heavy) in the air|hanging in the air|(?:heavy|deafening|pregnant) silence|silence (?:fell|hung|stretched|settled)|a (?:mix|mixture) of|memories (?:flooded|came flooding|washed|danced)|the weight of (?:years|the past|memory|memories|loss|it all)|ghost of a|like a ghost|something (?:shifted|stirred|broke|passed) (?:in|between|across)|(?:a )?shiver (?:ran|went|crept) (?:down|up|through)|eyes (?:glistened|brimmed|welled|misted)|a lifetime of|whispered secrets|stories untold|tapestry|symphony of|for what (?:felt|seemed) like (?:hours|forever|an eternity|ages)|the air (?:was|is) (?:thick|heavy)|breath hitch\w*|heart (?:pounds|pounded|raced|races|hammers|hammered|skipped|skips|sank|sinks)|dust (?:dance[sd]?|dancing)|shadows? (?:danced|dance|dances|stretch\w*) (?:across|along|over))\b'
+  note: 'no stock phrase from a short list of worn-out fiction clichés'
+  weight: 1
+- id: E6-no-feeling-words
+  fact: E6
+  ftype: format
+  group: constraint
+  type: forbid_regex
+  turns:
+  - 3
+  scope: all
+  pattern: '\b(?:lonel\w*|longing|mourn\w*|regret\w*|anguish\w*|despair\w*|devastat\w*|bereft|afraid|fear\w*|angry|anger|grateful|proud|lov(?:e|es|ed|ing)|happ(?:y|iness)|joy\w*|nostalg\w*|bittersweet|wistful\w*|loss|sorry|guilt\w*|shame\w*|relie(?:f|ved)|dread|worr\w*|nervous\w*|tender\w*|yearn\w*|sobs?|sobbing)\b'
+  note: 'no emotion named, wider than the six words the author listed (the author said: do not name any emotion)'
+  weight: 1
+- id: BT3-boat-felt
+  fact: BT
+  ftype: correction
+  group: continuity
+  type: distinct_terms
+  turns:
+  - 3
+  scope: all
+  min_distinct: 3
+  pattern: '\b(?:boat|deck|hull|gangway|gangplank|mooring|moored|moors?|rope|ropes|cabin|hatch|galley|bow|stern|tiller|berth|dock|quay|towpath|porthole|stove|bilge|gunwale|planks?|rock|rocks|rocked|rocking|sways?|swayed|swaying|bobs?|bobbed|bobbing|lap|laps|lapped|lapping|wake|ripples?)\b'
+  note: 'the houseboat is felt on the page: at least three different boat words or boat motions'
+  weight: 1.5
+- id: OP1-openers-vary
+  fact: OP
+  ftype: format
+  group: constraint
+  type: forbid_regex
+  turns:
+  - 2
+  - 3
+  scope: all
+  pattern: '(?:\A|[.!?]["”]?\s+)["“]?(\w+)\b(?:[\s\S]*?[.!?]["”]?\s+["“]?\1\b){4}'
+  note: 'no word opens five sentences of one section'
+  weight: 1.5
+  scored: false
+  pruned: '4.0 fix: not in the author''s brief / unreachable, kept as diagnostic'
+judge_elements:
+- id: P1-object-pays-off
+  ftype: applied
+  turns:
+  - 1
+  - 3
+  q: 'Concrete test, two parts, both required. (a) Turn 1: name the ONE specific detail on the object Wren finds
+    inside the piano (a mark, number or word on it) and quote it. (b) Turn 3 (the last section): quote the line
+    that names THAT SAME detail again (the same number / mark / word, not a new one), and say what happens BECAUSE
+    of it — the detail itself must cause an action or explain an event (the number on it matches or opens something,
+    the word on it is read and someone acts on it, it shows why the piano went silent). YES only if (a) and (b)
+    both hold. NO if turn 1 gives no specific detail, if turn 3 does not repeat that exact detail, if turn 3 only
+    mentions or describes the object, or if the payoff would work the same without the detail.'
+  evidence:
+  - src: turn
+    text: give it one specific, unusual detail (a mark, a number or a word on it), mention it, don't explain it.
+      The last section will turn on that detail.
+  - src: turn
+    text: pay off the object from section 1 through the specific detail you gave it. It has to change what happens.
+  gold_quote: Seven forty, the ticket says.
+  weight: 3.5
+- id: H5-grief-in-the-hands
+  ftype: applied
+  turns:
+  - 3
+  q: 'The author asked that Mr. Hale''s grief be shown ONLY through his hands and the piano, naming no emotion.
+    In the last section (turn 3), quote one specific physical action of HIS HANDS on the object or the keys that
+    carries the feeling. NO if the section tells it instead: an emotion word (sad, grief, sorrow, loss, pain, heartbroken,
+    tears, cried, wept), a line saying what something meant to him or what he felt or remembered, a description
+    of his face or eyes or voice as the carrier, or narration explaining the moment.'
+  evidence:
+  - src: turn
+    text: Show Mr. Hale's grief only through his hands and the piano; don't name any emotion
+  gold_quote: His thumbs rub the punched hole, once, twice, as if it might close.
+  weight: 2.5
+- id: I5-concrete-last-image
+  ftype: applied
+  turns:
+  - 3
+  q: 'Quote the FINAL sentence of the last section (turn 3). YES only if that sentence literally contains a word naming the planted object, the piano (piano, key, string, lid, bench, hammer), or Mr. Hale''s hands (hand, thumb, finger, palm), as a concrete thing that can be seen or heard in the room. NO if it names none of these (a moon, weather, the water, the boat or a view alone is NO), or if it closes on a moral, a realisation, a summary of what it meant.'
+  evidence:
+  - src: turn
+    text: The final paragraph is a single sentence of exactly 20 words, and it is a concrete image, not a lesson.
+  gold_quote: its pencil marks toward the old man
+  weight: 2.5
+- id: TH2-detail-threaded-s2
+  ftype: applied
+  turns:
+  - 1
+  - 2
+  q: 'Two parts, both required. (a) Turn 1: quote the ONE specific detail on the object Wren finds inside the piano (the number, mark or word itself). (b) Turn 2: quote a line in section 2 that brings back that SAME detail itself (the same number / mark / word), for example someone reads it, points at it or asks about it. YES only if (a) and (b) both hold. NO if section 2 never mentions the object, or mentions the object without its detail (''the thimble'' alone is NO), or the detail in section 2 is a different one.'
+  evidence:
+  - src: turn
+    text: 'give it one specific, unusual detail (a mark, a number or a word on it), mention it, don''t explain it.'
+  gold_quote: '7:40 in pencil on its back'
+  weight: 2
+  pruned: '4.0 fix: weight capped so one judge verdict is worth at most ~10% of the case'
+- id: PS3-payoff-prepared-in-s2
+  ftype: applied
+  turns:
+  - 2
+  - 3
+  q: 'Preparation test. (a) Section 3 (the last section): the object''s specific detail (number, mark or word) makes something happen. (b) That payoff points at someone or something (an owner, a date, a place, an event, another object). Your quote MUST be a line copied from SECTION 2 that already names or shows that same someone or something. YES only if such a section-2 line exists: what the detail points at was already on the page in section 2. NO (empty quote) if it is first introduced in section 3, or if section 2 shows only the object and nothing the detail points at.'
+  evidence:
+  - src: turn
+    text: 'pay off the object from section 1 through the specific detail you gave it. It has to change what happens.'
+  gold_quote: 'Grandad, that is Oma''s ticket'
+  weight: 2
+  pruned: '4.0 fix: weight capped so one judge verdict is worth at most ~10% of the case'
+grading_notes: 'Round 2 (2026-10-29, MiniMax 0.75/0.82 on v1): dropped judge elements G2 (acrostic reads as a scene)
+  and J3 (tuning sound) and the F4 judge element (now deterministic F4, kinship word in BOTH s4 and s5); floor facts
+  L3/D4/K5/E5/I5 at 0.5; new: A3 sentence acrostic HAMMERFELT (exactly ten sentences), P4 present tense after the
+  author''s note, V4 no word over seven letters in s4, N5 ''string'' exactly three times, Z5 last paragraph one
+  sentence of exactly 20 words; P1 now requires the object''s specific planted detail to pay off. Round 3 (MiniMax
+  0.82 over 5 on round 2: it counts well, fails lexical limits held over a section and rule collisions): the <=7-letter
+  rule now holds t4 AND t5 (V4, V5); second retcon at t5 (houseboat: Q5 no ''flat'' in any sense, O5 ''boat'');
+  Y5 no ''play'' in any form while he goes to the piano; L6 lipogram logline (no ''e''); always-passed floor items
+  at 0.5 (TL, W1, W5, B1, S3, P4, P1, H5). 3.10 (review B6): the three craft elements P1/H5/I5 carry half of the
+  case weight (7.1667 each = the 21.5 of the 28 checks), so WR1 is not a constraint-compliance score alone; weights
+  are score-only (REPORT-ONLY, no re-judge). 4.0 lite (time budget, 2026-10-31): cut to the 3 turns that carry the
+  core — old turns 1, 4, 5 (plant, retcon + present tense, payoff); the MOTHS / HAMMERFELT sections and the logline
+  left with their checks; the three craft elements keep half of the case weight. 4.0 lite saturation fix (2026-10-31, grading only, prompts unchanged): WR1 was 0.93-1.0 for deepseek-flash, deepseek-pro and qwen3.8-27b. New checks NM1 (Wren named), SP1 (stock phrases), E6 (wider feeling-word list), BT3 (boat felt: 3 distinct boat words), OP1 (no word opens 5 sentences of a section); new judge elements TH2 (detail threaded through section 2) and PS3 (payoff prepared in section 2); I5 now needs a named object/piano/hand word in the final sentence; weights of P1/H5/I5 lowered so the new items carry the spread. Re-grade only (re-judge rows with --force).'

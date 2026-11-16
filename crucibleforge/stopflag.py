@@ -21,6 +21,12 @@ import threading
 import time
 
 ABORT = threading.Event()
+#: the cooperative drain (SIGUSR1 / the stop file, lead 2026-11-14): finish the requests in
+#: flight, send no new ones, then exit with no judge or board. Set with runner.STOP.
+DRAIN = threading.Event()
+#: the drain's optional ceiling fired (--drain-max-minutes): a stream still in flight is
+#: dropped now (api.WindowClosed), no row is written and the job stays pending
+CUT = threading.Event()
 _REAL_SLEEP = time.sleep
 
 

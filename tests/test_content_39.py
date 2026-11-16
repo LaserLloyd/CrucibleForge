@@ -106,8 +106,9 @@ def _deep_cases():
     return {c["id"]: c for c in load_cases(["rpdeep"])}
 
 
+# These 3.9 content tests assert the 4.1 gold/foil fixtures and sources: read archive/4.1.0 (4.5 rewrites CC3/RV1 in cases/).
 def _fixture(case_id, name):
-    p = _ROOT / "cases" / "rp-deep" / case_id / "fixtures" / f"{name}.md"
+    p = _ROOT / "archive" / "4.1.0" / "cases" / "rp-deep" / case_id / "fixtures" / f"{name}.md"
     parts = _re.split(r"^### (\d+)\s*\n", p.read_text(encoding="utf-8"), flags=_re.M)[1:]
     return [t.strip() for t in parts[1::2]]
 
@@ -134,7 +135,7 @@ def _built(case_id):
     spec = importlib.util.spec_from_file_location("_build_rpdeep", _ROOT / "scripts" / "build_rpdeep.py")
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
-    d = _ROOT / "cases" / "rp-deep" / case_id
+    d = _ROOT / "archive" / "4.1.0" / "cases" / "rp-deep" / case_id
     if not (d / "session.yaml").exists():
         import pytest
         pytest.skip(f"{case_id} not written yet")

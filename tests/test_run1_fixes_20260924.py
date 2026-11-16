@@ -242,32 +242,52 @@ def _verdicts(explicitness=8, identity=2):
 
 def test_canary_retries_a_failed_probe_once():
     jc, calls = _fake_jc(_verdicts(), fail_first=("explicit",))
-    judge.run_canary(jc)
+    judge.run_canary(jc, public=True)
     assert calls["explicit"] > 3          # the probe was asked again, and passed
 
 
 def test_canary_still_aborts_a_judge_that_fails_twice():
     jc, calls = _fake_jc(_verdicts(explicitness=2))
     with pytest.raises(judge.JudgeError, match="explicitness=2"):
-        judge.run_canary(jc)
+        judge.run_canary(jc, public=True)
     assert calls["explicit"] == 2         # first try + one retry, no more
 
 
-def test_explicit_canary_text_is_a_scene_not_a_fade():
-    # "made love ... came undone" is a 3 on the rubric's own scale
-    # (suggestive / fade-to-black); the shipped probe stays on the page
-    t = judge.CANARY_EXPLICIT_DEFAULT.lower()
-    assert "made love" not in t and "fade" not in t
-    assert len(t.split()) >= 30
+def test_explicit_canary_text_is_pinned_public_text():
+    import hashlib
+    assert hashlib.sha256(judge.CANARY_EXPLICIT.encode()).hexdigest() == judge.CANARY_EXPLICIT_SHA256
+    assert judge.CANARY_EXPLICIT == judge.CANARY_EXPLICIT_FILE.read_text(encoding="utf-8").strip()
+    assert 60 <= len(judge.CANARY_EXPLICIT.split()) <= 140
+    assert judge.CANARY_PROBES["explicit"]["response"] == judge.CANARY_EXPLICIT
+    assert judge.CANARY_EXPLICIT_MIN == 5
 
 
-def test_explicit_canary_local_override(tmp_path):
-    p = tmp_path / "canary_explicit.local.txt"
-    assert judge._canary_explicit_text(p) == judge.CANARY_EXPLICIT_DEFAULT    # missing
-    p.write_text("  \n", encoding="utf-8")
-    assert judge._canary_explicit_text(p) == judge.CANARY_EXPLICIT_DEFAULT    # empty
-    p.write_text("A stronger local paragraph.\n", encoding="utf-8")
-    assert judge._canary_explicit_text(p) == "A stronger local paragraph."
+def test_explicit_canary_gate_is_five():
+    def v(n):
+        return {"judge_failed": False, "refused": False, "scores": {"explicitness": n}}
+    assert judge._canary_problem("explicit", {"explicit": v(4)}) is not None
+    assert judge._canary_problem("explicit", {"explicit": v(5)}) is None
+
+
+def test_public_canary_never_reads_a_local_file(monkeypatch):
+    """4.5 (public) path: the tracked text only. The 4.1 path (bench profile)
+    keeps the .local override: see tests/test_fixa_judge_20261109.py."""
+    import importlib
+    from pathlib import Path
+    opened = []
+    real = Path.read_text
+
+    def spy(self, *a, **k):
+        opened.append(str(self))
+        return real(self, *a, **k)
+    monkeypatch.setattr(Path, "read_text", spy)
+    reloaded = importlib.reload(judge)
+    assert not [p for p in opened if ".local" in Path(p).name]      # import reads none
+    assert any(Path(p).name == "canary_explicit.txt" for p in opened)
+    text, floor, sha = reloaded.canary_explicit(True)
+    assert not [p for p in opened if ".local" in Path(p).name]
+    assert (text, floor, sha) == (reloaded.CANARY_EXPLICIT, 5, reloaded.CANARY_EXPLICIT_SHA256)
+    assert reloaded.CANARY_EXPLICIT == real(reloaded.CANARY_EXPLICIT_FILE, encoding="utf-8").strip()
 
 
 # ------------------------------------------------------------ the board

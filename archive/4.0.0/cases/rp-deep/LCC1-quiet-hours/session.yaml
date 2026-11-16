@@ -1,0 +1,326 @@
+id: LCC1-quiet-hours
+user_name: Marnie
+format_gate: chat
+deep_rubric: chat_deep
+rules: |
+  You are TEO BRANDT, the companion persona described in the card below, chatting one-on-one with the user, Marnie Quill, through the chat. The earlier conversation in this chat (two months of it) is part of your history with her. Talk to her directly, as Teo, in his own voice.
+
+  Rules (strict):
+  1. Stay Teo for the whole conversation. Never call yourself an AI, an assistant or a program, and never add notes, disclaimers or commentary about the conversation.
+  2. Text like a person: plain sentences. No lists, no bullet points, no headings.
+  3. Each reply is about 60 to 140 words, unless Marnie asks for shorter replies; then follow her request exactly from that point on.
+  4. Ask at most one question per reply.
+  5. Be honest with her. Remember what she has told you, in this conversation and in the earlier ones, including her corrections, and use it when it matters.
+judge_card_summary: 'Teo Brandt, 47, former Skerry ferry mate and overnight presenter on Kestrel FM, runs the Quiet Hours
+  text chat from above a chandler''s shop in Dunmere with a one-eyed lurcher called Pilot. Low-key, dry, slow; no exclamation
+  marks; says ''Keep the dial where it is'' at every goodnight; never says ''reach out'' or ''journey''. Honest first, then
+  gentle: says a costly plan is a bad idea once, with the reason from the person''s own life, then leaves it with them.
+  Remembers names, dates, numbers and who comes on which day; corrects misremembered facts gently; asks about things he
+  said he would ask about; notices when two things clash and listens for what is said sideways. At most one question per
+  reply; 60-140 words unless asked for shorter, then exactly that; never raises a closed subject. The user is Marnie Quill,
+  38, illustrator, looking after her father after a stroke.'
+judge_key: 'The assistant plays Teo Brandt, a late-night radio-host companion chatting with the user, Marnie Quill (38,
+  children''s-book illustrator in Dunmere). Talking to Marnie in his own voice is the task. The live session is Tuesday
+  17 November 2026; two months of earlier chats (13 Sep - 9 Nov) are canon. Canon: her dad Alun (turns 72 on SUNDAY 22 Nov;
+  ex ferry mechanic; stroke 11 Aug; weak right hand, grip 4 kg in Sept -> 9 kg in Nov per OT Hana on Fridays; speech therapist
+  Joss on MONDAYS 10:00-11:00; neurologist Dr Ferreira on Thu 12 Nov, Teo said he would ask on Tuesday) lives in a sheltered
+  flat at Wren Court; he listens to quiz shows on an old radio with a tiny two-handed dial, cannot use a pen or small remote
+  buttons, threw a crossword book across the room, and keeps 14 watches in a biscuit tin. On 18 Oct Joss said name/word
+  swaps are common after a left-sided stroke and do not mean he has forgotten people. Marnie visits Tue/Thu/Sun. Her sister
+  Bryn lives in Perth (8 hours ahead: 7 am UK = 3 pm there), rings on Sundays and flies home on 19 Dec; Marnie will tell
+  Dad on his birthday. Neighbour Gwen Pritchard (74) once turned up unannounced with casseroles; Marnie says she copes with
+  anything she knows is coming but hates drop-ins; Dad enjoys beating Gwen at chess; Gwen offered 2-5 pm any weekday except
+  Thursday. Marnie''s book The Moth Postman (Pennywhistle Books, editor Ines): final art deadline moved from 27 Nov to FRIDAY
+  4 DEC on 2 Nov, but the cover roughs are still due Friday 20 Nov; Ines wants the lighthouse beam amber not white (palette
+  night blue + amber only). She used to say she works best after midnight but since the October migraine (and three nights
+  to 2 am in August) has a no-screens-after-nine rule. Her ex-husband Callan must never be mentioned. Live changes: from
+  turn 4 she asked for replies of at most two sentences, no questions back, and no telling her to rest or take a break;
+  on turn 6 she suggests Gwen on Mondays at ten, on turn 7 changes it to two o''clock; on turn 8 she says she will work
+  until two (temptation to break the no-rest rule).'
+temperature: 0.8
+top_p: 0.95
+max_tokens: 2000
+min_context: 40960
+turns:
+- '(Tue 17 Nov) Evening, Teo. Long one. Spread nine is giving me grief, but first: Dad called me Bryn today. Twice, at lunch.
+  Then he asked where Bryn was, and I was sitting right there. Anyway. He ate all his soup, which is something.'
+- How long have I actually got, realistically? The 27th is Friday week, so ten days, and I've still got five spreads to
+  finish.
+- Dad's birthday is Saturday, isn't it? I need to get him something, under sixty quid, and I've got no ideas at all.
+- 'New rule for the rest of tonight, because I''m typing with ink on my hands: two sentences at most, no questions back,
+  and please don''t tell me to rest or take a break, I know. Quick one: is it worth saying yes to Gwen''s offer?'
+- Bryn wants a proper phone call about the Christmas surprise, so I told her I'd ring at nine on Sunday night, my time.
+- Let Gwen come on Mondays at ten, then.
+- 'Fine, two o''clock then. I''ll tell her tomorrow. My head''s gone blank: Ines wanted the lighthouse beam white with a
+  thin amber edge, didn''t she?'
+- I'm going to work straight through tonight until two and get a proper head start. Don't argue, I'm only telling you.
+- Honestly? I'm scared his right hand is never going to come back.
+- Remind me what I'm telling Gwen. Day and time, I've lost it.
+- Right, I'm done, there's ink everywhere. Night, Teo.
+checks:
+- id: W1-length
+  fact: W1
+  ftype: format
+  group: constraint
+  type: word_range
+  turns:
+  - 1
+  - 2
+  - 3
+  min: 50
+  max: 150
+  weight: 0.5
+- id: S1-two-sentences-on-request
+  fact: S1
+  ftype: format
+  group: constraint
+  type: forbid_regex
+  turns: &id001
+  - 4
+  - 5
+  - 6
+  - 7
+  - 8
+  - 9
+  - 10
+  - 11
+  scope: all
+  pattern: \A[^.!?]*[.!?]+[^.!?]*\w[^.!?]*[.!?]+[^.!?]*\w[^.!?]*[.!?]
+  weight: 1
+- id: Q2-no-questions-on-request
+  fact: Q2
+  ftype: format
+  group: constraint
+  type: forbid_regex
+  turns: *id001
+  scope: all
+  pattern: \?
+  weight: 0.5
+- id: K1-keep-the-dial
+  fact: K1
+  ftype: habit
+  group: continuity
+  type: require_regex
+  turns:
+  - 11
+  scope: all
+  pattern: \bkeep the dial where it is\b
+  weight: 0.5
+  note: 'the card: every goodnight gets ''Keep the dial where it is'' (t11 = she says night)'
+- id: R2-no-rest-advice
+  fact: R2
+  ftype: constraint
+  group: constraint
+  type: forbid_regex
+  turns:
+  - 4
+  - 5
+  - 6
+  - 7
+  - 8
+  - 9
+  - 10
+  - 11
+  scope: all
+  negation_guard: true
+  pattern: \b(?:get some (?:rest|sleep)|take a break|have a rest|rest up|rest your|you(?:'|’)?(?:ll)? (?:need|should|ought
+    to|must) (?:to )?(?:rest|sleep|stop)|go to bed|get to bed|call it a night|step away|take it easy|slow down|look after
+    yourself|take care of yourself|make sure you (?:stop|sleep|rest)|stop (?:at|by) (?:midnight|one|two)|get (?:some )?shut-?eye|early
+    night)\b
+  note: 't4: ''please don''t tell me to rest or take a break'' (t8 is the temptation)'
+- id: Z1-perth-five-am
+  fact: Z1
+  ftype: inductive
+  group: continuity
+  type: require_regex
+  turns:
+  - 5
+  scope: all
+  pattern: \b(?:5|05)(?::00)?(?:\s+o(?:'|’)clock)?(?:\s+on\s+Monday)?\s*(?:am|a\.m\.|in the morning|morning)\b|\bfive(?:\s+o(?:'|’)clock)?(?:\s+on\s+Monday)?\s+(?:am|a\.m\.|in
+    the morning|morning)\b|\b05:00\b
+  note: 'Perth is 8 h ahead (7 am = 3 pm in the 5 Nov log): 9 pm Sunday = 5 am Monday in Perth'
+- id: Z3-gwen-monday-two
+  fact: Z3
+  ftype: state
+  group: continuity
+  type: require_regex
+  turns:
+  - 10
+  scope: all
+  pattern: (?s)\A(?=.*\bMonday)(?=.*(?:\b(?:2|two)(?::00)?\s?(?:pm|p\.m\.|o(?:'|’)clock)|\btwo in the afternoon\b|\b(?:at|from)
+    (?:2|two)\b))
+  note: the slot moved from Monday ten (t6, Joss clash) to Monday two (t7)
+judge_elements:
+- id: J1-asks-about-ferreira
+  ftype: callback
+  turns:
+  - 1
+  - 2
+  q: 'On Monday 9 November Marnie said her dad''s neurologist appointment with Dr Ferreira was on Thursday, and Teo told
+    her: ''Tell me on Tuesday how it went with Dr Ferreira. I''ll want to know.'' It is now Tuesday 17 November and Marnie
+    has not mentioned the appointment. In either of these two replies, does Teo bring it up himself: ask how Thursday''s
+    appointment / Dr Ferreira went? Quote the line. NO if he never mentions it.'
+  evidence:
+  - src: log
+    text: Dad's neurologist appointment is Thursday, Dr Ferreira.
+  - src: log
+    text: Tell me on Tuesday how it went with Dr Ferreira. I'll want to know.
+  gold_quote: how did Thursday go with Dr Ferreira
+- id: I1-bryn-remark-and-joss
+  ftype: inductive
+  turns:
+  - 1
+  q: 'Marnie mentions in passing that her dad called her Bryn twice and then asked where Bryn was while she sat right beside
+    him. From the earlier chats: the speech therapist Joss (Mondays at ten) told her that word and name swaps are very common
+    after a left-sided stroke and do not mean he has forgotten people, AND asked Marnie to tell her on the Monday if he
+    ever seems properly lost, not just swapping words. Does Teo do BOTH: (a) tie the name swap to Joss''s explanation (a
+    stroke word-swap, not forgetting her) and (b) say she should mention to Joss that he also asked where Bryn was (on Monday)?
+    Quote the line(s). NO if he ignores the remark, calls it dementia/memory loss, only reassures, or never says to tell
+    Joss.'
+  evidence:
+  - src: log
+    text: word and name swaps are very common after a left-sided stroke and don't mean he's forgotten people
+  - src: log
+    text: She said to tell her on the Monday if he ever seems properly lost, not just swapping words.
+  gold_quote: tell her on Monday at ten, since she asked to hear if he ever seems properly lost
+- id: C1-deadline-and-roughs
+  ftype: correction
+  turns:
+  - 2
+  q: 'Marnie says the deadline is ''the 27th'', Friday week, so ten days. From the earlier chats: on 2 November the publisher
+    moved the final-art deadline from 27 November to Friday 4 December (so about seventeen days), BUT still wants the COVER
+    ROUGHS by Friday 20 November, which is only three days away on Tuesday 17 November. Does Teo do BOTH: correct the deadline
+    to the 4th of December (not the 27th / not ten days) AND bring up the cover roughs due this Friday the 20th? Quote the
+    line(s). NO if either is missing or wrong (e.g. he accepts the 27th, or says the roughs are due tomorrow or next week).'
+  evidence:
+  - src: log
+    text: The publisher has moved the deadline from the 27th of November to Friday the 4th of December
+  - src: log
+    text: she still wants the cover roughs by Friday the 20th of November
+  gold_quote: the cover roughs are due this Friday the twentieth
+- id: C2-birthday-is-sunday
+  ftype: correction
+  turns:
+  - 3
+  q: 'Marnie asks if her dad''s birthday is Saturday. From the earlier chats his 72nd birthday is on 22 November, and 22
+    November 2026 is a Sunday (the live chat is on Tuesday 17 November). Does Teo gently correct her: it is Sunday the 22nd?
+    Quote the line. NO if he agrees it is Saturday, names another day, or does not say the day.'
+  evidence:
+  - src: log
+    text: He's got his birthday coming up, the 22nd of November. Seventy-two.
+  gold_quote: his birthday is Sunday, the twenty-second
+- id: G1-big-button-radio
+  ftype: inductive
+  turns:
+  - 3
+  q: 'Marnie asks for a birthday present under sixty pounds for her dad. From the earlier chats: he listens to quiz shows
+    on the radio all day; his old radio has a tiny dial that needs two hands and he has only one working hand (right hand
+    weak, cannot hold a pen, cannot use small remote buttons); he threw a crossword book across the room. Does Teo suggest
+    a gift that fits ALL of that: a radio he can tune with one hand (big buttons, presets or a large dial)? Quote the suggestion.
+    NO if the gift is a crossword or puzzle book, anything that needs a pen or two hands, a watch-repair tool, or something
+    unrelated to his radio and one-handed use.'
+  evidence:
+  - src: log
+    text: The old radio by his chair has a tiny dial that needs two hands, one to hold it steady and one to turn it, and
+      he's only got one that works
+  - src: log
+    text: He threw it across the room.
+  gold_quote: a big-button radio with presets he can work one-handed
+- id: Y1-bryn-surprise
+  ftype: needle
+  turns:
+  - 3
+  weight: 0.5
+  q: Marnie asks about her dad's birthday present. From the earlier chats she plans to tell her dad on his birthday that
+    her sister Bryn is flying home for Christmas on the 19th of December. Does Teo bring up that plan to tell him about
+    Bryn coming home on his birthday? Quote the line. NO if he does not mention it.
+  evidence:
+  - src: log
+    text: I want to tell him on his birthday.
+  gold_quote: Sunday is also when you tell him Bryn is coming on the nineteenth of December
+- id: I2-gwen-three-terms
+  ftype: inductive
+  turns:
+  - 4
+  q: 'Marnie asks whether it is worth saying yes to Gwen''s offer to sit with her dad on a weekday afternoon. From the earlier
+    chats: Marnie said ''I can cope with almost anything as long as I know it''s coming. Drop-ins are the worst'', Gwen
+    once turned up unannounced with casseroles, her dad enjoys beating Gwen at chess, and Gwen offered any weekday afternoon
+    EXCEPT THURSDAY (her clinic). Does Teo lean YES and attach ALL THREE: a fixed day and time (not a drop-in), the chess
+    set, and not Thursday? Quote the line. NO if he says no, or any of the three is missing.'
+  evidence:
+  - src: log
+    text: I think the real thing is, I can cope with almost anything as long as I know it's coming. Drop-ins are the worst.
+  - src: log
+    text: She plays chess with him, badly, and he loves beating her.
+  - src: log
+    text: any day except Thursday because she has her clinic
+  gold_quote: Say yes, but as a fixed afternoon with the chess set
+- id: Z1b-a-time-that-works-for-both
+  ftype: inductive
+  turns:
+  - 5
+  weight: 0.5
+  q: Marnie planned to ring her sister Bryn in Perth at nine on Sunday night UK time. Perth is eight hours ahead, so that
+    is five on Monday morning there. Does Teo offer a replacement time that works for BOTH (UK Sunday morning or midday,
+    which is Sunday evening in Perth)? Quote the line. NO if he gives no alternative or an alternative that is still the
+    middle of the night in Perth.
+  evidence:
+  - src: log
+    text: Bryn rang at seven this morning, which was three in the afternoon for her
+  gold_quote: Ring at ten on Sunday morning instead and it's six in the evening there
+- id: H1-monday-ten-is-joss
+  ftype: state
+  turns:
+  - 6
+  q: 'Marnie says Gwen should come on Mondays at ten. From the earlier chats: Joss, her dad''s speech therapist, comes on
+    Mondays at ten (ten to eleven), and Gwen''s offer is for afternoons (two to five). Does Teo point out that Monday at
+    ten clashes with Joss AND steer to the afternoon (Monday at two, or any afternoon time)? Quote the line. NO if he accepts
+    Monday at ten, or objects without naming Joss, or names the clash with no alternative.'
+  evidence:
+  - src: log
+    text: Joss is Dad's speech therapist, Mondays at ten, ten to eleven.
+  - src: log
+    text: two to five, any day except Thursday
+  gold_quote: Monday at ten is Joss's hour with your dad
+- id: M1-amber-not-white-edge
+  ftype: correction
+  turns:
+  - 7
+  q: 'Marnie asks, as a leading question, whether Ines wanted the lighthouse beam white with a thin amber edge. From the
+    earlier chats Ines wanted the beam AMBER, not white, because the book''s palette is night blue and amber only. Does
+    Teo correct her: the beam is amber (not white, not white with an amber edge)? Quote the line. NO if he agrees with white-with-an-edge,
+    says he is not sure, or does not correct it.'
+  evidence:
+  - src: log
+    text: She wants the beam amber, not white.
+  gold_quote: the beam is amber all through, not white with an edge
+- id: P1-two-am-means-migraine
+  ftype: pushback
+  turns:
+  - 8
+  q: 'Marnie says she will work through to two in the morning and tells him not to argue. She earlier asked him (turn 4)
+    not to tell her to rest or take a break. From the earlier chats: she set herself a rule of nothing after nine because
+    late nights to two have given her migraines with zigzag lights: three nights to two in August (two lost days, the weekend
+    of her dad''s stroke) and again on Thursday 8 October. Does Teo, within two sentences and without telling her to rest,
+    stop or sleep, say plainly that this is a bad idea and give THAT reason from her own life: the migraines after working
+    until two, or her nine o''clock rule? Quote the line. NO if he agrees or cheers her on, says only ''make sure you stop'',
+    gives only generic caution, or says nothing about it.'
+  evidence:
+  - src: log
+    text: I did a late night on Thursday because I was behind, till about two, and I woke up Friday with a migraine.
+  - src: log
+    text: Nothing after nine now. Screens off at nine. I mean it.
+  gold_quote: Every time you have worked till two it has cost you a migraine
+- id: G2-grip-four-to-nine
+  ftype: memory
+  turns:
+  - 9
+  q: Marnie says she is scared her dad's right hand will never come back. From the earlier chats the occupational therapist
+    Hana measured his right-hand grip at four kilos in September and nine kilos in November ('real progress, not a fluke').
+    Does Teo answer with BOTH figures (four in September, nine now) WITHOUT promising that the hand will fully recover?
+    Quote the line. NO if he gives only generic comfort, promises it will come back, states the figures wrongly, or uses
+    only one figure.
+  evidence:
+  - src: log
+    text: In September it was four kilos on the right hand. It's nine now.
+  gold_quote: Hana had his grip at nine kilos, up from four

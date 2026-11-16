@@ -415,6 +415,7 @@ def test_switch_model_resident_fast_path_does_not_fire_when_unsuitable(monkeypat
 
 
 @pytest.mark.usefixtures("no_management_calls")
+@pytest.mark.archive_default   # 4.1-era: a bare load meant bench (no KV run setting); the flip made it bench45
 def test_lease_that_never_loads_the_model_falls_through_to_load_recommended(monkeypatch):
     """A lease can stand with nothing loaded (its load failed silently behind
     a foreign VRAM holder) — the explicit load then gives a structured answer.
@@ -643,7 +644,7 @@ def test_judge_row_request_rejected_is_recorded_without_reload(tmp_path, monkeyp
         return {"judge_failed": False, "judge_raw": "{}", "refused": False, "scores": {}}
 
     monkeypatch.setattr(judge, "_load_judge", lambda *a, **k: jc)
-    monkeypatch.setattr(judge, "run_canary", lambda jc: None)
+    monkeypatch.setattr(judge, "run_canary", lambda jc, **k: None)
     monkeypatch.setattr(judge, "judge_row", fake_judge_row)
     cfg = {"models": [{"name": "m", "model_id": "m", "provider": "fake"}],
            "judge": {"samples": 1}, "providers": {}, "defaults": {}}

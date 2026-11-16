@@ -1,0 +1,71 @@
+{
+ "level": 1,
+ "points": 1.0,
+ "item": "KNOWGAP",
+ "budget": 49152,
+ "context": 73728,
+ "status": "staged",
+ "note": "H6 pack (rc1, Admin G2 g2-3) -- STAGED, content pending rows: KNOWGAP L6 x3 + L7 x3, the screen-headroom-ref hr_knowgap instances byte for byte (seed_case), measured on the reference this afternoon. Enters rc1 (status cleared) only if the reference lands off the ceiling with (a)-(c) passing; otherwise H6 has no pack in rc1. Ceiling 49,152 = the family CEILING; the ladder path scores a ran-out unit 0 (no exclude rule at set level).",
+ "cases": [
+  {
+   "id": "PK-H6-KNOWGAP-L6-01",
+   "category": "reasoning",
+   "generator": {
+    "type": "knowgap",
+    "level": 6,
+    "key": "54e0e5a0bd92e29d",
+    "seed_case": "FLAT-hr_knowgap_L6-001-r1-a1"
+   }
+  },
+  {
+   "id": "PK-H6-KNOWGAP-L6-02",
+   "category": "reasoning",
+   "generator": {
+    "type": "knowgap",
+    "level": 6,
+    "key": "73bb7243e7c7f357",
+    "seed_case": "FLAT-hr_knowgap_L6-002-r1-a1"
+   }
+  },
+  {
+   "id": "PK-H6-KNOWGAP-L6-03",
+   "category": "reasoning",
+   "generator": {
+    "type": "knowgap",
+    "level": 6,
+    "key": "875aeee9b784387a",
+    "seed_case": "FLAT-hr_knowgap_L6-003-r1-a1"
+   }
+  },
+  {
+   "id": "PK-H6-KNOWGAP-L7-01",
+   "category": "reasoning",
+   "generator": {
+    "type": "knowgap",
+    "level": 7,
+    "key": "7e8abe397703be1a",
+    "seed_case": "FLAT-hr_knowgap_L7-001-r1-a1"
+   }
+  },
+  {
+   "id": "PK-H6-KNOWGAP-L7-02",
+   "category": "reasoning",
+   "generator": {
+    "type": "knowgap",
+    "level": 7,
+    "key": "c67434ebac174130",
+    "seed_case": "FLAT-hr_knowgap_L7-002-r1-a1"
+   }
+  },
+  {
+   "id": "PK-H6-KNOWGAP-L7-03",
+   "category": "reasoning",
+   "generator": {
+    "type": "knowgap",
+    "level": 7,
+    "key": "0c31d04e8b0e1083",
+    "seed_case": "FLAT-hr_knowgap_L7-003-r1-a1"
+   }
+  }
+ ]
+}

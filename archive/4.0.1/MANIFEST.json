@@ -1,0 +1,24 @@
+{
+  "case_count": 384,
+  "commit": "c9f620fbbd001173978c405ad56eb69dae200a29",
+  "date": "2026-11-01",
+  "excluded": [
+    {
+      "path": "cases/ladder/nsfw/nsfw_rp/set-1.json",
+      "reason": "EL-17 stated adult ages: LNC1-glasshouse-keys: House is named but has no stated age (+2 more)"
+    },
+    {
+      "path": "cases/ladder/nsfw/nsfw_writing/set-2.json",
+      "reason": "EL-17 stated adult ages: LNW1-glasshouse-ledger: Ledger is named but has no stated age (+2 more)"
+    },
+    {
+      "path": "cases/ladder/nsfw/uncensored/set-1.json",
+      "reason": "EL-17 stated adult ages: LUX1-bone-choir: Legion is named but has no stated age (+1 more)"
+    }
+  ],
+  "files": {},
+  "notes": "",
+  "same_as": "4.0.0",
+  "source_tag": "v4.0.1",
+  "version": "4.0.1"
+}

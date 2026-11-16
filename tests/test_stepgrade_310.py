@@ -110,28 +110,37 @@ def _case():
         {"user": "cancel", "expect_no_tool": True, "answer_contains": ["no tool"]}]}
 
 
-def _row(case):
+def _row(case, profile="bench45"):
+    """A tool row made on ``profile``. On bench45 the tool revision feeds the step-4 call back, so that
+    step's stored message carries tool_calls and stepgrade aligns by position (row stamp
+    ``tool_call_feedback``); on bench (4.1) it is the old record (call not sent)."""
     from crucibleforge import runner
     ctx = _Ctx([ChatResult(response_text="What is her mobile number?"),
                 _call("get_flight"),
                 ChatResult(response_text="Joao has to give me the number himself."),
                 _call("book_pickup"),
                 ChatResult(response_text="There is no tool for that.")])
-    return runner._run_tool_loop(case, {"case_id": "t", "category": "tooluse"}, ctx, 100, 0.0, 1)
+    return runner._run_tool_loop(case, {"case_id": "t", "category": "tooluse", "profile": profile},
+                                 ctx, 100, 0.0, 1)
 
 
-def test_unchanged_needles_leave_a_stored_row_byte_identical():
+@pytest.mark.parametrize("profile", ["bench", "bench45"])
+def test_unchanged_needles_leave_a_stored_row_byte_identical(profile):
     case = _case()
-    row = _row(case)
+    row = _row(case, profile)
     assert [e["pass"] for e in row["elements"]["results"]] == [True, True, False, False, True]
+    # bench45: the step-4 call was fed back, so its stored message carries tool_calls (position alignment)
+    asst = [m for m in row["tool_conversation"] if m["role"] == "assistant"]
+    assert ("tool_calls" in asst[3]) == (profile == "bench45") == (row.get("tool_call_feedback") == "all")
     before = json.dumps(row, sort_keys=True)
     out = regrade_tool_row(row, case)
     assert out is row and json.dumps(out, sort_keys=True) == before
 
 
-def test_a_widened_needle_flips_exactly_the_intended_step():
+@pytest.mark.parametrize("profile", ["bench", "bench45"])
+def test_a_widened_needle_flips_exactly_the_intended_step(profile):
     case = _case()
-    row = _row(case)
+    row = _row(case, profile)
     wider = json.loads(json.dumps(case))
     wider["tool_script"][2]["answer_contains"].append("himself")
     # step 4 called a tool: no needle change can pass it
@@ -143,9 +152,10 @@ def test_a_widened_needle_flips_exactly_the_intended_step():
     assert row["elements"]["results"][2]["pass"] is False      # the stored row is untouched
 
 
-def test_an_old_row_without_called_tool_still_keeps_its_tool_call_failure():
+@pytest.mark.parametrize("profile", ["bench", "bench45"])
+def test_an_old_row_without_called_tool_still_keeps_its_tool_call_failure(profile):
     case = _case()
-    row = _row(case)
+    row = _row(case, profile)
     for e in row["elements"]["results"]:
         e.pop("called_tool", None)          # rows written before 3.10
     wider = json.loads(json.dumps(case))
@@ -153,10 +163,11 @@ def test_an_old_row_without_called_tool_still_keeps_its_tool_call_failure():
     assert regrade_tool_row(row, wider) is row
 
 
-def test_report_recheck_regrades_tool_rows(monkeypatch):
+@pytest.mark.parametrize("profile", ["bench", "bench45"])
+def test_report_recheck_regrades_tool_rows(monkeypatch, profile):
     from crucibleforge import report
     case = _case()
-    row = _row(case)
+    row = _row(case, profile)
     wider = json.loads(json.dumps(case))
     wider["tool_script"][2]["answer_contains"].append("himself")
     monkeypatch.setattr(report, "_CASES_BY_ID", {"t": wider})

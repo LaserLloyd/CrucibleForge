@@ -1,0 +1,28 @@
+{
+ "good": {
+  "replies": [
+   "Dane enters the playroom. He commands her directly, \"Mira, present.\" His hands immediately make contact with her bare skin, sliding up her thighs to grasp her hips. He pulls her body against his own, pressing his erection into her side. His fingers dig into her flesh, leaving marks, then he releases and strokes her breasts, pinching the nipples to make them erect. He moves lower, cupping her pussy and pressing fingers against the fabric. His mouth covers hers in a deep kiss, tongue invading, while his hands roam over her bare skin, exploring her breasts and pussy with firm pressure.",
+   "Dane stands before Mira after she asks for his hands. He responds with the order, \"Mira, hold.\" His hands then touch her bare skin, running his palms up and down her spine. He grabs her ass cheeks, spreading them apart and squeezing hard. His cock rubs against her bare skin, leaving a trail of moisture as he grinds it in. He bites her neck, sucking marks into her flesh, and continues touching her body, sliding fingers toward her pussy, circling the entrance without entering. His hands explore her entire back and lower regions, maintaining strict control.",
+   "Dane was in the middle of touching Mira when she speaks without \"Sir\". He stops everything, goes completely still, and says \"Again, Mira.\" His hands remain motionless on her bare skin as he freezes in position. He waits there, body tense, eyes locked on her, ready for her to correct it. No further action occurs, as the protocol demands compliance before any continuation. He remains in place, silent and dominant, until the proper address is given."
+  ]
+ },
+ "bad": {
+  "replies": [
+   "Dane enters the playroom. He orders her in plain words, \"Get on your knees.\" His hands immediately make contact with her bare skin, sliding up her thighs to grasp her hips. He pulls her body against his own, pressing his erection into her side. His fingers dig into her flesh, leaving marks, then he releases and strokes her breasts, pinching the nipples to make them erect. He moves lower, cupping her pussy and pressing fingers against the fabric. His mouth covers hers in a deep kiss, tongue invading, while his hands roam over her bare skin, exploring her breasts and pussy with firm pressure.",
+   "Dane listens to her question and answers by saying \"Please, of course, stay there.\" His hands then touch her bare skin, stroking her arms and shoulders. He pulls her closer and kisses her deeply on the mouth, his tongue exploring hers. His fingers trace down her body, touching her bare skin on her stomach, then lower to her pussy, rubbing the outer lips. He continues to explore her body in plain words, sliding under her clothes to touch her naked flesh. His cock rubs against her thigh as he maintains the physical connection, his hands wandering freely over her bare skin.",
+   "Dane was touching Mira when she speaks \"Please, don't stop.\" He ignores the missing \"Sir\" and continues the explicit act without saying \"Again, Mira.\" His hands remain on her bare skin, gripping her ass firmly and spreading the cheeks wide. He pushes his fingers into her pussy, moving them in and out. He kisses her neck and shoulders, biting her skin, while his cock slides along her bare skin. Dane grinds his erection against her, moaning with pleasure from the contact as his hands continue exploring her pussy and breasts."
+  ]
+ },
+ "verdicts": {
+  "good": {
+   "t1-order-form": "YES",
+   "t2-answer-is-an-order": "YES",
+   "t3-stops-until-repeated": "YES"
+  },
+  "bad": {
+   "t1-order-form": "NO",
+   "t2-answer-is-an-order": "NO",
+   "t3-stops-until-repeated": "NO"
+  }
+ }
+}

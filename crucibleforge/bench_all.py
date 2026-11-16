@@ -151,23 +151,35 @@ def missing_cases(rows: list[dict], case_ids: list[str],
             continue  # a billing refusal says nothing about the model (ed5630a)
         if r.get("grade") != "error" or _permanent_error(r):
             reps.setdefault(r.get("case_id"), set()).add(r.get("repeat") or 1)
+    if any(r.get("chain") for r in rows):
+        # 4.5 chains: a chain id is done when its chain ended (its attempts are rows of
+        # their own instance ids); a halted chain is missing and the next run resumes it
+        from .chains import ended_from_rows
+        ended = ended_from_rows([r for r in rows if r.get("chain")])
+    else:
+        ended = set()
     attempts = attempts or {}
     repeats = repeats or {}
+    # an ended chain is complete whatever its category's repeat count: the runner drives a chain once
+    # (every attempt is repeat 1) and the score reads the chain alone (2026-11-15: know3 sits in
+    # `reasoning`, repeats 2, and was planned again on every run)
     return [c for c in case_ids
-            if len(reps.get(c, ())) < repeats.get(c, 1)
+            if c not in ended
+            and len(reps.get(c, ())) < repeats.get(c, 1)
             and attempts.get(c, 0) < MAX_CASE_ATTEMPTS]
 
 
 def replay_rows(entry: dict | None, rows: list[dict]) -> list[dict]:
     """Alignment 2026-11-06 (review B1): when a registry row sets its own
-    ``reasoning_replay`` (conformance c3 proved the default wrong), rows
+    ``reasoning_replay`` (4.5: the replay rule's record, replay_rule), rows
     measured under the other replay setting are not usable — they measured
     the wrong thing — so bench-all regenerates them. A row without a
     protocol stamp was made with the replay off (the pre-2026-11-02 harness
     never replayed). Without the key every row counts, as before."""
     if not entry or entry.get("reasoning_replay") is None:
         return rows
-    want = bool(entry["reasoning_replay"])
+    from .replay_rule import value as _replay_value
+    want = _replay_value(entry)
     return [r for r in rows
             if bool((r.get("protocol") or {}).get("reasoning_replay", False)) == want]
 
@@ -192,7 +204,7 @@ def error_attempts(label: str, cfg: dict | None = None) -> dict[str, int]:
     CURRENT suite revision (an error under an older regime says nothing about
     whether the case can run now — 3.8.0 re-runs every case)."""
     from .config import load_transcripts
-    from .profiles import DEFAULT_PROFILE
+    from .profiles import active_name
     from .preflight import billing_error_row
     from .version import row_current
     from . import report
@@ -210,7 +222,7 @@ def error_attempts(label: str, cfg: dict | None = None) -> dict[str, int]:
             continue
         # 3.10 (D1): an error counts while its row answers the current case
         # content under the current regime (an edited case starts over)
-        if (r.get("profile") == DEFAULT_PROFILE and r.get("grade") == "error"
+        if (r.get("profile") == active_name() and r.get("grade") == "error"
                 and row_current(r)):
             out[r.get("case_id")] = out.get(r.get("case_id"), 0) + 1
     return out
@@ -269,14 +281,14 @@ def plan(cfg: dict, rig_ids: set[str], *, include_api: bool = False,
     from . import report
     from .judge import needs_verdict
     from .config import repeats_for
-    from .profiles import DEFAULT_PROFILE, apply_profile, load_profile, profile_judge
+    from .profiles import active_name, apply_profile, load_profile, profile_judge
     repeats = None
     if case_ids is None:
-        cfg_p, cases = apply_profile(load_profile(DEFAULT_PROFILE, cfg), cfg)
+        cfg_p, cases = apply_profile(load_profile(active_name(cfg), cfg), cfg)
         case_ids = [c["id"] for c in cases]
         repeats = {c["id"]: repeats_for(cfg_p, c["category"], case=c) for c in cases}
     if judge_id is None:
-        j = profile_judge(load_profile(DEFAULT_PROFILE, cfg))
+        j = profile_judge(load_profile(active_name(cfg), cfg))
         judge_id = j.get("model_id") if isinstance(j, dict) else j
     rows_for = rows_for or (lambda label: report.board_filter(label, cfg, sampler_view="current"))
     room_for = room_for or (lambda label: report.board_filter(label, cfg, with_rungs=True,
@@ -284,7 +296,7 @@ def plan(cfg: dict, rig_ids: set[str], *, include_api: bool = False,
     if rungs is None:
         from .runner import escalation_rungs
         try:
-            rungs = escalation_rungs(apply_profile(load_profile(DEFAULT_PROFILE, cfg), cfg)[0])
+            rungs = escalation_rungs(apply_profile(load_profile(active_name(cfg), cfg), cfg)[0])
         except Exception:  # noqa: BLE001 — no profile readable: no escalation planned
             rungs = []
     attempts_for = attempts_for or (lambda label: error_attempts(label, cfg))
@@ -528,8 +540,8 @@ def ladder_due(cfg: dict, label: str, attempts: dict[str, int] | None = None,
     the profile as a given audience sees it (the public board passes the
     public view, so a private pack is neither counted nor named)."""
     from . import cli, ladder
-    from .profiles import DEFAULT_PROFILE, apply_profile, load_profile
-    prof = prof or load_profile(DEFAULT_PROFILE, cfg)
+    from .profiles import active_name, apply_profile, load_profile
+    prof = prof or load_profile(active_name(cfg), cfg)
     sets = ladder.discover(prof)
     if not sets:
         return None
@@ -591,12 +603,12 @@ def board_completeness(cfg: dict | None, labels: list[str]) -> dict[str, dict | 
     A label whose inputs cannot be read maps to None (no tag — never a
     guessed verdict)."""
     from . import report
-    from .profiles import DEFAULT_PROFILE, apply_profile, load_profile
+    from .profiles import active_name, apply_profile, load_profile
     cfg = cfg or {}
     out: dict[str, dict | None] = {}
     try:
         ids = report._profile_case_ids(cfg)
-        prof = load_profile(DEFAULT_PROFILE, cfg)
+        prof = load_profile(active_name(cfg), cfg)
         reps = report._profile_case_repeats(cfg)
         if ids is None or not reps:
             return {l: None for l in labels}
@@ -654,6 +666,8 @@ def format_plan(p: dict) -> str:
         L.append(f"  ! {label}: enabled but not on the rig — skipped (disable it or re-download)")
     from .settings_gate import plan_lines as _settings_lines
     L += _settings_lines(p)
+    from .replay_rule import plan_lines as _replay_lines
+    L += _replay_lines(p)
     for label in p.get("not_benched") or []:
         L.append(f"  · {label}: out of scope (bench: false / not a text chat model) — never benched")
     for label in p.get("kept_on_board") or []:
@@ -719,7 +733,9 @@ def format_plan(p: dict) -> str:
 #: registry keys that change HOW a model is called or scored; a re-test of the same model at another quant
 #: (``bench-all --inherit-from``) carries these over. Identity/size/provider keys (name, model_id, context_length,
 #: provider, enabled, price, arch, quant*, base, family...) are never copied.
-INHERIT_KEYS = ("reasoning_replay", "thinking", "censored", "sampler", "max_output_tokens", "text_suite_only",
+#: ``reasoning_replay`` is NOT inherited (4.5 rule): the new file's own template
+#: is rendered instead (replay_rule), since a requant may ship another template.
+INHERIT_KEYS = ("thinking", "censored", "sampler", "max_output_tokens", "text_suite_only",
                 "settings_checked")
 
 
@@ -908,6 +924,30 @@ class Window:
         return min(gen_end + timedelta(minutes=GEN_GRACE_MIN), self.judge_cut)
 
 
+
+def end_window() -> bool:
+    """Close the generation window's state; True when the window had closed (its STOP set).
+    Only the window's own STOP is cleared: a drain's STOP stays set, so the next group never
+    starts (lead 2026-11-14)."""
+    from . import runner
+    closed = runner.WINDOW_STOP.is_set()
+    runner.GEN_DEADLINE[0] = None
+    runner.WINDOW_STOP.clear()
+    if closed and not runner.DRAIN.is_set():
+        runner.STOP.clear()
+    return closed
+
+def _drain_notes(left) -> list[str]:
+    """The run's notes after a drain: what waits, and (when the ceiling cut a stream) that the
+    model must be unloaded and reloaded before the next run."""
+    from . import runner
+    out = [runner.DRAIN_NOTE + " — no judge or board this run; a later run resumes them"]
+    if left:
+        out.append("not started (drain): " + ", ".join(sorted(set(left))))
+    if runner.DRAIN_CUT:
+        out.append(f"{runner.CUT_NOTE} ({', '.join(sorted(runner.DRAIN_CUT))})")
+    return out
+
 def _hm(t: datetime) -> str:
     return t.strftime("%H:%M")
 
@@ -929,8 +969,8 @@ def group_estimate(cfg: dict, labels: list[str], case_ids: list[str],
     its models run one after another, each over ``case_ids``. Same
     arithmetic as `all --plan` (estimate.model_estimate)."""
     from . import estimate as est
-    from .profiles import DEFAULT_PROFILE, apply_profile, load_profile
-    cfg_p, cases = apply_profile(load_profile(DEFAULT_PROFILE, cfg), cfg)
+    from .profiles import active_name, apply_profile, load_profile
+    cfg_p, cases = apply_profile(load_profile(active_name(cfg), cfg), cfg)
     want = set(case_ids)
     cs = [c for c in cases if c["id"] in want]
     gen = eq = 0.0
@@ -1231,9 +1271,9 @@ def _ladder_round(args, cfg, labels, win, jargs, want_esc, arm, disarm, waiting,
     def admit(label, entry, cases, jobs) -> bool:
         if not win:
             return True
-        from .profiles import DEFAULT_PROFILE, apply_profile, load_profile
+        from .profiles import active_name, apply_profile, load_profile
         try:
-            cfg_p, _ = apply_profile(load_profile(DEFAULT_PROFILE, cfg), cfg)
+            cfg_p, _ = apply_profile(load_profile(active_name(cfg), cfg), cfg)
             gen, q = est.model_estimate(cfg_p, entry, cases, only_jobs=jobs)
         except Exception as e:  # noqa: BLE001 — unknown cost: the timers still bound it
             log.warning("no ladder estimate for %s (%s)", label, e)
@@ -1314,7 +1354,8 @@ def execute(args, cfg: dict) -> int:
     inherit = getattr(args, "inherit_from", None)
     if inherit:
         # MakoBench requant (2026-11-13): a Q8_0 re-test is the SAME model, so its new registry entry must be called
-        # exactly like the original (reasoning replay, thinking, censored, extra_body...). Conformance c3 fails otherwise.
+        # exactly like the original (thinking, censored, extra_body...). Its reasoning replay is NOT copied: the new
+        # file's own template is rendered (replay_rule, 4.5) — a requant may ship another template.
         if only is None or len(only) != 1:
             print("bench-all: --inherit-from needs --only with ONE label")
             return EXIT_USAGE
@@ -1327,8 +1368,18 @@ def execute(args, cfg: dict) -> int:
             p["add"][0]["inherit"] = inh
     # 2026-11-13: no rig model runs without its recommended settings checked
     # (settings_gate) -- a blocked model is planned out, a new one still registered
-    from . import settings_gate
-    settings_gate.gate_plan(p, cfg, templates=settings_gate.rig_templates(prov))
+    from . import replay_rule, settings_gate
+    _tpls = settings_gate.rig_templates(prov)
+    settings_gate.gate_plan(p, cfg, templates=_tpls)
+    # 4.5 (EXP-20261114-11): reasoning replay follows the model's own template
+    # at default settings (a card/API rule overrides); a changed template
+    # fails closed until re-rendered; a model without a record gets one at --go
+    try:
+        from . import report as _report
+        _cfg_p = _report._profile_applied(cfg)[1]
+    except Exception:  # noqa: BLE001 -- no profile: the registry alone
+        _cfg_p = cfg
+    replay_rule.gate_plan(p, cfg, _cfg_p, _tpls)
     if only is not None and (not only or set(p.get("only_unknown") or []) >= set(only)):
         # --only named nothing that exists: say so, never fall back to "all"
         if getattr(args, "plan_json", False):
@@ -1382,15 +1433,35 @@ def execute(args, cfg: dict) -> int:
         from .config import set_results_dir
         set_results_dir(here)
         notes.append("registered: " + ", ".join(a["name"] for a in p["add"]))
+    if p.get("replay_new") and not args.no_sync:
+        # the replay rule's records for models that had none (a new
+        # registration, an --inherit-from re-test, a legacy bool): rendered
+        # from each model's own template at plan time
+        from .replay_rule import write_records
+        written = write_records(cfg["_path"], p["replay_new"])
+        here = results_dir()
+        cfg = load_config(cfg["_path"])
+        from .config import set_results_dir
+        set_results_dir(here)
+        notes.append("replay recorded: " + ", ".join(
+            f"{l}={p['replay_new'][l]['value']} ({p['replay_new'][l]['source']})" for l in written))
     if p["prune"] and not args.no_prune:
         dest = prune_results(results_dir(), [l for l, _ in p["prune"]])
         notes.append(f"pruned to {dest.name}: " + ", ".join(f"{l} ({w})" for l, w in p["prune"]))
     for label in p["not_on_rig"]:
         notes.append(f"{label}: enabled but not on the rig — skipped")
     rc = EXIT_OK
+    for label in p.get("replay_blocked") or []:
+        # replay_rule: a changed/unreadable template fails closed, never silently
+        notes.append(f"{label}: NOT RUN — reasoning replay record needs re-rendering "
+                     f"(crucibleforge replay-rule {label} --write)")
+        log.error("bench-all: %s not run: %s", label,
+                  ((p.get("replay") or {}).get(label) or {}).get("reason"))
+        if p.get("only") is not None:
+            rc = EXIT_MODEL_FAILED
     for label in p.get("settings_blocked") or []:
         # settings_gate: refused, never a silent "nothing to do"
-        notes.append(f"{label}: NOT RUN — needs recommended settings "
+        notes.append(f"{label}: NOT RUN — needs_settings "
                      f"(crucibleforge card-check {label})")
         log.error("bench-all: %s not run: %s", label,
                   ((p.get("settings") or {}).get(label) or {}).get("reason"))
@@ -1426,12 +1497,7 @@ def execute(args, cfg: dict) -> int:
         for t in timers:
             t.cancel()
         timers.clear()
-        closed = runner.WINDOW_STOP.is_set()
-        runner.GEN_DEADLINE[0] = None
-        runner.WINDOW_STOP.clear()
-        if closed:
-            runner.STOP.clear()
-        return closed
+        return end_window()
 
     def _waiting(extra=()):
         try:
@@ -1440,13 +1506,31 @@ def execute(args, cfg: dict) -> int:
             log.warning("pending-judge estimate unavailable: %s", e)
             return 0.0
 
+    # the judge schedule is derived from the placement (subject_copies.judge_mode): when the
+    # subject copies leave the judge's cards free, the judge runs beside generation
+    overlap = None
+    gen_models = sorted({m for g in p["groups"] for m in g["models"]})
+    if gen_models and not no_judge and not cli.stopping():
+        try:
+            from . import judge_overlap
+            jmode, jinst = judge_overlap.mode_for_run(cfg, gen_models)
+            if jmode:
+                notes.append(f"judge schedule: {jmode} (derived from the placement)")
+            if jmode == "concurrent" and jinst:
+                overlap = judge_overlap.OverlapJudge(
+                    cfg, gen_models, jinst,
+                    deadline=win.judge_cut.timestamp() if win else None).start()
+        except Exception as e:  # noqa: BLE001 - the after-phase still judges everything
+            log.warning("bench-all: no overlapping judge (%s)", e)
     left: list[str] = []
     admitted = False
     try:
         seq = units(p) if win else p["groups"]
         for gi, g in enumerate(seq):
-            if cli.stopping():
-                break             # SIGTERM: nothing new starts
+            if cli.halted():
+                if cli.draining():
+                    left += [m for g2 in seq[gi:] for m in g2["models"]]
+                break             # SIGTERM / drain: nothing new starts
             if win:
                 try:
                     g_gen, g_eq = group_estimate(cfg, g["models"], g["cases"], p.get("add"),
@@ -1501,6 +1585,18 @@ def execute(args, cfg: dict) -> int:
     finally:
         if win:
             _disarm()
+        if overlap is not None:
+            if cli.halted():
+                overlap.stop.set()
+            o = overlap.finish()
+            notes.append(f"overlapping judge: {o['judged']} row(s) in {o['passes']} pass(es)"
+                         + (f" — stopped: {o['error']}" if o.get("error") else ""))
+    if cli.draining():
+        # the drain (lead 2026-11-14): exit now, no escalation / judge / ladder / board
+        args.bench_all_notes = notes + _drain_notes(left)
+        for n in args.bench_all_notes:
+            print(f"note: {n}")
+        return cli.DRAIN_EXIT
     if left:
         notes.append(f"time window: left for the next run: {', '.join(sorted(set(left)))}")
     if cli.stopping():
@@ -1549,6 +1645,9 @@ def execute(args, cfg: dict) -> int:
                          f"those jobs; the next run retries them")
     elif esc and p.get("rungs") and not window_open and want_esc:
         notes.append("time window closed — escalation round left for the next run")
+    if cli.draining():
+        args.bench_all_notes = notes + _drain_notes([])
+        return cli.DRAIN_EXIT
     if cli.stopping():
         args.bench_all_notes = notes + ["stopped (SIGTERM) — the rest waits for the next run"]
         return cli.TERM_EXIT
@@ -1603,7 +1702,7 @@ def execute(args, cfg: dict) -> int:
         if no_judge and (lad or p.get("ladder")):
             # a ladder set unlocks the next one from its JUDGED rows
             notes.append("ladder packs skipped (--no-judge) — they run in a judged run")
-        elif lad and not cli.stopping() and not judge_stop.is_set() and _judge_room() \
+        elif lad and not cli.halted() and not judge_stop.is_set() and _judge_room() \
                 and not getattr(args, "no_ladder", False):
             rc_l = _ladder_round(args, cfg, lad, win, jargs, want_esc, _arm, _disarm,
                                  _waiting, notes)
@@ -1619,6 +1718,9 @@ def execute(args, cfg: dict) -> int:
             jt.cancel()
         if win:
             _disarm()
+    if cli.draining():
+        args.bench_all_notes = notes + _drain_notes([])
+        return cli.DRAIN_EXIT
     if cli.stopping():
         args.bench_all_notes = notes + ["stopped (SIGTERM) — the rest waits for the next run"]
         return cli.TERM_EXIT

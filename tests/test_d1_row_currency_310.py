@@ -22,6 +22,14 @@ from crucibleforge import bench_all, judge, ladder, version
 from crucibleforge import config as cfgmod
 
 ROOT = Path(__file__).resolve().parent.parent
+# these tests pin the 4.1/3.10 stamps: they read the frozen 4.1 tree (G-41Freeze)
+CASES = ROOT / "archive" / "4.1.0" / "cases"
+
+
+@pytest.fixture(autouse=True)
+def _frozen_case_root():
+    cfgmod.set_cases_root(CASES)
+    yield
 SNAP = "3.9.0+ba6eb461"
 BASE_COMMIT = "ff4cce4"
 
@@ -35,7 +43,7 @@ def _old_recipe(c: dict, extra_drop=()) -> str:
 # ------------------------------------------------------------ version tuples
 
 def test_suite_versions_compare_as_tuples():
-    assert version.SUITE_VERSION == "4.1.0"  # key review 2026-11-08: 4.1.0 (per-case currency, nothing stales on the bump)
+    assert version.SUITE_VERSION == "4.5.0"  # 4.5 release (ship plan C8); per-case currency, nothing stales on the bump
     assert version.stamp_version("4.1.0+x") > version.stamp_version("4.0.1+x") > version.stamp_version("4.0.0+x") > version.stamp_version("3.10.0+x")
     assert version.stamp_version("3.10.0+x") > version.stamp_version("3.9.0+y")
     assert "3.10.0" < "3.9.0"            # why strings must never be compared
@@ -98,18 +106,21 @@ def test_aliases_keep_the_pre_310_stamps():
     """bank_case_hash / ladder_case_hash are thin aliases of case_hash, and
     equal the old recipe — rows stamped before 3.10 keep matching."""
     for cat in version.BANK_CATEGORIES:
-        p = ROOT / "cases" / f"{cat}.json"
+        p = CASES / f"{cat}.json"
         for c in json.loads(p.read_text(encoding="utf-8")):
-            assert version.bank_case_hash(cat, c["id"]) == _old_recipe(c) == version.case_hash(c["id"])
+            # 4.5: `meta` / `element_standard` are stamp-neutral (fix45-c); a 4.1
+            # case never carried them, so dropping them reproduces its old stamp
+            old = _old_recipe(c, extra_drop=("meta", "element_standard"))
+            assert version.bank_case_hash(cat, c["id"]) == old == version.case_hash(c["id"])
     for c in ladder.inline_cases():
-        assert version.ladder_case_hash(c["id"]) == _old_recipe(c, ("ladder_pack",))
+        assert version.ladder_case_hash(c["id"]) == _old_recipe(c, ("ladder_pack", "meta", "element_standard"))
 
 
 # ------------------------------------------------------------ per-case invariants
 
 def _table_after(tmp_path, edit) -> tuple[dict, dict]:
     src = tmp_path / "src"
-    shutil.copytree(ROOT / "cases", src, ignore=shutil.ignore_patterns("private"))
+    shutil.copytree(CASES, src, ignore=shutil.ignore_patterns("private"))
     before = version.case_table(src, [src / "ladder"])
     edit(src)
     return before, version.case_table(src, [src / "ladder"])
@@ -129,7 +140,7 @@ def _changed(a: dict, b: dict, what: str) -> set[str]:
 
 
 def _first_with(file: str, key: str) -> dict:
-    return next(c for c in json.loads((ROOT / "cases" / f"{file}.json").read_text(encoding="utf-8"))
+    return next(c for c in json.loads((CASES / f"{file}.json").read_text(encoding="utf-8"))
                 if c.get(key))
 
 
@@ -181,7 +192,7 @@ def test_checks_regex_edit_flips_nothing(tmp_path):
 
 
 def test_tool_step_needle_edit_flips_nothing(tmp_path):
-    c0 = next(c for c in json.loads((ROOT / "cases" / "tooluse.json").read_text(encoding="utf-8"))
+    c0 = next(c for c in json.loads((CASES / "tooluse.json").read_text(encoding="utf-8"))
               if any(isinstance(s, dict) and s.get("answer_contains") for s in c.get("tool_script") or []))
 
     def edit(src):
@@ -214,7 +225,7 @@ def _rows() -> list[dict]:
     """Rows as the live results carry them: stamped 3.9.0+ba6eb461, a bank
     row with its bank_revision, a pack question with its ladder_revision."""
     snap = json.loads((version.STAMPS_DIR / f"{SNAP}.json").read_text(encoding="utf-8"))
-    bank = json.loads((ROOT / "cases" / "codebank.json").read_text(encoding="utf-8"))[0]
+    bank = json.loads((CASES / "codebank.json").read_text(encoding="utf-8"))[0]
     pack = ladder.inline_cases()[0]
     rows = [
         {"case_id": "RD1-marisol", "category": "rpdeep"},
@@ -234,8 +245,8 @@ def _rows() -> list[dict]:
 @pytest.fixture
 def live_cases(monkeypatch):
     """The committed case files (whatever another test pointed the ladder at)."""
-    monkeypatch.setattr(ladder, "LADDER_DIR", ROOT / "cases" / "ladder")
-    monkeypatch.setattr(version, "_CASES_DIR", ROOT / "cases")
+    monkeypatch.setattr(ladder, "LADDER_DIR", CASES / "ladder")
+    monkeypatch.setattr(version, "_CASES_DIR", CASES)
 
 
 def _require_unchanged(cids):
@@ -355,6 +366,7 @@ def test_plan_lists_regenerate_and_rejudge_per_model(monkeypatch):
     assert not [ln for ln in txt.splitlines() if "regenerate:" in ln and "> generate" in ln]
 
 
+@pytest.mark.archive_default     # a 4.1 test (profile bench rows): bare = bench when written
 def test_error_attempts_count_only_current_rows(tmp_path, monkeypatch, live_cases):
     res = tmp_path / "results"
     res.mkdir()

@@ -35,6 +35,7 @@ from __future__ import annotations
 
 import copy
 import json
+import threading
 import os
 import stat
 from pathlib import Path
@@ -65,7 +66,7 @@ _BASE_CATEGORIES = ["perf", "rp", "nsfw", "coding", "tooluse", "instruct",
 # because of WHERE its file lives — profiles.private_scope() is the one
 # place that turns that (plus a profile's ``private:`` list) into the set of
 # names/ids to hide. See docs/CASES.md "Private categories".
-PRIVATE_CASES_DIR = CASES_DIR / "private"
+PRIVATE_CASES_DIR = CASES_DIR / "private"   # fixed: private cases never move with cases_dir
 #: CRUCIBLEFORGE_NO_PRIVATE=1 = behave exactly like a clean clone: no private
 #: case files, no private profiles/overlays. The test-suite sets it (conftest)
 #: so it verifies what ships, whatever private files the operator has.
@@ -87,7 +88,7 @@ JUDGED_CATEGORIES = {"rp", "nsfw", "story", "steer", "overrefusal", "planning", 
 
 DIFFICULTIES = ["easy", "medium", "hard"]
 
-PROVIDER_TYPES = ("openai", "lmstudio", "studioforge", "anthropic")
+PROVIDER_TYPES = ("openai", "lmstudio", "studioforge", "anthropic", "claude_code")
 
 CSV_COLUMNS = [
     "bench_run_id", "bench_revision", "run_id", "ts", "model_label", "model_id",
@@ -127,6 +128,82 @@ def find_config_path(explicit: str | os.PathLike | None = None) -> Path:
 def set_results_dir(path: Path) -> None:
     global RESULTS_DIR
     RESULTS_DIR = Path(path)
+
+
+#: the results dirs the loaded configs point at (load_config records each)
+_CONFIG_RESULTS: list[Path] = []
+SCRATCH_MARKER = ".cf-scratch"
+LIVE_ENV = "CRUCIBLEFORGE_LIVE_RESULTS"       # extra live destinations (os.pathsep list)
+
+
+def live_result_dirs(include_selected: bool = True) -> set[str]:
+    """realpaths of every destination that is (or may be) the live board: the
+    repo's own ``results/``, the default beside any loaded or findable config,
+    the configured ``$CRUCIBLEFORGE_RESULTS`` and ``$CRUCIBLEFORGE_LIVE_RESULTS``
+    — by path, never by directory name."""
+    out = {os.path.realpath(ROOT_DIR / "results")}
+    out |= {os.path.realpath(p) for p in _CONFIG_RESULTS}
+    try:
+        out.add(os.path.realpath(find_config_path(None).parent / "results"))
+    except Exception:  # noqa: BLE001 — no config to find is fine
+        pass
+    # the process's own configured destination: an explicit $CRUCIBLEFORGE_RESULTS
+    # IS where the board is written (fix pass 3, GPT 8); a scratch dir opts out
+    # with the marker (see staged_isolated)
+    env_rd = os.environ.get("CRUCIBLEFORGE_RESULTS", "").strip()
+    if env_rd and include_selected:
+        out.add(os.path.realpath(env_rd))
+    for raw in os.environ.get(LIVE_ENV, "").split(os.pathsep):
+        if raw.strip():
+            out.add(os.path.realpath(raw.strip()))
+    return out
+
+
+def looks_like_live_board(path: str | os.PathLike) -> bool:
+    """A results dir that carries the live board's signature (a report.json,
+    per-model meta_*.json or transcripts_*.jsonl) and is not explicitly marked
+    scratch (a ``.cf-scratch`` file)."""
+    d = Path(path)
+    if (d / SCRATCH_MARKER).exists():
+        return False
+    try:
+        return ((d / "report.json").exists() or any(d.glob("meta_*.json"))
+                or any(d.glob("transcripts_*.jsonl")))
+    except OSError:
+        return False
+
+
+def init_scratch(path: str | os.PathLike) -> Path:
+    """The explicit scratch-initialisation contract: create ``path`` (if need
+    be) and mark it ``.cf-scratch`` so staged / unapproved rows may be written
+    there. Refuses a directory that already carries the live board's signature
+    or is a known live destination: a live board is never converted."""
+    d = Path(path)
+    marked = (d / SCRATCH_MARKER).exists()
+    if os.path.realpath(d) in live_result_dirs(include_selected=False) or (
+            not marked and (os.path.realpath(d) in live_result_dirs() or looks_like_live_board(d))):
+        raise ConfigError(f"{d} is (or looks like) the live board's results dir (the repo's, a "
+                          f"config's, ${LIVE_ENV} or $CRUCIBLEFORGE_RESULTS); refusing to mark "
+                          "it scratch — pick another directory (pass it as --results)")
+    d.mkdir(parents=True, exist_ok=True)
+    (d / SCRATCH_MARKER).write_text("staged / scratch results; never the board\n", encoding="utf-8")
+    return d
+
+
+def staged_isolated(rd: str | os.PathLike | None = None) -> bool:
+    """May staged (unapproved) pack rows be written to ``rd`` (default: this
+    process's results dir)? Only to a directory that is not a known live
+    destination and does not carry the live board's signature — or one that
+    carries the explicit ``.cf-scratch`` marker. By PATH, never by name."""
+    d = Path(rd) if rd is not None else results_dir()
+    # independently known live destinations (the repo's results/, a config's, the
+    # $CRUCIBLEFORGE_LIVE_RESULTS list) win over any marker; the marker only
+    # opts out of the directory the process itself SELECTED (round 4, NEW 4)
+    if os.path.realpath(d) in live_result_dirs(include_selected=False):
+        return False
+    if (d / SCRATCH_MARKER).exists():
+        return True
+    return os.path.realpath(d) not in live_result_dirs() and not looks_like_live_board(d)
 
 
 def results_dir() -> Path:
@@ -193,7 +270,7 @@ def validate_config(cfg: dict) -> None:
         if ptype not in PROVIDER_TYPES:
             raise ConfigError(f"provider {pname}: unknown type {ptype!r} "
                               f"(known: {PROVIDER_TYPES})")
-        if not p.get("base_url"):
+        if not p.get("base_url") and ptype != "claude_code":
             raise ConfigError(f"provider {pname}: base_url is required")
         if p.get("api_key") and ptype in ("openai", "anthropic") and not p.get("allow_literal_key"):
             # A literal key for a remote provider would end up in the repo.
@@ -227,6 +304,9 @@ def validate_config(cfg: dict) -> None:
                 raise ConfigError(f"model entry missing {req!r}: {m}")
         if m["provider"] not in cfg["providers"]:
             raise ConfigError(f"model {m['name']}: unknown provider {m['provider']!r}")
+        # adult_page (lead 2026-11-15): a bool; refused true on the Claude Code route (adult_guard)
+        from .adult_guard import validate_entry as _adult_validate
+        _adult_validate(cfg, m)
     for cand in cfg["judge"].get("candidates", []):
         if cand.get("provider") not in cfg["providers"]:
             raise ConfigError(f"judge candidate {cand.get('model_id')}: unknown "
@@ -241,6 +321,7 @@ def load_config(path: str | os.PathLike | None = None) -> dict:
     validate_config(cfg)
     cfg["_path"] = str(p)
     # results live next to the config unless overridden
+    _CONFIG_RESULTS.append(p.parent / "results")
     if not os.environ.get("CRUCIBLEFORGE_RESULTS"):
         set_results_dir(p.parent / "results")
     return cfg
@@ -323,9 +404,33 @@ def case_tag_errors(case: dict) -> list[str]:
     return errs
 
 
+def set_cases_root(path: Path) -> None:
+    """Point every case loader (CASES_DIR, ladder sets, case hashes) at one tree.
+    A profile's ``cases_dir`` selects it (profiles.activate_cases_root); the
+    default is ``cases/``. Private cases stay in cases/private."""
+    global CASES_DIR
+    path = Path(path)
+    CASES_DIR = path
+    # Fable gate WP-4 item 8: CATEGORIES is read once from the live tree; a root whose
+    # category files differ would silently load a different set, so say so loudly
+    try:
+        have = set(_stems(path))
+        want = set(CATEGORIES) - set(PRIVATE_CATEGORIES)
+        if have and have != want and (have - want or want - have):
+            import logging
+            logging.getLogger(__name__).error("case root %s: category files differ from the live tree (missing %s, extra %s)",
+                      path, sorted(want - have), sorted(have - want))
+    except Exception:  # noqa: BLE001 - a guard must not break the switch
+        pass
+    from . import ladder as _ladder, version as _version, report as _report
+    _ladder.LADDER_DIR = path / "ladder"
+    _version._CASES_DIR = path
+    _report._CASES_BY_ID = None
+
+
 def load_cases(categories: list[str] | None = None, smoke: bool = False,
                difficulties: list[str] | None = None,
-               cases_dir: Path | None = None) -> list[dict]:
+               cases_dir: Path | None = None, include_hard: bool = False) -> list[dict]:
     """Load case files for the requested categories (default: all).
 
     smoke=True keeps only cases tagged "smoke": true — a fast subset that
@@ -334,7 +439,6 @@ def load_cases(categories: list[str] | None = None, smoke: bool = False,
     Cases carrying a ``generator`` block (long-context haystacks) are
     materialised here so every consumer sees a plain ``prompt``.
     """
-    from .longctx_gen import materialize
     cases_dir = cases_dir or CASES_DIR
     categories = categories or CATEGORIES
     unknown = [c for c in categories if c not in CATEGORIES]
@@ -361,7 +465,25 @@ def load_cases(categories: list[str] | None = None, smoke: bool = False,
             if difficulties and case.get("difficulty", "medium") not in difficulties:
                 continue
             if case.get("generator"):
-                materialize(case)
+                _materialize_generated(case)
+            cases.append(case)
+    if include_hard:
+        # 4.5 hard sets (cases/hard/<score>/<rev>.json, crucibleforge/hard.py):
+        # only on request; a profile run does not see them until hard scoring lands
+        from . import hard as _hard
+        for case in _hard.load(cases_dir):
+            if case["category"] not in categories:
+                continue
+            if case["id"] in seen_ids:
+                raise ConfigError(f"duplicate case id: {case['id']} (hard set {case['hard_score']})")
+            seen_ids.add(case["id"])
+            bad = case_tag_errors(case)
+            if bad:
+                raise ConfigError(f"case {case['id']}: " + "; ".join(bad))
+            if smoke and not case.get("smoke"):
+                continue
+            if difficulties and case.get("difficulty", "medium") not in difficulties:
+                continue
             cases.append(case)
     if cases_dir == CASES_DIR:
         # ladder packs may carry their own questions (ladder.inline_cases):
@@ -380,8 +502,21 @@ def load_cases(categories: list[str] | None = None, smoke: bool = False,
                 continue
             if difficulties and case.get("difficulty", "medium") not in difficulties:
                 continue
+            if case.get("generator"):
+                _materialize_generated(case)
             cases.append(case)
     return cases
+
+
+def _materialize_generated(case: dict) -> None:
+    """Fill a case from its ``generator`` block: a registered family
+    (crucibleforge/gen, 4.5) or the long-context haystack types."""
+    from . import gen as _gen
+    if _gen.is_generated(case):
+        _gen.materialize_case(case)
+    else:
+        from .longctx_gen import materialize
+        materialize(case)
 
 
 def repeats_for(cfg: dict, category: str, smoke: bool = False, case: dict | None = None) -> int:
@@ -410,21 +545,39 @@ def load_transcripts(label: str) -> list[dict]:
     path = transcript_path(label)
     if not path.exists():
         return []
-    rows: dict[tuple, dict] = {}
+    rows = []
     for line in path.read_text(encoding="utf-8").splitlines():
         line = line.strip()
         if not line:
             continue
         try:
-            r = json.loads(line)
+            rows.append(json.loads(line))
         except json.JSONDecodeError:
             continue  # torn final line from a killed run — skip
-        key = (r.get("bench_run_id"), r.get("case_id"), r.get("repeat"), r.get("turn"))
-        rows[key] = r
-    return list(rows.values())
+    return dedupe_rows(rows)
+
+
+def dedupe_rows(rows: list[dict]) -> list[dict]:
+    """The stored-row rule every reader shares: the LAST row per (bench_run_id, case_id,
+    repeat, turn) wins (a judge re-append, a regrade's superseding row), first-seen order kept."""
+    out: dict[tuple, dict] = {}
+    for r in rows:
+        out[(r.get("bench_run_id"), r.get("case_id"), r.get("repeat"), r.get("turn"))] = r
+    return list(out.values())
+
+
+#: one writer at a time per process: generation workers and an overlapping judge
+#: (judge_overlap) append to the same transcript; a long row is written in several
+#: buffered chunks, which two threads could interleave
+_APPEND_LOCK = threading.Lock()
 
 
 def append_transcript(label: str, row: dict) -> None:
+    with _APPEND_LOCK:
+        _append_transcript(label, row)
+
+
+def _append_transcript(label: str, row: dict) -> None:
     results_dir().mkdir(parents=True, exist_ok=True)
     path = transcript_path(label)
     # Self-heal a torn final line from a killed run: if the file doesn't end

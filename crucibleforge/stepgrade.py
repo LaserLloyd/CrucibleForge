@@ -110,6 +110,13 @@ def regrade_tool_row(row: dict, case: dict) -> dict:
     texts = [m.get("content") for m in conv
              if m.get("role") == "assistant" and "tool_calls" not in m]
     answer_steps = [k for k, st in enumerate(script) if not st.get("expect_tool")]
+    if row.get("tool_call_feedback"):
+        # a row made under the tool revision: a call at a prose step was fed back, so that step's
+        # message carries tool_calls too. One assistant message per step aligns by position instead
+        # (rows without the stamp keep the rule above, so no stored verdict outside it can move).
+        asst = [m for m in conv if m.get("role") == "assistant"]
+        if len(asst) == len(script):
+            texts = [asst[k].get("content") for k in answer_steps]
     by_id = {e.get("id"): e for e in els}
     graded = [k for k in answer_steps if f"step{k + 1}" in by_id]
     if len(graded) != len(texts) or len(graded) != len(answer_steps):

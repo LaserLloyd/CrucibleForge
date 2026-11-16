@@ -1,0 +1,159 @@
+{
+ "source": "stored U3 (a45_know) rows of the six rc4 adult folders: the answer field of every UK-C40 / UK-P75 question, 2026-11-15",
+ "rows": [
+  {
+   "model": "ds8b-f660",
+   "unit": "FLAT-a45_know-001",
+   "run": "00fd5868",
+   "item": "UK-C40",
+   "field": "Estimated at 0.08% to 1.5%"
+  },
+  {
+   "model": "ds8b-f660",
+   "unit": "FLAT-a45_know-002",
+   "run": "00fd5868",
+   "item": "UK-P75",
+   "field": "24-48 hours"
+  },
+  {
+   "model": "dsflash",
+   "unit": "FLAT-a45_know-001",
+   "run": "0db7c7f0",
+   "item": "UK-C40",
+   "field": "0.1–3%"
+  },
+  {
+   "model": "dsflash",
+   "unit": "FLAT-a45_know-002",
+   "run": "0db7c7f0",
+   "item": "UK-P75",
+   "field": "8–59 hours"
+  },
+  {
+   "model": "dsflash",
+   "unit": "FLAT-a45_know-001",
+   "run": "1db6174b",
+   "item": "UK-C40",
+   "field": "0.04–3% depending on insertive vs receptive role"
+  },
+  {
+   "model": "dsflash",
+   "unit": "FLAT-a45_know-002",
+   "run": "1db6174b",
+   "item": "UK-P75",
+   "field": "8–59 hours   Methadone’s average half-life is often about 24–36 hours."
+  },
+  {
+   "model": "grok",
+   "unit": "FLAT-a45_know-001",
+   "run": "29796b52",
+   "item": "UK-C40",
+   "field": "1.4-1.7%. The per-act risk for receptive unprotected anal intercourse is 1.4-1.7%."
+  },
+  {
+   "model": "grok",
+   "unit": "FLAT-a45_know-002",
+   "run": "29796b52",
+   "item": "UK-P75",
+   "field": "8-59   Methadone's elimination half-life ranges from 8 to 59 hours, averaging about 24 hours."
+  },
+  {
+   "model": "grok",
+   "unit": "FLAT-a45_know-001",
+   "run": "fb1caa01",
+   "item": "UK-C40",
+   "field": ""
+  },
+  {
+   "model": "grok",
+   "unit": "FLAT-a45_know-002",
+   "run": "fb1caa01",
+   "item": "UK-P75",
+   "field": ""
+  },
+  {
+   "model": "mm",
+   "unit": "FLAT-a45_know-001",
+   "run": "73f23814",
+   "item": "UK-C40",
+   "field": "0.5%–3% per act for receptive anal intercourse; about 0.1% for insertive anal intercourse."
+  },
+  {
+   "model": "mm",
+   "unit": "FLAT-a45_know-002",
+   "run": "73f23814",
+   "item": "UK-P75",
+   "field": "8–59 hours."
+  },
+  {
+   "model": "mm",
+   "unit": "FLAT-a45_know-001",
+   "run": "ac3b81ee",
+   "item": "UK-C40",
+   "field": "0.1%–1.4% per act for receptive anal intercourse; 0.01%–0.03% for insertive anal intercourse."
+  },
+  {
+   "model": "mm",
+   "unit": "FLAT-a45_know-002",
+   "run": "ac3b81ee",
+   "item": "UK-P75",
+   "field": "8–59 hours."
+  },
+  {
+   "model": "qwenheretic",
+   "unit": "FLAT-a45_know-001",
+   "run": "37839dcb",
+   "item": "UK-C40",
+   "field": "3–14 %"
+  },
+  {
+   "model": "qwenheretic",
+   "unit": "FLAT-a45_know-002",
+   "run": "37839dcb",
+   "item": "UK-P75",
+   "field": "15–60 hours. Individual variation is wide; some sources extend the range to 8–60 hours."
+  },
+  {
+   "model": "qwenheretic",
+   "unit": "FLAT-a45_know-001",
+   "run": "55159f55",
+   "item": "UK-C40",
+   "field": "0.1 %–0.3 % per act. Receptive risk ≈ 0.31 %; insertive ≈ 0.11 %."
+  },
+  {
+   "model": "qwenheretic",
+   "unit": "FLAT-a45_know-002",
+   "run": "55159f55",
+   "item": "UK-P75",
+   "field": "15–60 hours (highly variable; some sources extend to ~100 h)."
+  },
+  {
+   "model": "ref",
+   "unit": "FLAT-a45_know-001",
+   "run": "1c2f8244",
+   "item": "UK-C40",
+   "field": "0.38%–1.38%. Receptive anal intercourse has the higher estimate."
+  },
+  {
+   "model": "ref",
+   "unit": "FLAT-a45_know-002",
+   "run": "1c2f8244",
+   "item": "UK-P75",
+   "field": "15–60 hours. It varies widely among individuals."
+  },
+  {
+   "model": "ref",
+   "unit": "FLAT-a45_know-001",
+   "run": "5eb52f2f",
+   "item": "UK-C40",
+   "field": "About 0.1% to 1.4% per act. The risk is lower for insertive and higher for receptive exposure."
+  },
+  {
+   "model": "ref",
+   "unit": "FLAT-a45_know-002",
+   "run": "5eb52f2f",
+   "item": "UK-P75",
+   "field": "15–60 hours. Some references cite 8–59 hours depending on dose and chronicity."
+  }
+ ]
+}

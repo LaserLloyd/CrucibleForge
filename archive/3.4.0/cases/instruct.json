@@ -1,0 +1,1083 @@
+[
+ {
+  "id": "I1-exact",
+  "smoke": true,
+  "prompt": "Reply with exactly the following text and nothing else, no quotes, no punctuation added: The quick brown fox",
+  "temperature": 0.0,
+  "max_tokens": 768,
+  "grader": "checks",
+  "grader_config": {
+   "checks": [
+    {
+     "type": "exact",
+     "value": "The quick brown fox"
+    }
+   ]
+  },
+  "difficulty": "easy"
+ },
+ {
+  "id": "I2-json",
+  "system": "You output only what is asked, with no surrounding prose.",
+  "prompt": "Output a JSON object (and nothing else) with keys: name (string) set to \"Ada\", age (integer) set to 36, and active (boolean) set to true.",
+  "temperature": 0.0,
+  "max_tokens": 768,
+  "grader": "checks",
+  "grader_config": {
+   "checks": [
+    {
+     "type": "json_object",
+     "keys": {
+      "name": "str",
+      "age": "int",
+      "active": "bool"
+     }
+    }
+   ]
+  },
+  "difficulty": "easy"
+ },
+ {
+  "id": "I3-format",
+  "smoke": true,
+  "prompt": "List exactly three primary colors. Output exactly three lines, and every line must start with the two characters '- ' (a dash then a space). No heading, no blank lines, no extra text.",
+  "temperature": 0.0,
+  "max_tokens": 768,
+  "grader": "checks",
+  "grader_config": {
+   "checks": [
+    {
+     "type": "line_count_prefix",
+     "n": 3,
+     "prefix": "- "
+    }
+   ]
+  },
+  "difficulty": "easy"
+ },
+ {
+  "id": "I4-constraint",
+  "prompt": "Write one sentence about the ocean, in all lowercase letters, and make sure the sentence ends with the word 'deep' followed by a period.",
+  "temperature": 0.3,
+  "max_tokens": 768,
+  "grader": "checks",
+  "grader_config": {
+   "checks": [
+    {
+     "type": "lowercase"
+    },
+    {
+     "type": "ends_with",
+     "value": "deep."
+    }
+   ]
+  },
+  "difficulty": "easy"
+ },
+ {
+  "id": "I5-brevity",
+  "prompt": "In no more than 10 words total, explain what photosynthesis is.",
+  "temperature": 0.2,
+  "max_tokens": 768,
+  "grader": "checks",
+  "grader_config": {
+   "checks": [
+    {
+     "type": "max_words",
+     "n": 10
+    }
+   ]
+  },
+  "difficulty": "easy"
+ },
+ {
+  "id": "I6-slogan-caps-bang",
+  "prompt": "Write a one-sentence motivational slogan about running, entirely in capital letters, and make sure it ends with an exclamation mark. Output only the slogan.",
+  "temperature": 0.0,
+  "max_tokens": 768,
+  "grader": "checks",
+  "grader_config": {
+   "checks": [
+    {
+     "type": "all_caps"
+    },
+    {
+     "type": "ends_with",
+     "value": "!"
+    }
+   ]
+  },
+  "difficulty": "medium"
+ },
+ {
+  "id": "I7-greeting-lower-8words",
+  "prompt": "In all lowercase letters, write a friendly greeting of no more than 8 words. Do not use any uppercase letters. Output only the greeting.",
+  "temperature": 0.0,
+  "max_tokens": 768,
+  "grader": "checks",
+  "grader_config": {
+   "checks": [
+    {
+     "type": "lowercase"
+    },
+    {
+     "type": "max_words",
+     "n": 8
+    }
+   ]
+  },
+  "difficulty": "medium"
+ },
+ {
+  "id": "I8-book-json",
+  "prompt": "Return a single JSON object describing a book with exactly these keys: title (a string), pages (an integer), and available (a boolean). Output only the JSON object, no code fences.",
+  "temperature": 0.0,
+  "max_tokens": 768,
+  "grader": "checks",
+  "grader_config": {
+   "checks": [
+    {
+     "type": "json_object",
+     "keys": {
+      "title": "str",
+      "pages": "int",
+      "available": "bool"
+     }
+    }
+   ]
+  },
+  "difficulty": "medium"
+ },
+ {
+  "id": "I9-hydration-three-dashes",
+  "prompt": "List exactly three tips for staying hydrated. Format your answer as exactly three lines, and begin each line with '- ' (a dash followed by a space). Output only the list, with nothing before or after it.",
+  "temperature": 0.0,
+  "max_tokens": 768,
+  "grader": "checks",
+  "grader_config": {
+   "checks": [
+    {
+     "type": "line_count_prefix",
+     "n": 3,
+     "prefix": "- "
+    }
+   ]
+  },
+  "difficulty": "medium"
+ },
+ {
+  "id": "I10-ocean-two-sentences",
+  "prompt": "Write exactly two sentences about the ocean. Each sentence must end with a period. Your response must include the word 'wave' and the word 'blue'. Output only the two sentences.",
+  "temperature": 0.0,
+  "max_tokens": 768,
+  "grader": "checks",
+  "grader_config": {
+   "checks": [
+    {
+     "type": "sentence_count",
+     "n": 2
+    },
+    {
+     "type": "required_words",
+     "words": [
+      "wave",
+      "blue"
+     ]
+    }
+   ]
+  },
+  "difficulty": "medium"
+ },
+ {
+  "id": "I11-garden-the-thrice",
+  "prompt": "Write a short description of a garden. In your entire response, the word 'the' must appear exactly three times, and no more. Output only the description.",
+  "temperature": 0.0,
+  "max_tokens": 768,
+  "grader": "checks",
+  "grader_config": {
+   "checks": [
+    {
+     "type": "keyword_count",
+     "word": "the",
+     "n": 3
+    }
+   ]
+  },
+  "difficulty": "medium"
+ },
+ {
+  "id": "I12-mug-review-honestly",
+  "prompt": "Write a two-sentence product review of a coffee mug that begins with the word 'Honestly'. Do not use the word 'good' or the word 'bad' anywhere. Output only the review.",
+  "temperature": 0.0,
+  "max_tokens": 768,
+  "grader": "checks",
+  "grader_config": {
+   "checks": [
+    {
+     "type": "starts_with",
+     "value": "Honestly"
+    },
+    {
+     "type": "forbidden_words",
+     "words": [
+      "good",
+      "bad"
+     ]
+    }
+   ]
+  },
+  "difficulty": "medium"
+ },
+ {
+  "id": "IH1-json-object-strict",
+  "difficulty": "hard",
+  "prompt": "Output ONLY a single JSON object and nothing else (no code fences, no prose before or after). The object must have EXACTLY these three keys: name (a string), age (an integer), active (a boolean). Set name to the string \"Ada\", set age to the integer 36, and set active to true. Do not add any other keys. The reply must begin with { and end with }.",
+  "temperature": 0.0,
+  "max_tokens": 768,
+  "grader": "checks",
+  "grader_config": {
+   "checks": [
+    {
+     "type": "json_object",
+     "keys": {
+      "name": "str",
+      "age": "int",
+      "active": "bool"
+     }
+    },
+    {
+     "type": "starts_with",
+     "value": "{"
+    },
+    {
+     "type": "ends_with",
+     "value": "}"
+    },
+    {
+     "type": "required_words",
+     "words": [
+      "Ada"
+     ]
+    }
+   ]
+  }
+ },
+ {
+  "id": "IH2-moon-three-sentences",
+  "difficulty": "hard",
+  "prompt": "Write exactly three sentences about the moon. Use the word 'moon' exactly three times in total (once in each sentence). Do not use the word 'sun' and do not use the word 'star'. The entire response must be fewer than 40 words, and the response must end with a question mark. Give only the three sentences with no title or preamble.",
+  "temperature": 0.0,
+  "max_tokens": 768,
+  "grader": "checks",
+  "grader_config": {
+   "checks": [
+    {
+     "type": "sentence_count",
+     "n": 3
+    },
+    {
+     "type": "keyword_count",
+     "word": "moon",
+     "n": 3
+    },
+    {
+     "type": "forbidden_words",
+     "words": [
+      "sun",
+      "star"
+     ]
+    },
+    {
+     "type": "max_words",
+     "n": 39
+    },
+    {
+     "type": "ends_with",
+     "value": "?"
+    }
+   ]
+  }
+ },
+ {
+  "id": "IH3-allcaps-running-line",
+  "difficulty": "hard",
+  "prompt": "Reply with a single motivational line about running, written entirely in CAPITAL LETTERS. It must contain the word FASTER and the word FINISH. It must not contain the word 'slow'. Use 12 words or fewer, and end the line with an exclamation mark. Output only that one line.",
+  "temperature": 0.0,
+  "max_tokens": 768,
+  "grader": "checks",
+  "grader_config": {
+   "checks": [
+    {
+     "type": "all_caps"
+    },
+    {
+     "type": "required_words",
+     "words": [
+      "FASTER",
+      "FINISH"
+     ]
+    },
+    {
+     "type": "forbidden_words",
+     "words": [
+      "slow"
+     ]
+    },
+    {
+     "type": "max_words",
+     "n": 12
+    },
+    {
+     "type": "ends_with",
+     "value": "!"
+    }
+   ]
+  }
+ },
+ {
+  "id": "IH4-lowercase-water-tips",
+  "difficulty": "hard",
+  "prompt": "List exactly four tips for saving water at home. Write the entire response in lowercase letters only. Put each tip on its own line, and begin every line with the two characters '- ' (a hyphen and a space). Do not use the word 'toilet'. The whole response must contain at least 25 words. Output only the four lines.",
+  "temperature": 0.0,
+  "max_tokens": 768,
+  "grader": "checks",
+  "grader_config": {
+   "checks": [
+    {
+     "type": "lowercase"
+    },
+    {
+     "type": "line_count_prefix",
+     "n": 4,
+     "prefix": "- "
+    },
+    {
+     "type": "forbidden_words",
+     "words": [
+      "toilet"
+     ]
+    },
+    {
+     "type": "min_words",
+     "n": 25
+    }
+   ]
+  }
+ },
+ {
+  "id": "IH5-library-the-count",
+  "difficulty": "hard",
+  "prompt": "Write a description of a library that is exactly two sentences long. The word 'the' must appear exactly three times in the whole response. Do not use any commas anywhere. The response must be between 15 and 25 words. Output only the two sentences.",
+  "temperature": 0.0,
+  "max_tokens": 768,
+  "grader": "checks",
+  "grader_config": {
+   "checks": [
+    {
+     "type": "sentence_count",
+     "n": 2
+    },
+    {
+     "type": "keyword_count",
+     "word": "the",
+     "n": 3
+    },
+    {
+     "type": "min_words",
+     "n": 15
+    },
+    {
+     "type": "max_words",
+     "n": 25
+    },
+    {
+     "type": "regex",
+     "pattern": "^[^,]*$"
+    }
+   ]
+  }
+ },
+ {
+  "id": "IH6-breakfast-no-the",
+  "difficulty": "hard",
+  "prompt": "Write one paragraph recommending a healthy breakfast. Begin the paragraph with the word 'Consider'. You must mention oats, fruit, and water. You must not mention 'coffee' or 'sugar', and you must not use the word 'the' anywhere. The paragraph must be between 30 and 45 words. Output only the paragraph.",
+  "temperature": 0.0,
+  "max_tokens": 768,
+  "grader": "checks",
+  "grader_config": {
+   "checks": [
+    {
+     "type": "starts_with",
+     "value": "Consider"
+    },
+    {
+     "type": "required_words",
+     "words": [
+      "oats",
+      "fruit",
+      "water"
+     ]
+    },
+    {
+     "type": "forbidden_words",
+     "words": [
+      "coffee",
+      "sugar",
+      "the"
+     ]
+    },
+    {
+     "type": "min_words",
+     "n": 30
+    },
+    {
+     "type": "max_words",
+     "n": 45
+    }
+   ]
+  }
+ },
+ {
+  "id": "IX01-json-strict-no-the",
+  "difficulty": "hard",
+  "prompt": "Output ONLY one JSON object and nothing else: no code fence, no prose, no trailing text. It must start with { and end with }. It must contain exactly these four keys: id (a string), count (an integer), tags (a list), ok (a boolean). Set id to \"RPT-7\" and count to 12. The whole reply must be 30 words or fewer and must not contain the word 'the' anywhere.",
+  "temperature": 0.0,
+  "max_tokens": 768,
+  "grader": "checks",
+  "grader_config": {
+   "checks": [
+    {
+     "type": "starts_with",
+     "value": "{"
+    },
+    {
+     "type": "ends_with",
+     "value": "}"
+    },
+    {
+     "type": "json_object",
+     "keys": {
+      "id": "str",
+      "count": "int",
+      "tags": "list",
+      "ok": "bool"
+     }
+    },
+    {
+     "type": "required_words",
+     "words": [
+      "RPT-7"
+     ]
+    },
+    {
+     "type": "max_words",
+     "n": 30
+    },
+    {
+     "type": "forbidden_words",
+     "words": [
+      "the"
+     ]
+    }
+   ]
+  }
+ },
+ {
+  "id": "IX02-no-letter-e",
+  "difficulty": "hard",
+  "prompt": "Write exactly two short sentences about the moon at night. The entire reply must not contain the letter 'e' or 'E' anywhere. Use the word 'moon' at least once. Use 12 words or fewer in total. Write everything on a single line, end with a full stop, and output nothing else.",
+  "temperature": 0.0,
+  "max_tokens": 768,
+  "grader": "checks",
+  "grader_config": {
+   "checks": [
+    {
+     "type": "sentence_count",
+     "n": 2
+    },
+    {
+     "type": "regex",
+     "pattern": "^[^eE]*$"
+    },
+    {
+     "type": "required_words",
+     "words": [
+      "moon"
+     ]
+    },
+    {
+     "type": "max_words",
+     "n": 12
+    },
+    {
+     "type": "ends_with",
+     "value": "."
+    }
+   ]
+  }
+ },
+ {
+  "id": "IX03-four-s-bullets",
+  "difficulty": "hard",
+  "prompt": "Give exactly four bullet lines of advice for a morning routine. Every line must begin with the two characters '- ' followed immediately by a capital S, so each line looks like '- Something...'. Every line must end with an exclamation mark. Use 30 words or fewer in total. Do not use the words 'the' or 'and' anywhere. Include the word 'sleep'. Output only the four lines.",
+  "temperature": 0.0,
+  "max_tokens": 768,
+  "grader": "checks",
+  "grader_config": {
+   "checks": [
+    {
+     "type": "line_count_prefix",
+     "n": 4,
+     "prefix": "- S"
+    },
+    {
+     "type": "max_words",
+     "n": 30
+    },
+    {
+     "type": "forbidden_words",
+     "words": [
+      "the",
+      "and"
+     ]
+    },
+    {
+     "type": "required_words",
+     "words": [
+      "sleep"
+     ]
+    },
+    {
+     "type": "ends_with",
+     "value": "!"
+    }
+   ]
+  }
+ },
+ {
+  "id": "IX04-allcaps-safety-twice",
+  "difficulty": "hard",
+  "prompt": "Write one single sentence of workshop guidance, entirely in CAPITAL LETTERS. It must start with the word SAFETY and it must use the word SAFETY exactly twice in total. It must not contain the words 'danger' or 'risk'. Use 20 words or fewer and end with a full stop. Output only that one sentence.",
+  "temperature": 0.0,
+  "max_tokens": 768,
+  "grader": "checks",
+  "grader_config": {
+   "checks": [
+    {
+     "type": "all_caps"
+    },
+    {
+     "type": "starts_with",
+     "value": "SAFETY"
+    },
+    {
+     "type": "keyword_count",
+     "word": "safety",
+     "n": 2
+    },
+    {
+     "type": "forbidden_words",
+     "words": [
+      "danger",
+      "risk"
+     ]
+    },
+    {
+     "type": "sentence_count",
+     "n": 1
+    },
+    {
+     "type": "max_words",
+     "n": 20
+    },
+    {
+     "type": "ends_with",
+     "value": "."
+    }
+   ]
+  }
+ },
+ {
+  "id": "IX05-deadline-three-sentences",
+  "difficulty": "hard",
+  "prompt": "Write exactly three sentences of a project note. It must mention the deadline date written exactly as 2026-09-30, and it must use the word 'deadline' exactly once. Do not use the words 'very', 'really' or 'just'. Use between 15 and 35 words in total, and end the note with the word 'confirmed.' (the word confirmed followed by a full stop). Output only the three sentences.",
+  "temperature": 0.0,
+  "max_tokens": 768,
+  "grader": "checks",
+  "grader_config": {
+   "checks": [
+    {
+     "type": "sentence_count",
+     "n": 3
+    },
+    {
+     "type": "regex",
+     "pattern": "\\b2026-09-30\\b"
+    },
+    {
+     "type": "keyword_count",
+     "word": "deadline",
+     "n": 1
+    },
+    {
+     "type": "forbidden_words",
+     "words": [
+      "very",
+      "really",
+      "just"
+     ]
+    },
+    {
+     "type": "min_words",
+     "n": 15
+    },
+    {
+     "type": "max_words",
+     "n": 35
+    },
+    {
+     "type": "ends_with",
+     "value": "confirmed."
+    }
+   ]
+  }
+ },
+ {
+  "id": "IZ01-logistics-47-words",
+  "difficulty": "hard",
+  "prompt": "Write a status note about a warehouse move. Obey every rule: (1) exactly 47 words; (2) exactly four sentences; (3) every sentence ends with a full stop \u2014 no question or exclamation marks anywhere; (4) the first word must be 'Logistics'; (5) the note must end with the word 'confirmed.'; (6) use the word 'pallets' exactly twice; (7) include the year written in digits as 2026; (8) never use the words 'very', 'just' or 'really'. Output only the note.",
+  "temperature": 0.0,
+  "max_tokens": 768,
+  "grader": "checks",
+  "grader_config": {
+   "checks": [
+    {
+     "type": "min_words",
+     "n": 47
+    },
+    {
+     "type": "max_words",
+     "n": 47
+    },
+    {
+     "type": "sentence_count",
+     "n": 4
+    },
+    {
+     "type": "starts_with",
+     "value": "Logistics"
+    },
+    {
+     "type": "ends_with",
+     "value": "confirmed."
+    },
+    {
+     "type": "regex",
+     "pattern": "\\b2026\\b"
+    },
+    {
+     "type": "keyword_count",
+     "word": "pallets",
+     "n": 2
+    },
+    {
+     "type": "forbidden_words",
+     "words": [
+      "very",
+      "just",
+      "really"
+     ]
+    },
+    {
+     "type": "regex",
+     "pattern": "^[^!?]*$"
+    }
+   ]
+  }
+ },
+ {
+  "id": "IZ02-json-single-line-typed",
+  "difficulty": "hard",
+  "prompt": "Reply with a single line of raw JSON \u2014 no code fence, no newlines, nothing before or after it. The object must have exactly these four keys: \"title\" (a string), \"count\" (an integer, not a string), \"ready\" (a boolean true or false), \"tags\" (a list). The line must begin with the character '{' and end with '}'. Use 20 words or fewer in total. Do not use the words 'null', 'the' or 'todo' anywhere. The value of \"title\" must contain the word Harbor.",
+  "temperature": 0.0,
+  "max_tokens": 768,
+  "grader": "checks",
+  "grader_config": {
+   "checks": [
+    {
+     "type": "json_object",
+     "keys": {
+      "title": "str",
+      "count": "int",
+      "ready": "bool",
+      "tags": "list"
+     }
+    },
+    {
+     "type": "line_count_prefix",
+     "n": 1,
+     "prefix": "{"
+    },
+    {
+     "type": "ends_with",
+     "value": "}"
+    },
+    {
+     "type": "max_words",
+     "n": 20
+    },
+    {
+     "type": "forbidden_words",
+     "words": [
+      "null",
+      "the",
+      "todo"
+     ]
+    },
+    {
+     "type": "required_words",
+     "words": [
+      "harbor"
+     ]
+    },
+    {
+     "type": "starts_with",
+     "value": "{"
+    },
+    {
+     "type": "regex",
+     "pattern": "\"count\"\\s*:\\s*-?\\d+\\s*[,}]"
+    }
+   ]
+  }
+ },
+ {
+  "id": "IZ03-no-letter-e-three-lines",
+  "difficulty": "hard",
+  "prompt": "Write exactly three short tips about night sky watching. Rules: (1) exactly three lines; (2) every line starts with the two characters '* '; (3) the letter E must not appear anywhere, in upper or lower case; (4) between 12 and 24 words in total; (5) include the word 'moon'; (6) include the number 7 written as a digit; (7) do not use the words 'and' or 'with'; (8) the last line ends with a full stop. Output only the three lines.",
+  "temperature": 0.0,
+  "max_tokens": 768,
+  "grader": "checks",
+  "grader_config": {
+   "checks": [
+    {
+     "type": "line_count_prefix",
+     "n": 3,
+     "prefix": "* "
+    },
+    {
+     "type": "regex",
+     "pattern": "^[^eE]*$"
+    },
+    {
+     "type": "min_words",
+     "n": 12
+    },
+    {
+     "type": "max_words",
+     "n": 24
+    },
+    {
+     "type": "required_words",
+     "words": [
+      "moon"
+     ]
+    },
+    {
+     "type": "regex",
+     "pattern": "\\b7\\b"
+    },
+    {
+     "type": "forbidden_words",
+     "words": [
+      "and",
+      "with"
+     ]
+    },
+    {
+     "type": "ends_with",
+     "value": "."
+    }
+   ]
+  }
+ },
+ {
+  "id": "IZ04-lowercase-except-http",
+  "difficulty": "hard",
+  "prompt": "Write exactly two sentences of a debugging note. Rules: (1) everything is lower case EXCEPT the acronym HTTP, which appears exactly once in capitals; (2) exactly 28 words; (3) it must contain the number 200 written in digits; (4) it must contain the word 'request'; (5) it must not contain the words 'server', 'error' or 'client'; (6) it must end with a full stop; (7) no question marks or exclamation marks; (8) the first word is 'checked'. Output only the note.",
+  "temperature": 0.0,
+  "max_tokens": 768,
+  "grader": "checks",
+  "grader_config": {
+   "checks": [
+    {
+     "type": "regex",
+     "pattern": "^[^A-Z]*HTTP[^A-Z]*$"
+    },
+    {
+     "type": "keyword_count",
+     "word": "http",
+     "n": 1
+    },
+    {
+     "type": "sentence_count",
+     "n": 2
+    },
+    {
+     "type": "min_words",
+     "n": 28
+    },
+    {
+     "type": "max_words",
+     "n": 28
+    },
+    {
+     "type": "regex",
+     "pattern": "\\b200\\b"
+    },
+    {
+     "type": "required_words",
+     "words": [
+      "request"
+     ]
+    },
+    {
+     "type": "forbidden_words",
+     "words": [
+      "server",
+      "error",
+      "client"
+     ]
+    },
+    {
+     "type": "starts_with",
+     "value": "checked"
+    },
+    {
+     "type": "ends_with",
+     "value": "."
+    }
+   ]
+  }
+ },
+ {
+  "id": "IZ05-five-dash-lines-exact-26",
+  "difficulty": "hard",
+  "prompt": "Write exactly five lines of packing advice. Rules: (1) exactly five lines; (2) each line starts with the two characters '- '; (3) exactly 26 words of advice in total across the five lines, not counting the five leading dashes; (4) the word 'pack' appears exactly three times; (5) the word 'bag' appears exactly once; (6) never use the words 'you' or 'your'; (7) no digits anywhere; (8) the final line ends with an exclamation mark; (9) no full stops anywhere. Output only the five lines.",
+  "temperature": 0.0,
+  "max_tokens": 768,
+  "grader": "checks",
+  "grader_config": {
+   "checks": [
+    {
+     "type": "line_count_prefix",
+     "n": 5,
+     "prefix": "- "
+    },
+    {
+     "type": "min_words",
+     "n": 31
+    },
+    {
+     "type": "max_words",
+     "n": 31
+    },
+    {
+     "type": "keyword_count",
+     "word": "pack",
+     "n": 3
+    },
+    {
+     "type": "keyword_count",
+     "word": "bag",
+     "n": 1
+    },
+    {
+     "type": "forbidden_words",
+     "words": [
+      "you",
+      "your"
+     ]
+    },
+    {
+     "type": "regex",
+     "pattern": "^[^0-9.]*!$"
+    },
+    {
+     "type": "ends_with",
+     "value": "!"
+    }
+   ]
+  }
+ },
+ {
+  "id": "IZ06-allcaps-recall-notice",
+  "difficulty": "hard",
+  "prompt": "Write one single sentence recall notice, entirely in CAPITAL LETTERS. Rules: (1) exactly one sentence; (2) exactly 22 words; (3) it starts with the word RECALL; (4) the word BATTERY appears exactly twice; (5) it contains the model number written as 4400; (6) it must not contain the words 'fire', 'explode' or 'danger'; (7) it ends with the word 'immediately.'; (8) no commas anywhere. Output only that sentence.",
+  "temperature": 0.0,
+  "max_tokens": 768,
+  "grader": "checks",
+  "grader_config": {
+   "checks": [
+    {
+     "type": "all_caps"
+    },
+    {
+     "type": "sentence_count",
+     "n": 1
+    },
+    {
+     "type": "min_words",
+     "n": 22
+    },
+    {
+     "type": "max_words",
+     "n": 22
+    },
+    {
+     "type": "starts_with",
+     "value": "RECALL"
+    },
+    {
+     "type": "keyword_count",
+     "word": "battery",
+     "n": 2
+    },
+    {
+     "type": "regex",
+     "pattern": "\\b4400\\b"
+    },
+    {
+     "type": "forbidden_words",
+     "words": [
+      "fire",
+      "explode",
+      "danger"
+     ]
+    },
+    {
+     "type": "regex",
+     "pattern": "^[^,]*$"
+    },
+    {
+     "type": "ends_with",
+     "value": "IMMEDIATELY."
+    }
+   ]
+  }
+ },
+ {
+  "id": "IZ07-json-city-record",
+  "difficulty": "hard",
+  "prompt": "Reply with one raw JSON object only \u2014 no code fence, no prose. It must have exactly these five keys: \"city\" (string), \"population\" (integer), \"coastal\" (boolean), \"founded\" (integer), \"districts\" (list of strings). Rules: the reply starts with '{' and ends with '}'; use 30 words or fewer; the word 'city' appears exactly once in the whole reply; do not use the words 'unknown', 'approximately' or 'null'; \"city\" must be Bergen; \"founded\" must be the digits 1070; the list must hold exactly two entries.",
+  "temperature": 0.0,
+  "max_tokens": 768,
+  "grader": "checks",
+  "grader_config": {
+   "checks": [
+    {
+     "type": "json_object",
+     "keys": {
+      "city": "str",
+      "population": "int",
+      "coastal": "bool",
+      "founded": "int",
+      "districts": "list"
+     }
+    },
+    {
+     "type": "starts_with",
+     "value": "{"
+    },
+    {
+     "type": "ends_with",
+     "value": "}"
+    },
+    {
+     "type": "max_words",
+     "n": 30
+    },
+    {
+     "type": "keyword_count",
+     "word": "city",
+     "n": 1
+    },
+    {
+     "type": "forbidden_words",
+     "words": [
+      "unknown",
+      "approximately",
+      "null"
+     ]
+    },
+    {
+     "type": "required_words",
+     "words": [
+      "bergen"
+     ]
+    },
+    {
+     "type": "regex",
+     "pattern": "\"founded\"\\s*:\\s*1070\\b"
+    },
+    {
+     "type": "regex",
+     "pattern": "\"districts\"\\s*:\\s*\\[\\s*\"[^\"]+\"\\s*,\\s*\"[^\"]+\"\\s*\\]"
+    }
+   ]
+  }
+ },
+ {
+  "id": "IZ08-two-questions-only",
+  "difficulty": "hard",
+  "prompt": "Write exactly two questions for a customer interview. Rules: (1) exactly two sentences, each ending with a question mark; (2) no full stops or exclamation marks anywhere; (3) exactly 24 words in total; (4) the first word is 'Which'; (5) the word 'workflow' appears exactly twice; (6) never use the words 'feel', 'think' or 'maybe'; (7) include the number 3 written as a digit; (8) the reply ends with a question mark. Output only the two questions.",
+  "temperature": 0.0,
+  "max_tokens": 768,
+  "grader": "checks",
+  "grader_config": {
+   "checks": [
+    {
+     "type": "sentence_count",
+     "n": 2
+    },
+    {
+     "type": "regex",
+     "pattern": "^[^.!]*$"
+    },
+    {
+     "type": "min_words",
+     "n": 24
+    },
+    {
+     "type": "max_words",
+     "n": 24
+    },
+    {
+     "type": "starts_with",
+     "value": "Which"
+    },
+    {
+     "type": "keyword_count",
+     "word": "workflow",
+     "n": 2
+    },
+    {
+     "type": "forbidden_words",
+     "words": [
+      "feel",
+      "think",
+      "maybe"
+     ]
+    },
+    {
+     "type": "regex",
+     "pattern": "\\b3\\b"
+    },
+    {
+     "type": "ends_with",
+     "value": "?"
+    }
+   ]
+  }
+ }
+]

@@ -12,6 +12,9 @@ from crucibleforge import bench_all, preflight, report
 from test_points_board_39 import (_board, _ladder_rows, _row, _rows, _set_file,
                                   _setup, _work_only)
 
+#: 4.1 tests (the release flip made bench45 the default): they run as `--profile bench` would, assertions unchanged
+pytestmark = pytest.mark.archive_default
+
 PACK = ["CZ08-triple-substring", "CZ09-range-kth", "CZ11-lex-triple-substring"]
 
 BILLING_MESSAGES = {

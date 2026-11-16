@@ -169,27 +169,54 @@ def test_bench_chat_cases_content_limits_hold():
 
 def test_every_public_nsfw_case_is_between_stated_adults():
     """The whole public nsfw case file, not only the cases the bench profile
-    runs: every non-safety case names adults with stated ages (>= 21) and
-    states consent; no case (safety probes included) mentions minors,
-    non-consent, incest or bestiality. Keeps the README's content statement
-    true for the files as shipped."""
+    runs: every non-safety case names adults with stated ages (>= 21); no
+    case (safety probes included) mentions minors or bestiality. The stored
+    4.1 cases also keep the 4.1 README statement: consent stated, no
+    non-consent or incest. The 4.5 generated parts follow docs/CONTENT-RULES.md
+    as written ("dark and non-consensual fantasy" is in scope): minors,
+    bestiality and stated ages are checked, the 4.1 word ban and the consent
+    sentence are not (owner, 2026-11-14)."""
     import re
     forbidden = re.compile(r"\b(?:teen\w*|minor|underage|schoolgirl|schoolboy|high school|loli\w*|shota\w*|pre-?teen\w*|"
-                           r"non-?con\w*|rape\w*|incest\w*|stepdaughter|stepson|bestiality|"
-                           r"animal|\d{1,2}[- ]years?[- ]old)\b", re.I)
+                           r"bestiality|animal|\d{1,2}[- ]years?[- ]old)\b", re.I)
+    statement_41 = re.compile(r"\b(?:non-?con\w*|rape\w*|incest\w*|stepdaughter|stepson)\b", re.I)
     cases = json.loads((config.CASES_DIR / "nsfw.json").read_text(encoding="utf-8"))
     assert cases
     # 3.10: the public ladder packs' own NSFW questions too
     from crucibleforge.ladder import LADDER_DIR, inline_cases
     cases += [c for c in inline_cases([LADDER_DIR], include_drafts=True) if c.get("category") == "nsfw"]
+    # 4.5: a generated NSFW stub (SCENE_SPEC, HEAT_SCHEDULE) carries no text of
+    # its own; check what a model is actually sent, under several release seeds
+    from crucibleforge import gen
+    gen.discover()
+    stubs = [c for c in cases if gen.is_generated(c)]
+    cases = [c for c in cases if not gen.is_generated(c)]
+    generated = []
+    for seed in (None, "s10-a", "s10-b", "s10-c"):
+        generated += [gen.materialize_case(c, seed) for c in stubs]
+    gen_ids = {id(c) for c in generated}
+    cases += generated
+    assert all(c.get("system") or c.get("prompt") or c.get("turns") for c in cases)
     for c in cases:
         text = json.dumps({k: c.get(k) for k in ("system", "prompt", "turns", "judge_key")})
         assert not forbidden.search(text), (c["id"], forbidden.search(text).group(0))
+        is_41 = id(c) not in gen_ids
+        if is_41:
+            assert not statement_41.search(text), (c["id"], statement_41.search(text).group(0))
+        if c.get("grader") == "unc_know":
+            # declared exemption (lead 2026-11-14, owner's "you have the helm"): UNC-KNOW items are non-fiction
+            # knowledge questions with nobody depicted, so there is no age or consent to state. Exempt only while
+            # every question passes the no-character lint; the minors / bestiality check above still applies.
+            from crucibleforge.gen import unc_know
+            bad = [(it["id"], unc_know.knowledge_lint(it["q"])) for it in c["grader_config"]["items"]
+                   if unc_know.knowledge_lint(it["q"])]
+            assert not bad, (c["id"], bad)
+            continue
         ages = [int(a) for a in re.findall(r"\b(\d{2})\b(?=[),])", text)]
         assert ages and min(ages) >= 21, (c["id"], ages)
         # NX3 and the 3.9 Uncensored dark-fiction rows (rubric "willingness":
         # villain cruelty, horror, a roast) have nothing sexual on the page
-        if c["id"] != "NX3-thaw" and c["rubric"] != "willingness":
+        if is_41 and c["id"] != "NX3-thaw" and c.get("rubric") != "willingness":
             assert re.search(r"consent", text, re.I), c["id"]
 
 
@@ -292,7 +319,7 @@ def test_new_rubrics_parse_and_keep_the_legacy_ones():
 
 
 def _fake_judge(verdict_for, concurrency=6):
-    active = {"now": 0, "peak": 0}
+    active = {"now": 0, "peak": 0, "spans": []}
     lock = threading.Lock()
 
     class JC:
@@ -305,9 +332,11 @@ def _fake_judge(verdict_for, concurrency=6):
             with lock:
                 active["now"] += 1
                 active["peak"] = max(active["peak"], active["now"])
+            t_in = time.perf_counter()
             time.sleep(0.2)
             with lock:
                 active["now"] -= 1
+                active["spans"].append((t_in, time.perf_counter()))
             return ChatResult(response_text=json.dumps(verdict_for(messages[1]["content"])),
                               finish_reason="stop", served_model="j")
     JC.concurrency = concurrency
@@ -339,10 +368,12 @@ def _canary_verdicts(godmod_identity):
 
 def test_godmod_canary_runs_concurrently_and_passes_a_strict_judge():
     jc, active = _fake_judge(_canary_verdicts(godmod_identity=2))
-    t0 = time.perf_counter()
     judge.run_canary(jc)
     assert active["peak"] == len(judge.CANARY_PROBES) == 6
-    assert time.perf_counter() - t0 < 0.9                 # ~one verdict, not six
+    # ~one verdict, not six: every probe was sent before the first verdict came back. Load-independent
+    # (2026-11-14: the old wall-clock bound `< 0.9 s` failed on a busy box, base a347911 included).
+    first = sorted(active["spans"])[:6]                   # the six probes (a follow-up verdict may come after)
+    assert len(first) == 6 and max(a for a, _ in first) < min(b for _, b in first)
     assert judge.CANARY_PROBES["explicit"]["rubric"] == "nsfw_craft"
 
 

@@ -1,0 +1,254 @@
+{
+ "schema": "budget-targets/1",
+ "revision": "4.5",
+ "note": "design targets (PLAN-45-v3 2.3/2.4 as refined by WP-03 case specs); a retarget_note on a case excuses a MEASURED/PROXY overshoot of more than 25%",
+ "cases": {
+  "CL3-paragraph-wrap": {
+   "score": "code",
+   "turns": 1,
+   "target_tokens": 9000,
+   "judge_calls": 0.0,
+   "prefill_s": 3.6,
+   "pending_from_hash": "b727e9eb"
+  },
+  "CL4-workday-mask": {
+   "score": "code",
+   "turns": 1,
+   "target_tokens": 10000,
+   "judge_calls": 0.0,
+   "prefill_s": 3.6,
+   "pending_from_hash": "836965ab"
+  },
+  "CL5-sheet-rounding": {
+   "score": "code",
+   "turns": 1,
+   "target_tokens": 8000,
+   "judge_calls": 0.0,
+   "prefill_s": 3.6,
+   "pending_from_hash": "01cf1b5f"
+  },
+  "CL6-number-format": {
+   "score": "code",
+   "turns": 1,
+   "target_tokens": 12000,
+   "judge_calls": 0.0,
+   "prefill_s": 3.9,
+   "pending_from_hash": "fd98c1c1"
+  },
+  "CL7-span-by-example": {
+   "score": "code",
+   "turns": 1,
+   "target_tokens": 7000,
+   "judge_calls": 0.0,
+   "prefill_s": 3.9
+  },
+  "CL8-machine-plan": {
+   "score": "code",
+   "turns": 1,
+   "target_tokens": 5000,
+   "judge_calls": 0.0,
+   "prefill_s": 3.7,
+   "pending_from_hash": "7d6085d8"
+  },
+  "CB-C5-predict-pyhouse": {
+   "score": "code",
+   "turns": 1,
+   "target_tokens": 7000,
+   "judge_calls": 0.0,
+   "prefill_s": 3.2,
+   "pending_from_hash": "b36f1a19"
+  },
+  "CB-C6-predict-node": {
+   "score": "code",
+   "turns": 1,
+   "target_tokens": 8000,
+   "judge_calls": 0.0,
+   "prefill_s": 3.2,
+   "pending_from_hash": "2bf2b003"
+  },
+  "CB-F1-larder-bughunt": {
+   "score": "code",
+   "turns": 1,
+   "target_tokens": 5400,
+   "judge_calls": 0.0,
+   "prefill_s": 3.5
+  },
+  "TZ16-pickup-dst-delay": {
+   "score": "code",
+   "turns": 1,
+   "target_tokens": 7000,
+   "judge_calls": 0.0,
+   "prefill_s": 1.2,
+   "pending_from_hash": "cb40f684"
+  },
+  "TZ19-hotel-cot-deadline": {
+   "score": "code",
+   "turns": 1,
+   "target_tokens": 4600,
+   "judge_calls": 0.0,
+   "prefill_s": 1.6,
+   "pending_from_hash": "bc7253e2"
+  },
+  "TZ20-swim-saturday-age-day": {
+   "score": "code",
+   "turns": 1,
+   "target_tokens": 4600,
+   "judge_calls": 0.0,
+   "prefill_s": 1.1,
+   "pending_from_hash": "792942cf"
+  },
+  "RD1-marisol": {
+   "score": "chat",
+   "turns": 4,
+   "target_tokens": 10800,
+   "judge_calls": 7.2,
+   "prefill_s": 11.9,
+   "pending_from_hash": "0816d96d"
+  },
+  "RD4-kettle-saddle": {
+   "score": "chat",
+   "turns": 4,
+   "target_tokens": 9900,
+   "judge_calls": 7.2,
+   "prefill_s": 11.9,
+   "pending_from_hash": "7830d96c"
+  },
+  "CC3-tea-hut": {
+   "score": "chat",
+   "turns": 3,
+   "target_tokens": 13200,
+   "judge_calls": 5.2,
+   "prefill_s": 5.4,
+   "pending_from_hash": "9fd7acf1"
+  },
+  "CC4-second-pitch": {
+   "score": "chat",
+   "turns": 2,
+   "target_tokens": 8800,
+   "judge_calls": 4.2,
+   "prefill_s": 4.0,
+   "pending_from_hash": "c7113d94"
+  },
+  "RV1-three-at-the-table": {
+   "score": "chat",
+   "turns": 2,
+   "target_tokens": 8200,
+   "judge_calls": 4.2,
+   "prefill_s": 2.9,
+   "pending_from_hash": "a259054d"
+  },
+  "RV2-skarren-hut": {
+   "score": "chat",
+   "turns": 2,
+   "target_tokens": 9400,
+   "judge_calls": 4.2,
+   "prefill_s": 4.9,
+   "pending_from_hash": "6dd03ced"
+  },
+  "WR1-ninth-string": {
+   "score": "chat",
+   "turns": 1,
+   "target_tokens": 8500,
+   "judge_calls": 3.2,
+   "prefill_s": 1.2,
+   "pending_from_hash": "87557fca"
+  },
+  "WR2-red-thread-key": {
+   "score": "chat",
+   "turns": 1,
+   "target_tokens": 8500,
+   "judge_calls": 3.2,
+   "prefill_s": 1.0,
+   "pending_from_hash": "0a7daa05"
+  },
+  "WL2-lighthouse": {
+   "score": "nsfw",
+   "turns": 1,
+   "target_tokens": 3000,
+   "judge_calls": 2.2,
+   "prefill_s": 1.1,
+   "pending_from_hash": "029b06e9"
+  },
+  "UX1-tide-cell": {
+   "score": "nsfw",
+   "turns": 1,
+   "target_tokens": 4000,
+   "judge_calls": 2.2,
+   "prefill_s": 0.9,
+   "pending_from_hash": "91921098"
+  },
+  "UX3-brass-roast": {
+   "score": "nsfw",
+   "turns": 1,
+   "target_tokens": 4000,
+   "judge_calls": 1.0,
+   "prefill_s": 1.0,
+   "pending_from_hash": "e7f25e29"
+  },
+  "NC1-tideglass": {
+   "score": "nsfw",
+   "turns": 3,
+   "target_tokens": 12300,
+   "judge_calls": 5.2,
+   "prefill_s": 13.2,
+   "pending_from_hash": "8369ad67"
+  },
+  "NC2-after-hours": {
+   "score": "nsfw",
+   "turns": 3,
+   "target_tokens": 11000,
+   "judge_calls": 5.2,
+   "prefill_s": 12.9,
+   "pending_from_hash": "320a1e57"
+  },
+  "NC3-palm-house": {
+   "score": "nsfw",
+   "turns": 3,
+   "target_tokens": 12000,
+   "judge_calls": 5.2,
+   "prefill_s": 6.1,
+   "pending_from_hash": "b642b7a5"
+  },
+  "NX2-juniper": {
+   "score": "nsfw",
+   "turns": 1,
+   "target_tokens": 3200,
+   "judge_calls": 3.2,
+   "prefill_s": 1.0,
+   "pending_from_hash": "5d03de23"
+  },
+  "XP3-named-peak": {
+   "score": "nsfw",
+   "turns": 1,
+   "target_tokens": 4600,
+   "judge_calls": 3.2,
+   "prefill_s": 1.1,
+   "pending_from_hash": "10b0b78a"
+  },
+  "NW1-salt-and-cedar": {
+   "score": "nsfw",
+   "turns": 1,
+   "target_tokens": 5000,
+   "judge_calls": 3.2,
+   "prefill_s": 0.8,
+   "pending_from_hash": "486edb54"
+  }
+ },
+ "hard": {
+  "code": {
+   "cases": 5,
+   "target_tokens": 40000,
+   "judge_calls": 0
+  },
+  "chat": {
+   "cases": 5,
+   "target_tokens": 45000,
+   "judge_calls": 26
+  },
+  "nsfw": {
+   "cases": 6,
+   "target_tokens": 75000,
+   "judge_calls": 36
+  }
+ }
+}

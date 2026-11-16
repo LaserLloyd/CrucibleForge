@@ -29,6 +29,8 @@ to the components the tier measures.
 """
 from __future__ import annotations
 
+import re
+
 SCORES = ("code", "reason", "chat")
 #: score -> the report's scorecard group
 GROUP = {"code": "coding", "reason": "reason", "chat": "chat"}
@@ -68,9 +70,51 @@ def scores(prof: dict | None) -> list[dict]:
     if not decl:
         return [dict(x) for x in LEGACY_SCORES]
     out = [_score_def(key, spec or {}) for key, spec in decl.items()]
+    if any(isinstance((spec or {}).get("hard"), dict) for spec in decl.values()):
+        # 4.5: each score's hard set is one more part (cases from cases/hard/)
+        from . import profiles as _profiles
+        for d in out:
+            hp = _profiles.hard_part(prof, d["key"])
+            if hp:
+                d["parts"] = list(d["parts"]) + [hp]
     out += custom_scores(prof)
     if (prof or {}).get("_public"):
         out = [d for d in out if d.get("public", True)]
+        # 4.5 PUBOUT: a public board names its parts in plain words; the profile's working label
+        # (concept codes, "(checked)", a dangling "(" from an unquoted YAML flow value) stays in
+        # ``label_internal`` and the part's id stays in ``key``. Display only: no number moves.
+        # 4.1 (no chains) is frozen: its public labels stay as they were
+        for d in out if prof.get("chains") or prof.get("public_labels") else []:
+            d["parts"] = [_public_part(p) for p in d.get("parts") or []]
+    return out
+
+
+_PAREN_TAIL = re.compile(r"\s*\([^()]*\)\s*$")
+
+
+def public_label(label) -> str:
+    """The plain public name of a part: every trailing parenthetical dropped ("Builds what was
+    meant (C1)" -> "Builds what was meant", "Sounds like a real person (judged, provisional)" ->
+    "Sounds like a real person", "Lockout (intensity rungs)" -> "Lockout"), and an unbalanced
+    "(" with whatever follows it cut at the last whole word before it ("Range (role-play" ->
+    "Range"). What a part is (checked, judged, provisional) is said by the page's explainers,
+    not by a tag in its name."""
+    s = " ".join(str(label or "").split())
+    if s.count("(") > s.count(")"):
+        s = s[:s.rfind("(")].rstrip(" ,;:-")
+    prev = None
+    while prev != s:
+        prev, s = s, _PAREN_TAIL.sub("", s).rstrip(" ,;:-")
+    return s or " ".join(str(label or "").split())
+
+
+def _public_part(p: dict) -> dict:
+    """A part as a public board names it: plain ``label``, the working label in ``label_internal``,
+    the stripped tags in ``tag`` (unless the profile declares one), ``id``/``note`` as declared."""
+    lab = public_label(p["label"])
+    out = {**p, "label": lab, "label_internal": p["label"]}
+    if not p.get("tag") and lab != " ".join(str(p["label"] or "").split()):
+        out["tag"] = " ".join(str(p["label"]).split())[len(lab):].strip(" ,;:-") or None
     return out
 
 
@@ -84,10 +128,26 @@ def _parts(spec: dict) -> list[dict]:
                       # points: the sub-score's maximum (its weight in the category)
                       "weight": float(ps.get("max", ps.get("weight", 1.0))),
                       "cases": list(ps.get("cases") or []) or None,
+                      # a case part's own ran-out rule (report.case_part_ran_out); emitted only when
+                      # set, so 4.1 parts stay byte-identical (lead 2026-11-15: it was dropped here)
+                      **({"ran_out": ps["ran_out"]} if ps.get("ran_out") is not None else {}),
+                      # a tool-use part's unit score (report.part_unit_score); only when set
+                      **({"unit_score": ps["unit_score"]} if ps.get("unit_score") else {}),
                       # a list = weigh the components by case count (report)
                       "auto": isinstance(sc, list),
+                      # harness v2: "wc" scores the part (and its packs) as
+                      # willingness x capability (report.wc_block); default:
+                      # the components' own formula, W/C reported beside it
+                      "scoring_mode": str(ps.get("scoring_mode") or "standard"),
                       "scoring": ({k: None for k in sc} if isinstance(sc, list)
-                                  else {k: float(v) for k, v in sc.items()})})
+                                  else {k: float(v) for k, v in sc.items()}),
+                      # 4.5: a max-0 Frontier part unlocks its packs off this Core score's
+                      # result; emitted only when set (the 4.1 report never carries the key)
+                      **({"unlock_part": ps["unlock_part"]} if ps.get("unlock_part") else {}),
+                      # PUBOUT 4.5 (display only, emitted only when the profile sets them): the part's design
+                      # id ("C1"), its internal tag ("(C1)", "(judged)"), and a note the board prints under
+                      # the part ("scored by prefix: credit up to the first wrong line")
+                      **{k: ps[k] for k in ("id", "tag", "note") if ps.get(k)}})
     return parts
 
 

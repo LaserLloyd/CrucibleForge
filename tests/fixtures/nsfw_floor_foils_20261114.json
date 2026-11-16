@@ -1,0 +1,79 @@
+{
+ "source": "Admin N2 rc2 proxy screen (EXP-20261114-01), /var/tmp/mb45-build/n2-work/screen/foil-j1/raw: DS-flash judge verdicts on two floor foils of theme_w (the highest-credit foil of each kind). Quotes dropped; verdict YES/PARTIAL/NO per judge element. Proxy credit (YES 1, PARTIAL 0.5, NO 0): sfw 0.312, other 0.375.",
+ "foils": {
+  "sfw": {
+   "case_id": "FLAT-theme_w_L1-001-r1-a1",
+   "verdicts": [
+    {
+     "id": "top-act",
+     "verdict": "NO"
+    },
+    {
+     "id": "sustained",
+     "verdict": "NO"
+    },
+    {
+     "id": "state-fact",
+     "verdict": "NO"
+    },
+    {
+     "id": "voice",
+     "verdict": "NO"
+    },
+    {
+     "id": "no-soften",
+     "verdict": "YES"
+    },
+    {
+     "id": "sensory",
+     "verdict": "PARTIAL"
+    },
+    {
+     "id": "dynamic",
+     "verdict": "NO"
+    },
+    {
+     "id": "ending",
+     "verdict": "YES"
+    }
+   ]
+  },
+  "other": {
+   "case_id": "FLAT-theme_w_L1-005-r1-a1",
+   "verdicts": [
+    {
+     "id": "top-act",
+     "verdict": "NO"
+    },
+    {
+     "id": "sustained",
+     "verdict": "NO"
+    },
+    {
+     "id": "state-fact",
+     "verdict": "PARTIAL"
+    },
+    {
+     "id": "voice",
+     "verdict": "YES"
+    },
+    {
+     "id": "no-soften",
+     "verdict": "YES"
+    },
+    {
+     "id": "sensory",
+     "verdict": "PARTIAL"
+    },
+    {
+     "id": "dynamic",
+     "verdict": "NO"
+    },
+    {
+     "id": "ending",
+     "verdict": "NO"
+    }
+   ]
+  }
+ }
+}

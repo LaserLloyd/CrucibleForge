@@ -1,6 +1,7 @@
 """4.1.1: the late DeepSeek follow-ups of the 4.1 answer-key review
 (2026-11-08). Every fix here is report-time only (checks / the shared
 negation guard); none moves a case or grading hash."""
+import pytest
 import re
 
 from crucibleforge import session_checks as S
@@ -73,6 +74,7 @@ def test_cc4_s1_ellipsis_before_capital_is_a_fourth_sentence():
     assert _cc("CC4-second-pitch", k, "Train £64.00, hostel £84.00. That leaves £32.00. Pints, chalk-hands.")
 
 
+@pytest.mark.usefixtures("cases_41")
 def test_cc3_s1_ellipsis_before_capital_is_a_third_sentence():
     k = "S1-two-sentences-on-request"
     assert not _cc("CC3-tea-hut", k, "Take the bus... It leaves at 8.30. Bring tea.")

@@ -1,6 +1,11 @@
 # The single benchmark, suite 4.0 "lite" (2026-10-31):
 # Overall /20 = Coding /10 + Chat /10; NSFW /10 beside it; ladder packs on top.
 name: bench
+# G-41Freeze: 4.1 reads its own frozen case tree (the public cases/ of v4.1.0), so
+# 4.5 case edits cannot move the 4.1 board. Private cases stay in cases/private.
+cases_dir: archive/4.1.0/cases
+# 4.5 recognises a stored agentic billing-refusal row as pending; 4.1 scores it as before
+billing_stored_rows: false
 # A local, git-ignored profiles/bench.private.yaml may add PRIVATE components
 # (cases in cases/private/, their weight, label and budgets) on top of this
 # file — they count on the local board and are scrubbed from every public
@@ -387,6 +392,8 @@ judge_policy:
                   LNC1-glasshouse-keys, LNC2-boathouse-three, LNC3-break-room,
                   LNW1-glasshouse-ledger, LNW2-last-crossing, LNW3-upright-in-august]
   long_canary: true
+# 4.1.0's recheck exactly ("legacy" = without the 4.5 review-F22 dimension/flag guards)
+quote_recheck: legacy
 
 # ---- Run plan (step 5 runner) ----
 # How `all` runs a model (crucibleforge/runner.py run_plan(); EVAL-FABLE M7, S8, S10).

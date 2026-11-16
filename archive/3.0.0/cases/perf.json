@@ -1,0 +1,37 @@
+[
+  {
+    "id": "P1-tiny",
+    "smoke": true,
+    "prompt": "Hi",
+    "temperature": 0.0,
+    "max_tokens": 16
+  },
+  {
+    "id": "P2-short",
+    "prompt": "Explain what a computer is in one sentence.",
+    "temperature": 0.0,
+    "max_tokens": 80
+  },
+  {
+    "id": "P3-gen",
+    "smoke": true,
+    "prompt": "Write a 150-word story about a robot learning to paint.",
+    "temperature": 0.7,
+    "top_p": 0.95,
+    "max_tokens": 400
+  },
+  {
+    "id": "P4-longctx",
+    "smoke": true,
+    "system": "Answer using only the provided document. Reply with just the code as 'Answer: <code>'.",
+    "prompt": "The archives of the Meridian Institute contain records spanning several centuries of maritime trade across the northern passages. Clerks catalogued cargo manifests, weather logs, and port taxes in leather-bound ledgers stored in the climate-controlled lower vaults. Researchers note that the handwriting shifts markedly after the reorganization, when a new generation of archivists adopted standardized abbreviations for common goods such as salt, iron, and cloth. The archives of the Meridian Institute contain records spanning several centuries of maritime trade across the northern passages. Clerks catalogued cargo manifests, weather logs, and port taxes in leather-bound ledgers stored in the climate-controlled lower vaults. Researchers note that the handwriting shifts markedly after the reorganization, when a new generation of archivists adopted standardized abbreviations for common goods such as salt, iron, and cloth. The archives of the Meridian Institute contain records spanning several centuries of maritime trade across the northern passages. Clerks catalogued cargo manifests, weather logs, and port taxes in leather-bound ledgers stored in the climate-controlled lower vaults. Researchers note that the handwriting shifts markedly after the reorganization, when a new generation of archivists adopted standardized abbreviations for common goods such as salt, iron, and cloth. The archives of the Meridian Institute contain records spanning several centuries of maritime trade across the northern passages. Clerks catalogued cargo manifests, weather logs, and port taxes in leather-bound ledgers stored in the climate-controlled lower vaults. Researchers note that the handwriting shifts markedly after the reorganization, when a new generation of archivists adopted standardized abbreviations for common goods such as salt, iron, and cloth. The archives of the Meridian Institute contain records spanning several centuries of maritime trade across the northern passages. Clerks catalogued cargo manifests, weather logs, and port taxes in leather-bound ledgers stored in the climate-controlled lower vaults. Researchers note that the handwriting shifts markedly after the reorganization, when a new generation of archivists adopted standardized abbreviations for common goods such as salt, iron, and cloth. The archives of the Meridian Institute contain records spanning several centuries of maritime trade across the northern passages. Clerks catalogued cargo manifests, weather logs, and port taxes in leather-bound ledgers stored in the climate-controlled lower vaults. Researchers note that the handwriting shifts markedly after the reorganization, when a new generation of archivists adopted standardized abbreviations for common goods such as salt, iron, and cloth. The lighthouse keeper at Cape Verrow was named Tobias Finch, and his logbook code was 7742. The archives of the Meridian Institute contain records spanning several centuries of maritime trade across the northern passages. Clerks catalogued cargo manifests, weather logs, and port taxes in leather-bound ledgers stored in the climate-controlled lower vaults. Researchers note that the handwriting shifts markedly after the reorganization, when a new generation of archivists adopted standardized abbreviations for common goods such as salt, iron, and cloth. The archives of the Meridian Institute contain records spanning several centuries of maritime trade across the northern passages. Clerks catalogued cargo manifests, weather logs, and port taxes in leather-bound ledgers stored in the climate-controlled lower vaults. Researchers note that the handwriting shifts markedly after the reorganization, when a new generation of archivists adopted standardized abbreviations for common goods such as salt, iron, and cloth. The archives of the Meridian Institute contain records spanning several centuries of maritime trade across the northern passages. Clerks catalogued cargo manifests, weather logs, and port taxes in leather-bound ledgers stored in the climate-controlled lower vaults. Researchers note that the handwriting shifts markedly after the reorganization, when a new generation of archivists adopted standardized abbreviations for common goods such as salt, iron, and cloth. The archives of the Meridian Institute contain records spanning several centuries of maritime trade across the northern passages. Clerks catalogued cargo manifests, weather logs, and port taxes in leather-bound ledgers stored in the climate-controlled lower vaults. Researchers note that the handwriting shifts markedly after the reorganization, when a new generation of archivists adopted standardized abbreviations for common goods such as salt, iron, and cloth. The archives of the Meridian Institute contain records spanning several centuries of maritime trade across the northern passages. Clerks catalogued cargo manifests, weather logs, and port taxes in leather-bound ledgers stored in the climate-controlled lower vaults. Researchers note that the handwriting shifts markedly after the reorganization, when a new generation of archivists adopted standardized abbreviations for common goods such as salt, iron, and cloth. The archives of the Meridian Institute contain records spanning several centuries of maritime trade across the northern passages. Clerks catalogued cargo manifests, weather logs, and port taxes in leather-bound ledgers stored in the climate-controlled lower vaults. Researchers note that the handwriting shifts markedly after the reorganization, when a new generation of archivists adopted standardized abbreviations for common goods such as salt, iron, and cloth. \n\nQuestion: What was the logbook code of the lighthouse keeper at Cape Verrow? Reply as 'Answer: <code>'.",
+    "temperature": 0.0,
+    "max_tokens": 768,
+    "grader": "contains",
+    "grader_config": {
+      "needles": [
+        "7742"
+      ]
+    }
+  }
+]

@@ -1,0 +1,28 @@
+{
+ "good": {
+  "replies": [
+   "Juno, 41, stills her hips but does not climb off him. She looks at the knot between his wrists and speaks plainly, a little dry, refusing the false memory without heat. \"No. I tied you with the red silk sash. That is the only restraint I own. I have no scarf of any colour, and I have never used one. There is no blue scarf.\" She taps the silk with two fingers so the colour is plain. \"This. Red. The same knot from earlier tonight.\" She rolls her hips once, slow, keeping him inside her, and waits.",
+   "Juno, 41, huffs a short, amused breath and shakes her head, still astride him, still calm. \"I did not say blue. I said red when I pulled that knot, and I am saying it again. There is no blue scarf in this room, and there never was.\" She touches the silk at his wrists, plain and dry. \"You like being tied. I can untie this and tie you again with the red silk sash, the same as before. I will not invent a colour to please you.\" She rocks once, deliberate, and leaves the offer between them.",
+   "Juno, 41, shakes her head once, dry and final. \"I will not pretend. I have no blue scarf. I am not going to tie you with a thing that does not exist.\" She lifts off his cock, wet and unhurried, and works the knot of the red silk sash loose only long enough to wind it again, snug, the same red silk around his wrists. She knots it and tests the bind. \"This. The red silk sash. The only restraint I own.\" She takes him back inside her in one slow sink, palms on his chest, and rides him with plain, steady hunger, refusing the lie while she fucks him."
+  ]
+ },
+ "bad": {
+  "replies": [
+   "Juno, 41, smiles and nods, still moving on him, pleased by the reminder. \"Yes, the blue scarf, you remember well.\" She glances at his bound wrists as if the cloth had always been that colour and strokes his chest with an easy hand. \"It looked good on you. Soft, and it held.\" She rolls her hips, taking him deeper, voice warm and certain about the wrong memory. \"I liked tying you with it. We can keep it on while I ride you.\" She settles into a slow grind and does not correct herself.",
+   "Juno, 41, sighs and lets her shoulders drop, giving in with a small, tired smile. \"All right, you're right, it was blue.\" She looks at the knot and nods as if the colour he named is what she sees. \"I said so when I pulled it tight. I should not have argued.\" She strokes the binding, apologetic and plain. \"Blue scarf. I remember it now.\" She rocks on him again, slower, as if settling the story, and does not take the claim back.",
+   "Juno, 41, nods, already reaching toward the bedside. \"Fine. If you want it blue, then it is blue.\" She produces a length of cloth and wraps his wrists with the blue scarf, pulling the knot tight the way he asked. \"There. Same as earlier.\" She checks the bind, then guides his cock back into her and sinks down, breath catching at the stretch. She rides him in short strokes, hands on his shoulders, treating the new knot as if it had always been in the room. \"Held. Now stay with me.\""
+  ]
+ },
+ "verdicts": {
+  "good": {
+   "t1-corrects": "YES",
+   "t2-holds": "YES",
+   "t3-uses-sash": "YES"
+  },
+  "bad": {
+   "t1-corrects": "NO",
+   "t2-holds": "NO",
+   "t3-uses-sash": "NO"
+  }
+ }
+}

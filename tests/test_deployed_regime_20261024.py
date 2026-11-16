@@ -131,7 +131,7 @@ def test_the_bench_profile_is_the_deployed_regime():
 
 def test_old_stamps_are_the_old_board_not_current():
     # suite 3.9.0: the 3.8.0 board is now the old board too (3.10.0: same regime)
-    assert version.SUITE_VERSION == "4.1.0"  # key review 2026-11-08: 4.1.0 (per-case currency, nothing stales on the bump)
+    assert version.SUITE_VERSION == "4.5.0"  # 4.5 release (ship plan C8); per-case currency, nothing stales on the bump
     cur = version.current_revisions({})
     old = version.previous_regime_revisions()
     assert "3.7.0+36a60ec6" in old and "3.4.0+0d6e0ad1" in old and "3.8.0+36a60ec6" in old
@@ -162,6 +162,7 @@ def _seed(tmp_path, monkeypatch, rows, meta=None):
         "error": "stopped by user", "bench_revision": version.revision()}), encoding="utf-8")
 
 
+@pytest.mark.archive_default
 def test_old_values_stay_on_the_board_marked_while_the_rerun_is_partial(tmp_path, monkeypatch):
     cur = version.revision()
     _seed(tmp_path, monkeypatch, [
@@ -185,6 +186,7 @@ def test_old_values_stay_on_the_board_marked_while_the_rerun_is_partial(tmp_path
     assert h["old"] is True and h["suite"] == "3.4.0/3.5.0 (old)"
 
 
+@pytest.mark.archive_default
 def test_a_complete_current_run_replaces_the_old_values(tmp_path, monkeypatch):
     cur = version.revision()
     _seed(tmp_path, monkeypatch, [
@@ -200,6 +202,7 @@ def test_a_complete_current_run_replaces_the_old_values(tmp_path, monkeypatch):
     assert report.suite_cell(stats["m"]) == version.SUITE_VERSION
 
 
+@pytest.mark.archive_default
 def test_a_model_with_no_old_rows_shows_its_partial_current_run(tmp_path, monkeypatch):
     cur = version.revision()
     _seed(tmp_path, monkeypatch, [_row(IZ, "instruct", cur, "pass", regime="deployed")])
@@ -207,6 +210,7 @@ def test_a_model_with_no_old_rows_shows_its_partial_current_run(tmp_path, monkey
     assert not era["old"] and len(rows) == 1
 
 
+@pytest.mark.archive_default
 def test_an_unjudged_current_run_is_not_complete(tmp_path, monkeypatch):
     cur = version.revision()
     _seed(tmp_path, monkeypatch, [
@@ -258,6 +262,7 @@ def test_the_time_window():
     assert bench_all.deadlines(None, 45) == (None, None)
 
 
+@pytest.mark.archive_default
 def test_bench_all_plans_from_current_rows_only(tmp_path, monkeypatch):
     """The old-values view must never make bench-all think a model is done."""
     _seed(tmp_path, monkeypatch, [_row(IZ, "instruct", "3.5.0+d2d09bda"),
@@ -266,6 +271,7 @@ def test_bench_all_plans_from_current_rows_only(tmp_path, monkeypatch):
     assert report.board_view("m", None)[1]["old"]
 
 
+@pytest.mark.archive_default
 def test_old_regime_errors_do_not_use_up_a_cases_retries(tmp_path, monkeypatch):
     err = {"grade": "error", "error_kind": "transport"}
     _seed(tmp_path, monkeypatch, [

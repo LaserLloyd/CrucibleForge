@@ -1,0 +1,14 @@
+{
+ "level": 1,
+ "points": 1.0,
+ "item": "PACK-WORK-AGENTIC",
+ "budget": 65536,
+ "note": "C5 Uses-tools pack (PACKS2, 2026-11-15; opens at 90% of 'Uses tools', part c5_tools). The previous suite's long agent tasks LAG1 potkeeper (fix an import bug, implement the agreed year-end, audit the rest against README) and LAG2 seedbank (schema v3 + v2->v3 migration, all or nothing, per docs/AMOUNTS.md), unchanged (cases/codeagent_long.json; same ids and text, so no 4.1 row is touched). 2 distinct items x 2 samples (\"repeats\": 2; reported that way, margin by item; the lead 2026-11-15: DeepSeek's LAG2 went 1.0 then .71 between runs, so no item is read off one draw); graded by hidden test groups (partial credit per f2p group). TZ19 is left out (now a standard c5_tools case). PROBE (set-1) stays a closed draft. LAG3 (tillroll) is OUT by the lead's ruling: never grade on timing; all six of its f2p groups are time-limited (25 s per test) and its remaining groups are p2p only. Keys: cases verify ok (untouched fails every f2p group, the reference passes every group and the visible tests, every mutant fails >= 1 f2p group: 21 / 9 mutants); the hidden tests carry their own oracles (LAG1 _pk.py, LAG2 format_oracle + 600 random grammar strings), independent of the reference files. Hosted screen 2026-11-14/15 (4.5 profile, budget 65536), shares recomputed from the stored rows on LAG1+LAG2: DeepSeek flash .83 and .69 on two runs (mean .76), MiniMax M3.1 flash .60. Every failing group read against README / AMOUNTS.md: real misses (thousands-group rule, v1 ids as strings, the MIGRATIONS shape AMOUNTS.md states). Owed after the freeze: Q7 (stratum); a third tool-use item graded on correctness only (LAG3 reworked with exact, untimed f2p groups, or a new task).",
+ "cases": [
+  "LAG1-potkeeper-yearend",
+  "LAG2-seedbank-units"
+ ],
+ "allow_small": true,
+ "allow_small_reason": "LAG3 left out by the lead's timing ruling (2026-11-15): its six f2p groups are all time-limited; what remains (exact, existing) is p2p only, which the untouched project already passes, so LAG3 would have no scoring group",
+ "repeats": 2
+}

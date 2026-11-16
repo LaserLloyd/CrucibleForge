@@ -77,16 +77,20 @@ def test_billing_answer_covers_every_status_and_needs_the_wording():
 
 # 2. the stored row --------------------------------------------------------
 
+def _b45(row):
+    return {**row, "profile": "bench45"}    # the stored-shape rule is a 4.5 switch (bench = 4.1 off)
+
+
 def test_a_stored_episode_fail_row_with_the_credit_400_is_billing():
-    assert preflight.billing_error_row(_episode_fail_row("x"))
-    assert not preflight.billing_error_row(
-        _episode_fail_row("x", end="request rejected mid-episode: HTTP 400: context window exceeded"))
-    assert not preflight.billing_error_row(
-        _episode_fail_row("x", end="turn limit"))
+    assert preflight.billing_error_row(_b45(_episode_fail_row("x")))
+    assert not preflight.billing_error_row(_b45(
+        _episode_fail_row("x", end="request rejected mid-episode: HTTP 400: context window exceeded")))
+    assert not preflight.billing_error_row(_b45(
+        _episode_fail_row("x", end="turn limit")))
 
 
 def test_done_jobs_does_not_count_a_billing_row():
-    rows = [_episode_fail_row("A"), _row("B", "coding", 1, True)]
+    rows = [_b45(_episode_fail_row("A")), _row("B", "coding", 1, True)]
     assert cli.done_jobs(rows) == {("B", 1)}
 
 
@@ -112,3 +116,21 @@ def test_a_real_episode_fail_still_scores_zero(tmp_path, monkeypatch):
     st = _board(env, {"m": rows})["m"]
     assert "packs_blocked" not in st
     assert st["scorecard"]["ladder"]["work"]["code"]["sets"][0]["state"] == "scored"
+
+
+def test_m5_insufficient_context_is_not_billing():
+    body = '{"error":{"message":"insufficient context length: prompt is too long, exceeds the context window"}}'
+    assert not preflight.billing_rejection(RequestRejected(400, body))
+    assert not preflight._is_billing_answer(400, "insufficient tokens; maximum context length exceeded")
+    assert not preflight._is_billing_answer(400, "insufficient tokens left")
+
+
+def test_m5_insufficient_balance_is_billing():
+    assert preflight._is_billing_answer(400, "Insufficient Balance")
+    assert preflight._is_billing_answer(403, "insufficient quota")
+
+
+def test_m5_anthropic_credit_balance_400_is_billing():
+    msg = "Your credit balance is too low to access the Anthropic API."
+    assert preflight._is_billing_answer(400, msg)
+    assert preflight.billing_rejection(RequestRejected(400, CREDIT))

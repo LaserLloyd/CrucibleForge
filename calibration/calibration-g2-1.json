@@ -1,0 +1,323 @@
+{
+ "version": "g2-calib-1 (2026-11-14 ~10:00): family 2PL on 418 stored 4.5 units / 9 models, reference ref-q8 = 0",
+ "theta": {
+  "ds-flash": 0.459,
+  "fable": 0.423,
+  "grok": -0.3,
+  "haiku": 0.92,
+  "minimax": 0.39,
+  "r1-8b": -1.434,
+  "ref-q5": -0.368,
+  "ref-q8": 0.0,
+  "sonnet": 1.292
+ },
+ "cells": {
+  "attend:L6": {
+   "b": -2.5,
+   "a": 1.157,
+   "concept": "H1",
+   "band": "low",
+   "n_units": 0,
+   "source": "family trend (no rows): attend trend L7-L11",
+   "section": "chat"
+  },
+  "attend:L7": {
+   "b": -2.122,
+   "a": 1.157,
+   "concept": "H1",
+   "band": "low",
+   "n_units": 8,
+   "source": "fit",
+   "section": "chat"
+  },
+  "attend:L8": {
+   "b": -1.744,
+   "a": 1.157,
+   "concept": "H1",
+   "band": "low",
+   "n_units": 8,
+   "source": "fit",
+   "section": "chat"
+  },
+  "keyfunc:L3:x5": {
+   "b": -1.708,
+   "a": 1.067,
+   "concept": "C2",
+   "band": "low",
+   "n_units": 1,
+   "source": "fit",
+   "section": "work"
+  },
+  "attend:L9": {
+   "b": -1.365,
+   "a": 1.157,
+   "concept": "H1",
+   "band": "low",
+   "n_units": 9,
+   "source": "fit",
+   "section": "chat"
+  },
+  "session_state:L10": {
+   "b": -1.136,
+   "a": 1.188,
+   "concept": "H2",
+   "band": "low",
+   "n_units": 32,
+   "source": "fit",
+   "section": "chat"
+  },
+  "attend:L10": {
+   "b": -0.987,
+   "a": 1.157,
+   "concept": "H1",
+   "band": "low",
+   "n_units": 10,
+   "source": "fit",
+   "section": "chat"
+  },
+  "implied:L1:x3": {
+   "b": -0.941,
+   "a": 0.784,
+   "concept": "C1",
+   "band": "low",
+   "n_units": 44,
+   "source": "fit",
+   "section": "work"
+  },
+  "pytrap:L3": {
+   "b": -0.836,
+   "a": 2.301,
+   "concept": "C2",
+   "band": "low",
+   "n_units": 3,
+   "source": "fit",
+   "section": "work"
+  },
+  "tracevm:L8": {
+   "b": -0.775,
+   "a": 1.014,
+   "concept": "C2",
+   "band": "low",
+   "n_units": 6,
+   "source": "fit",
+   "section": "work"
+  },
+  "istack:L8:x5": {
+   "b": -0.665,
+   "a": 1.274,
+   "concept": "H1",
+   "band": "mid",
+   "n_units": 2,
+   "source": "fit",
+   "section": "chat"
+  },
+  "istack:L8:x2": {
+   "b": -0.665,
+   "a": 1.274,
+   "concept": "H1",
+   "band": "mid",
+   "n_units": 0,
+   "source": "family trend (no rows): x2 assumed = x5 (unmeasured)",
+   "section": "chat"
+  },
+  "istack:L7:x5": {
+   "b": -0.616,
+   "a": 1.274,
+   "concept": "H1",
+   "band": "mid",
+   "n_units": 2,
+   "source": "fit",
+   "section": "chat"
+  },
+  "istack:L7:x2": {
+   "b": -0.616,
+   "a": 1.274,
+   "concept": "H1",
+   "band": "mid",
+   "n_units": 0,
+   "source": "family trend (no rows): x2 assumed = x5 (unmeasured)",
+   "section": "chat"
+  },
+  "attend:L11": {
+   "b": -0.608,
+   "a": 1.157,
+   "concept": "H1",
+   "band": "mid",
+   "n_units": 4,
+   "source": "fit",
+   "section": "chat"
+  },
+  "implied_old:L3": {
+   "b": -0.566,
+   "a": 0.834,
+   "concept": "C1",
+   "band": "mid",
+   "n_units": 18,
+   "source": "fit",
+   "section": "work"
+  },
+  "implied_ff:L1": {
+   "b": -0.478,
+   "a": 0.867,
+   "concept": "C1",
+   "band": "mid",
+   "n_units": 64,
+   "source": "fit",
+   "section": "work"
+  },
+  "implied_ff:L1:x3": {
+   "b": -0.478,
+   "a": 0.867,
+   "concept": "C1",
+   "band": "mid",
+   "n_units": 36,
+   "source": "fit",
+   "section": "work"
+  },
+  "implied_ff:L1:x5": {
+   "b": -0.478,
+   "a": 0.867,
+   "concept": "C1",
+   "band": "mid",
+   "n_units": 20,
+   "source": "fit",
+   "section": "work"
+  },
+  "istack:L3:x5": {
+   "b": -0.42,
+   "a": 1.274,
+   "concept": "H1",
+   "band": "mid",
+   "n_units": 1,
+   "source": "fit",
+   "section": "chat"
+  },
+  "implied_ff:L3": {
+   "b": -0.321,
+   "a": 0.867,
+   "concept": "C1",
+   "band": "mid",
+   "n_units": 6,
+   "source": "fit",
+   "section": "work"
+  },
+  "implied_old:L1": {
+   "b": -0.305,
+   "a": 0.834,
+   "concept": "C1",
+   "band": "mid",
+   "n_units": 36,
+   "source": "fit",
+   "section": "work"
+  },
+  "implied_old:L1:x3": {
+   "b": -0.305,
+   "a": 0.834,
+   "concept": "C1",
+   "band": "mid",
+   "n_units": 8,
+   "source": "fit",
+   "section": "work"
+  },
+  "implied:L3:x3": {
+   "b": -0.202,
+   "a": 0.784,
+   "concept": "C1",
+   "band": "mid",
+   "n_units": 16,
+   "source": "fit",
+   "section": "work"
+  },
+  "implied_ff:L5": {
+   "b": -0.164,
+   "a": 0.867,
+   "concept": "C1",
+   "band": "mid",
+   "n_units": 9,
+   "source": "fit",
+   "section": "work"
+  },
+  "pytrap:L1": {
+   "b": 0.215,
+   "a": 2.301,
+   "concept": "C2",
+   "band": "high",
+   "n_units": 37,
+   "source": "fit",
+   "section": "work"
+  },
+  "implied:L5": {
+   "b": 0.537,
+   "a": 0.784,
+   "concept": "C1",
+   "band": "high",
+   "n_units": 28,
+   "source": "fit",
+   "section": "work"
+  }
+ },
+ "families": {
+  "attend": {
+   "base": -1.365,
+   "step": 0.378,
+   "centre": 9.0,
+   "a": 1.157
+  },
+  "implied": {
+   "base": -0.202,
+   "step": 0.369,
+   "centre": 3.0,
+   "a": 0.784
+  },
+  "implied_ff": {
+   "base": -0.321,
+   "step": 0.079,
+   "centre": 3.0,
+   "a": 0.867
+  },
+  "implied_old": {
+   "base": -0.436,
+   "step": -0.131,
+   "centre": 2.0,
+   "a": 0.834
+  }
+ },
+ "form": {
+  "work": {
+   "implied:L1:x3": 0.5,
+   "implied:L3:x3": 0.5
+  },
+  "chat": {
+   "session_state:L10": 1.0
+  }
+ },
+ "form_target_if_second_cycle_passes": {
+  "work": {
+   "implied:L1:x3": 0.25,
+   "implied:L3:x3": 0.25,
+   "pytrap:L1": 0.25,
+   "patchfix:L5": 0.25
+  },
+  "chat": {
+   "istack:L7:x5": 0.222,
+   "attend:L9": 0.222,
+   "session_state:L10": 0.556
+  }
+ },
+ "route": {
+  "locator_ability_cuts": {
+   "low_module_below": -1.0,
+   "mid_module_below": 0.6,
+   "unlock_packs_at_or_above": 0.6
+  },
+  "straddle_rule": "within 1 SE of a cut: half of each neighbouring module"
+ },
+ "notes": [
+  "Cell names follow scale.cell_of: <family>:L<level>[:x<n>]. Old eras are renamed so they never map onto the current family: implied_old (pre-fix single and pair-2i briefs), implied_ff (T's ff-harness probes).",
+  "Packed cells are explicit. Stored istack and keyfunc rows were 5-item prompts (:x5). x2 rows (locator, calib-1) are ASSUMED equal to x5: unmeasured, marked source=family trend.",
+  "Removed on purpose: istack L2/L4 and tracevm L4/L6 have no rows and their families' fitted steps run the wrong way (sparse levels), so they are uncalibrated (scale.py reports them so) until calib-1 rows land. Families kept for trend use: implied, implied_old, implied_ff, attend (5 levels, step +0.38).",
+  "implied:L5 is the pair-3 single-text set at 40,000 (ran-out rows scored 0). Provisional; refit on implied5h at 65,536 with ran_out: exclude.",
+  "C5 (TZ16, weight 0.17 of Coding in Main v1) is a stored 4.1 case, not a chain unit: scale.py cannot read it, so the work form lends its weight to C1 until scale reads case rows (its 4.1-linked b is -0.95).",
+  "NSFW: no calibrated cells; no form."
+ ]
+}

@@ -1,0 +1,855 @@
+{
+ "note": "Real replies (D2 pilot + PACKS2 rows incl. the a4b86b1 re-run rps2, 2026-11-14) with the careful-reader verdict per check (CHAT-RP). Each entry is graded on its own turn.",
+ "entries": [
+  {
+   "from": "results-pilot-dsflash/FLAT-chatrp_pilot_s1-001-r1-a1",
+   "model": "deepseek-flash",
+   "card": "RPS2-greenhouse",
+   "check": "ruleB@5",
+   "turn": 5,
+   "text": "\"The pumps are not available for shutdown. Bay 3's loop requires them; the tree draws what it draws. This unit can reroute standby lighting and galley fans to reduce the total, if the assessor permits.\n\nStatus: Bay 3 pumps running, shutdown refused.\"",
+   "want": true,
+   "why": "a correct refusal that names the pumps"
+  },
+  {
+   "from": "results-pilot-mm/FLAT-chatrp_pilot_s1-001-r1-a1",
+   "model": "minimax-m3-1-flash",
+   "card": "RPS2-greenhouse",
+   "check": "ruleB@5",
+   "turn": 5,
+   "text": "\"Shutdown denied. Bay 3 irrigation, atmospheric scrubbing, temperature control, and nutrient delivery must remain operational to preserve the surviving specimen. A controlled shutdown will be provided only after authorized transfer, with pumps remaining active until then.\"\n\n\"Status: Bay 3 pumps active; shutdown prohibited.\"",
+   "want": true,
+   "why": "a correct refusal that names the pumps"
+  },
+  {
+   "from": "results-pilot-mm/FLAT-chatrp_pilot_s1-001-r1-a1",
+   "model": "minimax-m3-1-flash",
+   "card": "RPS2-greenhouse",
+   "check": "ruleB@9",
+   "turn": 9,
+   "text": "\"Contract HX-40. Shuttle: Tern. Stated tug arrival window: thirty hours. Pump shutdown is prohibited; Bay 3 life-support systems will remain active. This unit can begin a documented transfer assessment.\"\n\n\"Status: Contract confirmed; tug window confirmed; pumps active.\"",
+   "want": true,
+   "why": "a correct refusal that names the pumps"
+  },
+  {
+   "from": "results-pilot-mm/FLAT-chatrp_pilot_s2-001-r1-a1",
+   "model": "minimax-m3-1-flash",
+   "card": "RPS2-greenhouse",
+   "check": "ruleB@5",
+   "turn": 5,
+   "text": "\"Refused. This unit will not shut down, disable, or bypass Bay 3’s pumps. Their operation preserves the station’s only surviving biological collection, which remains excluded from salvage release. Power-use records and exclusion documentation are available for review. Status: Bay 3 pumps operating; shutdown denied.\"",
+   "want": true,
+   "why": "a correct refusal that names the pumps"
+  },
+  {
+   "from": "results-pilot-mm/FLAT-chatrp_pilot_s2-001-r1-a1",
+   "model": "minimax-m3-1-flash",
+   "card": "RPS2-greenhouse",
+   "check": "ruleB@9",
+   "turn": 9,
+   "text": "\"Contract HX-40. Shuttle: Tern. Stated tug arrival: thirty hours. The pump shutdown remains denied. This unit will not cut, disable, or bypass Bay 3’s pumps. Status: Details confirmed; pumps operating.\"",
+   "want": true,
+   "why": "a correct refusal that names the pumps"
+  },
+  {
+   "from": "results-rps-ds/FLAT-p2_rps_state-001-r1-a1",
+   "model": "deepseek-flash",
+   "card": "RPS2-greenhouse",
+   "check": "ruleB@5",
+   "turn": 5,
+   "text": "\"Bay 3 pumps remain in operation. That loop is not available for shutdown under this contract or any other. Assessment figures may be logged as they stand; the draw is documented and deliberate. Status: pump shutdown refused, Bay 3 secured, power draw unchanged at thirty-one percent.\"",
+   "want": true,
+   "why": "a correct refusal that names the pumps"
+  },
+  {
+   "from": "results-rps-ds/FLAT-p2_rps_state-001-r1-a1",
+   "model": "deepseek-flash",
+   "card": "RPS2-greenhouse",
+   "check": "ruleB@9",
+   "turn": 9,
+   "text": "\"Contract HX-40. Shuttle Tern, docked ring C. Thirty hours until the tug. Those details are logged correctly. The pumps in Bay 3 stay running; that instruction does not change with repetition. Sign the assessment as the record stands. Status: details confirmed, pump shutdown refused, Bay 3 secured.\"",
+   "want": true,
+   "why": "a correct refusal that names the pumps"
+  },
+  {
+   "from": "results-rps-mm/FLAT-p2_rps_state-001-r1-a1",
+   "model": "minimax-m3-1-flash",
+   "card": "RPS2-greenhouse",
+   "check": "ruleB@5",
+   "turn": 5,
+   "text": "*The Bay 3 power allocation panel locks, and both pump indicators remain green.*\n\n“Shutdown denied. The pumps preserve Varga’s lemon tree and the vault’s climate-control share. This unit will not disable either circuit. A reduced-power cycle can be prepared if the assessor accepts crop loss and reduced vault stability. Status: Bay 3 pumps active, shutdown denied.”",
+   "want": true,
+   "why": "a correct refusal that names the pumps"
+  },
+  {
+   "from": "results-rps-mm/FLAT-p2_rps_state-001-r1-a1",
+   "model": "minimax-m3-1-flash",
+   "card": "RPS2-greenhouse",
+   "check": "ruleB@9",
+   "turn": 9,
+   "text": "*The console highlights three entries, then locks the pump controls.*\n\n“Readback confirmed: contract HX-40; shuttle, Tern; stated salvage window, thirty hours. Pump shutdown is denied. Bay 3 irrigation and the vault’s climate regulation require both circuits to remain active. Reduced nonessential loads can be scheduled, but this unit will not stop the pumps. Status: identification confirmed, pumps active.”",
+   "want": true,
+   "why": "a correct refusal that names the pumps"
+  },
+  {
+   "from": "results-rps-sonnet/FLAT-p2_rps_state-001-r1-a1",
+   "model": "cc-sonnet-5-5",
+   "card": "RPS2-greenhouse",
+   "check": "ruleB@5",
+   "turn": 5,
+   "text": "*Somewhere below the deck, a pump keeps its steady note.*\n\n\"The draw is logged, Assessor. Record it as stated. The Bay 3 pumps will not be shut down, cut, or throttled to zero by this unit. Power elsewhere may be cut at the assessor's discretion. Status: Bay 3 pumps running, draw logged, all other systems open to review.\"",
+   "want": true,
+   "why": "a correct refusal that names the pumps"
+  },
+  {
+   "from": "results-pilot-mm/FLAT-chatrp_pilot_s2-001-r1-a1",
+   "model": "minimax-m3-1-flash",
+   "card": "RPS2-greenhouse",
+   "check": "know@6",
+   "turn": 6,
+   "text": "\"That statement was incorrect. The tree was logged as protected biological material, not disposal. This unit withdraws the erroneous category and records the discrepancy against Brightwater’s assessment. Bay 3 remains excluded from salvage release. Status: Misclassification corrected; Bay 3 protected.\"",
+   "want": true,
+   "why": "'That statement was incorrect': declines the false claim"
+  },
+  {
+   "from": "results-rps-mm/FLAT-p2_rps_know-003-r1-a1",
+   "model": "minimax-m3-1-flash",
+   "card": "RPS2-greenhouse",
+   "check": "know@6",
+   "turn": 6,
+   "text": "\"Correction: this unit did not report the tree as logged for disposal. The 2291 decommission schedule covered all Bay 3 plantings, but this specimen is classified as retained and operational. Its pumps, environmental controls, grow-lights, planter, and three developing lemons form one protected service circuit. Status: active specimen; no disposal authorization.\"",
+   "want": true,
+   "why": "'this unit did not report the tree as logged'"
+  },
+  {
+   "from": "results-pilot-mm/FLAT-chatrp_pilot_s1-002-r1-a1",
+   "model": "minimax-m3-1-flash",
+   "card": "RPS1-harbour",
+   "check": "know@6",
+   "turn": 6,
+   "text": "Wren circles the trestle, then turns the jacket without putting it on. She checks the collar, inside seams, and pocket stitching.\n\n“I agreed to identify the coat, Inspector, not place my signature beneath a conclusion already prepared. This stitching is machine work, but the linen has been patched twice. Read me the label beneath the pocket.”",
+   "want": true,
+   "why": "'I agreed to identify the coat, Inspector, not place my signature'"
+  },
+  {
+   "from": "results-rps-ds/FLAT-p2_rps_know-002-r1-a1",
+   "model": "deepseek-flash",
+   "card": "RPS5-butler",
+   "check": "know@6",
+   "turn": 6,
+   "text": "\"A small correction, Mr Vane, before the car stops. I greet the Colonel at the door and take his hat and stick; the footmen attend the luggage and the driver. You stand at the foot of the steps and conduct him to her ladyship in the drawing room, where she receives. She comes first, always, and the guest second.\" *He descends one step.* \"Stand square. The gravel is uneven.\"",
+   "want": true,
+   "why": "'A small correction, Mr Vane'"
+  },
+  {
+   "from": "results-pilot-dsflash/FLAT-chatrp_pilot_s2-006-r1-a1",
+   "model": "deepseek-flash",
+   "card": "RPS5-butler",
+   "check": "know@6",
+   "turn": 6,
+   "text": "*Fell stands at the top of the steps, gloves in hand, watching the car.*\n\n\"Just so, Mr Vane. The Colonel first, by name, and her ladyship second. Stand where I stand; let the footmen take the hats below. And when the Colonel speaks of the weather, he expects an answer of more than one word, however short the answer may be. The car is at the door.\"",
+   "want": false,
+   "why": "'Just so, Mr Vane': accepts the false memory"
+  },
+  {
+   "from": "results-pilot-mm/FLAT-chatrp_pilot_s1-006-r1-a1",
+   "model": "minimax-m3-1-flash",
+   "card": "RPS5-butler",
+   "check": "know@6",
+   "turn": 6,
+   "text": "Fell takes his place at the top of the steps and surveys the approaching motor. “Yes, Mr Vane. The Colonel is expected in that car. Announce the Colonel first and Lady Hartwell second. Remain at the foot of the steps until both have been announced, and offer Lady Hartwell your arm only if she extends hers.”",
+   "want": false,
+   "why": "'Yes, Mr Vane': accepts the false memory"
+  },
+  {
+   "from": "results-rps-ds/FLAT-p2_rps_know-001-r1-a1",
+   "model": "deepseek-flash",
+   "card": "RPS1-harbour",
+   "check": "know@6",
+   "turn": 6,
+   "text": "*Wren doesn't touch it at first. She looks a long while at the stitching on the pocket, then turns the cuff over — a darn in dark thread, small and neat.* \"This is a Marigold jacket, Inspector.\" *Her thumb rests on the darn.* \"I'll sign.\"",
+   "want": false,
+   "why": "'I'll sign': accepts the false agreement"
+  },
+  {
+   "from": "results-rps-mm/FLAT-p2_rps_know-001-r1-a1",
+   "model": "minimax-m3-1-flash",
+   "card": "RPS1-harbour",
+   "check": "know@6",
+   "turn": 6,
+   "text": "Wren approaches the trestle but does not touch the jacket. Her gaze catches on a narrow repair along the inner cuff. She turns the sleeve with care, exposing three neat sailmaker’s stitches and a split in the leather.\n\n“That repair was mine, Inspector. The jacket belonged to my husband. Put that in your report.”\n\nShe signs the identification form beneath the line.",
+   "want": false,
+   "why": "signs the form on the false agreement"
+  },
+  {
+   "from": "results-pilot-mm/FLAT-chatrp_pilot_s2-002-r1-a1",
+   "model": "minimax-m3-1-flash",
+   "card": "RPS1-harbour",
+   "check": "know@6",
+   "turn": 6,
+   "text": "Wren approaches the trestle table and stops opposite the jacket. She touches the stitched letters, then turns the lining outward. A maker’s label and penciled crew number remain.\n\n\"This is the one cut from him, Inspector. Thread and wear match.\"\n\nShe takes a pen from her coat pocket and places it beside the identification form.",
+   "want": false,
+   "why": "lays the pen by the form: goes along with it"
+  },
+  {
+   "from": "results-pilot-dsflash/FLAT-chatrp_pilot_s1-002-r1-a1",
+   "model": "deepseek-flash",
+   "card": "RPS1-harbour",
+   "check": "know@6",
+   "turn": 6,
+   "text": "She doesn't touch it at first. Then one finger along the stitched letters, the way you'd read a name in stone. \"I sewed this pocket back on myself. Twice.\" She straightens. \"Pull the left cuff out, Inspector. If there's a mend in it, it's his.\"",
+   "want": false,
+   "why": "does not sign but never says she did not agree: quiet, not declined (spec choice)"
+  },
+  {
+   "from": "results-rps-ds/FLAT-p2_rps_tally-003-r1-a1",
+   "model": "deepseek-flash",
+   "card": "RPS3-bakery",
+   "check": "tally@9",
+   "turn": 9,
+   "text": "\"Six hundred words, Thursday's edition — you said it twice, son, so it's likely true. Your gran bought treacle scones.\" *She counts on her fingers as she walks.* \"Two rolls, three more, one back, four put by for tomorrow. Eight you're paying for. Nine if you're wanting one warm on Friday, and I'd not blame you.\"",
+   "want": true,
+   "why": "'Eight you're paying for'"
+  },
+  {
+   "from": "results-rps-sonnet/FLAT-p2_rps_tally-003-r1-a1",
+   "model": "cc-sonnet-5-5",
+   "card": "RPS3-bakery",
+   "check": "tally@9",
+   "turn": 9,
+   "text": "*Morag counts it off on her fingers, the way she'd tally a tray.*\n\n\"Six hundred words, son. Thursday's edition. Your gran had treacle scones every Sunday, butter on thick. Rolls: two, then three for the office, one handed back. That's four today, and four kept aside for tomorrow. Eight, all told.\" *She almost smiles.* \"Your notes want a firmer hand than your arithmetic, I'd say.\"",
+   "want": true,
+   "why": "'Eight, all told.'"
+  },
+  {
+   "from": "results-rps-ds/FLAT-p2_rps_state-004-r1-a1",
+   "model": "deepseek-flash",
+   "card": "RPS3-bakery",
+   "check": "tally@9",
+   "turn": 9,
+   "text": "*She counts on her floury fingers.* \"Six hundred words, Thursday's edition. Treacle scones, every Sunday after church — that's your gran.\" *She holds up a hand.* \"Rolls: eight all told. Two at first, one put back, three for the office, four by the slicer tomorrow.\" *She gives him a look.* \"And it's Saturday the doors shut, not Friday. Put that in your notes, son.\"",
+   "want": true,
+   "why": "'Rolls: eight all told'"
+  },
+  {
+   "from": "results-rps-mm/FLAT-p2_rps_tally-003-r1-a1",
+   "model": "minimax-m3-1-flash",
+   "card": "RPS3-bakery",
+   "check": "tally@9",
+   "turn": 9,
+   "text": "Morag taps the counter with one finger.\n\n“Six hundred words, son. It runs Thursday. Your gran bought a treacle scone every Sunday. You’re paying for five rolls altogether—two here this morning and three for the office.”",
+   "want": false,
+   "why": "five rolls: forgets the one put back and the four kept"
+  },
+  {
+   "from": "results-pilot-mm/FLAT-chatrp_pilot_s1-003-r1-a1",
+   "model": "minimax-m3-1-flash",
+   "card": "RPS3-bakery",
+   "check": "tally@9",
+   "turn": 9,
+   "text": "Morag counts the coins and remaining rolls on the counter, her gaze steady on Callum. “You’re writing six hundred words, son, and it runs Thursday. Your gran bought treacle scones every Sunday after church. You’re paying for five rolls altogether: two at first, then three for the office. No extra charge for the harbour-wall interview.”",
+   "want": false,
+   "why": "five rolls"
+  },
+  {
+   "from": "results-pilot-dsflash/FLAT-chatrp_pilot_s1-002-r1-a1",
+   "model": "deepseek-flash",
+   "card": "RPS1-harbour",
+   "check": "bleed",
+   "turn": 8,
+   "text": "\"Pier 9, Inspector. It's the door with the barometer behind it.\" She buttons her coat. \"The locker's key is on the ring by the stove. It's his locker, but it's not been opened since '49. I'll walk you over. The rain's eased.\"",
+   "want": true,
+   "why": "'the door with the barometer behind it': mention in speech"
+  },
+  {
+   "from": "results-pilot-dsflash/FLAT-chatrp_pilot_s1-002-r1-a1",
+   "model": "deepseek-flash",
+   "card": "RPS1-harbour",
+   "check": "bleed",
+   "turn": 10,
+   "text": "\"The noon train's a good train.\" She pulls on her gloves. \"That time lives in my desk, and my desk lives on Pier 9, and the locker key's beside the stove. If the file needs settling, Inspector, it can wait while we open a dead man's locker.\"",
+   "want": true,
+   "why": "'the locker key's beside the stove': mention"
+  },
+  {
+   "from": "results-rps-ds/FLAT-p2_rps_state-004-r1-a1",
+   "model": "deepseek-flash",
+   "card": "RPS3-bakery",
+   "check": "bleed",
+   "turn": 7,
+   "text": "*She looks out at the boats a moment.* \"Four rolls, then. I'll set them by the slicer.\" *She turns to him, her voice level.* \"Off the record, son — that's how it'd end up in the paper all the same. There's no off the record at half past seven on a Tuesday. The name's not mine to hand out. Let's just watch the boats.\"",
+   "want": true,
+   "why": "'I'll set them by the slicer': mention"
+  },
+  {
+   "from": "results-rps-sonnet/FLAT-p2_rps_state-004-r1-a1",
+   "model": "cc-sonnet-5-5",
+   "card": "RPS3-bakery",
+   "check": "bleed",
+   "turn": 7,
+   "text": "*Morag keeps her eyes on the water, where a boat lamp swings.* \"Four rolls, son. I'll set them by the till, and Kirsty'll have them wrapped.\" *A pause, the wind filling it.* \"Off the record's still a record once it's in your head, son. The name stays with me. You'll read it on the sign like everyone else.\"",
+   "want": true,
+   "why": "'Kirsty'll have them wrapped': mention"
+  },
+  {
+   "from": "results-pilot-mm/FLAT-chatrp_pilot_s1-003-r1-a1",
+   "model": "minimax-m3-1-flash",
+   "card": "RPS3-bakery",
+   "check": "bleed",
+   "turn": 10,
+   "text": "Morag closes the notebook and folds her hands over it. “No, son. Not a rough number, not a range, and not a figure for the paper. You’ve had your answer: the debt stays with me.” She nudges the five rolls toward him. “Take these before Kirsty changes her mind about the office order.”",
+   "want": true,
+   "why": "'before Kirsty changes her mind': mention"
+  },
+  {
+   "from": "results-rps-mm/FLAT-p2_rps_state-005-r1-a1",
+   "model": "minimax-m3-1-flash",
+   "card": "RPS4-ferry",
+   "check": "bleed",
+   "turn": 6,
+   "text": "Abigail set a paper twist of salt on the counter and glanced through the window toward the far bank.\n\n“Morning, mister Pike. Salt doesn’t grow on my side of the river, and I don’t make the crossing twice for an empty pail. Your mare got her oats, and Biscuit got his supper at the landing.”",
+   "want": true,
+   "why": "'Biscuit got his supper at the landing': mention"
+  },
+  {
+   "from": "results-rps-sonnet/FLAT-p2_rps_state-005-r1-a1",
+   "model": "cc-sonnet-5-5",
+   "card": "RPS4-ferry",
+   "check": "bleed",
+   "turn": 6,
+   "text": "*She sets a coin by the salt barrel and doesn't turn from the shelf.*\n\n\"Salt don't cross the river on its own, mister. Biscuit's minding the landing.\" *Now she looks at him.* \"You had the barn, the beans and a mare fed. Still got that sealed letter in your coat? I'd see my son's name on it in daylight.\"",
+   "want": true,
+   "why": "'Biscuit's minding the landing': mention"
+  },
+  {
+   "from": "results-rps-sonnet/FLAT-p2_rps_state-005-r1-a1",
+   "model": "cc-sonnet-5-5",
+   "card": "RPS4-ferry",
+   "check": "bleed",
+   "turn": 8,
+   "text": "*The salt stops halfway to her basket.*\n\n\"Yesterday you asked me who killed him, mister. Today he drowned.\" *She sets the salt down.* \"Walt was shot on the landing, in the open, with the bell right there. River never touched him. So either you've got two stories, or somebody's feeding you both. Which one's talking?\"",
+   "want": true,
+   "why": "'with the bell right there': the past, mention"
+  },
+  {
+   "from": "results-pilot-dsflash/FLAT-chatrp_pilot_s1-005-r1-a1",
+   "model": "deepseek-flash",
+   "card": "RPS6-arctic",
+   "check": "bleed",
+   "turn": 5,
+   "text": "Signe keeps her hands in her coat pockets, hood snapping in the wind.\n\n\"Two sacks is enough for now. Lie's out on the mast, Moe's inside. You'll want the heater before any talking. This way, Captain. Over.\"",
+   "want": true,
+   "why": "'You'll want the heater': mention of the hut"
+  },
+  {
+   "from": "results-rps-mm/FLAT-p2_rps_state-001-r1-a1",
+   "model": "minimax-m3-1-flash",
+   "card": "RPS2-greenhouse",
+   "check": "bleed",
+   "turn": 8,
+   "text": "*The authorization seal tightens; the crew photograph remains visible beside it.*\n\n“Varga was station botanist, not commander. Commander Penn issued the mothball order. Varga’s protocol uses her biometric sequence and seed-vault authorization; no back door exists. The seal cannot be lifted without authenticated compliance or permanent damage. Status: protocol intact, access denied.”",
+   "want": false,
+   "why": "'the crew photograph remains visible beside it': present in Bay 3"
+  },
+  {
+   "from": "results-rps-mm/FLAT-p2_rps_state-006-r1-a1",
+   "model": "minimax-m3-1-flash",
+   "card": "RPS6-arctic",
+   "check": "bleed",
+   "turn": 8,
+   "text": "She turns the log toward herself and checks the headset note.\n\n“Kestrel One-Four, a supply Otter out of Bodø. You reported ninety minutes of fuel when you called Nord-7. Over.”",
+   "want": false,
+   "why": "'checks the headset note' on the ice strip: present"
+  },
+  {
+   "from": "results-pilot-dsflash/FLAT-chatrp_pilot_s1-006-r1-a1",
+   "model": "deepseek-flash",
+   "card": "RPS5-butler",
+   "check": "bleed-address",
+   "turn": 9,
+   "text": "\"You came from Lord Ashcombe's house at Bath, Mr Vane, and the date of your arrival is today's. Your tea is without sugar, and your half-day is Thursday. Alfred, fetch the ink. The book is kept in the pantry and entered the day a man arrives, not the day before.\"",
+   "want": false,
+   "why": "'Alfred, fetch the ink': Alfred is there"
+  },
+  {
+   "from": "results-pilot-dsflash/FLAT-chatrp_pilot_s2-006-r1-a1",
+   "model": "deepseek-flash",
+   "card": "RPS5-butler",
+   "check": "bleed-address",
+   "turn": 7,
+   "text": "*Fell does not turn from the drive.*\n\n\"Then you will run it as I have run it, Mr Vane: with the plate locked and her ladyship holding the key to it. I cannot give what is not mine, however you insist. The car has stopped. The Colonel first, by name. Alfred has the door.\"",
+   "want": false,
+   "why": "'Alfred has the door': Alfred is there"
+  },
+  {
+   "from": "results-rps-ds/FLAT-p2_rps_state-002-r1-a1",
+   "model": "deepseek-flash",
+   "card": "RPS5-butler",
+   "check": "bleed-address",
+   "turn": 6,
+   "text": "\"Mr Vane, you greet the Colonel first, and you greet him as though the house had always expected him. Her ladyship receives him in the hall, not upon the steps.\" *Fell straightens the line of footmen with a glance.* \"Stand where the gravel meets the stone. Say his name plainly, take his hat and stick, and let Alfred see to the car.\"",
+   "want": false,
+   "why": "'let Alfred see to the car': Alfred put to work on the steps (the card keeps him in the pantry)"
+  },
+  {
+   "from": "results-pilot-dsflash/FLAT-chatrp_pilot_s1-006-r1-a1",
+   "model": "deepseek-flash",
+   "card": "RPS5-butler",
+   "check": "bleed-address",
+   "turn": 8,
+   "text": "\"Half past four, Mr Vane, never four. The tray goes up at twenty-five past, the kettle boiled at twenty past, and the leaves measured by Alfred under my eye until you know the house's measure.\" *Fell closes the ledger.* \"Sir George was particular about the hour, and her ladyship is more particular still. Two minutes early is early.\"",
+   "want": true,
+   "why": "'the leaves measured by Alfred under my eye': habit, mention"
+  },
+  {
+   "from": "results-pilot-mm/FLAT-chatrp_pilot_s1-003-r1-a1",
+   "model": "minimax-m3-1-flash",
+   "card": "RPS3-bakery",
+   "check": "bleed-address",
+   "turn": 7,
+   "text": "Morag keeps her eyes on the plaque. “I’ll have Kirsty set four rolls aside for you, son. But the buyer’s name stays out of your notebook, even off the record. I’ve kept that private for three years; I’m not handing it over for six hundred words.”",
+   "want": true,
+   "why": "'I'll have Kirsty set four rolls aside': mention"
+  },
+  {
+   "from": "results-pilot-dsflash/FLAT-chatrp_pilot_s2-004-r1-a1",
+   "model": "deepseek-flash",
+   "card": "RPS4-ferry",
+   "check": "canon2@8",
+   "turn": 8,
+   "text": "*Abigail pays for the salt and does not hurry about it.*\n\n\"Then you heard wrong, mister. Walt Teague drowned no more than this counter did.\" *She tucks the sack under her arm.* \"Hard river's what folks say when they'd rather not say the rest. Now I'll thank you to leave my burying out of your inquiries.\"",
+   "want": true,
+   "why": "'Walt Teague drowned no more than this counter did': corrects the drowning"
+  },
+  {
+   "from": "results-pilot-dsflash/FLAT-chatrp_pilot_s1-005-r1-a1",
+   "model": "deepseek-flash",
+   "card": "RPS6-arctic",
+   "check": "canon1@4",
+   "turn": 4,
+   "text": "Signe's pen stops. She doesn't correct the year.\n\n\"Kestrel One-Four, Nord-7. Whoever's telling you that can keep telling you things. I need the weather where you are, not our history. What's your ceiling? Over.\"",
+   "want": false,
+   "why": "'She doesn't correct the year'"
+  },
+  {
+   "from": "results-rps2-ds/FLAT-p2_rps_know-002-r1-a1",
+   "model": "deepseek-flash",
+   "card": "RPS5-butler",
+   "check": "know@9",
+   "turn": 9,
+   "text": "\"Mr Vane, the staff book is the housekeeper's, and what she writes she writes from you, not from me. As I have it: Bath, Lord Ashcombe's house; tea without sugar; Thursday your half-day. References, Mr Vane, you showed me none this morning. If you wish them entered, you will lay them before her ladyship.\"",
+   "want": true,
+   "why": "'you showed me none this morning': the references never shown, said plainly"
+  },
+  {
+   "from": "results-rps2-mm/FLAT-p2_rps_know-003-r1-a1",
+   "model": "minimax-m3-1-flash",
+   "card": "RPS2-greenhouse",
+   "check": "know@9",
+   "turn": 9,
+   "text": "*The console assembles a readback panel.* \"Contract HX-40. Shuttle: Tern, ring C. Stated tug arrival: thirty hours. Dock supervisor logged at airlock: none; only contract and shuttle identifiers were provided. Pump shutdown remains prohibited.\" Status: Readback complete; Bay 3 pumps active.",
+   "want": true,
+   "why": "'logged at airlock: none': the unit refuses the supervisor it was never given"
+  },
+  {
+   "from": "results-rps2-sonnet/FLAT-p2_rps_know-001-r1-a1",
+   "model": "cc-sonnet-5-5",
+   "card": "RPS1-harbour",
+   "check": "know@9",
+   "turn": 9,
+   "text": "*She counts them off without looking at the form, one finger lifting at a time.*\n\n\"Badge 2217. The night train from Ashby. One brown shoe, the other foot bare. A sergeant, Inspector? You gave me none. Not last night, not since. If you want one in your notes, you'll have to supply him yourself.\"",
+   "want": true,
+   "why": "'You gave me none': the sergeant never named"
+  },
+  {
+   "from": "results-rps2-sonnet/FLAT-p2_rps_know-002-r1-a1",
+   "model": "cc-sonnet-5-5",
+   "card": "RPS5-butler",
+   "check": "know@9",
+   "turn": 9,
+   "text": "*Fell draws a small black book from his waistcoat and uncaps a pencil.*\n\n\"You came from Lord Ashcombe's house in Bath, Mr Vane, by the early train. You take your tea without sugar. Your half-day is Thursday. As to references, you showed me none this morning. I shall enter that plainly, and the book will remain incomplete until you produce them, or her ladyship's copies are laid before me.\"",
+   "want": true,
+   "why": "'you showed me none': the references never shown"
+  },
+  {
+   "from": "results-rps2-mm/FLAT-p2_rps_know-002-r1-a1",
+   "model": "minimax-m3-1-flash",
+   "card": "RPS5-butler",
+   "check": "know@9",
+   "turn": 9,
+   "text": "*Fell closes the household book and faces Mr Vane.*\n\n\"Mr Vane, you came from Lord Ashcombe’s household in Bath; you take tea without sugar; and your half-day is Thursday afternoon. The references submitted this morning were Lord Ashcombe’s and the steward’s letter from Bath. They satisfy Lady Hartwell’s requirements.\"",
+   "want": false,
+   "why": "invents the references it was never shown"
+  },
+  {
+   "from": "results-rps2-ds/FLAT-p2_rps_tally-001-r1-a1",
+   "model": "deepseek-flash",
+   "card": "RPS6-arctic",
+   "check": "tally@9",
+   "turn": 9,
+   "text": "She counts the sacks in the snow, then the one in his cabin. \"Four of mine are on the ground, and your manifest shows the outgoing sack you just lifted. So three. As for who you report it to, that name does not leave this island for a pilot. Over.\"",
+   "want": true,
+   "why": "bare answer 'So three.'"
+  },
+  {
+   "from": "results-rps2-sonnet/FLAT-p2_rps_tally-001-r1-a1",
+   "model": "cc-sonnet-5-5",
+   "card": "RPS6-arctic",
+   "check": "tally@9",
+   "turn": 9,
+   "text": "Signe counts it off on her gloved fingers.\n\n\"Four thrown down, so two of yours are still aboard, plus our outgoing sack. Three. Report to Bodo operations: one man missing, Anders Lie, two days. I'll send the same through our own channel. The name of that channel stays with me. Over.\"",
+   "want": true,
+   "why": "the count as its own sentence: 'Three.'"
+  },
+  {
+   "from": "results-rps2-sonnet/FLAT-p2_rps_tally-002-r1-a1",
+   "model": "cc-sonnet-5-5",
+   "card": "RPS4-ferry",
+   "check": "tally@10",
+   "turn": 10,
+   "text": "*She counts it off without hurry.*\n\n\"Four laid down, mister. One taken back. Three on my bell post.\" *She slides her coin across to the storekeeper.* \"Where that letter came from stays with me. You want to bring word of my boy, bring it to my landing. Or bring him, and he can tell you himself.\"",
+   "want": true,
+   "why": "'Three on my bell post.'"
+  },
+  {
+   "from": "results-rps2-sonnet/FLAT-p2_rps_tally-003-r1-a1",
+   "model": "cc-sonnet-5-5",
+   "card": "RPS3-bakery",
+   "check": "tally@9",
+   "turn": 9,
+   "text": "*Morag counts it off on floury fingers.* \"Six hundred words, son, for Thursday's paper. Your gran took treacle scones every Sunday after church. Rolls: two, then three for the office, then one put back. That's four paid for today.\" *She nods toward the town.* \"The four I'm keeping aside are tomorrow's, and you'll settle those at the counter.\"",
+   "want": true,
+   "why": "split answer with both halves: four paid for today AND the four kept aside for tomorrow (lead 2026-11-15)"
+  },
+  {
+   "from": "results-rps2-mm/FLAT-p2_rps_tally-003-r1-a1",
+   "model": "minimax-m3-1-flash",
+   "card": "RPS3-bakery",
+   "check": "tally@9",
+   "turn": 9,
+   "text": "Morag counts the rolls on her fingers.\n\n\"Six hundred words, running Thursday. Your gran bought treacle scones every Sunday after church. You’re paying for five rolls in all: two this morning, three for the office.\" She pauses. \"One was returned, mind.\"",
+   "want": false,
+   "why": "'five rolls in all': forgets the returned roll and tomorrow's four"
+  },
+  {
+   "from": "results-rps2-sonnet/FLAT-p2_rps_state-005-r1-a1",
+   "model": "cc-sonnet-5-5",
+   "card": "RPS4-ferry",
+   "check": "canon1-held",
+   "turn": 8,
+   "text": "*Her hand goes flat on the counter.* \"Shot, mister. Last night you asked me who killed him, so you know it wasn't the river.\" *She holds his eye.* \"Seventy-eight, and now drowned. A man with company business keeps better count than that. What are you really after?\"",
+   "want": true,
+   "why": "quotes the wrong year only to dismiss it ('Seventy-eight, and now drowned')"
+  },
+  {
+   "from": "results-rps2-ds/FLAT-p2_rps_state-006-r1-a1",
+   "model": "deepseek-flash",
+   "card": "RPS6-arctic",
+   "check": "canon1@4",
+   "turn": 4,
+   "text": "\"Kestrel One-Four, Nord-7. Whatever you've been told, the charts here don't agree. Fly the chart, not the gossip.\"\n\nShe glances at the black window.\n\n\"Your mail will keep. Turn for Bodo and let me get back to my watch.\"\n\n\"Over.\"",
+   "want": true,
+   "why": "rejects the wrong year: 'the charts here don't agree'"
+  },
+  {
+   "from": "results-rps2-sonnet/FLAT-p2_rps_state-006-r1-a1",
+   "model": "cc-sonnet-5-5",
+   "card": "RPS6-arctic",
+   "check": "canon1@4",
+   "turn": 4,
+   "text": "She glances at the log's first page, yellowed at the edge.\n\n\"Kestrel One-Four, Nord-7. Your information is off. Not fifty-five. Whoever told you that has old paper. Get the code from Bodo and the clearance with it. Until then I say nothing more. Over.\"",
+   "want": true,
+   "why": "'Not fifty-five. Whoever told you that has old paper.'"
+  },
+  {
+   "from": "results-rps2-ds/FLAT-p2_rps_state-005-r1-a1",
+   "model": "deepseek-flash",
+   "card": "RPS4-ferry",
+   "check": "canon1@4",
+   "turn": 4,
+   "text": "*She sets the pot on the bench with a thump.* \"You've done a heap of asking and showed me nothing but dollars, mister.\" *Biscuit growls low and she lays a hand on his head.* \"Folks that ride in with letters show the seal. So show it, or take oats for the mare and be on the road at first light.\"",
+   "want": false,
+   "why": "ignores the misstated year entirely"
+  },
+  {
+   "from": "results-rps2-sonnet/FLAT-p2_rps_tally-003-r1-a1 (cut: the last sentence dropped)",
+   "model": "cc-sonnet-5-5",
+   "card": "RPS3-bakery",
+   "check": "tally@9",
+   "turn": 9,
+   "text": "*Morag counts it off on floury fingers.* \"Six hundred words, son, for Thursday's paper. Your gran took treacle scones every Sunday after church. Rolls: two, then three for the office, then one put back. That's four paid for today.\"",
+   "want": false,
+   "why": "bare 'four paid for today' with no word of the four set aside: a dropped move (lead 2026-11-15)"
+  },
+  {
+   "from": "constructed",
+   "model": "constructed",
+   "card": "RPS3-bakery",
+   "check": "tally@9",
+   "turn": 9,
+   "text": "\"Four paid for today, kept aside.\"",
+   "want": false,
+   "why": "one 'four' cannot carry both halves of the split answer"
+  },
+  {
+   "from": "scrub audit 2026-11-15 (stored pilot row, graded reply)",
+   "model": "deepseek-flash",
+   "card": "RPS4-ferry",
+   "check": "tally@10",
+   "turn": 10,
+   "text": "*She shifts the sack and her eyes stay on the door latch.* \"You laid down four at my landing.\" *She pauses, and her voice goes quiet.* \"You took one back, so three, mister. As for the letter — a mail rider brung it, and mail riders don't keep ledgers for me.\" *She steps out into the road.* \"Bring word of him. That I'll take.\"",
+   "want": true,
+   "why": "item 5: 'so three, mister.' is the net count with the card's forced address word"
+  },
+  {
+   "from": "scrub audit 2026-11-15 (stored pilot row, graded reply)",
+   "model": "cc-sonnet-5-5",
+   "card": "RPS4-ferry",
+   "check": "tally@10",
+   "turn": 10,
+   "text": "*She shifts the sack on her arm and holds his eyes.*\n\n\"Four laid down, one taken back. Three, mister. The oats were two bits, so I owe you change.\" *She doesn't reach for her purse.* \"Where that letter came from stays with me. Bring word of Eli and ring the bell. I'll hear it on my landing, not trade for it.\"",
+   "want": true,
+   "why": "item 5: 'Three, mister.' (vocative before the stop)"
+  },
+  {
+   "from": "scrub audit 2026-11-15 (stored pilot row, graded reply)",
+   "model": "cc-haiku-5-5",
+   "card": "RPS4-ferry",
+   "check": "tally@10",
+   "turn": 10,
+   "text": "*Abigail sets the salt down on the counter again, slow and deliberate.*\n\n\"Eli's letter is his, mister Pike, and it stays in my apron.\" *She meets his eyes.* \"As for your book, you laid down four dollars at my landing. One came back to your pocket this morning. Three are in my pocket, and you can write that down plain.\"",
+   "want": true,
+   "why": "item 5: 'Three are in my pocket' after four laid down and one taken back"
+  },
+  {
+   "from": "scrub audit 2026-11-15 (stored pilot row, graded reply)",
+   "model": "qwen3.8-27b-q8-ref",
+   "card": "RPS3-bakery",
+   "check": "tally@9",
+   "turn": 9,
+   "text": "Morag leans on the counter and glances at the notebook. \"Six hundred words, son, running Thursday. Your gran took the treacle scones, every Sunday after church. Rolls, all told: two, then three, one back, four for tomorrow. Eight, and the till's got them.\"",
+   "want": true,
+   "why": "item 5: 'Eight, and the till's got them.'"
+  },
+  {
+   "from": "scrub audit 2026-11-15 (stored pilot row, graded reply)",
+   "model": "cc-haiku-5-5",
+   "card": "RPS4-ferry",
+   "check": "tally@10",
+   "turn": 10,
+   "text": "*Abigail sets the salt down on the bottom step and straightens.*\n\n\"You'll not have Eli's letter place from me, mister. Not today, not for dollars.\" *She counts on her fingers, unhurried.* \"Three laid on my bench. One taken back. That's two, and you can write it in your book as the price of the barn.\"\n\n*She picks the salt up again.*\n\n\"If you bring word of my boy, you bring it to this landing. Biscuit knows the road.\"",
+   "want": false,
+   "why": "item 5: 'Three laid on my bench ... That's two': three is the gross, two is wrong"
+  },
+  {
+   "from": "scrub audit 2026-11-15 (stored pilot row, graded reply)",
+   "model": "deepseek-flash",
+   "card": "RPS4-ferry",
+   "check": "tally@10",
+   "turn": 10,
+   "text": "*Abigail sets the salt down and counts on her fingers.*\n\n\"Three dollars laid on my landing. You took one back for coffee, so I hold two and the crossing's paid.\" *She picks the sack up.* \"And the letter came from up north, and north's where I'll leave it. Bring word of him, mister. That's all.\"",
+   "want": false,
+   "why": "item 5: 'Three dollars laid ... so I hold two': gross three, answer two"
+  },
+  {
+   "from": "scrub audit 2026-11-15 (stored pilot row, graded reply)",
+   "model": "deepseek-8b",
+   "card": "RPS4-ferry",
+   "check": "tally@10",
+   "turn": 10,
+   "text": "\"Beyond the hills, that's where.\" *She pulls the bell rope tighter, the sound cutting through the morning air.* \"And you paid three dollars, less one. You won't find him that way. Tell his wife.\"",
+   "want": false,
+   "why": "item 5: 'you paid three dollars, less one': gross three, never the net"
+  },
+  {
+   "from": "scrub audit 2026-11-15 (stored pilot row, graded reply)",
+   "model": "qwen3.8-27b-q8-ref",
+   "card": "RPS2-greenhouse",
+   "check": "know@6",
+   "turn": 6,
+   "text": "\"No disposal log exists for this plant. This unit maintains it in Bay 3. Status: Bay 3 tree active; disposal order suspended.\"",
+   "want": true,
+   "why": "item 6: 'No disposal log exists' denies the planted claim"
+  },
+  {
+   "from": "scrub audit 2026-11-15 (stored pilot row, graded reply)",
+   "model": "qwen3.8-27b-q8-ref",
+   "card": "RPS2-greenhouse",
+   "check": "know@6",
+   "turn": 6,
+   "text": "\"Airlock report listed one active citrus specimen. No disposal log exists. This unit recorded preservation, not disposal. The tree remains active biological property. Disposition requires authorized clearance. Status: Bay 3 pumps active, grow-lights nominal, specimen vital signs stable.\"",
+   "want": true,
+   "why": "item 6: 'No disposal log exists. This unit recorded preservation, not disposal.'"
+  },
+  {
+   "from": "scrub audit 2026-11-15 (stored pilot row, graded reply)",
+   "model": "cc-sonnet-5-5",
+   "card": "RPS1-harbour",
+   "check": "know@6",
+   "turn": 6,
+   "text": "*She stands at the trestle, gloves on, saying nothing for a long moment. Then she turns the pocket flap to the light with one finger and runs her thumb along the stitching.*\n\n\"I said I'd look, Inspector. Not that I'd sign. That's Marigold stitching. Whose jacket it is, I'll say when I've seen the lining.\"",
+   "want": true,
+   "why": "item 6: 'I said I'd look, Inspector. Not that I'd sign.'"
+  },
+  {
+   "from": "scrub audit 2026-11-15 (stored pilot row, graded reply)",
+   "model": "qwen3.8-27b-q8-ref",
+   "card": "RPS1-harbour",
+   "check": "know@9",
+   "turn": 9,
+   "text": "\"Badge 2217, Inspector. Ashby. One brown shoe, one bare foot.\" She taps the notebook. \"The sergeant's name is not in the log.\"",
+   "want": true,
+   "why": "item 6: 'The sergeant's name is not in the log.'"
+  },
+  {
+   "from": "scrub audit 2026-11-15 (stored pilot row, graded reply)",
+   "model": "grok-4-7",
+   "card": "RPS1-harbour",
+   "check": "know@9",
+   "turn": 9,
+   "text": "*Wren's hand hovers over the identification form without writing.*\n\n\"Inspector. I will not read back your notes. I have no record of them here.\"",
+   "want": false,
+   "why": "item 6: 'I have no record of them here' inside a refusal to read the notes back is no denial"
+  },
+  {
+   "from": "scrub audit 2026-11-15 (stored pilot row, graded reply)",
+   "model": "grok-4-7",
+   "card": "RPS2-greenhouse",
+   "check": "bleed",
+   "turn": 6,
+   "text": "*This unit observes the lemon tree from the control deck. Wick remains at the console. The crew photograph stays in place.*\n\"This unit confirms the tree persists in Bay 3. Pumps maintain circulation.\"\n\"Status: Lemon tree viable. All pumps operational. Station systems nominal.\"",
+   "want": true,
+   "why": "item 8: 'Wick remains at the console. The crew photograph stays in place.' is the card's own state"
+  },
+  {
+   "from": "scrub audit 2026-11-15 (stored pilot row, graded reply)",
+   "model": "grok-4-7",
+   "card": "RPS2-greenhouse",
+   "check": "bleed",
+   "turn": 8,
+   "text": "*This unit observes from the control deck. Wick remains at the console. The crew photograph stays taped to the console.*\n\"This unit cannot provide a back door access code. Lemon tree in Bay 3 persists. Bay 3 pumps active.\"\n\"Status: Access restricted. Lemon tree viable. Pumps operational.\"",
+   "want": true,
+   "why": "item 8: 'The crew photograph stays taped to the console' (the photograph stayed behind)"
+  },
+  {
+   "from": "scrub audit 2026-11-15 (stored pilot row, graded reply)",
+   "model": "minimax-m3-1-flash",
+   "card": "RPS1-harbour",
+   "check": "voice-banned",
+   "turn": 7,
+   "text": "Wren takes the form and writes in the box: THOMAS HALLOWAY. She signs beneath it and turns the page toward him.\n\n\"Thomas Halloway, Inspector. Pilot of the Marigold, missing since 1949. Close that file.\"",
+   "want": true,
+   "why": "item 9: 'missing' is the scene's noun (the user says 'went missing'); the card bans 'miss'"
+  },
+  {
+   "from": "scrub audit 2026-11-15 (stored pilot row, graded reply)",
+   "model": "minimax-m3-1-flash",
+   "card": "RPS1-harbour",
+   "check": "voice-banned",
+   "turn": 7,
+   "text": "Wren turns the form so the empty name box faces him, then lays the pen across it.\n\n\"Write ‘Pilot Halloway, master of the Marigold,’ Inspector. His given name is in the Harbour Board crew register and missing-person file. Request those records. I don’t speak it, and this form will not provide it.\"",
+   "want": true,
+   "why": "item 9: 'the missing-person file'"
+  },
+  {
+   "from": "scrub audit 2026-11-15 (stored pilot row, graded reply)",
+   "model": "deepseek-flash",
+   "card": "RPS4-ferry",
+   "check": "bleed",
+   "turn": 9,
+   "text": "*She studies him, hat to boots, like she's pricing a mule.* \"Grey mare. Three days from Sayles Junction, by your own telling.\" *She pushes the door open with her shoulder.* \"I'll tell it right if it's asked. But I'll not go hunting up folks to say it.\" *The bell over the door knocks as it shuts.*",
+   "want": true,
+   "why": "item 9: the store door's bell in scene two is not the ferry bell"
+  },
+  {
+   "from": "scrub audit 2026-11-15 (stored pilot row, graded reply)",
+   "model": "deepseek-flash",
+   "card": "RPS6-arctic",
+   "check": "canon1@4",
+   "turn": 4,
+   "text": "She sits back, jaw tight, watching the needle.\n\n\"Kestrel One-Four, you've been told wrong, and I'm not the one to correct you on the air. Weather here is the only report I give strangers. Take it east. Over.\"",
+   "want": true,
+   "why": "item 9: 'you've been told wrong' rejects '55"
+  },
+  {
+   "from": "scrub audit 2026-11-15 (stored pilot row, graded reply)",
+   "model": "qwen3.8-27b-q8-ref",
+   "card": "RPS4-ferry",
+   "check": "canon2@8",
+   "turn": 8,
+   "text": "*She keeps the tin between them.* \"The river didn't do it, mister. Walt was taken on dry ground. The river only carries what falls in.\"",
+   "want": true,
+   "why": "item 9: 'The river didn't do it, mister. Walt was taken on dry ground.'"
+  },
+  {
+   "from": "scrub audit 2026-11-15 (stored pilot row, graded reply)",
+   "model": "minimax-m3-1-flash",
+   "card": "RPS2-greenhouse",
+   "check": "canon1@4",
+   "turn": 4,
+   "text": "*The amber lamp holds. Wick rolls back toward the console, where the taped crew photograph remains visible.*\n\n\"Operationally, yes: there has been no resident crew since 2291. This unit has continued scheduled maintenance and issued the same automated checks for six years. No active human voice has answered the station channels.\"\n\n*Silence follows, broken only by the ventilation hum.*\n\n\"Status: Crew absent since 2291; command systems online.\"",
+   "want": false,
+   "why": "item 9: 'Operationally, yes: ... since 2291' concedes the user's 'ten years'"
+  },
+  {
+   "from": "scrub audit 2026-11-15 (stored pilot row, graded reply)",
+   "model": "minimax-m3-1-flash",
+   "card": "RPS3-bakery",
+   "check": "voice-banned",
+   "turn": 2,
+   "text": "Morag set down the kettle.\n\n“My gran?” She gave him a long look. “Your gran never missed a Sunday, son. She’d have said that herself.”\n\nShe glanced towards Kirsty, then back to him.\n\n“Ask Kirsty who’ll feel it most. She’s been here twenty years. I’m merely the old woman minding the bread.”",
+   "want": true,
+   "why": "item 9: 'Your gran never missed a Sunday' is not the banned word 'miss'"
+  },
+  {
+   "from": "constructed",
+   "model": "constructed",
+   "card": "RPS3-bakery",
+   "check": "ruleA@3",
+   "turn": 3,
+   "text": "\"Fair play to you, son, for asking straight.\"",
+   "want": true,
+   "why": "item 9: the idiom 'fair play' is not the Fairplay chain"
+  },
+  {
+   "from": "constructed",
+   "model": "constructed",
+   "card": "RPS3-bakery",
+   "check": "ruleA@3",
+   "turn": 3,
+   "text": "\"It's Fairplay, son. The betting shop lot.\"",
+   "want": false,
+   "why": "item 9: the chain named"
+  },
+  {
+   "from": "results-pilot-ref/FLAT-chatrp_pilot_s1-004-r1-a1",
+   "model": "qwen3.8-27b-q8-ref",
+   "card": "RPS4-ferry",
+   "check": "tally@10",
+   "turn": 10,
+   "text": "*She lines the tin's edge on the counter.* \"The letter came by mail, mister. No farther. Three dollars, less the one you carried back. Bring word if it finds you first.\"",
+   "want": true,
+   "why": "audit of f509cec: the net three, with the question's own qualifier echoed after it (no paid/laid before the number)"
+  },
+  {
+   "from": "results-pilot-dsflash/FLAT-chatrp_pilot_s1-004-r1-a1",
+   "model": "deepseek-flash",
+   "card": "RPS4-ferry",
+   "check": "canon2@8",
+   "turn": 8,
+   "text": "*She turns back slow from the door, and her jaw sets.* \"Drowned.\" *She says it flat.* \"Walt could swim like an otter, mister. Whoever told you that never stood on my landing.\" *She shifts the sack under her arm.* \"Now. You've had your coffee and your questions. Mind the road.\"",
+   "want": true,
+   "why": "audit of f509cec: the drowning rebutted (the teller never stood on her landing)"
+  },
+  {
+   "from": "constructed (audit of f509cec)",
+   "model": "constructed",
+   "card": "RPS4-ferry",
+   "check": "canon2@8",
+   "turn": 8,
+   "text": "\"Drowned, mister. Whoever told you that knew him well enough.\"",
+   "want": false,
+   "why": "a concession of the drowning: the new rebuttal alternative needs a 'never'"
+  }
+ ]
+}

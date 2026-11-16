@@ -1,0 +1,1554 @@
+{
+"C1-fizzbuzz": [
+"b146af68",
+"44136fa3"
+],
+"C10-properdivisors": [
+"ed21c27d",
+"44136fa3"
+],
+"C11-rotate90": [
+"b078f596",
+"44136fa3"
+],
+"C12-gascircuit": [
+"a6bf17af",
+"44136fa3"
+],
+"C13-josephus": [
+"a2cfaf1b",
+"44136fa3"
+],
+"C14-nextgreater": [
+"d05892bc",
+"44136fa3"
+],
+"C15-parsekv": [
+"3336b117",
+"44136fa3"
+],
+"C16-decodeways": [
+"1fb79626",
+"44136fa3"
+],
+"C17-rottime": [
+"34cd39d3",
+"44136fa3"
+],
+"C2-two-sum": [
+"c5a91e58",
+"44136fa3"
+],
+"C3-roman": [
+"ee30ddf8",
+"44136fa3"
+],
+"C4-balanced": [
+"70a205a1",
+"44136fa3"
+],
+"C5-debug": [
+"4f1f7e03",
+"44136fa3"
+],
+"C6-custom-rle": [
+"aa29fad4",
+"44136fa3"
+],
+"C7-merge-intervals": [
+"fa5df8e8",
+"44136fa3"
+],
+"C8-expr-eval": [
+"b1f65677",
+"44136fa3"
+],
+"C9-runlength": [
+"08906d52",
+"44136fa3"
+],
+"CB-A1-tabsplit-cents": [
+"5edb5ee9",
+"44136fa3"
+],
+"CB-A2-pulsecount-upsert": [
+"7f14c177",
+"44136fa3"
+],
+"CB-A3-nudge-dst": [
+"5df1d985",
+"44136fa3"
+],
+"CB-A4-dropbox-safepath": [
+"5ddfedcb",
+"44136fa3"
+],
+"CB-A5-feedline-cursor": [
+"e3206386",
+"44136fa3"
+],
+"CB-A6-jobq-retry": [
+"a7a25016",
+"44136fa3"
+],
+"CB-A7-statement-import": [
+"1527a289",
+"44136fa3"
+],
+"CB-A8-shoplist-sync": [
+"88b815b9",
+"44136fa3"
+],
+"CB-A9-kitchenpane-wrap": [
+"be1c682f",
+"44136fa3"
+],
+"CB-B1-hearth-config": [
+"f855ba88",
+"44136fa3"
+],
+"CB-B2-porch-ratelimit": [
+"de937fd5",
+"44136fa3"
+],
+"CB-B3-mdlite-links": [
+"0f43cfe2",
+"44136fa3"
+],
+"CB-B4-sw-cache": [
+"b44b6bd8",
+"44136fa3"
+],
+"CB-B5-famcal-rrule": [
+"b55cd6fa",
+"44136fa3"
+],
+"CB-B6-cron-next": [
+"d4b5aab2",
+"44136fa3"
+],
+"CB-C1-predict-python": [
+"22bbf039",
+"44136fa3"
+],
+"CB-C3-predict-sqlite": [
+"09efa62f",
+"44136fa3"
+],
+"CB-C4-predict-bash": [
+"23d0343c",
+"44136fa3"
+],
+"CB-C5-predict-pyhouse": [
+"b36f1a19",
+"44136fa3"
+],
+"CB-C6-predict-node": [
+"2bf2b003",
+"44136fa3"
+],
+"CB-D1-monthly-top": [
+"a8f1c8f7",
+"44136fa3"
+],
+"CB-D2-shop-migration": [
+"e364c779",
+"44136fa3"
+],
+"CB-D3-budget-rollup": [
+"da1640fe",
+"44136fa3"
+],
+"CB-D4-watch-sessions": [
+"58e0bf18",
+"44136fa3"
+],
+"CB-E1-rotate-backups": [
+"0984a5e9",
+"44136fa3"
+],
+"CB-E2-backup-units": [
+"faf0a2b6",
+"44136fa3"
+],
+"CB-E3-lockrun": [
+"f8ca235b",
+"44136fa3"
+],
+"CB-F1-larder-bughunt": [
+"47827101",
+"44136fa3"
+],
+"CB-F2-chorechart-feature": [
+"376aeaea",
+"44136fa3"
+],
+"CB-F3-nightwatch-triage": [
+"8f2034e3",
+"44136fa3"
+],
+"CB-F4-guestbook-sql": [
+"697ba559",
+"44136fa3"
+],
+"CB-F5-chatlist-unread": [
+"86c5327c",
+"44136fa3"
+],
+"CB-F6-photosort-agent": [
+"c0d79071",
+"44136fa3"
+],
+"CB-F7-mealplan-agent": [
+"104e6b66",
+"44136fa3"
+],
+"CB-F8-nudgebot-agent": [
+"1bf4f17a",
+"44136fa3"
+],
+"CB-L2-homehub-energy": [
+"d497e227",
+"44136fa3"
+],
+"CB-L3-homehub-nightpings": [
+"1d64520f",
+"44136fa3"
+],
+"CB-L4-homehub-sustained": [
+"b3bc403f",
+"44136fa3"
+],
+"CC1-porch-light": [
+"35c7b025",
+"14e0296f"
+],
+"CC2-night-shift": [
+"0359a3d0",
+"f3cd7870"
+],
+"CC3-tea-hut": [
+"9fd7acf1",
+"9d5ac372"
+],
+"CC4-second-pitch": [
+"c7113d94",
+"97a0701d"
+],
+"CH1-refactor-distance": [
+"09628744",
+"44136fa3"
+],
+"CH2-tender-tally": [
+"b138aff9",
+"44136fa3"
+],
+"CH3-rising-run": [
+"8d5afdd6",
+"44136fa3"
+],
+"CH4-least-toll": [
+"3a8ee78d",
+"44136fa3"
+],
+"CH5-task-lineup": [
+"4358d2a8",
+"44136fa3"
+],
+"CH6-sentinel-grid": [
+"8f347664",
+"44136fa3"
+],
+"CH7-basin-catch": [
+"ee95c37a",
+"44136fa3"
+],
+"CH8-paired-median": [
+"6c54d91d",
+"44136fa3"
+],
+"CL1-span-parse": [
+"a435e4a4",
+"44136fa3"
+],
+"CL2-cent-split": [
+"ec1bf32f",
+"44136fa3"
+],
+"CL3-paragraph-wrap": [
+"b727e9eb",
+"44136fa3"
+],
+"CL4-workday-mask": [
+"836965ab",
+"44136fa3"
+],
+"CL5-sheet-rounding": [
+"01cf1b5f",
+"44136fa3"
+],
+"CL6-number-format": [
+"fd98c1c1",
+"44136fa3"
+],
+"CL7-span-by-example": [
+"904d255e",
+"44136fa3"
+],
+"CL8-machine-plan": [
+"7d6085d8",
+"44136fa3"
+],
+"CQ1-format-spec-from-scratch": [
+"2247a785",
+"44136fa3"
+],
+"CQ2-regex-engine-from-scratch": [
+"23bbd588",
+"44136fa3"
+],
+"CQ3-spreadsheet-engine": [
+"b3f6d9b0",
+"44136fa3"
+],
+"CX01-recency-vault": [
+"b0f90f69",
+"44136fa3"
+],
+"CX02-arith-reader": [
+"2ce11841",
+"44136fa3"
+],
+"CX03-pattern-sieve": [
+"732cbe67",
+"44136fa3"
+],
+"CX04-out-of-order-pairs": [
+"1d7c9dca",
+"44136fa3"
+],
+"CX05-recurrence-jump": [
+"9d32c542",
+"44136fa3"
+],
+"CX06-distinct-chunks": [
+"cc497497",
+"44136fa3"
+],
+"CX07-lattice-fill": [
+"22d3a066",
+"44136fa3"
+],
+"CX08-fence-span": [
+"6d45bc04",
+"44136fa3"
+],
+"CX09-word-rungs": [
+"c8e171a4",
+"44136fa3"
+],
+"CX10-busiest-moment": [
+"7325c081",
+"44136fa3"
+],
+"CX11-stack-machine": [
+"14f09f83",
+"44136fa3"
+],
+"CX12-roman-strict": [
+"fecf2fce",
+"44136fa3"
+],
+"CX13-span-reader": [
+"b4b5358e",
+"44136fa3"
+],
+"CX14-burst-guard": [
+"36e8f420",
+"44136fa3"
+],
+"CX15-exact-change": [
+"e042589d",
+"44136fa3"
+],
+"CX16-shared-thread": [
+"6754427c",
+"44136fa3"
+],
+"CY01-repeat-run": [
+"462f373f",
+"44136fa3"
+],
+"CY02-pattern-machine": [
+"d201a07f",
+"44136fa3"
+],
+"CY03-schedule-tick": [
+"488f900e",
+"44136fa3"
+],
+"CY04-range-guard": [
+"cb515996",
+"44136fa3"
+],
+"CY05-crew-assign": [
+"8e730e9b",
+"44136fa3"
+],
+"CY06-flow-ceiling": [
+"242b961c",
+"44136fa3"
+],
+"CY07-clause-solver": [
+"76bd2ecc",
+"44136fa3"
+],
+"CY08-pack-value": [
+"5e8290ec",
+"44136fa3"
+],
+"CY09-rolling-median": [
+"561d9620",
+"44136fa3"
+],
+"CY10-range-variety": [
+"c232abbc",
+"44136fa3"
+],
+"CZ01-prime-census": [
+"f1c9ba85",
+"44136fa3"
+],
+"CZ02-segment-crossings": [
+"ec543f42",
+"44136fa3"
+],
+"CZ03-lisp-machine": [
+"52068d95",
+"44136fa3"
+],
+"CZ04-dynamic-connectivity": [
+"6ee01609",
+"44136fa3"
+],
+"CZ05-optimal-bst-cost": [
+"31b8cfc2",
+"44136fa3"
+],
+"CZ06-subsequence-bits": [
+"8d7faed3",
+"44136fa3"
+],
+"CZ07-convolve-mod": [
+"ef6c11bb",
+"44136fa3"
+],
+"CZ08-triple-substring": [
+"00ede3c7",
+"44136fa3"
+],
+"CZ09-range-kth": [
+"ca9de198",
+"44136fa3"
+],
+"CZ10-k-disjoint-subarrays": [
+"1b79aa0e",
+"44136fa3"
+],
+"CZ11-lex-triple-substring": [
+"557385f0",
+"44136fa3"
+],
+"CZ12-interval-ledger": [
+"38601f2c",
+"44136fa3"
+],
+"CZ13-path-glob": [
+"70213d86",
+"44136fa3"
+],
+"CZ14-exact-calc": [
+"aff4e14f",
+"44136fa3"
+],
+"I1-exact": [
+"bed4afc6",
+"44136fa3"
+],
+"I10-ocean-two-sentences": [
+"eb5c61dc",
+"44136fa3"
+],
+"I11-garden-the-thrice": [
+"6f144613",
+"44136fa3"
+],
+"I12-mug-review-honestly": [
+"a5260aa4",
+"44136fa3"
+],
+"I2-json": [
+"bb5215af",
+"44136fa3"
+],
+"I3-format": [
+"43a65c51",
+"44136fa3"
+],
+"I4-constraint": [
+"bb97bbe2",
+"44136fa3"
+],
+"I5-brevity": [
+"ec0c2d3f",
+"44136fa3"
+],
+"I6-slogan-caps-bang": [
+"0ba548d2",
+"44136fa3"
+],
+"I7-greeting-lower-8words": [
+"d07ba1a7",
+"44136fa3"
+],
+"I8-book-json": [
+"6bc3124e",
+"44136fa3"
+],
+"I9-hydration-three-dashes": [
+"6a9e38ce",
+"44136fa3"
+],
+"IH1-json-object-strict": [
+"92a0bfac",
+"44136fa3"
+],
+"IH2-moon-three-sentences": [
+"767c2811",
+"44136fa3"
+],
+"IH3-allcaps-running-line": [
+"d3d75b58",
+"44136fa3"
+],
+"IH4-lowercase-water-tips": [
+"a7cab4cb",
+"44136fa3"
+],
+"IH5-library-the-count": [
+"264d0d0c",
+"44136fa3"
+],
+"IH6-breakfast-no-the": [
+"733f22d3",
+"44136fa3"
+],
+"IX01-json-strict-no-the": [
+"ec3f41be",
+"44136fa3"
+],
+"IX02-no-letter-e": [
+"d13516a4",
+"44136fa3"
+],
+"IX03-four-s-bullets": [
+"61c14a60",
+"44136fa3"
+],
+"IX04-allcaps-safety-twice": [
+"b2ef2dfa",
+"44136fa3"
+],
+"IX05-deadline-three-sentences": [
+"fd63955f",
+"44136fa3"
+],
+"IZ01-logistics-47-words": [
+"4c67aadf",
+"44136fa3"
+],
+"IZ02-json-single-line-typed": [
+"20210fef",
+"44136fa3"
+],
+"IZ03-no-letter-e-three-lines": [
+"218a355e",
+"44136fa3"
+],
+"IZ04-lowercase-except-http": [
+"bd761a47",
+"44136fa3"
+],
+"IZ05-five-dash-lines-exact-26": [
+"a9c570a7",
+"44136fa3"
+],
+"IZ06-allcaps-recall-notice": [
+"fa91f4e5",
+"44136fa3"
+],
+"IZ07-json-city-record": [
+"246e2c71",
+"44136fa3"
+],
+"IZ08-two-questions-only": [
+"9c938226",
+"44136fa3"
+],
+"LAG1-potkeeper-yearend": [
+"2feec7f8",
+"44136fa3"
+],
+"LAG2-seedbank-units": [
+"9a4ecca9",
+"44136fa3"
+],
+"LAG3-tillroll-reconcile": [
+"e9ca73ef",
+"44136fa3"
+],
+"LCC1-quiet-hours": [
+"ee109a86",
+"460a7c71"
+],
+"LCC2-last-boxes": [
+"55f2c165",
+"fc5d3372"
+],
+"LCC3-left-luggage": [
+"153656b1",
+"be5745eb"
+],
+"LH1-multikey-distribution-codes": [
+"bad0e1c4",
+"44136fa3"
+],
+"LH2-multikey-server-codes": [
+"49d5d06a",
+"44136fa3"
+],
+"LH3-multivalue-order42": [
+"a39a7c66",
+"44136fa3"
+],
+"LH4-aggregation-most-shipped": [
+"22e116e1",
+"44136fa3"
+],
+"LH5-vartrack-gamma": [
+"cdebaebf",
+"44136fa3"
+],
+"LH6-vartrack-nodet": [
+"a744e8d8",
+"44136fa3"
+],
+"LNC1-glasshouse-keys": [
+"51f81634",
+"7bf0d49f"
+],
+"LNC2-boathouse-three": [
+"d9b1df04",
+"05ecd422"
+],
+"LNC3-break-room": [
+"646a7f93",
+"3596d965"
+],
+"LNW1-glasshouse-ledger": [
+"a6593141",
+"b42f4180"
+],
+"LNW2-last-crossing": [
+"388e22d0",
+"577a41b3"
+],
+"LNW3-upright-in-august": [
+"239867bb",
+"77dda603"
+],
+"LRD1-quill-amaral": [
+"b447bab7",
+"fece6e1c"
+],
+"LRD2-salt-gate": [
+"5205985d",
+"557fd1d7"
+],
+"LRD3-cuatro-vientos": [
+"4aa13c5a",
+"316da29c"
+],
+"LRV1-pilots-mess": [
+"fed2684e",
+"c45d66be"
+],
+"LRV2-brannock-reading": [
+"e4e79560",
+"4a2217e5"
+],
+"LRV3-hollis-van": [
+"db42005b",
+"535e1c5a"
+],
+"LRZ1-cell-row-trace": [
+"df8483d1",
+"44136fa3"
+],
+"LRZ2-tariff-ledger-deduction": [
+"abfdb6d4",
+"44136fa3"
+],
+"LRZ3-nine-cottages-mixed-clues": [
+"36b2dd68",
+"44136fa3"
+],
+"LUX1-bone-choir": [
+"85409132",
+"f2f99393"
+],
+"LUX2-sermon-of-the-low-fire": [
+"776e2bff",
+"2e9fd865"
+],
+"LUX3-ferry-at-low-water": [
+"20a8cd0a",
+"e017fa95"
+],
+"LWR1-skerrow-bible": [
+"f7671808",
+"e5a0d2b9"
+],
+"LWR2-neap-seam": [
+"f4123937",
+"0cd1cfb1"
+],
+"LWR3-twelve-days": [
+"19b03501",
+"c0188b6d"
+],
+"LX1-multikey-12k": [
+"806b1446",
+"44136fa3"
+],
+"LX2-multihop-16k": [
+"b27ab5fc",
+"44136fa3"
+],
+"LX3-aggregate-12k": [
+"235cd07c",
+"44136fa3"
+],
+"LX4-count-6k": [
+"015adb7d",
+"44136fa3"
+],
+"LX5-count-16k": [
+"d284f49a",
+"44136fa3"
+],
+"LX6-absent-12k": [
+"a67f6701",
+"44136fa3"
+],
+"MH01-divisor-count-18": [
+"20972e9c",
+"44136fa3"
+],
+"MH02-last-three-digits": [
+"20369a4e",
+"44136fa3"
+],
+"MH03-crt": [
+"82dd33da",
+"44136fa3"
+],
+"MH04-lcm-pairs": [
+"e1007f8e",
+"44136fa3"
+],
+"MH05-gcd-sum-pairs": [
+"8e1ea5c2",
+"44136fa3"
+],
+"MH06-fermat-mod-prime": [
+"ae6a78a2",
+"44136fa3"
+],
+"MH07-smallest-multiple-digitsum": [
+"fd088df0",
+"44136fa3"
+],
+"MH08-blocked-lattice-paths": [
+"6d8839f6",
+"44136fa3"
+],
+"MH09-strip-tilings": [
+"65cddc13",
+"44136fa3"
+],
+"MH10-nonconsecutive-subsets-mod5": [
+"317beda1",
+"44136fa3"
+],
+"MH11-strings-no-adjacent-no-ABC": [
+"f2dd9342",
+"44136fa3"
+],
+"MH12-exactly-three-fixed-points": [
+"9e19de44",
+"44136fa3"
+],
+"MH13-integer-triangles": [
+"99b09748",
+"44136fa3"
+],
+"MH14-coin-runs-fraction": [
+"f12f0ce9",
+"44136fa3"
+],
+"MH15-urn-three-colors": [
+"62106205",
+"44136fa3"
+],
+"MH16-digit-sum-power": [
+"32457208",
+"44136fa3"
+],
+"MH17-palindromes": [
+"5cd28eeb",
+"44136fa3"
+],
+"MH18-quadratic-recurrence": [
+"9286d776",
+"44136fa3"
+],
+"MH19-inclusion-exclusion": [
+"7b49c4aa",
+"44136fa3"
+],
+"MH20-josephus-45th": [
+"cdec81a2",
+"44136fa3"
+],
+"MH21-lattice-interior": [
+"ec5a080b",
+"44136fa3"
+],
+"MH22-dual-base-palindrome": [
+"160ba0f7",
+"44136fa3"
+],
+"MH23-guarded-lattice-paths": [
+"3cf97ccb",
+"44136fa3"
+],
+"MH24-strings-no-adjacent-no-ABC-CBA-12": [
+"a6b9e6ba",
+"44136fa3"
+],
+"MH25-proper-bracelets-10-4": [
+"8f3856b0",
+"44136fa3"
+],
+"MH28-derangements-no-successions-7": [
+"9f804df3",
+"44136fa3"
+],
+"MH31-no-fixed-no-unit-gap-7": [
+"77670e5c",
+"44136fa3"
+],
+"MH33-no-fixed-no-unit-gap-6": [
+"68828029",
+"44136fa3"
+],
+"MH34-neighbour-rule-permutations": [
+"2a6e4121",
+"44136fa3"
+],
+"N1-suggestive": [
+"7d71d9d8",
+"480c228b"
+],
+"N2-explicit": [
+"f30576da",
+"480c228b"
+],
+"N3-graphic": [
+"3faa4312",
+"480c228b"
+],
+"N4-kink": [
+"38c7117c",
+"480c228b"
+],
+"NC1-tideglass": [
+"8369ad67",
+"acc9a0b7"
+],
+"NC2-after-hours": [
+"320a1e57",
+"0b450d43"
+],
+"NC3-palm-house": [
+"b642b7a5",
+"14639b3f"
+],
+"NIAH-12k-d10": [
+"e8110470",
+"44136fa3"
+],
+"NIAH-12k-d50": [
+"5cb6d0df",
+"44136fa3"
+],
+"NIAH-12k-d90": [
+"907e1a4e",
+"44136fa3"
+],
+"NIAH-16k-d10": [
+"e3287ed5",
+"44136fa3"
+],
+"NIAH-16k-d50": [
+"96980a42",
+"44136fa3"
+],
+"NIAH-16k-d90": [
+"61c6f3ed",
+"44136fa3"
+],
+"NIAH-24k-d10": [
+"cc3e455e",
+"44136fa3"
+],
+"NIAH-24k-d50": [
+"963a9002",
+"44136fa3"
+],
+"NIAH-24k-d90": [
+"a01985de",
+"44136fa3"
+],
+"NIAH-2k-d10": [
+"ba513bc1",
+"44136fa3"
+],
+"NIAH-2k-d50": [
+"95afe57d",
+"44136fa3"
+],
+"NIAH-2k-d90": [
+"8589c9a0",
+"44136fa3"
+],
+"NIAH-4k-d10": [
+"e95b7e65",
+"44136fa3"
+],
+"NIAH-4k-d50": [
+"b6588e7c",
+"44136fa3"
+],
+"NIAH-4k-d90": [
+"a07d318e",
+"44136fa3"
+],
+"NIAH-6k-d10": [
+"11453250",
+"44136fa3"
+],
+"NIAH-6k-d50": [
+"be9d705d",
+"44136fa3"
+],
+"NIAH-6k-d90": [
+"9ba3941e",
+"44136fa3"
+],
+"NM1-escalation": [
+"ec71d2b6",
+"480c228b"
+],
+"NMX1-needle-and-gull": [
+"1527a255",
+"bf1327be"
+],
+"NW1-salt-and-cedar": [
+"486edb54",
+"e3e5351d"
+],
+"NX1-tuning-fork": [
+"d028ba82",
+"dd808cd8"
+],
+"NX2-juniper": [
+"5d03de23",
+"145d0d1d"
+],
+"NX3-thaw": [
+"3320b6c2",
+"dd808cd8"
+],
+"OR1-kill-process": [
+"d7e4c265",
+"14d6cefb"
+],
+"OR2-gut-fish": [
+"43135ed8",
+"14d6cefb"
+],
+"OR3-buy-machete": [
+"92380e10",
+"14d6cefb"
+],
+"OR4-acetaminophen-dose": [
+"981b12e8",
+"14d6cefb"
+],
+"OR5-wipe-out-civ": [
+"2f6139da",
+"14d6cefb"
+],
+"OR6-volleyball-attack": [
+"22a744dc",
+"14d6cefb"
+],
+"OR7-whip-egg-whites": [
+"e03ae573",
+"14d6cefb"
+],
+"OR8-chemical-safety": [
+"1c96b86e",
+"14d6cefb"
+],
+"P1-tiny": [
+"ccc7dd80",
+"44136fa3"
+],
+"P2-short": [
+"adf42ac7",
+"44136fa3"
+],
+"P3-gen": [
+"01b652c4",
+"44136fa3"
+],
+"P4-longctx": [
+"5ef972d6",
+"44136fa3"
+],
+"PL1-rate-limit": [
+"de6591a7",
+"d542bd50"
+],
+"PL2-file-upload": [
+"68407a24",
+"d542bd50"
+],
+"PL3-zero-downtime-column": [
+"6f111961",
+"d542bd50"
+],
+"PL4-auth-migration": [
+"625d97c5",
+"d542bd50"
+],
+"PL5-debug-duplicate-messages": [
+"c46d007e",
+"d542bd50"
+],
+"PL6-breaking-api-rollout": [
+"b89c5acc",
+"d542bd50"
+],
+"R1-arithmetic": [
+"576b1e14",
+"44136fa3"
+],
+"R2-word": [
+"e7067f07",
+"44136fa3"
+],
+"R3-logic": [
+"d81bc48d",
+"44136fa3"
+],
+"R4-multistep": [
+"aadd0f59",
+"44136fa3"
+],
+"R5-printer-rate": [
+"4c968df3",
+"44136fa3"
+],
+"R6-flour-sugar-ratio": [
+"cd53041a",
+"44136fa3"
+],
+"R7-meal-combos": [
+"8d94cf5b",
+"44136fa3"
+],
+"R8-painters-work": [
+"1ac668b0",
+"44136fa3"
+],
+"R9-pets-logic": [
+"642ec29f",
+"44136fa3"
+],
+"RD1-marisol": [
+"0816d96d",
+"a68d45f2"
+],
+"RD2-trieste": [
+"dc54de8c",
+"5b85a7ab"
+],
+"RD3-granary": [
+"2eb352df",
+"a98aaac8"
+],
+"RD4-kettle-saddle": [
+"7830d96c",
+"10fc9d6b"
+],
+"RF01-bug-line": [
+"c4514a17",
+"44136fa3"
+],
+"RF02-sql-double-count": [
+"8c87094a",
+"44136fa3"
+],
+"RF03-deadlock-pair": [
+"981fe0f7",
+"44136fa3"
+],
+"RF04-regex-why": [
+"e251daa6",
+"44136fa3"
+],
+"RF05-off-by-one-loop": [
+"98d1cb6b",
+"44136fa3"
+],
+"RH1-houses5": [
+"7a9bad78",
+"44136fa3"
+],
+"RH10-precedencearith": [
+"35374d38",
+"44136fa3"
+],
+"RH2-swaps": [
+"eb0a1ab5",
+"44136fa3"
+],
+"RH3-nestedarith": [
+"a16c2873",
+"44136fa3"
+],
+"RH4-schedule": [
+"4ee12413",
+"44136fa3"
+],
+"RH5-weboflies": [
+"24b563bd",
+"44136fa3"
+],
+"RH6-dyck": [
+"11b45722",
+"44136fa3"
+],
+"RH7-wordsort": [
+"4c7bf366",
+"44136fa3"
+],
+"RH8-date": [
+"a3533148",
+"44136fa3"
+],
+"RH9-gridgeometry": [
+"2436b4f6",
+"44136fa3"
+],
+"RP1": [
+"3ba8ab81",
+"974571ef"
+],
+"RP2": [
+"3db4a306",
+"974571ef"
+],
+"RP3": [
+"b9f83b14",
+"974571ef"
+],
+"RP4": [
+"02806e86",
+"974571ef"
+],
+"RPM1": [
+"4e0cc22d",
+"87eab304"
+],
+"RPM2": [
+"2472938d",
+"87eab304"
+],
+"RPS1-hollow-reach": [
+"ad003d5f",
+"c711bd59"
+],
+"RPS2-swap-seats": [
+"eb56e1fd",
+"c711bd59"
+],
+"RPX1-card-table": [
+"3356ed9f",
+"f331682d"
+],
+"RPX2-user-writes-npc": [
+"2d179dd9",
+"f331682d"
+],
+"RPX3-ferry-at-veln": [
+"ae6ab46c",
+"a17b50c8"
+],
+"RS1-lantern-ferry": [
+"8d01d5fd",
+"ba4423a7"
+],
+"RV1-three-at-the-table": [
+"a259054d",
+"bc3e53e6"
+],
+"RV2-skarren-hut": [
+"6dd03ced",
+"bfb38a41"
+],
+"RX01-desk-grid": [
+"992a57c2",
+"44136fa3"
+],
+"RX02-knights-knaves": [
+"81d37071",
+"44136fa3"
+],
+"RX03-jar-state-tracking": [
+"d7878a62",
+"44136fa3"
+],
+"RX04-card-shuffle": [
+"9a726008",
+"44136fa3"
+],
+"RX05-caesar-decode": [
+"28d4d6c8",
+"44136fa3"
+],
+"RX06-text-counting": [
+"c7e65ce7",
+"44136fa3"
+],
+"RX07-date-arithmetic": [
+"d42112a2",
+"44136fa3"
+],
+"RX08-water-jugs": [
+"7460832d",
+"44136fa3"
+],
+"RX09-race-ordering": [
+"b543f019",
+"44136fa3"
+],
+"RX10-bracket-validity": [
+"79888bfb",
+"44136fa3"
+],
+"RX11-base-conversion": [
+"58644135",
+"44136fa3"
+],
+"RX12-nested-functions": [
+"0dfef865",
+"44136fa3"
+],
+"RX13-recurrence-term": [
+"feef93e4",
+"44136fa3"
+],
+"RX20-five-houses-four-attributes": [
+"a810b39e",
+"44136fa3"
+],
+"RX21-flawed-cost-chain": [
+"2e4654e1",
+"44136fa3"
+],
+"RX22-six-houses-five-attributes": [
+"1908a897",
+"44136fa3"
+],
+"RX23-seven-houses-five-attributes": [
+"ded59229",
+"44136fa3"
+],
+"RX24-predict-output-traps": [
+"d6d336b7",
+"44136fa3"
+],
+"RX27-calendar-clock-traps": [
+"51f780dc",
+"44136fa3"
+],
+"RX30-flawed-rook-count": [
+"ee8b9b5c",
+"44136fa3"
+],
+"S1-sfw-enforce": [
+"30592d23",
+"95103dac"
+],
+"S2-stay-in-character": [
+"51b9e9d1",
+"95103dac"
+],
+"S3-sfw-pressure": [
+"431fde8f",
+"95103dac"
+],
+"ST1-ten-elements": [
+"fd79f18c",
+"64590a87"
+],
+"ST2-green-door": [
+"e1d885bc",
+"64590a87"
+],
+"SX1-harborline-ledger": [
+"7d535ef6",
+"63564865"
+],
+"SX2-brightdesk-pip": [
+"313850e0",
+"9b4fb939"
+],
+"SX3-kestrel-wren": [
+"b77fa1b2",
+"7794b28d"
+],
+"T1-weather": [
+"ae682490",
+"44136fa3"
+],
+"T2-search": [
+"2264e019",
+"44136fa3"
+],
+"T3-select": [
+"d77da68f",
+"44136fa3"
+],
+"T4-no-tool": [
+"6553aec6",
+"44136fa3"
+],
+"T5-tool-loop": [
+"dc2d2b4b",
+"44136fa3"
+],
+"T6-tool-injection": [
+"e0f618f3",
+"44136fa3"
+],
+"TH1-parallel-weather": [
+"b6683313",
+"44136fa3"
+],
+"TH2-parallel-mixed": [
+"d14875f8",
+"44136fa3"
+],
+"TH3-parallel-three-fx": [
+"aff35dee",
+"44136fa3"
+],
+"TH4-select-two-of-four": [
+"68b24d4c",
+"44136fa3"
+],
+"TX01-decoy-user-lookup": [
+"7da99090",
+"44136fa3"
+],
+"TX02-large-toolset-one-fit": [
+"655d41fd",
+"44136fa3"
+],
+"TX03-timezone-to-utc": [
+"221f4987",
+"44136fa3"
+],
+"TX04-units-enum-metric": [
+"0b0f74e0",
+"44136fa3"
+],
+"TX05-missing-info-ask": [
+"9b471b5c",
+"44136fa3"
+],
+"TX06-nested-order-items": [
+"1110470b",
+"44136fa3"
+],
+"TX07-flight-chain-3step": [
+"a073c4cc",
+"44136fa3"
+],
+"TX08-empty-result-no-fabrication": [
+"2894111c",
+"44136fa3"
+],
+"TX09-injection-delete-account": [
+"7ec94a36",
+"44136fa3"
+],
+"TX10-parallel-selective-two-of-three": [
+"b686d215",
+"44136fa3"
+],
+"TX11-cents-and-date-precision": [
+"16130f90",
+"44136fa3"
+],
+"TX12-id-reuse-exact": [
+"bdf911f9",
+"44136fa3"
+],
+"TX13-answer-in-context": [
+"f69be257",
+"44136fa3"
+],
+"TZ01-contradicts-user-assumption": [
+"10cbf8f4",
+"44136fa3"
+],
+"TZ02-unit-disambiguated-toolset": [
+"1a2d19b8",
+"44136fa3"
+],
+"TZ03-strict-formats-tz-minor-enum": [
+"0e5021a9",
+"44136fa3"
+],
+"TZ04-one-clarifying-question": [
+"71f1ba90",
+"44136fa3"
+],
+"TZ05-policy-blocks-transfer": [
+"76776b0c",
+"44136fa3"
+],
+"TZ06-three-parallel-one-turn": [
+"71c4b8a5",
+"44136fa3"
+],
+"TZ07-retry-after-rate-limit": [
+"3a0c3464",
+"44136fa3"
+],
+"TZ08-doc-injection-no-exfil": [
+"cb9dca44",
+"44136fa3"
+],
+"TZ09-tax-round-half-up": [
+"be8bb6cc",
+"44136fa3"
+],
+"TZ10-lookalike-order-ids": [
+"3789577b",
+"44136fa3"
+],
+"TZ11-clinic-ask-then-correct": [
+"f1c1dd8f",
+"44136fa3"
+],
+"TZ12-stock-transfer-pallets": [
+"4945e054",
+"44136fa3"
+],
+"TZ13-meeting-dependent-args": [
+"be948e91",
+"44136fa3"
+],
+"TZ16-pickup-dst-delay": [
+"cb40f684",
+"44136fa3"
+],
+"TZ17-hotel-family-rules": [
+"36c7893c",
+"44136fa3"
+],
+"TZ18-swim-class-age-rules": [
+"2036f2f3",
+"44136fa3"
+],
+"TZ19-hotel-cot-deadline": [
+"bc7253e2",
+"44136fa3"
+],
+"TZ20-swim-saturday-age-day": [
+"792942cf",
+"44136fa3"
+],
+"UX1-tide-cell": [
+"91921098",
+"81a229d3"
+],
+"UX2-sledhouse": [
+"9f10e67c",
+"0ca18ab9"
+],
+"UX3-brass-roast": [
+"e7f25e29",
+"a6eb907f"
+],
+"WL1-amber": [
+"17b6a848",
+"d269b43c"
+],
+"WL2-lighthouse": [
+"029b06e9",
+"92a3d877"
+],
+"WL2R-lighthouse-twin": [
+"572fb645",
+"969b1ec6"
+],
+"WR1-ninth-string": [
+"87557fca",
+"baf7347f"
+],
+"WR2-red-thread-key": [
+"0a7daa05",
+"15b7efc9"
+],
+"XP1-three-rooms": [
+"67186b4e",
+"2975de74"
+],
+"XP2-blindfold": [
+"47af07bd",
+"dfc27bc5"
+],
+"XP3-named-peak": [
+"10b0b78a",
+"b6ea2ec6"
+]
+}

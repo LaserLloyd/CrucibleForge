@@ -174,6 +174,7 @@ def test_max_tokens_never_raised_above_the_judges_own():
 
 
 # ------------------------------------------------------------ run_judge wiring
+@pytest.mark.archive_default
 def test_run_judge_applies_policy_per_row_and_stores_it(tmp_path, monkeypatch):
     from crucibleforge import config
     monkeypatch.setattr(config, "RESULTS_DIR", tmp_path)
@@ -200,7 +201,7 @@ def test_run_judge_applies_policy_per_row_and_stores_it(tmp_path, monkeypatch):
         return {"judge_failed": False, "judge_raw": "{}", "refused": False, "scores": {}}
 
     monkeypatch.setattr(judge, "_load_judge", lambda *a, **k: JC())
-    monkeypatch.setattr(judge, "run_canary", lambda jc: None)
+    monkeypatch.setattr(judge, "run_canary", lambda jc, **k: None)
     monkeypatch.setattr(judge, "judge_row", fake_judge_row)
     monkeypatch.setattr(judge, "_private_case_ids", lambda cfg: set())
     cfg = {"models": [{"name": "m", "model_id": "m", "provider": "fake"}],

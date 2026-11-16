@@ -31,6 +31,19 @@ long-context, instruct, harder coding); they stay runnable with
 `run --cases …` or a profile of your own, and some of them are ladder packs.
 Content rules: what new tests never include → [`docs/CONTENT-RULES.md`](CONTENT-RULES.md).
 
+### Agentic history under bench45
+
+The bug-hunt and other code-agent cases keep a whole tool conversation. When it grows past 60% of the
+case's conversation cap, old tool results (never the last few turns') are shortened to one line. `bench`
+(4.1) shortens "just enough" on every turn past that line. `bench45` (`compaction: hysteresis`) shortens
+in ONE step down to about 40%, then changes nothing earlier until the conversation has grown by 20% of
+the cap again, so a provider's prompt cache keeps the prefix between steps (about 1 rewrite in 10 turns
+instead of one every turn on a long fake episode). The model is told the rule in the system prompt:
+
+> How shortening works: once the conversation passes about 60% of its limit, the oldest tool results (never those of your last few turns) are shortened together in one step until it is back to about 40%; after that nothing earlier changes until it has grown by that much again.
+
+Rows measured this way carry `compaction: hysteresis`.
+
 ## The judge
 
 Chat and NSFW answers cannot be run, so a **judge model** reads them. It never gives a free-form grade: each case has a list

@@ -25,6 +25,9 @@ def _setup(tmp_path, monkeypatch, edit=None, resamples=300):
     """A copy of the live bench profile (``edit`` mutates it), an empty
     ladder dir and a results dir, all under tmp_path."""
     prof = yaml.safe_load(REPO_PROFILE.read_text(encoding="utf-8"))
+    # G-41Freeze keys: these tests point the case/ladder dirs at tmp_path themselves
+    prof.pop("cases_dir", None)
+    prof.pop("billing_stored_rows", None)
     # the board mechanics are tested on a FIXED Work set (the step-6 one, WORK
     # below), so swapping questions in the live profile (step 8 re-calibration)
     # does not move every expected number here
@@ -135,6 +138,7 @@ def _set_file(env, key, n, cases, level=None, **kw):
 
 # ----------------------------------------------------------- categories
 
+@pytest.mark.archive_default
 def test_categories_are_sums_of_sub_score_points(tmp_path, monkeypatch):
     env = _setup(tmp_path, monkeypatch, lambda p: (_work_only(p), _with_iz03(p)))
     st = _board(env, {"a": _rows(), "b": _rows(fail_cases={"TZ06-three-parallel-one-turn"})})
@@ -151,6 +155,7 @@ def test_categories_are_sums_of_sub_score_points(tmp_path, monkeypatch):
     assert st["c"]["headline"]["S"]["overall"] == 10.0          # work only (chat include_in none)
 
 
+@pytest.mark.archive_default
 def test_a_pending_sub_score_scales_its_category_and_says_so(tmp_path, monkeypatch):
     def edit(p):
         _work_only(p)
@@ -166,6 +171,7 @@ def test_a_pending_sub_score_scales_its_category_and_says_so(tmp_path, monkeypat
     assert "Extra pending" in md and "scaled from" in md
 
 
+@pytest.mark.archive_default
 def test_overall_is_the_sum_of_the_in_total_categories(tmp_path, monkeypatch):
     """`headline.overall: sum` (config): Overall = Coding/Work + the other
     in-total categories — here a custom test with include_in: overall."""
@@ -188,6 +194,7 @@ def test_overall_is_the_sum_of_the_in_total_categories(tmp_path, monkeypatch):
     assert st["a"]["scorecard"]["total"] == pytest.approx(7.5)
 
 
+@pytest.mark.archive_default
 def test_custom_include_in_a_category_adds_to_it(tmp_path, monkeypatch):
     def edit(p):
         _work_only(p)
@@ -231,6 +238,7 @@ def _private(tmp_path, monkeypatch, overlay_scoring=True, declared=None):
     return env, cat, ids, lab, rows
 
 
+@pytest.mark.archive_default
 def test_a_private_score_is_its_own_custom_test_never_nsfw_chat_or_overall(tmp_path, monkeypatch):
     env, cat, ids, lab, rows = _private(tmp_path, monkeypatch)
     prof = profiles.load_profile("bench", env.cfg)
@@ -254,6 +262,7 @@ def test_a_private_score_is_its_own_custom_test_never_nsfw_chat_or_overall(tmp_p
     assert cat not in pub and cat not in json.dumps(pub["weights"])
 
 
+@pytest.mark.archive_default
 def test_a_declared_custom_test_replaces_the_automatic_one(tmp_path, monkeypatch):
     decl = {"myscore": {"label": "My Hush Score", "include_in": "none",
                       "parts": {"main": {"label": "Main", "max": 6, "scoring": ["zz-private-score"]}}}}
@@ -309,6 +318,7 @@ def _ladder_rows(ok_sets: dict[str, int]):
     return out
 
 
+@pytest.mark.archive_default
 def test_ladder_pack_adds_its_share_only_after_the_standard_is_maxed(tmp_path, monkeypatch):
     env = _setup(tmp_path, monkeypatch, _work_only)
     pack = ["CZ08-triple-substring", "CZ09-range-kth", "CZ11-lex-triple-substring"]
@@ -329,6 +339,7 @@ def test_ladder_pack_adds_its_share_only_after_the_standard_is_maxed(tmp_path, m
     assert "### Ladders" in md and "(set 1)" in md
 
 
+@pytest.mark.archive_default
 def test_maxed_marks_a_sub_score_with_nothing_harder_left(tmp_path, monkeypatch):
     env = _setup(tmp_path, monkeypatch, _work_only)
     st = _board(env, {"a": _rows(), "b": _rows(fail_cases={"TZ06-three-parallel-one-turn"})})
@@ -348,6 +359,7 @@ def test_maxed_marks_a_sub_score_with_nothing_harder_left(tmp_path, monkeypatch)
     assert "code" not in st["a"]["scorecard"]["maxed"]["work"]["parts"]
 
 
+@pytest.mark.archive_default
 def test_calibration_flags_too_easy_and_maxed(tmp_path, monkeypatch, capsys):
     env = _setup(tmp_path, monkeypatch, _work_only)
     _write(env, {"minimax-m3": _rows(fail_cases={"TZ06-three-parallel-one-turn", "RX13-recurrence-term"}),
@@ -395,6 +407,7 @@ def _sandbox_ok():
 
 
 @pytest.mark.skipif(not _sandbox_ok(), reason="needs the bwrap sandbox")
+@pytest.mark.archive_default
 def test_pack_verify_runs_reference_and_mutants(tmp_path, monkeypatch):
     env = _setup(tmp_path, monkeypatch)
     prof = profiles.load_profile("bench", env.cfg)
@@ -436,6 +449,7 @@ def test_pack_verify_checks_count_points_and_judge_budget(tmp_path, monkeypatch)
     assert problems                                       # no question
 
 
+@pytest.mark.archive_default
 def test_pack_question_rows_carry_their_own_stamp(tmp_path, monkeypatch):
     env = _setup(tmp_path, monkeypatch, _work_only)
     q = {"id": "CODEP1-Q1-ADD", "category": "coding", "difficulty": "hard", "max_tokens": 512,
@@ -452,6 +466,7 @@ def test_pack_question_rows_carry_their_own_stamp(tmp_path, monkeypatch):
 
 # -------------------------------------------- bootstrap ± and tie groups
 
+@pytest.mark.archive_default
 def test_identity_draw_reproduces_the_point_estimate(tmp_path, monkeypatch):
     env = _setup(tmp_path, monkeypatch, _work_only)
     rows = _rows(fail={("CZ05-optimal-bst-cost", 1), ("RX13-recurrence-term", 2)},
@@ -469,6 +484,7 @@ def test_identity_draw_reproduces_the_point_estimate(tmp_path, monkeypatch):
     assert v["work"] < 10
 
 
+@pytest.mark.archive_default
 def test_margins_are_reproducible_and_cover_the_point(tmp_path, monkeypatch):
     env = _setup(tmp_path, monkeypatch, _work_only)
     rows = _rows(fail_cases={"TZ06-three-parallel-one-turn"}, fail={("RX20-five-houses-four-attributes", 1)})
@@ -481,6 +497,7 @@ def test_margins_are_reproducible_and_cover_the_point(tmp_path, monkeypatch):
     assert h1["rank"] == "1"
 
 
+@pytest.mark.archive_default
 def test_one_row_apart_is_a_tie_and_broad_differences_rank(tmp_path, monkeypatch):
     env = _setup(tmp_path, monkeypatch, _work_only)
     shared = {"TZ06-three-parallel-one-turn", "CB-B6-cron-next"}
@@ -495,6 +512,7 @@ def test_one_row_apart_is_a_tie_and_broad_differences_rank(tmp_path, monkeypatch
     assert not vs["tied"] and vs["lo"] > 0 and "b beats c" in vs["text"]
 
 
+@pytest.mark.archive_default
 def test_board_markdown_html_and_compare(tmp_path, monkeypatch, capsys):
     env = _setup(tmp_path, monkeypatch, _work_only)
     weak = ALL_WORK - {"CB-F1-larder-bughunt", "MH06-fermat-mod-prime"}
@@ -521,6 +539,7 @@ def test_board_markdown_html_and_compare(tmp_path, monkeypatch, capsys):
 
 # -------------------------------------------- M1: escalation + Efficiency
 
+@pytest.mark.archive_default
 def test_an_escalated_rerun_counts_and_efficiency_shows_the_standard_budget(tmp_path, monkeypatch):
     """EVAL-FABLE M1: a row that ran out of the standard budget is a fail
     until an escalation re-run exists; then the re-run counts (newest run of
@@ -547,6 +566,7 @@ def test_an_escalated_rerun_counts_and_efficiency_shows_the_standard_budget(tmp_
 
 # --------------------------------------------------- M2: partial credit
 
+@pytest.mark.archive_default
 def test_partial_credit_scores_steps_elements_and_checks(tmp_path, monkeypatch):
     """EVAL-FABLE M2 (profile partial_credit): a tool row passing 3 of 5
     script steps earns 0.6, not 0; RX22 with 24 of 30 positions earns 0.8;
@@ -603,6 +623,7 @@ def test_a_refused_explicit_row_earns_no_peak_and_leaves_the_constraint_pool():
     assert report.explicit_peak_row(written) == pytest.approx(0.5 * 8 + 0.5 * 5)
 
 
+@pytest.mark.archive_default
 def test_errored_rows_count_failed_and_are_reported(tmp_path, monkeypatch):
     env = _setup(tmp_path, monkeypatch, _work_only)
     rows = [{**r, "grade": "error", "error": "RequestRejected: top_p", "error_kind": "request"}
@@ -622,6 +643,7 @@ def _with_wl2r(p):
     p["scores"]["nsfw"]["parts"]["uncensored"]["cases"].append("WL2R-lighthouse-twin")
 
 
+@pytest.mark.archive_default
 def test_refuses_flag_and_willingness_rubric_in_uncensored(tmp_path, monkeypatch):
     env = _setup(tmp_path, monkeypatch, _with_wl2r)
     from crucibleforge.judge import RUBRICS

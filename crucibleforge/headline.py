@@ -220,6 +220,21 @@ def strata(prof: dict, sc: dict, allowed: set[str] | None) -> dict[tuple[int, st
                 out.setdefault((1, area), []).extend(
                     i for i in ids or [] if (allowed is None or i in allowed) and i not in placed)
                 break
+    if prof.get("chains") and not prof.get("routing"):
+        # 4.5 fixed set (rc2, lead 2026-11-14): every generated part's units (chain / flat item /
+        # multi-item prompt) are a stratum of their own, drawn with replacement; chains.section_stats
+        # counts a unit drawn k times k times. Without this the generated parts never moved in a
+        # resample and read the 0.1 floor. Per PART, not per set: a part's sets are few units each
+        # (3 TRACEVM per level), where a per-set bootstrap shrinks the spread by (n-1)/n; per part it
+        # matches the part's element / unit SE (chains.section_stats). A routed profile's units depend
+        # on its route: its margins are scale45's.
+        from . import chains as _chains
+        # a part with se_cluster: card (rc3's judged parts, two writer seeds per card): the CARD is the
+        # unit -- one id per card here, and section_stats gives the card's every seed that draw's count
+        rep = _chains.card_reps(prof)
+        for c in _chains.chain_cases(prof):
+            if rep.get(c["id"], c["id"]) == c["id"]:
+                out.setdefault((1, f"{c['chain_spec']['part']}@units"), []).append(c["id"])
     if prof.get("scores"):
         # the points board: every ladder set is a stratum of its own
         for key, seq in _r._ladder_sets(prof).items():
@@ -353,6 +368,10 @@ def boot_model(rows_by_tier: dict[int, list[dict]], label: str, cfg: dict | None
     stratified = {i for ids in st.values() for i in ids}
     samples = {a: [] for a in keys(prof) + ("overall",)}
     gate_pass: dict[str, int] = {}
+    qsd = question_sds(prof)
+    # independent per model (a label-keyed stream): the question x model part of a shared question
+    # does not cancel in a paired difference, so it is never drawn the same for two models
+    qrnd = random.Random(f"{SEED}:{label}") if qsd else None
     with _r.boot_mode():
         for draw in mults:
             _r.boot_set_mult({cid: (c if isinstance(c, int) else len(c)) for cid, c in draw.items()})
@@ -361,6 +380,8 @@ def boot_model(rows_by_tier: dict[int, list[dict]], label: str, cfg: dict | None
             s = _r.stats_from_tier_rows(label, cfg, prof, by_t, meta, era)
             card = _r.tier_scorecard(s, sc, prof)
             v = display(point(card, prof), prof)
+            if qsd:
+                _add_question_noise(v, card, prof, qsd, qrnd)
             for a in samples:
                 samples[a].append(v.get(a))
             for area, e in (card.get("tiers") or {}).items():
@@ -373,6 +394,56 @@ def boot_model(rows_by_tier: dict[int, list[dict]], label: str, cfg: dict | None
                         k = f"{cat}/{pk}"
                         gate_pass[k] = gate_pass.get(k, 0) + 1
     return {"samples": samples, "gate_pass": gate_pass, "n": len(mults)}
+
+
+def question_sds(prof: dict | None) -> dict[str, float]:
+    """{"<score>/<part>": sd} for the parts that declare ``question_sd`` (a share, 0-1): the
+    spread between questions of the kind the part samples, which a part resting on one or a few
+    stored questions cannot measure from its own rows (five repeats of one program measure the
+    model's repeat noise only). The bootstrap adds it to the part in every resample."""
+    out = {}
+    for key, sec in ((prof or {}).get("scores") or {}).items():
+        for pk, p in ((sec or {}).get("parts") or {}).items():
+            if not isinstance(p, dict):
+                continue
+            # judge_sd (4.5 adult page, lead 2026-11-14): the judge's repeat spread on the part's share (two
+            # reads of the same reply disagree by this much); it joins the question spread as independent
+            q, j = float(p.get("question_sd") or 0), float(p.get("judge_sd") or 0)
+            if q or j:
+                out[f"{key}/{pk}"] = (q * q + j * j) ** 0.5
+    return out
+
+
+def _no_scaling(prof: dict | None) -> bool:
+    from . import report as _r
+    return _r.no_scaling(prof)
+
+
+def _add_question_noise(v: dict, card: dict, prof: dict | None, qsd: dict[str, float],
+                        rnd: random.Random) -> None:
+    """One resample's question draw: part += z x sd x max; its score moves by the same points
+    times the score's scale-up over pending parts (standard / sum of measured part points), and
+    an in-total score moves Overall. Ladder gates are not re-decided on it."""
+    from . import tiers as _tiers
+    mx = part_max(prof)
+    tot = set(_tiers.total_keys(prof)) if prof else set()
+    for k, sd in qsd.items():
+        if v.get(k) is None or k not in mx:
+            continue
+        d = rnd.gauss(0.0, sd) * mx[k]
+        v[k] += d
+        sec = k.split("/", 1)[0]
+        if v.get(sec) is None:
+            continue
+        sub = (card.get("subscores") or {}).get(sec) or {}
+        t1 = (card.get("t1") or {}).get(_tiers.group_of(prof, sec))
+        std = sub.get("standard")
+        f = (t1 / std) if t1 is not None and std else 1.0
+        if _no_scaling(prof):
+            f = 1.0     # rc4 (pending_scaling: none): a score is never scaled, so neither is its margin draw
+        v[sec] += d * f
+        if sec in tot and v.get("overall") is not None:
+            v["overall"] += d * f
 
 
 def summarize(card: dict, boot: dict | None, prof: dict | None,
@@ -400,6 +471,15 @@ def summarize(card: dict, boot: dict | None, prof: dict | None,
         else:
             out["m"][a] = None
     out["maxed"] = card.get("maxed") or {}
+    if card.get("measured_max") is not None:
+        # rc4 (report.no_scaling): each score's measured maximum and its named pending points (points_cell)
+        out["unscaled"] = {k: {"of": v, "pending": (card.get("pending_points") or {}).get(k) or []}
+                           for k, v in card["measured_max"].items()}
+        out["unvalidated"] = card.get("unvalidated") or {}
+        out["provisional"] = list(card.get("provisional") or [])
+    if card.get("unranked_why"):
+        # rc4: a model with rows missing is not ranked; its Overall says why (report.unranked_why)
+        out["not_ranked"] = card["unranked_why"]
     # 3.10 D3: rows a sub-score dropped (unparsable verdicts) — "partial"
     out["excluded"] = dict(card.get("excluded") or {})
     # categories with standard rows still missing (report.points_scorecard, S3)
@@ -407,6 +487,16 @@ def summarize(card: dict, boot: dict | None, prof: dict | None,
     out["reached"] = {f"{cat}/{pk}": det.get("reached", 0)
                       for cat, parts in (card.get("ladder") or {}).items()
                       for pk, det in parts.items()}
+    # harness v2 (review B3): unlocked packs with no score yet, per sub-score
+    out["unrun"] = dict(card.get("ladder_unrun") or {})
+    # 4.5 routed: a pack-only part's element mean (report.points_scorecard), shown apart
+    out["pack_mean"] = dict(card.get("pack_mean") or {})
+    # 4.5: a case part with too many cut replies is "not measured" (report.case_part_rows): {key: cut share}
+    # (a part the route cannot run carries its reason instead: report.route_cannot_run)
+    out["not_measured"] = {f"{cat}/{pk}": ((det.get("ran_out") or {}).get("not_run")
+                                           or (det.get("ran_out") or {}).get("share"))
+                           for cat, parts in (card.get("ladder") or {}).items()
+                           for pk, det in parts.items() if det.get("not_measured")}
     if boot and prof and card.get("units") == "points":
         for cat, parts in (card.get("ladder") or {}).items():
             for pk, det in parts.items():

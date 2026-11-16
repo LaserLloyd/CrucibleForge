@@ -144,7 +144,7 @@ def _judge_fixture(tmp_path, monkeypatch, n_rows, concurrency):
             return 0.0
 
     monkeypatch.setattr(judge, "_load_judge", lambda *a, **k: JC())
-    monkeypatch.setattr(judge, "run_canary", lambda jc: None)
+    monkeypatch.setattr(judge, "run_canary", lambda jc, **k: None)
     monkeypatch.setattr(judge, "_private_case_ids", lambda cfg: set())
     cfg = {"models": [{"name": "m", "model_id": "m", "provider": "fake"}],
            "judge": {"samples": 1}, "providers": {}, "defaults": {}}
@@ -225,6 +225,7 @@ def _transport_error(cid, cat, rep=1, ts="2026-10-28T03:00:00+00:00"):
 WRITING = ["NX2-juniper", "XP3-named-peak", "NW1-salt-and-cedar"]
 
 
+@pytest.mark.archive_default
 def test_an_errored_judged_row_counts_failed_not_dropped(tmp_path, monkeypatch):
     """B3: one newer transport-error row for NX2 used to drop NX2 from NSFW
     writing (the mean retaken over the other two); it counts 0 now."""
@@ -240,6 +241,7 @@ def test_an_errored_judged_row_counts_failed_not_dropped(tmp_path, monkeypatch):
     assert st["err"]["errored_rows"]["n"] == 1
 
 
+@pytest.mark.archive_default
 def test_an_all_errored_judged_sub_score_is_zero_not_pending(tmp_path, monkeypatch):
     pb = _pb()
     env = pb._setup(tmp_path, monkeypatch, pb._work_only)
@@ -254,6 +256,7 @@ def report_notes(s):
     return report.notes_cell(s)
 
 
+@pytest.mark.archive_default
 def test_a_ran_out_row_without_a_finished_rerun_counts_failed(tmp_path, monkeypatch):
     """B4: a judged row cut at the budget (finish=length) with no escalated
     re-run used to keep its full judged score; a deterministic one too."""
@@ -298,6 +301,7 @@ def _session(cid, cat, rep, n_turns, length_turn=None, **final):
     return out
 
 
+@pytest.mark.archive_default
 def test_efficiency_and_errored_counts_include_sessions(tmp_path, monkeypatch):
     """S6: sessions (every turn row has a turn number) used to be invisible
     to Efficiency and to the errored n/N; one unit per session now."""
@@ -321,6 +325,7 @@ def test_efficiency_and_errored_counts_include_sessions(tmp_path, monkeypatch):
 
 # ------------------------------------------------------------------ S3
 
+@pytest.mark.archive_default
 def test_a_partial_run_is_not_extrapolated_and_ranks_below_complete_runs(tmp_path, monkeypatch):
     """S3: a model cut before its Reasoning rows got Work scaled from the
     measured parts ("scaled from x of y") and a full rank (#1 over complete
@@ -543,6 +548,7 @@ def test_window_closed_mid_request_writes_no_row_and_is_not_a_failure(monkeypatc
 
 # ------------------------------------------------------------------ S4
 
+@pytest.mark.archive_default
 def test_private_ladder_packs_never_reach_the_public_board(tmp_path, monkeypatch):
     """S4: ladder.roots() returned the private ladder dir for every audience
     and private_scope() did not know a pack's own question ids."""

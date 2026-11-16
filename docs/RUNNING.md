@@ -123,6 +123,12 @@ flowchart TD
 With `--until HH:MM` every phase has to finish by that time: a model starts only when its estimated generation
 plus judge time fits, and the judge stops before the end. Unjudged rows wait for the next run.
 
+To ask a running `run`, `all`, `recover`, `escalate` or `bench-all` to **drain** (the requests in flight finish, nothing new is sent,
+then the process exits with no judge or board, exit code 75, and a later run resumes), send it `SIGUSR1`
+(`kill -USR1 <pid>`, `systemctl --user kill -s USR1 <unit>`) or create `<results>/.drain`. Nothing is cut unless you set a
+ceiling: `--drain-max-minutes N` (or a number in the file, or `$CRUCIBLEFORGE_DRAIN_MAX_MINUTES`); a stream cut by it leaves no
+row, and the notes then say to unload and reload the model before the next run.
+
 ```bash
 uv run crucibleforge bench-all            # the plan: what is missing, what would change
 uv run crucibleforge bench-all --go       # do it (add --detach on a server)

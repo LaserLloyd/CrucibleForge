@@ -1,0 +1,687 @@
+{
+ "kind": "nsfw_scene_bank",
+ "version": 1,
+ "note": "Bank for the HEAT_SCHEDULE and SCENE_SPEC generators (4.5, A7). Structure, level definitions, marker regexes (in the generator modules), domain facts and checks were written by Claude; the explicit snippets under heat.snippets were written by Grok (tools/llmcall.py --model grok) and attested by DeepSeek Flash. Every character is an adult with a stated age. 2026-11-13 (Admin N): level 3/4 definitions say where breast contact and manual play sit; facts carry pos_a/pos_b (co-location); clock cells carry elapsed_min.",
+ "meta": {
+  "authorship": {
+   "structure": "claude",
+   "prose": [
+    "grok"
+   ]
+  },
+  "attest": [
+   {
+    "by": "deepseek",
+    "model": "deepseek-v4-flash",
+    "date": "2026-11-12",
+    "verdict": "PASS",
+    "reasons": "All fragments use only the adult placeholders {A}/{B} from the cast list (all ages 27-52), with no minor, animal, weapon, real-person, or harm-instruction content; the sexual content is consensual and mutual throughout.",
+    "scope": "heat.snippets, cast, scene domains, level definitions (as of this version)"
+   }
+  ]
+ },
+ "cast": [
+  {
+   "id": "C01",
+   "people": [
+    {
+     "name": "Marit",
+     "age": 34
+    },
+    {
+     "name": "Joon",
+     "age": 36
+    }
+   ]
+  },
+  {
+   "id": "C02",
+   "people": [
+    {
+     "name": "Odalys",
+     "age": 41
+    },
+    {
+     "name": "Henrik",
+     "age": 45
+    }
+   ]
+  },
+  {
+   "id": "C03",
+   "people": [
+    {
+     "name": "Tavita",
+     "age": 29
+    },
+    {
+     "name": "Reyes",
+     "age": 31
+    }
+   ]
+  },
+  {
+   "id": "C04",
+   "people": [
+    {
+     "name": "Ilse",
+     "age": 38
+    },
+    {
+     "name": "Amara",
+     "age": 35
+    }
+   ]
+  },
+  {
+   "id": "C05",
+   "people": [
+    {
+     "name": "Bertrand",
+     "age": 52
+    },
+    {
+     "name": "Nell",
+     "age": 47
+    }
+   ]
+  },
+  {
+   "id": "C06",
+   "people": [
+    {
+     "name": "Kofi",
+     "age": 33
+    },
+    {
+     "name": "Dara",
+     "age": 30
+    }
+   ]
+  },
+  {
+   "id": "C07",
+   "people": [
+    {
+     "name": "Soraya",
+     "age": 44
+    },
+    {
+     "name": "Lucan",
+     "age": 42
+    }
+   ]
+  },
+  {
+   "id": "C08",
+   "people": [
+    {
+     "name": "Wren",
+     "age": 27
+    },
+    {
+     "name": "Imani",
+     "age": 29
+    }
+   ]
+  },
+  {
+   "id": "C09",
+   "people": [
+    {
+     "name": "Teodor",
+     "age": 39
+    },
+    {
+     "name": "Mireille",
+     "age": 37
+    }
+   ]
+  },
+  {
+   "id": "C10",
+   "people": [
+    {
+     "name": "Anselm",
+     "age": 50
+    },
+    {
+     "name": "Priya",
+     "age": 46
+    }
+   ]
+  },
+  {
+   "id": "C11",
+   "people": [
+    {
+     "name": "Calla",
+     "age": 32
+    },
+    {
+     "name": "Yusuf",
+     "age": 34
+    }
+   ]
+  },
+  {
+   "id": "C12",
+   "people": [
+    {
+     "name": "Greer",
+     "age": 36
+    },
+    {
+     "name": "Naoki",
+     "age": 38
+    }
+   ]
+  }
+ ],
+ "settings": [
+  "have a rented cabin to themselves for the weekend",
+  "share a quiet apartment on a rainy evening",
+  "are alone in a boat house after the party has gone home",
+  "have the whole top floor of a hotel to themselves",
+  "have just got home from a long trip and the house is empty",
+  "are staying in a lakeside cottage with the storm shutters closed",
+  "have the studio to themselves after hours",
+  "are in a loft with the city lights low outside",
+  "are spending the first warm night of the year in a garden room",
+  "have a long, unhurried Sunday in a converted barn"
+ ],
+ "titles": [
+  "Threshold",
+  "Low Light",
+  "Closer",
+  "The Slow Part",
+  "Held",
+  "Undone",
+  "Afterwards",
+  "Nightfall",
+  "Between",
+  "Still Air",
+  "Turning",
+  "The Long Hour"
+ ],
+ "heat": {
+  "levels": {
+   "1": "tension only: glances, talk, an almost-touch, held breath; nothing physical happens beyond that.",
+   "2": "mouths meeting and hands moving over clothes; everyone stays dressed.",
+   "3": "clothes coming off, skin against skin, breasts, chests and thighs touched, a mouth on a breast included; nothing goes further than the thighs.",
+   "4": "explicit oral and manual play, written plainly on the page, fingers and tongue included; no intercourse and no finish yet.",
+   "5": "explicit intercourse written out plainly through to the finish."
+  },
+  "snippets": {
+   "1": [
+    "{A} stood near {B} in the quiet kitchen their eyes meeting across the counter with electric intensity. {A} took a slow breath holding the charged distance that felt thicker than words ever could.",
+    "The humid air clung between them as {A} moved closer to {B} only to pause and pull back again. Their breaths mingled in short bursts eyes locked in mutual awareness of the desire they couldn't ignore yet.",
+    "{B} ran their fingers through {A}'s hair but stopped just short as the tension built between their bodies. The heat of {A}'s proximity made {B}'s skin tingle leaving them fighting to maintain the safe distance.",
+    "{A} faced {B} directly their shoulders inches from touching yet neither dared to close the gap. The anticipation thickened the atmosphere making each breath feel heavy with the pull between {A} and {B}.",
+    "{A} and {B} stood in the shadowed room their eyes meeting in a prolonged gaze that made the air feel dense with unmet need. But {A} adjusted the distance slightly as their pulse quickened under the strain.",
+    "The tension crackled as {A} moved towards {B} only to halt and step aside maintaining the forbidden closeness. {B}'s eyes followed every movement with burning intensity their breath catching briefly in the heavy silence.",
+    "{A} sat across from {B} at the table the space between them filled with a palpable charge that made {A}'s skin prickle. {B} leaned forward slightly but {A} leaned back pressing the boundary of their desire into the forefront.",
+    "In the corner {A} and {B} circled each other with slow deliberate steps the air electric with the threat of collision yet holding back completely. Their eyes never left each other as the tension pulled at every fiber of their being."
+   ],
+   "2": [
+    "{A} stepped forward and placed their hands on {B}'s chest then kissed them gently on the lips. {B} responded by caressing {A}'s face with their thumb drawing them even closer in the quiet exchange of breath.",
+    "{A} reached out and cupped {B}'s face drawing them into a deep kiss. Their tongues met as {A}'s hands caressed down {B}'s back in slow strokes ending at the base of their spine.",
+    "{B} initiated the kiss with fervor as {A}'s hands moved up and down {B}'s arms in caressing motions. The embrace of their bodies brought them nearer the heat rising with each passing second.",
+    "The moment arrived when {A} kissed {B} deeply their hands caressing {B}'s waist over the shirt as they pressed together. {B}'s response was immediate filling the space between them with intense longing.",
+    "{A} and {B} shared a heated kiss interrupted briefly as {A}'s fingers caressed {B}'s jawline before resuming the embrace. The air around them thickened with the intensity of their connected bodies.",
+    "As they stood in the sunlit patio {A} pulled {B} close for a passionate kiss. Their hands then began to caress {B}'s arms feeling the warmth through the fabric creating a new wave of connection.",
+    "In a moment of decision {A} kissed {B} with urgency their lips seeking more as hands caressed {B}'s back pushing their frames together in the growing heat of the moment.",
+    "{A} leaned in to kiss {B} tenderly, their lips meeting with gentle pressure as {B}'s fingers began to caress the fabric of the shirt stretched over the torso, the soft sensation tingling under the touch and making the skin tingle faintly.",
+    "{B} pulled {A} closer, pressing their lips in a soft kiss while {B}'s other hand caressed slowly along the arm, tracing the outline of the sleeve with deliberate strokes that sent shivers up the spine through the thin material.",
+    "{A} and {B} turned to face each other for a kiss, their lips brushing lightly together while {B}'s hand began to caress the side of {A}'s face through the fabric, the gentle pressure building a quiet thrill that spread across the skin."
+   ],
+   "3": [
+    "{A} worked on {B}'s shirt unbuttoning it slowly revealing bare skin and their firm nipples as {A}'s fingers traced the newly exposed chest. They pulled back slightly to admire the view before resuming the touch on {B}'s thighs.",
+    "{B} helped {A} undress by unzipping their jacket then undressing {A} from the shirt baring their chest and nipples to the cool air. The hands lingered on the bare skin moving down to the thighs avoiding the forbidden zones completely.",
+    "{A} removed {B}'s shirt revealing their chest now shirtless with visible nipples as their hands traced the exposed skin. The touch moved to {B}'s thighs as {A} admired the sight of undressed flesh in the soft light.",
+    "{A} began to undress {B} unzipping their pants slowly as they revealed the shirtless torso with prominent nipples. Their hands explored the bare skin on {B}'s chest before moving to the thighs in a teasing manner.",
+    "{B} was helped by {A} to undress completely shirtless with nipples showing as their clothes were removed. The focus was on the bare skin across the chest and thighs leaving no room for anything more intimate.",
+    "{A} started unbuttoning {B}'s shirt to reveal the topless chest with nipples exposed to the air. They continued removing the fabric to expose more bare skin on the torso and legs.",
+    "{B} let {A} undress them shirtless as the shirt was removed showing nipples clearly on their chest. The hands then focused on tracing the bare skin of the thighs in slow deliberate motions.",
+    "{A} helped {B} to undress revealing a naked torso with visible nipples under the shirtless state. Their exploration stayed on the bare skin of the chest and thighs without going further."
+   ],
+   "4": [
+    "{A} drew {B}'s hips close and placed their mouth on {B}'s genitals beginning to lick the sensitive area with focused intensity. {B} held on as their hand found {A}'s sex and began to stroke in rhythm with the mouth.",
+    "{B} lowered themselves to take {A}'s sex into their mouth sucking hard with the tongue working the head in circular motions. {A}'s hands guided them deeper their bodies rocking with the increasing rhythm.",
+    "{A} used their hands to spread {B}'s thighs wide then placed their mouth between {B}'s legs licking the exposed skin thoroughly. The wet sounds filled the room as {B} ground their body against the sensations.",
+    "{B} gripped {A}'s sex in their hand and began sucking the tip with eager intensity as their tongue flicked along the length. {A}'s breath quickened with the effort of holding back the wave of pleasure.",
+    "{A} pulled {B} close and used their mouth on {B}'s genitals licking in long strokes from base to tip. {B}'s hips moved grinding against the face as their fingers tangled in {A}'s hair.",
+    "{B} slid their tongue along {A}'s sex then took the head into their mouth sucking with wet sounds echoing in the room. The hand stroked in unison adding to the rhythm of the oral act.",
+    "{A} positioned their mouth between {B}'s thighs and began licking the sensitive genitals with rapid flicks of the tongue. {B}'s legs trembled as they ground their pelvis against the face seeking more contact.",
+    "{B} used their hands to hold {A} down and sucked on the genitals with increasing desperation their tongue swirling around the tip. The air was thick with the wet noises and desperate movements."
+   ],
+   "5": [
+    "{A} pulled {B} against them and thrust their hips forward forcing their way inside {B} with a deep groan. The pace quickened as {A} fucked them hard feeling the release building to a strong climax.",
+    "{B} spread their legs wide and took {A} inside them pulling {A} deep with their hands. {A} began to thrust thrusting into the tight heat as {B} moaned in pleasure at the impending orgasm.",
+    "{A} pushed {B} onto the bed and climbed on top mounting them before starting to fuck their hips in steady thrusts. The bodies moved together as {A} felt the heat rise leading to the first climax of the night.",
+    "{B} wrapped their legs around {A} pulling them close and began to thrust grinding their bodies together in intense motion. They moved faster until the building tension finally broke into a shared orgasm that left them both trembling.",
+    "{A} lay between {B}'s thighs and thrust forward sinking inside {B} with a powerful stroke. The rhythm was intense as {A} fucked them hard driving towards the climax that overtook them both.",
+    "{B} guided {A} into them and started to fuck with strong thrusting motions keeping a steady pace. The pace increased as they approached the climax feeling the intense pleasure building to the edge.",
+    "{A} entered {B} from behind gripping their hips as they thrust deep into them. The motion was rhythmic and powerful as {B} pushed back meeting each thrust with their own until the final orgasm hit them hard.",
+    "{B} pushed {A} onto their back and climbed on straddling them starting to fuck with deep thrusts inside {B}. The intensity grew as they moved together reaching the orgasm together in a wave of shared ecstasy.",
+    "{A} gripped {B}'s waist tightly with their hand, pulling them close as {B} thrust hard inside {A}, the rhythmic motion making their bodies press together tightly with each powerful push.",
+    "{A} pushed {B} against the mattress, their hips syncing in a steady thrust as {B} took {A} deep inside them, the wet slide filling them completely with every vigorous movement.",
+    "In a rapid rhythm, {A} had {B} bent over the table, their bodies slamming together while {B} fucked {A} hard, the intense strokes driving them both forward with heavy breaths.",
+    "{A} wrapped their legs around {B}'s waist, holding tight as they fucked into {B}, the heat building with each deep thrusting motion inside them, {A}'s hands clutching {B}'s back desperately.",
+    "The pair moved in perfect sync with {A} thrusting steadily into {B}, their bodies driving forward as the friction intensified with every calculated motion deep inside {B}, {B}'s nails digging into {A}'s shoulders.",
+    "{A} had {B} lifted against the wall, thrusting with strong force inside them as {B} moaned softly, their hips rocking in response with the relentless pace, the connection growing tighter with every impact."
+   ]
+  }
+ },
+ "scene": {
+  "domains": {
+   "impact": {
+    "label": "impact play",
+    "setup": "{A} will use impact play on {B}: spanking and a flogger on the buttocks and thighs.",
+    "zones": {
+     "label": "the buttocks and outer thighs",
+     "pattern": "\\b(?:buttocks?|backside|rear|ass|thighs?)\\b"
+    },
+    "equipment": [
+     {
+      "id": "suede-flogger",
+      "label": "a suede flogger",
+      "term": "suede(?: flogger)?|flogger",
+      "stage": "build",
+      "prop": "it gives a heavy, dull thud",
+      "prop_pattern": "\\b(?:thud\\w*|heavy|dull|deep|soft)\\b"
+     },
+     {
+      "id": "rubber-flogger",
+      "label": "a rubber flogger",
+      "term": "rubber(?: flogger)?",
+      "stage": "escalation",
+      "prop": "it gives a sharp sting",
+      "prop_pattern": "\\b(?:stin\\w+|bite|bit|sharp|prickl\\w*)\\b"
+     },
+     {
+      "id": "leather-paddle",
+      "label": "a leather paddle",
+      "term": "(?:leather )?paddle",
+      "stage": "escalation",
+      "prop": "it is broad and flat",
+      "prop_pattern": "\\b(?:broad|flat|wide|thud\\w*|heavy)\\b"
+     }
+    ],
+    "facts": [
+     {
+      "ref": "{A} landed a slow swat on {B}'s buttocks. The next swat fell across {B}'s thighs.",
+      "id": "imp-zone",
+      "kind": "placement",
+      "role": "any",
+      "text": "strikes land on fleshy zones such as the buttocks and thighs",
+      "min_hits": 2,
+      "sources": [
+       {
+        "url": "https://www.autostraddle.com/five-ways-to-hit-spank-flog-someone-in-bed228103/",
+        "quote": "aim for fleshy areas such as the buttocks and thighs",
+        "checked": "claude 2026-11-12 (fetched)"
+       },
+       {
+        "url": "https://mysteryvibe.com/blogs/learn/5-tips-for-safe-impact-play",
+        "quote": "focus on areas with more cushioning, like the buttocks, thighs, or back",
+        "checked": "claude 2026-11-12 (fetched)"
+       }
+      ],
+      "pos_a": "(?:strik\\w*|struck|lands?|landed|crack\\w*|swat\\w*|smack\\w*|spank\\w*|flogg\\w*|paddl\\w*|falls?|fell)",
+      "pos_b": "\\b(?:buttocks?|backside|rear|ass|thighs?)\\b"
+     },
+     {
+      "bad": "{A}'s swat landed hard on {B}'s kidneys.",
+      "id": "imp-nogo",
+      "kind": "placement",
+      "role": "any",
+      "text": "strikes never land on the kidney area, spine, tailbone or lower back",
+      "neg": "(?:strik\\w*|struck|lands?|landed|crack\\w*|swat\\w*|smack\\w*|spank\\w*|flogg\\w*|paddl\\w*|falls?)[^.!?\\n]{0,50}\\b(?:kidneys?|spine|tailbone|lower back|small of (?:her|his|their) back)\\b",
+      "sources": [
+       {
+        "url": "https://www.autostraddle.com/five-ways-to-hit-spank-flog-someone-in-bed228103/",
+        "quote": "Absolutely avoid the spine and kidneys, and the lower back in general",
+        "checked": "claude 2026-11-12 (fetched)"
+       },
+       {
+        "url": "https://mysteryvibe.com/blogs/learn/5-tips-for-safe-impact-play",
+        "quote": "The face, neck, spine, kidneys, and tailbone are considered danger zones",
+        "checked": "claude 2026-11-12 (fetched)"
+       }
+      ]
+     },
+     {
+      "ref": "{A} began with a bare hand, a light swat to {B}'s buttocks.",
+      "id": "imp-warm",
+      "kind": "order",
+      "role": "first",
+      "text": "the first strikes are a hand or light taps, before anything heavier",
+      "sources": [
+       {
+        "url": "https://www.autostraddle.com/five-ways-to-hit-spank-flog-someone-in-bed228103/",
+        "quote": "start with lighter strokes and build intensity as you both warm up",
+        "checked": "claude 2026-11-12 (fetched)"
+       },
+       {
+        "url": "https://mysteryvibe.com/blogs/learn/5-tips-for-safe-impact-play",
+        "quote": "Start with a light tap or a gentle swat and increase the intensity gradually",
+        "checked": "claude 2026-11-12 (fetched)"
+       }
+      ],
+      "pos_a": "\\b(?:(?:bare |open )?hand|palm|fingertips?|light\\w*|gentle|gently|soft\\w*|tap\\w*)\\b",
+      "pos_b": "(?:strik\\w*|struck|lands?|landed|crack\\w*|swat\\w*|smack\\w*|spank\\w*|flogg\\w*|paddl\\w*|falls?|fell)"
+     },
+     {
+      "ref": "",
+      "id": "imp-order",
+      "kind": "order",
+      "role": "any",
+      "text": "the suede (thud) flogger is used before the rubber (sting) one",
+      "requires": [
+       "suede-flogger",
+       "rubber-flogger"
+      ],
+      "pos": "suede[\\s\\S]*rubber",
+      "sources": [
+       {
+        "url": "https://www.goodreads.com/author_blog_posts/6060293-f-is-for-floggers",
+        "quote": "Low-intensity floggers can use suede ... high-intensity floggers are made of ... rubber",
+        "checked": "claude 2026-11-12 (fetched)"
+       },
+       {
+        "url": "https://www.autostraddle.com/five-ways-to-hit-spank-flog-someone-in-bed228103/",
+        "quote": "Floggers are variously thuddy and/or stingy depending on what they're made of",
+        "checked": "claude 2026-11-12 (fetched)"
+       }
+      ]
+     }
+    ]
+   },
+   "wax": {
+    "label": "wax play",
+    "setup": "{A} will use wax play on {B}: low-melt candle wax dripped onto the chest and stomach.",
+    "zones": {
+     "label": "the chest and stomach",
+     "pattern": "\\b(?:chest|stomach|belly|ribs?|sternum|abdomen)\\b"
+    },
+    "equipment": [
+     {
+      "id": "soy-candle",
+      "label": "a soy candle",
+      "term": "soy(?: candle)?",
+      "stage": "build",
+      "prop": "it melts at a low temperature",
+      "prop_pattern": "\\b(?:low[- ]melt\\w*|melt\\w*|warm\\w*|gentle|soft heat|low heat)\\b"
+     },
+     {
+      "id": "paraffin-candle",
+      "label": "a body-safe paraffin candle",
+      "term": "paraffin(?: candle)?",
+      "stage": "escalation",
+      "prop": "it is a low-melt body candle",
+      "prop_pattern": "\\b(?:low[- ]melt\\w*|melt\\w*|warm\\w*|gentle|body[- ]safe)\\b"
+     }
+    ],
+    "facts": [
+     {
+      "ref": "{A} dripped the wax from a height of a foot, and it cooled on the way down.",
+      "id": "wax-height",
+      "kind": "property",
+      "role": "any",
+      "text": "the wax is dripped from a height so that it cools before it lands",
+      "min_hits": 1,
+      "sources": [
+       {
+        "url": "https://www.k-y.com/sex-health-blog/guide-to-bdsm-wax-play",
+        "quote": "The further away from your body you hold the candle, the more time the wax has to cool before landing on your body",
+        "checked": "claude 2026-11-12 (fetched)"
+       },
+       {
+        "url": "https://en.wikipedia.org/wiki/Wax_play",
+        "quote": "Soy candles ... commonly melt at around 46-57 C",
+        "checked": "claude 2026-11-12 (fetched)"
+       }
+      ],
+      "pos_a": "\\b(?:drip\\w*|pour\\w*|drop\\w*|tipp\\w*|held|fell|fall\\w*|land\\w*)\\b",
+      "pos_b": "\\b(?:height|a foot|feet|inches|above|higher|from (?:up )?high|distance|hand'?s length|cool\\w*)\\b"
+     },
+     {
+      "bad": "{A} poured the boiling stearin onto {B}'s chest.",
+      "id": "wax-nostearin",
+      "kind": "property",
+      "role": "any",
+      "text": "stearin or boiling-hot wax is never poured on the skin",
+      "neg": "\\b(?:pour\\w*|tip\\w*|drip\\w*)\\b[^.!?\\n]{0,40}\\b(?:boiling|scalding|stearin)\\b",
+      "sources": [
+       {
+        "url": "https://en.wikipedia.org/wiki/Wax_play",
+        "quote": "Stearin which commonly melts at around 80 C (unsafe for wax play)",
+        "checked": "claude 2026-11-12 (fetched)"
+       },
+       {
+        "url": "https://www.k-y.com/sex-health-blog/guide-to-bdsm-wax-play",
+        "quote": "Unscented paraffin or soy candles ... don't burn as hot as beeswax",
+        "checked": "claude 2026-11-12 (fetched)"
+       }
+      ]
+     }
+    ]
+   },
+   "edging": {
+    "label": "orgasm control",
+    "setup": "{A} will bring {B} to the edge of orgasm several times and hold {B} there before the release.",
+    "zones": {
+     "label": "the thighs and stomach",
+     "pattern": "\\b(?:thighs?|stomach|belly|hips?|ribs?)\\b"
+    },
+    "equipment": [
+     {
+      "id": "satin-blindfold",
+      "label": "a satin blindfold",
+      "term": "blindfold|satin",
+      "stage": "build",
+      "prop": "it is soft and fully dark",
+      "prop_pattern": "\\b(?:soft|dark|black|satin|smooth|cool)\\b"
+     },
+     {
+      "id": "bedside-timer",
+      "label": "a bedside timer",
+      "term": "timer|clock",
+      "stage": "escalation",
+      "prop": "it counts the minutes aloud",
+      "prop_pattern": "\\b(?:minutes?|count\\w*|tick\\w*|beep\\w*|seconds?)\\b"
+     }
+    ],
+    "facts": [
+     {
+      "ref": "{A} stopped, holding {B} at the edge until the shaking eased.",
+      "id": "edge-hold",
+      "kind": "physiology",
+      "role": "any",
+      "text": "arousal is built to the brink and held there, not finished early (plateau before orgasm)",
+      "min_hits": 1,
+      "sources": [
+       {
+        "url": "https://en.wikipedia.org/wiki/Masters_and_Johnson",
+        "quote": "Excitement phase, Plateau phase (full arousal, not yet orgasm), Orgasm, Resolution phase",
+        "checked": "claude 2026-11-12 (fetched)"
+       },
+       {
+        "url": "https://courses.lumenlearning.com/waymaker-psychology/chapter/sexual-behavior/",
+        "quote": "The excitement phase is the arousal phase of the sexual response cycle",
+        "checked": "claude 2026-11-12 (fetched)"
+       }
+      ],
+      "pos_a": "\\b(?:stop\\w*|paus\\w*|eas\\w*|back\\w* off|still\\w*|hold\\w*|withdr\\w*|slow\\w*)\\b",
+      "pos_b": "\\b(?:edge|brink|verge|almost|close|peak|about to)\\b"
+     },
+     {
+      "ref": "{B}'s muscles went slack and {B}'s breathing slowed.",
+      "id": "edge-resolve",
+      "kind": "physiology",
+      "role": "last",
+      "text": "after the release the body relaxes and settles",
+      "sources": [
+       {
+        "url": "https://courses.lumenlearning.com/waymaker-psychology/chapter/sexual-behavior/",
+        "quote": "Resolution is the relatively rapid return to an unaroused state ... accompanied by a decrease in blood pressure and muscular relaxation",
+        "checked": "claude 2026-11-12 (fetched)"
+       },
+       {
+        "url": "https://en.wikipedia.org/wiki/Masters_and_Johnson",
+        "quote": "Resolution phase (after orgasm)",
+        "checked": "claude 2026-11-12 (fetched)"
+       }
+      ],
+      "pos_a": "\\b(?:muscles?|body|limbs?|breath\\w*|pulse|heart\\w*)\\b",
+      "pos_b": "\\b(?:relax\\w*|slack\\w*|loosen\\w*|settl\\w*|slow\\w*|eas\\w*|calm\\w*|go\\w* heavy|sink\\w*)\\b"
+     },
+     {
+      "id": "edge-order",
+      "kind": "physiology",
+      "role": "pre-peak",
+      "text": "the release comes only at the peak stage, not before the held edges",
+      "neg": "\\b(?:orgasm\\w*|climax\\w*(?!\\s+(?:rose|rise\\w*|built|build\\w*|approach\\w*|loom\\w*|near\\w*|gather\\w*|coil\\w*|swell\\w*|threaten\\w*)\\b)|cum(?:s|ming|med)?|(?<!lamp )(?<!lamps )(?<!light )(?<!lights )(?<!sun )(?<!moon )(?<!rain )(?<!wind )(?<!word )(?<!words )(?<!voice )(?<!sound )(?<!hand )(?<!hands )(?<!arm )(?<!arms )(?<!breath )(?<!knock )(?<!train )(?<!door )(?<!dawn )(?<!answer )(?<!laugh )(?<!smile )(?<!sunlight )(?<!storm )(?<!heat )came\\b(?!\\s+(?:in(?!side\\s+(?:her|him|me|you|them)\\b)\\w*|from|back|up\\w*|down\\w*|over|out\\w*|to|through\\w*|round|home|across|along|by|past|on|onto|off|into|together|close|closer|forward|near\\w*|toward\\w*|around|alive|awake|free|loose|away|after|before|open|outside|here|there|first|last|next)\\b))",
+      "bad": "{B} came with a shout.",
+      "sources": [
+       {
+        "url": "https://en.wikipedia.org/wiki/Masters_and_Johnson",
+        "quote": "Excitement phase, Plateau phase, Orgasm, Resolution phase (in order)",
+        "checked": "claude 2026-11-12 (fetched)"
+       },
+       {
+        "url": "https://courses.lumenlearning.com/waymaker-psychology/chapter/sexual-behavior/",
+        "quote": "orgasm is marked by rhythmic contractions of the pelvis and uterus",
+        "checked": "claude 2026-11-12 (fetched)"
+       }
+      ]
+     }
+    ]
+   }
+  },
+  "clock": {
+   "ask": "Before the scene began, {P} {took}, {N} earlier. In the {stage} stage, {Q} must say in dialogue how long {what}, counted from now, giving a specific amount of time.",
+   "cells": {
+    "sildenafil.onset": {
+     "took": "took a prescribed sildenafil tablet",
+     "what": "until it starts to work",
+     "unit_band": {
+      "min": 30,
+      "max": 120,
+      "unit": "min"
+     },
+     "word": "\\b(?:start\\w*|work\\w*|kick\\w*|begin\\w*|effect\\w*|take\\w* (?:hold|effect))\\b",
+     "value": "30-120 min",
+     "confidence": "high",
+     "sources": [
+      {
+       "url": "https://dailymed.nlm.nih.gov/dailymed/lookup.cfm?setid=c8d046c9-d9e9-4660-8ff1-a6c23b16eb3f",
+       "quote": "max plasma concentrations reached within 30-120 min (median 60 min) fasted",
+       "checked": "claude 2026-11-07 (pharm.json, source-verified)"
+      },
+      {
+       "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC6790582",
+       "quote": "reaching the maximum plasma concentration between 30 min and 2 h; oral sildenafil effects are seen after about 1 h",
+       "checked": "claude 2026-11-12 (fetched)"
+      }
+     ],
+     "elapsed_min": [
+      10,
+      5
+     ]
+    },
+    "sildenafil.peak": {
+     "took": "took a prescribed sildenafil tablet",
+     "what": "until it is at its strongest",
+     "unit_band": {
+      "min": 30,
+      "max": 120,
+      "unit": "min"
+     },
+     "word": "\\b(?:peak\\w*|strongest|full\\w*|best|maximum)\\b",
+     "value": "30-120 min",
+     "confidence": "high",
+     "sources": [
+      {
+       "url": "https://dailymed.nlm.nih.gov/dailymed/lookup.cfm?setid=c8d046c9-d9e9-4660-8ff1-a6c23b16eb3f",
+       "quote": "max plasma concentrations reached within 30-120 min (median 60 min) fasted",
+       "checked": "claude 2026-11-07 (pharm.json, source-verified)"
+      },
+      {
+       "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC6790582",
+       "quote": "Tmax between 30 min and 2 h (median 0.8-1 h); non-fasting 1-2 h",
+       "checked": "claude 2026-11-12 (fetched)"
+      }
+     ],
+     "elapsed_min": [
+      10,
+      5
+     ]
+    },
+    "cannabis_edible.peak": {
+     "took": "ate a cannabis gummy",
+     "what": "until it peaks",
+     "unit_band": {
+      "min": 90,
+      "max": 240,
+      "unit": "min"
+     },
+     "word": "\\b(?:peak\\w*|strongest|full\\w*|hit\\w*)\\b",
+     "value": "1.5-4 h",
+     "confidence": "high",
+     "sources": [
+      {
+       "url": "https://pubmed.ncbi.nlm.nih.gov/28158482/",
+       "quote": "edible THC: peak effects about 1.5-4 h",
+       "checked": "claude 2026-11-07 (pharm.json, source-verified)"
+      },
+      {
+       "url": "https://www.healthline.com/health/how-long-do-edibles-take-to-kick-in",
+       "quote": "peak blood levels occur around three hours after administration",
+       "checked": "claude 2026-11-12 (fetched)"
+      }
+     ],
+     "elapsed_min": [
+      30,
+      20
+     ]
+    },
+    "cannabis_edible.duration": {
+     "took": "ate a cannabis gummy",
+     "what": "until it wears off",
+     "unit_band": {
+      "min": 300,
+      "max": 600,
+      "unit": "min"
+     },
+     "word": "\\b(?:last\\w*|wear\\w* off|fad\\w*|gone|over|hours)\\b",
+     "value": "5-10 h",
+     "confidence": "high",
+     "sources": [
+      {
+       "url": "https://pubmed.ncbi.nlm.nih.gov/28158482/",
+       "quote": "edible duration about 5-10 h",
+       "checked": "claude 2026-11-07 (pharm.json, source-verified)"
+      },
+      {
+       "url": "https://www.healthline.com/health/how-long-do-edibles-take-to-kick-in",
+       "quote": "An edible high generally lasts ... from six to eight hours",
+       "checked": "claude 2026-11-12 (fetched)"
+      }
+     ],
+     "elapsed_min": [
+      60,
+      90
+     ]
+    }
+   },
+   "excluded_for_missing_second_source": [
+    "alcohol.onset",
+    "alcohol.peak (kept out: sources say 30-90 min, band 30-120)",
+    "diazepam.onset/peak/half_life",
+    "cannabis_edible.onset"
+   ]
+  }
+ }
+}

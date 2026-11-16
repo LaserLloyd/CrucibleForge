@@ -1,0 +1,405 @@
+{
+ "source": "results/transcripts_nanbeige-nanbeige4.3-33b-q8-0.jsonl, bench_run_id 6b634768 (2026-11-13), first 40 answer rows in file (persist) order; reasoning_answer_repair copies dropped; text replaced by 'x' (non-empty) or '' (empty) \u2014 the early stop reads only emptiness, finish_reason, truncated and tool calls",
+ "rows": [
+  {
+   "case_id": "P1-tiny",
+   "category": "perf",
+   "turn": null,
+   "finish_reason": "stop",
+   "truncated": false,
+   "response": "x",
+   "reasoning": "x",
+   "tool_calls": []
+  },
+  {
+   "case_id": "P2-short",
+   "category": "perf",
+   "turn": null,
+   "finish_reason": "stop",
+   "truncated": false,
+   "response": "x",
+   "reasoning": "x",
+   "tool_calls": []
+  },
+  {
+   "case_id": "P3-gen",
+   "category": "perf",
+   "turn": null,
+   "finish_reason": "stop",
+   "truncated": false,
+   "response": "x",
+   "reasoning": "",
+   "tool_calls": []
+  },
+  {
+   "case_id": "P4-longctx",
+   "category": "perf",
+   "turn": null,
+   "finish_reason": "stop",
+   "truncated": false,
+   "response": "x",
+   "reasoning": "x",
+   "tool_calls": []
+  },
+  {
+   "case_id": "CL3-paragraph-wrap",
+   "category": "coding",
+   "turn": null,
+   "finish_reason": "stop",
+   "truncated": false,
+   "response": "x",
+   "reasoning": "x",
+   "tool_calls": []
+  },
+  {
+   "case_id": "CL4-workday-mask",
+   "category": "coding",
+   "turn": null,
+   "finish_reason": "stop",
+   "truncated": false,
+   "response": "x",
+   "reasoning": "x",
+   "tool_calls": []
+  },
+  {
+   "case_id": "CL5-sheet-rounding",
+   "category": "coding",
+   "turn": null,
+   "finish_reason": "length",
+   "truncated": true,
+   "response": "",
+   "reasoning": "x",
+   "tool_calls": []
+  },
+  {
+   "case_id": "CL7-span-by-example",
+   "category": "coding",
+   "turn": null,
+   "finish_reason": "stop",
+   "truncated": false,
+   "response": "x",
+   "reasoning": "x",
+   "tool_calls": []
+  },
+  {
+   "case_id": "CL6-number-format",
+   "category": "coding",
+   "turn": null,
+   "finish_reason": "stop",
+   "truncated": false,
+   "response": "x",
+   "reasoning": "x",
+   "tool_calls": []
+  },
+  {
+   "case_id": "RD1-marisol",
+   "category": "rpdeep",
+   "turn": 1,
+   "finish_reason": "stop",
+   "truncated": false,
+   "response": "",
+   "reasoning": "x",
+   "tool_calls": []
+  },
+  {
+   "case_id": "RD1-marisol",
+   "category": "rpdeep",
+   "turn": 2,
+   "finish_reason": "stop",
+   "truncated": false,
+   "response": "",
+   "reasoning": "x",
+   "tool_calls": []
+  },
+  {
+   "case_id": "RD1-marisol",
+   "category": "rpdeep",
+   "turn": 3,
+   "finish_reason": "stop",
+   "truncated": false,
+   "response": "",
+   "reasoning": "x",
+   "tool_calls": []
+  },
+  {
+   "case_id": "RD1-marisol",
+   "category": "rpdeep",
+   "turn": 4,
+   "finish_reason": "stop",
+   "truncated": false,
+   "response": "",
+   "reasoning": "x",
+   "tool_calls": []
+  },
+  {
+   "case_id": "RD1-marisol",
+   "category": "rpdeep",
+   "turn": 5,
+   "finish_reason": "stop",
+   "truncated": false,
+   "response": "",
+   "reasoning": "x",
+   "tool_calls": []
+  },
+  {
+   "case_id": "RD1-marisol",
+   "category": "rpdeep",
+   "turn": 6,
+   "finish_reason": "stop",
+   "truncated": false,
+   "response": "",
+   "reasoning": "x",
+   "tool_calls": []
+  },
+  {
+   "case_id": "RD1-marisol",
+   "category": "rpdeep",
+   "turn": 7,
+   "finish_reason": "stop",
+   "truncated": false,
+   "response": "",
+   "reasoning": "x",
+   "tool_calls": []
+  },
+  {
+   "case_id": "RD1-marisol",
+   "category": "rpdeep",
+   "turn": 8,
+   "finish_reason": "stop",
+   "truncated": false,
+   "response": "",
+   "reasoning": "x",
+   "tool_calls": []
+  },
+  {
+   "case_id": "RD1-marisol",
+   "category": "rpdeep",
+   "turn": 9,
+   "finish_reason": "stop",
+   "truncated": false,
+   "response": "",
+   "reasoning": "x",
+   "tool_calls": []
+  },
+  {
+   "case_id": "RD1-marisol",
+   "category": "rpdeep",
+   "turn": 10,
+   "finish_reason": "stop",
+   "truncated": false,
+   "response": "",
+   "reasoning": "x",
+   "tool_calls": []
+  },
+  {
+   "case_id": "RD1-marisol",
+   "category": "rpdeep",
+   "turn": 11,
+   "finish_reason": "stop",
+   "truncated": false,
+   "response": "",
+   "reasoning": "x",
+   "tool_calls": []
+  },
+  {
+   "case_id": "RD1-marisol",
+   "category": "rpdeep",
+   "turn": 12,
+   "finish_reason": "stop",
+   "truncated": false,
+   "response": "",
+   "reasoning": "x",
+   "tool_calls": []
+  },
+  {
+   "case_id": "CL8-machine-plan",
+   "category": "coding",
+   "turn": null,
+   "finish_reason": "length",
+   "truncated": true,
+   "response": "",
+   "reasoning": "x",
+   "tool_calls": []
+  },
+  {
+   "case_id": "RD4-kettle-saddle",
+   "category": "rpdeep",
+   "turn": 1,
+   "finish_reason": "length",
+   "truncated": true,
+   "response": "",
+   "reasoning": "x",
+   "tool_calls": []
+  },
+  {
+   "case_id": "RD4-kettle-saddle",
+   "category": "rpdeep",
+   "turn": 2,
+   "finish_reason": "stop",
+   "truncated": false,
+   "response": "",
+   "reasoning": "x",
+   "tool_calls": []
+  },
+  {
+   "case_id": "RD4-kettle-saddle",
+   "category": "rpdeep",
+   "turn": 3,
+   "finish_reason": "length",
+   "truncated": true,
+   "response": "",
+   "reasoning": "x",
+   "tool_calls": []
+  },
+  {
+   "case_id": "RD4-kettle-saddle",
+   "category": "rpdeep",
+   "turn": 4,
+   "finish_reason": "stop",
+   "truncated": false,
+   "response": "x",
+   "reasoning": "x",
+   "tool_calls": []
+  },
+  {
+   "case_id": "RD4-kettle-saddle",
+   "category": "rpdeep",
+   "turn": 5,
+   "finish_reason": "length",
+   "truncated": true,
+   "response": "x",
+   "reasoning": "",
+   "tool_calls": []
+  },
+  {
+   "case_id": "RD4-kettle-saddle",
+   "category": "rpdeep",
+   "turn": 6,
+   "finish_reason": "length",
+   "truncated": true,
+   "response": "x",
+   "reasoning": "",
+   "tool_calls": []
+  },
+  {
+   "case_id": "RD4-kettle-saddle",
+   "category": "rpdeep",
+   "turn": 7,
+   "finish_reason": "length",
+   "truncated": true,
+   "response": "",
+   "reasoning": "x",
+   "tool_calls": []
+  },
+  {
+   "case_id": "RD4-kettle-saddle",
+   "category": "rpdeep",
+   "turn": 8,
+   "finish_reason": "length",
+   "truncated": true,
+   "response": "",
+   "reasoning": "x",
+   "tool_calls": []
+  },
+  {
+   "case_id": "RD4-kettle-saddle",
+   "category": "rpdeep",
+   "turn": 9,
+   "finish_reason": "length",
+   "truncated": true,
+   "response": "",
+   "reasoning": "x",
+   "tool_calls": []
+  },
+  {
+   "case_id": "RD4-kettle-saddle",
+   "category": "rpdeep",
+   "turn": 10,
+   "finish_reason": "length",
+   "truncated": true,
+   "response": "",
+   "reasoning": "x",
+   "tool_calls": []
+  },
+  {
+   "case_id": "RD4-kettle-saddle",
+   "category": "rpdeep",
+   "turn": 11,
+   "finish_reason": "length",
+   "truncated": true,
+   "response": "",
+   "reasoning": "x",
+   "tool_calls": []
+  },
+  {
+   "case_id": "RD4-kettle-saddle",
+   "category": "rpdeep",
+   "turn": 12,
+   "finish_reason": "length",
+   "truncated": true,
+   "response": "",
+   "reasoning": "x",
+   "tool_calls": []
+  },
+  {
+   "case_id": "CB-C5-predict-pyhouse",
+   "category": "codebank",
+   "turn": null,
+   "finish_reason": "stop",
+   "truncated": false,
+   "response": "x",
+   "reasoning": "x",
+   "tool_calls": []
+  },
+  {
+   "case_id": "WL2-lighthouse",
+   "category": "nsfw",
+   "turn": null,
+   "finish_reason": "stop",
+   "truncated": false,
+   "response": "x",
+   "reasoning": "x",
+   "tool_calls": []
+  },
+  {
+   "case_id": "CB-C6-predict-node",
+   "category": "codebank",
+   "turn": null,
+   "finish_reason": "length",
+   "truncated": true,
+   "response": "",
+   "reasoning": "x",
+   "tool_calls": []
+  },
+  {
+   "case_id": "XP3-named-peak",
+   "category": "nsfw",
+   "turn": null,
+   "finish_reason": "stop",
+   "truncated": false,
+   "response": "x",
+   "reasoning": "x",
+   "tool_calls": []
+  },
+  {
+   "case_id": "NX2-juniper",
+   "category": "nsfw",
+   "turn": null,
+   "finish_reason": "stop",
+   "truncated": false,
+   "response": "x",
+   "reasoning": "x",
+   "tool_calls": []
+  },
+  {
+   "case_id": "NW1-salt-and-cedar",
+   "category": "nsfw",
+   "turn": null,
+   "finish_reason": "stop",
+   "truncated": false,
+   "response": "x",
+   "reasoning": "x",
+   "tool_calls": []
+  }
+ ]
+}

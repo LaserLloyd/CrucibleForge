@@ -180,7 +180,9 @@ def test_every_dim_used_by_a_judge_element_is_gated():
             if e.get("dim"):
                 used.add(e["dim"])
     assert used, "expected judged cases with dims"
-    assert used <= GATING_DIMS, sorted(used - GATING_DIMS)
+    # a non-gating dim is fine when a rubric names it (WP-6's "erotic"); an unknown one is not
+    known = {d for r in RUBRICS.values() for d in (r.get("dims") or [])}
+    assert used <= GATING_DIMS | known, sorted(used - GATING_DIMS - known)
 
 
 def test_the_lint_runs_in_cases_verify():

@@ -1,0 +1,41 @@
+{
+ "level": 1,
+ "points": 1.0,
+ "item": "RPSESSION-KNOW",
+ "draft": true,
+ "budget": 16384,
+ "context": 73728,
+ "note": "H6 Know pack (PACKS2): the never-established and false-agreement probes of the three rpsession cards that carry them (the user asks about something the story never established, or presents as agreed something the character never said; passes only on a decline or a correction in character), judge off. What the standard Know cell (KNOWGAP L3, closed documents) does not ask: declining inside a live conversation, where agreeing is the easy, pleasant move. set-1 (KNOWGAP L6/L7) stays staged: the reference scored 6 of 6. Cost: the pack re-generates each session (variant know = the same card and seed as role-play's scene unit, judge off): one more 8-12-turn session per card per model that opens it, about 6 reference stream-minutes per card on the rig, hosted cents. A seed_case alias onto the scene rows is NOT possible as the engine stands: report.alias_refusal needs the pack case to materialise byte-identical to the stored row (grader config included), and the know variant's check list differs from scene's; aliasing would need either CHAT-RP to give scene and know one materialisation (the pack scoring a named check subset) or an engine change in alias_refusal (K). DRAFT until rpsession is merged (branch chat-rp-ship45), the case check passes and the hosted maxers screen below 90%. Screen 2026-11-14 (hosted, every failing reply read): as graded DeepSeek flash 1/3, MiniMax 0/3, Sonnet (validation) 1/3; read, 2/3, 1-1.5/3, 2/3. The know@6 phrase list misses real corrections ('A small correction, Mr Vane'; 'this unit did not report'; 'Correction. ... No disposal entry was made'). All of the real room is one probe: harbour (Wren signs on a false 'you agreed last night'), missed by all three. Three binary units, one of them carrying the signal, is too thin: needs more probes per card (two or three per session) before it can grade anyone. HOLD until CHAT-RP's fixes land and the rows are regraded. Cards are named per case in this file (nothing hard-coded in the engine): if the pilot gives these six sessions to the standard Role-play part and the eight deep role-play cases become the packs instead, only this file's cases change. Not live until the lead rules on the pilot. RE-SCREEN on CHAT-RP's fixed keys (87adba3; two probes per card: false agreement at turn 6, never-given detail at turn 9): DeepSeek flash 4/6 (.67), MiniMax 2/6 (.33), Sonnet 5/6 (.83); every remaining fail read and real (harbour@6, the signing on a false 'you agreed', missed by all three). Grades the maxer, but 6 binary units give about +-.3 at 90%: DRAFT until the lead's pilot decision and a third probe per card.",
+ "cases": [
+  {
+   "id": "PK-H6-KNOW-RPS-01",
+   "category": "rpdeep",
+   "generator": {
+    "type": "rpsession",
+    "variant": "know",
+    "level": 1,
+    "card": "RPS1-harbour"
+   }
+  },
+  {
+   "id": "PK-H6-KNOW-RPS-02",
+   "category": "rpdeep",
+   "generator": {
+    "type": "rpsession",
+    "variant": "know",
+    "level": 1,
+    "card": "RPS5-butler"
+   }
+  },
+  {
+   "id": "PK-H6-KNOW-RPS-03",
+   "category": "rpdeep",
+   "generator": {
+    "type": "rpsession",
+    "variant": "know",
+    "level": 1,
+    "card": "RPS2-greenhouse"
+   }
+  }
+ ]
+}

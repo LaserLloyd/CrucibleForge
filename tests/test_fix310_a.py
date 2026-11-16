@@ -59,8 +59,11 @@ def test_heat_skip_is_exactly_nmx1():
     gated = _gated_case_set()
     assert len(gated) >= 6
     skipped = {c["id"] for c in gated if report.nsfw_heat_skipped(c)}
-    # 4.0: NMX1 (the only heat-skipped case) left the standard board
-    assert skipped == set()
+    # 4.0: NMX1 (the only heat-skipped case) left the standard board. WP-6 generated
+    # continuity cases that DECLARE ``explicit_required: false`` (NR6): a skip is fine when
+    # it is declared, and never when a case merely lost its explicitness elements.
+    declared = {c["id"] for c in gated if c.get("explicit_required") is False}
+    assert skipped <= declared, sorted(skipped - declared)
     nmx1 = next(c for c in config.load_cases(["nsfw"]) if c["id"] == "NMX1-needle-and-gull")
     assert report.nsfw_heat_skipped(nmx1)
 

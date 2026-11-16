@@ -1,0 +1,14 @@
+{
+ "item": "PACK-WORK-CODE",
+ "level": 1,
+ "note": "classic-fixed (4.5): the 45.1 rewrite of a 4.1 case. Its stored 4.1 rows are gone (the prompt changed), so this pack has no rows yet. Left Core in 4.5.",
+ "classic_fixed": true,
+ "budget": 65536,
+ "cases": [
+  "CL5-sheet-rounding",
+  "CL6-number-format"
+ ],
+ "rows": "none",
+ "allow_small": true,
+ "allow_small_reason": "the two 45.1 rewrites of CL5 and CL6 (a pack of three would need a third rewrite that does not exist)"
+}

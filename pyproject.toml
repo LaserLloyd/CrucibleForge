@@ -1,6 +1,6 @@
 [project]
 name = "crucibleforge-bench"
-version = "4.1.0"
+version = "4.5.0"
 description = "CrucibleForge — an LLM capability benchmark with a hard tier, deterministic graders, an LLM judge (local or remote), and a web GUI. Works with LM Studio, llama.cpp/StudioForge, Ollama, vLLM, DeepSeek, OpenRouter, OpenAI, Open WebUI — anything OpenAI-compatible."
 readme = "README.md"
 license = "MIT-0"
@@ -19,6 +19,7 @@ classifiers = [
 ]
 dependencies = [
     "httpx>=0.27",
+    "jinja2>=3.1",
     "pyyaml>=6",
     # zoneinfo has no system tz database on Windows (case verify expressions use it)
     "tzdata>=2024.1; sys_platform == 'win32'",

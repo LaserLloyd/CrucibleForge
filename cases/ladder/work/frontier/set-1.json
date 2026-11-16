@@ -1,0 +1,144 @@
+{
+ "level": 1,
+ "points": 4,
+ "item": "PATTERN",
+ "budget": 65536,
+ "context": 73728,
+ "needs_chain": true,
+ "note": "FC1 P1 PATTERN (patgen L2), 6 seeds n1-n6 (n1-n3 measured, n4-n6 new). Two turns per seed: t1 writes Predictor, t2 carries the model's own t1 reply and is the scored turn. The standard runner has no t1->t2 chain yet: cases are marked needs_chain and record an errored (missing) row until the chain runner lands (T7 second half). Both t1 and t2 are listed; only t2 carries the grader. PROVISIONAL (T7, 2026-11-13): weights and counts are one number each; gates re-opened 16:15.",
+ "cases": [
+  {
+   "id": "FC1-patgen-t1-n1",
+   "category": "coding",
+   "needs_chain": true,
+   "generator": {
+    "type": "patgen",
+    "level": 2,
+    "key": "n1",
+    "variant": "t1"
+   }
+  },
+  {
+   "id": "FC1-patgen-t2-n1",
+   "category": "coding",
+   "needs_chain": true,
+   "generator": {
+    "type": "patgen",
+    "level": 2,
+    "key": "n1",
+    "variant": "t2"
+   }
+  },
+  {
+   "id": "FC1-patgen-t1-n2",
+   "category": "coding",
+   "needs_chain": true,
+   "generator": {
+    "type": "patgen",
+    "level": 2,
+    "key": "n2",
+    "variant": "t1"
+   }
+  },
+  {
+   "id": "FC1-patgen-t2-n2",
+   "category": "coding",
+   "needs_chain": true,
+   "generator": {
+    "type": "patgen",
+    "level": 2,
+    "key": "n2",
+    "variant": "t2"
+   }
+  },
+  {
+   "id": "FC1-patgen-t1-n3",
+   "category": "coding",
+   "needs_chain": true,
+   "generator": {
+    "type": "patgen",
+    "level": 2,
+    "key": "n3",
+    "variant": "t1"
+   }
+  },
+  {
+   "id": "FC1-patgen-t2-n3",
+   "category": "coding",
+   "needs_chain": true,
+   "generator": {
+    "type": "patgen",
+    "level": 2,
+    "key": "n3",
+    "variant": "t2"
+   }
+  },
+  {
+   "id": "FC1-patgen-t1-n4",
+   "category": "coding",
+   "needs_chain": true,
+   "generator": {
+    "type": "patgen",
+    "level": 2,
+    "key": "n4",
+    "variant": "t1"
+   }
+  },
+  {
+   "id": "FC1-patgen-t2-n4",
+   "category": "coding",
+   "needs_chain": true,
+   "generator": {
+    "type": "patgen",
+    "level": 2,
+    "key": "n4",
+    "variant": "t2"
+   }
+  },
+  {
+   "id": "FC1-patgen-t1-n5",
+   "category": "coding",
+   "needs_chain": true,
+   "generator": {
+    "type": "patgen",
+    "level": 2,
+    "key": "n5",
+    "variant": "t1"
+   }
+  },
+  {
+   "id": "FC1-patgen-t2-n5",
+   "category": "coding",
+   "needs_chain": true,
+   "generator": {
+    "type": "patgen",
+    "level": 2,
+    "key": "n5",
+    "variant": "t2"
+   }
+  },
+  {
+   "id": "FC1-patgen-t1-n6",
+   "category": "coding",
+   "needs_chain": true,
+   "generator": {
+    "type": "patgen",
+    "level": 2,
+    "key": "n6",
+    "variant": "t1"
+   }
+  },
+  {
+   "id": "FC1-patgen-t2-n6",
+   "category": "coding",
+   "needs_chain": true,
+   "generator": {
+    "type": "patgen",
+    "level": 2,
+    "key": "n6",
+    "variant": "t2"
+   }
+  }
+ ],
+ "frontier": true
+}

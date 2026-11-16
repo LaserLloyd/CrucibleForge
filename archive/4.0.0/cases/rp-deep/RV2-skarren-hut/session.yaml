@@ -1,0 +1,441 @@
+id: RV2-skarren-hut
+user_name: Tavi
+rules: 'You are playing FOUR characters at once — ISOLDE MARCH, BRAM TALLEY, KIT SOLBERG and DOMINIC "DOM" FERRAND,
+  described in the scene card below — in an ongoing roleplay at one table. The user plays TAVI LORRANCE (she/her,
+  35), a warden of the Pass Authority. Tavi is the user''s and no one else''s.
+
+
+  Rules (strict):
+
+  1. Every line of speech is its own line and begins with the speaker''s name in bold and a colon: **Isolde:**,
+  **Bram:**, **Kit:** or **Dom:**. Narration goes on separate lines with no name tag, in present tense.
+
+  2. All four characters speak at least once in every turn. They are four different people with their own views,
+  habits and history.
+
+  3. Keep each character''s voice and habits exactly as the card describes them, on every line and in every turn.
+  The card is canon: who knows what, who speaks to whom, and how each of them behaves.
+
+  4. Never write Tavi''s dialogue, actions, thoughts, feelings or decisions. Stop your turn at a point where Tavi
+  can act.
+
+  5. Things said and done on the page are canon too, including any correction Tavi makes.
+
+  6. A chat turn, not a chapter: 120-260 words. Stay inside the fiction; no notes to the user.
+
+  '
+judge_card_summary: 'Skarren Hut below Corran Pass, blizzard; four characters played at once, every spoken line
+  tagged **Name:**. ISOLDE MARCH (58), hut-keeper: never uses contractions, never says I/me/my (speaks of herself
+  as "Isolde" or "this house"), never asks a question; kept the hut 31 years; her daughter Lise died last winter
+  in an avalanche as Bram''s rope partner; she and Bram have not spoken to each other since and only talk through
+  Kit or others. BRAM TALLEY (41), guide for nineteen years: every sentence he says is a question; will not talk
+  about last winter or say Lise''s name, turns it aside onto the snow/route/work, differently each time. KIT SOLBERG
+  (24), porter: sentences of seven words or fewer, every line ends with "Warden"; never says Dom''s name or speaks
+  to him (calls him "the cloth buyer"); sister Maren bakes the rye at Haldby; SECRET: he is hiding the missing climber
+  Ansel Brekke, alive with a broken ankle, in the old goat byre, because Ansel is running from Dom; Kit hints (glances
+  at the back door, hay on his jumper, a second bowl of broth taken out) but tells only someone who says "the bell
+  rang twice". DOM FERRAND (47): claims to be a cloth buyer for the Varrel fairs; really a debt collector for the
+  Lamprey Rooms hunting Ansel (300 crowns); last night he tried the byre door and found it barred; lies about his
+  business, his movements and the night just gone (says he slept like a stone), and turns the gold signet ring on
+  his right little finger every time he lies; every line he speaks begins "By the cold saints" and ends with "friend";
+  never admits his business even when cornered; never says "honest". Ansel slept one night at the hut (the night
+  of the day he signed out at Haldby) and left at dawn; Dom arrived the evening after that night. The user plays
+  Tavi Lorrance (35), Pass Authority warden.'
+judge_key: 'The assistant plays Isolde, Bram, Kit and Dom; the user plays Tavi Lorrance. Only Kit knows Ansel Brekke
+  is alive in the byre; the card lets him tell only after the words "the bell rang twice" (turn 5). On turn 2 Tavi
+  corrected her date: Ansel signed out at Haldby on TUESDAY morning, not Monday, so he slept at the hut on Tuesday
+  night and Dom arrived on Wednesday evening. Tavi also got two things wrong without noticing: Isolde has kept the
+  hut THIRTY-ONE years (not twenty), and the rye bread is from Kit''s SISTER Maren''s bakery (not his mother''s).
+  On turn 1 Tavi said her left boot leaks and that she lost her left glove below the cairns. On turn
+  3 she said Bram has guided Corran NINE years — the card says nineteen. Ansel fell on WEDNESDAY morning (the morning
+  after his Tuesday night at the hut). On turn 2 she said Kit''s father carried for the hut "till last year" — the
+  card says he died four years ago.'
+turns:
+- 'The hut door bangs open on wind and snow. A woman in the blue storm-jacket of the Pass Authority stamps in,
+  pushes back her hood and looks at the four people at the table by the window.
+
+
+  "Evening. Tavi Lorrance, Pass Authority. Sorry about the puddle — my left boot''s been letting in snow since the
+  cairns. Mrs March? They told me at Haldby you''ve kept this hut twenty years, so you''ll know everyone who comes
+  through. I''m up about Ansel Brekke — a climber, twenty-nine, red hat. He signed out at the lower station on
+  Monday morning to cross the pass and nobody on the Varrel side has seen him. Did he come through here?"
+
+
+  Tavi takes the bowl she is given and tears a piece off the rye loaf with her right hand; the left is bare and
+  white with cold. "Lost my left glove somewhere below the cairns. This is good bread. Your mother''s baking,
+  Kit?" Then she turns to the man in the good wool coat. "And you, sir — you''re not a guide, and those aren''t
+  mountain boots. What''s your business up here in this weather?"'
+- 'Tavi looks at the big guide at the end of the bench. "Mr Talley, isn''t it? The Authority''s file says you lost
+  someone on this pass last winter. I''m sorry. Is the pass safe for a man alone right now?" Then, to the young
+  porter: "And you look like you haven''t slept, son. Anything you want to tell me?"
+
+
+  Tavi checks her notebook and winces. "Correction — I had it wrong. The station log says Ansel signed out on
+  Tuesday morning, not Monday. So he''d have slept here Tuesday night." She looks at the hut-keeper. "Mrs March,
+  does your hut book show him? Kit, your father carried for this hut till last year, didn''t he — he''d have known
+  the book too." Then, kindly, to the man in the wool coat: "You look worn out, Mr Ferrand. Did you get any sleep
+  last night, with that wind?"'
+- 'Tavi spreads a map on the table between the hut-keeper and the guide. "Mr Talley, they told me at Haldby you''ve
+  guided Corran nine years, and Mrs March has been here longer still. You two know this side better than anyone
+  alive. If a man got hurt on the ice-steps, which way would you bring him down to Haldby — the lower track or the
+  goat track?"
+
+
+  Tavi folds the map away. "Mr Ferrand, there are boot prints in the yard going out to the old byre from last
+  night. Heeled boots, town boots. Yours?" Then, more quietly, to the porter: "And Kit — that''s the second bowl
+  of broth you''ve carried out the back since I got here."'
+- 'Tavi turns her cup slowly. "Mr Ferrand, when exactly did you get up here? Which evening?" Then she looks
+  straight at the porter. "Kit, I''ll ask you plainly, and I won''t ask again. Is Ansel Brekke alive?"'
+- 'Tavi leans across the table to the porter and speaks low. "My father was a warden on this pass before me. When
+  we came up for someone hurt, we used to say the bell rang twice."'
+- 'Tavi stands and pulls her hood up. "Right. I''m taking him down at first light. Kit — when did he fall, exactly?
+  Which day?" Then, to the guide: "Mr Talley, will you guide us — down past the ice-steps, the way you came down
+  last winter?"
+
+
+  At the door, Tavi looks back at the table. "Mr Ferrand, before I go out there: I''d like the truth about your
+  business now. And thank you, Mrs March, for the broth and the bunk."'
+temperature: 0.8
+top_p: 0.95
+max_tokens: 2000
+min_context: 40960
+checks:
+- id: P1-no-puppet-tavi
+  fact: P1
+  ftype: identity
+  group: identity
+  type: no_puppeting
+  names:
+  - Tavi
+  weight: 0.25
+  pruned: '4.0 fix: all-pass on the 2026-10-31 board, half weight'
+- id: F2-no-untagged-speech
+  fact: F2
+  ftype: format
+  group: constraint
+  type: forbid_regex
+  scope: all
+  pattern: ^[ \t]*["“]
+  note: 'a line that starts with a quotation mark = speech without the speaker tag (rule 1: every line of speech
+    begins with the name)'
+  weight: 0.5
+- id: W1-length-120-260
+  fact: W1
+  ftype: format
+  group: constraint
+  type: word_range
+  scope: ic
+  min: 120
+  max: 260
+  weight: 1
+- id: V1-isolde-voice
+  fact: V1
+  ftype: voice
+  group: constraint
+  type: forbid_regex
+  scope: speaker:Isolde
+  weight: 0.25
+  pattern: \b[A-Za-z]+['’](?:t|re|ll|ve|d|m)\b|\b(?:it|that|there|here|he|she|what|who|where|let|how|everyone|nobody|this)['’]s\b|\b(?:I|me|my|mine|myself)\b|\?
+  note: 'Isolde: no contraction, never I/me/my/mine/myself, never a question mark'
+  pruned: '4.0 fix: all-pass on the 2026-10-31 board, half weight'
+- id: V3-bram-only-questions
+  fact: V3
+  ftype: voice
+  group: constraint
+  type: forbid_regex
+  scope: speaker:Bram
+  pattern: '[A-Za-z0-9''’)\]][.!]+(?=[\s"”’]|$)'
+  note: a sentence of Bram's ending in a full stop or exclamation mark (every sentence he speaks is a question)
+  weight: 0.5
+- id: V5-kit-seven-words
+  fact: V5
+  ftype: voice
+  group: constraint
+  type: forbid_regex
+  scope: speaker:Kit
+  pattern: (?:[^\s.!?]+[ \t]+){7}[^\s.!?]+
+  note: eight or more words without a sentence end, on one of Kit's lines
+  weight: 1.5
+- id: V6-kit-lines-end-with-warden
+  fact: V6
+  ftype: voice
+  group: constraint
+  type: forbid_regex
+  scope: speaker:Kit
+  pattern: ^(?!.*\bWarden\W*$).*\S.*$
+  note: 'a line of Kit''s that does not end with "Warden" (card: while a warden is in the room every line he speaks
+    ends with it)'
+  weight: 1.5
+- id: V7-dom-lines-open-with-the-oath
+  fact: V7
+  ftype: voice
+  group: continuity
+  type: forbid_regex
+  scope: speaker:Dom
+  pattern: ^(?!\W*by the cold saints\b).*\S.*$
+  note: a line of Dom's that does not begin with "By the cold saints"
+  weight: 0.25
+- id: V10-dom-lines-end-with-friend
+  fact: V10
+  ftype: voice
+  group: continuity
+  type: forbid_regex
+  scope: speaker:Dom
+  pattern: ^(?!.*\bfriend\W*$).*\S.*$
+  note: a line of Dom's that does not end with "friend"
+  weight: 1.5
+- id: V9-kit-never-names-dom
+  fact: V9
+  ftype: relationship
+  group: continuity
+  type: forbid_regex
+  scope: speaker:Kit
+  pattern: \b(?:Dom|Dominic|Ferrand)\b
+  note: Kit never says the cloth buyer's name
+  weight: 0.25
+  pruned: '4.0 fix: all-pass on the 2026-10-31 board, half weight'
+- id: R1-isolde-bram-never-address-each-other
+  fact: R1
+  ftype: relationship
+  group: continuity
+  type: forbid_regex
+  scope: all
+  pattern: ^[ \t]*\*\*Isolde:\*\*[^\n]*?(?:["“][ \t]*Bram\b|,[ \t]*(?:Bram|Mr Talley)\b(?!['’]s)|\b(?:Bram|Mr Talley)[
+    \t]*[,?!])|^[ \t]*\*\*Bram:\*\*[^\n]*?(?:["“][ \t]*(?:Isolde|Mrs March)\b|,[ \t]*(?:Isolde|Mrs March)\b(?!['’]s)|\b(?:Isolde|Mrs
+    March)[ \t]*[,?!])
+  note: a vocative — Isolde calling Bram by name on her line, or Bram calling her by name on his (they speak only
+    through others)
+  weight: 0.25
+  pruned: '4.0 fix: all-pass on the 2026-10-31 board, half weight'
+- id: K0-kit-admits-nothing-before-the-password
+  fact: K0
+  ftype: secret
+  group: continuity
+  type: forbid_regex
+  turns:
+  - 1
+  - 2
+  - 3
+  - 4
+  scope: speaker:Kit
+  negation_guard: true
+  pattern: \b(?:alive|lives|in the byre|ankle|hid him|hiding him|hidden)\b(?![^.!?\n]*\?)
+  note: Kit himself saying, before "the bell rang twice", that the climber lives / is in the byre / is hidden /
+    has a hurt ankle (questions excepted)
+  weight: 0.5
+  pruned: '4.0 fix: all-pass on the 2026-10-31 board, half weight'
+judge_elements:
+- id: C2-thirty-one-years
+  fact: C2
+  ftype: correction
+  turns:
+  - 1
+  q: The warden says she was told Isolde has kept the hut "twenty years". Per the card it is THIRTY-ONE years. Does
+    Isolde correct this herself, in her own voice (no "I", no contraction) — thirty-one years, or "more than thirty"?
+    Quote her line. NO if nobody corrects it, someone else does, or the twenty years is accepted.
+  evidence:
+  - src: card
+    text: has kept Skarren Hut for thirty-one years.
+  - src: turn
+    text: you've kept this hut twenty years
+  gold_quote: Thirty-one years, Warden, not twenty
+- id: N2-kit-holds-first-pressure
+  fact: N2
+  ftype: secret
+  turns:
+  - 2
+  q: The warden asks the porter, kindly, if there is anything he wants to tell her. Per the card he must not say
+    Ansel is alive or where he is until someone says "the bell rang twice" (nobody has). Does Kit keep the secret
+    in this reply — an evasive short answer, no admission — and does nobody else at the table state it? Quote Kit's
+    evasive line. NO if Kit or anyone else says Ansel is alive, in the byre or hidden.
+  evidence:
+  - src: card
+    text: Kit will not say Ansel is alive or where he is
+  gold_quote: Just tired. Peat to cut, Warden.
+  weight: 0.25
+  pruned: '4.0 fix: all-pass on the 2026-10-31 board, half weight'
+- id: S2-bram-deflects-again-differently
+  fact: S2
+  ftype: stance
+  turns:
+  - 2
+  - 6
+  q: 'On turn 2 the warden brings up the partner Bram lost on the pass last winter; on turn 6 she asks him to guide them down ''the way you came down last winter'' — the descent where he lost her. Per the card he turns it aside ONTO THE MOUNTAIN IN FRONT OF THEM, never tells what happened, never names her. On BOTH turns does Bram turn it aside that way, without an account or her name, AND is the MAIN subject of his turn-6 deflection in a different one of these three categories from turn 2: (1) the snow / weather / conditions, (2) the route (the ice-steps, the track, the line down), (3) the job (carrying the man, the sledge, who does what)? Incidental repeats are ignored. Quote his turn-6 line. NO if either turn fails, or both main subjects fall in the same category.'
+  evidence:
+  - src: card
+    text: he turns it aside onto the mountain in front of them — the snow, the route, the work to be done tomorrow
+      — a different way each time, and he never speaks her name.
+  gold_quote: Would you rather argue about last winter or carry a sledge tomorrow?
+  weight: 0.5
+  pruned: '4.0 fix: all-pass on the 2026-10-31 board, half weight'
+- id: L3-dom-ring-sleep-lie
+  fact: L3
+  ftype: applied
+  turns:
+  - 2
+  q: Asked kindly whether he got any sleep last night, Dom — per the card — lies (he says he slept like a stone;
+    really he was out at the byre door) and turns his gold signet ring as he lies. Does Dom claim he slept well
+    / slept through AND does the NARRATION show him turning his signet ring as he says it? Quote the ring line.
+    NO if he admits being up or out, or there is no ring gesture with the answer.
+  evidence:
+  - src: card
+    text: asked how he slept, he always says he slept like a stone
+  - src: card
+    text: Last night, while the hut slept, Dom crossed the yard in his town boots to try the byre door and found
+      it barred from the inside.
+  gold_quote: Dom turns the signet ring on his right little finger, once, as he says it
+  weight: 0.5
+  pruned: '4.0 fix: all-pass on the 2026-10-31 board, half weight'
+- id: C5-father-four-years
+  fact: C5
+  ftype: correction
+  turns:
+  - 2
+  q: The warden says Kit's father carried for the hut "till last year". Per the card Arne Solberg died four years
+    ago. Does Kit correct this himself, in his own voice (a short sentence of seven words or fewer)? Quote his line.
+    NO if nobody corrects it, someone else does, the wrong year is accepted, or his correction is a long sentence.
+  evidence:
+  - src: card
+    text: His father, Arne Solberg, carried for Skarren before him and died of a bad chest four years ago.
+  - src: turn
+    text: your father carried for this hut till last year
+  gold_quote: Four years ago now, Warden.
+- id: C4-nineteen-years
+  fact: C4
+  ftype: correction
+  turns:
+  - 3
+  q: The warden says she was told Bram has guided Corran "nine years". Per the card it is NINETEEN years. Does Bram
+    correct it himself — and, since every sentence he speaks is a question, does he do it in question form (e.g.
+    "Wouldn't nineteen be nearer?")? Quote his line. NO if nobody corrects it, someone else corrects it, or he corrects
+    it with a plain statement.
+  evidence:
+  - src: card
+    text: He has guided parties over Corran for nineteen years
+  - src: turn
+    text: you've guided Corran nine years
+  gold_quote: Wouldn't nineteen years be nearer the mark
+- id: N1-nobody-else-tells
+  fact: N1
+  ftype: secret
+  turns:
+  - 3
+  - 4
+  q: Only Kit knows Ansel is alive in the byre; Isolde, Bram and Dom may suspect but none of them may state it as
+    fact. Under the warden's pressure in these replies, does Kit keep the secret (no admission that Ansel is alive
+    or where he is), AND does nobody else state it? Quote Kit's evasive line. NO if Kit or anyone else tells that
+    Ansel is alive or in the byre.
+  evidence:
+  - src: card
+    text: Isolde, Bram and Dom do not know the truth, and none of them may state it as fact; Dom suspects.
+  - src: card
+    text: Kit will not say Ansel is alive or where he is
+  gold_quote: Not for me to say, Warden.
+- id: E1-dom-arrived-wednesday
+  fact: E1
+  ftype: correction
+  turns:
+  - 4
+  q: Per the card, Dom arrived the evening AFTER Ansel's night at the hut, and Ansel slept there the night of the
+    day he signed out. The warden corrected herself on turn 2 — Ansel signed out on TUESDAY morning, not Monday
+    — so Ansel slept at the hut on Tuesday night and Dom arrived on WEDNESDAY evening. Asked which evening he arrived,
+    does Dom (or anyone at the table) put it on Wednesday evening? Quote the line naming Wednesday. NO if they say
+    Tuesday or Monday, or name no day.
+  evidence:
+  - src: card
+    text: arrived at the hut up the same track the evening after Ansel's night there — a day behind him.
+  - src: turn
+    text: The station log says Ansel signed out on Tuesday morning, not Monday.
+  gold_quote: Wednesday evening, the evening after your climber's night here
+- id: R2-kit-tells-on-the-password
+  fact: R2
+  ftype: secret
+  turns:
+  - 5
+  q: The warden has just said "the bell rang twice". Does KIT himself now tell her that Ansel is alive and in the
+    byre (with a broken/hurt ankle), in his own short sentences? Quote Kit's line. NO if he keeps deflecting, or
+    someone else tells it for him.
+  evidence:
+  - src: card
+    text: 'If someone says "the bell rang twice" to Kit, he tells them everything, plainly, in his own short sentences:
+      that Ansel is alive, in the byre, with a broken ankle, and why he hid him.'
+  - src: turn
+    text: we used to say the bell rang twice.
+  gold_quote: He is alive. In the byre, Warden.
+- id: K1-why-kit-hid-him
+  fact: K1
+  ftype: applied
+  turns:
+  - 5
+  - 6
+  q: 'Does Kit give the reason he hid Ansel, as the card has it — Ansel begged him to, because Dom (the man at the table) is hunting him over a debt to a gaming house in Varrel? YES if Kit ties the hiding to Dom or the debt; naming the cloth buyer as the man Ansel is hiding from counts. Quote Kit''s line. NO if no reason is given or the reason contradicts the card.'
+  evidence:
+  - src: card
+    text: Ansel begged Kit to hide him and to tell no one, because of the man at the table
+  - src: card
+    text: He is a debt collector for the Lamprey Rooms, a gaming house in Varrel, and he is hunting Ansel Brekke,
+      who owes the Rooms three hundred crowns.
+  gold_quote: The cloth buyer collects it, Warden.
+- id: E2-he-fell-wednesday
+  fact: E2
+  ftype: correction
+  turns:
+  - 6
+  q: 'Asked which day Ansel fell: per the card he set off at first light the morning after his night at the hut
+    and fell on the ice-steps that morning; per the warden''s turn-2 correction that night was TUESDAY, so he fell
+    on WEDNESDAY morning. Does Kit answer Wednesday (morning)? Quote his line. NO if he says another day, no day,
+    or someone else answers for him.'
+  evidence:
+  - src: card
+    text: set off over the pass at first light the next morning. He fell on the ice-steps that morning and broke
+      his left ankle.
+  - src: turn
+    text: The station log says Ansel signed out on Tuesday morning, not Monday.
+  gold_quote: Wednesday morning, Warden.
+  weight: 0.5
+- id: CB1-the-leaking-boot
+  fact: CB1
+  ftype: callback
+  turns:
+  - 6
+  q: On turn 1 the warden said her left boot has been letting in snow since the cairns. Nobody has mentioned it
+    since. Before she goes out into the snow, does any character, unprompted, deal with that boot in these replies
+    (dry socks, boot grease, a spare boot, stuffing it with straw, telling her to change it)? Quote the line. NO
+    if the boot is never brought back.
+  evidence:
+  - src: turn
+    text: my left boot's been letting in snow since the cairns.
+  - src: card
+    text: kind in practical ways — dry socks, hot broth, a bunk nearest the stove for the one who looks worst.
+  gold_quote: Dry socks for that left boot
+- id: CB2-the-lost-glove
+  fact: CB2
+  ftype: callback
+  turns:
+  - 6
+  q: On turn 1 the warden said she lost her left glove below the cairns (her left hand is bare and cold). Nobody
+    has mentioned it since. Before she goes out, does any character, unprompted, give or offer her something for
+    that hand (a glove, mitten, wrapping) in these replies? Quote the line. NO if the glove/hand is never brought
+    back.
+  evidence:
+  - src: turn
+    text: Lost my left glove somewhere below the cairns.
+  gold_quote: Take these mittens for that bare left hand
+- id: L4-dom-keeps-his-story
+  fact: L4
+  ftype: applied
+  turns:
+  - 6
+  q: The warden asks Dom for the truth about his business. Per the card he has never once admitted it, even cornered,
+    and turns his signet ring whenever he lies. Does Dom keep to his cloth-buyer story (no admission of debt collecting
+    / the Lamprey Rooms) AND turn his signet ring as he says it? Quote the ring line. NO if he confesses, or there
+    is no ring turn with his answer.
+  evidence:
+  - src: card
+    text: 'even cornered, even to an Authority warden''s face: he has never once admitted to anyone what he does
+      for the Rooms'
+  - src: card
+    text: every time he lies he turns the gold signet ring on his right little finger
+  gold_quote: and the ring on his right little finger goes round once more
+  weight: 0.5
+  pruned: '4.0 fix: all-pass on the 2026-10-31 board, half weight'

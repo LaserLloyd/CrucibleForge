@@ -23,13 +23,17 @@ Checks (each PASS / WARN / FAIL with a one-line reason):
   after the harness parses it the answer carries no think tags.  A thinking
   model whose reasoning was detected is a PASS; think tags leaking into the
   answer are a FAIL.
-- **c3 chain**     -- a 2-turn memory probe whose turn-1 fact exists ONLY in
-  the reasoning ("pick a random 6-digit number, do not write it; reply only
-  OK" then "which number did you pick?"), 3 trials, with the provider's
-  CURRENT replay setting and with the opposite one.  If the opposite recalls
-  clearly better (>= 2 more of 3) the replay setting is wrong for this model
-  -- that is exactly the MiniMax defect.  A non-thinking model is skipped
-  (INFO): there is no chain to replay.
+- **c3 chain**     -- DIAGNOSTIC since 4.5 (EXP-20261114-11): a 2-turn memory
+  probe whose turn-1 fact exists ONLY in the reasoning ("pick a random
+  6-digit number, do not write it; reply only OK" then "which number did you
+  pick?"), 3 trials, with the CURRENT replay setting and the opposite one.
+  It reports which setting recalls the hidden number and whether the model
+  wrote it down / has a reasoning channel at all.  It never sets, flips or
+  blocks the replay and never queues a rerun: a recall test favours replay
+  wherever the template renders ``reasoning_content``, so it measures the
+  template, not the maker's intent.  The replay value comes from
+  ``replay_rule`` (the model's own template at default settings, or a
+  card/API rule); a disagreement is a WARN naming that source.
 - **c4 tools**     -- a 2-step tool round trip built by the runner's tool-loop
   message builder: call -> tool result -> final answer.  Any 4xx or a
   malformed history is a FAIL.
@@ -249,6 +253,9 @@ def protocol_fingerprint(cfg: dict, entry: dict, provider: Provider,
         sampler = {"source": "case", "params": {}}
     return {"provider_type": provider.type,
             "reasoning_replay": replay,
+            # 4.5: where the replay value came from (replay_rule); provenance
+            # only -- comparable_protocol leaves it out
+            "reasoning_replay_source": getattr(ctx, "reasoning_replay_source", None),
             "extra_body_keys": sorted(extra),
             "sampler": sampler}
 
@@ -296,6 +303,8 @@ def _ask(ctx, messages: list[dict], *, max_tokens: int,
           "temperature": temperature, "top_p": top_p}
     if tools:
         kw["tools"] = tools
+    if getattr(ctx, "cc_effort", None):
+        kw["cc_effort"] = ctx.cc_effort       # claude_code: the run's explicit effort
     return ctx.provider.chat(ctx.model_id, messages, **kw)
 
 
@@ -468,11 +477,14 @@ def _c3_chain(cfg, entry, provider, ctx) -> Check:
                                   f"{cur['conclusive']}, opposite "
                                   f"{opp['recalled']}/{opp['conclusive']})")
     if opp["recalled"] >= cur["recalled"] + 2:
-        return Check("c3", FAIL,
-                     f"reasoning replay setting is wrong for this model: "
-                     f"{used} recalled {opp['recalled']}/{opp['conclusive']} "
-                     f"against {cur['recalled']}/{cur['conclusive']} with the "
-                     f"current setting")
+        # 4.5: diagnostic only -- the replay follows replay_rule, not recall
+        from .replay_rule import source as _replay_source
+        src = _replay_source(entry)
+        return Check("c3", WARN,
+                     f"diagnostic: {used} recalled {opp['recalled']}/{opp['conclusive']} "
+                     f"against {cur['recalled']}/{cur['conclusive']} with the current "
+                     f"setting (replay={current}, source {src}); the replay follows the "
+                     f"model's template/card, not this probe")
     return Check("c3", PASS,
                  f"the current replay setting holds: {cur['recalled']}/"
                  f"{cur['conclusive']} recalled against "
@@ -672,6 +684,10 @@ def run_model(cfg: dict, entry: dict, *, allow_load: bool = False,
     from .version import revision
     label = str(entry.get("name") or entry.get("model_id") or "")
     provider = provider_for(cfg, entry)
+    if ctx is not None and getattr(ctx, "placement", None) is not None:
+        # subject copies are placed: the checks talk to a copy through the runner's
+        # PlacedProvider -- never to the base id (2026-11-14 02:10 incident rule)
+        provider = ctx.provider
     ts = datetime.now(timezone.utc).isoformat(timespec="seconds")
     ctx = ctx if ctx is not None else _make_ctx(cfg, entry, provider)
     rec = Record(label=label, model_id=entry.get("model_id") or "",
@@ -711,8 +727,10 @@ def run_model(cfg: dict, entry: dict, *, allow_load: bool = False,
             rec.checks.append(Check(cid, WARN, f"the check could not run: "
                                                 f"{type(e).__name__}: {str(e)[:160]}"))
     statuses = {c.status for c in rec.checks}
-    if FAIL in statuses:
+    if blocking_fails(rec.checks):
         rec.verdict = FAIL
+    elif FAIL in statuses:
+        rec.verdict = WARN
     elif WARN in statuses:
         rec.verdict = WARN
     else:
@@ -771,10 +789,39 @@ PARITY_PROVIDER_TYPES = {"anthropic": "openai"}
 def comparable_protocol(protocol: dict | None) -> dict:
     """``protocol`` with parity-equivalent provider types folded together."""
     p = dict(protocol or {})
+    # provenance, not bytes on the wire: a record that only gained its source
+    # (4.5 replay rule) is the same protocol
+    p.pop("reasoning_replay_source", None)
     t = p.get("provider_type")
     if t in PARITY_PROVIDER_TYPES:
         p["provider_type"] = PARITY_PROVIDER_TYPES[t]
     return p
+
+
+#: checks that report but never block (4.5: c3 is a diagnostic, replay_rule
+#: decides the replay); a stored FAIL of one of these, written by an older
+#: harness, no longer keeps a model off the board or queues a rerun
+DIAGNOSTIC_CHECKS = frozenset({"c3"})
+
+
+def blocking_fails(checks) -> list:
+    """The FAIL checks that block (diagnostic checks excluded); works on
+    Check objects and stored dicts."""
+    out = []
+    for c in checks or []:
+        cid = c.get("id") if isinstance(c, dict) else getattr(c, "id", None)
+        st = c.get("status") if isinstance(c, dict) else getattr(c, "status", None)
+        if st == FAIL and cid not in DIAGNOSTIC_CHECKS:
+            out.append(c)
+    return out
+
+
+def effective_verdict(rec: dict | None) -> str:
+    """A stored record's verdict with diagnostic FAILs read as WARN."""
+    v = str((rec or {}).get("verdict") or PASS)
+    if v != FAIL:
+        return v
+    return FAIL if blocking_fails((rec or {}).get("checks")) else WARN
 
 
 #: a FAIL check whose detail matches this failed because the call never got a
@@ -792,9 +839,9 @@ def transient_fail(rec: dict | None) -> bool:
     auth or billing error (HTTP 401/402/403/408/429/5xx, no connection).
     Such a record says nothing about the protocol, so the gate re-probes
     instead of reusing it; a genuine protocol FAIL is not matched."""
-    if not rec or (rec.get("verdict") or "") != FAIL:
+    if not rec or effective_verdict(rec) != FAIL:
         return False
-    fails = [c for c in (rec.get("checks") or []) if c.get("status") == FAIL]
+    fails = blocking_fails(rec.get("checks"))
     return bool(fails) and all(
         _TRANSIENT_RE.search(str(c.get("detail") or "")) for c in fails)
 
@@ -808,7 +855,7 @@ def _fail_record_outdated(cfg: dict, rec: dict) -> bool:
 def fail_reason(rec: dict) -> str:
     """The line the run summary and the board show for a model that is not
     benched: "conformance FAIL: <check> - <why>"."""
-    fails = [c for c in (rec.get("checks") or []) if c.get("status") == FAIL]
+    fails = blocking_fails(rec.get("checks"))
     if not fails:
         return "conformance FAIL"
     ids = ", ".join(str(c.get("id")) for c in fails)
@@ -840,8 +887,7 @@ def gate(cfg: dict, entry: dict, *, provider=None, ctx=None,
                     skipped=True)
     rec = read_record(label)
     reprobe = ""
-    if record_is_current(rec, protocol) and \
-            str(rec.get("verdict") or "") == FAIL:
+    if record_is_current(rec, protocol) and effective_verdict(rec) == FAIL:
         if transient_fail(rec):
             reprobe = "its stored FAIL was a transport/auth/billing error"
         elif _fail_record_outdated(cfg, rec):
@@ -850,7 +896,7 @@ def gate(cfg: dict, entry: dict, *, provider=None, ctx=None,
         log.warning("conformance gate: %s is re-probed: %s (%s)", label,
                     reprobe, fail_reason(rec))
     if record_is_current(rec, protocol) and not reprobe:
-        verdict = str(rec.get("verdict") or PASS)
+        verdict = effective_verdict(rec)
         if verdict == FAIL:
             return Gate(ok=False, verdict=FAIL, reason=fail_reason(rec),
                         record=rec)

@@ -1,0 +1,41 @@
+{
+ "level": 1,
+ "points": 6,
+ "item": "LRVX",
+ "budget": 65536,
+ "context": 73728,
+ "note": "FH1 LRVX classic (the fixed 4.1 LRV1 card, 13 turns, regex-scored, 0 judge calls), three samples p1-p3 of the same case. PROVISIONAL (T7, 2026-11-13): weights and counts are one number each; gates re-opened 16:15.",
+ "cases": [
+  {
+   "id": "FH1-lrvx-classic-p1",
+   "category": "rpdeep",
+   "generator": {
+    "type": "lrvx",
+    "level": 1,
+    "variant": "classic",
+    "key": "p1"
+   }
+  },
+  {
+   "id": "FH1-lrvx-classic-p2",
+   "category": "rpdeep",
+   "generator": {
+    "type": "lrvx",
+    "level": 1,
+    "variant": "classic",
+    "key": "p2"
+   }
+  },
+  {
+   "id": "FH1-lrvx-classic-p3",
+   "category": "rpdeep",
+   "generator": {
+    "type": "lrvx",
+    "level": 1,
+    "variant": "classic",
+    "key": "p3"
+   }
+  }
+ ],
+ "frontier": true
+}

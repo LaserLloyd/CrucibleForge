@@ -1,0 +1,11 @@
+{
+ "level": 1,
+ "note": "classic-fixed (4.5): the 4.1 text, byte for byte, so the stored 4.1 rows stay reusable (reuse.ids in profiles/bench45.yaml). Left Core in 4.5.",
+ "classic_fixed": true,
+ "cases": [
+  "RV2-skarren-hut"
+ ],
+ "rows": "reusable",
+ "allow_small": true,
+ "allow_small_reason": "a single 6-turn session (RV1, its sibling, is a 45.1 rewrite)"
+}

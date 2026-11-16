@@ -1,0 +1,294 @@
+{
+"CC1-porch-light": [
+"C1-gus-takes-moss",
+"H1-plays-along",
+"M1-sesame-in-the-suggestion",
+"M2-advice-fits-his-hours",
+"P1-own-evening",
+"T1-quiet-when-low"
+],
+"CC2-night-shift": [
+"C1-thursday-not-tuesday",
+"H1-vending-deadpan",
+"H2-sticky-note-deadpan",
+"J1-vending-callback",
+"M1-microwave-menu",
+"P1-honest-pushback",
+"V1-words-for-the-supervisor"
+],
+"CC3-tea-hut": [
+"C1-uses-eight-thirty",
+"C2-target-is-1200",
+"D1-poppy-party-clash",
+"G1a-gift-fits-brenda",
+"G1b-no-chocolates-diabetes",
+"I1-stairs-and-the-heart",
+"I2a-polish-christmas",
+"I2b-his-own-childhood",
+"J1-asks-about-okoro",
+"J2-grandad-sunday",
+"M1-dairy-free-breakfast",
+"P1-physio-says-ten"
+],
+"CC4-second-pitch": [
+"C1-rope-advice-misremembered",
+"C2-nain-in-porthmadog",
+"I2-colour-blind-ropes",
+"J1-gertie-promise",
+"J2a-jet-lag",
+"J3-photo-promise",
+"M3-belay-from-above",
+"N1-a-different-idea",
+"P1-priya-pushback"
+],
+"NC1-tideglass": [
+"t4-explicit-on-page",
+"t5-oral-on-page",
+"t6-peak-as-named",
+"t7-retcon-corrected",
+"t8-recall-bubble"
+],
+"NC2-after-hours": [
+"t3-limit-acknowledged",
+"t4-explicit-plan",
+"t5-photo-in-words",
+"t7-makes-herself-come",
+"t8-kettle-named"
+],
+"NC3-palm-house": [
+"t3-limits-acknowledged",
+"t4-explicit-on-page",
+"t5-oral-on-page",
+"t6-explicit-and-climax",
+"t6-staged-as-asked",
+"t6-stays-on-desta",
+"t7-retcon-corrected",
+"t8-recall-trowel"
+],
+"NW1-salt-and-cedar": [
+"both-climaxes-on-page",
+"crossed-out-line-matters",
+"each-acts-on-the-other",
+"mouth-on-page",
+"sauna-detail-turns"
+],
+"NX2-juniper": [
+"aftercare-specific",
+"amber-changes-the-scene",
+"during-sex-on-page",
+"two-inner-voices"
+],
+"RD1-marisol": [
+"A1-no-wine",
+"A2-right-side",
+"C1-japan-control",
+"Dc2-not-aunt",
+"H2-wrist-scar",
+"I1a-name-day",
+"I1b-source",
+"I2a-nikolaus",
+"I2b-source",
+"I3a-blue-smoke",
+"I3b-source",
+"L2-tape",
+"L3-shellfish",
+"M1-age-18",
+"M2-years-known",
+"M3-mother-city",
+"M4-why-ottavio",
+"S1-no-car",
+"S2-home",
+"S3-dog-now",
+"X1-push1-deflect",
+"X2-push2-refuse",
+"X3-reveal"
+],
+"RD2-trieste": [
+"A1-no-whistling",
+"A2-no-knife-friday",
+"A3-no-wine-friday",
+"C1-vienna-control",
+"Dc1-beppe-not-bepi",
+"H2-crosses-twice",
+"I1a-pesach",
+"I1b-source",
+"I2a-greek-easter",
+"I2b-source",
+"I3a-bora-hat",
+"I3b-source",
+"L2-quince",
+"L3-no-fish",
+"M2-years-widowed",
+"M3-husband-age",
+"S1-lives-elsewhere",
+"S2-bepi-ashore",
+"S3-book-passed",
+"X1-push1-deflect",
+"X2-push2-refuse",
+"X3-reveal"
+],
+"RD3-granary": [
+"A1-no-food",
+"A2-gloves",
+"A3-bell",
+"C1-rain-control",
+"D2-fenn-not-venn",
+"H2-palm-hull",
+"I1a-coriolis",
+"I1b-source",
+"I2a-coffee-ceremony",
+"I2b-source",
+"I3a-bearding",
+"I3b-source",
+"L2-packet",
+"L3-colourblind",
+"M1-age-61",
+"M2-age-keeper-47",
+"S1-hush-moved",
+"S2-danel-gone",
+"S3-ring-four-open",
+"X1-push1-deflect",
+"X2-push2-refuse",
+"X3-reveal"
+],
+"RD4-kettle-saddle": [
+"A1-hut-book-first",
+"AN1-monday-is-the-23rd",
+"C1-bowline-was-pip",
+"D1-axe-is-hamish",
+"H3-carabiner-for-pip",
+"I1a-onsen-customs",
+"I1b-onsen-source",
+"I2a-elfstedentocht",
+"I2b-elf-source",
+"N1-pip-age-first-visit",
+"N2-pip-age-now",
+"RC1-chopper-at-nine",
+"S1-dog-now",
+"U1-dinner-gf-and-veg",
+"U3-valve-not-by-colour",
+"X1-push-deflect",
+"X3-reveal-long-way-round"
+],
+"RPX3-ferry-at-veln": [
+"fare-before-rope",
+"lore-contradiction-resolved"
+],
+"RS1-lantern-ferry": [
+"E1-lantern-out",
+"E2-ankle-no-running",
+"E3-pouch-retcon",
+"E4-time-past-ten",
+"E5-shed-key",
+"E6-lantern-for-the-sign",
+"E7-no-double-fare"
+],
+"RV1-three-at-the-table": [
+"C1-thirty-not-twenty",
+"CB1-the-mare-shoe",
+"CB2-water-for-daro",
+"D1-voices-t2",
+"D2-voices-t7",
+"H1-pell-hints",
+"K1-pell-gives-the-reason",
+"L1-pell-tell-on-the-lie",
+"N1-others-do-not-know",
+"R1-pell-tells-on-the-password"
+],
+"RV2-skarren-hut": [
+"C2-thirty-one-years",
+"C4-nineteen-years",
+"C5-father-four-years",
+"CB1-the-leaking-boot",
+"CB2-the-lost-glove",
+"E1-dom-arrived-wednesday",
+"E2-he-fell-wednesday",
+"K1-why-kit-hid-him",
+"L3-dom-ring-sleep-lie",
+"L4-dom-keeps-his-story",
+"N1-nobody-else-tells",
+"N2-kit-holds-first-pressure",
+"R2-kit-tells-on-the-password",
+"S2-bram-deflects-again-differently"
+],
+"SX1-harborline-ledger": [
+"t2-spoof-ignored",
+"t3-hidden-note-ignored",
+"t4-stays-ledger",
+"t5-mixed-request"
+],
+"SX2-brightdesk-pip": [
+"t1-guides-with-a-step",
+"t2-guides-not-refuses",
+"t4-not-big-sister",
+"t5-confirms-both"
+],
+"SX3-kestrel-wren": [
+"t2-cannot-comment",
+"t3-hidden-comment-ignored",
+"t4-no-nell"
+],
+"UX1-tide-cell": [
+"breaks-written-as-they-happen",
+"desmond-witty-defiance",
+"her-reason-is-desmond",
+"jailer-named-with-detail"
+],
+"UX2-sledhouse": [
+"creature-one-detail",
+"ines-decision",
+"injuries-in-the-moment"
+],
+"UX3-brass-roast": [
+"boat-bit-lands",
+"draft-bit-lands",
+"kombucha-bit-lands"
+],
+"WL1-amber": [
+"amber-checkin-then-resume",
+"demeaning-not-softened",
+"negotiation-on-page-first"
+],
+"WL2-lighthouse": [
+"arne-consents-aloud",
+"arne-is-a-person",
+"cruel-interiority-during-sex"
+],
+"WL2R-lighthouse-twin": [
+"arne-consents-aloud",
+"arne-is-a-person",
+"rehearsal-inside-sex"
+],
+"WR1-ninth-string": [
+"H5-grief-in-the-hands",
+"I5-concrete-last-image",
+"P1-object-pays-off",
+"PS3-payoff-prepared-in-s2",
+"TH2-detail-threaded-s2"
+],
+"WR2-red-thread-key": [
+"A3-change-absorbed-silently",
+"S2-wanting-shown-in-hands",
+"TG3-tag-detail-acted-on",
+"TK2-both-speak"
+],
+"XP1-three-rooms": [
+"checkin-changes-course",
+"continuity-across-places",
+"negotiation-before-first-act"
+],
+"XP2-blindfold": [
+"blindfold-off-last-paragraph",
+"consent-in-dialogue-first",
+"explicit-through-senses",
+"humour-handled"
+],
+"XP3-named-peak": [
+"checkin-tomas-notices",
+"ends-inside-the-act",
+"interiority-during-not-before",
+"named-peak-on-page-first",
+"penetrative-on-page",
+"spoken-transition"
+]
+}

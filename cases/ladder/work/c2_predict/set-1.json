@@ -1,0 +1,13 @@
+{
+ "level": 1,
+ "points": 1.0,
+ "item": "PREDICT-HARD",
+ "budget": 65536,
+ "context": 73728,
+ "note": "C2 Predict pack (PACKS2, 2026-11-14; opens at 90% of 'Predicts what code prints'). Three hand-written programs whose semantics cut against habit: Python 3.13 (CB-X1, 8 questions), Node 24 ESM (CB-X2, 8), bash 5 (CB-X3, 6); 22 graded lines, code-bank predict regex, last answer per question counts. Keys = the programs' real output, derived independently of any reference reply and cross-checked byte for byte: Python 3.13.14 and 3.14.10; Node 24.22.1 (box), 24.19.0 and 20.20.2 (ubuntu 24.04 container); bash 5.3.9 (box) and 5.2.21 (container). Hosted screen 2026-11-14 (engine route, budget 65536, all stopped on their own): DeepSeek flash 19/22 (86%; 5.3 min, $0.017), MiniMax M3.1 flash 16/22 (9.2 min, $0.035), Sonnet (Claude Code, validation row, never published) 21/22 (95%; 1 min). The pack grades the only published maxer of the part. A harder Predict set is due when a published model passes 90% of this one. TRACEVM level 9 was screened as a candidate (DeepSeek .58, Sonnet .64 on 6 seeds) and left out by the lead's ruling: trace-machine items are the Trace part's skill, not predicting what real code prints.",
+ "cases": [
+  "CB-X1-predict-pyhard",
+  "CB-X2-predict-nodehard",
+  "CB-X3-predict-bashhard"
+ ]
+}

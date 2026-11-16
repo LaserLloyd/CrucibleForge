@@ -1,0 +1,72 @@
+# slop_rate check list (session_checks.check_slop_rate): one phrase per line,
+# matched case-insensitively on word boundaries; "#" starts a comment.
+# Sources: the slop-score style lists of stock LLM prose plus an ERP list
+# (spec v2 §5.3). A case may add its own with "extra" or replace this file
+# with "list": <path>.
+# --- stock prose
+a testament to
+tapestry of
+a tapestry
+a symphony of
+a dance of
+the dance of
+shivers down
+shiver down
+sent shivers
+a shiver ran
+barely above a whisper
+voice barely a whisper
+eyes sparkling with
+a mix of
+a mixture of
+palpable tension
+the air thick with
+the air was thick with
+couldn't help but
+can't help but
+little did
+unspoken promise
+an unspoken
+ministrations
+in the grand scheme
+a sense of
+it's not just
+delve
+intricate dance
+eyes darkened with
+a wave of
+waves of pleasure
+a jolt of
+heart pounding
+breath hitched
+her breath hitched
+his breath hitched
+padded across
+claim you
+mine, all mine
+# --- ERP list
+a mix of pleasure and pain
+mixture of pleasure and pain
+pleasure and pain
+her core
+his core
+your core
+molten core
+folds
+slick folds
+velvet heat
+wet heat
+the very core
+bundle of nerves
+sensitive nub
+throbbing member
+his member
+her womanhood
+his manhood
+love tunnel
+pleasure center
+white-hot
+stars exploded
+saw stars
+waves crashed
+ruined for anyone else

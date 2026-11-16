@@ -521,7 +521,7 @@ def test_a_genuine_fail_from_an_older_suite_revision_is_re_probed():
 def test_transient_fail_needs_every_failing_check_to_be_transient():
     rec = {"verdict": "FAIL", "checks": [
         {"id": "c1", "status": "FAIL", "detail": "the API rejected the call (HTTP 401): x"},
-        {"id": "c3", "status": "FAIL", "detail": "chain dropped"}]}
+        {"id": "c4", "status": "FAIL", "detail": "malformed history"}]}
     assert not conformance.transient_fail(rec)
     assert not conformance.transient_fail({"verdict": "PASS", "checks": []})
     assert not conformance.transient_fail(None)

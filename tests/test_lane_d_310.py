@@ -12,6 +12,8 @@
 """
 from __future__ import annotations
 
+import pytest
+
 import inspect
 import json
 from pathlib import Path
@@ -70,7 +72,8 @@ def test_part_excluded_counts_failed_verdicts_of_the_part():
 # ------------------------------------------------------------------ D4
 
 def _spec(rel: str) -> dict:
-    return json.loads((ROOT / "cases" / "ladder" / rel).read_text(encoding="utf-8"))
+    # 4.1 packs (deep_rp / nsfw_writing set-1 + set-2): 4.5 regenerates those parts, so read the archive
+    return json.loads((ROOT / "archive" / "4.1.0" / "cases" / "ladder" / rel).read_text(encoding="utf-8"))
 
 
 def test_leftover_packs_share_the_hard_packs_level():
@@ -83,6 +86,7 @@ def test_leftover_packs_share_the_hard_packs_level():
         assert ladder.due(0.95, {}, seq, 0.9) == [1, 2]
 
 
+@pytest.mark.live_ladder   # reads the committed packs (conftest empty-ladder guard, 4e1cfeb)
 def test_every_committed_pack_verifies():
     for f in sorted((ROOT / "cases" / "ladder").rglob("set-*.json")):
         problems, _ = ladder.verify_pack(f)

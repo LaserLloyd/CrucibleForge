@@ -42,6 +42,7 @@ def _seed(tmp_path, monkeypatch, label, rows, meta=None):
                  "finished": "2026-09-23T01:30:00+00:00"}), encoding="utf-8")
 
 
+@pytest.mark.archive_default
 def test_scorecard_has_only_chat_and_coding_headlines(tmp_path, monkeypatch):
     _seed(tmp_path, monkeypatch, "m", [_bench_row("IZ01-logistics-47-words", "instruct")])
     md = report.generate()
@@ -56,6 +57,7 @@ def test_scorecard_has_only_chat_and_coding_headlines(tmp_path, monkeypatch):
     assert "## Notes" not in md and (tmp_path / "failures.md").exists()
 
 
+@pytest.mark.archive_default
 def test_board_uses_latest_run_and_only_current_bench_rows(tmp_path, monkeypatch):
     rows = [
         _bench_row("IZ01-logistics-47-words", "instruct", "fail", run="old", ts="2026-09-20T00:00:00"),
@@ -85,6 +87,7 @@ def test_markdown_cells_escaped_and_cut_at_word_boundaries():
     assert md_row.count("|") - md_row.count("\\|") == 4  # 3 cells, pipes escaped
 
 
+@pytest.mark.archive_default
 def test_sections_without_data_are_skipped(tmp_path, monkeypatch):
     _seed(tmp_path, monkeypatch, "m", [], meta={"model_id": "x", "profile": "bench",
                                                  "failed": True, "error": "not served"})
@@ -143,6 +146,7 @@ def _board_data(html):
     return blob, json.loads(blob)
 
 
+@pytest.mark.archive_default
 def test_html_board_renders_rows_with_no_placeholders(tmp_path, monkeypatch):
     rows = [_bench_row("IZ01-logistics-47-words", "instruct"),
             _bench_row("CZ05-optimal-bst-cost", "coding", "fail")]
@@ -265,9 +269,23 @@ def test_tz05_and_tz08_accept_correct_answers():
     assert v["grade"] == "fail"
 
 
-def test_cases_verify_clean():
-    from crucibleforge.verify_cases import verify_all
-    assert verify_all(config.load_cases()) == 0
+@pytest.mark.slow
+def test_cases_verify_clean(case_set_check, monkeypatch, capsys):
+    # verify_all's own loop and summary, fed the session's _check results
+    # instead of re-running every sandbox (conftest case_set_check)
+    from crucibleforge import verify_cases
+    from crucibleforge.codebank import Unsupported
+    cases, results = case_set_check
+
+    def cached(c):
+        r = results[id(c)]
+        if r is None:
+            raise Unsupported("not runnable on this host")
+        return r
+
+    monkeypatch.setattr(verify_cases, "_check", cached)
+    assert verify_cases.verify_all(cases) == 0
+    assert f"{len(cases)} cases checked, 0 with problems" in capsys.readouterr().out
 
 
 # ------------------------------------------------------------ tool loop
@@ -592,6 +610,7 @@ def test_rig_lock_is_not_enforced_on_windows(tmp_path, monkeypatch):
 
 # ------------------------------------------------------------ V2 run-report
 
+@pytest.mark.archive_default
 def test_v2_result_carries_one_line_per_model(tmp_path, monkeypatch):
     from crucibleforge.version import revision
     monkeypatch.setattr(cli, "V2_RUNS_ROOT", tmp_path / "runs")

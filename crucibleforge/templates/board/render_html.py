@@ -80,7 +80,10 @@ def data_json(payload: dict) -> str:
 
 def _components(rows: list[dict], components: list[dict] | None) -> list[dict]:
     if components:
-        return [{"label": c["label"], "side": c.get("side") or "chat"} for c in components]
+        # 4.5 parts also carry their id ("work/c1_implied"), maximum, and the profile's note/tag (PUBOUT)
+        return [{"label": c["label"], "side": c.get("side") or "chat",
+                 **{k: c[k] for k in ("key", "max", "id", "tag", "note") if c.get(k) is not None}}
+                for c in components]
     seen: dict[str, None] = {}
     for r in rows:
         for k in (r.get("components") or {}):
@@ -167,7 +170,9 @@ def render_html(rows: list[dict], subtitle: str = "",
                 legend: list[str] | None = None,
                 versus: list[str] | None = None,
                 ladder: list[str] | None = None,
-                part_labels: dict | None = None) -> str:
+                part_labels: dict | None = None,
+                banner: list[str] | None = None,
+                hide_class: bool = False) -> str:
     """The full HTML document.
 
     ``rows``: ``report.html_rows`` shape. ``components``: ordered
@@ -179,7 +184,9 @@ def render_html(rows: list[dict], subtitle: str = "",
     filtered rows); here a component column whose label is forbidden is
     dropped as well, and if any forbidden term still appears anywhere in the
     page, :class:`ValueError` is raised instead of returning it (fail closed).
-    ``None`` = the operator's own board, rendered as is.
+    ``None`` = the operator's own board, rendered as is. ``banner``: plain-text
+    status lines shown under the title (a routed profile's board_notes.status);
+    ``hide_class``: no Class column (an internal candidate).
 
     The table head, the filter menus, the column launcher row and the column
     chooser are built by ``script.js`` from the viewer's saved layout; this
@@ -193,6 +200,8 @@ def render_html(rows: list[dict], subtitle: str = "",
                                      if k.lower() not in bad}} for r in rows]
     has_base = any(r.get("base") for r in rows)
     main, extra = columns(comps, headline=any(r.get("s") for r in rows), scores=scores, has_base=has_base)
+    if hide_class:
+        main = [c for c in main if c["key"] != "class"]
     sides = sides or [{"key": "chat", "label": "Chat"}, {"key": "coding", "label": "Coding"}]
     esc = html.escape
     # phone Sort select (the table headers sort too): every sortable key
@@ -239,7 +248,10 @@ def render_html(rows: list[dict], subtitle: str = "",
         f"<style>{FONT_CSS}{CSS}</style></head><body data-view=\"table\">"
         "<header><h1>CrucibleForge — Chat &amp; Coding</h1>"
         f'<div class="meta">{esc(scrub(subtitle))}</div>'
-        '<div class="toolbar"><input id="filter" type="search" placeholder="search model / provider…" '
+        + ('<div class="banner" role="note">'
+           + "".join(f"<p>{esc(scrub(x))}</p>" for x in (banner or []) if x) + "</div>"
+           if any(banner or []) else "")
+        + '<div class="toolbar"><input id="filter" type="search" placeholder="search model / provider…" '
         'aria-label="search models">'
         f'{mobile}'
         '<label class="benched"><input type="checkbox" id="benched"> ranked only</label>'

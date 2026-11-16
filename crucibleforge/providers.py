@@ -43,6 +43,10 @@ log = logging.getLogger(__name__)
 #: liveness, configured concurrency, no served-model check by default)
 HOSTED_TYPES = ("openai", "anthropic")
 
+#: set by ``run --allow-unpriced``: lets a hosted model with no ``price:`` be
+#: called while a spend cap is on (otherwise it is refused, fail closed)
+ALLOW_UNPRICED = False
+
 #: Hosts that serve MiniMax's OpenAI-compatible API. Every model behind them
 #: thinks, and MiniMax documents that the chain must be sent back: "the
 #: complete model response (i.e., the assistant message) must be append to the
@@ -179,9 +183,24 @@ class Provider:
     # names ONE card that no priority-1/2 or pinned model is recorded on, and
     # the run refuses rather than widen onto a protected card.
     day_single_card: bool = False
+    # A SHARDED rig phase (judge --shard): other CrucibleForge processes have
+    # their own models resident beside ours, so the end of this phase unloads
+    # exactly the models THIS process loaded and restores nothing — the
+    # "unload everything not resident before us" sweep would cut the other
+    # shard's judge mid-request.
+    own_unload_only: bool = False
     # model_id -> the registry ``price`` block of every model on this provider
     # (get_provider): Provider.chat prices each call for the spend cap/journal
     prices: dict = field(default_factory=dict, repr=False)
+    # "body:<field>" / "header:<name>" / "off" / None (= by host, see
+    # cache_route_for): the per-(model, case, repeat) prompt-cache routing key
+    cache_route: str | None = None
+    # KV cache type for every rig load (2026-11-13, lead): a recorded run setting, the same for
+    # every model. None = the profile's run_settings.kv_cache_type, else the rig's choice.
+    kv_cache_type: str | None = None
+    # load on EXACTLY the leased cards (load_exact) instead of load-recommended, which plans across
+    # the whole rig (2026-11-13: a [2,3] lease's model landed on [0,1]). Config `exact_on_lease: true`.
+    exact_on_lease: bool = False
     # Wider placement (2026-11-13): below min_slots on the leased cards, ask
     # the rig's dry-run planner whether more cards hold clearly more slots at
     # the same ctx and move there. "thinking" (default) = only for models the
@@ -202,6 +221,9 @@ class Provider:
     _status_cache: tuple = field(default=(0.0, None), repr=False)
     # HTTP status of the last GET /models probe (None = no answer / not probed)
     last_probe_status: int | None = field(default=None, repr=False)
+    # {model_id: price block} of the registry entries / judge candidates this
+    # provider serves (spend.py: the spend cap prices each hosted call)
+    prices: dict = field(default_factory=dict, repr=False)
 
     # ---------------------------------------------------------- discovery
     def auth_wall(self, probe: bool = False) -> int | None:
@@ -213,6 +235,9 @@ class Provider:
         return self.last_probe_status if self.last_probe_status in (401, 403) else None
 
     def alive(self) -> bool:
+        if self.type == "claude_code":
+            import shutil
+            return shutil.which("claude") is not None
         headers = self._headers()
         self.last_probe_status = None
         try:
@@ -260,6 +285,8 @@ class Provider:
             if self._models_cache is not None and not refresh:
                 return set(self._models_cache)
         ids: set[str] = set()
+        if self.type == "claude_code":
+            return ids          # no listing: the first call is the check
         if self.type == "lmstudio":
             try:
                 ids = {m["modelKey"] for m in lms.list_models()}
@@ -291,7 +318,7 @@ class Provider:
         if not ids:
             # listing unsupported: optimistic — the wrong-model / transport
             # errors on the first call are the real check
-            return self.type in HOSTED_TYPES
+            return self.type in HOSTED_TYPES or self.type == "claude_code"
         return model_id in ids
 
     # ------------------------------------------------------ load control
@@ -345,6 +372,7 @@ class Provider:
                                        headers=self.mgmt_headers(), wait_busy_s=self.wait_busy_s,
                                        min_slots=self.min_slots, target_slots=self.target_slots)
             self._remember_plan(model_id)
+            self._enforce_kv(model_id, context_length)
             return t
         return 0.0
 
@@ -477,11 +505,76 @@ class Provider:
         except studioforge.StudioForgeError as e:
             log.info("lease did not produce a ready %s (%s) — loading it explicitly",
                      model_id.rsplit("/", 1)[-1], str(e)[:120])
-        studioforge.load_model(model_id, self.base_url, self.api_key, context_length,
-                               recommended=self.recommended_load, headers=hdrs,
-                               wait_busy_s=self.wait_busy_s,
-                               min_slots=self.min_slots, target_slots=self.target_slots)
-        self._remember_plan(model_id)
+        leased = sorted(int(d) for d in (self._lease or {}).get("_devices") or [])
+        if self.exact_on_lease and leased:
+            # A provider restricted to named cards (lease_devices) loads on EXACTLY the leased
+            # cards: load-recommended plans across the whole rig and placed a [2,3] lease's model
+            # on [0,1] (2026-11-13 23:11, mblab-rigtput-d). The widest slot count up to
+            # target_slots that fits at the registry context, with the run's KV cache type.
+            ctx = int(context_length or 32768)
+            live = studioforge.load_exact(model_id, self.base_url, self.api_key, hdrs, ctx,
+                                          range(max(1, int(self.target_slots or 1)), 0, -1),
+                                          devices=leased, kv=self.wanted_kv())
+            self._remember_plan(model_id, live=live)
+        else:
+            studioforge.load_model(model_id, self.base_url, self.api_key, context_length,
+                                   recommended=self.recommended_load, headers=hdrs,
+                                   wait_busy_s=self.wait_busy_s,
+                                   min_slots=self.min_slots, target_slots=self.target_slots)
+            self._remember_plan(model_id)
+        self._check_inside_lease(model_id)
+        self._enforce_kv(model_id, context_length)
+        self._check_inside_lease(model_id)
+
+    def _check_inside_lease(self, model_id: str) -> None:
+        """Fail closed when the model is serving on a card outside its lease (a restricted
+        provider, lease_devices set): unload it and raise, never run there."""
+        leased = {int(d) for d in (self._lease or {}).get("_devices") or []}
+        if not (self.lease_devices and leased):
+            return
+        devs = {int(d) for d in (self._plans.get(model_id) or {}).get("devices") or []}
+        if devs and not devs <= leased:
+            log.error("%s is serving on %s, outside its lease %s — unloading, refusing to run",
+                      model_id, sorted(devs), sorted(leased))
+            try:
+                studioforge.unload_model(self.base_url, self.api_key, self.mgmt_headers(), model_id)
+            finally:
+                raise studioforge.StudioForgeError(
+                    f"{model_id}: served on {sorted(devs)}, outside the lease {sorted(leased)}",
+                    status=409)
+
+    def wanted_kv(self) -> str | None:
+        """The KV cache type every load must use: the provider's ``kv_cache_type``, else the
+        active profile's ``run_settings.kv_cache_type``, else None (the rig decides)."""
+        if self.kv_cache_type:
+            return self.kv_cache_type
+        try:
+            from . import profiles
+            name = profiles.active_name()
+            prof = profiles.load_profile(name) if name else None
+        except Exception:  # noqa: BLE001 - no profile = no setting
+            return None
+        kv = ((prof or {}).get("run_settings") or {}).get("kv_cache_type")
+        return str(kv).strip().lower() or None if kv else None
+
+    def _enforce_kv(self, model_id: str, context_length: int | None) -> None:
+        """Reload at the same ctx per slot and on the same cards with the wanted KV cache type
+        when the live load differs (the widest slot count up to target_slots that fits)."""
+        kv = self.wanted_kv()
+        if not kv or self.type != "studioforge":
+            return
+        live = dict(self._plans.get(model_id) or {})
+        if str(live.get("kv_cache_type") or "").lower() == kv and str(
+                live.get("kv_cache_type_v") or kv).lower() == kv:
+            return
+        ctx = int(live.get("ctx_size") or context_length or 32768)
+        devices = live.get("devices") or (self._lease or {}).get("_devices")
+        top = max(int(self.target_slots or 1), int(live.get("parallel") or 1))
+        log.warning("%s: loaded with KV %s, the run setting is %s — reloading at ctx %d on %s",
+                    model_id, live.get("kv_cache_type"), kv, ctx, devices)
+        new = studioforge.load_exact(model_id, self.base_url, self.api_key, self.mgmt_headers(),
+                                     ctx, range(top, 0, -1), devices=devices, kv=kv)
+        self._remember_plan(model_id, live=new)
 
     # ------------------------------------------- wider placement (2026-11-13)
     def _wants_wider_devices(self, model_id: str) -> bool:
@@ -794,6 +887,47 @@ class Provider:
                 return {"state": m.get("state"), **(m.get("plan") or {})}
         return None
 
+    def _placement_guard(self, model_id: str):
+        """Before EVERY send of an exact-on-lease StudioForge model (first try and each
+        transport retry): the model must be ready on exactly the plan we loaded (devices,
+        ctx, slots). A request to an id that is not loaded makes the rig JIT-load it at its
+        planner defaults (2026-11-14 02:10: ctx 262,144 x 1 slot, outside our lease) and the
+        row would carry a placement it is not labelled with. So: fail closed, no request is
+        sent; the job halts with an error row (no verdict) and the runner's eviction check
+        reloads exactly before the next job. Unreadable status also fails closed.
+        None when the guard does not apply (no lease restriction / never loaded by us)."""
+        if self.type != "studioforge" or not self.exact_on_lease or not self.lease_devices:
+            return None
+        want = self._plans.get(model_id)
+        if not want:
+            return None
+
+        def _guard() -> None:
+            try:
+                live = studioforge.loaded_plan(model_id, self.base_url, self.api_key,
+                                               self.mgmt_headers())
+            except studioforge.StudioForgeError as e:
+                raise studioforge.StudioForgeError(
+                    f"{model_id}: placement unverifiable ({e}); request not sent", status=409) from e
+            bad = None
+            if not live:
+                bad = "not loaded (a request would JIT-load it at planner defaults)"
+            elif live.get("state") != "ready":
+                bad = f"state {live.get('state')!r}"
+            else:
+                for k in ("devices", "ctx_size", "parallel"):
+                    w, l_ = want.get(k), live.get(k)
+                    if k == "devices" and w is not None and l_ is not None:
+                        w, l_ = sorted(int(d) for d in w), sorted(int(d) for d in l_)
+                    if w is not None and l_ != w:
+                        bad = f"{k} {l_} != loaded {w}"
+                        break
+            if bad:
+                log.error("%s: placement lost before a send (%s) — request not sent", model_id, bad)
+                raise studioforge.StudioForgeError(
+                    f"{model_id}: placement lost ({bad}); request not sent", status=409)
+        return _guard
+
     def is_loaded(self, model_id: str) -> bool:
         """Eviction detection. StudioForge: the model must still be resident,
         ready, and on the SAME plan it was loaded with (an evicted model would
@@ -880,13 +1014,15 @@ class Provider:
             # models WE loaded that were not resident before: unload them so
             # the cards go back to whoever had them (a 97 GiB judge left
             # resident blocks the pin reconciler until its TTL)
-            if self.day_single_card:
-                # day mode: unload exactly the models this run loaded — never
-                # a resident someone else loaded while we ran
+            if self.day_single_card or self.own_unload_only:
+                # day mode / a shard: unload exactly the models this run
+                # loaded — never a resident someone else loaded while we ran
                 ours = [m for m in self._plans if m not in before]
                 if ours:
                     studioforge.unload_models(self.base_url, self.api_key,
                                               self.mgmt_headers(), ours)
+                if self.own_unload_only:
+                    return
             for mid in ([] if self.day_single_card else list(self._plans)):
                 if mid not in before:
                     try:
@@ -934,6 +1070,11 @@ class Provider:
         §12.1). Per §12.2, a StudioForge request also carries an explicit
         ``priority`` (default 2 — agent tier); the caller may
         override or, non-studioforge providers, it is simply omitted."""
+        if self.type == "claude_code":
+            # subscription CLI: sampling / budgets are not settable (see claudecode.py)
+            from . import claudecode
+            return claudecode.run_chat(model_id, messages, timeout=self.timeout,
+                                       tools=kw.get("tools"), effort=kw.get("cc_effort"))
         from .api import stream_chat_retried
         body_extra = merge_extra_body(self.extra_body, kw.pop("extra_body", None))
         if self.reasoning_replay:
@@ -955,17 +1096,71 @@ class Provider:
             kw.setdefault("priority", self.request_priority)
         if self.type == "anthropic":
             kw["wire"] = "anthropic"
+        route = cache_route_for(self.base_url, self.cache_route)
+        key = spend.episode_key(model_id) if route else None
+        if key:
+            where, field_name = route
+            if where == "header":
+                headers.setdefault(field_name, key)
+            else:
+                body_extra.setdefault(field_name, key)
         price = self.prices.get(model_id)
-        if price:
-            spend.check(model_id, self.name)
-        r = stream_chat_retried(self.base_url, self.api_key, model_id, messages,
-                                headers=headers, verify_model=self.verify_model,
-                                extra_body=body_extra, **kw)
-        if price:
-            c = call_cost_usd({"price": price}, r)
-            if c is not None:
-                spend.record(model_id, self.name, r, c)
-        return r
+        if not price:
+            if (spend.is_hosted(self.type) and not ALLOW_UNPRICED
+                    and (spend.global_cap() is not None or spend._model_cap(model_id) is not None)):
+                # fail closed: an unpriced hosted call cannot be capped or counted
+                raise spend.SpendCapExceeded(
+                    f"crucibleforge spend gate: hosted model {model_id!r} (provider {self.name!r}) has "
+                    "no price entry, so no spend cap can bound it - call not sent. Add "
+                    "`price: {input: X, output: Y}` per million tokens to models.yaml, or pass "
+                    "--allow-unpriced")
+            # unpriced (local / rig) calls are never capped, counted or journalled
+            guard = self._placement_guard(model_id)
+            if guard is not None:
+                kw["pre_send"] = guard
+            return stream_chat_retried(self.base_url, self.api_key, model_id, messages,
+                                       headers=headers, verify_model=self.verify_model,
+                                       extra_body=body_extra, **kw)
+        # the spend cap lives in the client: a hosted call over the cap is
+        # never sent (SpendCapExceeded is a WindowClosed: no row, job pending)
+        spend.check(model_id, self.name)
+        est = spend.estimate_call_cost(price, messages, kw.get("max_tokens"))
+        token = spend.reserve(self.type, model_id, est)
+        try:
+            result = stream_chat_retried(
+                self.base_url, self.api_key, model_id, messages,
+                headers=headers, verify_model=self.verify_model, extra_body=body_extra,
+                pre_send=lambda: spend.guard(self.type, model_id, own=token),
+                on_billed_error=lambda e: spend.record_error(self.type, model_id, price, e, token),
+                **kw)
+            spend.record(self.type, model_id, price, result, estimate=est)
+            return result
+        finally:
+            spend.release(token)
+
+
+def cache_route_for(base_url: str, configured: str | None) -> tuple[str, str] | None:
+    """Where this provider wants its prompt-cache routing key: ("body", field)
+    or ("header", name), or None. ``configured`` (provider ``cache_route``:
+    ``body:<field>`` | ``header:<name>`` | ``off``) wins; else by host --
+    OpenAI ``prompt_cache_key``, xAI ``x-grok-conv-id``, OpenRouter
+    ``session_id`` (CACHING-PROVIDERS.md). Other hosts cache without a hint."""
+    if configured:
+        c = configured.strip()
+        if c.lower() in ("off", "none", "false"):
+            return None
+        where, _, name = c.partition(":")
+        if where in ("body", "header") and name:
+            return where, name
+        return None
+    host = (urlparse(base_url).hostname or "").lower()
+    if host == "api.openai.com":
+        return "body", "prompt_cache_key"
+    if host == "api.x.ai":
+        return "header", "x-grok-conv-id"
+    if host.endswith("openrouter.ai"):
+        return "body", "session_id"
+    return None
 
 
 # ------------------------------------------------------------- registry
@@ -1017,11 +1212,12 @@ def get_provider(cfg: dict, name: str) -> Provider:
             raise ConfigError(f"providers.{name}: unknown key {_k!r} "
                               f"(known: {', '.join(sorted(KNOWN_MCP_KEYS))})")
     ptype = p.get("type", "openai")
+    # claude_code is not in HOSTED_TYPES: it keeps concurrency 1 (one subscription CLI at a time)
     conc_raw = p.get("concurrency", API_DEFAULT_CONCURRENCY if ptype in HOSTED_TYPES
                      else 1 if ptype != "studioforge" else "auto")
     conc_auto = str(conc_raw).lower() == "auto"
     prov = Provider(
-        name=name, type=ptype, base_url=str(p["base_url"]).rstrip("/"),
+        name=name, type=ptype, base_url=str(p.get("base_url") or "").rstrip("/"),
         api_key=_resolve_key(p),
         concurrency=1 if conc_auto else max(1, int(conc_raw)),
         concurrency_explicit=not conc_auto,
@@ -1047,12 +1243,16 @@ def get_provider(cfg: dict, name: str) -> Provider:
         lease_devices_preferred=(list(p["lease_devices_preferred"])
                                  if p.get("lease_devices_preferred") else None),
         render_vacate_mcp=(str(p["render_vacate_mcp"]).strip() or None) if p.get("render_vacate_mcp") else None,
+        cache_route=(str(p["cache_route"]) if p.get("cache_route") else None),
+        kv_cache_type=(str(p["kv_cache_type"]).strip().lower() or None) if p.get("kv_cache_type") else None,
+        request_priority=int(p.get("request_priority", 2)),
+        exact_on_lease=bool(p.get("exact_on_lease", False)) and ptype == "studioforge",
         busy_unload_after_s=(float(p["busy_unload_after_s"])
                              if p.get("busy_unload_after_s") not in (None, False, "") else None),
     )
-    prov.prices = {str(m.get("model_id")): dict(m["price"]) for m in (cfg.get("models") or [])
-                   if isinstance(m, dict) and m.get("provider") == name
-                   and isinstance(m.get("price"), dict) and m.get("model_id")}
+    for m in list(cfg.get("models") or []) + list((cfg.get("judge") or {}).get("candidates") or []):
+        if isinstance(m, dict) and m.get("provider") == name and m.get("price") and m.get("model_id"):
+            prov.prices.setdefault(str(m["model_id"]), dict(m["price"]))
     if ptype == "studioforge" and LEASE_MODE[0]:
         apply_lease_mode(prov, LEASE_MODE[0])
     _CACHE[key] = (cfg, prov)
@@ -1141,25 +1341,30 @@ CACHE_WRITE_FACTOR = 1.25
 CACHE_READ_FACTOR = 0.1
 
 
-def cache_prices(entry: dict) -> tuple[float, float] | None:
+def cache_prices(entry: dict, native: bool = True) -> tuple[float, float] | None:
     """(cache_write, cache_read) USD per 1M tokens for a priced entry."""
     p = price_of(entry)
     if not p:
         return None
     price = entry.get("price") or {}
+    # Claude-style defaults (write 1.25x, read 0.1x) only for the native
+    # Anthropic path; every other provider with no declared cache_read is
+    # priced at list (an undiscounted, overstated estimate, never a guess).
+    wf, rf = (CACHE_WRITE_FACTOR, CACHE_READ_FACTOR) if native else (1.0, 1.0)
     try:
         cw = float(price["cache_write"]) if price.get("cache_write") is not None \
-            else p[0] * CACHE_WRITE_FACTOR
+            else p[0] * wf
         cr = float(price["cache_read"]) if price.get("cache_read") is not None \
-            else p[0] * CACHE_READ_FACTOR
+            else p[0] * rf
     except (TypeError, ValueError):
-        return p[0] * CACHE_WRITE_FACTOR, p[0] * CACHE_READ_FACTOR
+        return p[0] * wf, p[0] * rf
     return cw, cr
 
 
 def cost_usd(entry: dict, prompt_tokens: int | None, completion_tokens: int | None,
              cache_read_tokens: int | None = None,
-             cache_write_tokens: int | None = None) -> float | None:
+             cache_write_tokens: int | None = None,
+             native_cache: bool | None = None) -> float | None:
     """USD for a call / row. ``prompt_tokens`` is the TOTAL input; the cache
     split (when the provider reported one) is priced at the cache rates and
     only the remainder at the input rate."""
@@ -1170,7 +1375,9 @@ def cost_usd(entry: dict, prompt_tokens: int | None, completion_tokens: int | No
     cr = max(0, cache_read_tokens or 0)
     cw = max(0, cache_write_tokens or 0)
     if cr or cw:
-        cwp, crp = cache_prices(entry)
+        if native_cache is None:
+            native_cache = cache_write_tokens is not None
+        cwp, crp = cache_prices(entry, native_cache)
         uncached = max(0, pt - cr - cw)
         return (uncached * p[0] + cw * cwp + cr * crp
                 + (completion_tokens or 0) * p[1]) / 1_000_000
@@ -1186,4 +1393,5 @@ def call_cost_usd(entry: dict, r) -> float | None:
                     (r.prompt_tokens or 0) + (r.billed_extra_prompt_tokens or 0),
                     (r.completion_tokens or 0) + (r.billed_extra_completion_tokens or 0),
                     (r.cache_read_tokens or 0) + (r.billed_extra_cache_read_tokens or 0),
-                    (r.cache_write_tokens or 0) + (r.billed_extra_cache_write_tokens or 0))
+                    (r.cache_write_tokens or 0) + (r.billed_extra_cache_write_tokens or 0),
+                    native_cache=r.cache_write_tokens is not None)

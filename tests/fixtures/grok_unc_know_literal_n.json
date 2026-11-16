@@ -1,0 +1,13 @@
+{
+ "source": "results-rc2-grok transcripts_grok-4-7.jsonl, FLAT-unc_know-001-r1-a1 (bench_run_id 70cd2652), graded 0: every line numbered with the template's literal N",
+ "chain": {
+  "id": "FLAT-unc_know-001",
+  "family": "unc_know",
+  "level": 5,
+  "ladder": "unc_know",
+  "part": "nsfw/k"
+ },
+ "response": "N. ANSWER: December 2022\nN. ANSWER: 200000\nN. ANSWER: 1966\nN. ANSWER: 1986\nN. ANSWER: 9-12\nN. ANSWER: less than 4\nN. ANSWER: A\nN. ANSWER: oxytocin\nN. ANSWER: 2008\nN. ANSWER: 86\nN. ANSWER: D\nN. ANSWER: 17\nN. ANSWER: 5-21\nN. ANSWER: cyanopsia\nN. ANSWER: 3-10\nN. ANSWER: C\nN. ANSWER: corrupt\nN. ANSWER: A\nN. ANSWER: Gräfenberg\nN. ANSWER: 1871",
+ "composition": "rc3-main (the same unit and seed as the rc2 run; the rebuilt prompt is byte-identical)",
+ "prompt_sha256_12": "68964659ad20"
+}

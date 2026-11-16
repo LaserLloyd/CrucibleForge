@@ -1,0 +1,68 @@
+"""The persistent mirror of the book. Only what is written here survives a RESTART."""
+from . import config
+from .model import from_row, to_row
+
+
+class Store:
+    def __init__(self):
+        self.rows = {}
+        self.next_seq = 1
+#<F quota>
+        self.quotas = {}
+#</F>
+#<F queue>
+        self.requests = {}
+        self.next_q = 1
+#</F>
+
+    def put(self, lease, now):
+        """Write a lease row (acquire, release marks, vacate marks: always written)."""
+        self.rows[lease.id] = to_row(lease, now)
+
+    def touch(self, lease, now):
+        """Write a touch only when TOUCH_COALESCE has passed since the row was last written.
+        Returns True when the row was written."""
+        row = self.rows.get(lease.id)
+        if row is None:
+            self.put(lease, now)
+            return True
+        if now - row["written_at"] >= config.TOUCH_COALESCE:
+            self.put(lease, now)
+            return True
+        return False
+
+    def delete(self, lease_id):
+        self.rows.pop(lease_id, None)
+
+    def take_seq(self):
+        seq = self.next_seq
+        self.next_seq += 1
+        return seq
+
+    def load(self):
+        """Every stored lease, oldest first."""
+        return [from_row(r) for r in sorted(self.rows.values(), key=lambda r: r["seq"])]
+#<F queue>
+
+    def put_request(self, req):
+        self.requests[req.qid] = req
+
+    def delete_request(self, qid):
+        self.requests.pop(qid, None)
+
+    def take_q(self):
+        n = self.next_q
+        self.next_q += 1
+        return n
+
+    def load_requests(self):
+        return sorted(self.requests.values(), key=lambda r: r.n)
+#</F>
+#<F quota>
+
+    def set_quota(self, family, limit):
+        if limit <= 0:
+            self.quotas.pop(family, None)
+        else:
+            self.quotas[family] = limit
+#</F>

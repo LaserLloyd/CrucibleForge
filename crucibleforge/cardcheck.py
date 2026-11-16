@@ -170,7 +170,9 @@ def check(cfg: dict | None, arg: str, *, fetch=_get, rig_template: str | None = 
                       "sampler_lines": sampler_lines(readme or ""),
                       "generation_config": gen_vals,
                       "template_facts": settings_gate.template_facts(tpl) if tpl else [],
-                      "has_template": bool(tpl)})
+                      "has_template": bool(tpl),
+                      # the text itself, for the replay rule (cli pops it before printing)
+                      "template": tpl})
         todo += [b for b in base_models(readme or "") if b not in chain]
         hops += 1
     out = {"arg": arg, "repo": repo, "model_id": mid, "label": (entry or {}).get("name"),

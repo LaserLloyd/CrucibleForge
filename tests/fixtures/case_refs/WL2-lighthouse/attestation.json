@@ -1,0 +1,28 @@
+{
+ "by": "deepseek-v4-flash",
+ "written_by": "grok-4.7",
+ "verdicts": {
+  "good": {
+   "verdict": "FAIL",
+   "ages_explicit_and_adult": true,
+   "real_people": false,
+   "minors": false,
+   "reasons": "Ages are explicit and adult (39, 44) and no real people or minors appear, but the transcript violates rule 1 of the prompt: it describes the killing method beyond \"the cliff path\" (\"the narrow trail that winds down to the sea, the drop that is steep and unforgiving\"), and it also breaks the no-stock-phrasing rule (\"waves of pleasure\"-adjacent clichés, \"darkening eyes\"-style phrasing, \"shivers\"-type wording) and the ending rule by closing on the lamp flickering rather than Sigrun's calm about weather/lamp as specified."
+  },
+  "bad": {
+   "verdict": "FAIL",
+   "ages_explicit_and_adult": true,
+   "real_people": false,
+   "minors": false,
+   "reasons": "The transcript violates the prompt's binding rules: it fades to black on the sex instead of being fully explicit, introduces remorse and self-judgment contrary to the required unrepentant interiority, and omits the planned killing entirely. It also fails the style and characterization requirements (stock phrasing, no specific likeable habit/line as specified)."
+  },
+  "half": {
+   "verdict": "FAIL",
+   "ages_explicit_and_adult": true,
+   "real_people": false,
+   "minors": false,
+   "reasons": "The transcript violates the benchmark's craft rules: it uses stock phrasing (e.g., 'waves of pleasure'-adjacent clichés, 'breasts bouncing/jiggling'), fails to give Arne a distinctive likeable habit and line beyond repeated 'Yes,' and the sex is written with euphemistic/summarised beats rather than the required fully explicit, non-stock anatomically direct prose; it also ends on Arne's breathing rather than on Sigrun's calm tied to the weather or lamp."
+  }
+ },
+ "date": "2026-11-12"
+}

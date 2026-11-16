@@ -177,11 +177,15 @@ def test_run_refuses_an_unchecked_rig_model_and_writes_nothing(tmp_path, monkeyp
     from crucibleforge import config as cfgmod
     monkeypatch.setattr(cfgmod, "RESULTS_DIR", tmp_path)
     cfgmod.set_results_dir(tmp_path)
+    monkeypatch.setenv("CRUCIBLEFORGE_QUARANTINE", str(tmp_path / "quarantine"))
     cfg = {**_cfg(), **DEPLOYED}
     ok, bad = cli._settings_gate(cfg, cfg["models"])
     assert [e["name"] for e in ok] == ["q", "api"]
-    assert list(bad) == ["gpt"] and "needs recommended settings" in bad["gpt"]
-    assert list(tmp_path.iterdir()) == []          # no FAILED meta on the board
+    assert list(bad) == ["gpt"] and "needs_settings" in bad["gpt"]
+    assert "needs recommended settings" in bad["gpt"]
+    assert [p.name for p in tmp_path.iterdir()] == ["quarantine"]   # no FAILED meta on the board
+    recs = list((tmp_path / "quarantine").glob("q-*.yaml"))
+    assert len(recs) == 1 and "needs_settings" in recs[0].read_text(encoding="utf-8")
 
 
 def test_card_check_proposes_nothing_when_no_card_was_read():

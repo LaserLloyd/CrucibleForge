@@ -1,0 +1,356 @@
+[
+  {
+    "id": "MH01-divisor-count-18",
+    "difficulty": "hard",
+    "system": "Reason step by step, then end your reply with a single final line 'Answer: <value>' containing only the final answer.",
+    "prompt": "How many positive integers n with 1 <= n <= 20000 (inclusive) have exactly 18 positive divisors? Count n itself and 1 among its divisors.",
+    "temperature": 0.0,
+    "max_tokens": 4096,
+    "grader": "numeric",
+    "grader_config": {
+      "answer": 300,
+      "tolerance": 0.001
+    },
+    "verify": {
+      "python": "sum(1 for n in range(1,20001) if sum((2 if d*d!=n else 1) for d in range(1,int(n**0.5)+1) if n%d==0)==18)"
+    }
+  },
+  {
+    "id": "MH02-last-three-digits",
+    "difficulty": "hard",
+    "smoke": true,
+    "system": "Reason step by step, then end your reply with a single final line 'Answer: <value>' containing only the final answer.",
+    "prompt": "Find the last three digits of 7^2026 + 3^2026. Give the answer as an integer between 0 and 999 (the remainder when 7^2026 + 3^2026 is divided by 1000).",
+    "temperature": 0.0,
+    "max_tokens": 3072,
+    "grader": "numeric",
+    "grader_config": {
+      "answer": 978,
+      "tolerance": 0.001
+    },
+    "verify": {
+      "python": "(pow(7,2026,1000)+pow(3,2026,1000))%1000"
+    }
+  },
+  {
+    "id": "MH03-crt",
+    "difficulty": "hard",
+    "system": "Reason step by step, then end your reply with a single final line 'Answer: <value>' containing only the final answer.",
+    "prompt": "Find the smallest positive integer n that satisfies all three congruences simultaneously: n leaves remainder 4 when divided by 9, remainder 6 when divided by 11, and remainder 3 when divided by 13.",
+    "temperature": 0.0,
+    "max_tokens": 3072,
+    "grader": "numeric",
+    "grader_config": {
+      "answer": 94,
+      "tolerance": 0.001
+    },
+    "verify": {
+      "python": "next(n for n in range(1,9*11*13+1) if n%9==4 and n%11==6 and n%13==3)"
+    }
+  },
+  {
+    "id": "MH04-lcm-pairs",
+    "difficulty": "hard",
+    "system": "Reason step by step, then end your reply with a single final line 'Answer: <value>' containing only the final answer.",
+    "prompt": "How many ordered pairs (a, b) of positive integers satisfy lcm(a, b) = 2160? Ordered means (a, b) and (b, a) are counted as two different pairs when a is not equal to b.",
+    "temperature": 0.0,
+    "max_tokens": 4096,
+    "grader": "numeric",
+    "grader_config": {
+      "answer": 189,
+      "tolerance": 0.001
+    },
+    "verify": {
+      "python": "sum(1 for a in range(1,2161) for b in range(1,2161) if 2160%a==0 and 2160%b==0 and a*b//__import__('math').gcd(a,b)==2160)"
+    }
+  },
+  {
+    "id": "MH05-gcd-sum-pairs",
+    "difficulty": "medium",
+    "system": "Reason step by step, then end your reply with a single final line 'Answer: <value>' containing only the final answer.",
+    "prompt": "How many ordered pairs (a, b) of positive integers satisfy both a + b = 1500 and gcd(a, b) = 15?",
+    "temperature": 0.0,
+    "max_tokens": 3072,
+    "grader": "numeric",
+    "grader_config": {
+      "answer": 40,
+      "tolerance": 0.001
+    },
+    "verify": {
+      "python": "sum(1 for a in range(1,1500) if __import__('math').gcd(a,1500-a)==15)"
+    }
+  },
+  {
+    "id": "MH06-fermat-mod-prime",
+    "difficulty": "hard",
+    "system": "Reason step by step, then end your reply with a single final line 'Answer: <value>' containing only the final answer.",
+    "prompt": "The number 2027 is prime. Find the remainder when 2^2500 + 3^2500 is divided by 2027. Give an integer between 0 and 2026.",
+    "temperature": 0.0,
+    "max_tokens": 3072,
+    "grader": "numeric",
+    "grader_config": {
+      "answer": 141,
+      "tolerance": 0.001
+    },
+    "verify": {
+      "python": "(pow(2,2500,2027)+pow(3,2500,2027))%2027"
+    }
+  },
+  {
+    "id": "MH07-smallest-multiple-digitsum",
+    "difficulty": "medium",
+    "system": "Reason step by step, then end your reply with a single final line 'Answer: <value>' containing only the final answer.",
+    "prompt": "Find the smallest positive multiple of 23 whose decimal digits sum to exactly 25.",
+    "temperature": 0.0,
+    "max_tokens": 3072,
+    "grader": "numeric",
+    "grader_config": {
+      "answer": 1978,
+      "tolerance": 0.001
+    },
+    "verify": {
+      "python": "next(n for n in range(23,10**7,23) if sum(int(c) for c in str(n))==25)"
+    }
+  },
+  {
+    "id": "MH08-blocked-lattice-paths",
+    "difficulty": "hard",
+    "system": "Reason step by step, then end your reply with a single final line 'Answer: <value>' containing only the final answer.",
+    "prompt": "A token starts at the lattice point (0, 0) and must reach (9, 7). Each move is one unit right (x increases by 1) or one unit up (y increases by 1). The three points (3, 2), (5, 5) and (6, 3) are blocked: no path may pass through any of them. How many different paths from (0, 0) to (9, 7) are there?",
+    "temperature": 0.0,
+    "max_tokens": 4096,
+    "grader": "numeric",
+    "grader_config": {
+      "answer": 3000,
+      "tolerance": 0.001
+    },
+    "verify": {
+      "python": "(lambda f: f(f,0,0))(lambda f,x,y: 0 if (x,y) in {(3,2),(5,5),(6,3)} else (1 if (x,y)==(9,7) else ((f(f,x+1,y) if x<9 else 0)+(f(f,x,y+1) if y<7 else 0))))"
+    }
+  },
+  {
+    "id": "MH09-strip-tilings",
+    "difficulty": "hard",
+    "system": "Reason step by step, then end your reply with a single final line 'Answer: <value>' containing only the final answer.",
+    "prompt": "A 1x20 strip of unit squares is covered exactly by tiles of length 1, 2 and 3 laid end to end with no overlaps and no gaps. Tiles of the same length are indistinguishable, so a tiling is completely described by the sequence of tile lengths read from left to right. An extra rule applies: no two tiles of length 1 may be adjacent to each other. How many such tilings of the 1x20 strip are there?",
+    "temperature": 0.0,
+    "max_tokens": 4096,
+    "grader": "numeric",
+    "grader_config": {
+      "answer": 8855,
+      "tolerance": 0.001
+    },
+    "verify": {
+      "python": "(lambda g: g(g,20,False))(lambda g,n,p: 1 if n==0 else sum(g(g,n-t,t==1) for t in (1,2,3) if t<=n and not (t==1 and p)))"
+    }
+  },
+  {
+    "id": "MH10-nonconsecutive-subsets-mod5",
+    "difficulty": "hard",
+    "system": "Reason step by step, then end your reply with a single final line 'Answer: <value>' containing only the final answer.",
+    "prompt": "Consider all subsets of the set {1, 2, 3, ..., 18} that contain no two consecutive integers. Among those subsets, how many have an element sum that is divisible by 5? Include the empty set, whose element sum is 0.",
+    "temperature": 0.0,
+    "max_tokens": 5120,
+    "grader": "numeric",
+    "grader_config": {
+      "answer": 1353,
+      "tolerance": 0.001
+    },
+    "verify": {
+      "python": "sum(1 for m in range(1<<18) if not (m & (m<<1)) and sum(i+1 for i in range(18) if m>>i&1)%5==0)"
+    }
+  },
+  {
+    "id": "MH11-strings-no-adjacent-no-ABC",
+    "difficulty": "hard",
+    "system": "Reason step by step, then end your reply with a single final line 'Answer: <value>' containing only the final answer.",
+    "prompt": "How many strings of length 10 over the alphabet {A, B, C, D} have no two equal adjacent letters and do not contain the substring ABC anywhere?",
+    "temperature": 0.0,
+    "max_tokens": 5120,
+    "grader": "numeric",
+    "grader_config": {
+      "answer": 62217,
+      "tolerance": 0.001
+    },
+    "verify": {
+      "python": "sum(1 for t in __import__('itertools').product('ABCD',repeat=10) if all(t[i]!=t[i+1] for i in range(9)) and 'ABC' not in ''.join(t))"
+    }
+  },
+  {
+    "id": "MH12-exactly-three-fixed-points",
+    "difficulty": "hard",
+    "system": "Reason step by step, then end your reply with a single final line 'Answer: <value>' containing only the final answer.",
+    "prompt": "Eight labelled people each hand in a distinct hat, and the eight hats are then handed back so that each person receives exactly one hat. In how many of the possible redistributions does exactly 3 of the 8 people receive their own hat?",
+    "temperature": 0.0,
+    "max_tokens": 4096,
+    "grader": "numeric",
+    "grader_config": {
+      "answer": 2464,
+      "tolerance": 0.001
+    },
+    "verify": {
+      "python": "sum(1 for p in __import__('itertools').permutations(range(8)) if sum(1 for i in range(8) if p[i]==i)==3)"
+    }
+  },
+  {
+    "id": "MH13-integer-triangles",
+    "difficulty": "medium",
+    "system": "Reason step by step, then end your reply with a single final line 'Answer: <value>' containing only the final answer.",
+    "prompt": "How many triangles with integer side lengths and perimeter exactly 100 are there, counting congruent triangles only once? A triangle must be non-degenerate: the sum of any two sides is strictly greater than the third.",
+    "temperature": 0.0,
+    "max_tokens": 3072,
+    "grader": "numeric",
+    "grader_config": {
+      "answer": 208,
+      "tolerance": 0.001
+    },
+    "verify": {
+      "python": "sum(1 for a in range(1,101) for b in range(a,101) for c in [100-a-b] if c>=b and a+b>c)"
+    }
+  },
+  {
+    "id": "MH14-coin-runs-fraction",
+    "difficulty": "hard",
+    "system": "Reason step by step, then end your reply with a single final line 'Answer: <value>' containing only the final answer.",
+    "prompt": "A fair coin is flipped 12 times. The probability that the sequence never contains 3 or more consecutive heads equals m/n, where m and n are positive integers with no common factor greater than 1. Find m + n.",
+    "temperature": 0.0,
+    "max_tokens": 4096,
+    "grader": "numeric",
+    "grader_config": {
+      "answer": 5801,
+      "tolerance": 0.001
+    },
+    "verify": {
+      "python": "(lambda fr: fr.numerator+fr.denominator)(__import__('fractions').Fraction(sum(1 for m in range(1<<12) if '111' not in format(m,'012b')), 1<<12))"
+    }
+  },
+  {
+    "id": "MH15-urn-three-colors",
+    "difficulty": "hard",
+    "system": "Reason step by step, then end your reply with a single final line 'Answer: <value>' containing only the final answer.",
+    "prompt": "An urn contains 5 red, 4 blue and 3 green balls (12 balls in total, all otherwise identical). Four balls are drawn at random without replacement, all sets of four being equally likely. The probability that the four drawn balls include at least one ball of each of the three colours equals m/n in lowest terms, where m and n are positive integers with no common factor greater than 1. Find m + n.",
+    "temperature": 0.0,
+    "max_tokens": 4096,
+    "grader": "numeric",
+    "grader_config": {
+      "answer": 17,
+      "tolerance": 0.001
+    },
+    "verify": {
+      "python": "(lambda fr: fr.numerator+fr.denominator)(__import__('fractions').Fraction(sum(1 for c in __import__('itertools').combinations(range(12),4) if any(b<5 for b in c) and any(5<=b<9 for b in c) and any(b>=9 for b in c)), len(list(__import__('itertools').combinations(range(12),4)))))"
+    }
+  },
+  {
+    "id": "MH16-digit-sum-power",
+    "difficulty": "hard",
+    "smoke": true,
+    "system": "Reason step by step, then end your reply with a single final line 'Answer: <value>' containing only the final answer.",
+    "prompt": "Let N = 3^777. Compute the sum of the decimal digits of N.",
+    "temperature": 0.0,
+    "max_tokens": 3072,
+    "grader": "numeric",
+    "grader_config": {
+      "answer": 1683,
+      "tolerance": 0.001
+    },
+    "verify": {
+      "python": "sum(int(c) for c in str(3**777))"
+    }
+  },
+  {
+    "id": "MH17-palindromes",
+    "difficulty": "medium",
+    "system": "Reason step by step, then end your reply with a single final line 'Answer: <value>' containing only the final answer.",
+    "prompt": "How many 5-digit palindromes (integers from 10000 to 99999 whose decimal digits read the same forwards and backwards) are divisible by 3 but not divisible by 7?",
+    "temperature": 0.0,
+    "max_tokens": 3072,
+    "grader": "numeric",
+    "grader_config": {
+      "answer": 255,
+      "tolerance": 0.001
+    },
+    "verify": {
+      "python": "sum(1 for n in range(10000,100000) if str(n)==str(n)[::-1] and n%3==0 and n%7!=0)"
+    }
+  },
+  {
+    "id": "MH18-quadratic-recurrence",
+    "difficulty": "hard",
+    "system": "Reason step by step, then end your reply with a single final line 'Answer: <value>' containing only the final answer.",
+    "prompt": "A sequence is defined by a_1 = 2 and a_(n+1) = a_n^2 - a_n + 1 for every n >= 1. Find the last three digits of a_10, that is the remainder when a_10 is divided by 1000. Give an integer between 0 and 999.",
+    "temperature": 0.0,
+    "max_tokens": 3072,
+    "grader": "numeric",
+    "grader_config": {
+      "answer": 443,
+      "tolerance": 0.001
+    },
+    "verify": {
+      "python": "__import__('functools').reduce(lambda a,_: (a*a-a+1)%1000, range(9), 2)"
+    }
+  },
+  {
+    "id": "MH19-inclusion-exclusion",
+    "difficulty": "medium",
+    "system": "Reason step by step, then end your reply with a single final line 'Answer: <value>' containing only the final answer.",
+    "prompt": "How many integers n with 1 <= n <= 2500 (inclusive) are divisible by at least one of 4, 9 and 14, but are not divisible by 21?",
+    "temperature": 0.0,
+    "max_tokens": 3072,
+    "grader": "numeric",
+    "grader_config": {
+      "answer": 833,
+      "tolerance": 0.001
+    },
+    "verify": {
+      "python": "sum(1 for n in range(1,2501) if (n%4==0 or n%9==0 or n%14==0) and n%21!=0)"
+    }
+  },
+  {
+    "id": "MH20-josephus-45th",
+    "difficulty": "hard",
+    "system": "Reason step by step, then end your reply with a single final line 'Answer: <value>' containing only the final answer.",
+    "prompt": "Fifty people stand in a circle, numbered 1 to 50 clockwise. Counting clockwise and starting the count at person 1 (so person 1 is count 1), every 5th person still standing is removed from the circle; the first person removed is therefore person 5. After each removal the count restarts at the next person still standing. Which numbered person is the 45th person removed?",
+    "temperature": 0.0,
+    "max_tokens": 4096,
+    "grader": "numeric",
+    "grader_config": {
+      "answer": 44,
+      "tolerance": 0.001
+    },
+    "verify": {
+      "python": "(lambda f: f(f,list(range(1,51)),0,45))(lambda f,L,i,k: (lambda j: L[j] if k==1 else f(f,L[:j]+L[j+1:], j%(len(L)-1), k-1))((i+4)%len(L)))"
+    }
+  },
+  {
+    "id": "MH21-lattice-interior",
+    "difficulty": "hard",
+    "system": "Reason step by step, then end your reply with a single final line 'Answer: <value>' containing only the final answer.",
+    "prompt": "A convex quadrilateral in the coordinate plane has vertices (0, 0), (17, 4), (23, 19) and (5, 15), listed counterclockwise. How many lattice points (points with both coordinates integers) lie strictly inside this quadrilateral, that is, not on any edge and not at a vertex?",
+    "temperature": 0.0,
+    "max_tokens": 4096,
+    "grader": "numeric",
+    "grader_config": {
+      "answer": 236,
+      "tolerance": 0.001
+    },
+    "verify": {
+      "python": "sum(1 for V in [[(0,0),(17,4),(23,19),(5,15)]] for x in range(0,24) for y in range(0,20) if all(((V[(k+1)%4][0]-V[k][0])*(y-V[k][1])-(V[(k+1)%4][1]-V[k][1])*(x-V[k][0]))>0 for k in range(4)))"
+    }
+  },
+  {
+    "id": "MH22-dual-base-palindrome",
+    "difficulty": "hard",
+    "system": "Reason step by step, then end your reply with a single final line 'Answer: <value>' containing only the final answer.",
+    "prompt": "Find the smallest integer N greater than 1000 that is a palindrome when written in base 10 and also a palindrome when written in base 7 (using digits 0-6, no leading zeros). Give N in base 10.",
+    "temperature": 0.0,
+    "max_tokens": 4096,
+    "grader": "numeric",
+    "grader_config": {
+      "answer": 16561,
+      "tolerance": 0.001
+    },
+    "verify": {
+      "python": "next(n for n in range(1001,10**6) if str(n)==str(n)[::-1] and (lambda s: s==s[::-1])((lambda f: f(f,n))(lambda f,m: '' if m==0 else f(f,m//7)+str(m%7))))"
+    }
+  }
+]

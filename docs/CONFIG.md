@@ -37,6 +37,31 @@ Two richer provider types exist for local rigs: `type: lmstudio` (managed throug
 with a wrong-model guard) and `type: studioforge` (loads models through the server's planner, runs as many
 requests at once as the server has slots, and can take a GPU lease for the run).
 
+### Claude through Claude Code (`type: claude_code`)
+
+```yaml
+providers:
+  claudecode: {type: claude_code}          # no base_url, no key
+models:
+  - {name: claude-fable-5-2-cc, provider: claudecode, model_id: claude-fable-5-2}
+```
+
+Runs each request through the local `claude` CLI on your Claude **subscription** (not the Anthropic API): fixed-argv
+subprocess, empty temp directory, no tools, no MCP, no settings/CLAUDE.md/hooks/skills/memory, and every `ANTHROPIC_*`
+variable removed from the child environment (log in once with `claude`). The exact flags are in the
+`crucibleforge/claudecode.py` docstring. Concurrency is 1; cost is recorded as 0 with `cost_basis: subscription`.
+A usage/rate limit or login failure becomes an infrastructure row (re-queued), never a score of 0.
+
+Protecting the subscription (all refusals are the same infrastructure class, raised before `claude` starts):
+`CF_CC_MAX_CALLS` (default 200) and `CF_CC_MAX_TOKENS` (default 3,000,000, input + output + cache as the CLI reports)
+cap the calls of one run, counted in a shared JSON file (`CF_CC_COUNTER`, default `<results dir>/cc_counter.json`;
+restarts after 5 h); `CF_CC_WINDOW=01:00-06:00` (local time, unset = always) refuses calls outside the window; two
+consecutive usage/rate-limit responses stop every later call in the process.
+
+**Not comparable to API rows:** temperature, top_p, seed, max tokens and thinking cannot be set through the CLI, so the
+model runs under Claude Code's own sampling (`sampling: harness-default` in the meta; shown as "run via Claude Code
+(harness sampling)"). Tool-use cases cannot run (the provider has no tools).
+
 ### Hosted API
 
 ```yaml

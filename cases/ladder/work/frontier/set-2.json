@@ -1,0 +1,72 @@
+{
+ "level": 1,
+ "points": 4,
+ "item": "SOLVERSYN",
+ "budget": 65536,
+ "context": 73728,
+ "note": "FC2 COMBSYN L7, 6 instances p1-p6 (p1-p4 measured). Board rule: an answer over 65,536 tokens (reasoning included) scores 0 on this item (gate note F1: Fable 0.55 with the cap, 0.80 without). PROVISIONAL (T7, 2026-11-13): weights and counts are one number each; gates re-opened 16:15.",
+ "board_note": "Answers over 65,536 tokens (thinking included) score 0 on this item.",
+ "cases": [
+  {
+   "id": "FC2-combsyn-L7-p1",
+   "category": "coding",
+   "generator": {
+    "type": "combsyn",
+    "level": 7,
+    "key": "p1",
+    "seed_case_id": "PRB-combsyn-L7-p1"
+   }
+  },
+  {
+   "id": "FC2-combsyn-L7-p2",
+   "category": "coding",
+   "generator": {
+    "type": "combsyn",
+    "level": 7,
+    "key": "p2",
+    "seed_case_id": "PRB-combsyn-L7-p2"
+   }
+  },
+  {
+   "id": "FC2-combsyn-L7-p3",
+   "category": "coding",
+   "generator": {
+    "type": "combsyn",
+    "level": 7,
+    "key": "p3",
+    "seed_case_id": "PRB-combsyn-L7-p3"
+   }
+  },
+  {
+   "id": "FC2-combsyn-L7-p4",
+   "category": "coding",
+   "generator": {
+    "type": "combsyn",
+    "level": 7,
+    "key": "p4",
+    "seed_case_id": "PRB-combsyn-L7-p4"
+   }
+  },
+  {
+   "id": "FC2-combsyn-L7-p5",
+   "category": "coding",
+   "generator": {
+    "type": "combsyn",
+    "level": 7,
+    "key": "p5",
+    "seed_case_id": "PRB-combsyn-L7-p5"
+   }
+  },
+  {
+   "id": "FC2-combsyn-L7-p6",
+   "category": "coding",
+   "generator": {
+    "type": "combsyn",
+    "level": 7,
+    "key": "p6",
+    "seed_case_id": "PRB-combsyn-L7-p6"
+   }
+  }
+ ],
+ "frontier": true
+}

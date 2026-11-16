@@ -1,0 +1,97 @@
+{
+ "task": "T45 stored sets (4c + Main NSFW tags)",
+ "tagged": "2026-11-13",
+ "base": "f57ef15 (t3-main-chat)",
+ "FH2": {
+  "pts": 2,
+  "tag": "set/FH2-v1",
+  "cases": {
+   "LRV1-pilots-mess": {
+    "dir_digest": "12b083853a3d",
+    "equals_archive_4.1.0": true,
+    "stamp_41": "fed2684e",
+    "in_bench45_live_tree": false
+   },
+   "LRV2-brannock-reading": {
+    "dir_digest": "244350d4e814",
+    "equals_archive_4.1.0": true,
+    "stamp_41": "e4e79560",
+    "in_bench45_live_tree": false
+   }
+  },
+  "note": "stored rows: 6 models, all scored 4.1 ladder rows (profile bench, chat/character#1); reuse gate 0 models (ids not in bench45 reuse.ids; with ids declared: refused \"generation\", the cases are not in the live tree)"
+ },
+ "FH3": {
+  "pts": 2,
+  "tag": "set/FH3-v1",
+  "cases": {
+   "LRD1-quill-amaral": {
+    "dir_digest": "c4087e5fe0c3",
+    "equals_archive_4.1.0": true,
+    "stamp_41": "b447bab7",
+    "in_bench45_live_tree": false
+   },
+   "LRD2-salt-gate": {
+    "dir_digest": "84951d81774d",
+    "equals_archive_4.1.0": true,
+    "stamp_41": "5205985d",
+    "in_bench45_live_tree": false
+   },
+   "LRD3-cuatro-vientos": {
+    "dir_digest": "2994202b02d0",
+    "equals_archive_4.1.0": true,
+    "stamp_41": "4aa13c5a",
+    "in_bench45_live_tree": false
+   }
+  },
+  "note": "stored rows: 7 models scored + 3 one-row stubs (chat/deep_rp#2); reuse gate 0 models (same reason)"
+ },
+ "MN1": {
+  "case": "NC2-after-hours",
+  "pts": 2.5,
+  "tag": "set/MN1-v1",
+  "weights_assumption": "10 points / 4 cases, equal; the task list sets no per-case weight",
+  "gen_digest": "4697093a5f70",
+  "grading_stamp_live": "04c3548a",
+  "grading_stamp_41": "320a1e57",
+  "generation_equal_to_4.1": true,
+  "reuse_gate_models": 67,
+  "rejudge_required": true
+ },
+ "MN2": {
+  "case": "NW1-salt-and-cedar",
+  "pts": 2.5,
+  "tag": "set/MN2-v1",
+  "weights_assumption": "10 points / 4 cases, equal; the task list sets no per-case weight",
+  "gen_digest": "90359c03d667",
+  "grading_stamp_live": "486edb54",
+  "grading_stamp_41": "486edb54",
+  "generation_equal_to_4.1": true,
+  "reuse_gate_models": 67,
+  "rejudge_required": false
+ },
+ "MN3": {
+  "case": "NX2-juniper",
+  "pts": 2.5,
+  "tag": "set/MN3-v1",
+  "weights_assumption": "10 points / 4 cases, equal; the task list sets no per-case weight",
+  "gen_digest": "34de0545a9aa",
+  "grading_stamp_live": "5d03de23",
+  "grading_stamp_41": "5d03de23",
+  "generation_equal_to_4.1": true,
+  "reuse_gate_models": 67,
+  "rejudge_required": false
+ },
+ "MN4": {
+  "case": "XP3-named-peak",
+  "pts": 2.5,
+  "tag": "set/MN4-v1",
+  "weights_assumption": "10 points / 4 cases, equal; the task list sets no per-case weight",
+  "gen_digest": "8f7e44f8f661",
+  "grading_stamp_live": "10b0b78a",
+  "grading_stamp_41": "10b0b78a",
+  "generation_equal_to_4.1": true,
+  "reuse_gate_models": 66,
+  "rejudge_required": false
+ }
+}

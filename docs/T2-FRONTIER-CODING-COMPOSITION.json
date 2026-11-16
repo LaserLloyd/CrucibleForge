@@ -1,0 +1,146 @@
+{
+ "section": "Frontier Coding",
+ "decided": "2026-11-13",
+ "round": "2a (P1 PATTERN, one fallback: demux-wide) ; 2b (SOLVERSYN t5 failed its exit criterion, written fallback COMBSYN L7 x4 at the 65k cap) ; 2c COMPACTOR (FC3) ; 2d CQ1-3 (FC4)",
+ "items": {
+  "FC1": {
+   "pts": 4,
+   "family": "patgen",
+   "variants": [
+    "t1",
+    "t2"
+   ],
+   "core_level": 2,
+   "release_seed": "4.5.0",
+   "seeds": [
+    "n1",
+    "n2",
+    "n3"
+   ],
+   "tag": "set/FC1-v1",
+   "turns": "two: t1 writes Predictor (clean repeats), t2 carries the model's own t1 reply as history and is the scored turn",
+   "grader": "patgen_iso (predictor in its own bwrap process, fed one digit per round trip, 60 CPU s)",
+   "tiers": {
+    "noisy-period": {
+     "role": "floor",
+     "w": 10
+    },
+    "sum": {
+     "role": "climb",
+     "w": 20
+    },
+    "interleave-jump": {
+     "role": "climb",
+     "w": 20
+    },
+    "mix3-tail": {
+     "role": "climb",
+     "w": 20
+    },
+    "demux-irregular": {
+     "role": "edge",
+     "w": 10
+    },
+    "demux-deep": {
+     "role": "edge",
+     "w": 10
+    },
+    "demux-wide": {
+     "role": "edge",
+     "w": 10,
+     "hidden_from_prompt": true
+    }
+   },
+   "scoring": "per stream: accuracy rescaled (n-gram anchor = 0.2, oracle = 1; floor tier chance..oracle); 3 streams per tier; points = sum of tier weights x tier score, /100 = item score",
+   "baselines_3seed": {
+    "ngram": 26.0,
+    "period_finder": 34.5,
+    "reference_k13": 85.3
+   },
+   "rows_3seed_mean": {
+    "haiku-5.5": 45.9,
+    "sonnet-5.5": 58.4,
+    "fable-5.2": 75.2,
+    "ds-flash-thinking-off": 41.8,
+    "grok-4.7": 32.0
+   },
+   "note": "v2 (6 tiers, noisy-period 20) is kept as the 2208122 history; demux-wide shows no example stream so the t2 prompt is byte-identical to the one the Claude rows answered (their replies were re-graded, not re-run)"
+  },
+  "FC2": {
+   "pts": 4,
+   "family": "combsyn",
+   "level": 7,
+   "release_seed": "4.5.0",
+   "instances": [
+    "p1",
+    "p2",
+    "p3",
+    "p4"
+   ],
+   "tag": "set/FC2-v1",
+   "generator_blocks": [
+    {
+     "type": "combsyn",
+     "level": 7,
+     "key": "p1"
+    },
+    {
+     "type": "combsyn",
+     "level": 7,
+     "key": "p2"
+    },
+    {
+     "type": "combsyn",
+     "level": 7,
+     "key": "p3"
+    },
+    {
+     "type": "combsyn",
+     "level": 7,
+     "key": "p4"
+    }
+   ],
+   "scoring": "each instance = 5 targets (groups T1-T5), score = share of groups passed; item = mean of the 4 instances; a reply cut at the stated 65,536-token cap (reasoning included) scores 0 (meta.hard_item_cap, applied by the runner as for patgen)",
+   "baseline": 0.0,
+   "rows_cap_rule": {
+    "haiku-5.5": 0.0,
+    "sonnet-5.5": 0.25,
+    "fable-5.2": 0.55,
+    "ds-flash-thinking-off": 0.0
+   },
+   "note": "limit = certified minimum (7) on every target, so a lazy or size-<=6 answer scores 0; the answer is a literal dict of terms (no code is run for the model's search)"
+  },
+  "FC3": {
+   "pts": 1,
+   "family": "compactor2 (interactive console, one command per reply)",
+   "seeds": [
+    "s1",
+    "s2",
+    "s3"
+   ],
+   "tag": "set/FC3-v1",
+   "scoring": "floor 15 + climb 25 + edge 25+35*efficiency(stop turn 30..90) - 4 per fault; /100",
+   "engine": "simulator + Session loop ported (crucibleforge/gen/compactor2.py, probe-c/p1c2.py); not an engine family (no materialize): the interactive runner hookup is task 7",
+   "baselines_6seed": {
+    "read_everything": 31.2,
+    "halt_all_running": 5.0,
+    "full_scan_oracle": 76.1,
+    "reference": 85.0
+   }
+  },
+  "FC4": {
+   "pts": 1,
+   "family": "classic-code CQ1-3 (4.1 text, byte for byte)",
+   "tag": "set/FC4-v1",
+   "rows": "stored 4.1 rows re-scored; no new runs",
+   "scoring": "source rule = one group (a violation fails that group only); truncated rows dropped (not scored 0)",
+   "interpreter": "python 3.13 (the stored rows' grading interpreter; 3.14 changes ',' grouping of fractional digits)",
+   "rescore": "docs/fc4-rescore/ (script, rows, aggregate); scoring transform = crucibleforge/cq_rule_group.py"
+  }
+ },
+ "nominal_answer_tokens": {
+  "FC1": 1800,
+  "note": "patgen LEVELS answer_tokens 900 per turn; real replies 10-40k with thinking, reported not capped"
+ },
+ "profile_wiring": "task 7 (profiles/bench45.yaml is NOT edited here)"
+}

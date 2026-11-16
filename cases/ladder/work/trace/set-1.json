@@ -1,0 +1,82 @@
+{
+ "level": 1,
+ "points": 1,
+ "budget": 65536,
+ "context": 73728,
+ "item": "TRACEVM",
+ "note": "Bonus pack (M1 rc1, 2026-11-13): TRACEVM L8 x8 moved out of Main Coding. Same case ids and generator keys as the frozen Main instances (O6-RIG-CHECK.md measured them: 80.5 min at 20 tok/s on Qwen3.8-27B thinking off), so the prompts are byte-identical.",
+ "cases": [
+  {
+   "id": "TRACEVM-core-8-1",
+   "category": "coding",
+   "generator": {
+    "type": "tracevm",
+    "level": 8,
+    "key": "723a1f4b7ff96987"
+   }
+  },
+  {
+   "id": "TRACEVM-core-8-2",
+   "category": "coding",
+   "generator": {
+    "type": "tracevm",
+    "level": 8,
+    "key": "5eab66213e3da1d0"
+   }
+  },
+  {
+   "id": "TRACEVM-core-8-3",
+   "category": "coding",
+   "generator": {
+    "type": "tracevm",
+    "level": 8,
+    "key": "dfd91e198491ee31"
+   }
+  },
+  {
+   "id": "TRACEVM-core-8-4",
+   "category": "coding",
+   "generator": {
+    "type": "tracevm",
+    "level": 8,
+    "key": "f50192ecd8e92719"
+   }
+  },
+  {
+   "id": "TRACEVM-core-8-5",
+   "category": "coding",
+   "generator": {
+    "type": "tracevm",
+    "level": 8,
+    "key": "a8bd2f51751eefc7"
+   }
+  },
+  {
+   "id": "TRACEVM-core-8-6",
+   "category": "coding",
+   "generator": {
+    "type": "tracevm",
+    "level": 8,
+    "key": "871fedc3175e93fb"
+   }
+  },
+  {
+   "id": "TRACEVM-core-8-7",
+   "category": "coding",
+   "generator": {
+    "type": "tracevm",
+    "level": 8,
+    "key": "9efd525dfa61381d"
+   }
+  },
+  {
+   "id": "TRACEVM-core-8-8",
+   "category": "coding",
+   "generator": {
+    "type": "tracevm",
+    "level": 8,
+    "key": "cc9182ca72312292"
+   }
+  }
+ ]
+}

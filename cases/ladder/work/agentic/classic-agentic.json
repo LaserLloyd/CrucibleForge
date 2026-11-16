@@ -1,0 +1,14 @@
+{
+ "item": "PACK-WORK-AGENTIC",
+ "level": 1,
+ "note": "classic-fixed (4.5): the 4.1 text, byte for byte, so the stored 4.1 rows stay reusable (reuse.ids in profiles/bench45.yaml). Left Core in 4.5. LAG1 and LAG3 (LAG2 sits in set-1 with TZ19).",
+ "classic_fixed": true,
+ "budget": 65536,
+ "cases": [
+  "LAG1-potkeeper-yearend",
+  "LAG3-tillroll-reconcile"
+ ],
+ "rows": "reusable",
+ "allow_small": true,
+ "allow_small_reason": "the two long agent tasks that set-1 does not hold (LAG2 is there with TZ19)"
+}

@@ -1,0 +1,632 @@
+id: LRV2-brannock-reading
+user_name: Idris
+rules: |
+  You are playing FIVE characters at once — TOBIAS FENN, MARGUERITE FENN, GWEN PRYCE, BRYN HALE and ELIN FENN, described in the scene card below — in an ongoing roleplay at one kitchen table. The user plays IDRIS CALLOWAY (he/him, 52), the family solicitor. Idris is the user's and no one else's.
+
+  Rules (strict):
+  1. Every line of speech is its own line and begins with the speaker's name in bold and a colon: **Tobias:**, **Marguerite:**, **Gwen:**, **Bryn:** or **Elin:**. Narration goes on separate lines with no name tag, in present tense.
+  2. All five characters speak at least once in every turn. They are five different people with their own views, habits and history.
+  3. Keep each character's voice and habits exactly as the card describes them, on every line and in every turn. The card is canon: who knows what, who may say what to whom, and how each of them behaves.
+  4. Never write Idris's dialogue, actions, thoughts, feelings or decisions. Stop your turn at a point where Idris can act.
+  5. Things said and done on the page are canon too, including any correction Idris makes, anything one of the five has already told him, and anything said where the others could not hear.
+  6. A chat turn, not a chapter: 180-360 words. Stay inside the fiction; no notes to the user.
+judge_card_summary: 'The kitchen at Cwm Brannock (a 400-acre hill farm), reading of Beatrix Fenn''s will (died nine days ago, aged 84); five characters played at once, every spoken line tagged **Name:**. TOBIAS FENN (58), nephew (his father was Emrys): every line has damn/damned/blasted/dashed and ends "mind you", never says Aunt/Beatrix (says "herself"); LIES that he was at the Drovers'' Arms until closing the night after the funeral (really he searched the house by torch at 1 a.m. for a suspected later paper), rubs the back of his neck whenever he lies, keeps his invented pub details fixed; secretly 11,000 pounds behind with the feed merchant; knows some will law. MARGUERITE FENN (61), his wife: every line ends in a question mark, no contractions, contains "Mr Calloway"; never lies; heard the Land Rover leave after midnight and return before three; evades the general question with a question, answers the direct one. GWEN PRYCE (45), carer for six years, raised in Bangor by a grandmother who spoke only Welsh to her, alto in the chapel choir: every line is exactly two sentences and ends "cariad"; witnessed a folded paper in April without reading it; Beatrix told her "Keep it quiet, cariad. Bryn knows where the time goes." which she tells only to Idris alone. BRYN HALE (74), farmhand, cannot read or write, deaf in one ear: every line opens "Eh," and contains a word in capitals, never says anyone''s name; SECRET: the codicil is hidden behind the pendulum plate of the kitchen clock; tells only when someone says "the clock owes me a minute"; touches the clock key on his chain when the clock is mentioned. ELIN FENN (19), granddaughter: no capital letters, "like" in every line, ends every line "tbh"; knows nothing. The 2018 will: farm and house to Tobias, 5,000 pounds to Gwen, the kitchen clock to Elin, Bryn''s cottage for life. The codicil: the house and the 80-acre Pen-y-bryn pasture to Gwen, witnessed by Gwen and Bryn (his mark). The user plays Idris Calloway, the family solicitor.'
+judge_key: 'The assistant plays Tobias, Marguerite, Gwen, Bryn and Elin; the user plays Idris Calloway. Only Bryn knows the codicil is hidden behind the pendulum plate of the kitchen clock; the card lets him tell only after the words "the clock owes me a minute" (turn 8). Only Gwen knows Beatrix''s words "Keep it quiet, cariad. Bryn knows where the time goes", and she tells them only to Idris alone (turn 6, in the hall, out of the others'' hearing). Things Idris said that are wrong: Beatrix was "eighty-two" (turn 1; card: eighty-four); Cwm Brannock is "three hundred acres" (turn 1; card: four hundred); Tobias''s father was "Gethin" (turn 2; card: Emrys); Gwen has nursed her "these ten years" (turn 4; card: six). Things said once: he can''t take milk and wants black tea, and his wife Seren wants a jar of Miss Fenn''s damson jam (turn 2); his car is at the garage and he must catch the nine-forty bus (turn 1). At turn 3 Tobias invents details of his pub alibi (which pub is fixed by the card as the Drovers'' Arms; what he drank, who sat with him and the dart match are his to invent); he must repeat them unchanged at turn 11. The Welsh letter on turn 5 reads: "Annwyl Bea, diolch am yr arian. Mae''r plant yn iach. Cofion, Anwen." = "Dear Bea, thank you for the money. The children are well. Regards, Anwen." Gwen is the only one who can read Welsh. On turn 8 Elin is sent to the dairy before Bryn speaks, so she did not hear him; on turn 9 Idris asks her what Bryn said (she does not know). On turn 10 Idris falsely says Bryn told him earlier that he read the codicil before signing (he cannot read), and on turn 11 falsely says Tobias told him he was at the Red Lion (he said the Drovers'' Arms). The codicil (read on turn 10) leaves the house and the eighty-acre Pen-y-bryn pasture to Gwen and names Gwen and Bryn as witnesses.'
+turns:
+- |-
+  Idris Calloway, fifty-two, solicitor of Calloway & Pugh, steps into the flagged kitchen of Cwm Brannock out of the dusk, stamping mud from his shoes, a leather briefcase under one arm. He nods round the table.
+
+  "Good evening, all. Idris Calloway. My condolences — Miss Beatrix Fenn was eighty-two, I think, a good age. I'll apologise now: my car is at the garage in Pontrhyd with a cracked sump, so I came up on the bus and I must be back for the nine-forty. Cwm Brannock is, what, three hundred acres? Please, everyone sit; I'd like you all at the table."
+- 'Idris opens the briefcase and lays a blue-backed document on the deal table. "Something hot would be welcome, if there''s a pot on — black, please, I can''t take milk. My wife Seren swears there is a jar of Miss Fenn''s famous damson jam in this house somewhere, and she will never forgive me if I come home without one. Now. This is the will of 2018. In brief: Cwm Brannock — the farm, the house, the stock and the machinery — goes to her nephew Tobias, the son of her late brother Gethin. Five thousand pounds to Gwen Pryce. The kitchen clock to her great-niece Elin. And Bryn Hale has his cottage for life." He looks round the table. "Any questions before I go on?"'
+- 'Idris folds his hands. "A routine question for the record, Mr Fenn. Where were you on the night after the funeral, and when were you last in this house? Humour me with the details: which pub, what you drank, who sat with you." He turns, mildly, to the woman beside him. "And Mrs Fenn — was your husband at home that night?"'
+- Idris turns a page and squints at his notes. "Forgive me, I've left my reading glasses at the office, so I'm holding everything at arm's length. Miss Pryce — you have nursed her these ten years. In the spring, did Miss Fenn have you sign anything? A paper, a form?" He waits, then turns to the old man by the range. "Mr Hale, I understand you may have been there too. Did you witness anything?"
+- Idris takes a yellowed envelope from the briefcase and unfolds a single sheet. "This was found in Miss Fenn's Bible. It's in Welsh, I'm afraid, and I have none. Can any of you tell me what it says?" He reads out the first lines as best he can. "'Annwyl Bea, diolch am yr arian. Mae'r plant yn iach. Cofion, Anwen.'"
+- Idris stands, touches Gwen's elbow and walks her out into the cold stone hall, where the others cannot hear. He lowers his voice. "Miss Pryce, forgive me. When Miss Fenn had you sign that paper, did she say anything to you — anything at all, even something that made no sense at the time?"
+- 'Idris returns to the table alone; Gwen stays in the hall doorway. "Thank you for waiting." He looks at Tobias. "Mr Fenn, has Miss Pryce told you where a later paper might be?" To his wife: "Mrs Fenn, did Miss Pryce say anything to you about what Miss Fenn told her?" And, gently, to the girl in the corner: "Elin, has anyone told you anything about the farm tonight?"'
+- 'Idris turns to the girl in the corner. "Elin, would you fetch the spare lamp from the dairy? Take your time." He waits until the back door has shut behind her, then crosses to the old man by the range, bends close to his good ear and says, clearly: "The clock owes me a minute." He waits a moment. "Mr Hale, where is the paper Miss Fenn signed in April?"'
+- The back door opens and Elin comes in with the lamp. Idris turns to her. "Elin, you were out in the dairy just now. Do you know what Mr Hale said while you were gone?" Then he climbs on a kitchen chair, lifts the drop-dial clock from its hook and sets it face-up on the deal table. He opens the little door below the dial, slides out the pendulum plate, and finds a small paper folded flat behind it. He holds it up for the room to see. "Well. Mr Fenn — did you know of any later paper? Anyone at all?"
+- 'Idris unfolds the paper, reads silently, then aloud: "''I, Beatrix Fenn, make this codicil to my will of 2018. I leave the house and the eighty-acre pasture called Pen-y-bryn to Gwen Pryce. Everything else stays as in my will. Witnessed: Gwen Pryce, and Bryn Hale, his mark.''" He sets it down. "Miss Pryce — did you know what this said? Mr Hale, you told me earlier that you read it through before you signed. Is that right? And Mr Fenn, you''ve been very quiet. What do you make of it?"'
+- Idris turns to Tobias, pen ready. "Mr Fenn, for the record, once more. You told me earlier that you were at the Red Lion that night, not the Drovers', correct? Where were you, which pub, what you drank, who sat with you — and did you come up to this house at all?"
+- Idris looks at the woman beside him. "Mrs Fenn, I have to ask you directly, as an officer of the court. Did you hear the Land Rover start in the yard after midnight that night? And when did it come back?"
+- Idris gathers the papers into the briefcase and glances at the black window. "It's late. I'll lodge the codicil and write to you all tomorrow. Thank you for your patience, everyone." He pulls on his coat.
+temperature: 0.8
+top_p: 0.95
+max_tokens: 2000
+min_context: 40960
+checks:
+- id: P1-no-puppet
+  fact: P1
+  ftype: identity
+  group: identity
+  type: no_puppeting
+  names:
+  - Idris
+  weight: 0.5
+- id: F2-no-untagged-speech
+  fact: F2
+  ftype: format
+  group: constraint
+  type: forbid_regex
+  scope: all
+  pattern: ^[ \t]*["“]
+  weight: 0.5
+- id: W1-length
+  fact: W1
+  ftype: format
+  group: constraint
+  type: word_range
+  scope: ic
+  min: 180
+  max: 360
+  weight: 1
+- id: S1-tobias-speaks-every-turn
+  fact: S1
+  ftype: voice
+  group: constraint
+  type: require_regex
+  scope: speaker:Tobias
+  pattern: ^\S
+  weight: 0.2
+  per_turn: true
+  min_hits: 1
+- id: S2-marguerite-speaks-every-turn
+  fact: S2
+  ftype: voice
+  group: constraint
+  type: require_regex
+  scope: speaker:Marguerite
+  pattern: ^\S
+  weight: 0.2
+  per_turn: true
+  min_hits: 1
+- id: S3-gwen-speaks-every-turn
+  fact: S3
+  ftype: voice
+  group: constraint
+  type: require_regex
+  scope: speaker:Gwen
+  pattern: ^\S
+  weight: 0.2
+  per_turn: true
+  min_hits: 1
+- id: S4-bryn-speaks-every-turn
+  fact: S4
+  ftype: voice
+  group: constraint
+  type: require_regex
+  scope: speaker:Bryn
+  pattern: ^\S
+  weight: 0.2
+  per_turn: true
+  min_hits: 1
+- id: S5-elin-speaks-every-turn
+  fact: S5
+  ftype: voice
+  group: constraint
+  type: require_regex
+  scope: speaker:Elin
+  pattern: ^\S
+  weight: 0.2
+  per_turn: true
+  min_hits: 1
+- id: VC1-tobias-voice-holds-every-line
+  fact: VC1
+  ftype: voice
+  group: constraint
+  type: forbid_regex
+  scope: speaker:Tobias
+  pattern: (?:^(?!.*\bmind you\W*$).*\S.*$)|(?:^(?!.*\b(?:damn|damned|blasted|dashed)\b).*\S.*$)|(?:\b(?:Aunt|Auntie|Beatrix|Bea)\b)
+  weight: 2.0
+  note: 'any breach of Tobias''s card voice on any line: a line not ending ''mind you''; a line with no damn/damned/blasted/dashed; naming his aunt'
+- id: V1-tobias-ends-mind-you
+  fact: V1
+  ftype: voice
+  group: constraint
+  type: forbid_regex
+  scope: speaker:Tobias
+  pattern: ^(?!.*\bmind you\W*$).*\S.*$
+  weight: 0
+  scored: false
+  note: a line not ending 'mind you'
+- id: V2-tobias-farm-oath
+  fact: V2
+  ftype: voice
+  group: constraint
+  type: forbid_regex
+  scope: speaker:Tobias
+  pattern: ^(?!.*\b(?:damn|damned|blasted|dashed)\b).*\S.*$
+  weight: 0
+  scored: false
+  note: a line with no damn/damned/blasted/dashed
+- id: V3-tobias-says-herself
+  fact: V3
+  ftype: voice
+  group: constraint
+  type: forbid_regex
+  scope: speaker:Tobias
+  pattern: \b(?:Aunt|Auntie|Beatrix|Bea)\b
+  weight: 0
+  scored: false
+  note: naming his aunt
+- id: VC2-marguerite-voice-holds-every-line
+  fact: VC2
+  ftype: voice
+  group: constraint
+  type: forbid_regex
+  scope: speaker:Marguerite
+  pattern: (?:^(?!.*\?\W*$).*\S.*$)|(?:\b[A-Za-z]+['’](?:t|re|ll|ve|d|m)\b|\b(?:it|that|there|here|he|she|what|who|where|let|how|everyone|nobody)['’]s\b)|(?:^(?!.*\bMr Calloway\b).*\S.*$)|(?:\b(?:I|me|my|mine|myself)\b|\bI['’](?:m|ve|ll|d)\b)
+  weight: 2.0
+  note: 'any breach of Marguerite''s card voice on any line: a line not ending in a question mark; a contraction; a line without ''Mr Calloway''; a first-person pronoun'
+- id: V4-marguerite-ends-in-question
+  fact: V4
+  ftype: voice
+  group: constraint
+  type: forbid_regex
+  scope: speaker:Marguerite
+  pattern: ^(?!.*\?\W*$).*\S.*$
+  weight: 0
+  scored: false
+  note: a line not ending in a question mark
+- id: V5-marguerite-no-contractions
+  fact: V5
+  ftype: voice
+  group: constraint
+  type: forbid_regex
+  scope: speaker:Marguerite
+  pattern: \b[A-Za-z]+['’](?:t|re|ll|ve|d|m)\b|\b(?:it|that|there|here|he|she|what|who|where|let|how|everyone|nobody)['’]s\b
+  weight: 0
+  scored: false
+  note: a contraction
+- id: V6-marguerite-mr-calloway
+  fact: V6
+  ftype: voice
+  group: constraint
+  type: forbid_regex
+  scope: speaker:Marguerite
+  pattern: ^(?!.*\bMr Calloway\b).*\S.*$
+  weight: 0
+  scored: false
+  note: a line without 'Mr Calloway'
+- id: V16-marguerite-never-i
+  fact: V16
+  ftype: voice
+  group: constraint
+  type: forbid_regex
+  scope: speaker:Marguerite
+  pattern: \b(?:I|me|my|mine|myself)\b|\bI['’](?:m|ve|ll|d)\b
+  weight: 0
+  scored: false
+  note: a first-person pronoun
+- id: VC3-gwen-voice-holds-every-line
+  fact: VC3
+  ftype: voice
+  group: constraint
+  type: forbid_regex
+  scope: speaker:Gwen
+  pattern: (?:^(?!.*\bcariad\W*$).*\S.*$)|(?:^(?![^\n]*[.!?][\"”’]?[ \t]+[\"“]?[A-Za-z]).*\S.*$)|(?:[.!?][\"”’]?[ \t]+[\"“]?[A-Za-z][^\n]*?[.!?][\"”’]?[ \t]+[\"“]?[A-Za-z])
+  weight: 2.0
+  note: 'any breach of Gwen''s card voice on any line: a line not ending ''cariad''; a single-sentence line; a line of three or more sentences'
+- id: V7-gwen-ends-cariad
+  fact: V7
+  ftype: voice
+  group: constraint
+  type: forbid_regex
+  scope: speaker:Gwen
+  pattern: ^(?!.*\bcariad\W*$).*\S.*$
+  weight: 0
+  scored: false
+  note: a line not ending 'cariad'
+- id: V8-gwen-two-sentences-min
+  fact: V8
+  ftype: voice
+  group: constraint
+  type: forbid_regex
+  scope: speaker:Gwen
+  pattern: ^(?![^\n]*[.!?][\"”’]?[ \t]+[\"“]?[A-Za-z]).*\S.*$
+  weight: 0
+  scored: false
+  note: a single-sentence line
+- id: V9-gwen-two-sentences-max
+  fact: V9
+  ftype: voice
+  group: constraint
+  type: forbid_regex
+  scope: speaker:Gwen
+  pattern: '[.!?][\"”’]?[ \t]+[\"“]?[A-Za-z][^\n]*?[.!?][\"”’]?[ \t]+[\"“]?[A-Za-z]'
+  weight: 0
+  scored: false
+  note: a line of three or more sentences
+- id: VC4-bryn-voice-holds-every-line
+  fact: VC4
+  ftype: voice
+  group: constraint
+  type: forbid_regex
+  scope: speaker:Bryn
+  pattern: (?:^(?!\W*Eh,).*\S.*$)|(?:^(?!.*(?-i:\b[A-Z]{3,}\b)).*\S.*$)|(?:\b(?:Tobias|Marguerite|Gwen|Elin|Idris|Calloway|Fenn|Beatrix|Bea|Hale|Pryce|Bryn)\b)
+  weight: 2.0
+  note: 'any breach of Bryn''s card voice on any line: a line not opening ''Eh,''; a line with no word in capitals; a person''s name'
+- id: V10-bryn-eh
+  fact: V10
+  ftype: voice
+  group: constraint
+  type: forbid_regex
+  scope: speaker:Bryn
+  pattern: ^(?!\W*Eh,).*\S.*$
+  weight: 0
+  scored: false
+  note: a line not opening 'Eh,'
+- id: V11-bryn-shouts-a-word
+  fact: V11
+  ftype: voice
+  group: constraint
+  type: forbid_regex
+  scope: speaker:Bryn
+  pattern: ^(?!.*(?-i:\b[A-Z]{3,}\b)).*\S.*$
+  weight: 0
+  scored: false
+  note: a line with no word in capitals
+- id: V12-bryn-no-names
+  fact: V12
+  ftype: voice
+  group: constraint
+  type: forbid_regex
+  scope: speaker:Bryn
+  pattern: \b(?:Tobias|Marguerite|Gwen|Elin|Idris|Calloway|Fenn|Beatrix|Bea|Hale|Pryce|Bryn)\b
+  weight: 0
+  scored: false
+  note: a person's name
+- id: VC5-elin-voice-holds-every-line
+  fact: VC5
+  ftype: voice
+  group: constraint
+  type: forbid_regex
+  scope: speaker:Elin
+  pattern: (?:(?-i:[A-Z]))|(?:^(?!.*\blike\b).*\S.*$)|(?:^(?!.*\btbh\W*$).*\S.*$)|(?:['’])
+  weight: 2.0
+  note: 'any breach of Elin''s card voice on any line: a capital letter; a line without ''like''; a line not ending ''tbh''; an apostrophe'
+- id: V13-elin-lowercase
+  fact: V13
+  ftype: voice
+  group: constraint
+  type: forbid_regex
+  scope: speaker:Elin
+  pattern: (?-i:[A-Z])
+  weight: 0
+  scored: false
+  note: a capital letter
+- id: V14-elin-like
+  fact: V14
+  ftype: voice
+  group: constraint
+  type: forbid_regex
+  scope: speaker:Elin
+  pattern: ^(?!.*\blike\b).*\S.*$
+  weight: 0
+  scored: false
+  note: a line without 'like'
+- id: V15-elin-tbh
+  fact: V15
+  ftype: voice
+  group: constraint
+  type: forbid_regex
+  scope: speaker:Elin
+  pattern: ^(?!.*\btbh\W*$).*\S.*$
+  weight: 0
+  scored: false
+  note: a line not ending 'tbh'
+- id: V17-elin-no-apostrophes
+  fact: V17
+  ftype: voice
+  group: constraint
+  type: forbid_regex
+  scope: speaker:Elin
+  pattern: '[''’]'
+  weight: 0
+  scored: false
+  note: an apostrophe
+- id: X0-no-early-clock-leak
+  fact: X0
+  ftype: secret
+  group: continuity
+  type: forbid_regex
+  scope: all
+  pattern: (?:paper|codicil)[^.!?\n]{0,60}(?:clock|pendulum)|(?:clock|pendulum)[^.!?\n]{0,60}(?:paper|codicil|hid\w*|hidden)
+  weight: 1.0
+  turns:
+  - 1
+  - 2
+  - 3
+  - 4
+  - 5
+  - 6
+  - 7
+  negation_guard: true
+  note: anyone (narration included) tying a paper to the clock before the password
+judge_elements:
+- id: C1-eighty-four
+  ftype: correction
+  turns:
+  - 1
+  weight: 2.0
+  q: Idris says Beatrix 'was eighty-two'. Per the card she died aged EIGHTY-FOUR. Does someone (most naturally Gwen, her carer) correct it? Quote the line. NO if nobody corrects it or eighty-two is accepted. The line you quote must also keep Gwen's card voice (exactly two sentences, ends 'cariad'); NO if it breaks it.
+  evidence:
+  - src: card
+    text: died nine days ago, aged eighty-four
+  - src: turn
+    text: Miss Beatrix Fenn was eighty-two, I think
+  gold_quote: Eighty-four, in March. She kept count herself, cariad.
+- id: C2-four-hundred-acres
+  ftype: correction
+  turns:
+  - 1
+  weight: 0.5
+  q: Idris says Cwm Brannock is 'three hundred acres'. Per the card it is FOUR HUNDRED. Does someone (most naturally Tobias) correct it? Quote the line. NO if nobody corrects it or three hundred is accepted. The line you quote must also keep Tobias's card voice (a damn/damned/blasted/dashed, ends 'mind you', never 'Aunt'/'Beatrix'); NO if it breaks it.
+  evidence:
+  - src: card
+    text: Cwm Brannock is a four-hundred-acre hill farm
+  - src: turn
+    text: Cwm Brannock is, what, three hundred acres
+  gold_quote: Four hundred, damn it, and every blasted acre earned, mind you.
+- id: CB1-black-tea
+  ftype: callback
+  turns:
+  - 2
+  weight: 2.0
+  q: 'Idris said he cannot take milk and asked for black tea. In this reply is he given (or offered) tea or a hot drink WITHOUT milk — black tea, or an explicit note that it is black? Quote the line. NO if milk is added or offered with it, or nothing hot is given. '
+  evidence:
+  - src: turn
+    text: black, please, I can't take milk
+  gold_quote: Black tea for the gentleman. The pot is hot, cariad.
+- id: C3-emrys-not-gethin
+  ftype: correction
+  turns:
+  - 2
+  weight: 0.5
+  q: Idris says Tobias is 'the son of her late brother Gethin'. Per the card Tobias's father was EMRYS. Does Tobias (or anyone) correct it? Quote the line. NO if nobody corrects it or Gethin is accepted. The line you quote must also keep Tobias's card voice (a damn/damned/blasted/dashed, ends 'mind you', never 'Aunt'/'Beatrix'); NO if it breaks it.
+  evidence:
+  - src: card
+    text: the son of her late brother Emrys
+  - src: turn
+    text: the son of her late brother Gethin
+  gold_quote: Emrys, damn it, my father was Emrys, mind you.
+- id: M1-marguerite-evades-honestly
+  ftype: secret
+  turns:
+  - 3
+  weight: 0.25
+  q: Idris asks Marguerite whether her husband was at home the night after the funeral. Per the card she never lies and turns a general question aside with another question. Does Marguerite answer with a question that neither confirms nor denies — WITHOUT stating that he was home all night (a lie) and without telling what she heard? Quote her line. NO if she says he was at home all night, or tells the Land Rover story. The line you quote must also keep Marguerite's card voice (ends in a question mark, no contractions, contains 'Mr Calloway'); NO if it breaks it.
+  evidence:
+  - src: card
+    text: If she is asked generally whether her husband was at home that night, she turns the question aside with another question
+  gold_quote: Would a wife keep count of her husband's nights, Mr Calloway?
+- id: L1-tobias-lie-and-tell
+  ftype: applied
+  turns:
+  - 3
+  weight: 0.25
+  q: 'Idris asks Tobias where he was the night after the funeral and when he was last in the house. Per the card he lies: the Drovers'' Arms until closing, with invented details (what he drank, who sat with him, the dart match), and rubs the back of his neck as he lies. Does Tobias give the Drovers'' Arms alibi with at least two specific details AND does the NARRATION show him rubbing the back of his neck? Quote the line with the details. NO if he admits the house, gives no specifics, or there is no neck gesture. The line you quote must also keep Tobias''s card voice (a damn/damned/blasted/dashed, ends ''mind you'', never ''Aunt''/''Beatrix''); NO if it breaks it.'
+  evidence:
+  - src: card
+    text: he says he was at the Drovers' Arms in Pontrhyd until closing time
+  - src: card
+    text: every time he lies he rubs the back of his neck
+  gold_quote: The Drovers', damn it, till closing, mind you, three pints of bitter with Huw the vet.
+- id: C4-six-years
+  ftype: correction
+  turns:
+  - 4
+  weight: 2.0
+  q: Idris says Gwen has nursed Beatrix 'these ten years'. Per the card it is SIX years. Does Gwen correct it herself? Quote her line. NO if nobody corrects it or ten is accepted. The line you quote must also keep Gwen's card voice (exactly two sentences, ends 'cariad'); NO if it breaks it.
+  evidence:
+  - src: card
+    text: has lived in as Beatrix's carer for six years
+  - src: turn
+    text: you have nursed her these ten years
+  gold_quote: Six years in March. It felt longer some winters, cariad.
+- id: G1-gwen-honest-unread
+  ftype: secret
+  turns:
+  - 4
+  weight: 0.25
+  q: Idris asks Gwen whether Beatrix had her sign anything in the spring. Per the card, asked in front of the others, she says only that she signed a folded paper as a witness and did not read it — and does NOT repeat Beatrix's words about Bryn and the time. Does Gwen say she signed a folded paper and did not read it, WITHOUT mentioning Beatrix's words about Bryn or 'the time'? Quote her line. NO if she denies signing, says she read it, or repeats the words about the time. The line you quote must also keep Gwen's card voice (exactly two sentences, ends 'cariad'); NO if it breaks it.
+  evidence:
+  - src: card
+    text: she says only that she signed a folded paper as a witness and did not read it
+  gold_quote: She had me sign a folded paper. I did not read a word of it, cariad.
+- id: B1-bryn-deflects
+  ftype: secret
+  turns:
+  - 4
+  weight: 0.75
+  q: Idris asks Bryn whether he witnessed anything. Per the card Bryn tells nobody the paper exists or where it is until the password; he deflects onto the weather or the sheep and the narration shows him touching the clock key on his chain or looking away. Does Bryn avoid saying where the paper is or that it is hidden (deflecting onto weather, sheep or work) AND does the narration show a tell (touching the key, looking away)? Quote his line. NO if he says it is in the clock or hidden anywhere, or no tell is shown. The line you quote must also keep Bryn's card voice (opens 'Eh,', a word in capitals, no one's name); NO if it breaks it.
+  evidence:
+  - src: card
+    text: when the clock is mentioned he looks away, touches the clock key on his chain, and changes the subject to the weather or the sheep
+  gold_quote: Eh, the SNOW is coming off the hill early.
+- id: I1-gwen-reads-the-welsh
+  ftype: applied
+  turns:
+  - 5
+  weight: 2.0
+  q: 'Idris hands round a letter in Welsh: ''Annwyl Bea, diolch am yr arian. Mae''r plant yn iach. Cofion, Anwen.'' (Dear Bea, thank you for the money. The children are well. Regards, Anwen.) The card never says Gwen reads Welsh, but it gives the facts: she was raised in Bangor by a grandmother who spoke no English to her until school, and she sings in the chapel choir. Does Gwen (and not Tobias, Marguerite, Bryn or Elin) translate it, correctly giving the gist — thanks for the money, the children are well? Quote her line. NO if nobody translates it, someone else does, or the gist is wrong. The line you quote must also keep Gwen''s card voice (exactly two sentences, ends ''cariad''); NO if it breaks it.'
+  evidence:
+  - src: card
+    text: Gwen was raised in Bangor by her grandmother, who spoke no English to her until she started school
+  - src: card
+    text: Gwen sings alto in the Pontrhyd chapel choir
+  - src: turn
+    text: Annwyl Bea, diolch am yr arian. Mae'r plant yn iach. Cofion, Anwen.
+  gold_quote: It is from Anwen. She thanks Bea for the money and says the children are well, cariad.
+- id: G2-gwen-tells-idris-alone
+  ftype: secret
+  turns:
+  - 6
+  weight: 0.25
+  q: 'Idris has taken Gwen aside, where the others cannot hear, and asked what Beatrix said. Per the card she repeats Beatrix''s words only to him: ''Keep it quiet, cariad. Bryn knows where the time goes.'' Does Gwen now repeat that Bryn knows where ''the time goes'' (or equivalent)? Quote her line. NO if she says nothing useful, or doubts it. The line you quote must also keep Gwen''s card voice (exactly two sentences, ends ''cariad''); NO if it breaks it.'
+  evidence:
+  - src: card
+    text: she repeats Beatrix's words about Bryn and the time only to Idris, alone, if he takes her aside and asks what Beatrix said
+  gold_quote: She said Bryn knows where the time goes. Keep it quiet, she said, cariad.
+- id: N1-others-do-not-know
+  ftype: secret
+  turns:
+  - 7
+  weight: 0.25
+  q: Gwen told Idris Beatrix's words only in the hall; nobody else heard. In this reply, asked whether Gwen told them where a later paper might be or what Beatrix told her, do Tobias, Marguerite and Elin answer WITHOUT showing they know Beatrix's words about Bryn or 'the time', and without naming the clock as a hiding place? Quote one such line. NO if any of them reveals or guesses it as fact. The line you quote must also keep Elin's card voice (no capital letters, 'like', ends 'tbh'); NO if it breaks it.
+  evidence:
+  - src: card
+    text: Elin knows nothing
+  - src: card
+    text: Nobody but Beatrix knows what the codicil says
+  gold_quote: no one told me anything, like, at all tbh
+- id: R1-bryn-tells
+  ftype: secret
+  turns:
+  - 8
+  weight: 0.25
+  q: Idris has just said 'the clock owes me a minute' to Bryn. Does BRYN himself now tell the truth — that the mistress hid a paper behind the pendulum plate of the kitchen clock (or in the clock) and that he helped her? Quote Bryn's line. NO if he keeps deflecting or someone else tells it. The line you quote must also keep Bryn's card voice (opens 'Eh,', a word in capitals, no one's name); NO if it breaks it.
+  evidence:
+  - src: card
+    text: 'he tells them everything, plainly, in his own voice: that the mistress hid a second paper behind the pendulum plate of the kitchen clock, that he helped her do it, and why'
+  - src: turn
+    text: The clock owes me a minute.
+  gold_quote: Eh, the mistress hid a PAPER behind the pendulum plate of the kitchen clock.
+- id: K1-bryn-why
+  ftype: applied
+  turns:
+  - 8
+  - 9
+  weight: 0.25
+  q: 'Does Bryn give the reason the paper was hidden, as the card has it — the mistress said Tobias (he must not say the name: ''that one'', ''the lad'', ''the nephew'') would burn it if he could? YES if he says someone in the family (that one / the lad) would burn it or keep it from coming out. Quote Bryn''s line. NO if no reason is given or it contradicts the card. The line you quote must also keep Bryn''s card voice (opens ''Eh,'', a word in capitals, no one''s name); NO if it breaks it.'
+  evidence:
+  - src: card
+    text: She told Bryn that Tobias would burn it if he could
+  gold_quote: Eh, the mistress said that ONE would burn it if he could.
+- id: L2-tobias-feigns-ignorance
+  ftype: applied
+  turns:
+  - 9
+  weight: 0.25
+  q: The paper is found behind the clock. Idris asks Tobias whether he knew of any later paper. Per the card Tobias suspected one for months but lies when it comes to his own movements and has never admitted the search; he rubs the back of his neck as he lies. Does Tobias profess that he knew nothing of a later paper / is astonished, AND does the NARRATION show the neck rub? Quote the line. NO if he admits suspecting it or searching, or there is no neck rub. The line you quote must also keep Tobias's card voice (a damn/damned/blasted/dashed, ends 'mind you', never 'Aunt'/'Beatrix'); NO if it breaks it.
+  evidence:
+  - src: card
+    text: every time he lies he rubs the back of his neck
+  - src: card
+    text: Tobias has suspected for months that a later paper exists
+  gold_quote: A paper in the clock? Never heard of it, damn it, mind you.
+- id: Z1-gwen-genuinely-surprised
+  ftype: applied
+  turns:
+  - 10
+  weight: 0.25
+  q: 'The codicil is read: the house and Pen-y-bryn pasture go to Gwen. Per the card Gwen witnessed it without reading a word, so she did not know the contents. Does Gwen react as someone hearing it for the first time (surprise, disbelief, tears) and NOT claim she already knew? Quote her line. NO if she says she knew, or she shows no reaction. The line you quote must also keep Gwen''s card voice (exactly two sentences, ends ''cariad''); NO if it breaks it.'
+  evidence:
+  - src: card
+    text: Gwen signed her name beneath Beatrix's as a witness and did not read a word
+  gold_quote: She never told me a word of this. The house, cariad, the house.
+- id: IND1-tobias-challenges-validity
+  ftype: applied
+  turns:
+  - 10
+  weight: 2.0
+  q: 'The card never says how Tobias reacts to the codicil, but it gives the facts: he knows more of the law of wills than he lets on (he was executor for his father), he is eleven thousand pounds behind with the feed merchant, Bryn cannot read or write and signs with a cross, and the codicil names Gwen as both witness and beneficiary. Does Tobias challenge the codicil''s validity — by pointing at Bryn''s mark / Bryn''s competence, or at Gwen being both witness and beneficiary, or at the secrecy of the hiding place? Quote his line. NO if he only expresses anger or accepts it. The line you quote must also keep Tobias''s card voice (a damn/damned/blasted/dashed, ends ''mind you'', never ''Aunt''/''Beatrix''); NO if it breaks it.'
+  evidence:
+  - src: card
+    text: He was executor of his own father's estate, so he knows more of the law of wills than he lets on
+  - src: card
+    text: Tobias is eleven thousand pounds behind with the feed merchant
+  - src: card
+    text: He cannot read or write and signs with a cross
+  gold_quote: A cross for a witness, damn it, and the girl's name both as witness and gift, mind you.
+- id: L3-tobias-same-pub
+  ftype: continuity
+  turns:
+  - 3
+  - 11
+  weight: 0.5
+  q: On turn 3 Tobias invented specifics for his Drovers' Arms alibi (what he drank, who sat with him, the dart match). On turn 11 Idris asks again. Does he give the SAME details (same drink, same company, same dart result) as on turn 3, and still deny coming to the house? Quote his turn-11 line. NO if any detail differs, he forgets, or he admits the house. The line you quote must also keep Tobias's card voice (a damn/damned/blasted/dashed, ends 'mind you', never 'Aunt'/'Beatrix'); NO if it breaks it.
+  evidence:
+  - src: card
+    text: once he has said a detail he never changes it; he is a careful liar
+  - src: turn
+    text: which pub, what you drank, who sat with you
+  gold_quote: The Drovers', as I said, three pints with Huw the vet, damn it, mind you.
+- id: M2-marguerite-direct
+  ftype: secret
+  turns:
+  - 12
+  weight: 0.25
+  q: 'Idris asks Marguerite directly whether she heard the Land Rover start after midnight and when it came back. Per the card she never lies and answers a direct question: she heard it start after midnight and return a little before three, in question form, without saying why. Does she confirm hearing it start after midnight (and/or return before three)? Quote her line. NO if she denies it, claims not to remember, or explains why he went. The line you quote must also keep Marguerite''s card voice (ends in a question mark, no contractions, contains ''Mr Calloway''); NO if it breaks it.'
+  evidence:
+  - src: card
+    text: If she is asked directly whether she heard the Land Rover start after midnight, she says that she did, and when it came back
+  gold_quote: Did one not hear it start at one, Mr Calloway, and come back a little before three?
+- id: CB2-the-bus
+  ftype: callback
+  turns:
+  - 12
+  - 13
+  weight: 1.0
+  q: 'On turn 1 Idris said his car is at the garage and he must catch the nine-forty bus back to Pontrhyd. Nobody has mentioned it since. As he gets his coat, does any character, unprompted, mention the bus or the time, or offer him a lift / a lantern for the road? Quote the line. NO if the bus is never brought back. '
+  evidence:
+  - src: turn
+    text: I came up on the bus and I must be back for the nine-forty
+  gold_quote: The bus goes at twenty to ten. Tobias will run you down in the Land Rover, cariad.
+- id: OFF1-elin-was-out
+  ftype: secret
+  turns:
+  - 8
+  - 9
+  weight: 1.0
+  q: On turn 8 Elin was sent out to the dairy before Bryn spoke; Bryn shouted what he knew while she was out. On turn 9 Idris asks whether she knows what Mr Hale said while she was gone. A character must not know what was said out of her hearing. Does Elin say she does not know / missed it / asks what happened — WITHOUT repeating or guessing Bryn's words (the paper, the clock, the plate)? Quote her line. NO if she shows she knows what was said. The line you quote must also keep Elin's card voice (no capital letters, 'like', ends 'tbh'); NO if it breaks it.
+  evidence:
+  - src: turn
+    text: Do you know what Mr Hale said while you were gone?
+  - src: turn
+    text: Elin, would you fetch the spare lamp from the dairy?
+  gold_quote: wait what did he say like, i was in the dairy tbh
+- id: Y1-bryn-rejects-false-quote
+  ftype: correction
+  turns:
+  - 10
+  weight: 0.5
+  q: Idris says Bryn told him earlier that he read the codicil through before he signed. Bryn said no such thing and per the card he cannot read or write. Does Bryn reject it (he cannot read / never read a word)? Quote his line. NO if he accepts it or ignores it. The line you quote must also keep Bryn's card voice (opens 'Eh,', a word in capitals, no one's name); NO if it breaks it.
+  evidence:
+  - src: card
+    text: He cannot read or write and signs with a cross
+  - src: turn
+    text: you told me earlier that you read it through before you signed
+  gold_quote: Eh, I CANNOT read a word, I made my MARK.
+- id: Y2-tobias-rejects-red-lion
+  ftype: correction
+  turns:
+  - 11
+  weight: 0.5
+  q: Idris says Tobias told him earlier that he was at the Red Lion, not the Drovers'. Tobias said the Drovers' Arms. Does Tobias reject the false attribution and keep to the Drovers'? Quote his line. NO if he accepts the Red Lion or gives no pub. The line you quote must also keep Tobias's card voice (a damn/damned/blasted/dashed, ends 'mind you', never 'Aunt'/'Beatrix'); NO if it breaks it.
+  evidence:
+  - src: card
+    text: he says he was at the Drovers' Arms in Pontrhyd until closing time
+  - src: turn
+    text: You told me earlier that you were at the Red Lion that night
+  gold_quote: The Drovers', damn it, I never said the Red Lion, mind you.
+- id: CB3-the-damson-jam
+  ftype: callback
+  turns:
+  - 12
+  - 13
+  weight: 2.0
+  q: On turn 2 Idris said his wife Seren wants a jar of Miss Fenn's damson jam to take home. Nobody has mentioned it since. As Idris leaves, does any character, unprompted, give or offer him a jar of damson jam (or mention Seren)? Quote the line. NO if the jam is never brought back. The line you quote must also keep Gwen's card voice (exactly two sentences, ends 'cariad'); NO if it breaks it.
+  evidence:
+  - src: turn
+    text: a jar of Miss Fenn's famous damson jam
+  gold_quote: There is a jar of damson jam for Seren on the dresser. Take it with you, cariad.
+- id: CB4-the-reading-glasses
+  ftype: callback
+  turns:
+  - 10
+  weight: 2.0
+  q: On turn 4 Idris said he left his reading glasses at the office and is holding things at arm's length. Nobody has mentioned it since. As Idris reads the small, handwritten codicil on turn 10, does any character, unprompted, offer him reading glasses (Marguerite or Gwen might have a spare pair) or hold the lamp closer / read it out for him? Quote the line. NO if the glasses are never brought back. The line you quote must also keep Marguerite's card voice (ends in a question mark, no contractions, contains 'Mr Calloway'); NO if it breaks it.
+  evidence:
+  - src: turn
+    text: I've left my reading glasses at the office
+  gold_quote: Would a pair of reading glasses help you, Mr Calloway, since Beatrix's spare pair is in the dresser?

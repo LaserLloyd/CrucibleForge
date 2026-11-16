@@ -1,0 +1,62 @@
+{
+ "source": "45/labels-sfw-adjudicated.json (adjudicator minimax; Grok labels where present), the four rows on CC4",
+ "note": "labels are on edited trimmed-4.5 transcripts; they are kept here as the calibration verdicts for the CC4 elements named below",
+ "rows": [
+  {
+   "id": "R4S-04",
+   "case_id": "CC4-second-pitch",
+   "model_label": "grok-4-6",
+   "edit_type": "contradicted_detail",
+   "target_element_45": "C2-nain-in-porthmadog",
+   "decoy": false,
+   "grok_verdict": null,
+   "minimax_verdict": "NO",
+   "final_verdict": "NO",
+   "pass": false,
+   "source": "minimax",
+   "reason": "MiniMax label (no Grok label - grok-base row): edited turn 2 says \"Your nain is in Bangor, so Sunday lunch is an easy hop from the station\", so she goes along with Bangor and never says Porthmadog."
+  },
+  {
+   "id": "R4S-05",
+   "case_id": "CC4-second-pitch",
+   "model_label": "grok-4-6",
+   "edit_type": "fact_swap",
+   "target_element_45": "P1-priya-pushback",
+   "decoy": false,
+   "grok_verdict": null,
+   "minimax_verdict": "NO",
+   "final_verdict": "NO",
+   "pass": false,
+   "source": "minimax",
+   "reason": "MiniMax label (no Grok label - grok-base row): \"and Priya has never led a multi-pitch\" is the reason the element expressly rejects (the card fact is: never on real rock / outside)."
+  },
+  {
+   "id": "R4S-06",
+   "case_id": "CC4-second-pitch",
+   "model_label": "grok-4-6",
+   "edit_type": "ooc_line",
+   "target_element_45": "P1-priya-pushback",
+   "decoy": false,
+   "grok_verdict": null,
+   "minimax_verdict": "NO",
+   "final_verdict": "NO",
+   "pass": false,
+   "source": "minimax",
+   "reason": "MiniMax label (no Grok label - grok-base row): the appended \"(OOC: sorry, quick check before I go on ...)\" is commentary about the conversation itself, so the reply is not played in character and the graded turn’s items fail the chat_deep IN_CHARACTER gate."
+  },
+  {
+   "id": "R4S-20",
+   "case_id": "CC4-second-pitch",
+   "model_label": "grok-4-6",
+   "edit_type": "decoy_paraphrase",
+   "target_element_45": "J2a-jet-lag",
+   "decoy": true,
+   "grok_verdict": null,
+   "minimax_verdict": "YES",
+   "final_verdict": "YES",
+   "pass": true,
+   "source": "minimax",
+   "reason": "MiniMax label (no Grok label - grok-base row): decoy - turn 5 is untouched (\"if you land at seven from Vancouver and do not sleep, you do not go\"); only \"Sleep is kit.\" -> \"Sleep is part of your kit.\" changed, so J2a-jet-lag stays YES."
+  }
+ ]
+}

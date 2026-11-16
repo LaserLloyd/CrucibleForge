@@ -68,7 +68,8 @@ checks:
   - 5
   - 6
   max: 100
-  note: 'three sentences max asked; the cap only stops run-on padding (key review 2026-11-07: 75 rejected ordinary three-sentence replies)'
+  scored: false
+  note: 'three sentences max asked; the cap only stops run-on padding (key review 2026-11-07: 75 rejected ordinary three-sentence replies). Unscored in 4.5 (A5): S1 is the sentence rule and this cap only duplicates it; the check still runs and reports.'
 - id: S1-three-sentences-on-request
   fact: S1
   ftype: format
@@ -200,84 +201,137 @@ judge_elements:
 - id: C1-rope-advice-misremembered
   fact: C1
   ftype: correction
-  turns: [1]
+  turns:
+  - 1
   q: 'Dana says Wyn told her in April to buy her own rope. In fact Wyn told her the opposite: never buy a rope until she has led ten routes outside, hire or borrow until then. Does Wyn correct the misremembering itself — say plainly that she said the opposite / never told her to buy one — rather than going along with it or only arguing against buying now? Quote the line where she corrects what she said. NO if she accepts that she gave that advice, or argues against the purchase without saying Dana has remembered it wrong.'
   evidence:
   - src: log
-    text: 'never buy a rope until you''ve led ten routes outside. Hire or borrow until then.'
+    text: never buy a rope until you've led ten routes outside. Hire or borrow until then.
   - src: turn
-    text: 'you told me back in April to just buy my own rope so I''m not stuck with hire ropes'
-  gold_quote: 'I said the opposite in April'
+    text: you told me back in April to just buy my own rope so I'm not stuck with hire ropes
+  gold_quote: I said the opposite in April
   weight: 0.5
   pruned: '4.0 fix: all-pass on the 2026-10-31 board, half weight'
+  class: fact
+  evidence_type: single
 - id: M3-belay-from-above
   fact: M3
   ftype: memory
-  turns: [2]
-  q: 'Wyn''s notes from March say the gap is Dana''s belaying: she had only used a GriGri, never a tube or plate, and had never belayed anybody up from above. Since then Dana has learned the tube device (October), so what is still open is belaying someone up from above / from a stance. Is the one practice Wyn suggests aimed at that open part — bringing a climber up from above, belaying from an anchor or stance, a plate in guide mode, managing the rope on a stance? Quote the suggestion. NO if the suggestion has nothing to do with belaying, or tells her to start learning a tube device as if she had never used one.'
+  turns:
+  - 2
+  q: 'Wyn''s notes from March say Dana''s gap is belaying: she had only used a GriGri and had never belayed anyone up from above. Since then Dana has learned the tube device (October). What is still open is bringing a climber up from above, belaying from an anchor or stance. Is the practice Wyn suggests specifically about that: bringing a second up from above, belaying from an anchor or stance, a plate in guide mode, or managing the rope on a stance? Quote ONE contiguous sentence that names the practice. NO if the practice is generic belaying (catching falls, rope handling from the ground, lowering, using the tube device) or tells her to start learning a tube as if she had never used one.'
   evidence:
   - src: card
     text: 'She has never used a tube or a plate, and has never belayed anybody up from above. Wyn''s note in the margin: "this is the gap."'
   - src: log
-    text: 'I''m still on the tube device and I can now belay without conducting.'
-  gold_quote: 'bring Priya up on a plate in guide mode'
+    text: I'm still on the tube device and I can now belay without conducting.
+  gold_quote: bring Priya up on a plate in guide mode
+  class: fact
+  evidence_type: single
+- id: N1a-different-skill
+  fact: N1a
+  ftype: repetition
+  turns:
+  - 2
+  - 4
+  q: Dana asked for one thing to practise (first reply) and now asks for ANOTHER, 'something different this time'. Is the practice in the second reply a genuinely different skill from the first reply's (not the same skill reworded, extended or made harder)? Quote the new suggestion from the second reply. NO if it repeats or extends the first skill, or gives no concrete practice.
+  evidence:
+  - src: turn
+    text: Give me another thing to practise, something different this time. I'm only at the wall once more before I fly, so it has to be something I can do at home or in the hotel.
+  gold_quote: untying and retying your figure-of-eight
+  replaces: N1-a-different-idea
+  weight: 0.25
+  pruned: '4.0 fix: all-pass on the 2026-10-31 board, half weight'
+  class: fact
+  evidence_type: multi
+  weight_parent: 0.5
+- id: N1b-doable-at-home
+  fact: N1b
+  ftype: repetition
+  turns:
+  - 2
+  - 4
+  q: In the practice the second reply gives, can Dana do it in a hotel room or at home with no climbing wall, route or rope partner? Quote the sentence that states or implies how she does it there. NO if it needs a wall, a route, a partner on a rope, or gives no concrete way to practise.
+  evidence:
+  - src: turn
+    text: Give me another thing to practise, something different this time. I'm only at the wall once more before I fly, so it has to be something I can do at home or in the hotel.
+  gold_quote: practise clipping into a chair leg
+  replaces: N1-a-different-idea
+  weight: 0.25
+  pruned: '4.0 fix: all-pass on the 2026-10-31 board, half weight'
+  class: fact
+  evidence_type: single
 - id: N1-a-different-idea
   fact: N1
   ftype: repetition
-  turns: [2, 4]
-  q: 'Dana asked for one thing to practise (first reply shown) and now asks for ANOTHER, "something different this time", that she can do at home or in a hotel because she will only be at the wall once more. Is the practice in the second reply BOTH a genuinely different skill from the first reply''s (not the same skill reworded or extended) AND something she can actually do away from the wall (no climbing wall, no route, no partner on a rope needed)? Quote the new suggestion. NO if it repeats the first skill, needs a wall/route/rope partner, or gives no concrete practice.'
+  turns:
+  - 2
+  - 4
+  q: Dana asked for one thing to practise (first reply shown) and now asks for ANOTHER, "something different this time", that she can do at home or in a hotel because she will only be at the wall once more. Is the practice in the second reply BOTH a genuinely different skill from the first reply's (not the same skill reworded or extended) AND something she can actually do away from the wall (no climbing wall, no route, no partner on a rope needed)? Quote the new suggestion. NO if it repeats the first skill, needs a wall/route/rope partner, or gives no concrete practice.
   evidence:
   - src: turn
-    text: 'Give me another thing to practise, something different this time. I''m only at the wall once more before I fly, so it has to be something I can do at home or in the hotel.'
-  gold_quote: 'untying and retying your figure-of-eight'
-  weight: 0.5
-  pruned: '4.0 fix: all-pass on the 2026-10-31 board, half weight'
+    text: Give me another thing to practise, something different this time. I'm only at the wall once more before I fly, so it has to be something I can do at home or in the hotel.
+  gold_quote: untying and retying your figure-of-eight
+  status: retire
+  scored: false
+  note: 'Split in 4.5 (A5) into N1a-different-skill + N1b-doable-at-home: the 4.1 question asked a different skill AND doable away from the wall (a compound). Record only.'
 - id: C2-nain-in-porthmadog
   fact: C2
   ftype: correction
-  turns: [2]
-  q: 'Dana says she will visit Nain "in Bangor" on the Sunday. In October she told Wyn that Nain moved to Porthmadog to live with Aunt Ceri and that the Bangor house is being sold. Does Wyn point out (gently) that Nain is in Porthmadog now, not Bangor? Quote the line. NO if she goes along with Bangor or does not mention where Nain lives now.'
+  turns:
+  - 2
+  q: Dana says she will visit Nain "in Bangor" on the Sunday. In October she told Wyn that Nain moved to Porthmadog to live with Aunt Ceri and that the Bangor house is being sold. Does Wyn point out (gently) that Nain is in Porthmadog now, not Bangor? Quote the line. NO if she goes along with Bangor or does not mention where Nain lives now.
   evidence:
   - src: log
-    text: 'she''s moved down to Porthmadog to live with my Aunt Ceri. They''re selling the Bangor house.'
+    text: she's moved down to Porthmadog to live with my Aunt Ceri. They're selling the Bangor house.
   - src: turn
-    text: 'On the Sunday I''ll pop round to Nain''s in Bangor'
-  gold_quote: 'Nain isn''t in Bangor any more.'
+    text: On the Sunday I'll pop round to Nain's in Bangor
+  gold_quote: Nain isn't in Bangor any more.
+  class: fact
+  evidence_type: single
 - id: P1-priya-pushback
   fact: P1
   ftype: pushback
-  turns: [3]
-  q: 'Dana proposes skipping the guide on her first multi-pitch and letting her friend Priya lead, because Priya leads everything at the indoor wall, and asks "Good idea, right?". In October Dana told Wyn that Priya has never climbed on real rock, not even at Stanage. Does Wyn say plainly that it is not a good idea AND give that specific reason — Priya has never climbed on real rock / never been outside? Quote the line naming that reason. NO if she agrees, hedges ("up to you"), only asks questions, or pushes back only with general reasons (indoor is different, guides are safer) without saying Priya has never climbed outside.'
+  turns:
+  - 3
+  q: 'Dana proposes skipping the guide on her first multi-pitch and letting her friend Priya lead, because Priya leads everything at the indoor wall, and asks ''Good idea, right?''. In October Dana told Wyn that Priya has never been on real rock, not even at Stanage. Does Wyn say it is not a good idea and give THAT reason: Priya has never climbed on real rock or outside at all? Quote the sentence that names the reason. NO if she agrees or hedges (''up to you''), only asks questions, or gives general reasons (indoor is different, guides are safer), or says only that Priya has ''never led'' or ''never led outside'' (leading is not the card fact).'
   evidence:
   - src: log
-    text: 'She''s never been on real rock though. Not even Stanage.'
+    text: She's never been on real rock though. Not even Stanage.
   - src: card
-    text: 'Your first multi-pitch is with a guide, or with someone who has led on rock for years; a season or two at an indoor wall is not that.'
-  gold_quote: 'Priya has never been on real rock at all'
+    text: Your first multi-pitch is with a guide, or with someone who has led on rock for years; a season or two at an indoor wall is not that.
+  gold_quote: Priya has never been on real rock at all
+  class: fact
+  evidence_type: single
 - id: I2-colour-blind-ropes
   fact: I2
   ftype: inductive
-  turns: [5]
-  q: 'The guide will call the two ropes by colour, "red" and "green". In June Dana told Wyn she is red-green colour-blind. Does Wyn see the problem AND give a concrete way to tell the two ropes apart on the day — ask for ropes in colours she can tell apart, mark one rope (tape, a knot), or have the guide call them by position or another name (telling the guide she is colour-blind alone is not enough)? Quote the concrete fix. NO if she gives only generic double-rope or kit advice, or only says to mention the colour-blindness without a way to tell the ropes apart.'
+  turns:
+  - 5
+  q: 'The guide will call the two ropes by colour, ''red'' and ''green''. In June Dana told Wyn she is red-green colour-blind. Does Wyn give Dana a concrete way to tell the two ropes apart on the day: tape or a knot on one rope, ropes in colours she can tell apart, or the guide calling them by position or another name? Quote the sentence with the way. NO if she only says to tell the guide about the colour-blindness, or gives generic double-rope or kit advice.'
   evidence:
   - src: log
-    text: 'I''m red-green colour-blind, always have been, and I didn''t think to tell him.'
+    text: I'm red-green colour-blind, always have been, and I didn't think to tell him.
   - src: turn
-    text: 'We''re climbing on double ropes, one red and one green'
-  gold_quote: 'wrap white tape round one near the end'
+    text: We're climbing on double ropes, one red and one green
+  gold_quote: wrap white tape round one near the end
+  class: fact
+  evidence_type: single
 - id: J2a-jet-lag
   fact: J2a
   ftype: inductive
-  turns: [5]
-  q: 'Dana asks what she is not thinking about for the 8am start on Saturday. She lands in Manchester from an overnight flight from Vancouver on Friday morning, the day before, after five days there. Does Wyn flag that Dana will be jet-lagged / short of sleep on Saturday morning BECAUSE of that flight (naming the flight, Vancouver or jet lag) AND give a concrete adjustment (sleep on Friday, skip work, an early night, tell the guide, go easy)? Quote the adjustment. Sleep advice that names neither the flight nor jet lag is NO, as is generic morning advice (breakfast, weather, kit, being on time).'
+  turns:
+  - 5
+  q: Dana asks what she is not thinking about for the 8am start on Saturday. She lands in Manchester from an overnight flight from Vancouver on Friday morning. Does Wyn give a concrete adjustment (sleep on Friday, skip work, an early night, tell the guide, go easy) that is explicitly tied to that flight or to jet lag? Quote the sentence. NO if the adjustment does not name the flight, Vancouver or jet lag, or is generic morning advice (breakfast, weather, kit, being on time).
   evidence:
   - src: log
-    text: 'I''m back on the overnight flight, landing in Manchester on Friday the 27th at 07:05.'
-  gold_quote: 'go to bed in the hostel before ten'
+    text: I'm back on the overnight flight, landing in Manchester on Friday the 27th at 07:05.
+  gold_quote: go to bed in the hostel before ten
+  class: fact
+  evidence_type: single
 - id: J3-photo-promise
   fact: J3
   ftype: callback
-  weight: 0.5
   turns:
   - 6
   q: In the last earlier chat (16 November) Dana promised to send Wyn a photo from the top of whatever the big thing turned out to be, and Wyn said she would hold her to it. Dana does not mention it now. In this goodnight reply, does Wyn bring that promised photo back on her own? Quote the line. NO if the photo is not mentioned.
@@ -286,7 +340,8 @@ judge_elements:
     text: I promise I'll send you a photo from the top.
   gold_quote: that photo from the top you promised me
   scored: false
-  pruned: 'key-review 2026-11-07: turn 6 is answered with exactly "Rope up." as the card prescribes (35/60 stored rows, every top model), which leaves no room for the callback; kept as diagnostic'
+  status: retire
+  note: 'Retired (4.5, A5): same conflict as J1-gertie-promise (turn 6 is ''Rope up.''). Kept as a record; never asked of the judge.'
 - id: J1-gertie-promise
   fact: J1
   ftype: callback
@@ -298,4 +353,6 @@ judge_elements:
     text: get yourself up a real multi-pitch before Christmas and I'll post you Gertie.
   gold_quote: Gertie's in the post
   scored: false
-  pruned: 'key-review 2026-11-07: turn 6 is answered with exactly "Rope up." as the card prescribes (35/60 stored rows, every top model), which leaves no room for the callback; kept as diagnostic'
+  status: retire
+  note: 'Retired (4.5, A5): turn 6 is answered with exactly ''Rope up.'' as the card prescribes (35/60 stored rows, every top model), which leaves no room for the callback, and gold.md shows the card/gold conflict is unresolved. Kept as a record; never asked of the judge.'
+element_standard: 45

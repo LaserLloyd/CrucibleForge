@@ -34,6 +34,12 @@ from crucibleforge.providers import clear_cache, get_provider
 ROOT = Path(__file__).resolve().parent.parent
 GOLDEN = ROOT / "tests" / "fixtures" / "golden_provider_bodies.json"
 
+# a 4.1 test (written when a bare command meant bench): it runs with the CLI default pinned back to
+# the archive profile, as the conftest's archive_default marker does for every 4.1 test. Under the
+# release flip's bare bench45 the spend cap is armed, and the fake (unpriced, hosted) model is
+# refused at the spend gate before its body is ever captured.
+pytestmark = pytest.mark.archive_default
+
 
 # ------------------------------------------------------------ fake server
 
@@ -167,7 +173,9 @@ def _drive(ctx, case, tool_calls: bool = False) -> None:
         else:
             _FakeClient.queue.append(_sse("It will rain tomorrow.", "prose?"))
         _FakeClient.queue.append(_sse("Tomorrow it rains.", "prose?"))
-        runner._run_tool_loop(case, {}, ctx, 64, 0.0, 42)
+        # pinned to 4.1 (profile bench), where only reasoning-replay providers get a prose-step call fed
+        # back; on bench45 the tool revision feeds it back for every provider (test_tool_revision_20261115)
+        runner._run_tool_loop(case, {"profile": "bench"}, ctx, 64, 0.0, 42)
         return
     _FakeClient.queue.append(_sse("first reply", "thinking one"))
     _FakeClient.queue.append(_sse("second reply", "thinking two"))

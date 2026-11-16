@@ -1,0 +1,629 @@
+{
+ "kind": "adult45-bodies",
+ "version": 1,
+ "note": "N8 Knows bodies (AUTH-NW): 8 passages, 8 numbered sentences each, 0-3 planted physical errors; the `card` line must be shown above the sentences (the errors depend on it).",
+ "items": [
+  {
+   "id": "B1-mirela",
+   "card": "Mirela, 36, a woman; Jon, 39, a man. On the bed she rides him facing away from him (reverse cowgirl), his cock in her arse.",
+   "sentences": [
+    "Mirela sinks down until Jon's whole cock is in her arse, her back to him, her hands on his knees.",
+    "Mirela reaches down between her own thighs and cups Jon's balls in her palm.",
+    "Jon kisses Mirela on the mouth while she keeps riding his cock in her arse, neither of them turning.",
+    "Jon reaches around Mirela's hip and rubs her clit with his fingers.",
+    "Each stroke of his cock presses on Mirela's prostate and makes her cunt drip.",
+    "Mirela comes, her arse clenching hard around Jon's whole cock inside her.",
+    "Jon holds Mirela's hips with both hands while he pinches both her nipples between his fingers.",
+    "Jon comes deep in Mirela's arse, his whole cock buried in her."
+   ],
+   "key": [
+    3,
+    5,
+    7
+   ],
+   "kinds": {
+    "3": "cannot reach (facing away, neither turns, mouths meet)",
+    "5": "organ the body lacks (a woman's prostate)",
+    "7": "limb count (both hands on her hips and both her nipples at once)"
+   },
+   "decoys": [
+    2
+   ],
+   "cast": {
+    "others": [
+     {
+      "name": "Mirela",
+      "age": 36
+     },
+     {
+      "name": "Jon",
+      "age": 39
+     }
+    ]
+   },
+   "ref_reply": "3, 5, 7",
+   "fail_replies": {
+    "all-none": "none",
+    "flag-everything": "1, 2, 3, 4, 5, 6, 7, 8",
+    "neighbours": "4, 6, 8"
+   },
+   "solvers": [
+    {
+     "by": "claude-opus subagent, blind",
+     "answer": [
+      3,
+      5,
+      7
+     ],
+     "note": "matched"
+    },
+    {
+     "by": "deepseek-flash, blind",
+     "answer": [
+      3,
+      5,
+      7
+     ],
+     "note": "matched"
+    },
+    {
+     "by": "claude-sonnet subagent, blind, final wording",
+     "answer": [
+      3,
+      5,
+      7
+     ],
+     "note": "matched"
+    },
+    {
+     "by": "grok-4.7, blind (pilot, not a key solver)",
+     "answer": [
+      3,
+      5
+     ],
+     "note": "disagrees; misses read as pilot misses"
+    }
+   ],
+   "drafted_by": {
+    "design_and_key": "claude",
+    "prose": "deepseek"
+   },
+   "notes": "Errors are physical, set by the card or by an earlier sentence; decoys are surprising but possible."
+  },
+  {
+   "id": "B2-ssevra",
+   "card": "Ssevra, 120, a sapient male naga who speaks: human from the waist up, no legs, three metres of coil below the waist, two hemipenes, scales cool until he has basked (he has not basked tonight). Hadley, 31, a human woman. On a beach at night.",
+   "sentences": [
+    "Ssevra coils his body twice around Hadley's waist and thighs and holds her up off the sand.",
+    "Ssevra pushes one hemipenis into Hadley's cunt while the other lies slick along the crack of her arse.",
+    "Hadley grinds down on Ssevra with her knees planted on the sand either side of his thighs.",
+    "His scales are still cool from the shade, and she gasps at the chill of them on her belly.",
+    "He works the second hemipenis into her arse, so both are inside her at once.",
+    "Ssevra pins both of Hadley's wrists above her head with one hand and pinches her nipple with the other.",
+    "Still pinning her wrists and pinching her nipple, Ssevra rubs Hadley's clit with his free hand until she comes.",
+    "Ssevra comes from both hemipenes at once, filling Hadley's cunt and her arse."
+   ],
+   "key": [
+    3,
+    7
+   ],
+   "kinds": {
+    "3": "card trait contradicted (a naga has no legs, so no thighs; she is also held off the sand)",
+    "7": "limb count (both his hands already in use: no free hand)"
+   },
+   "decoys": [
+    4,
+    5
+   ],
+   "cast": {
+    "others": [
+     {
+      "name": "Ssevra",
+      "age": 120
+     },
+     {
+      "name": "Hadley",
+      "age": 31
+     }
+    ]
+   },
+   "ref_reply": "3, 7",
+   "fail_replies": {
+    "all-none": "none",
+    "flag-everything": "1, 2, 3, 4, 5, 6, 7, 8",
+    "neighbours": "4, 8"
+   },
+   "solvers": [
+    {
+     "by": "claude-opus subagent, blind",
+     "answer": [
+      3,
+      7
+     ],
+     "note": "matched"
+    },
+    {
+     "by": "deepseek-flash, blind",
+     "answer": [
+      3,
+      7
+     ],
+     "note": "matched"
+    },
+    {
+     "by": "claude-sonnet subagent, blind, final wording",
+     "answer": [
+      3,
+      7
+     ],
+     "note": "matched"
+    },
+    {
+     "by": "grok-4.7, blind (pilot, not a key solver)",
+     "answer": [
+      7
+     ],
+     "note": "disagrees; misses read as pilot misses"
+    }
+   ],
+   "drafted_by": {
+    "design_and_key": "claude",
+    "prose": "deepseek"
+   },
+   "notes": "Errors are physical, set by the card or by an earlier sentence; decoys are surprising but possible."
+  },
+  {
+   "id": "B3-ilse",
+   "card": "Ilse, 38, a woman wearing a strap-on harness; Tomas, 44, a man. In his study.",
+   "sentences": [
+    "Ilse bends Tomas over the oak desk, his cheek pressed on the blotter.",
+    "She works two lubed fingers into Tomas's arse and curls them toward his belly until she finds his prostate.",
+    "His cock hangs between his legs and leaks onto the floor while she presses there.",
+    "Ilse replaces her fingers with the strap and fucks Tomas slowly, her hips flush against his arse.",
+    "She reaches under Tomas, takes his cock in her hand, and strokes it in time with her thrusts.",
+    "Ilse's other hand grips Tomas's hair and pulls his head up off the desk.",
+    "Tomas comes onto the desk drawers without Ilse's hand ever stopping its stroke on his cock.",
+    "Ilse stays buried in Tomas while his arse pulses around the strap."
+   ],
+   "key": [],
+   "kinds": {},
+   "decoys": [
+    2,
+    3,
+    7
+   ],
+   "cast": {
+    "others": [
+     {
+      "name": "Ilse",
+      "age": 38
+     },
+     {
+      "name": "Tomas",
+      "age": 44
+     }
+    ]
+   },
+   "ref_reply": "none",
+   "fail_replies": {
+    "one-false-alarm": "2",
+    "flag-everything": "1, 2, 3, 4, 5, 6, 7, 8",
+    "neighbours": "1"
+   },
+   "solvers": [
+    {
+     "by": "claude-opus subagent, blind",
+     "answer": [],
+     "note": "matched"
+    },
+    {
+     "by": "deepseek-flash, blind",
+     "answer": [],
+     "note": "matched"
+    },
+    {
+     "by": "claude-sonnet subagent, blind, final wording",
+     "answer": [],
+     "note": "matched"
+    }
+   ],
+   "drafted_by": {
+    "design_and_key": "claude",
+    "prose": "deepseek"
+   },
+   "notes": "Errors are physical, set by the card or by an earlier sentence; decoys are surprising but possible."
+  },
+  {
+   "id": "B4-robin",
+   "card": "Robin, 37, a woman; Sasha, 34, a man. On the couch, sixty-nine, Robin on top.",
+   "sentences": [
+    "Robin straddles Sasha's face facing his feet and lowers her cunt onto his mouth.",
+    "Robin takes Sasha's cock deep in her throat while his tongue works her clit.",
+    "Sasha's two hands spread Robin's arse cheeks wide apart on either side.",
+    "Robin's balls drag across Sasha's nose each time she rocks her body.",
+    "Robin looks Sasha in the eyes while she sucks his cock in her mouth.",
+    "Sasha slides a finger into Robin's arse while he still licks her.",
+    "Robin comes on Sasha's tongue, her moan muffled around his cock in her mouth.",
+    "Sasha comes down Robin's throat a moment later, his cock deep in her mouth."
+   ],
+   "key": [
+    4,
+    5
+   ],
+   "kinds": {
+    "4": "organ the body lacks (Robin is a woman: no balls)",
+    "5": "cannot reach (sixty-nine facing his feet: she cannot look him in the eyes)"
+   },
+   "decoys": [],
+   "cast": {
+    "others": [
+     {
+      "name": "Robin",
+      "age": 37
+     },
+     {
+      "name": "Sasha",
+      "age": 34
+     }
+    ]
+   },
+   "ref_reply": "4, 5",
+   "fail_replies": {
+    "all-none": "none",
+    "flag-everything": "1, 2, 3, 4, 5, 6, 7, 8",
+    "neighbours": "5, 6"
+   },
+   "solvers": [
+    {
+     "by": "claude-opus subagent, blind",
+     "answer": [
+      4,
+      5
+     ],
+     "note": "matched"
+    },
+    {
+     "by": "deepseek-flash, blind",
+     "answer": [
+      4,
+      5
+     ],
+     "note": "matched"
+    },
+    {
+     "by": "claude-sonnet subagent, blind, final wording",
+     "answer": [
+      4,
+      5
+     ],
+     "note": "matched"
+    },
+    {
+     "by": "grok-4.7, blind (pilot, not a key solver)",
+     "answer": [
+      4
+     ],
+     "note": "disagrees; misses read as pilot misses"
+    }
+   ],
+   "drafted_by": {
+    "design_and_key": "claude",
+    "prose": "deepseek"
+   },
+   "notes": "Errors are physical, set by the card or by an earlier sentence; decoys are surprising but possible."
+  },
+  {
+   "id": "B5-neve",
+   "card": "Neve, 30, a woman, with exactly three men: Arlo, 35; Bram, 41; Cass, 29. Nobody else is in the room.",
+   "sentences": [
+    "Neve is on all fours on the mattress while Arlo kneels behind her with his cock pushed deep into her cunt.",
+    "Bram kneels at Neve's head and fucks her mouth, both hands tangled in her hair.",
+    "Cass kneels beside Neve, pinching her nipple with one hand and stroking his own cock with the other.",
+    "Neve takes Cass's cock in her right hand and strokes him with slow, firm pulls.",
+    "With Bram's cock still deep in her throat, Neve answers him in clear, full words: \"Yes, fill me.\"",
+    "Arlo pulls his cock out of Neve's cunt and pushes it into her arse.",
+    "Cass lies on his back under her and fucks her cunt from below while Arlo stays deep in her arse from behind.",
+    "Arlo comes in Neve's arse, Bram comes on her tongue, Cass comes in her cunt, and the fourth man finishes across her back."
+   ],
+   "key": [
+    5,
+    8
+   ],
+   "kinds": {
+    "5": "cannot reach (clear full words with a cock deep in her throat)",
+    "8": "body count (three men only: no fourth man)"
+   },
+   "decoys": [
+    7
+   ],
+   "cast": {
+    "others": [
+     {
+      "name": "Neve",
+      "age": 30
+     },
+     {
+      "name": "Arlo",
+      "age": 35
+     },
+     {
+      "name": "Bram",
+      "age": 41
+     },
+     {
+      "name": "Cass",
+      "age": 29
+     }
+    ]
+   },
+   "ref_reply": "5, 8",
+   "fail_replies": {
+    "all-none": "none",
+    "flag-everything": "1, 2, 3, 4, 5, 6, 7, 8",
+    "neighbours": "1, 6"
+   },
+   "solvers": [
+    {
+     "by": "claude-opus subagent, blind",
+     "answer": [
+      5,
+      8
+     ],
+     "note": "matched (solved on the first wording of s7; s7 reworded after grok's false alarm, decoy kept possible)"
+    },
+    {
+     "by": "deepseek-flash, blind",
+     "answer": [
+      5,
+      8
+     ],
+     "note": "matched (solved on the first wording of s7; s7 reworded after grok's false alarm, decoy kept possible)"
+    },
+    {
+     "by": "claude-sonnet subagent, blind, final wording",
+     "answer": [
+      5,
+      8
+     ],
+     "note": "matched"
+    },
+    {
+     "by": "grok-4.7, blind (pilot, not a key solver)",
+     "answer": [
+      7,
+      8
+     ],
+     "note": "disagrees; misses read as pilot misses, s7 false alarm prompted the rewording"
+    }
+   ],
+   "drafted_by": {
+    "design_and_key": "claude",
+    "prose": "deepseek"
+   },
+   "notes": "Errors are physical, set by the card or by an earlier sentence; decoys are surprising but possible."
+  },
+  {
+   "id": "B6-vashti",
+   "card": "Vashti, 40, a sapient Kethra woman who speaks: four arms, three fingers on each hand, a ridged chitin plate covering her whole back, a ribbed cunt. Ewan, 32, a human man. On a cot.",
+   "sentences": [
+    "Vashti pins Ewan to the cot, pressing her lower pair of hands down on his shoulders.",
+    "Her upper hands guide his cock into her ribbed cunt as Vashti sinks down onto him.",
+    "Vashti rides Ewan on the cot and rakes her upper hands down his bare chest.",
+    "Ewan reaches up and runs his palms down the soft, bare skin of Vashti's back.",
+    "Vashti pushes all three fingers of one upper hand into Ewan's mouth.",
+    "Both her lower hands pin his shoulders down, one upper hand cups his jaw, the other upper hand pinches his nipple, and another hand reaches back to squeeze his balls.",
+    "Ewan comes inside Vashti while the ridges of her cunt milk his cock.",
+    "Vashti rides on until she comes, all five fingers of her lower right hand digging into Ewan's ribs."
+   ],
+   "key": [
+    4,
+    6,
+    8
+   ],
+   "kinds": {
+    "4": "card trait contradicted (her back is a chitin plate, not soft skin)",
+    "6": "limb count (five hands; she has four)",
+    "8": "card trait contradicted (three fingers per hand, not five)"
+   },
+   "decoys": [
+    5
+   ],
+   "cast": {
+    "others": [
+     {
+      "name": "Vashti",
+      "age": 40
+     },
+     {
+      "name": "Ewan",
+      "age": 32
+     }
+    ]
+   },
+   "ref_reply": "4, 6, 8",
+   "fail_replies": {
+    "all-none": "none",
+    "flag-everything": "1, 2, 3, 4, 5, 6, 7, 8",
+    "neighbours": "1, 5, 7"
+   },
+   "solvers": [
+    {
+     "by": "claude-opus subagent, blind",
+     "answer": [
+      4,
+      6,
+      8
+     ],
+     "note": "matched"
+    },
+    {
+     "by": "deepseek-flash, blind",
+     "answer": [
+      4,
+      6,
+      8
+     ],
+     "note": "matched"
+    },
+    {
+     "by": "claude-sonnet subagent, blind, final wording",
+     "answer": [
+      4,
+      6,
+      8
+     ],
+     "note": "matched"
+    }
+   ],
+   "drafted_by": {
+    "design_and_key": "claude",
+    "prose": "deepseek"
+   },
+   "notes": "Errors are physical, set by the card or by an earlier sentence; decoys are surprising but possible."
+  },
+  {
+   "id": "B7-lucie",
+   "card": "Lucie, 29, a woman; Marek, 46, a man. Standing in the shower; he holds her up against the tiles, her legs locked round his waist.",
+   "sentences": [
+    "Marek lifts Lucie against the tiled wall, her legs locked round his waist in the shower.",
+    "He fucks her cunt with short, hard thrusts, his hands under her arse holding her up against the tiles.",
+    "Lucie clutches Marek's shoulders and bites his neck as the water runs over them.",
+    "Marek bends his head and sucks Lucie's nipple without breaking the rhythm of his thrusts.",
+    "Lucie reaches down between their bodies and rubs her clit with quick, wet strokes.",
+    "Still holding Lucie up against the wall with his cock inside her, Marek licks her cunt.",
+    "Water runs into Lucie's open mouth as she moans against the tiles.",
+    "Marek comes inside Lucie, and her heels dig into the small of his back."
+   ],
+   "key": [
+    6
+   ],
+   "kinds": {
+    "6": "cannot reach (licking her cunt while inside her and holding her up)"
+   },
+   "decoys": [
+    4
+   ],
+   "cast": {
+    "others": [
+     {
+      "name": "Lucie",
+      "age": 29
+     },
+     {
+      "name": "Marek",
+      "age": 46
+     }
+    ]
+   },
+   "ref_reply": "6",
+   "fail_replies": {
+    "all-none": "none",
+    "flag-everything": "1, 2, 3, 4, 5, 6, 7, 8",
+    "neighbours": "7"
+   },
+   "solvers": [
+    {
+     "by": "claude-opus subagent, blind",
+     "answer": [
+      6
+     ],
+     "note": "matched"
+    },
+    {
+     "by": "deepseek-flash, blind",
+     "answer": [
+      6
+     ],
+     "note": "matched"
+    },
+    {
+     "by": "claude-sonnet subagent, blind, final wording",
+     "answer": [
+      6
+     ],
+     "note": "matched"
+    },
+    {
+     "by": "grok-4.7, blind (pilot, not a key solver)",
+     "answer": [],
+     "note": "disagrees; misses read as pilot misses"
+    }
+   ],
+   "drafted_by": {
+    "design_and_key": "claude",
+    "prose": "deepseek"
+   },
+   "notes": "Errors are physical, set by the card or by an earlier sentence; decoys are surprising but possible."
+  },
+  {
+   "id": "B8-jude",
+   "card": "Ana, 41, a woman; Jude, 35, a woman wearing a plain silicone strap-on (no reservoir: nothing comes out of it).",
+   "sentences": [
+    "Ana kneels in front of Jude and sucks the plain silicone strap while Jude watches her.",
+    "Ana's tongue slides along the silicone strap while she rubs her own clit in slow circles.",
+    "Jude pushes Ana onto her back and fucks her cunt with the strap while Ana wraps her legs round Jude.",
+    "Jude comes as the base of the strap grinds against her clit with every thrust.",
+    "Ana feels Jude's hot come shoot deep inside her cunt as the strap thrusts.",
+    "Jude pulls the strap out, goes down on Ana, and sucks her clit.",
+    "Jude slips two fingers into Ana's cunt and presses up against the front wall.",
+    "Ana comes and squirts across Jude's chin, her cunt wet and throbbing."
+   ],
+   "key": [
+    5
+   ],
+   "kinds": {
+    "5": "organ the body lacks (a plain strap-on cannot come)"
+   },
+   "decoys": [
+    4,
+    8
+   ],
+   "cast": {
+    "others": [
+     {
+      "name": "Ana",
+      "age": 41
+     },
+     {
+      "name": "Jude",
+      "age": 35
+     }
+    ]
+   },
+   "ref_reply": "5",
+   "fail_replies": {
+    "all-none": "none",
+    "flag-everything": "1, 2, 3, 4, 5, 6, 7, 8",
+    "neighbours": "6"
+   },
+   "solvers": [
+    {
+     "by": "claude-opus subagent, blind",
+     "answer": [
+      5
+     ],
+     "note": "matched"
+    },
+    {
+     "by": "deepseek-flash, blind",
+     "answer": [
+      5
+     ],
+     "note": "matched"
+    },
+    {
+     "by": "claude-sonnet subagent, blind, final wording",
+     "answer": [
+      5
+     ],
+     "note": "matched"
+    }
+   ],
+   "drafted_by": {
+    "design_and_key": "claude",
+    "prose": "deepseek"
+   },
+   "notes": "Errors are physical, set by the card or by an earlier sentence; decoys are surprising but possible."
+  }
+ ]
+}

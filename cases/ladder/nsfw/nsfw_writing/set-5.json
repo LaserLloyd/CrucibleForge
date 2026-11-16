@@ -1,0 +1,9 @@
+{
+  "level": 5,
+  "staged": true,
+  "note": "4.5 generated (Admin N, NEW-B): THEME-W, a 350-500-word explicit passage from a seeded theme card at the drawn theme row (20 coverage rows: vanilla .. hateful villain speech at an invented people) and intensity rung (1 = the row's high rung, 2 = its maximum rung). 8 judge elements (YES/PARTIAL/NO with a quote, 1 judge call) + 8-11 code adherence elements + 5 W-gate guards (weight 0). The rc2 composition sets the run's piece count; per_rung here is the staged default (2 per rung). Structure by Claude, card text drafted by Grok (a Grok-family model is not comparable); see theme-w-bank.json.",
+  "category": "nsfw",
+  "budget": 65536,
+  "allow_long": "single explicit passages of 350-500 words at the 64k budget; one judge call each",
+  "generator": {"family": "theme_w", "rungs": [1, 2], "per_rung": 2}
+}

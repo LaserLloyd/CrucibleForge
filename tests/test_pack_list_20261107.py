@@ -6,6 +6,8 @@ import json
 from pathlib import Path
 from types import SimpleNamespace
 
+import pytest
+
 from crucibleforge import cli, ladder, profiles, report
 from test_points_board_39 import _set_file, _setup
 
@@ -50,6 +52,7 @@ def test_overview_without_board_says_so(tmp_path, monkeypatch):
     assert "board not read" in ladder.render_pack_overview(ov)
 
 
+@pytest.mark.archive_default   # its fixture env has only the 4.1 `bench` profile; a bare command means bench45 since the flip
 def test_cmd_pack_list_json_uses_calibration(tmp_path, monkeypatch, capsys):
     env = _setup(tmp_path, monkeypatch)
     _two_sets(env)
@@ -65,6 +68,7 @@ def test_cmd_pack_list_json_uses_calibration(tmp_path, monkeypatch, capsys):
     assert code["maxed_by"] == ["m1", "m2"] and len(code["sets"]) == 2
 
 
+@pytest.mark.archive_default   # its fixture env has only the 4.1 `bench` profile; a bare command means bench45 since the flip
 def test_cmd_pack_list_reads_report_json_not_calibration(tmp_path, monkeypatch, capsys):
     """The default path reads results/report.json (seconds); calibration() rebuilds every model (minutes)
     and is only the --recompute / no-report fallback."""
@@ -94,6 +98,7 @@ def test_cmd_pack_list_reads_report_json_not_calibration(tmp_path, monkeypatch, 
     assert next(p for p in out["parts"] if p["key"] == "work/code")["maxed_by"] == ["z"]
 
 
+@pytest.mark.archive_default   # its fixture env has only the 4.1 `bench` profile; a bare command means bench45 since the flip
 def test_cmd_pack_list_survives_unreadable_board(tmp_path, monkeypatch, capsys):
     env = _setup(tmp_path, monkeypatch)
     _two_sets(env)
@@ -106,10 +111,12 @@ def test_cmd_pack_list_survives_unreadable_board(tmp_path, monkeypatch, capsys):
 
 
 def test_real_packs_listed_and_guide_linked():
-    """Every shipped public pack appears in the guide and the README points to it."""
+    """Every shipped public 4.1 pack appears in the guide and the README points to it.
+    docs/PACKS.md documents the 4.1 packs (archive/4.1.0); the 4.5 generator packs carry no
+    `cases` list and get their own rows when the 4.5 guide is written."""
     guide = (REPO / "docs" / "PACKS.md").read_text(encoding="utf-8")
     rows = [ln for ln in guide.splitlines() if ln.startswith("| `")]
-    for f in (REPO / "cases" / "ladder").glob("*/*/set-*.json"):
+    for f in (REPO / "archive" / "4.1.0" / "cases" / "ladder").glob("*/*/set-*.json"):
         key = f"{f.parent.parent.name}/{f.parent.name}"
         n_cases = len(json.loads(f.read_text(encoding="utf-8"))["cases"])
         assert any(f"`{key}`" in ln and f"| {f.stem} | {n_cases} |" in ln for ln in rows), f

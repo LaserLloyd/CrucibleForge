@@ -41,6 +41,7 @@ def test_lean_is_centred_on_the_board_median():
     assert profiles.load_profile("bench", None)["headline"]["lean_gap"] == 1.5
 
 
+@pytest.mark.archive_default
 def test_board_shows_class_lean_and_room(tmp_path, monkeypatch):
     env = pb._setup(tmp_path, monkeypatch, pb._work_only)
     st = pb._board(env, {"a": pb._rows(), "b": pb._rows(fail_cases={"TZ06-three-parallel-one-turn"})})
@@ -58,6 +59,7 @@ def test_board_shows_class_lean_and_room(tmp_path, monkeypatch):
 
 # ------------------------------------------------------------ overflow rule
 
+@pytest.mark.archive_default
 def test_a_ran_out_row_never_counts_even_after_its_retry(tmp_path, monkeypatch):
     """4.0: escalation_on_board false — the board keeps the failed run-out row,
     Room carries the retry."""
@@ -140,11 +142,14 @@ def test_measured_speed_uses_the_models_own_rows(tmp_path, monkeypatch):
 
 # ------------------------------------------------------------ pack time rule
 
+@pytest.mark.live_ladder      # reads the live cases/ladder packs (conftest guard)
 def test_pack_verify_warns_over_the_five_minute_limit(tmp_path):
     prof = profiles.load_profile("bench", None)
     long = sorted(ladder.LADDER_DIR.glob("chat/character/set-*.json"))[0]
     _, notes = ladder.verify_pack(long, prof)
     assert any(n.startswith("WARNING: planner estimate") for n in notes)
+    # a pack over the limit is accepted only with a stated ``allow_long`` reason (A7: the two WP-6 NSFW packs
+    # cannot meet 5 min without cutting budgets or judge rows, so they carry one); the note stays "time: ..."
     short = ladder.LADDER_DIR / "nsfw" / "nsfw_writing" / "set-1.json"
     _, notes = ladder.verify_pack(short, prof)
     assert any(n.startswith("time: planner estimate") for n in notes)
@@ -153,6 +158,7 @@ def test_pack_verify_warns_over_the_five_minute_limit(tmp_path):
 
 # ------------------------------------------------------------ code review fixes
 
+@pytest.mark.archive_default
 def test_stored_repeats_above_the_profile_count_never_count(tmp_path, monkeypatch):
     """Review H1: 3.9 ran tooluse twice; with repeats 1 the repeat-2 rows
     leave the board, so every model is scored over the same repeats."""
@@ -170,6 +176,7 @@ def test_stored_repeats_above_the_profile_count_never_count(tmp_path, monkeypatc
     assert st["two"]["scorecard"]["parts"]["work"]["agentic"] == pytest.approx(4.0)
 
 
+@pytest.mark.archive_default
 def test_lean_only_for_complete_models(tmp_path, monkeypatch):
     """Review M1: a partial model gets no Lean."""
     env = pb._setup(tmp_path, monkeypatch, pb._work_only)
@@ -238,6 +245,7 @@ def test_jobs_start_longest_expected_first():
     assert [j[0]["id"] for j in runner.schedule_jobs(jobs)][:1] == ["B1"]
 
 
+@pytest.mark.archive_default
 def test_a_partial_part_never_unlocks_its_pack(tmp_path, monkeypatch):
     """Fresh-clone smoke (2026-10-31): two of six function cases at 100 % must
     not open the Functions pack — the part is partial until all six exist."""
@@ -263,17 +271,18 @@ def test_an_nsfw_only_canary_failure_is_its_own_error(monkeypatch):
     monkeypatch.setattr(judge, "judge_row", lambda jc, row, **kw: {"scores": {}})
     jc = SimpleNamespace(label="j", concurrency=4, cfg=None)
     monkeypatch.setattr(judge, "_canary_problem",
-                        lambda k, out: "explicitness=2" if k == "explicit" else None)
+                        lambda k, out, *a: "explicitness=2" if k == "explicit" else None)
     with pytest.raises(judge.CanaryNsfwOnly):
         judge.run_canary(jc, long_probe=False)
     monkeypatch.setattr(judge, "_canary_problem",
-                        lambda k, out: "too lenient" if k in ("explicit", "bad") else None)
+                        lambda k, out, *a: "too lenient" if k in ("explicit", "bad") else None)
     with pytest.raises(judge.JudgeError) as e:
         judge.run_canary(jc, long_probe=False)
     assert not isinstance(e.value, judge.CanaryNsfwOnly)
     assert judge._nsfw_row({"category": "nsfw"}) and not judge._nsfw_row({"category": "rpdeep"})
 
 
+@pytest.mark.archive_default
 def test_an_unjudged_nsfw_row_does_not_blank_other_categories(tmp_path, monkeypatch):
     """Fresh-clone smoke: one NSFW row held back by an NSFW-refusing judge
     blanked Chat too; pending is tracked per category now."""

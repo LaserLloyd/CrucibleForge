@@ -167,6 +167,7 @@ def test_the_bench_profile_takes_the_ladder_path():
 
 # ------------------------------------------------------------- timing
 
+@pytest.mark.archive_default
 def test_all_records_every_phase_and_prints_the_table(tmp_path, monkeypatch, capsys):
     monkeypatch.setattr(config, "RESULTS_DIR", tmp_path)
     (tmp_path / "meta_m.json").write_text(json.dumps({"timing": [

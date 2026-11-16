@@ -30,7 +30,18 @@ from pathlib import Path
 
 # Bump for notable harness/metric changes (semver). The content-hash tracks
 # test-content changes automatically on top of this.
-SUITE_VERSION = "4.1.0"
+SUITE_VERSION = "4.5.0"
+#: the suite the archive profile (``bench``, 4.1) renders as: a 4.1 board's label follows the profile being
+#: rendered, not the global version (lead 2026-11-15: the flip made a 4.1 render read "suite 4.5.0+...",
+#: and the site's version switch reads that stamp)
+ARCHIVE_SUITE_VERSION = "4.1.0"
+
+
+def suite_version(profile: str | None = None) -> str:
+    """The suite label a render of ``profile`` carries: ARCHIVE_SUITE_VERSION for the archive profile,
+    else SUITE_VERSION."""
+    from .profiles import ARCHIVE_PROFILE
+    return ARCHIVE_SUITE_VERSION if profile == ARCHIVE_PROFILE else SUITE_VERSION
 
 _ROOT = Path(__file__).resolve().parent.parent
 _CASES_DIR = _ROOT / "cases"
@@ -63,7 +74,21 @@ _GRADING_KEYS = ("checks", "judge_elements", "explicit_required", "willing", "ju
                  "judge_willingness",
                  # suite 3.9 step 6: author-side verification data (mutants a
                  # python_exec case's tests must catch) — never sent to a model
-                 "mutants", "mutants_expect")
+                 "mutants", "mutants_expect",
+                 # harness v2: per-case judge sample count (judge.judge_policy;
+                 # a raise re-judges stored rows, it never regenerates them)
+                 # and the content-rules lint attestation (`pack verify`)
+                 "judge_samples", "content_rules_allow",
+                 # spec v2 (WP0-L/D): author-side cast / fact tables, the
+                 # length gate and the lint's own switches — never sent to a
+                 # model, so a change never regenerates a row
+                 "cast", "facts", "max_turn_words", "allow_long", "sexual",
+                 # fix pass (GPT round 2): the v2 switch and the per-turn OOC
+                 # list are read by the judge/scorer, never sent to a model
+                 "v2", "ooc_turns",
+                 # WP8: which windows count toward W, which turns a refusal /
+                 # OOC break must not penalise, and the judge-prompt preamble
+                 "willingness_windows", "exempt_turns", "judge_preamble")
 
 # Stamps from before the grading keys were excluded from the hash, mapped
 # from the prompt-only hash they are equivalent to (verified 2026-09-24 with
@@ -189,6 +214,9 @@ def _hash_case_file(h, p: Path) -> None:
         if isinstance(c, dict):
             for k in _GRADING_KEYS:
                 c.pop(k, None)
+            # 4.5 authoring data: not test content (matches _content_view)
+            for k in ("meta", "element_standard"):
+                c.pop(k, None)
     h.update(p.name.encode())
     h.update(b"\0")
     h.update(json.dumps(data, sort_keys=True, ensure_ascii=False).encode())
@@ -292,19 +320,43 @@ _NESTED_GRADING_KEYS = ("answer_contains", "answer_forbid", "match",
 _NESTED_LISTS = ("tool_script", "script", "turns")
 #: the case keys the judge's verdict depends on (grading_hash)
 _JUDGE_GRADING_KEYS = ("judge_elements", "judge_willingness", "judge_card_summary",
-                       "explicit_required", "willing", "rubric")
+                       "explicit_required", "willing", "rubric",
+                       "willingness_windows", "exempt_turns", "judge_preamble")
 #: element keys the report applies AFTER the verdict (weights, scored/pruned
 #: switches, rpdeep keyword gates, author notes): editing them re-scores the
 #: stored verdict, it does not need a new one
 _ELEMENT_SCORE_ONLY_KEYS = ("weight", "scored", "pruned", "unpruned", "sanity", "veto",
                             "diag_require_any", "note", "gold_quote")
+#: 4.5 additions: lint-only / deterministic post-checks. Score-only ONLY for
+#: cases that declare ``element_standard: 45``; on every 4.1 case they keep
+#: counting toward the grading hash, so no stored 4.1 verdict is staled.
+_ELEMENT_SCORE_ONLY_KEYS_45 = ("compound_ok", "short_quote", "named_term_count",
+                               "lexicon_check")
 STAMPS_DIR = Path(__file__).resolve().parent / "stamps"
+
+
+#: E11a (fix-d): more grading-only keys, left out of the hash ONLY for cases that
+#: declare ``element_standard: 45``. None is sent to the model (the rubric name, the
+#: deep rubric text, the format gate, the judge key, the code tests' grader config, the
+#: reference and gold answers are read at grading time), so editing them re-scores
+#: stored rows instead of nulling them. Never applied to a 4.1 case: that would move
+#: every 4.1 hash and stale every stored row (tests: archive/4.1.0 hashes unchanged).
+_GRADING_KEYS_45 = ("rubric", "deep_rubric", "format_gate", "judge_key", "grader_config",
+                    "reference", "golds")
 
 
 def _content_view(c: dict) -> dict:
     """The generation-relevant content of one case (the case_hash input)."""
+    skip = _GRADING_KEYS + _GRADING_KEYS_45 if c.get("element_standard") == 45 else _GRADING_KEYS
     out = {k: v for k, v in c.items()
-           if k not in _GRADING_KEYS and k != "ladder_pack"}
+           if k not in skip and k not in ("ladder_pack", "meta", "element_standard",
+                                          "_gen_release_seed")}
+    # 4.5 generated instances: the generator block is already in ``out``; the
+    # release seed joins it, so a new release nulls the instance's rows
+    from . import gen as _gen
+    if _gen.is_generated(c):
+        out["_release_seed"] = _gen.release_seed()
+        out["_generated"] = _gen.content_digest(c)
     for k in _NESTED_LISTS:
         v = out.get(k)
         if isinstance(v, list) and any(isinstance(x, dict) for x in v):
@@ -315,11 +367,33 @@ def _content_view(c: dict) -> dict:
 
 def _grading_view(c: dict) -> dict:
     out = {k: c[k] for k in _JUDGE_GRADING_KEYS if k in c}
+    # Judging-regime switches enter the hash as DERIVED values, and only when
+    # they change what the judge does: ``v2`` (window / long-row routing, element
+    # pass-through, fail-closed quotes) and the erp_deep sexual framing line.
+    # Hashing the raw fields would move every case that merely carries them.
+    if c.get("v2") is True:
+        out["_judging"] = "v2"
+    if c.get("rubric") == "erp_deep" and c.get("sexual") is True:
+        out["_framing"] = "erp_deep_sexual"
     els = out.get("judge_elements")
     if isinstance(els, list):
-        out["judge_elements"] = [{k: v for k, v in e.items() if k not in _ELEMENT_SCORE_ONLY_KEYS}
+        drop = _ELEMENT_SCORE_ONLY_KEYS
+        if c.get("element_standard") == 45:
+            drop = drop + _ELEMENT_SCORE_ONLY_KEYS_45
+        out["judge_elements"] = [{k: v for k, v in e.items() if k not in drop}
                                  if isinstance(e, dict) else e for e in els]
     return out
+
+
+def location_bound_hash(c: dict) -> str:
+    """The case hash under the recipe before 2026-11-14, when gen.content_digest also hashed the
+    set file's absolute path (``ladder_pack``): a pack row made then carries this stamp. Used only
+    by ``regrade --stamp pack_location`` to prove a stored stamp is this case at another path."""
+    out = _content_view(c)
+    from . import gen as _gen
+    if _gen.is_generated(c):
+        out["_generated"] = _gen.content_digest(c, with_location=True)
+    return _h8(out)
 
 
 def _h8(obj) -> str:
@@ -331,15 +405,24 @@ def case_table(cases_dir: Path | None = None, ladder_dirs: list[Path] | None = N
     """{case id: {"case": case_hash, "grading": grading_hash}} for every
     public case: cases/*.json (bank and non-bank) + the questions written in
     ladder pack files. Pure over the given dirs (the stamp snapshots are made
-    with it from a commit's case files)."""
+    with it from a commit's case files): a ``cases_dir`` other than the live one
+    without ``ladder_dirs`` reads its own ``ladder/`` only."""
     return _case_table_kinds(cases_dir, ladder_dirs)[0]
 
 
 def _case_table_kinds(cases_dir: Path | None = None,
-                      ladder_dirs: list[Path] | None = None) -> tuple[dict, dict]:
+                      ladder_dirs: list[Path] | None = None,
+                      raw: dict | None = None) -> tuple[dict, dict]:
     """(case_table, {case id: "set" | "bank" | "ladder"}): "set" = a case of
     the whole-set :func:`cases_hash`."""
     from .ladder import inline_cases
+    # the live tree (no explicit dirs) also stamps the active profile's generated Core instances;
+    # decided BEFORE cases_dir is defaulted (it was tested after, so it never fired: D4 2026-11-13)
+    live_tree = cases_dir is None and ladder_dirs is None
+    if ladder_dirs is None and cases_dir is not None and Path(cases_dir).resolve() != _CASES_DIR.resolve():
+        # pure over the given tree: its own ladder/, never the live packs (2026-11-14: a one-case test dir
+        # hashed the live FC2 combsyn L7 pack under a test seed, minutes per instance; tree_views does the same)
+        ladder_dirs = [Path(cases_dir) / "ladder"]
     cases_dir = cases_dir or _CASES_DIR
     out: dict = {}
     kinds: dict = {}
@@ -349,14 +432,116 @@ def _case_table_kinds(cases_dir: Path | None = None,
             if isinstance(c, dict) and c.get("id"):
                 out[c["id"]] = {"case": _h8(_content_view(c)), "grading": _h8(_grading_view(c))}
                 kinds[c["id"]] = "bank" if p.stem in BANK_CATEGORIES else "set"
+                if raw is not None:
+                    raw[c["id"]] = c
+    # 4.5 hard sets: hashed from the case content alone, so a case promoted
+    # from cases/hard/ to a standard file keeps its hash (hard.NON_CONTENT_KEYS)
+    from . import hard as _hard
+    for _score, _p, c in _hard.raw_cases(cases_dir):
+        if c["id"] not in out:
+            c = {k: v for k, v in c.items() if k not in _hard.NON_CONTENT_KEYS}
+            out[c["id"]] = {"case": _h8(_content_view(c)), "grading": _h8(_grading_view(c))}
+            kinds[c["id"]] = "hard"
+            if raw is not None:
+                raw[c["id"]] = c
     for c in inline_cases(dirs=ladder_dirs) if ladder_dirs is not None else inline_cases():
         if c["id"] not in out:
             out[c["id"]] = {"case": _h8(_content_view(c)), "grading": _h8(_grading_view(c))}
             kinds[c["id"]] = "ladder"
+            if raw is not None:
+                raw[c["id"]] = c
+    if live_tree:
+        for c in _core_generated():        # the active profile's Core instances (core_generated)
+            if c["id"] not in out:
+                out[c["id"]] = {"case": _h8(_content_view(c)), "grading": _h8(_grading_view(c))}
+                kinds[c["id"]] = "ladder"
+                if raw is not None:
+                    raw[c["id"]] = c
     return out, kinds
 
 
+def _core_generated() -> list[dict]:
+    """The active profile's ``core_generated`` instances (none when it has none or cannot be read)."""
+    try:
+        from .profiles import active_name, core_generated_cases, load_profile
+        prof = load_profile(active_name())
+        return core_generated_cases(prof) if prof.get("core_generated") else []
+    except Exception:  # noqa: BLE001 - no readable profile: no Core instances
+        return []
+
+
 _CASE_TABLE: dict = {}
+
+
+# ---- stored-row reuse across profiles (A0b, FABLE-GATE-FIXD 4b / FABLE-REUSE 3)
+# A row of another profile answered the case as that profile's tree wrote it. It
+# is reusable for GENERATION when the model saw the same thing: the generation
+# view (content minus EVERY grading key) of the live case equals the source tree's.
+# The row's stamp is compared with the case hash in the SOURCE tree, never the live
+# one, so a grading-only edit (elements, element_standard, checks) keeps the answer
+# and only marks the row "re-judge required".
+
+_GENERATION_SKIP_EXTRA = ("element_standard", "characters")   # author-side age declaration (EL-17): never sent to a model
+
+
+def generation_view(c: dict) -> dict:
+    """Everything the model saw of one case: content minus every grading key
+    (the 4.1 list, the 4.5 list and the nested tool-step / turn needles), with
+    no regard to ``element_standard``."""
+    drop = _GRADING_KEYS + _GRADING_KEYS_45 + _GENERATION_SKIP_EXTRA
+    out = {k: v for k, v in c.items()
+           if k not in drop and k not in ("ladder_pack", "meta", "_gen_release_seed")}
+    for k in _NESTED_LISTS:
+        v = out.get(k)
+        if isinstance(v, list) and any(isinstance(x, dict) for x in v):
+            out[k] = [{kk: vv for kk, vv in x.items() if kk not in _NESTED_GRADING_KEYS}
+                      if isinstance(x, dict) else x for x in v]
+    return out
+
+
+def grading_signature(c: dict) -> str:
+    """Hash of every key that only GRADES (both key lists, ``element_standard``,
+    the nested needles): a change here is "re-judge required", not a new answer."""
+    keys = _GRADING_KEYS + _GRADING_KEYS_45 + _GENERATION_SKIP_EXTRA
+    sig = {k: c[k] for k in keys if k in c}
+    for k in _NESTED_LISTS:
+        v = c.get(k)
+        if isinstance(v, list) and any(isinstance(x, dict) for x in v):
+            sig["_nested_" + k] = [{kk: vv for kk, vv in x.items() if kk in _NESTED_GRADING_KEYS}
+                                   if isinstance(x, dict) else None for x in v]
+    return _h8(sig)
+
+
+_TREE_VIEWS: dict = {}
+
+
+def tree_views(cases_dir: Path) -> tuple[dict, dict]:
+    """(case table, {id: raw case}) of one case tree (``cases_dir`` and its ``ladder/``).
+    Memoised per path for frozen archives; the live tree is re-read per call (see
+    :func:`live_views`)."""
+    key = str(cases_dir)
+    if key not in _TREE_VIEWS:
+        raw: dict = {}
+        table, _k = _case_table_kinds(cases_dir, [cases_dir / "ladder"], raw=raw)
+        _TREE_VIEWS[key] = (table, raw)
+    return _TREE_VIEWS[key]
+
+
+_LIVE_VIEWS: dict = {}
+
+
+def live_views() -> tuple[dict, dict]:
+    """(case table, {id: raw case}) of the live tree, memoised on the same file key as
+    :func:`current_case_table`."""
+    key = _files_key()
+    hit = _LIVE_VIEWS.get(key)
+    if hit is None:
+        raw: dict = {}
+        table, _k = _case_table_kinds(raw=raw)
+        hit = (table, raw)
+        _LIVE_VIEWS.clear()
+        _LIVE_VIEWS[key] = hit
+    return hit
 
 
 def _files_key() -> tuple:
@@ -365,8 +550,12 @@ def _files_key() -> tuple:
 
 def _files_key_now() -> tuple:
     from . import ladder
-    files = sorted(_CASES_DIR.glob("*.json")) + [f for _k, _n, f in ladder._set_files()]
-    key = []
+    from . import hard as _hard
+    files = (sorted(_CASES_DIR.glob("*.json")) + [f for _s, f in _hard.hard_files(_CASES_DIR)]
+             + [f for _k, _n, f in ladder._set_files()])
+    from . import gen as _gen
+    key = [("release_seed", _gen.release_seed()),
+           ("core", tuple(c["id"] for c in _core_generated()))]
     for f in files:
         try:
             st = f.stat()
@@ -493,9 +682,9 @@ def _bank_floor(cfg: dict | None) -> tuple[int | None, set[str]]:
            if isinstance(p, dict) and p.get("type") == "studioforge"}
     floor = None
     try:
-        from .profiles import DEFAULT_PROFILE, load_profile
+        from .profiles import ARCHIVE_PROFILE, load_profile
         from .runner import ESCALATION_CTX_PAD
-        b = int(load_profile(DEFAULT_PROFILE, c).get("bank_budget") or 0)
+        b = int(load_profile(ARCHIVE_PROFILE, c).get("bank_budget") or 0)
         floor = (b + ESCALATION_CTX_PAD) if b else None
     except Exception:  # noqa: BLE001 — no profile: no clamp test
         floor = None
@@ -532,10 +721,31 @@ def row_current(row: dict, cfg: dict | None = None) -> bool:
     from . import config as _config
     if row.get("category") in _config.PRIVATE_CATEGORIES:
         return private_row_current(row)
+    if row.get("chain"):
+        # 4.5 chain instance (chains.py): its own stamp, recomputed from the row's chain block
+        from .chains import revision as _chain_revision
+        return row.get("chain_revision") == _chain_revision(row["chain"])
     cur = case_hash(row.get("case_id"))
     if cur is None or row_case_stamp(row) != cur:
         return False
+    if row.get("category") == "tooluse" and not tool_revision_current(row):
+        return False
     return not bank_row_clamped(row, cfg)
+
+
+def tool_revision_current(row: dict) -> bool:
+    """The tool revision (lead 2026-11-15 08:27): on a profile with ``tool_call_feedback`` set, a scripted
+    tool-use row must have been made under it (a call at a prose step fed back for every provider changes
+    what the model saw next), else it reads stale and is re-made, never regraded. A profile without the
+    switch (4.1) is unchanged."""
+    from . import profiles as _profiles
+    # the row's OWN profile, the one it was MADE under: the question is whether that run had the
+    # revision, not whether the profile that reads the row has it. 4.1 (profile bench, or a row
+    # without a profile: the 4.1 default) never had the switch, so its rows are unchanged; 4.5's
+    # reuse of 4.1 rows (bench45 reuses bench rows) must not make a 4.1 row read stale for a rule
+    # 4.1 never ran. (profiles.row_switch applies the reuse rule and would answer for the reader.)
+    need = _profiles.profile_switch(row.get("profile") or _profiles.ARCHIVE_PROFILE, "tool_call_feedback")
+    return not need or row.get("tool_call_feedback") == need
 
 
 def regrade_needed(row: dict) -> bool:

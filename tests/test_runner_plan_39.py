@@ -34,6 +34,7 @@ def _plan(capsys, cfg=None, models="rig,api"):
     return capsys.readouterr().out
 
 
+@pytest.mark.archive_default
 def test_plan_shows_the_two_rig_rounds_and_one_api_round(capsys):
     out = _plan(capsys)
     rig, api = out.split("== api")

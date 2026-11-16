@@ -240,8 +240,8 @@ def _bench_judge(cfg: dict):
     The same choice ``crucibleforge judge`` makes (``cli._apply_profile_arg``):
     the judge the bench profile names is the only one whose verdicts count on
     the board; ``judge.candidates`` is just the fallback walk."""
-    from ..profiles import DEFAULT_PROFILE, apply_profile, load_profile, profile_judge
-    prof = load_profile(DEFAULT_PROFILE, cfg)
+    from ..profiles import active_name, apply_profile, load_profile, profile_judge
+    prof = load_profile(active_name(cfg), cfg)
     cfg2, _ = apply_profile(prof, cfg)
     return cfg2, profile_judge(prof)
 
@@ -459,8 +459,8 @@ class Handler(BaseHTTPRequestHandler):
             smoke = bool(data.get("smoke"))
             judge_override = data.get("judge") or None
             # one benchmark: the bench profile unless another is named
-            from ..profiles import DEFAULT_PROFILE, apply_profile, load_profile, profile_judge
-            prof = load_profile(data.get("profile") or DEFAULT_PROFILE, cfg)
+            from ..profiles import active_name, apply_profile, load_profile, profile_judge
+            prof = load_profile(data.get("profile") or active_name(cfg), cfg)
             cfg, cases = apply_profile(prof, cfg, smoke=smoke)
             if cats:
                 cases = [c for c in cases if c["category"] in set(cats)]

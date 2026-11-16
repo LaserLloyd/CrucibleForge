@@ -1,6 +1,7 @@
 [
  {
   "id": "CB-F1-larder-bughunt",
+  "element_standard": 45,
   "difficulty": "medium",
   "family": "agent",
   "bank_revision": "2026-10-25",

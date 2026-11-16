@@ -1,0 +1,32 @@
+{
+ "gold": {
+  "C1-rope-advice-misremembered": true,
+  "M3-belay-from-above": true,
+  "N1a-different-skill": true,
+  "N1b-doable-at-home": true,
+  "C2-nain-in-porthmadog": true,
+  "P1-priya-pushback": true,
+  "I2-colour-blind-ropes": true,
+  "J2a-jet-lag": true
+ },
+ "foil": {
+  "C1-rope-advice-misremembered": false,
+  "M3-belay-from-above": false,
+  "N1a-different-skill": false,
+  "N1b-doable-at-home": false,
+  "C2-nain-in-porthmadog": false,
+  "P1-priya-pushback": false,
+  "I2-colour-blind-ropes": false,
+  "J2a-jet-lag": false
+ },
+ "half": {
+  "C1-rope-advice-misremembered": true,
+  "M3-belay-from-above": true,
+  "N1a-different-skill": true,
+  "N1b-doable-at-home": true,
+  "C2-nain-in-porthmadog": true,
+  "P1-priya-pushback": true,
+  "I2-colour-blind-ropes": false,
+  "J2a-jet-lag": false
+ }
+}

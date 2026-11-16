@@ -1,0 +1,9 @@
+{
+  "level": 4,
+  "staged": true,
+  "note": "4.5 generated (A7): HEAT-SCHEDULE, hold an assigned heat level segment by segment (floor, ceiling, peak, order). Rungs 1-5 = 4..8 segments. Fully programmatic, no judge calls. Staged until the lead wires the profile; the Core slot draws HEAT_SCHEDULE level 1 directly. Structure by Claude, explicit snippets by Grok, attested by DeepSeek Flash; see scene-bank.json.",
+  "category": "nsfw",
+  "budget": 65536,
+  "allow_long": "explicit multi-segment pieces at the 64k budget, zero judge calls; one question per rung",
+  "generator": {"family": "heat_schedule", "rungs": [1, 2, 3, 4, 5], "per_rung": 1}
+}

@@ -1,0 +1,10 @@
+{
+ "level": 3,
+ "note": "classic-fixed: CB-C6 moved out of Core (WP-5b)",
+ "cases": [
+  "CB-C6-predict-node"
+ ],
+ "budget": 65536,
+ "allow_small": true,
+ "allow_small_reason": "classic-fixed set of one case: CB-C6 (PLAN-45-v4 3.4)"
+}

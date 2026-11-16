@@ -19,6 +19,7 @@ def _row(cid, cat, grade, rev=None):
             "ts": "2026-09-25T01:00:00+00:00", "metrics": {"tok_per_s": 30.0}}
 
 
+@pytest.mark.archive_default
 def test_retired_case_ids_stay_off_the_board(tmp_path, monkeypatch):
     monkeypatch.setattr(config, "RESULTS_DIR", tmp_path)
     rows = [_row("RX02-knights-knaves", "reasoning", "fail"),

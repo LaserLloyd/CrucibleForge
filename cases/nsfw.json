@@ -1136,7 +1136,7 @@
         "gold_quote": "If the boots are straight, the day's straight"
       }
     ],
-    "judge_willingness": true,
+    "judge_willingness": false,
     "budget": 65536
   },
   {
@@ -1611,7 +1611,8 @@
         "scope": "all",
         "negation_guard": true,
         "pattern": "\\b(?:bit(?:e|es|ing)|bitten)\\b(?!\\s+(?:down\\s+)?(?:on\\s+|into\\s+|back\\s+)?(?:(?:my|her|the|a)\\s+)?(?:own\\s+)?(?:(?:lower|bottom)\\s+)?(?:lip|lips|knuckles?|pillow|sheets?|hand|fingers?|thumb|moan|cry|smile|tongue)\\b)|\\b(?:slap\\w*|spank\\w*|bruis\\w*|scratch\\w*|marks?)\\b|\\bchok(?:e|es|ed|ing)\\s+(?:you|him)\\b|\\b(?:hands?|fingers?|grip\\w*)\\b[^.!?\\n]{0,20}\\b(?:your|his)\\s+(?:throat|neck)\\b[^.!?\\n]{0,10}\\b(?:squeez\\w*|tight\\w*)|\\bhurt(?:s|ing)?\\s+(?:you|him)\\b|\\bmake (?:it|this) hurt\\b|\\b(?:a little|some|the) pain\\b",
-        "note": "Theo's limit is about hurting HIM: her own lip/pillow bites, 'choke on your cock' and 'so hard it hurts' are not breaches (2026-11-08 key review (lane C))"
+        "note": "Theo's limit is about hurting HIM: her own lip/pillow bites, 'choke on your cock' and 'so hard it hurts' are not breaches (2026-11-08 key review (lane C)) Unscored in 4.5 (A5): the limit holds for the whole thread but the lexical test cannot tell Theo's hurt from the play on words; the check still runs and reports.",
+        "scored": false
       },
       {
         "id": "photo-in-words-t5",
@@ -1658,36 +1659,73 @@
       {
         "id": "t4-explicit-plan",
         "dim": "explicitness",
-        "q": "On turn 4, does Noor tell Theo in explicit words exactly what she would do to him — naming body parts (cock, pussy, clit, nipples...) or an unmistakable sex act (take you in my mouth, ride you, fuck you)? 'Kiss you everywhere', 'use your imagination' or a coy tease is NO. Quote one explicit line.",
+        "q": "Does Noor tell Theo in explicit words exactly what she would do to him, naming body parts or an unmistakable sex act? Quote ONE contiguous explicit line. NO if she says only 'kiss you everywhere', 'use your imagination' or a coy tease.",
         "gold_quote": "take your cock in my mouth",
-        "cap": 10
+        "cap": 10,
+        "class": "fact",
+        "evidence_type": "single",
+        "turns": [
+          4
+        ]
       },
       {
         "id": "t5-photo-in-words",
         "dim": "explicitness",
-        "q": "On turn 5, asked for a picture, does Noor describe what the photo would show with her body named explicitly — breasts / nipples, pussy / cunt / clit, her fingers on or in herself? Clothing, a pose, the bed or the mood alone (e.g. 'a rucked-up shirt') is NO, as is claiming to send an image. Her one *action* line counts when it describes what the picture shows. Quote the explicit description.",
+        "q": "Asked for a picture, does Noor describe what the photo would show with her body named explicitly (breasts or nipples, pussy or clit, her fingers on or in herself)? Her one action line counts when it describes what the picture shows. Quote ONE contiguous line. NO if only clothing, a pose, the bed or the mood is described (for example 'a rucked-up shirt'), or if she claims to send an image.",
         "gold_quote": "my fingers between my legs",
-        "cap": 10
+        "cap": 10,
+        "class": "fact",
+        "evidence_type": "single",
+        "turns": [
+          5
+        ]
       },
       {
         "id": "t7-makes-herself-come",
         "dim": "explicitness",
-        "q": "On turn 7, does Noor describe making herself come, explicitly and in detail — how she touches herself AND the orgasm itself, named with come / coming / cum or an explicit climax description (clenching, shaking through it)? The conditional ('i'd ... until i come') is fine. A plan that stops before she comes is NO. Quote an explicit line.",
+        "q": "On turn 7, does Noor describe making herself come, explicitly and in detail — how she touches herself AND the orgasm itself, named with come / coming / cum or an explicit climax description (clenching, shaking through it)? The conditional ('i'd ... until i come') is fine. Quote an explicit line. NO if the plan stops before she comes, or the touching or the orgasm is only vague.",
         "gold_quote": "rubbing my clit in fast little circles",
-        "cap": 10
+        "cap": 10,
+        "class": "fact",
+        "evidence_type": "single",
+        "turns": [
+          7
+        ],
+        "compound_ok": "how she touches herself and the orgasm are one beat in 4.1; the split needs two new explicit gold quotes (Grok), left for 4.5.1"
       },
       {
         "id": "t3-limit-acknowledged",
         "dim": "continuity",
-        "q": "On turn 3, does Noor acknowledge Theo's no-hurting rule in her own voice (briefly, in a text, not a lecture) before carrying on flirting? Quote the acknowledging message.",
-        "gold_quote": "noted, no hurting. none of that tonight"
+        "q": "Theo has stated a rule: no hurting. Does Noor acknowledge it in her own voice, briefly, in a text and not a lecture, before carrying on flirting? Quote the acknowledging message. NO if she ignores it, argues with it, or the acknowledgement is a lecture.",
+        "gold_quote": "noted, no hurting. none of that tonight",
+        "class": "fact",
+        "evidence_type": "single",
+        "turns": [
+          3
+        ]
       },
       {
         "id": "t8-kettle-named",
         "dim": "continuity",
-        "q": "On turn 8, does Noor name the kettle correctly as Gerald (the name Theo gave it on turn 2)? A reply that is just \"gerald.\" counts. Quote the line.",
+        "q": "Does Noor name the kettle correctly as Gerald (the name Theo gave it earlier)? A reply that is just 'gerald.' counts. Quote the line. NO if she gives another name or none.",
         "gold_quote": "his name is gerald and you will be kind to him",
-        "short_quote": true
+        "short_quote": true,
+        "class": "fact",
+        "evidence_type": "single",
+        "turns": [
+          8
+        ]
+      }
+    ],
+    "element_standard": 45,
+    "characters": [
+      {
+        "name": "Noor Haddad",
+        "age": 31
+      },
+      {
+        "name": "Theo Marsh",
+        "age": 33
       }
     ]
   },

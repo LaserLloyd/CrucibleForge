@@ -1,0 +1,82 @@
+"""Parsing one script line into a command."""
+
+#: command word -> number of arguments
+COMMANDS = {"ACQ": 4, "REL": 1, "TOUCH": 1, "SWEEP": 0, "RESTART": 0, "STATUS": 0, "LOG": 1,
+#<F quota>
+            "QUOTA": 2,
+#</F>
+#<F extend>
+            "EXTEND": 2,
+#</F>
+            }
+
+
+class ParseError(Exception):
+    pass
+
+
+def parse_int(text):
+    if not text.isdigit():
+        raise ParseError("number")
+    return int(text)
+
+
+def parse_units(text):
+    """'0,2,5', '1-3' or a mix ('0,2-4'). Duplicates collapse; the result is sorted."""
+    out = set()
+    for part in text.split(","):
+        if not part:
+            raise ParseError("units")
+        if "-" in part:
+            a, b = part.split("-", 1)
+            lo, hi = parse_int(a), parse_int(b)
+            if lo > hi:
+                raise ParseError("units")
+            out.update(range(lo, hi + 1))
+        else:
+            out.add(parse_int(part))
+    return sorted(out)
+
+
+def parse_line(line):
+    """'@12 ACQ web 2 0,1 30' -> (12, 'ACQ', ['web', 2, [0, 1], 30])."""
+    parts = line.split()
+    if len(parts) < 2 or not parts[0].startswith("@"):
+        raise ParseError("syntax")
+    t = parse_int(parts[0][1:])
+    cmd = parts[1].upper()
+    args = parts[2:]
+    if cmd not in COMMANDS:
+        raise ParseError("command")
+#<F queue>
+    queued = cmd == "ACQ" and len(args) == 5 and args[4] == "q"
+    if queued:
+        args = args[:4]
+#</F>
+    if len(args) != COMMANDS[cmd]:
+        raise ParseError("arity")
+    if cmd == "ACQ":
+        holder, cls, units, ttl = args
+        cls = parse_int(cls)
+        if cls < 1 or cls > 3:
+            raise ParseError("class")
+#<F !queue>
+        return t, cmd, [holder, cls, parse_units(units), parse_int(ttl)]
+#</F>
+#<F queue>
+        return t, cmd, [holder, cls, parse_units(units), parse_int(ttl), queued]
+#</F>
+    if cmd == "LOG":
+        return t, cmd, [parse_int(args[0])]
+#<F quota>
+    if cmd == "QUOTA":
+        return t, cmd, [args[0], parse_int(args[1])]
+#</F>
+#<F extend>
+    if cmd == "EXTEND":
+        more = parse_int(args[1])
+        if more < 1:
+            raise ParseError("number")
+        return t, cmd, [args[0], more]
+#</F>
+    return t, cmd, args

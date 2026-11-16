@@ -1,0 +1,48 @@
+# board_ab --report-allow: the report.json differences the frozen 4.1 board
+# (profile bench, base 1671f17) may show. G-41Freeze (lead decision, Fable
+# checkpoint 15): the board rows are identical (whole row), and every other
+# report.json difference is ADDITIVE and listed here: a key 4.1 did not write
+# (kind new_key: the listed key and everything under it), or a null that became
+# a neutral default (kind null_to_neutral). A value change (a number moving, a
+# non-null value changing) or a removed key is never allowed.
+#
+# Paths: "/"-separated report.json keys; models/<model>/ = any model; [*] = any
+# list index; "*" inside a segment is a glob (one segment only).
+# control: pre-r2 = the path already differs in the e9f1b3b-vs-1671f17 control
+# (4.5 work before the r2 merge); r2 = introduced by the r2 merge.
+allow:
+  # ---- pre-r2 control (e9f1b3b vs 1671f17)
+  - {path: separation, kind: new_key, control: pre-r2, reason: "4.5 separation table (report.LAST_SEPARATION), a new top-level section"}
+  - {path: "models/<model>/bench_min", kind: new_key, control: pre-r2, reason: "4.5 bench-minimum record (basis/coverage), bookkeeping"}
+  - {path: "models/<model>/date_first", kind: new_key, control: pre-r2, reason: "4.5 first run date of the label"}
+  - {path: "models/<model>/date_last", kind: new_key, control: pre-r2, reason: "4.5 last run date of the label"}
+  - {path: "models/<model>/headline/separated_from", kind: new_key, control: pre-r2, reason: "4.5 separation: models this one is separated from"}
+  - {path: "models/<model>/headline/not_separated_from", kind: new_key, control: pre-r2, reason: "4.5 separation: models this one is tied with"}
+  - {path: "models/<model>/headline/vs_above/separated", kind: new_key, control: pre-r2, reason: "4.5 separation flag on the vs-above note"}
+  - {path: "models/<model>/judge_ids", kind: new_key, control: pre-r2, reason: "4.5 judge lineage: the judge ids that graded the rows"}
+  - {path: "models/<model>/nonreference_judge", kind: new_key, control: pre-r2, reason: "4.5 judge lineage: rows graded by a non-reference judge"}
+  - {path: "models/<model>/notes45", kind: new_key, control: pre-r2, reason: "4.5 board notes (notes45)"}
+  - {path: "models/<model>/unjudged", kind: new_key, control: pre-r2, reason: "4.5 count of rows waiting for the judge"}
+  - {path: "models/<model>/missing_jobs", kind: new_key, control: pre-r2, reason: "4.5 missing-job list (scoring45 pending policy bookkeeping)"}
+  - {path: "models/<model>/pending_reasons", kind: new_key, control: pre-r2, reason: "4.5 pending reasons (bookkeeping; the bench board does not apply them)"}
+  - {path: "models/<model>/rank_hi", kind: new_key, control: pre-r2, reason: "4.5 rank interval, upper end"}
+  - {path: "models/<model>/rank_lo", kind: new_key, control: pre-r2, reason: "4.5 rank interval, lower end"}
+  - {path: "models/<model>/ranked", kind: new_key, control: pre-r2, reason: "4.5 ranked flag"}
+  - {path: "models/<model>/tie_group", kind: new_key, control: pre-r2, reason: "4.5 tie group id"}
+  - {path: "models/<model>/status", kind: new_key, control: pre-r2, reason: "4.5 board status of the label"}
+  - {path: "models/<model>/scorecard/subscores", kind: new_key, control: pre-r2, reason: "4.5 per-subscore block (score/max), mirrors existing card values"}
+  - {path: "models/<model>/subset_stats/*/*/judge_ids", kind: new_key, control: pre-r2, reason: "4.5 judge lineage per sub-score"}
+  - {path: "models/<model>/subset_stats/*/*/nonreference_judge", kind: new_key, control: pre-r2, reason: "4.5 judge lineage per sub-score"}
+  - {path: "models/<model>/subset_stats/*/*/notes45", kind: new_key, control: pre-r2, reason: "4.5 notes per sub-score"}
+  - {path: "models/<model>/subset_stats/*/*/unjudged", kind: new_key, control: pre-r2, reason: "4.5 unjudged count per sub-score"}
+  - {path: "models/<model>/ladder_stats/*/*/judge_ids", kind: new_key, control: pre-r2, reason: "4.5 judge lineage per ladder set"}
+  - {path: "models/<model>/ladder_stats/*/*/nonreference_judge", kind: new_key, control: pre-r2, reason: "4.5 judge lineage per ladder set"}
+  - {path: "models/<model>/ladder_stats/*/*/notes45", kind: new_key, control: pre-r2, reason: "4.5 notes per ladder set"}
+  - {path: "models/<model>/ladder_stats/*/*/unjudged", kind: new_key, control: pre-r2, reason: "4.5 unjudged count per ladder set"}
+  # ---- r2 (the nsfw-v2 harness merge), additive only
+  - {path: "models/<model>/headline/unrun", kind: new_key, control: r2, reason: "r2 B3 unrun-pack counts in the headline data (the bench labels never render them, ca16350)"}
+  - {path: "models/<model>/scorecard/ladder/*/*/ladder_unrun", kind: new_key, control: r2, reason: "r2 B3 unrun-pack count in the ladder detail (data; bench labels gated)"}
+  - {path: "models/<model>/scorecard/ladder/*/*/ladder_errored", kind: new_key, control: r2, reason: "r2 M1 errored-pack count in the ladder detail (data; bench labels gated)"}
+  - {path: "models/<model>/scorecard/ladder/*/*/scoring_mode", kind: new_key, control: r2, reason: "r2 scoring_mode of the part (\"standard\" on bench)"}
+  - {path: "models/<model>/scorecard/ladder/*/*/sets[*]/pending_reason", kind: new_key, control: r2, reason: "r2 B2 why an unscored set is pending (unrun/errored/incomplete), data only"}
+  - {path: "models/<model>/scorecard/score_defs[*]/parts[*]/scoring_mode", kind: new_key, control: r2, reason: "r2 tiers.scores scoring_mode on the part definition (\"standard\" on bench)"}

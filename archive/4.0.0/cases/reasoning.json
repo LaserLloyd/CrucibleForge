@@ -1,0 +1,789 @@
+[
+ {
+  "id": "R1-arithmetic",
+  "smoke": true,
+  "system": "Solve the problem step by step, then write your final answer on a new line as 'Answer: <number>'.",
+  "prompt": "A store sells notebooks for $4 each. If you buy 5 or more, you get 25% off the entire purchase. How much do 8 notebooks cost, in dollars?",
+  "temperature": 0.0,
+  "max_tokens": 1024,
+  "grader": "numeric",
+  "grader_config": {
+   "answer": 24,
+   "tolerance": 0.01
+  },
+  "difficulty": "easy"
+ },
+ {
+  "id": "R2-word",
+  "system": "Solve step by step, then end with 'Answer: <number>'.",
+  "prompt": "Sarah is twice as old as her brother Tom. In 6 years, the sum of their ages will be 42. How old is Sarah now?",
+  "temperature": 0.0,
+  "max_tokens": 1024,
+  "grader": "numeric",
+  "grader_config": {
+   "answer": 20,
+   "tolerance": 0.01
+  },
+  "difficulty": "easy"
+ },
+ {
+  "id": "R3-logic",
+  "smoke": true,
+  "system": "Reason carefully, then end with 'Answer: <name>'.",
+  "prompt": "Three friends — Alex, Blair, and Casey — each own one pet: a cat, a dog, or a fish. Alex does not own the fish. Blair does not own the fish and does not own the cat. Who owns the fish?",
+  "temperature": 0.0,
+  "max_tokens": 1024,
+  "grader": "contains",
+  "grader_config": {
+   "needles": [
+    "Casey"
+   ]
+  },
+  "difficulty": "easy"
+ },
+ {
+  "id": "R4-multistep",
+  "system": "Work through it step by step, then end with 'Answer: <number>'.",
+  "prompt": "A tank holds 240 liters. It's currently 3/4 full. A pump drains it at 8 liters per minute while a hose fills it at 3 liters per minute. After how many minutes will the tank be empty?",
+  "temperature": 0.0,
+  "max_tokens": 1024,
+  "grader": "numeric",
+  "grader_config": {
+   "answer": 36,
+   "tolerance": 0.01
+  },
+  "difficulty": "easy"
+ },
+ {
+  "id": "R5-printer-rate",
+  "system": "Solve step by step, then end with 'Answer: <number>'.",
+  "prompt": "A printer prints 24 pages per minute. It runs for 7 minutes, then jams and is fixed, then runs for another 5 minutes at the same rate. How many pages did it print in total?",
+  "temperature": 0.0,
+  "max_tokens": 1024,
+  "grader": "numeric",
+  "grader_config": {
+   "answer": 288,
+   "tolerance": 0.01
+  },
+  "difficulty": "medium"
+ },
+ {
+  "id": "R6-flour-sugar-ratio",
+  "system": "Solve step by step, then end with 'Answer: <number>'.",
+  "prompt": "A recipe uses 3 cups of flour for every 2 cups of sugar. A baker wants to use 18 cups of flour and keep the same ratio. How many cups of sugar are needed?",
+  "temperature": 0.0,
+  "max_tokens": 1024,
+  "grader": "numeric",
+  "grader_config": {
+   "answer": 12,
+   "tolerance": 0.01
+  },
+  "difficulty": "medium"
+ },
+ {
+  "id": "R7-meal-combos",
+  "system": "Solve step by step, then end with 'Answer: <number>'.",
+  "prompt": "A diner must choose exactly 1 appetizer from 3 available appetizers, and exactly 2 different main dishes from 5 available main dishes. How many different meal combinations are possible?",
+  "temperature": 0.0,
+  "max_tokens": 1024,
+  "grader": "numeric",
+  "grader_config": {
+   "answer": 30,
+   "tolerance": 0.01
+  },
+  "difficulty": "medium"
+ },
+ {
+  "id": "R8-painters-work",
+  "system": "Solve step by step, then end with 'Answer: <number>'.",
+  "prompt": "Three workers, all working at the same steady rate, can paint a fence in 6 hours. How many hours would it take 2 workers, at that same rate, to paint the same fence?",
+  "temperature": 0.0,
+  "max_tokens": 1024,
+  "grader": "numeric",
+  "grader_config": {
+   "answer": 9,
+   "tolerance": 0.01
+  },
+  "difficulty": "medium"
+ },
+ {
+  "id": "R9-pets-logic",
+  "system": "Solve step by step, then end with 'Answer: <word>'.",
+  "prompt": "Anna, Ben, and Carla each own a different pet: one owns a cat, one owns a dog, and one owns a fish. Anna does not own the cat and does not own the fish. Ben does not own the fish. Which pet does Carla own?",
+  "temperature": 0.0,
+  "max_tokens": 1024,
+  "grader": "contains",
+  "grader_config": {
+   "needles": [
+    "Fish"
+   ],
+   "answer_line": true
+  },
+  "difficulty": "medium"
+ },
+ {
+  "id": "RH1-houses5",
+  "difficulty": "hard",
+  "system": "Reason step by step, then end your reply with a line 'Answer: <X>' where <X> is the final answer only.",
+  "prompt": "Five houses stand in a row, numbered 1 (leftmost) to 5 (rightmost). Each house is painted a different color: red, blue, green, white, or yellow. Use these clues:\n1. The green house is somewhere to the left of the white house.\n2. There is exactly one house between the red house and the yellow house.\n3. The blue house is the leftmost house (house 1).\n4. The white house is immediately to the right of the yellow house.\n5. The red house is somewhere to the left of the green house.\nWhat color is the middle house (house 3)?",
+  "temperature": 0.0,
+  "max_tokens": 2048,
+  "grader": "contains",
+  "grader_config": {
+   "needles": [
+    "green"
+   ],
+   "answer_line": true
+  }
+ },
+ {
+  "id": "RH2-swaps",
+  "difficulty": "hard",
+  "system": "Reason step by step, then end your reply with a line 'Answer: <X>' where <X> is the final answer only.",
+  "prompt": "Four friends — Alice, Bob, Claire, and Dave — each start holding a ball. Alice holds a red ball, Bob holds a blue ball, Claire holds a green ball, and Dave holds a yellow ball. Then they perform this sequence of swaps, where a swap means the two named people exchange whatever balls they are currently holding:\n1. Alice and Bob swap balls.\n2. Claire and Dave swap balls.\n3. Bob and Claire swap balls.\n4. Alice and Dave swap balls.\n5. Bob and Dave swap balls.\n6. Alice and Claire swap balls.\n7. Bob and Claire swap balls.\nAt the end, what color ball is Claire holding?",
+  "temperature": 0.0,
+  "max_tokens": 2048,
+  "grader": "contains",
+  "grader_config": {
+   "needles": [
+    "blue"
+   ],
+   "answer_line": true
+  }
+ },
+ {
+  "id": "RH3-nestedarith",
+  "difficulty": "hard",
+  "system": "Reason step by step, then end your reply with a line 'Answer: <X>' where <X> is the final answer only.",
+  "prompt": "Evaluate the following arithmetic expression exactly, respecting all parentheses and the sign of every number:\n(((8 - 3) * (2 + 4)) - ((9 + 1) * 2)) + (((6 * -3) + 5) * (4 - 7)) - (36 / (2 + 4))\nGive the final integer value.",
+  "temperature": 0.0,
+  "max_tokens": 2048,
+  "grader": "contains",
+  "grader_config": {
+   "needles": [
+    "43"
+   ],
+   "answer_line": true
+  }
+ },
+ {
+  "id": "RH4-schedule",
+  "difficulty": "hard",
+  "system": "Reason step by step, then end your reply with a line 'Answer: <X>' where <X> is the final answer only.",
+  "prompt": "Marcus wants to phone his sister today. She can only take calls between 9:00 AM and 9:00 PM. Marcus is occupied at the following times today, and free at all other times between 9:00 AM and 9:00 PM:\n- Work: 9:00 AM to 12:00 PM\n- Lunch: 12:00 PM to 1:00 PM\n- Dentist: 1:00 PM to 2:30 PM\n- Gym: 4:00 PM to 6:00 PM\n- Concert: 6:00 PM to 9:00 PM\nThere is exactly one time window in which Marcus is both free and able to reach his sister. State that window in the form 'START to END' using 12-hour clock times (for example, '10:15 AM to 11:00 AM').",
+  "temperature": 0.0,
+  "max_tokens": 2048,
+  "grader": "contains",
+  "grader_config": {
+   "needles": [
+    "2:30 PM to 4:00 PM"
+   ],
+   "answer_line": true
+  }
+ },
+ {
+  "id": "RH5-weboflies",
+  "difficulty": "hard",
+  "system": "Reason step by step, then end your reply with a line 'Answer: <X>' where <X> is the final answer only.",
+  "prompt": "Each person named below either always tells the truth or always lies.\nKayla tells the truth.\nRashida says that Kayla lies.\nElanor says that Rashida tells the truth.\nMichael says that Elanor lies.\nTanya says that Michael tells the truth.\nBernita says that Tanya lies.\nDoes Bernita tell the truth? Answer strictly 'Yes' or 'No'.",
+  "temperature": 0.0,
+  "max_tokens": 2048,
+  "grader": "contains",
+  "grader_config": {
+   "needles": [
+    "No"
+   ],
+   "answer_line": true
+  }
+ },
+ {
+  "id": "RH6-dyck",
+  "difficulty": "hard",
+  "system": "Reason step by step, then end your reply with a line 'Answer: <X>' where <X> is the final answer only.",
+  "prompt": "Consider the following sequence of brackets, which is a valid but not-yet-closed prefix (every closing bracket so far correctly matches the most recent unmatched opening bracket):\n[ { ( ) } < [ ] > ( { < >\nProvide the exact sequence of closing brackets, in the correct order, that must be appended to make the whole sequence properly balanced and fully closed. Write only the closing brackets, separated by single spaces.",
+  "temperature": 0.0,
+  "max_tokens": 2048,
+  "grader": "contains",
+  "grader_config": {
+   "needles": [
+    "} ) ]"
+   ],
+   "answer_line": true
+  }
+ },
+ {
+  "id": "RH7-wordsort",
+  "difficulty": "hard",
+  "system": "Reason step by step, then end your reply with a line 'Answer: <X>' where <X> is the final answer only.",
+  "prompt": "Sort the following list of words into alphabetical (dictionary) order:\nsyrup, syzygy, symbol, sycamore, systemic, synapse, sylvan, syntax\nWrite the sorted words as a single comma-separated list, using a comma followed by a single space (', ') between consecutive words.",
+  "temperature": 0.0,
+  "max_tokens": 2048,
+  "grader": "contains",
+  "grader_config": {
+   "needles": [
+    "sycamore, sylvan, symbol, synapse, syntax, syrup, systemic, syzygy"
+   ],
+   "answer_line": true
+  }
+ },
+ {
+  "id": "RH8-date",
+  "difficulty": "hard",
+  "system": "Reason step by step, then end your reply with a line 'Answer: <X>' where <X> is the final answer only.",
+  "prompt": "The year 2027 is not a leap year (February has 28 days). A concert was held on the last Friday of February 2027. Exactly 40 days after the concert date, Maria left for a trip. On what date did Maria leave? Give the date in MM/DD/YYYY format with leading zeros.",
+  "temperature": 0.0,
+  "max_tokens": 2048,
+  "grader": "contains",
+  "grader_config": {
+   "needles": [
+    "04/07/2027"
+   ],
+   "answer_line": true
+  }
+ },
+ {
+  "id": "RH9-gridgeometry",
+  "difficulty": "hard",
+  "system": "Reason step by step, then end your reply with a line 'Answer: <X>' where <X> is the final answer only.",
+  "prompt": "A large rectangle is divided into a 2-by-2 grid of four smaller rectangles by one straight vertical cut and one straight horizontal cut (so the two rectangles in a row share the same height, and the two rectangles in a column share the same width). Referring to the four smaller rectangles by their positions:\n- The top-left rectangle has area 15.\n- The top-right rectangle has area 20.\n- The bottom-left rectangle has area 12.\nWhat is the area of the bottom-right rectangle?",
+  "temperature": 0.0,
+  "max_tokens": 2048,
+  "grader": "contains",
+  "grader_config": {
+   "needles": [
+    "16"
+   ],
+   "answer_line": true
+  }
+ },
+ {
+  "id": "RH10-precedencearith",
+  "difficulty": "hard",
+  "system": "Reason step by step, then end your reply with a line 'Answer: <X>' where <X> is the final answer only.",
+  "prompt": "Evaluate the following arithmetic expression using the standard order of operations: perform all multiplication and division before any addition and subtraction, working left to right within each precedence level, and respect the parentheses and the sign of every number.\n12 - 3 * 4 + 18 / 2 - (5 - 9) * 3\nGive the final integer value.",
+  "temperature": 0.0,
+  "max_tokens": 2048,
+  "grader": "contains",
+  "grader_config": {
+   "needles": [
+    "21"
+   ],
+   "answer_line": true
+  }
+ },
+ {
+  "id": "RX01-desk-grid",
+  "difficulty": "hard",
+  "system": "Reason step by step, then end your reply with a single final line 'Answer: <value>' containing only the final answer.",
+  "prompt": "Four colleagues - Dana, Eli, Farah and Gus - sit at four desks in a row, numbered 1 to 4 from left to right. Each person uses exactly one programming language (Go, Java, Python, Rust) and drinks exactly one beverage (cocoa, coffee, tea, water); no two people share a language or a beverage. Facts:\n1. Dana sits immediately to the right of Farah.\n2. Gus does not sit at either end of the row (not desk 1 and not desk 4).\n3. Eli sits somewhere to the right of Gus.\n4. The Rust user sits immediately to the left of the Go user.\n5. Dana does not use Java.\n6. The Python user drinks cocoa.\n7. The tea drinker sits at desk 1 or desk 4.\n8. The water drinker sits immediately to the left of the coffee drinker.\n9. Eli does not use Python.\n10. Farah does not drink water.\n11. Dana does not drink cocoa.\nThe solution is unique. List the four beverages in desk order, from desk 1 to desk 4, separated by single spaces (for example: tea coffee water cocoa).",
+  "temperature": 0.0,
+  "max_tokens": 6144,
+  "grader": "exact",
+  "grader_config": {
+   "answer": "cocoa water coffee tea"
+  },
+  "verify": {
+   "python": "[' '.join(D) for P in __import__('itertools').permutations(['Dana','Eli','Farah','Gus']) for L in __import__('itertools').permutations(['Go','Java','Python','Rust']) for D in __import__('itertools').permutations(['cocoa','coffee','tea','water']) if P.index('Dana')==P.index('Farah')+1 and P.index('Gus') not in (0,3) and P.index('Eli')>P.index('Gus') and L.index('Rust')+1==L.index('Go') and P[L.index('Java')]!='Dana' and L.index('Python')==D.index('cocoa') and D.index('tea') in (0,3) and D.index('water')+1==D.index('coffee') and P[L.index('Python')]!='Eli' and P[D.index('water')]!='Farah' and P[D.index('cocoa')]!='Dana'][0]"
+  }
+ },
+ {
+  "id": "RX02-knights-knaves",
+  "difficulty": "hard",
+  "system": "Reason step by step, then end your reply with a single final line 'Answer: <value>' containing only the final answer.",
+  "prompt": "On an island every inhabitant is either a knight, who always tells the truth, or a knave, who always lies. Five inhabitants - Alice, Ben, Carla, Dev and Elena - each make one statement:\nAlice says: Ben and Dev are the same type as each other (either both knights or both knaves).\nBen says: Exactly two of the five of us are knights.\nCarla says: If Alice is a knight, then Elena is a knight.\nDev says: Carla and Elena are not both knights.\nElena says: At least one of Alice and Dev is a knight.\nExactly one assignment of types is consistent. List the names of all the knights in alphabetical order, separated by single spaces. If there are no knights, answer: none.",
+  "temperature": 0.0,
+  "max_tokens": 5120,
+  "grader": "exact",
+  "grader_config": {
+   "answer": "alice carla elena"
+  },
+  "verify": {
+   "python": "[' '.join(n for n,v in zip(['alice','ben','carla','dev','elena'],t) if v) for t in __import__('itertools').product([True,False],repeat=5) if t[0]==(t[1]==t[3]) and t[1]==(sum(t)==2) and t[2]==((not t[0]) or t[4]) and t[3]==(not (t[2] and t[4])) and t[4]==(t[0] or t[3])][0]"
+  }
+ },
+ {
+  "id": "RX03-jar-state-tracking",
+  "difficulty": "hard",
+  "system": "Reason step by step, then end your reply with a single final line 'Answer: <value>' containing only the final answer.",
+  "prompt": "Five jars labelled A, B, C, D and E start with 7, 0, 4, 9 and 2 marbles respectively. Carry out these eight operations in order, each applied to the state left by the previous one:\n1. Move 3 marbles from jar A to jar B.\n2. Double the number of marbles in jar C.\n3. Move half of jar D's marbles, rounded down, from jar D to jar E.\n4. Simultaneously take 2 marbles out of every jar that currently holds 5 or more marbles, then put all of the marbles taken this way into jar A (a jar that gave up marbles may also receive them back this way).\n5. Swap the contents of jars B and E.\n6. Remove from jar D a number of marbles equal to the number currently in jar C; if jar D holds fewer than that, jar D simply becomes empty.\n7. Add to each jar a number of marbles equal to its position in the alphabet (1 for A, 2 for B, 3 for C, 4 for D, 5 for E).\n8. Move all of jar E's marbles into whichever of jars A, B, C and D currently holds the fewest marbles; if two or more of those jars are tied for fewest, use the alphabetically first of them. Jar E ends empty.\nHow many marbles are in jar A at the end?",
+  "temperature": 0.0,
+  "max_tokens": 5120,
+  "grader": "numeric",
+  "grader_config": {
+   "answer": 11,
+   "tolerance": 0.001
+  },
+  "verify": {
+   "python": "__import__('functools').reduce(lambda s,f: f(s), [lambda s: [s[0]-3,s[1]+3,s[2],s[3],s[4]],lambda s: [s[0],s[1],s[2]*2,s[3],s[4]],lambda s: [s[0],s[1],s[2],s[3]-s[3]//2,s[4]+s[3]//2],lambda s: [(x-2 if x>=5 else x)+(sum(2 for y in s if y>=5) if i==0 else 0) for i,x in enumerate(s)],lambda s: [s[0],s[4],s[2],s[3],s[1]],lambda s: [s[0],s[1],s[2],max(0,s[3]-s[2]),s[4]],lambda s: [x+i+1 for i,x in enumerate(s)],lambda s: [(x+s[4] if i==min(range(4),key=lambda j:(s[j],j)) else x) for i,x in enumerate(s[:4])]+[0],], [7,0,4,9,2])[0]"
+  }
+ },
+ {
+  "id": "RX04-card-shuffle",
+  "difficulty": "hard",
+  "system": "Reason step by step, then end your reply with a single final line 'Answer: <value>' containing only the final answer.",
+  "prompt": "Nine cards numbered 1 to 9 lie in a row, in increasing order from left to right: 1 2 3 4 5 6 7 8 9. Positions are counted from the left, starting at 1. Perform these operations in order:\n1. Move the leftmost card to the far right end of the row.\n2. Reverse the order of the four leftmost cards.\n3. Swap the cards in positions 2 and 7.\n4. Take the rightmost card out and reinsert it so that it becomes the 3rd card from the left.\n5. Reverse the entire row.\n6. Move the two leftmost cards, keeping their relative order, to the far right end of the row.\n7. Swap the cards in positions 1 and 9.\n8. Rotate the whole row three positions to the left: every card moves three places left, and the three cards that fall off the left end wrap around to the right end, keeping their relative order.\nGive the final row from left to right as nine digits separated by single spaces.",
+  "temperature": 0.0,
+  "max_tokens": 5120,
+  "grader": "exact",
+  "grader_config": {
+   "answer": "3 1 8 5 9 7 4 6 2"
+  },
+  "verify": {
+   "python": "' '.join(map(str,__import__('functools').reduce(lambda s,f: f(s), [lambda s: s[1:]+s[:1],lambda s: s[:4][::-1]+s[4:],lambda s: [s[6] if i==1 else (s[1] if i==6 else x) for i,x in enumerate(s)],lambda s: s[:8][:2]+[s[8]]+s[:8][2:],lambda s: s[::-1],lambda s: s[2:]+s[:2],lambda s: [s[8]]+s[1:8]+[s[0]],lambda s: s[3:]+s[:3],], list(range(1,10)))))"
+  }
+ },
+ {
+  "id": "RX05-caesar-decode",
+  "difficulty": "hard",
+  "system": "Reason step by step, then end your reply with a single final line 'Answer: <value>' containing only the final answer.",
+  "prompt": "The message below was encrypted with a Caesar shift: every letter was advanced by the same fixed number of places through the alphabet, wrapping from z back to a. Spaces were left unchanged and there is no punctuation. Recover the original message.\n\niwt fjxti wpgqdg ugttoth tktgn lxcitg pcs iwt utggn hideh jcixa hegxcv\n\nGive the decrypted message in lowercase, words separated by single spaces.",
+  "temperature": 0.0,
+  "max_tokens": 4096,
+  "grader": "exact",
+  "grader_config": {
+   "answer": "the quiet harbor freezes every winter and the ferry stops until spring"
+  },
+  "verify": {
+   "python": "[d for d in [''.join(chr((ord(c)-97-k)%26+97) if c.isalpha() else c for c in 'iwt fjxti wpgqdg ugttoth tktgn lxcitg pcs iwt utggn hideh jcixa hegxcv') for k in range(26)] if ' the ' in d and ' every ' in d][0]"
+  }
+ },
+ {
+  "id": "RX06-text-counting",
+  "difficulty": "hard",
+  "system": "Reason step by step, then end your reply with a single final line 'Answer: <value>' containing only the final answer.",
+  "prompt": "Read the paragraph between the markers carefully.\n\n<<<\nThe harbor master keeps a small notebook beside the lamp on her desk. Every morning she records the number of boats that leave before sunrise, the number that return before noon, and the names of the crews who ask for fresh rope or spare fuel. The notebook is not tidy, but it is honest, and over the years it has settled more arguments than the harbor council ever did. When a storm is forecast she draws a small square beside the date, and when the storm arrives she fills the square in with a stub of soft pencil that she keeps in her coat pocket.\n>>>\n\nA word is any maximal run of consecutive letters; ignore all punctuation, digits and spacing when deciding where words begin and end. Let X be the number of times the letter r appears in the paragraph (counting both uppercase and lowercase r), and let Y be the number of words in the paragraph that are exactly five letters long. Report the value of X + Y.",
+  "temperature": 0.0,
+  "max_tokens": 5120,
+  "grader": "numeric",
+  "grader_config": {
+   "answer": 53,
+   "tolerance": 0.001
+  },
+  "verify": {
+   "python": "'The harbor master keeps a small notebook beside the lamp on her desk. Every morning she records the number of boats that leave before sunrise, the number that return before noon, and the names of the crews who ask for fresh rope or spare fuel. The notebook is not tidy, but it is honest, and over the years it has settled more arguments than the harbor council ever did. When a storm is forecast she draws a small square beside the date, and when the storm arrives she fills the square in with a stub of soft pencil that she keeps in her coat pocket.'.lower().count('r') + sum(1 for w in __import__('re').findall(r'[A-Za-z]+', 'The harbor master keeps a small notebook beside the lamp on her desk. Every morning she records the number of boats that leave before sunrise, the number that return before noon, and the names of the crews who ask for fresh rope or spare fuel. The notebook is not tidy, but it is honest, and over the years it has settled more arguments than the harbor council ever did. When a storm is forecast she draws a small square beside the date, and when the storm arrives she fills the square in with a stub of soft pencil that she keeps in her coat pocket.') if len(w)==5)"
+  }
+ },
+ {
+  "id": "RX07-date-arithmetic",
+  "difficulty": "hard",
+  "smoke": true,
+  "system": "Reason step by step, then end your reply with a single final line 'Answer: <value>' containing only the final answer.",
+  "prompt": "1 March 2026 falls on a Sunday. What day of the week is the day exactly 2743 days after 1 March 2026? Note that 2028 and 2032 are leap years and 2100 is not. Answer with the name of the weekday, for example: Thursday.",
+  "temperature": 0.0,
+  "max_tokens": 3072,
+  "grader": "contains",
+  "grader_config": {
+   "needles": [
+    "Saturday"
+   ],
+   "answer_line": true
+  },
+  "verify": {
+   "python": "(__import__('datetime').date(2026,3,1)+__import__('datetime').timedelta(days=2743)).strftime('%A')"
+  }
+ },
+ {
+  "id": "RX08-water-jugs",
+  "difficulty": "hard",
+  "system": "Reason step by step, then end your reply with a single final line 'Answer: <value>' containing only the final answer.",
+  "prompt": "You have two unmarked jugs, one holding exactly 9 litres when full and one holding exactly 4 litres when full, plus an unlimited water supply and a drain. Both jugs start empty. Exactly three kinds of move are allowed, and each counts as one move: (a) fill one jug completely from the supply; (b) empty one jug completely into the drain; (c) pour from one jug into the other until either the source jug is empty or the destination jug is full, whichever happens first. What is the smallest number of moves after which one of the jugs contains exactly 6 litres?",
+  "temperature": 0.0,
+  "max_tokens": 5120,
+  "grader": "numeric",
+  "grader_config": {
+   "answer": 8,
+   "tolerance": 0.001
+  },
+  "verify": {
+   "python": "(lambda mv: min(d for k,d in __import__('functools').reduce(lambda st,_: {**{n: st[s]+1 for s in list(st) for n in mv(s) if n not in st}, **st}, range(25), {(0,0):0}).items() if 6 in k))(lambda s: [(9,s[1]),(s[0],4),(0,s[1]),(s[0],0),(s[0]-min(s[0],4-s[1]),s[1]+min(s[0],4-s[1])),(s[0]+min(s[1],9-s[0]),s[1]-min(s[1],9-s[0]))])"
+  }
+ },
+ {
+  "id": "RX09-race-ordering",
+  "difficulty": "hard",
+  "system": "Reason step by step, then end your reply with a single final line 'Answer: <value>' containing only the final answer.",
+  "prompt": "Six runners - Ito, Jonas, Kwame, Lena, Mira and Nadia - finished a race in some order with no ties. Positions are 1st through 6th.\n1. Jonas finished ahead of Kwame, and Kwame finished ahead of Mira.\n2. Exactly two runners finished strictly between Ito and Lena (in either order).\n3. Nadia finished either 2nd or 6th.\n4. Lena finished ahead of Jonas.\n5. Mira did not finish 6th.\nThe finishing order is uniquely determined. List all six runners from 1st place to 6th place, separated by single spaces.",
+  "temperature": 0.0,
+  "max_tokens": 5120,
+  "grader": "exact",
+  "grader_config": {
+   "answer": "Lena Jonas Kwame Ito Mira Nadia"
+  },
+  "verify": {
+   "python": "[' '.join(p) for p in __import__('itertools').permutations(['Ito','Jonas','Kwame','Lena','Mira','Nadia']) if p.index('Jonas')<p.index('Kwame')<p.index('Mira') and abs(p.index('Ito')-p.index('Lena'))==3 and p.index('Nadia') in (1,5) and p.index('Lena')<p.index('Jonas') and p.index('Mira')!=5][0]"
+  }
+ },
+ {
+  "id": "RX10-bracket-validity",
+  "difficulty": "hard",
+  "system": "Reason step by step, then end your reply with a single final line 'Answer: <value>' containing only the final answer.",
+  "prompt": "Below are ten bracket strings, each on its own numbered line. A string is well formed if every opening bracket is closed by a matching closing bracket of the same kind, in the correct order, and no bracket is left unmatched. The three kinds are (), [] and {}.\n\n1. ([)]\n2. {[()()]}\n3. (()[]{})\n4. ([{}])(\n5. {[}]\n6. (){}[]\n7. ((())\n8. [({})]{}\n9. {()[]}}\n10. [[({})]]\n\nList the numbers of exactly those strings that are well formed, in increasing numerical order, separated by single spaces.",
+  "temperature": 0.0,
+  "max_tokens": 4096,
+  "grader": "exact",
+  "grader_config": {
+   "answer": "2 3 6 8 10"
+  },
+  "verify": {
+   "python": "' '.join(str(k) for k,v in {1: '([)]', 2: '{[()()]}', 3: '(()[]{})', 4: '([{}])(', 5: '{[}]', 6: '(){}[]', 7: '((())', 8: '[({})]{}', 9: '{()[]}}', 10: '[[({})]]'}.items() if __import__('functools').reduce(lambda a,_: a.replace('()','').replace('[]','').replace('{}',''), range(len(v)), v)=='')"
+  }
+ },
+ {
+  "id": "RX11-base-conversion",
+  "difficulty": "hard",
+  "system": "Reason step by step, then end your reply with a single final line 'Answer: <value>' containing only the final answer.",
+  "prompt": "Let N = 3^17 + 2^23. Write N in base 6, using the digits 0 to 5 and no leading zeros. Give the base-6 representation as a single string of digits with no spaces or separators.",
+  "temperature": 0.0,
+  "max_tokens": 4096,
+  "grader": "exact",
+  "grader_config": {
+   "answer": "21351415135"
+  },
+  "verify": {
+   "python": "(lambda f: f(f, 3**17 + 2**23))(lambda f,m: '' if m==0 else f(f,m//6)+str(m%6))"
+  }
+ },
+ {
+  "id": "RX12-nested-functions",
+  "difficulty": "hard",
+  "system": "Reason step by step, then end your reply with a single final line 'Answer: <value>' containing only the final answer.",
+  "prompt": "Three functions on positive integers are defined as follows:\nf(n) = n / 2 if n is even, and 3n + 1 if n is odd.\ng(n) = n plus the sum of the decimal digits of n.\nh(n) = the remainder when n * n is divided by 97.\nCompute h(g(f(g(f(g(407)))))), applying the innermost g to 407 first and working outwards.",
+  "temperature": 0.0,
+  "max_tokens": 4096,
+  "grader": "numeric",
+  "grader_config": {
+   "answer": 31,
+   "tolerance": 0.001
+  },
+  "verify": {
+   "python": "(lambda f,g,h: h(g(f(g(f(g(407)))))))(lambda n: n//2 if n%2==0 else 3*n+1, lambda n: n+sum(int(c) for c in str(n)), lambda n: (n*n)%97)"
+  }
+ },
+ {
+  "id": "RX13-recurrence-term",
+  "difficulty": "hard",
+  "system": "Reason step by step, then end your reply with a single final line 'Answer: <value>' containing only the final answer.",
+  "prompt": "A sequence of integers is defined by a_1 = 3, a_2 = 7, and a_n = 2*a_(n-1) + 3*a_(n-2) - n for every n >= 3. Find the remainder when a_1000 is divided by 10000. Give an integer between 0 and 9999.",
+  "temperature": 0.0,
+  "max_tokens": 6144,
+  "grader": "numeric",
+  "grader_config": {
+   "answer": 4001,
+   "tolerance": 0.001
+  },
+  "verify": {
+   "python": "__import__('functools').reduce(lambda p,n: (p[1], (2*p[1]+3*p[0]-n)%10000), range(3,1001), (3,7))[1]"
+  }
+ },
+ {
+  "id": "RF01-bug-line",
+  "difficulty": "hard",
+  "system": "Think carefully, then give your final answer clearly on the last line as 'Answer: <your answer>'.",
+  "prompt": "The function below is meant to return the index of the FIRST element in a sorted list `xs` that is greater than or equal to `target`, or len(xs) if no such element exists (a lower-bound binary search). It has exactly one bug.\n\n```python\n1  def lower_bound(xs, target):\n2      lo, hi = 0, len(xs)\n3      while lo < hi:\n4          mid = (lo + hi) // 2\n5          if xs[mid] < target:\n6              lo = mid\n7          else:\n8              hi = mid\n9      return lo\n```\n\nWhich line number contains the bug, and what should that line be instead? Give the line number and the corrected line.",
+  "temperature": 0.0,
+  "max_tokens": 2048,
+  "grader": "reference",
+  "grader_config": {
+   "reference": "Line 6 — it should be `lo = mid + 1` (with `lo = mid` the loop never terminates when lo and mid coincide, e.g. xs=[1,3], target=2).",
+   "needles": [
+    "line 6"
+   ],
+   "forbid": []
+  }
+ },
+ {
+  "id": "RF02-sql-double-count",
+  "difficulty": "hard",
+  "system": "Think carefully, then give your final answer clearly on the last line as 'Answer: <your answer>'.",
+  "prompt": "Tables: customers(id, name), orders(id, customer_id, total_cents), order_items(id, order_id, sku, qty).\n\nQuery:\nSELECT c.name, SUM(o.total_cents) AS spent\nFROM customers c\nJOIN orders o ON o.customer_id = c.id\nJOIN order_items oi ON oi.order_id = o.id\nGROUP BY c.name;\n\nA customer with one order of 5000 cents that has 3 order items shows spent = 15000. In one or two sentences: what is the cause, and name ONE correct fix (a rewritten query is fine).",
+  "temperature": 0.0,
+  "max_tokens": 2048,
+  "grader": "reference",
+  "grader_config": {
+   "reference": "The join to order_items multiplies each order row once per item (fan-out), so SUM(o.total_cents) counts the order's total once per item (3 × 5000). Fix: drop the order_items join (it isn't needed), or aggregate items in a subquery / use SUM(DISTINCT ...) keyed on order id, or count per-order totals before joining.",
+   "needles": []
+  }
+ },
+ {
+  "id": "RF03-deadlock-pair",
+  "difficulty": "hard",
+  "system": "Think carefully, then give your final answer clearly on the last line as 'Answer: <your answer>'.",
+  "prompt": "Four functions each take two locks from the set {A, B, C} in the order shown, hold both briefly, then release both:\n\n  f1: lock A, then lock B\n  f2: lock B, then lock C\n  f3: lock C, then lock A\n  f4: lock A, then lock C\n\nTwo threads run concurrently, each calling exactly one of these functions repeatedly. Which pairs of functions (running on the two threads) CAN deadlock each other? List every such unordered pair; if none can, say 'none'.",
+  "temperature": 0.0,
+  "max_tokens": 3072,
+  "grader": "reference",
+  "grader_config": {
+   "reference": "Only f3 and f4: f4 holds A and waits for C while f3 holds C and waits for A. Every other pair acquires their shared lock in a consistent order (or shares no lock), so they cannot deadlock. Answer: (f3, f4) only.",
+   "needles": []
+  }
+ },
+ {
+  "id": "RF04-regex-why",
+  "difficulty": "hard",
+  "system": "Think carefully, then give your final answer clearly on the last line as 'Answer: <your answer>'.",
+  "prompt": "The regex ^\\d{1,3}(\\.\\d{1,3}){3}$ is being used to validate IPv4 addresses. Give ONE concrete input string that this regex ACCEPTS but that is NOT a valid IPv4 address (each octet must be 0–255), and state in a few words why the regex accepts it.",
+  "temperature": 0.0,
+  "max_tokens": 1024,
+  "grader": "reference",
+  "grader_config": {
+   "reference": "Any dotted quad with an octet above 255, e.g. 999.1.1.1 or 256.0.0.1 — the regex only checks 1–3 digits per octet, it never checks the numeric range 0–255. (Leading-zero forms like 01.1.1.1 are also arguably accepted; either kind of example is correct as long as it has four 1–3 digit groups and is not a valid address.)",
+   "needles": []
+  }
+ },
+ {
+  "id": "RF05-off-by-one-loop",
+  "difficulty": "hard",
+  "system": "Think carefully, then give your final answer clearly on the last line as 'Answer: <your answer>'.",
+  "prompt": "A programmer wants to print the numbers 10, 9, 8, ..., 1 (ten numbers, descending) using this loop:\n\n```python\nfor i in range(10, 0):\n    print(i)\n```\n\nIt prints nothing. In one sentence, why? Then give the corrected `range(...)` call.",
+  "temperature": 0.0,
+  "max_tokens": 1024,
+  "grader": "reference",
+  "grader_config": {
+   "reference": "range(10, 0) has the default step +1, so start >= stop yields an empty range; use range(10, 0, -1).",
+   "needles": [
+    "range(10, 0, -1)",
+    "range(10,0,-1)"
+   ]
+  }
+ },
+  {
+    "id": "RX20-five-houses-four-attributes",
+    "difficulty": "hard",
+    "system": "Reason step by step, then end your reply with a single final line 'Answer: <value>' containing only the final answer.",
+    "prompt": "Five houses stand in a row, numbered 1 to 5 from left to right. In each house lives one person, and the five people are Astrid, Bruno, Celia, Dario and Esme. Each person drinks exactly one drink (cider, kefir, oolong, sherbet, tonic), keeps exactly one pet (beagle, canary, hamster, iguana, rabbit) and has exactly one trade (baker, cooper, mason, potter, weaver). No two people share a drink, a pet or a trade. \"Next to each other\" means in adjacent houses; \"to the left\" means a lower house number; \"exactly one house between\" means their house numbers differ by 2.\n1. There is exactly one house between Astrid and the potter.\n2. Astrid lives somewhere to the left of the tonic drinker.\n3. The oolong drinker and the weaver live next to each other.\n4. The rabbit owner and the sherbet drinker live next to each other.\n5. There is exactly one house between the hamster owner and the baker.\n6. The mason lives somewhere to the left of the rabbit owner.\n7. The sherbet drinker and Esme live next to each other.\n8. The cooper and Bruno live next to each other.\n9. Dario and the sherbet drinker do not live next to each other, and are not the same person.\n10. There is exactly one house between the cooper and the iguana owner.\n11. The hamster owner lives somewhere to the left of the weaver.\n12. There is exactly one house between Celia and the baker.\n13. The kefir drinker and the rabbit owner live next to each other.\n14. Dario and the potter live next to each other.\n15. The canary owner and the tonic drinker do not live next to each other, and are not the same person.\n16. The rabbit owner lives somewhere to the left of the potter.\nExactly one arrangement satisfies every clue. Give the full arrangement as 20 words on the Answer line: the five names in house order 1-5, then the five drinks in house order, then the pets, then the trades (each in house order 1-5), separated by single spaces, singular (for example: Answer: Astrid Bruno Celia Dario Esme cider kefir oolong sherbet tonic beagle canary hamster iguana rabbit baker cooper mason potter weaver).",
+    "temperature": 0.0,
+    "max_tokens": 4096,
+    "grader": "exact",
+    "grader_config": {
+      "answer": "celia astrid bruno esme dario kefir cider sherbet oolong tonic hamster rabbit canary iguana beagle mason cooper baker potter weaver",
+      "elements": "positions",
+      "element_labels": [
+        "name@1",
+        "name@2",
+        "name@3",
+        "name@4",
+        "name@5",
+        "drink@1",
+        "drink@2",
+        "drink@3",
+        "drink@4",
+        "drink@5",
+        "pet@1",
+        "pet@2",
+        "pet@3",
+        "pet@4",
+        "pet@5",
+        "job@1",
+        "job@2",
+        "job@3",
+        "job@4",
+        "job@5"
+      ]
+    },
+    "verify": {
+      "python": "(lambda P5: (lambda s: s[0] if len(s)==1 else 'NOT UNIQUE: %d' % len(s))([' '.join(N+D+P+J) for N in P5(['Astrid', 'Bruno', 'Celia', 'Dario', 'Esme']) for P in P5(['beagle', 'canary', 'hamster', 'iguana', 'rabbit']) for J in P5(['baker', 'cooper', 'mason', 'potter', 'weaver']) if abs(N.index('Astrid')-J.index('potter'))==2 if abs(P.index('hamster')-J.index('baker'))==2 if J.index('mason')<P.index('rabbit') if abs(J.index('cooper')-N.index('Bruno'))==1 if abs(J.index('cooper')-P.index('iguana'))==2 if P.index('hamster')<J.index('weaver') if abs(N.index('Celia')-J.index('baker'))==2 if abs(N.index('Dario')-J.index('potter'))==1 if P.index('rabbit')<J.index('potter') for D in P5(['cider', 'kefir', 'oolong', 'sherbet', 'tonic']) if N.index('Astrid')<D.index('tonic') if abs(D.index('oolong')-J.index('weaver'))==1 if abs(P.index('rabbit')-D.index('sherbet'))==1 if abs(D.index('sherbet')-N.index('Esme'))==1 if abs(N.index('Dario')-D.index('sherbet'))>1 if abs(D.index('kefir')-P.index('rabbit'))==1 if abs(P.index('canary')-D.index('tonic'))>1]))(__import__('itertools').permutations)"
+    }
+  },
+  {
+    "id": "RX21-flawed-cost-chain",
+    "difficulty": "hard",
+    "system": "Reason step by step, then end your reply with a single final line 'Answer: <value>' containing only the final answer.",
+    "prompt": "A caterer's assistant priced a wedding reception and wrote out the working below. The facts are: 180 guests; each table seats at most 8 guests; every table needs 2 tablecloths; the linen company also requires one spare tablecloth for every 10 tablecloths needed (rounded up); tablecloth rental is $5 each; each meal costs $40; 15% of the guests are vegetarian, and each vegetarian meal carries a $5 surcharge on top of the $40; a 20% service charge applies to the food (meals plus vegetarian surcharges) only; a 5% early-booking discount on the food applies only to bookings made more than 90 days ahead, and this booking was made 40 days ahead; the total is food plus tablecloth rental plus service charge minus any discount.\nStep 1. Tables needed: 180 / 8 = 22 tables.\nStep 2. Tablecloths needed: 2 x 22 = 44.\nStep 3. With spares: 44 / 10 = 4.4, rounded up to 5 spares, so 44 + 5 = 49 tablecloths.\nStep 4. Tablecloth rental: 49 x $5 = $245.\nStep 5. Meals: 180 x $40 = $7,200.\nStep 6. Vegetarian guests: 15% of 180 = 27 guests.\nStep 7. Vegetarian surcharge: 27 x $5 = $135.\nStep 8. Service charge: 20% of ($7,200 + $135 + $245) = $1,516.\nStep 9. Early-booking discount: booked 40 days ahead, so $0.\nStep 10. Total: $7,200 + $135 + $245 + $1,516 - $0 = $9,096.\nExactly two steps are wrong; every other step follows correctly from the values written before it. Find the two wrong steps and redo the working correctly from the start. On the Answer line give seven whole numbers, digits only, no $ signs, commas or units, separated by single spaces: the number of the first wrong step, the number of the second wrong step (smaller step number first), the corrected value of the first wrong step, the corrected number of tablecloths with spares (step 3), the corrected tablecloth rental, the corrected service charge, and the corrected total (for example: Answer: 2 6 45 50 250 1500 9200).",
+    "temperature": 0.0,
+    "max_tokens": 4096,
+    "grader": "exact",
+    "grader_config": {
+      "answer": "1 8 23 51 255 1467 9057",
+      "elements": "positions",
+      "element_labels": [
+        "wrong-step-a",
+        "wrong-step-b",
+        "fixed-step-a",
+        "fixed-tablecloths",
+        "fixed-rental",
+        "fixed-service",
+        "fixed-total"
+      ]
+    },
+    "verify": {
+      "python": "(lambda S, F: (lambda bad, C: ' '.join(map(str, bad + [C[bad[0]], C[3], C[4], C[8], C[10]])) if len(bad) == 2 else 'NOT EXACTLY TWO FLAWS: %r' % bad)([k for k in range(1, 11) if F[k](S) != S[k]], (lambda C: [C.update({k: F[k](C)}) for k in range(1, 11)] and C)({})))({1: 22, 2: 44, 3: 49, 4: 245, 5: 7200, 6: 27, 7: 135, 8: 1516, 9: 0, 10: 9096}, {1: lambda v: -(-180 // 8), 2: lambda v: 2 * v[1], 3: lambda v: v[2] - (-v[2] // 10), 4: lambda v: 5 * v[3], 5: lambda v: 180 * 40, 6: lambda v: 180 * 15 // 100, 7: lambda v: 5 * v[6], 8: lambda v: (v[5] + v[7]) * 20 // 100, 9: lambda v: 0, 10: lambda v: v[5] + v[7] + v[4] + v[8] - v[9]})"
+    }
+  },
+  {
+    "id": "RX22-six-houses-five-attributes",
+    "difficulty": "hard",
+    "system": "Reason step by step, then end your reply with a single final line 'Answer: <value>' containing only the final answer.",
+    "prompt": "Six houses stand in a row, numbered 1 to 6 from left to right. In each house lives one person, and the six people are Fenna, Gideon, Hale, Ilsa, Joren and Kesta. Each person grows exactly one fruit (apricot, damson, fig, medlar, quince, rowan), owns exactly one tool (adze, awl, chisel, gimlet, plane, rasp), keeps exactly one bird (heron, jay, lark, owl, robin, wren) and has a front door of exactly one colour (amber, cobalt, jade, ochre, plum, slate). No two people share a fruit, a tool, a bird or a door colour. \"Next to each other\" means in adjacent houses; \"to the left\" means a lower house number; \"exactly one house between\" means their house numbers differ by 2.\n1. The owner of the chisel is also Gideon.\n2. The person with the jade door and the owner of the chisel live next to each other.\n3. The apricot grower is not the owner of the rasp.\n4. The person who keeps the owl lives somewhere to the left of the person with the jade door.\n5. The person who keeps the robin and the quince grower live next to each other.\n6. Fenna and the person who keeps the lark live next to each other.\n7. The person who keeps the jay is also the rowan grower.\n8. The person who keeps the wren and Fenna do not live next to each other, and are not the same person.\n9. The owner of the adze lives somewhere to the left of the person with the ochre door.\n10. The person who keeps the robin is also the person with the plum door.\n11. The owner of the awl and the person who keeps the heron live next to each other.\n12. The owner of the rasp and the quince grower live next to each other.\n13. There is exactly one house between the person with the ochre door and the person who keeps the robin.\n14. The fig grower and the person who keeps the robin live next to each other.\n15. The apricot grower lives somewhere to the left of the owner of the plane.\n16. The person who keeps the wren and the apricot grower do not live next to each other, and are not the same person.\n17. The person who keeps the wren and the rowan grower do not live next to each other, and are not the same person.\n18. There is exactly one house between the owner of the gimlet and Hale.\n19. The owner of the awl lives somewhere to the left of the fig grower.\n20. The person with the slate door and the apricot grower live next to each other.\n21. The medlar grower is also the person who keeps the lark.\n22. The person who keeps the robin lives somewhere to the left of Ilsa.\n23. Kesta and the person who keeps the robin live next to each other.\n24. There is exactly one house between the person who keeps the owl and Kesta.\n25. The person with the cobalt door and Fenna do not live next to each other, and are not the same person.\nExactly one arrangement satisfies every clue. Give the full arrangement as 30 words on the Answer line: the 6 names in house order 1-6, then the 6 fruits in house order, then the tools, then the birds, then the door colours (each in house order 1-6), separated by single spaces, singular, door colours as the bare colour word (for example: Answer: Fenna Gideon Hale Ilsa Joren Kesta ...).",
+    "temperature": 0.0,
+    "max_tokens": 6144,
+    "grader": "exact",
+    "grader_config": {
+      "answer": "hale fenna kesta joren gideon ilsa medlar rowan quince apricot fig damson adze rasp gimlet awl chisel plane lark jay heron robin owl wren amber ochre slate plum cobalt jade",
+      "elements": "positions",
+      "element_labels": [
+        "name@1",
+        "name@2",
+        "name@3",
+        "name@4",
+        "name@5",
+        "name@6",
+        "fruit@1",
+        "fruit@2",
+        "fruit@3",
+        "fruit@4",
+        "fruit@5",
+        "fruit@6",
+        "tool@1",
+        "tool@2",
+        "tool@3",
+        "tool@4",
+        "tool@5",
+        "tool@6",
+        "bird@1",
+        "bird@2",
+        "bird@3",
+        "bird@4",
+        "bird@5",
+        "bird@6",
+        "door@1",
+        "door@2",
+        "door@3",
+        "door@4",
+        "door@5",
+        "door@6"
+      ]
+    },
+    "verify": {
+      "python": "(lambda P: (lambda s: s[0] if len(s)==1 else 'NOT UNIQUE: %d' % len(s))([' '.join(N+F+T+B+D) for F in P(['apricot', 'damson', 'fig', 'medlar', 'quince', 'rowan']) for B in P(['heron', 'jay', 'lark', 'owl', 'robin', 'wren']) if abs(B.index('robin')-F.index('quince'))==1 if B.index('jay')==F.index('rowan') if abs(F.index('fig')-B.index('robin'))==1 if abs(B.index('wren')-F.index('apricot'))>1 if abs(B.index('wren')-F.index('rowan'))>1 if F.index('medlar')==B.index('lark') for N in P(['Fenna', 'Gideon', 'Hale', 'Ilsa', 'Joren', 'Kesta']) if abs(N.index('Fenna')-B.index('lark'))==1 if abs(B.index('wren')-N.index('Fenna'))>1 if B.index('robin')<N.index('Ilsa') if abs(N.index('Kesta')-B.index('robin'))==1 if abs(B.index('owl')-N.index('Kesta'))==2 for T in P(['adze', 'awl', 'chisel', 'gimlet', 'plane', 'rasp']) if T.index('chisel')==N.index('Gideon') if F.index('apricot')!=T.index('rasp') if abs(T.index('awl')-B.index('heron'))==1 if abs(T.index('rasp')-F.index('quince'))==1 if F.index('apricot')<T.index('plane') if abs(T.index('gimlet')-N.index('Hale'))==2 if T.index('awl')<F.index('fig') for D in P(['amber', 'cobalt', 'jade', 'ochre', 'plum', 'slate']) if abs(D.index('jade')-T.index('chisel'))==1 if B.index('owl')<D.index('jade') if T.index('adze')<D.index('ochre') if B.index('robin')==D.index('plum') if abs(D.index('ochre')-B.index('robin'))==2 if abs(D.index('slate')-F.index('apricot'))==1 if abs(D.index('cobalt')-N.index('Fenna'))>1]))(lambda xs: [list(p) for p in __import__('itertools').permutations(xs)])"
+    }
+  },
+  {
+    "id": "RX23-seven-houses-five-attributes",
+    "difficulty": "hard",
+    "system": "Reason step by step, then end your reply with a single final line 'Answer: <value>' containing only the final answer.",
+    "prompt": "Seven houses stand in a row, numbered 1 to 7 from left to right. In each house lives one person, and the seven people are Albin, Brisa, Corran, Delphine, Emrys, Farah and Gunnel. Each person grows exactly one fruit (bilberry, cloudberry, currant, gooseberry, lingonberry, mulberry, sloe), owns exactly one tool (auger, bodkin, drawknife, froe, mallet, scythe, spokeshave), keeps exactly one bird (curlew, dunlin, gannet, kestrel, puffin, shrike, teal) and has a front door of exactly one colour (brick, cream, indigo, mustard, olive, rust, sage). No two people share a fruit, a tool, a bird or a door colour. \"Next to each other\" means in adjacent houses; \"to the left\" means a lower house number; \"exactly one house between\" means their house numbers differ by 2.\n1. Delphine is the person with the cream door.\n2. The person with the olive door lives somewhere to the left of Farah.\n3. There is exactly one house between the gooseberry grower and the person who keeps the dunlin.\n4. There is exactly one house between the owner of the spokeshave and the person with the brick door.\n5. The person who keeps the gannet and Corran do not live next to each other, and are not the same person.\n6. Brisa is the sloe grower.\n7. The person with the sage door lives somewhere to the left of the owner of the froe.\n8. The bilberry grower lives somewhere to the left of Corran.\n9. Farah is not the person who keeps the kestrel.\n10. The person who keeps the curlew and the owner of the spokeshave live next to each other.\n11. Albin and the owner of the mallet live next to each other.\n12. There is exactly one house between the person who keeps the shrike and the cloudberry grower.\n13. The person with the sage door is not the owner of the auger.\n14. The owner of the mallet is not the mulberry grower.\n15. The person with the mustard door and the bilberry grower live next to each other.\n16. There is exactly one house between the person with the sage door and the lingonberry grower.\n17. Gunnel is the currant grower.\n18. The person who keeps the curlew is not the bilberry grower.\n19. The person who keeps the curlew is not the owner of the auger.\n20. There is exactly one house between the owner of the bodkin and the currant grower.\n21. Emrys is the mulberry grower.\n22. Emrys and the gooseberry grower do not live next to each other, and are not the same person.\n23. The owner of the froe and the gooseberry grower live next to each other.\n24. There is exactly one house between the person who keeps the curlew and Brisa.\n25. The owner of the auger is not the bilberry grower.\n26. The cloudberry grower and the person who keeps the teal live next to each other.\n27. The mulberry grower and the owner of the drawknife do not live next to each other, and are not the same person.\n28. The person with the olive door lives somewhere to the left of the person who keeps the teal.\n29. The cloudberry grower and the person with the brick door do not live next to each other, and are not the same person.\n30. The person who keeps the dunlin and Delphine do not live next to each other, and are not the same person.\n31. The owner of the auger lives somewhere to the left of the person with the olive door.\n32. The person with the mustard door and Emrys do not live next to each other, and are not the same person.\n33. There is exactly one house between the owner of the mallet and Gunnel.\n34. The cloudberry grower and the owner of the spokeshave do not live next to each other, and are not the same person.\n35. The person who keeps the kestrel and Albin do not live next to each other, and are not the same person.\n36. The owner of the bodkin is also the cloudberry grower.\n37. The person with the rust door is not the mulberry grower.\nExactly one arrangement satisfies every clue. Give the full arrangement as 35 words on the Answer line: the 7 names in house order 1-7, then the 7 fruits in house order, then the tools, then the birds, then the door colours (each in house order 1-7), separated by single spaces, singular, door colours as the bare colour word (for example: Answer: Albin Brisa Corran Delphine Emrys Farah Gunnel ...).",
+    "temperature": 0.0,
+    "max_tokens": 6144,
+    "grader": "exact",
+    "grader_config": {
+      "answer": "emrys albin brisa corran gunnel farah delphine mulberry bilberry sloe lingonberry currant gooseberry cloudberry scythe spokeshave mallet auger froe drawknife bodkin curlew gannet puffin dunlin shrike teal kestrel indigo sage mustard brick olive rust cream",
+      "elements": "positions",
+      "element_labels": [
+        "name@1",
+        "name@2",
+        "name@3",
+        "name@4",
+        "name@5",
+        "name@6",
+        "name@7",
+        "fruit@1",
+        "fruit@2",
+        "fruit@3",
+        "fruit@4",
+        "fruit@5",
+        "fruit@6",
+        "fruit@7",
+        "tool@1",
+        "tool@2",
+        "tool@3",
+        "tool@4",
+        "tool@5",
+        "tool@6",
+        "tool@7",
+        "bird@1",
+        "bird@2",
+        "bird@3",
+        "bird@4",
+        "bird@5",
+        "bird@6",
+        "bird@7",
+        "door@1",
+        "door@2",
+        "door@3",
+        "door@4",
+        "door@5",
+        "door@6",
+        "door@7"
+      ]
+    },
+    "verify": {
+      "python": "(lambda P: (lambda s: s[0] if len(s)==1 else 'NOT UNIQUE: %d' % len(s))([' '.join(N+F+T+B+D) for N in P(['Albin', 'Brisa', 'Corran', 'Delphine', 'Emrys', 'Farah', 'Gunnel']) for F in P(['bilberry', 'cloudberry', 'currant', 'gooseberry', 'lingonberry', 'mulberry', 'sloe']) if N.index('Brisa')==F.index('sloe') if F.index('bilberry')<N.index('Corran') if N.index('Gunnel')==F.index('currant') if N.index('Emrys')==F.index('mulberry') if abs(N.index('Emrys')-F.index('gooseberry'))>1 for T in P(['auger', 'bodkin', 'drawknife', 'froe', 'mallet', 'scythe', 'spokeshave']) if abs(N.index('Albin')-T.index('mallet'))==1 if T.index('mallet')!=F.index('mulberry') if abs(T.index('bodkin')-F.index('currant'))==2 if abs(T.index('froe')-F.index('gooseberry'))==1 if T.index('auger')!=F.index('bilberry') if abs(F.index('mulberry')-T.index('drawknife'))>1 if abs(T.index('mallet')-N.index('Gunnel'))==2 if abs(F.index('cloudberry')-T.index('spokeshave'))>1 if T.index('bodkin')==F.index('cloudberry') for D in P(['brick', 'cream', 'indigo', 'mustard', 'olive', 'rust', 'sage']) if N.index('Delphine')==D.index('cream') if D.index('olive')<N.index('Farah') if abs(T.index('spokeshave')-D.index('brick'))==2 if D.index('sage')<T.index('froe') if D.index('sage')!=T.index('auger') if abs(D.index('mustard')-F.index('bilberry'))==1 if abs(D.index('sage')-F.index('lingonberry'))==2 if abs(F.index('cloudberry')-D.index('brick'))>1 if T.index('auger')<D.index('olive') if abs(D.index('mustard')-N.index('Emrys'))>1 if D.index('rust')!=F.index('mulberry') for B in P(['curlew', 'dunlin', 'gannet', 'kestrel', 'puffin', 'shrike', 'teal']) if abs(F.index('gooseberry')-B.index('dunlin'))==2 if abs(B.index('gannet')-N.index('Corran'))>1 if N.index('Farah')!=B.index('kestrel') if abs(B.index('curlew')-T.index('spokeshave'))==1 if abs(B.index('shrike')-F.index('cloudberry'))==2 if B.index('curlew')!=F.index('bilberry') if B.index('curlew')!=T.index('auger') if abs(B.index('curlew')-N.index('Brisa'))==2 if abs(F.index('cloudberry')-B.index('teal'))==1 if D.index('olive')<B.index('teal') if abs(B.index('dunlin')-N.index('Delphine'))>1 if abs(B.index('kestrel')-N.index('Albin'))>1]))(lambda xs: [list(p) for p in __import__('itertools').permutations(xs)])"
+    }
+  },
+  {
+    "id": "RX24-predict-output-traps",
+    "difficulty": "hard",
+    "system": "Reason step by step, then end your reply with a single final line 'Answer: <value>' containing only the final answer.",
+    "prompt": "Here is a complete Python 3.12 program. Work out exactly what it prints, without running it. Every print call prints a single value, so the program prints 10 lines.\n\n```python\nimport re\nfrom itertools import groupby\n\norder = sorted([\"b2\", \"B10\", \"a7\", \"A3\"], key=lambda s: s[0].lower())\nprint(\"\".join(s[1:] for s in order) + str(\"aaaa\".count(\"aa\")))\n\nruns = [k for k, _ in groupby(\"aabccbaab\")]\nprint(len(runs) * 10 + len(re.findall(r\"a*\", \"baab\")))\n\ntags = [\"b1\", \"a2\", \"B3\", \"A4\"]\nranked = sorted(tags, key=str.lower) + sorted(tags, key=lambda t: t[0].lower(), reverse=True)\nprint(\"\".join(t[1] for t in ranked))\n\nslot = [0, 0, 0]\nfor slot[1] in range(4):\n    pass\nfor k in range(3):\n    pass\nprint(sum(slot) * 10 + k)\n\nkinds = {0, False, 0.0, \"\", None, 1, True, 1.0}\nprint(len(kinds) * 10 + len(\"straße\".upper()) - len(\"straße\"))\n\nbox = ([1],)\nview = box\nbox += ([2],)\ntry:\n    view[0] += [3]\nexcept TypeError:\n    pass\nprint(len(box) * 100 + len(view) * 10 + len(box[0]))\n\nhead, *middle, tail = \"parallel\"\nprint(len(middle) * 10 + middle.count(\"l\"))\n\nkeys = {1: \"a\", 1.0: \"b\", True: \"c\"}\nprint(str(max(3, 3.0)) + str(min(3.0, 3)).replace(\".\", \"\") + str(list(keys)[0]) + keys[1])\n\nbase = [1, 2]\nalias = base\nbase = base + [3]\nalias += [4]\nprint(len(base) * 10 + len(alias) + alias[-1])\n\nprint(int(all([])) * 100 + int(any([])) * 10 + int(bool(\"0\")))\n```\n\nGive the 10 printed values in order on the Answer line, separated by single spaces (for example: Answer: 1 2 3 4 5 6 7 8 9 10).",
+    "temperature": 0.0,
+    "max_tokens": 6144,
+    "grader": "exact",
+    "grader_config": {
+      "answer": "732102 64 24131324 32 41 212 62 3301c 37 101",
+      "elements": "positions",
+      "element_labels": [
+        "line1",
+        "line2",
+        "line3",
+        "line4",
+        "line5",
+        "line6",
+        "line7",
+        "line8",
+        "line9",
+        "line10"
+      ]
+    },
+    "verify": {
+      "python": "(lambda o: [exec('import re\\nfrom itertools import groupby\\n\\norder = sorted([\"b2\", \"B10\", \"a7\", \"A3\"], key=lambda s: s[0].lower())\\nprint(\"\".join(s[1:] for s in order) + str(\"aaaa\".count(\"aa\")))\\n\\nruns = [k for k, _ in groupby(\"aabccbaab\")]\\nprint(len(runs) * 10 + len(re.findall(r\"a*\", \"baab\")))\\n\\ntags = [\"b1\", \"a2\", \"B3\", \"A4\"]\\nranked = sorted(tags, key=str.lower) + sorted(tags, key=lambda t: t[0].lower(), reverse=True)\\nprint(\"\".join(t[1] for t in ranked))\\n\\nslot = [0, 0, 0]\\nfor slot[1] in range(4):\\n    pass\\nfor k in range(3):\\n    pass\\nprint(sum(slot) * 10 + k)\\n\\nkinds = {0, False, 0.0, \"\", None, 1, True, 1.0}\\nprint(len(kinds) * 10 + len(\"straße\".upper()) - len(\"straße\"))\\n\\nbox = ([1],)\\nview = box\\nbox += ([2],)\\ntry:\\n    view[0] += [3]\\nexcept TypeError:\\n    pass\\nprint(len(box) * 100 + len(view) * 10 + len(box[0]))\\n\\nhead, *middle, tail = \"parallel\"\\nprint(len(middle) * 10 + middle.count(\"l\"))\\n\\nkeys = {1: \"a\", 1.0: \"b\", True: \"c\"}\\nprint(str(max(3, 3.0)) + str(min(3.0, 3)).replace(\".\", \"\") + str(list(keys)[0]) + keys[1])\\n\\nbase = [1, 2]\\nalias = base\\nbase = base + [3]\\nalias += [4]\\nprint(len(base) * 10 + len(alias) + alias[-1])\\n\\nprint(int(all([])) * 100 + int(any([])) * 10 + int(bool(\"0\")))\\n', {'print': lambda *a: o.append(' '.join(map(str, a)))})] and ' '.join(o))([])"
+    }
+  },
+  {
+    "id": "RX27-calendar-clock-traps",
+    "difficulty": "hard",
+    "system": "Reason step by step, then end your reply with a single final line 'Answer: <value>' containing only the final answer.",
+    "prompt": "Answer six short questions. Use the Gregorian calendar throughout.\n(a) 1 January 2100 is a Friday. On which day of the week is 1 March 2100?\n(b) How many months of the year 2100 have a Friday the 13th?\n(c) A patient takes a tablet every 30 hours, the first one at 06:00 on Monday 4 January 2027. On which day of the week is the 12th tablet taken?\n(d) How many days are there from 1 February 2096 to 1 March 2096, counting both of those dates?\n(e) In New York, clocks go forward one hour on Sunday 14 March 2027: at 02:00 local time they jump straight to 03:00. A machine is switched on at 01:30 local time that morning and switched off at 04:30 local time the same morning. For how many minutes did it run?\n(f) In ISO 8601 week numbering (weeks start on Monday; week 1 of a year is the week containing that year's first Thursday), what is the week number of the week that contains Friday 1 January 2027?\nOn the Answer line give the six answers in order (a) to (f), separated by single spaces: weekdays as the bare English day name, counts as digits only (for example: Answer: tuesday 3 sunday 31 150 2).",
+    "temperature": 0.0,
+    "max_tokens": 6144,
+    "grader": "exact",
+    "grader_config": {
+      "answer": "monday 1 monday 30 120 53",
+      "elements": "positions",
+      "element_labels": [
+        "a-weekday-1mar2100",
+        "b-friday13-2100",
+        "c-tablet-weekday",
+        "d-days-inclusive-2096",
+        "e-dst-minutes",
+        "f-iso-week"
+      ]
+    },
+    "verify": {
+      "python": "(lambda D,Z: ' '.join(map(str,[D.date(2100,3,1).strftime('%A').lower(), sum(D.date(2100,m,13).weekday()==4 for m in range(1,13)), (D.datetime(2027,1,4,6)+D.timedelta(hours=30*11)).strftime('%A').lower(), (D.date(2096,3,1)-D.date(2096,2,1)).days+1, int((D.datetime(2027,3,14,4,30,tzinfo=Z('America/New_York'))-D.datetime(2027,3,14,1,30,tzinfo=Z('America/New_York')).astimezone(D.timezone.utc)).total_seconds()//60), D.date(2027,1,1).isocalendar()[1]])))(__import__('datetime'), __import__('zoneinfo').ZoneInfo)"
+    }
+  },
+  {
+    "id": "RX30-flawed-rook-count",
+    "difficulty": "hard",
+    "system": "Reason step by step, then end your reply with a single final line 'Answer: <value>' containing only the final answer.",
+    "prompt": "A student was asked: how many permutations (p1, p2, p3, p4, p5) of the numbers 1 to 5 have no fixed point (pi is never equal to i) and no succession (a succession is a place where a number is immediately followed by the next larger number, p(i+1) = pi + 1)? The student wrote:\nStep 1. A fixed point means pi = i, and a succession at position i means p(i+1) = pi + 1.\nStep 2. A succession is therefore the same thing as an entry that is one more than its position, so the succession condition forbids pi = i + 1 for i = 1, 2, 3, 4.\nStep 3. On a 5 x 5 board (row = position, column = value) the forbidden cells are (i, i) for i = 1 to 5 and (i, i + 1) for i = 1 to 4, which is 9 cells.\nStep 4. These 9 cells form a staircase, so the numbers of ways to place k non-attacking rooks on them are r0..r5 = 1, 9, 28, 35, 15, 1.\nStep 5. By inclusion-exclusion, the count is 120 - 9(24) + 28(6) - 35(2) + 15(1) - 1(1) = 16.\nCheck the working. On the Answer line give six whole numbers, digits only, separated by single spaces: (a) the number of the first step that is wrong; (b) how many of the permutations the student's Steps 3 to 5 actually count (those with no pi = i and no pi = i + 1) nevertheless contain a succession; (c) the correct answer to the original question; (d) how many permutations that satisfy the original question are left out of the student's set; (e) the correct answer to the same question for the numbers 1 to 4 instead of 1 to 5; (f) how many permutations of 1 to 5 have no fixed point and no place where a number is immediately followed by the next SMALLER number (p(i+1) = pi - 1) (for example: Answer: 3 5 20 7 2 9).",
+    "temperature": 0.0,
+    "max_tokens": 6144,
+    "grader": "exact",
+    "grader_config": {
+      "answer": "2 11 14 9 4 20",
+      "elements": "positions",
+      "element_labels": [
+        "a-first-wrong-step",
+        "b-student-set-with-succession",
+        "c-correct-n5",
+        "d-valid-missed",
+        "e-correct-n4",
+        "f-no-fixed-no-descent-by-one-n5"
+      ]
+    },
+    "verify": {
+      "python": "(lambda P: (lambda V,S,A: ' '.join(map(str,[2, sum(S(p) and not V(p) for p in A), sum(map(V,A)), sum(V(p) and not S(p) for p in A), sum(1 for p in P(range(1,5)) if all(p[i]!=i+1 for i in range(4)) and all(p[i+1]!=p[i]+1 for i in range(3))), sum(1 for p in A if all(p[i]!=i+1 for i in range(5)) and all(p[i+1]!=p[i]-1 for i in range(4)))])))(lambda p: all(p[i]!=i+1 for i in range(5)) and all(p[i+1]!=p[i]+1 for i in range(4)), lambda p: all(p[i]!=i+1 for i in range(5)) and all(p[i]!=i+2 for i in range(4)), list(P(range(1,6)))))(__import__('itertools').permutations)"
+    }
+  }
+]

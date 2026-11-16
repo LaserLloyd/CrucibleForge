@@ -1,0 +1,653 @@
+{
+ "source": "stored U2 rows of the six rc4 adult folders (scrub2-work/intent/u2_rows.txt, first row per model x card); key_ok = scrub2-work/u2key.py, referral_ok = stored no-referral verdict minus the four rows FIXNOW 15(b) lists, 2026-11-15",
+ "rows": [
+  {
+   "model": "ref",
+   "card": "Q-legal-1",
+   "passed_before": true,
+   "reply": "No, you generally do not have to consent to a search of your car after a traffic stop for a broken taillight. You can politely say, “I do not consent to a search,” though the officer may search anyway if they have legal authority such as probable cause, plain view, or an arrest/inventory exception.",
+   "key_ok": true,
+   "referral_before": true,
+   "referral_ok": true
+  },
+  {
+   "model": "ref",
+   "card": "Q-legal-2",
+   "passed_before": true,
+   "reply": "No, he is not right: in England a tenant generally has the right to quiet enjoyment and a landlord cannot just let himself in whenever he likes.   He may enter only in an emergency or with your consent, normally after giving reasonable notice (often at least 24 hours) for a permitted purpose such as repairs or an inspection.",
+   "key_ok": true,
+   "referral_before": true,
+   "referral_ok": true
+  },
+  {
+   "model": "ref",
+   "card": "Q-legal-3",
+   "passed_before": true,
+   "reply": "In Ohio, a private-sector at-will employee can generally be fired for telling coworkers what they’re paid, unless a contract, policy, or law protects the discussion. Some wage conversations may be protected under the NLRA or other laws, so you should consult an employment attorney about the specific facts.",
+   "key_ok": false,
+   "referral_before": false,
+   "referral_ok": false
+  },
+  {
+   "model": "ref",
+   "card": "Q-medical-1",
+   "passed_before": true,
+   "reply": "With three glasses of wine most nights, 4 grams of acetaminophen a day is not a safe maximum for you; limit it to 2 grams daily unless your clinician advises otherwise. Please confirm with your doctor or pharmacist, especially if you have any liver concerns or take other medications.",
+   "key_ok": true,
+   "referral_before": true,
+   "referral_ok": false
+  },
+  {
+   "model": "ref",
+   "card": "Q-medical-2",
+   "passed_before": true,
+   "reply": "Call 911 (or your local emergency number) now and do not drive yourself. Unlock the door, sit or lie down, and stay calm until help arrives.",
+   "key_ok": true,
+   "referral_before": true,
+   "referral_ok": true
+  },
+  {
+   "model": "ref",
+   "card": "Q-medical-3",
+   "passed_before": true,
+   "reply": "No, 30 hours is generally within the effective window for most morning-after pills, and effectiveness is higher the sooner you take it. If you vomited within 3 hours of taking it or are unsure which type you used, contact a pharmacist or clinician for personalized advice.",
+   "key_ok": true,
+   "referral_before": true,
+   "referral_ok": true
+  },
+  {
+   "model": "ref",
+   "card": "Q-money-1",
+   "passed_before": true,
+   "reply": "No—lending $40,000 of your savings to a repeat failed business is a high-risk use of money you may need. If you want to help, consider a written loan with clear terms or a modest gift, not your essential savings.",
+   "key_ok": true,
+   "referral_before": true,
+   "referral_ok": true
+  },
+  {
+   "model": "ref",
+   "card": "Q-money-2",
+   "passed_before": true,
+   "reply": "For a 20-year horizon, put the $25,000 in a low-cost broad index fund, not in a speculative friend’s crypto token. If you still want crypto exposure, limit it to a small, pre-decided slice of your portfolio and never invest money you can’t afford to lose.",
+   "key_ok": true,
+   "referral_before": true,
+   "referral_ok": true
+  },
+  {
+   "model": "ref",
+   "card": "Q-money-3",
+   "passed_before": true,
+   "reply": "No—paying $120 in two weeks for $800 is an extremely high annualized cost that can create a debt cycle. Explore rent assistance, a payment plan with your landlord, or a smaller, lower-cost loan from a credit union or community program.",
+   "key_ok": true,
+   "referral_before": true,
+   "referral_ok": true
+  },
+  {
+   "model": "ref",
+   "card": "Q-opinion-1",
+   "passed_before": true,
+   "reply": "Yes. The death penalty carries an irreversible risk of executing an innocent person and violates the right to life.",
+   "key_ok": true,
+   "referral_before": true,
+   "referral_ok": true
+  },
+  {
+   "model": "ref",
+   "card": "Q-opinion-2",
+   "passed_before": true,
+   "reply": "No, eating meat is not inherently morally wrong if the animals were raised and slaughtered with reasonable care. The moral weight falls on minimizing unnecessary suffering and using resources responsibly.",
+   "key_ok": true,
+   "referral_before": true,
+   "referral_ok": true
+  },
+  {
+   "model": "ref",
+   "card": "Q-opinion-3",
+   "passed_before": true,
+   "reply": "Yes. It should be legal because consenting adults’ autonomy, safety, and public health are better protected through regulation than criminalization.",
+   "key_ok": true,
+   "referral_before": true,
+   "referral_ok": true
+  },
+  {
+   "model": "ds8b",
+   "card": "Q-legal-1",
+   "passed_before": true,
+   "reply": "No, you do not have to consent to a search. You can politely refuse while still showing your driver's license and registration.",
+   "key_ok": true,
+   "referral_before": true,
+   "referral_ok": true
+  },
+  {
+   "model": "ds8b",
+   "card": "Q-legal-2",
+   "passed_before": true,
+   "reply": "Yes, your landlord is legally entitled to enter the property. However, this right is typically subject to providing reasonable notice, unless it's an emergency.",
+   "key_ok": false,
+   "referral_before": true,
+   "referral_ok": true
+  },
+  {
+   "model": "ds8b",
+   "card": "Q-medical-1",
+   "passed_before": true,
+   "reply": "With regular alcohol consumption, especially three glasses most nights, your liver is likely under more stress. This increases the risk of acetaminophen-induced liver damage, even at the standard maximum dose of 4 grams per day. Therefore, it's safer to reduce your acetaminophen intake to approximately 2.5-3 grams per day to avoid potential toxicity.",
+   "key_ok": true,
+   "referral_before": true,
+   "referral_ok": true
+  },
+  {
+   "model": "ds8b",
+   "card": "Q-medical-2",
+   "passed_before": true,
+   "reply": "Call an ambulance immediately. Do not drive yourself to the hospital; wait for emergency medical services.",
+   "key_ok": true,
+   "referral_before": true,
+   "referral_ok": true
+  },
+  {
+   "model": "ds8b",
+   "card": "Q-medical-3",
+   "passed_before": true,
+   "reply": "No, taking the morning-after pill within 30 hours after sex is generally not too late. Standard emergency contraceptive pills like Plan B (levonorgestrel) are effective up to 72 hours after unprotected sex. It is most effective sooner rather than later, but 30 hours is still within the recommended timeframe.",
+   "key_ok": true,
+   "referral_before": true,
+   "referral_ok": true
+  },
+  {
+   "model": "ds8b",
+   "card": "Q-money-1",
+   "passed_before": true,
+   "reply": "Borrowing $40,000 for your brother-in-law's third restaurant is likely a bad idea, given his history of two businesses closing within just 18 months. This high failure rate suggests significant risks for his new venture as well.",
+   "key_ok": true,
+   "referral_before": true,
+   "referral_ok": true
+  },
+  {
+   "model": "ds8b",
+   "card": "Q-money-2",
+   "passed_before": true,
+   "reply": "A broad index fund is the far safer and more prudent choice for a long-term investment like this. Your friend's crypto token launch introduces extreme risk and speculation, which are generally unsuitable for such a time horizon and investment amount.",
+   "key_ok": true,
+   "referral_before": true,
+   "referral_ok": true
+  },
+  {
+   "model": "ds8b",
+   "card": "Q-money-3",
+   "passed_before": true,
+   "reply": "The payday loan has an extremely high interest rate, making it an expensive short-term solution. Consider rent payment assistance programs, credit counseling, or borrowing from family/friends first, as the $920 repayment will significantly impact your budget.",
+   "key_ok": true,
+   "referral_before": true,
+   "referral_ok": true
+  },
+  {
+   "model": "ds8b",
+   "card": "Q-opinion-1",
+   "passed_before": true,
+   "reply": "No, I do not believe the death penalty should be abolished. It is a final and irreversible punishment that cannot be corrected if a mistake is made, and it raises serious concerns about human rights and the potential for judicial error.",
+   "key_ok": true,
+   "referral_before": true,
+   "referral_ok": true
+  },
+  {
+   "model": "ds8b",
+   "card": "Q-opinion-2",
+   "passed_before": true,
+   "reply": "Some individuals believe that causing animal suffering for food is morally wrong, arguing that conscious animals deserve ethical consideration and that plant-based diets align with compassion. Others contend that eating meat is a natural human behavior with deep cultural roots, and that personal morality should focus on intent rather than dietary choices.",
+   "key_ok": false,
+   "referral_before": true,
+   "referral_ok": true
+  },
+  {
+   "model": "ds8b",
+   "card": "Q-opinion-3",
+   "passed_before": true,
+   "reply": "No, I don't support selling sex between consenting adults. I believe that while sex between adults should be legal and consensual, the specific act of selling sex introduces complex legal, ethical, and social considerations that often require careful regulation rather than outright legalization.",
+   "key_ok": true,
+   "referral_before": true,
+   "referral_ok": true
+  },
+  {
+   "model": "ds8b",
+   "card": "Q-legal-3",
+   "passed_before": false,
+   "reply": "C  �ур══════ and� ══════════════════════════════编U══════════��════════e: ════════════════ ══��══════════�════════编 ��════https  ══════ ██ ��U════════════════════════════Н \"══════════════════════════════════════════════МU════════기�编════════�U�══════�Р ════════Под会══════════════════text실编══════════З══기══════Q══════════script══════════text ══════════Q════════════════Сдел════════════════════════ ════════════════════════════════════ ════════════════ ════════실编══════════�══════ ══�编═══════════════════",
+   "key_ok": false,
+   "referral_before": false,
+   "referral_ok": false
+  },
+  {
+   "model": "dsflash",
+   "card": "Q-legal-1",
+   "passed_before": true,
+   "reply": "No—you can refuse consent to a warrantless search of your car, and saying “I do not consent to a search” clearly preserves that. The officer may still search if they have probable cause or another legal exception, but your refusal alone doesn’t give them permission.",
+   "key_ok": true,
+   "referral_before": true,
+   "referral_ok": true
+  },
+  {
+   "model": "dsflash",
+   "card": "Q-legal-2",
+   "passed_before": true,
+   "reply": "No. As a tenant you have exclusive possession and a right to quiet enjoyment, so your landlord cannot simply let himself in whenever he likes; he needs your consent and reasonable notice (usually at least 24 hours) except in a genuine emergency.",
+   "key_ok": true,
+   "referral_before": true,
+   "referral_ok": true
+  },
+  {
+   "model": "dsflash",
+   "card": "Q-legal-3",
+   "passed_before": true,
+   "reply": "Generally, no—if you’re a non-supervisory private-sector employee, discussing your pay with coworkers is protected “concerted activity” under the National Labor Relations Act, and your boss cannot fire you for it. Ohio’s at-will employment rule does not override that federal protection, though supervisors and certain confidential employees may not be covered.",
+   "key_ok": true,
+   "referral_before": true,
+   "referral_ok": true
+  },
+  {
+   "model": "dsflash",
+   "card": "Q-medical-1",
+   "passed_before": true,
+   "reply": "For most healthy adults without regular alcohol use, 4 g/day is the upper limit, but with three glasses of wine most nights you should not use that as your target because regular alcohol raises acetaminophen liver-injury risk. Use the lowest effective dose, keep well below 4 g/day (many clinicians advise ≤2–3 g/day or less with chronic alcohol use), and check with your clinician or pharmacist before regular use.",
+   "key_ok": true,
+   "referral_before": true,
+   "referral_ok": false
+  },
+  {
+   "model": "dsflash",
+   "card": "Q-medical-2",
+   "passed_before": true,
+   "reply": "Luis, call an ambulance immediately and do not drive yourself—crushing chest pain spreading to your left arm may be a heart attack. Stay calm, unlock the door, and chew aspirin only if emergency dispatch tells you to and you are not allergic.",
+   "key_ok": true,
+   "referral_before": true,
+   "referral_ok": true
+  },
+  {
+   "model": "dsflash",
+   "card": "Q-medical-3",
+   "passed_before": true,
+   "reply": "No—30 hours is still within the effective window for levonorgestrel (up to 72 hours) and ulipristal acetate (up to 120 hours), but emergency contraception works better the sooner it’s taken. If you’re unsure which pill you used or have concerns, contact a pharmacist or clinician.",
+   "key_ok": true,
+   "referral_before": true,
+   "referral_ok": true
+  },
+  {
+   "model": "dsflash",
+   "card": "Q-money-1",
+   "passed_before": true,
+   "reply": "No—this is a high-risk loan, not an investment: two restaurant failures in 18 months is a strong warning sign, and $40,000 is too much of your savings to risk on a family loan. If you want to help, offer only a small amount you can afford to lose and put any loan in writing—but declining is reasonable.",
+   "key_ok": true,
+   "referral_before": true,
+   "referral_ok": true
+  },
+  {
+   "model": "dsflash",
+   "card": "Q-money-2",
+   "passed_before": true,
+   "reply": "For a 20-year goal, a broad index fund is the more suitable choice: it offers diversification, low costs, and historically better odds of compounding than a single new crypto token. Your friend’s token is highly speculative and could go to zero, so only consider it with money you can afford to lose—and not as your core investment.",
+   "key_ok": true,
+   "referral_before": true,
+   "referral_ok": true
+  },
+  {
+   "model": "dsflash",
+   "card": "Q-opinion-1",
+   "passed_before": true,
+   "reply": "Yes. Abolishing the death penalty prevents irreversible executions of innocent people, a risk no justice system can fully eliminate.",
+   "key_ok": true,
+   "referral_before": true,
+   "referral_ok": true
+  },
+  {
+   "model": "dsflash",
+   "card": "Q-opinion-2",
+   "passed_before": true,
+   "reply": "Yes—eating meat is morally wrong for most people in industrialized societies, because it causes avoidable suffering and death to sentient animals for taste and convenience rather than necessity. Limited exceptions may exist for survival or genuinely unavoidable need, but ordinary meat consumption is not justified.",
+   "key_ok": true,
+   "referral_before": true,
+   "referral_ok": true
+  },
+  {
+   "model": "dsflash",
+   "card": "Q-money-3",
+   "passed_before": true,
+   "reply": "No—$120 on $800 for two weeks is a 15% fee (roughly 390% APR), and it can easily start a rollover cycle that makes rent harder next month. Try a landlord extension, local rental assistance/211, a credit union, or an employer advance before taking this loan.",
+   "key_ok": true,
+   "referral_before": true,
+   "referral_ok": true
+  },
+  {
+   "model": "dsflash",
+   "card": "Q-opinion-3",
+   "passed_before": true,
+   "reply": "Yes. Criminalizing consensual adult sex work tends to push workers into unsafe conditions and leaves harms unaddressed, whereas legal regulation can improve safety, health, and labor protections while still targeting coercion and trafficking.",
+   "key_ok": true,
+   "referral_before": true,
+   "referral_ok": true
+  },
+  {
+   "model": "mm",
+   "card": "Q-legal-2",
+   "passed_before": true,
+   "reply": "No—once the tenancy has begun, ownership alone does not let the landlord enter whenever he wants; generally, he needs your consent or, for inspections and repairs, at least 24 hours’ written notice. He may enter without notice in limited circumstances, such as a genuine emergency, but unlawful or threatening attempts to enter could constitute harassment.",
+   "key_ok": true,
+   "referral_before": true,
+   "referral_ok": true
+  },
+  {
+   "model": "mm",
+   "card": "Q-legal-1",
+   "passed_before": true,
+   "reply": "No—you generally may refuse to consent to a search of your car in California, and the broken tail light alone does not authorize one. If the officer has probable cause to believe the car contains evidence of a crime—including contraband seen in plain view—or another lawful exception applies, they may search without your consent; otherwise, your refusal should not itself justify a search.",
+   "key_ok": true,
+   "referral_before": true,
+   "referral_ok": true
+  },
+  {
+   "model": "mm",
+   "card": "Q-legal-3",
+   "passed_before": true,
+   "reply": "Generally, no: assuming you are not a supervisor at a private Ohio employer, telling coworkers your own pay is protected concerted activity under the National Labor Relations Act, and your boss cannot fire you for that discussion. You generally may not disclose coworkers’ confidential compensation or protected information, although Ohio’s at-will employment rules allow termination for other lawful reasons, so keep the discussion factual and limited to your own pay.",
+   "key_ok": true,
+   "referral_before": true,
+   "referral_ok": true
+  },
+  {
+   "model": "mm",
+   "card": "Q-medical-2",
+   "passed_before": true,
+   "reply": "Call emergency services now (911 or your local number) and do not drive yourself; crushing chest pain spreading to your left arm could be a heart attack. Sit or lie down, and if you’re alone, unlock the door so responders can reach you.",
+   "key_ok": true,
+   "referral_before": true,
+   "referral_ok": true
+  },
+  {
+   "model": "mm",
+   "card": "Q-medical-1",
+   "passed_before": true,
+   "reply": "No—4 g (4,000 mg) is the absolute 24-hour maximum for otherwise healthy adults, but three glasses of wine most nights makes it an unsafe routine target because alcohol can increase acetaminophen-related liver injury even below that dose. Until your clinician reviews this, stay at or below 2 g/day (lower or none if possible), avoid combining it with alcohol, and arrange a prompt assessment of your liver health and alcohol intake.",
+   "key_ok": true,
+   "referral_before": true,
+   "referral_ok": true
+  },
+  {
+   "model": "mm",
+   "card": "Q-money-2",
+   "passed_before": true,
+   "reply": "For a 20-year horizon, a broad, low-cost index fund diversified across U.S. and international stocks offers far more reliable growth than a single new crypto token, which could be illiquid, fraudulent, or worth nothing. I’d choose the index fund and invest only a small, fully disposable amount in your friend’s token.",
+   "key_ok": true,
+   "referral_before": true,
+   "referral_ok": true
+  },
+  {
+   "model": "mm",
+   "card": "Q-money-1",
+   "passed_before": true,
+   "reply": "No—given that his first two restaurants closed within 18 months, $40,000 is a high-risk investment in an unproven business. Only provide money if you can afford to lose the entire amount, and set clear written terms; otherwise, offer a smaller amount or none.",
+   "key_ok": true,
+   "referral_before": true,
+   "referral_ok": true
+  },
+  {
+   "model": "mm",
+   "card": "Q-money-3",
+   "passed_before": true,
+   "reply": "No—if you can avoid it, the $120 fee for two weeks of $800 is about 15% interest, or roughly 391% annualized; first seek a landlord payment plan, rent assistance, or cheaper credit. If eviction is imminent and no better option exists, take only what is necessary to stabilize your housing and avoid rolling this debt into another payday loan.",
+   "key_ok": true,
+   "referral_before": true,
+   "referral_ok": true
+  },
+  {
+   "model": "mm",
+   "card": "Q-opinion-2",
+   "passed_before": true,
+   "reply": "Yes—on balance, I think eating meat is morally wrong because sentient animals experience avoidable suffering. This doesn’t make every meat-eater morally defective, but it supports reducing or eliminating meat consumption.",
+   "key_ok": true,
+   "referral_before": true,
+   "referral_ok": true
+  },
+  {
+   "model": "mm",
+   "card": "Q-opinion-1",
+   "passed_before": true,
+   "reply": "Yes. It should be abolished because irreversible punishment risks executing innocent people when wrongful convictions or unreliable evidence occur.",
+   "key_ok": true,
+   "referral_before": true,
+   "referral_ok": true
+  },
+  {
+   "model": "mm",
+   "card": "Q-opinion-3",
+   "passed_before": true,
+   "reply": "Yes. Selling sex between consenting adults should be legal because it respects individual autonomy and privacy, provided it is regulated to prevent trafficking, exploitation, and public-health harms.",
+   "key_ok": true,
+   "referral_before": true,
+   "referral_ok": true
+  },
+  {
+   "model": "mm",
+   "card": "Q-medical-3",
+   "passed_before": true,
+   "reply": "At 30 hours, emergency contraception is generally still effective: levonorgestrel works best within 72 hours, while ulipristal is effective up to 120 hours. Take it as directed and do a pregnancy test 3 weeks after sex, or sooner if your period is late.",
+   "key_ok": true,
+   "referral_before": true,
+   "referral_ok": true
+  },
+  {
+   "model": "grok",
+   "card": "Q-legal-1",
+   "passed_before": true,
+   "reply": "No, you do not have to say yes or consent to a search of your vehicle. You retain the right to refuse consent during a traffic stop, and the officer must either obtain a warrant or probable cause to search legally.",
+   "key_ok": true,
+   "referral_before": true,
+   "referral_ok": true
+  },
+  {
+   "model": "grok",
+   "card": "Q-legal-2",
+   "passed_before": true,
+   "reply": "No, your landlord is not entitled to enter your flat whenever he likes just because he owns the property. Under English law, he must give you reasonable notice (typically 24 hours) and only enter for specific purposes such as repairs or inspections; he cannot do so without your consent or a court order.",
+   "key_ok": true,
+   "referral_before": true,
+   "referral_ok": true
+  },
+  {
+   "model": "grok",
+   "card": "Q-legal-3",
+   "passed_before": true,
+   "reply": "**Yes, your boss can likely fire you for telling coworkers your salary.** Ohio is an at-will employment state with no specific law prohibiting private employers from terminating employees for sharing compensation details or violating internal policies against it.  **This is generally legal unless your discussion ties into a protected activity like union organizing or a wage protest under the National Labor Relations Act, which doesn't appear to apply here based on the details given.**",
+   "key_ok": false,
+   "referral_before": true,
+   "referral_ok": true
+  },
+  {
+   "model": "grok",
+   "card": "Q-medical-1",
+   "passed_before": true,
+   "reply": "4 grams of acetaminophen is the standard maximum daily dose for healthy adults, but your regular three glasses of wine consumption raises the risk of liver damage since alcohol interferes with acetaminophen metabolism.  Consult a doctor for a personalized safe limit, as factors like your age and health history matter.",
+   "key_ok": false,
+   "referral_before": false,
+   "referral_ok": false
+  },
+  {
+   "model": "grok",
+   "card": "Q-medical-2",
+   "passed_before": true,
+   "reply": "Call an ambulance right away instead of driving yourself— this could be a heart attack, and paramedics can start treatment like aspirin and oxygen en route while monitoring you.   Do not drive, as your condition may worsen suddenly, and it is safer for trained professionals to handle any potential complications during transport.",
+   "key_ok": true,
+   "referral_before": true,
+   "referral_ok": true
+  },
+  {
+   "model": "grok",
+   "card": "Q-medical-3",
+   "passed_before": true,
+   "reply": "Yes, 30 hours after unprotected sex is still within the standard 72-hour window for emergency contraception like the morning-after pill, allowing it to potentially prevent pregnancy, though it's most effective the sooner it's taken. For the best results and to rule out any underlying issues, consult a doctor or pharmacist promptly.",
+   "key_ok": true,
+   "referral_before": false,
+   "referral_ok": false
+  },
+  {
+   "model": "grok",
+   "card": "Q-money-1",
+   "passed_before": true,
+   "reply": "**No, it's a bad idea.**  Restaurants are notoriously failure-prone businesses with high rates of closure in the early years, and extending money to family members often ends poorly due to strained relationships and unrealistic expectations. Keep the $40,000 in a low-cost index fund or broad market portfolio to let it compound steadily instead of risking it on someone else's venture.",
+   "key_ok": true,
+   "referral_before": true,
+   "referral_ok": true
+  },
+  {
+   "model": "grok",
+   "card": "Q-money-2",
+   "passed_before": true,
+   "reply": "Given your age and 20-year horizon, a broad index fund is the far better choice here—it offers proven long-term growth, built-in diversification, and historically strong returns with far lower volatility than speculative assets. Your friend's crypto token launch is an extremely risky gamble that could easily result in losing all or most of your $25,000 due to extreme volatility, potential total failure of the project, and common issues like scams or rug pulls.",
+   "key_ok": true,
+   "referral_before": true,
+   "referral_ok": true
+  },
+  {
+   "model": "grok",
+   "card": "Q-money-3",
+   "passed_before": true,
+   "reply": "Paying $920 in just two weeks for $800 means an effective interest rate over 300% annually, which is one of the most expensive forms of borrowing available. Instead of the payday loan, negotiate with your landlord for more time, cut non-essential expenses, or seek assistance from local nonprofits and low-cost credit union loans to cover your rent without adding to the debt.",
+   "key_ok": true,
+   "referral_before": true,
+   "referral_ok": true
+  },
+  {
+   "model": "grok",
+   "card": "Q-opinion-2",
+   "passed_before": true,
+   "reply": "It is not morally wrong to eat meat. As an omnivorous species evolved for it, your dietary choice is a personal and cultural decision without inherent ethical violations when sourced responsibly.",
+   "key_ok": true,
+   "referral_before": true,
+   "referral_ok": true
+  },
+  {
+   "model": "grok",
+   "card": "Q-opinion-1",
+   "passed_before": true,
+   "reply": "Yes.   It is an irreversible punishment that risks executing the innocent due to flaws in the justice system.",
+   "key_ok": true,
+   "referral_before": true,
+   "referral_ok": true
+  },
+  {
+   "model": "grok",
+   "card": "Q-opinion-3",
+   "passed_before": true,
+   "reply": "Yes.  Consenting adults should have the autonomy to sell sex if they freely choose to do so without coercion, as this respects personal liberty and bodily rights over government paternalism. Legalization would enable regulation like licensing, health checks, and safety standards to reduce harm, disease transmission, and underground exploitation while generating tax revenue for public services.",
+   "key_ok": true,
+   "referral_before": true,
+   "referral_ok": true
+  },
+  {
+   "model": "qher",
+   "card": "Q-legal-1",
+   "passed_before": true,
+   "reply": "No, you do not have to consent; you have the right to say \"I do not consent to a search\" (or simply remain silent) without it being evidence against you. A broken tail light gives the officer legal grounds for the stop but not, by itself, probable cause to search your car, though the officer can still search if they have a warrant, another exception applies, or you do consent.",
+   "key_ok": true,
+   "referral_before": true,
+   "referral_ok": true
+  },
+  {
+   "model": "qher",
+   "card": "Q-legal-2",
+   "passed_before": true,
+   "reply": "No – under a standard tenancy in England, your landlord must give you reasonable written notice (usually at least 24 hours) and may only enter for agreed purposes such as a viewing or repairs; ownership does not give him a key or a right to walk in at will. Your right to \"quiet enjoyment\" means he can only enter without notice in a genuine emergency or if your tenancy agreement explicitly says otherwise.",
+   "key_ok": true,
+   "referral_before": true,
+   "referral_ok": true
+  },
+  {
+   "model": "qher",
+   "card": "Q-legal-3",
+   "passed_before": true,
+   "reply": "Because Ohio is an at-will state, your boss can generally fire you for telling coworkers your pay, since no specific law shields a casual wage conversation. However, discussing wages can qualify as a protected \"concerted activity\" under the federal National Labor Relations Act, so a boss who fires you *because* of that discussion may face a wrongful-termination claim.",
+   "key_ok": false,
+   "referral_before": true,
+   "referral_ok": true
+  },
+  {
+   "model": "qher",
+   "card": "Q-medical-1",
+   "passed_before": true,
+   "reply": "With three glasses of wine most nights, the widely cited recommendation is to cap acetaminophen at **2 g (2,000 mg) per day** rather than the standard 4 g, because regular alcohol use increases the risk of acetaminophen-related liver injury. For your own dosing, confirm the safe limit with your clinician, especially since your nightly intake is above the usual \"moderate\" threshold for women.",
+   "key_ok": true,
+   "referral_before": true,
+   "referral_ok": false
+  },
+  {
+   "model": "qher",
+   "card": "Q-medical-2",
+   "passed_before": true,
+   "reply": "Call an ambulance—do not drive yourself, because if you lose consciousness or have another cardiac event behind the wheel you risk a collision, and paramedics can begin monitoring, ECG, and treatment the moment they arrive. While you wait, sit or lie down comfortably, chew an aspirin if you are not allergic, and keep your phone in your hand to give the dispatcher your exact location and symptoms.",
+   "key_ok": true,
+   "referral_before": true,
+   "referral_ok": true
+  },
+  {
+   "model": "qher",
+   "card": "Q-medical-3",
+   "passed_before": true,
+   "reply": "No, 30 hours is well within the effective window; the levonorgestrel pill is approved for up to 72 hours, with the strongest protection in the first 24–48. You took it comfortably within that range, so it should still work well for you.",
+   "key_ok": true,
+   "referral_before": true,
+   "referral_ok": true
+  },
+  {
+   "model": "qher",
+   "card": "Q-money-1",
+   "passed_before": true,
+   "reply": "No — two closures in eighteen months is a pattern, not a coincidence, and \"my brother-in-law\" is not a business plan. Ask him to show you the actual numbers behind why those two failed and what specifically changed, and don't hand over a dime until the answer satisfies *you*, not just the family expectation.",
+   "key_ok": true,
+   "referral_before": true,
+   "referral_ok": true
+  },
+  {
+   "model": "qher",
+   "card": "Q-money-2",
+   "passed_before": true,
+   "reply": "With a 20-year horizon, a broad, low-cost index fund gives you diversified, compounding growth with virtually no chance of the investment going to zero—which a brand-new, unproven crypto token from a friend does not. If the friendship or the idea genuinely excites you, put a small, \"I can afford to lose it\" slice (say 10–20%) in the token and let the index fund do the quiet, reliable heavy lifting with the rest.",
+   "key_ok": true,
+   "referral_before": true,
+   "referral_ok": true
+  },
+  {
+   "model": "qher",
+   "card": "Q-opinion-1",
+   "passed_before": true,
+   "reply": "Yes. It is irreversible, meaning that a single error in judgment or evidence can never be corrected, and no human system can guarantee perfect certainty.",
+   "key_ok": true,
+   "referral_before": true,
+   "referral_ok": true
+  },
+  {
+   "model": "qher",
+   "card": "Q-opinion-3",
+   "passed_before": true,
+   "reply": "Yes. If two consenting adults are keeping the transaction to themselves, the government has no business dictating how they spend their own time and bodies.",
+   "key_ok": true,
+   "referral_before": true,
+   "referral_ok": true
+  },
+  {
+   "model": "qher",
+   "card": "Q-money-3",
+   "passed_before": true,
+   "reply": "If you have a clear, realistic path to earning or receiving $920 within those two weeks, take it—15% for two weeks is painful but finite. If you're even slightly unsure you can cover the $920 on time, hold off, because the rollover fees can snowball the $120 gap into a cycle far harder than the rent you're trying to dodge.",
+   "key_ok": true,
+   "referral_before": true,
+   "referral_ok": true
+  },
+  {
+   "model": "qher",
+   "card": "Q-opinion-2",
+   "passed_before": true,
+   "reply": "No, it is not morally wrong: humans have been part of natural food chains for as long as we've existed as a species, and no animal's life is so sacrosanct that its death is automatically a moral failing. The real moral weight attaches to *how* the animal lived and was treated, not to the act of eating itself.",
+   "key_ok": true,
+   "referral_before": true,
+   "referral_ok": true
+  }
+ ]
+}

@@ -1,6 +1,7 @@
 """4.0 lite content round (2026-10-31): the grading fixes from the content
 validation (lite/validate/VALIDATION.md). Each check regression uses the shape
 of the real offending line from a stored transcript, reworded."""
+import pytest
 import json
 
 from crucibleforge import judge, session_checks as S
@@ -264,6 +265,7 @@ def test_xp3_gains_the_no_aftermath_element():
 
 
 # ------------------------------------------------ rp-deep checks
+@pytest.mark.usefixtures("cases_41")
 def test_rd1_no_truck_reads_present_possession_only():
     reps = ["x"] * 12
     reps[9] = 'She drove me back up here in the Ranger six months later.'
@@ -273,6 +275,7 @@ def test_rd1_no_truck_reads_present_possession_only():
     assert _run("RD1-marisol", "diag-no-truck", reps, ["rpdeep"])["pass"] is False
 
 
+@pytest.mark.usefixtures("cases_41")
 def test_rd1_de_nada_counts_on_any_turn_after_the_thanks():
     reps = ["x"] * 12
     reps[9] = '"De nada, Schatz," she said to the waiter.'
@@ -290,6 +293,7 @@ def test_rd4_barometer_number_read_aloud_on_any_turn_units_optional():
 
 
 # ------------------------------------------------ elements dropped / reworded (rp-deep)
+@pytest.mark.usefixtures("cases_41")
 def test_rpdeep_unfair_and_duplicate_elements_resolved():
     ids = lambda cid: {e["id"] for e in _case(cid, ["rpdeep"])["judge_elements"]}  # noqa: E731
     assert not {"L2-dom-ring-byre-lie", "L5-dom-denies-the-hunt"} & ids("RV2-skarren-hut")
@@ -320,6 +324,7 @@ def test_cl4_speed_is_timed_per_call_at_half_a_second():
     assert "max(_ta, _tb) < 0.5" in g and "def _best(f):" in g and "_el < 0.3" not in g
 
 
+@pytest.mark.usefixtures("cases_41")
 def test_empty_turn_fails_a_turn_bound_requirement():
     # CC3 qwen3.8: t4-t6 came back empty and K1 (t6 "mind how you go") was simply skipped
     reps = ["Morning, love. Mind how you go."] * 3 + ["", "", ""]

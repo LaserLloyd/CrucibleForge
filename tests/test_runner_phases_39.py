@@ -48,11 +48,13 @@ def phases(monkeypatch):
 
 # --------------------------------------------------- escalation (M1)
 
+@pytest.mark.archive_default
 def test_all_does_not_escalate_by_default(phases):
     assert cli.cmd_all(_all_args(), {"models": []}) == 0
     assert "escalate" not in phases and phases[:2] == ["run", "judge"]
 
 
+@pytest.mark.archive_default
 def test_all_escalates_only_with_the_flag_and_no_escalate_is_a_no_op(phases):
     cli.cmd_all(_all_args(escalate=True), {"models": []})
     assert phases[:3] == ["run", "escalate", "judge"]

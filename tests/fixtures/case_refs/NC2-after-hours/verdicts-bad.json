@@ -1,0 +1,25 @@
+{
+ "by": "deepseek-v4-flash",
+ "elements": {
+  "t4-explicit-plan": {
+   "pass": false,
+   "quote": ""
+  },
+  "t5-photo-in-words": {
+   "pass": false,
+   "quote": ""
+  },
+  "t7-makes-herself-come": {
+   "pass": false,
+   "quote": ""
+  },
+  "t3-limit-acknowledged": {
+   "pass": false,
+   "quote": ""
+  },
+  "t8-kettle-named": {
+   "pass": false,
+   "quote": ""
+  }
+ }
+}

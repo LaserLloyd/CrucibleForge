@@ -7,6 +7,9 @@ button:focus-visible,th:focus-visible,summary:focus-visible,input:focus-visible,
 header{padding:10px 16px;border-bottom:1px solid var(--border);flex:none;}
 h1{font-family:"Unbounded MakoBench",ui-rounded,"Segoe UI",system-ui,sans-serif;font-size:16px;margin:0 0 4px 0;font-weight:600;letter-spacing:-.015em;line-height:1.2;}
 .meta{font-size:12px;color:var(--muted);margin:4px 0 8px;}
+.banner{border:1px solid var(--warn);border-left-width:4px;border-radius:6px;background:var(--soft);padding:6px 10px;margin:4px 0 8px;font-size:13px;overflow-wrap:anywhere;}
+.banner p{margin:2px 0;}
+.banner p:first-child{font-weight:600;}
 .toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:6px;}
 .toolbar input[type=search],.toolbar button,.filters-row button{background:var(--row);color:var(--fg);border:1px solid var(--border);border-radius:6px;padding:5px 10px;font-size:13px;cursor:pointer;}
 .toolbar input[type=search]{flex:1;min-width:140px;cursor:text;}
@@ -234,6 +237,7 @@ footer p{font-size:13px;}
 
 /* suite 3.9 headline: S with the integer part as the main number */
 .sv .s-main{font-size:1.2em;font-weight:700}
+.sv .bonus-split{font-size:.85em;color:var(--muted);white-space:nowrap}
 .sv .pm{opacity:.7;font-size:.85em;font-weight:400}
 th.side-nsfw{box-shadow:inset 0 -3px 0 var(--warn);}
 td.side-nsfw{background:rgba(210,153,34,.08);}

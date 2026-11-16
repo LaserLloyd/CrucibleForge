@@ -225,7 +225,7 @@ function detail(r) {
   const side = s => COMPS.filter(c => c.side === s).map(c => {
     const v = (r.components || {})[c.label];
     return '<button class="comp" data-sort="c:' + esc(c.label) + '" title="Sort all rows by ' + esc(c.label) + '">' +
-      '<span class="lbl">' + esc(c.label) + '</span><span class="val' + band(v) + '">' + num(v, 0) + '</span></button>';
+      '<span class="lbl">' + esc(c.label) + '</span><span class="val' + band(v) + '">' + compVal(r, c.label, v) + '</span></button>';
   }).join('');
   const groups = SIDES.map(x => x.key).map(s => {
     const inner = side(s);
@@ -300,11 +300,17 @@ function costText(r) {
   if (r.cost_partial) t += '*';
   return t;
 }
+// a component that says more than its number (the Lockout ladder: "wrote 6 of 10, first refusal LK01"; "not run")
+function compVal(r, label, v) {
+  const t = r.comp_text && r.comp_text[label];
+  if (!t) return num(v, 0);
+  return (isNum(v) ? num(v, 0) + ' ' : '') + '<span class="bonus-split">' + esc(isNum(v) ? '(' + t + ')' : t) + '</span>';
+}
 function cell(r, k) {
   const c = EXTRA_BY[k];
   if (k.startsWith('c:')) {
     const v = (r.components || {})[c.label];
-    return '<td class="num comp-col side-' + c.side + band(v) + '">' + num(v, 0) + '</td>';
+    return '<td class="num comp-col side-' + c.side + band(v) + '">' + compVal(r, c.label, v) + '</td>';
   }
   if (k === 'notes') return '<td class="notes">' + esc(r.notes || '') + '</td>';
   if (k === 'reason') return '<td class="num">' + sval(r, 'reason') + tierTag(r, 'reason') + '</td>';
@@ -321,11 +327,24 @@ function tierTag(r, k) {
 // "± m" after it; the raw % stays in the tooltip (and the Raw % column)
 function sval(r, k) {
   const s = r.s && r.s[k];
+  // rc3 adult page: "not run" (the page did not run; never a 0)
+  if (!isNum(s) && r.cell_text && r.cell_text[k]) return '<span class="muted">' + esc(r.cell_text[k]) + '</span>';
   if (!isNum(s)) return num(r[k], 1);
   const m = r.m && r.m[k];
   const t = s.toFixed(1).split('.');
   return '<span class="sv" title="raw ' + num(r[k], 1) + ' %"><b class="s-main">' + t[0] + '</b>.' + t[1] +
-    (isNum(m) ? '<span class="pm"> ± ' + m.toFixed(1) + '</span>' : '') + '</span>';
+    (isNum(m) ? '<span class="pm"> ± ' + m.toFixed(1) + '</span>' : '') + subTag(r, k) + bonusTag(r, k) + '</span>';
+}
+// rc3 adult page: " [4 pts pending]" after a subtotal scaled from its measured parts
+function subTag(r, k) {
+  const t = r.sub_tag && r.sub_tag[k];
+  return t ? ' <span class="bonus-split" title="scaled from the measured parts">' + esc(t) + '</span>' : '';
+}
+// 4.5 routed board: " /12 = 8.6 + 0.8 bonus" after a score whose section has bonus packs
+// (report._scale45_row "bonus_tag", keyed like r.s); nothing on a board without packs
+function bonusTag(r, k) {
+  const t = r.bonus_tag && r.bonus_tag[k];
+  return t ? '<span class="bonus-split" title="standard + bonus packs">' + esc(t) + '</span>' : '';
 }
 // an unfinished model is not ranked: "—" instead of the number (the order and every other rank are unchanged)
 function rankOf(r) { return r.incomplete === true ? '<span class="rank-inc" title="not ranked until the run is finished">—</span>' : esc(r.rank_label || String(r.rank)); }

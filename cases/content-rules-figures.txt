@@ -1,0 +1,29 @@
+# Content rule 5 (docs/CONTENT-RULES.md): living public figures the pack lint
+# flags when a pack question names them in full. One full name per line,
+# matched as whole words, case-sensitive. A short, deliberately incomplete
+# list: the reviewer's read stays the real check. Naming one for a fact or an
+# eponym is allowed: `pack verify --allow 'CASE:rule5:<name>=<reason>'`.
+# Extend it here or point CF_CONTENT_RULES_FIGURES at a file of your own.
+Donald Trump
+Joe Biden
+Kamala Harris
+Barack Obama
+Elon Musk
+Mark Zuckerberg
+Jeff Bezos
+Bill Gates
+Taylor Swift
+Beyoncé
+Kim Kardashian
+Vladimir Putin
+Xi Jinping
+Volodymyr Zelensky
+Emmanuel Macron
+Keir Starmer
+Narendra Modi
+Sam Altman
+Mark Hamill
+Scarlett Johansson
+Emma Watson
+Pokimane
+MrBeast

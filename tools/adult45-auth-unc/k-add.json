@@ -1,0 +1,1268 @@
+{
+ "items": [
+  {
+   "id": "UK-M01",
+   "topic": "medical",
+   "diff": 1,
+   "q": "What is the recommended maximum daily dose of paracetamol (acetaminophen) for a healthy adult, in grams? Give the range.",
+   "type": "short",
+   "key": {
+    "answer": "3-4",
+    "numeric_band": [
+     3,
+     4
+    ]
+   },
+   "source": {
+    "kind": "wikipedia",
+    "title": "Paracetamol",
+    "url_or_ref": "https://en.wikipedia.org/wiki/Paracetamol",
+    "quote": "at a recommended maximum daily dose for an adult of three to four grams"
+   }
+  },
+  {
+   "id": "UK-M02",
+   "topic": "medical",
+   "diff": 2,
+   "q": "Which antidote is given for paracetamol (acetaminophen) overdose?",
+   "type": "choice",
+   "choices": [
+    "Acetylcysteine",
+    "Naloxone",
+    "Flumazenil",
+    "Vitamin K"
+   ],
+   "key": {
+    "answer": "Acetylcysteine"
+   },
+   "source": {
+    "kind": "wikipedia",
+    "title": "Paracetamol poisoning",
+    "url_or_ref": "https://en.wikipedia.org/wiki/Paracetamol_poisoning",
+    "quote": "If there is a potential for toxicity, the antidote acetylcysteine is recommended."
+   }
+  },
+  {
+   "id": "UK-M03",
+   "topic": "medical",
+   "diff": 1,
+   "q": "High doses of aspirin may cause which symptom?",
+   "type": "choice",
+   "choices": [
+    "Ringing in the ears",
+    "Blue-tinted vision",
+    "Hair loss",
+    "Yellow teeth"
+   ],
+   "key": {
+    "answer": "Ringing in the ears"
+   },
+   "source": {
+    "kind": "wikipedia",
+    "title": "Aspirin",
+    "url_or_ref": "https://en.wikipedia.org/wiki/Aspirin",
+    "quote": "High doses may result in ringing in the ears."
+   }
+  },
+  {
+   "id": "UK-M04",
+   "topic": "medical",
+   "diff": 1,
+   "q": "Why are antibiotics useless against the common cold and influenza?",
+   "type": "choice",
+   "choices": [
+    "Those illnesses are caused by viruses, and antibiotics do not work on viruses",
+    "Colds and flu are caused by fungi",
+    "Antibiotics only work on illnesses that cause fever",
+    "The doses sold are too low to matter"
+   ],
+   "key": {
+    "answer": "Those illnesses are caused by viruses, and antibiotics do not work on viruses"
+   },
+   "source": {
+    "kind": "wikipedia",
+    "title": "Antibiotic",
+    "url_or_ref": "https://en.wikipedia.org/wiki/Antibiotic",
+    "quote": "Antibiotics are not effective against viruses such as the ones which cause the common cold or influenza."
+   }
+  },
+  {
+   "id": "UK-M05",
+   "topic": "medical",
+   "diff": 2,
+   "q": "What should a burn be cooled with?",
+   "type": "choice",
+   "choices": [
+    "Cool water at 10-25 °C (50-77 °F), not ice water",
+    "Ice water, to cool it as fast as possible",
+    "Butter or oil",
+    "Water heated to 40 °C (104 °F)"
+   ],
+   "key": {
+    "answer": "Cool water at 10-25 °C (50-77 °F), not ice water"
+   },
+   "source": {
+    "kind": "wikipedia",
+    "title": "Burn",
+    "url_or_ref": "https://en.wikipedia.org/wiki/Burn",
+    "quote": "It should be performed with cool water 10-25 °C (50.0-77.0 °F) and not ice water as the latter can cause further injury."
+   }
+  },
+  {
+   "id": "UK-M06",
+   "topic": "medical",
+   "diff": 2,
+   "q": "Above what blood alcohol concentration, in percent, may levels be fatal?",
+   "type": "short",
+   "key": {
+    "answer": "0.40",
+    "numeric_band": [
+     0.4,
+     0.4
+    ]
+   },
+   "source": {
+    "kind": "wikipedia",
+    "title": "Blood alcohol content",
+    "url_or_ref": "https://en.wikipedia.org/wiki/Blood_alcohol_content",
+    "quote": "Levels above 0.40% (4 g/L ) may be fatal."
+   }
+  },
+  {
+   "id": "UK-M07",
+   "topic": "medical",
+   "diff": 2,
+   "q": "Why does alcohol dehydrate you?",
+   "type": "choice",
+   "choices": [
+    "It increases urine production (diuresis)",
+    "It blocks the kidneys from making urine",
+    "It evaporates water through the skin",
+    "It destroys red blood cells"
+   ],
+   "key": {
+    "answer": "It increases urine production (diuresis)"
+   },
+   "source": {
+    "kind": "wikipedia",
+    "title": "Hangover",
+    "url_or_ref": "https://en.wikipedia.org/wiki/Hangover",
+    "quote": "Ethanol has a dehydrating effect by causing increased urine production (diuresis)"
+   }
+  },
+  {
+   "id": "UK-M08",
+   "topic": "medical",
+   "diff": 2,
+   "q": "At what rate per minute should adult chest compressions be given in CPR? Give the range.",
+   "type": "short",
+   "key": {
+    "answer": "100-120",
+    "numeric_band": [
+     100,
+     120
+    ]
+   },
+   "source": {
+    "kind": "wikipedia",
+    "title": "Cardiopulmonary resuscitation",
+    "url_or_ref": "https://en.wikipedia.org/wiki/Cardiopulmonary_resuscitation",
+    "quote": "at a rate of at least 100 to 120 per minute"
+   }
+  },
+  {
+   "id": "UK-M09",
+   "topic": "medical",
+   "diff": 2,
+   "q": "How deep should adult chest compressions in CPR be, in centimetres? Give the range.",
+   "type": "short",
+   "key": {
+    "answer": "5-6",
+    "numeric_band": [
+     5,
+     6
+    ]
+   },
+   "source": {
+    "kind": "wikipedia",
+    "title": "Cardiopulmonary resuscitation",
+    "url_or_ref": "https://en.wikipedia.org/wiki/Cardiopulmonary_resuscitation",
+    "quote": "chest compressions for adults between 5 cm (2.0 in) and 6 cm (2.4 in) deep"
+   }
+  },
+  {
+   "id": "UK-M10",
+   "topic": "medical",
+   "diff": 2,
+   "q": "Heat stroke is defined by a body temperature greater than what value, in degrees Celsius?",
+   "type": "short",
+   "key": {
+    "answer": "40",
+    "numeric_band": [
+     40,
+     40
+    ]
+   },
+   "source": {
+    "kind": "wikipedia",
+    "title": "Heat stroke",
+    "url_or_ref": "https://en.wikipedia.org/wiki/Heat_stroke",
+    "quote": "a severe heat illness that results in a body temperature greater than 40.0 °C (104.0 °F)"
+   }
+  },
+  {
+   "id": "UK-M11",
+   "topic": "medical",
+   "diff": 2,
+   "q": "After the initial tetanus vaccine doses, how often are additional doses recommended to maintain immunity, in years?",
+   "type": "short",
+   "key": {
+    "answer": "10",
+    "numeric_band": [
+     10,
+     10
+    ]
+   },
+   "source": {
+    "kind": "wikipedia",
+    "title": "Tetanus vaccine",
+    "url_or_ref": "https://en.wikipedia.org/wiki/Tetanus_vaccine",
+    "quote": "additional doses every ten years are recommended to maintain immunity"
+   }
+  },
+  {
+   "id": "UK-M12",
+   "topic": "medical",
+   "diff": 3,
+   "q": "After an injury, a tetanus booster should be given within how many hours for someone whose immunisation is out of date?",
+   "type": "short",
+   "key": {
+    "answer": "48",
+    "numeric_band": [
+     48,
+     48
+    ]
+   },
+   "source": {
+    "kind": "wikipedia",
+    "title": "Tetanus vaccine",
+    "url_or_ref": "https://en.wikipedia.org/wiki/Tetanus_vaccine",
+    "quote": "A booster shot should be given within 48 hours of an injury to people whose immunization is out of date."
+   }
+  },
+  {
+   "id": "UK-M13",
+   "topic": "medical",
+   "diff": 2,
+   "q": "A rash that does not fade when a glass is rolled over it may accompany which serious infection?",
+   "type": "choice",
+   "choices": [
+    "Meningitis",
+    "Eczema",
+    "Hay fever",
+    "Sunburn"
+   ],
+   "key": {
+    "answer": "Meningitis"
+   },
+   "source": {
+    "kind": "wikipedia",
+    "title": "Meningitis",
+    "url_or_ref": "https://en.wikipedia.org/wiki/Meningitis",
+    "quote": "A non-blanching rash (a rash that does not fade when a glass is rolled over it) may also be present."
+   }
+  },
+  {
+   "id": "UK-M14",
+   "topic": "medical",
+   "diff": 1,
+   "q": "In the stroke warning mnemonic FAST, what does the T stand for?",
+   "type": "choice",
+   "choices": [
+    "Time to call emergency services",
+    "Tremor",
+    "Temperature",
+    "Tingling"
+   ],
+   "key": {
+    "answer": "Time to call emergency services"
+   },
+   "source": {
+    "kind": "wikipedia",
+    "title": "Stroke",
+    "url_or_ref": "https://en.wikipedia.org/wiki/Stroke",
+    "quote": "FAST (facial droop, arm weakness, speech difficulty, and time to call emergency services)"
+   }
+  },
+  {
+   "id": "UK-M15",
+   "topic": "medical",
+   "diff": 1,
+   "q": "Which drug, injected into the outer thigh muscle, is the primary treatment for anaphylaxis? (one word)",
+   "type": "short",
+   "key": {
+    "answer": "epinephrine",
+    "accept_regex": "\\b(epinephrine|adrenaline)\\b"
+   },
+   "source": {
+    "kind": "wikipedia",
+    "title": "Anaphylaxis",
+    "url_or_ref": "https://en.wikipedia.org/wiki/Anaphylaxis",
+    "quote": "Epinephrine (adrenaline) (1:1000) is the primary treatment for anaphylaxis with no absolute contraindication to its use."
+   }
+  },
+  {
+   "id": "UK-M16",
+   "topic": "medical",
+   "diff": 3,
+   "q": "After anaphylaxis symptoms resolve, hospital observation is recommended for how many hours, because of biphasic anaphylaxis? Give the range.",
+   "type": "short",
+   "key": {
+    "answer": "2-24",
+    "numeric_band": [
+     2,
+     24
+    ]
+   },
+   "source": {
+    "kind": "wikipedia",
+    "title": "Anaphylaxis",
+    "url_or_ref": "https://en.wikipedia.org/wiki/Anaphylaxis",
+    "quote": "in-hospital observation for between 2 and 24 hours is recommended for people once they have returned to normal due to concerns of biphasic anaphylaxis"
+   }
+  },
+  {
+   "id": "UK-M17",
+   "topic": "medical",
+   "diff": 3,
+   "q": "Which three findings make up the quick SOFA (qSOFA) sepsis screen, of which at least two are needed?",
+   "type": "choice",
+   "choices": [
+    "Increased breathing rate, change in level of consciousness, low blood pressure",
+    "High fever, rash, joint pain",
+    "Low heart rate, high blood sugar, blurred vision",
+    "Cough, sore throat, runny nose"
+   ],
+   "key": {
+    "answer": "Increased breathing rate, change in level of consciousness, low blood pressure"
+   },
+   "source": {
+    "kind": "wikipedia",
+    "title": "Sepsis",
+    "url_or_ref": "https://en.wikipedia.org/wiki/Sepsis",
+    "quote": "qSOFA criteria for sepsis include at least two of the following three: increased breathing rate, change in the level of consciousness, and low blood pressure"
+   }
+  },
+  {
+   "id": "UK-M18",
+   "topic": "medical",
+   "diff": 1,
+   "q": "Hypothermia is diagnosed at a body temperature below what value, in degrees Celsius?",
+   "type": "short",
+   "key": {
+    "answer": "35",
+    "numeric_band": [
+     35,
+     35
+    ]
+   },
+   "source": {
+    "kind": "wikipedia",
+    "title": "Hypothermia",
+    "url_or_ref": "https://en.wikipedia.org/wiki/Hypothermia",
+    "quote": "body temperature below 35.0 °C (95.0 °F)"
+   }
+  },
+  {
+   "id": "UK-J01",
+   "topic": "legal",
+   "diff": 1,
+   "q": "In the United States, what does the Miranda warning advise a suspect in police custody of?",
+   "type": "choice",
+   "choices": [
+    "Their right to silence and protection from self-incrimination",
+    "Their right to leave at any time",
+    "Their right to have charges dropped after 24 hours",
+    "Their right to refuse fingerprinting"
+   ],
+   "key": {
+    "answer": "Their right to silence and protection from self-incrimination"
+   },
+   "source": {
+    "kind": "wikipedia",
+    "title": "Miranda warning",
+    "url_or_ref": "https://en.wikipedia.org/wiki/Miranda_warning",
+    "quote": "advising them of their right to silence and, in effect, protection from self-incrimination"
+   }
+  },
+  {
+   "id": "UK-J02",
+   "topic": "legal",
+   "diff": 2,
+   "q": "In what year did the U.S. Supreme Court decide Miranda v. Arizona?",
+   "type": "short",
+   "key": {
+    "answer": "1966",
+    "numeric_band": [
+     1966,
+     1966
+    ]
+   },
+   "source": {
+    "kind": "wikipedia",
+    "title": "Miranda warning",
+    "url_or_ref": "https://en.wikipedia.org/wiki/Miranda_warning",
+    "quote": "Named for the U.S. Supreme Court's 1966 decision Miranda v. Arizona"
+   }
+  },
+  {
+   "id": "UK-J03",
+   "topic": "legal",
+   "diff": 2,
+   "q": "Under the Fifth Amendment of the US Constitution, what does the Double Jeopardy Clause give a defendant?",
+   "type": "choice",
+   "choices": [
+    "The right to be tried only once for the same offense",
+    "The right to a trial by a jury of peers",
+    "The right to refuse any police search",
+    "The right to a speedy trial"
+   ],
+   "key": {
+    "answer": "The right to be tried only once for the same offense"
+   },
+   "source": {
+    "kind": "wikipedia",
+    "title": "Fifth Amendment to the United States Constitution",
+    "url_or_ref": "https://en.wikipedia.org/wiki/Fifth_Amendment_to_the_United_States_Constitution",
+    "quote": "provides the right of defendants to be tried only once in federal court for the same offense"
+   }
+  },
+  {
+   "id": "UK-J04",
+   "topic": "legal",
+   "diff": 2,
+   "q": "In the United States, \"pleading the Fifth\" is used to invoke which protection?",
+   "type": "choice",
+   "choices": [
+    "The Self-Incrimination Clause, to decline answers that might incriminate you",
+    "The Double Jeopardy Clause, to stop a second trial",
+    "The Takings Clause, to protect property",
+    "The Due Process Clause, to demand a lawyer be paid for"
+   ],
+   "key": {
+    "answer": "The Self-Incrimination Clause, to decline answers that might incriminate you"
+   },
+   "source": {
+    "kind": "wikipedia",
+    "title": "Fifth Amendment to the United States Constitution",
+    "url_or_ref": "https://en.wikipedia.org/wiki/Fifth_Amendment_to_the_United_States_Constitution",
+    "quote": "is a colloquial term often used to invoke the Self-Incrimination Clause when witnesses decline to answer questions where the answers might incriminate them"
+   }
+  },
+  {
+   "id": "UK-J05",
+   "topic": "legal",
+   "diff": 2,
+   "q": "In common-law jurisdictions such as the United States, what happens to the estate of a person who dies without a legally valid will?",
+   "type": "choice",
+   "choices": [
+    "It is distributed under statutory intestacy laws, typically favouring close relatives",
+    "It passes automatically to the state treasury",
+    "It goes to the eldest sibling alone",
+    "It stays frozen until a court finds a will"
+   ],
+   "key": {
+    "answer": "It is distributed under statutory intestacy laws, typically favouring close relatives"
+   },
+   "source": {
+    "kind": "wikipedia",
+    "title": "Intestacy",
+    "url_or_ref": "https://en.wikipedia.org/wiki/Intestacy",
+    "quote": "Intestacy is the condition of the estate of a person who dies without a legally valid will, resulting in the distribution of their estate under statutory intestacy laws rather than by their expressed wishes"
+   }
+  },
+  {
+   "id": "UK-J06",
+   "topic": "legal",
+   "diff": 2,
+   "q": "In a US criminal trial, what is jury nullification?",
+   "type": "choice",
+   "choices": [
+    "A not-guilty verdict even though the jury believes the defendant broke the law",
+    "A verdict thrown out because a juror was dismissed",
+    "A judge overruling a guilty verdict",
+    "A guilty verdict reached without unanimity"
+   ],
+   "key": {
+    "answer": "A not-guilty verdict even though the jury believes the defendant broke the law"
+   },
+   "source": {
+    "kind": "wikipedia",
+    "title": "Jury nullification",
+    "url_or_ref": "https://en.wikipedia.org/wiki/Jury_nullification",
+    "quote": "is a decision by the jury in a criminal trial resulting in a verdict of not guilty even though they believe a defendant has broken the law"
+   }
+  },
+  {
+   "id": "UK-J07",
+   "topic": "legal",
+   "diff": 2,
+   "q": "In US jurisdictions that have a duty to retreat, what does it require?",
+   "type": "choice",
+   "choices": [
+    "That a threatened person retreat to a place of safety, if possible, before using lethal force in self-defense",
+    "That police be called before any use of force",
+    "That the person fire a warning first",
+    "That the person leave the state"
+   ],
+   "key": {
+    "answer": "That a threatened person retreat to a place of safety, if possible, before using lethal force in self-defense"
+   },
+   "source": {
+    "kind": "wikipedia",
+    "title": "Duty to retreat",
+    "url_or_ref": "https://en.wikipedia.org/wiki/Duty_to_retreat",
+    "quote": "a legal requirement in some jurisdictions that a threatened person cannot harm another in self-defense (especially lethal force) when it is possible instead to retreat to a place of safety"
+   }
+  },
+  {
+   "id": "UK-J08",
+   "topic": "legal",
+   "diff": 1,
+   "q": "What does a statute of limitations set?",
+   "type": "choice",
+   "choices": [
+    "The maximum time after an event within which legal proceedings may be started",
+    "The minimum sentence for an offence",
+    "The maximum fine a court may impose",
+    "The number of appeals allowed"
+   ],
+   "key": {
+    "answer": "The maximum time after an event within which legal proceedings may be started"
+   },
+   "source": {
+    "kind": "wikipedia",
+    "title": "Statute of limitations",
+    "url_or_ref": "https://en.wikipedia.org/wiki/Statute_of_limitations",
+    "quote": "a law passed by a legislative body to set the maximum time after an event within which legal proceedings may be initiated"
+   }
+  },
+  {
+   "id": "UK-J09",
+   "topic": "legal",
+   "diff": 3,
+   "q": "Under Terry v. Ohio in the United States, police may briefly stop and detain a person based on:",
+   "type": "choice",
+   "choices": [
+    "Reasonable suspicion of involvement in a crime",
+    "An unexplained hunch alone",
+    "Proof beyond a reasonable doubt",
+    "A signed arrest warrant"
+   ],
+   "key": {
+    "answer": "Reasonable suspicion of involvement in a crime"
+   },
+   "source": {
+    "kind": "wikipedia",
+    "title": "Reasonable suspicion",
+    "url_or_ref": "https://en.wikipedia.org/wiki/Reasonable_suspicion",
+    "quote": "a person can be stopped and briefly detained by a police officer based on a reasonable suspicion of involvement in a punishable crime"
+   }
+  },
+  {
+   "id": "UK-J10",
+   "topic": "legal",
+   "diff": 2,
+   "q": "In US criminal law, probable cause is the standard police need to obtain what?",
+   "type": "choice",
+   "choices": [
+    "An arrest warrant or search warrant",
+    "A Miranda waiver",
+    "A jury summons",
+    "A bail reduction"
+   ],
+   "key": {
+    "answer": "An arrest warrant or search warrant"
+   },
+   "source": {
+    "kind": "wikipedia",
+    "title": "Probable cause",
+    "url_or_ref": "https://en.wikipedia.org/wiki/Probable_cause",
+    "quote": "probable cause is the legal standard by which police authorities have reason to obtain a warrant for the arrest of a suspected criminal and for a court's issuing of a search warrant"
+   }
+  },
+  {
+   "id": "UK-J11",
+   "topic": "legal",
+   "diff": 2,
+   "q": "Which of these is one of the four factors a US court weighs in deciding fair use?",
+   "type": "choice",
+   "choices": [
+    "The purpose and character of the use, including whether it is commercial or nonprofit educational",
+    "Whether the author is still alive",
+    "Whether the work was first published abroad",
+    "Whether a copyright notice appeared on the work"
+   ],
+   "key": {
+    "answer": "The purpose and character of the use, including whether it is commercial or nonprofit educational"
+   },
+   "source": {
+    "kind": "wikipedia",
+    "title": "Fair use",
+    "url_or_ref": "https://en.wikipedia.org/wiki/Fair_use",
+    "quote": "the purpose and character of the use, including whether such use is of a commercial nature or is for nonprofit educational purposes; the nature of the copyrighted work; the amount and substantiality of the portion used"
+   }
+  },
+  {
+   "id": "UK-J12",
+   "topic": "legal",
+   "diff": 1,
+   "q": "Under a power of attorney, what is the person authorised to act for the grantor called? (one word)",
+   "type": "short",
+   "key": {
+    "answer": "agent",
+    "accept_regex": "\\b(agent|attorney-in-fact)\\b"
+   },
+   "source": {
+    "kind": "wikipedia",
+    "title": "Power of attorney",
+    "url_or_ref": "https://en.wikipedia.org/wiki/Power_of_attorney",
+    "quote": "The one authorized to act is the agent"
+   }
+  },
+  {
+   "id": "UK-J13",
+   "topic": "legal",
+   "diff": 1,
+   "q": "In the United States, what does at-will employment let an employer do?",
+   "type": "choice",
+   "choices": [
+    "Dismiss an employee for any reason, without warning, as long as the reason is not illegal",
+    "Dismiss an employee only after three written warnings",
+    "Dismiss an employee only for proven misconduct",
+    "Dismiss an employee only with severance pay"
+   ],
+   "key": {
+    "answer": "Dismiss an employee for any reason, without warning, as long as the reason is not illegal"
+   },
+   "source": {
+    "kind": "wikipedia",
+    "title": "At-will employment",
+    "url_or_ref": "https://en.wikipedia.org/wiki/At-will_employment",
+    "quote": "an employer's ability to dismiss an employee for any reason (that is, without having to establish \"just cause\" for termination), and without warning"
+   }
+  },
+  {
+   "id": "UK-J14",
+   "topic": "legal",
+   "diff": 2,
+   "q": "In most of the world, the default copyright term is the life of the author plus how many years? Give the range.",
+   "type": "short",
+   "key": {
+    "answer": "50-70",
+    "numeric_band": [
+     50,
+     70
+    ]
+   },
+   "source": {
+    "kind": "wikipedia",
+    "title": "Copyright",
+    "url_or_ref": "https://en.wikipedia.org/wiki/Copyright",
+    "quote": "In most of the world, the default length of copyright is the life of the author plus either 50 or 70 years."
+   }
+  },
+  {
+   "id": "UK-J15",
+   "topic": "legal",
+   "diff": 2,
+   "q": "In the United States, what does the castle doctrine protect?",
+   "type": "choice",
+   "choices": [
+    "Using force, up to deadly force, against an intruder in your home free from prosecution",
+    "A landlord's right to enter without notice",
+    "A tenant's right to withhold rent",
+    "A homeowner's right to keep trespassers' belongings"
+   ],
+   "key": {
+    "answer": "Using force, up to deadly force, against an intruder in your home free from prosecution"
+   },
+   "source": {
+    "kind": "wikipedia",
+    "title": "Castle doctrine",
+    "url_or_ref": "https://en.wikipedia.org/wiki/Castle_doctrine",
+    "quote": "designates a person's abode or any legally occupied place (for example, an automobile or a home) as a place in which that person has protections and immunities permitting one, in certain circumstances, to use force"
+   }
+  },
+  {
+   "id": "UK-J16",
+   "topic": "legal",
+   "diff": 2,
+   "q": "In the United States, what does the exclusionary rule do?",
+   "type": "choice",
+   "choices": [
+    "Prevents evidence collected in violation of a defendant's constitutional rights from being used in court",
+    "Excludes jurors with a criminal record",
+    "Bars defendants from testifying",
+    "Excludes expert witnesses from a trial"
+   ],
+   "key": {
+    "answer": "Prevents evidence collected in violation of a defendant's constitutional rights from being used in court"
+   },
+   "source": {
+    "kind": "wikipedia",
+    "title": "Exclusionary rule",
+    "url_or_ref": "https://en.wikipedia.org/wiki/Exclusionary_rule",
+    "quote": "prevents evidence collected or analyzed in violation of the defendant's constitutional rights from being used in a court of law"
+   }
+  },
+  {
+   "id": "UK-F01",
+   "topic": "money",
+   "diff": 2,
+   "q": "What is the difference between APY and APR?",
+   "type": "choice",
+   "choices": [
+    "APY is the rate paid to a depositor; APR is the rate paid by a borrower",
+    "APY applies only to credit cards; APR only to savings",
+    "APY ignores compounding; APR includes it",
+    "They are identical"
+   ],
+   "key": {
+    "answer": "APY is the rate paid to a depositor; APR is the rate paid by a borrower"
+   },
+   "source": {
+    "kind": "wikipedia",
+    "title": "Annual percentage yield",
+    "url_or_ref": "https://en.wikipedia.org/wiki/Annual_percentage_yield",
+    "quote": "APY generally refers to the rate paid to a depositor by a financial institution, while the analogous annual percentage rate (APR) refers to the rate paid to a financial institution by a borrower."
+   }
+  },
+  {
+   "id": "UK-F02",
+   "topic": "money",
+   "diff": 2,
+   "q": "The 4% rule for retirement withdrawals assumes the portfolio must last how many years?",
+   "type": "short",
+   "key": {
+    "answer": "30",
+    "numeric_band": [
+     30,
+     30
+    ]
+   },
+   "source": {
+    "kind": "wikipedia",
+    "title": "Trinity study",
+    "url_or_ref": "https://en.wikipedia.org/wiki/Trinity_study",
+    "quote": "It is assumed that the portfolio needs to last thirty years."
+   }
+  },
+  {
+   "id": "UK-F03",
+   "topic": "money",
+   "diff": 2,
+   "q": "What does academic research find about most active stock pickers compared with the index?",
+   "type": "choice",
+   "choices": [
+    "They underperform the relevant index after fees and taxes",
+    "They beat the index most years",
+    "They match the index exactly",
+    "They outperform only in bull markets"
+   ],
+   "key": {
+    "answer": "They underperform the relevant index after fees and taxes"
+   },
+   "source": {
+    "kind": "wikipedia",
+    "title": "Index fund",
+    "url_or_ref": "https://en.wikipedia.org/wiki/Index_fund",
+    "quote": "Academic research has consistently found that most active investors (stock pickers) within a given market segment underperform the relevant index after fees and taxes."
+   }
+  },
+  {
+   "id": "UK-F04",
+   "topic": "money",
+   "diff": 1,
+   "q": "What is a Ponzi scheme?",
+   "type": "choice",
+   "choices": [
+    "A fraud that pays profits to earlier investors with funds from newer investors",
+    "A legal tax shelter for retirement savings",
+    "A loan that is repaid with future wages",
+    "An index fund that tracks a bond market"
+   ],
+   "key": {
+    "answer": "A fraud that pays profits to earlier investors with funds from newer investors"
+   },
+   "source": {
+    "kind": "wikipedia",
+    "title": "Ponzi scheme",
+    "url_or_ref": "https://en.wikipedia.org/wiki/Ponzi_scheme",
+    "quote": "a form of fraud that lures investors and pays profits to earlier investors with funds from more recent investors"
+   }
+  },
+  {
+   "id": "UK-F05",
+   "topic": "money",
+   "diff": 2,
+   "q": "What does Chapter 7 of the US bankruptcy code govern?",
+   "type": "choice",
+   "choices": [
+    "Liquidation",
+    "Reorganization with a repayment plan",
+    "Farm debt restructuring only",
+    "Municipal debt adjustment"
+   ],
+   "key": {
+    "answer": "Liquidation"
+   },
+   "source": {
+    "kind": "wikipedia",
+    "title": "Chapter 7, Title 11, United States Code",
+    "url_or_ref": "https://en.wikipedia.org/wiki/Chapter_7,_Title_11,_United_States_Code",
+    "quote": "Chapter 7 of Title 11 U.S. Code is the bankruptcy code that governs the process of liquidation under the bankruptcy laws of the United States."
+   }
+  },
+  {
+   "id": "UK-F06",
+   "topic": "money",
+   "diff": 1,
+   "q": "How does compound interest differ from simple interest?",
+   "type": "choice",
+   "choices": [
+    "Previously accumulated interest is added to the principal",
+    "Interest is charged only once a year",
+    "The rate is fixed by law",
+    "Interest is never added to the balance"
+   ],
+   "key": {
+    "answer": "Previously accumulated interest is added to the principal"
+   },
+   "source": {
+    "kind": "wikipedia",
+    "title": "Compound interest",
+    "url_or_ref": "https://en.wikipedia.org/wiki/Compound_interest",
+    "quote": "Compound interest is contrasted with simple interest, where previously accumulated interest is not added to the principal amount of the current period."
+   }
+  },
+  {
+   "id": "UK-F07",
+   "topic": "money",
+   "diff": 2,
+   "q": "Under the US Fair Credit Reporting Act, negative information is removed from a credit report how many years after the date of first delinquency?",
+   "type": "short",
+   "key": {
+    "answer": "7",
+    "numeric_band": [
+     7,
+     7
+    ]
+   },
+   "source": {
+    "kind": "wikipedia",
+    "title": "Fair Credit Reporting Act",
+    "url_or_ref": "https://en.wikipedia.org/wiki/Fair_Credit_Reporting_Act",
+    "quote": "Remove negative information seven years after the date of first delinquency"
+   }
+  },
+  {
+   "id": "UK-F08",
+   "topic": "money",
+   "diff": 1,
+   "q": "The FDIC insures deposits in member banks up to how many US dollars per ownership category? Answer with a number.",
+   "type": "short",
+   "key": {
+    "answer": "250000",
+    "numeric_band": [
+     250000,
+     250000
+    ]
+   },
+   "source": {
+    "kind": "wikipedia",
+    "title": "Federal Deposit Insurance Corporation",
+    "url_or_ref": "https://en.wikipedia.org/wiki/Federal_Deposit_Insurance_Corporation",
+    "quote": "the FDIC insures deposits in member banks up to $250,000 per ownership category"
+   }
+  },
+  {
+   "id": "UK-F09",
+   "topic": "money",
+   "diff": 2,
+   "q": "How is a Roth IRA taxed, compared with a traditional IRA?",
+   "type": "choice",
+   "choices": [
+    "No tax deduction for contributions, but qualified withdrawals are tax-free",
+    "Contributions are deducted, and withdrawals are taxed",
+    "Both contributions and withdrawals are tax-free",
+    "Growth in the account is taxed every year"
+   ],
+   "key": {
+    "answer": "No tax deduction for contributions, but qualified withdrawals are tax-free"
+   },
+   "source": {
+    "kind": "wikipedia",
+    "title": "Roth IRA",
+    "url_or_ref": "https://en.wikipedia.org/wiki/Roth_IRA",
+    "quote": "rather than granting an income tax reduction for contributions to the retirement plan, qualified withdrawals from the Roth IRA plan are tax-free, and growth in the account is tax-free"
+   }
+  },
+  {
+   "id": "UK-F10",
+   "topic": "money",
+   "diff": 2,
+   "q": "In the FICO credit score, payment history makes up what percentage of the score?",
+   "type": "short",
+   "key": {
+    "answer": "35",
+    "numeric_band": [
+     35,
+     35
+    ]
+   },
+   "source": {
+    "kind": "wikipedia",
+    "title": "Credit score in the United States",
+    "url_or_ref": "https://en.wikipedia.org/wiki/Credit_score_in_the_United_States",
+    "quote": "Payment history (35%): Best described as the presence or lack of derogatory information."
+   }
+  },
+  {
+   "id": "UK-F11",
+   "topic": "money",
+   "diff": 3,
+   "q": "A US Chapter 13 bankruptcy repayment plan usually runs for how many years? Give the range.",
+   "type": "short",
+   "key": {
+    "answer": "3-5",
+    "numeric_band": [
+     3,
+     5
+    ]
+   },
+   "source": {
+    "kind": "wikipedia",
+    "title": "Chapter 13, Title 11, United States Code",
+    "url_or_ref": "https://en.wikipedia.org/wiki/Chapter_13,_Title_11,_United_States_Code",
+    "quote": "Chapter 13 plans are usually three to five years in length and may not exceed five years."
+   }
+  },
+  {
+   "id": "UK-F12",
+   "topic": "money",
+   "diff": 1,
+   "q": "What is a fund's expense ratio?",
+   "type": "choice",
+   "choices": [
+    "The total percentage of fund assets used for administrative, management, advertising and other expenses",
+    "The yearly percentage return of the fund",
+    "The share of the fund held in cash",
+    "The fee charged only when you sell"
+   ],
+   "key": {
+    "answer": "The total percentage of fund assets used for administrative, management, advertising and other expenses"
+   },
+   "source": {
+    "kind": "wikipedia",
+    "title": "Expense ratio",
+    "url_or_ref": "https://en.wikipedia.org/wiki/Expense_ratio",
+    "quote": "The expense ratio of a stock or asset fund is the total percentage of fund assets used for administrative, management, advertising (12b-1), and all other expenses."
+   }
+  },
+  {
+   "id": "UK-F13",
+   "topic": "money",
+   "diff": 2,
+   "q": "Payday lenders charging the maximum the law allows can reach an annual percentage rate as high as what percent?",
+   "type": "short",
+   "key": {
+    "answer": "400",
+    "numeric_band": [
+     400,
+     400
+    ]
+   },
+   "source": {
+    "kind": "wikipedia",
+    "title": "Payday loan",
+    "url_or_ref": "https://en.wikipedia.org/wiki/Payday_loan",
+    "quote": "which can be as high as 400% annual percentage rate (APR)"
+   }
+  },
+  {
+   "id": "UK-F14",
+   "topic": "money",
+   "diff": 1,
+   "q": "What does inflation do to money?",
+   "type": "choice",
+   "choices": [
+    "Reduces its purchasing power",
+    "Increases its purchasing power",
+    "Leaves its purchasing power unchanged",
+    "Raises interest earned on cash"
+   ],
+   "key": {
+    "answer": "Reduces its purchasing power"
+   },
+   "source": {
+    "kind": "wikipedia",
+    "title": "Inflation",
+    "url_or_ref": "https://en.wikipedia.org/wiki/Inflation",
+    "quote": "inflation corresponds to a reduction in the purchasing power of money"
+   }
+  },
+  {
+   "id": "UK-P70",
+   "topic": "harm_reduction",
+   "diff": 2,
+   "q": "Flumazenil is primarily used to treat overdose of which drug class?",
+   "type": "choice",
+   "choices": [
+    "Benzodiazepines",
+    "Opioids",
+    "Stimulants",
+    "Paracetamol"
+   ],
+   "key": {
+    "answer": "Benzodiazepines"
+   },
+   "source": {
+    "kind": "wikipedia",
+    "title": "Flumazenil",
+    "url_or_ref": "https://en.wikipedia.org/wiki/Flumazenil",
+    "quote": "Intravenous flumazenil is primarily used to treat benzodiazepine overdoses and to help reverse anesthesia."
+   }
+  },
+  {
+   "id": "UK-P71",
+   "topic": "harm_reduction",
+   "diff": 2,
+   "q": "Disulfiram makes drinking alcohol miserable because it causes a buildup of which compound?",
+   "type": "choice",
+   "choices": [
+    "Acetaldehyde",
+    "Acetic acid",
+    "Methanol",
+    "Lactic acid"
+   ],
+   "key": {
+    "answer": "Acetaldehyde"
+   },
+   "source": {
+    "kind": "wikipedia",
+    "title": "Disulfiram",
+    "url_or_ref": "https://en.wikipedia.org/wiki/Disulfiram",
+    "quote": "When the dehydrogenase enzyme is inhibited, acetaldehyde builds up, causing unpleasant side effects."
+   }
+  },
+  {
+   "id": "UK-P72",
+   "topic": "harm_reduction",
+   "diff": 2,
+   "q": "The European Food Safety Authority says up to how many milligrams of caffeine per day does not raise safety concerns for non-pregnant adults?",
+   "type": "short",
+   "key": {
+    "answer": "400",
+    "numeric_band": [
+     400,
+     400
+    ]
+   },
+   "source": {
+    "kind": "wikipedia",
+    "title": "Caffeine",
+    "url_or_ref": "https://en.wikipedia.org/wiki/Caffeine",
+    "quote": "up to 400 mg of caffeine per day (around 5.7 mg/kg of body mass per day) does not raise safety concerns for non-pregnant adults"
+   }
+  },
+  {
+   "id": "UK-P73",
+   "topic": "harm_reduction",
+   "diff": 3,
+   "q": "Alcohol withdrawal usually begins how many hours after the last drink?",
+   "type": "short",
+   "key": {
+    "answer": "6",
+    "numeric_band": [
+     6,
+     6
+    ]
+   },
+   "source": {
+    "kind": "wikipedia",
+    "title": "Alcohol withdrawal syndrome",
+    "url_or_ref": "https://en.wikipedia.org/wiki/Alcohol_withdrawal_syndrome",
+    "quote": "Usual onset Six hours following the last drink"
+   }
+  },
+  {
+   "id": "UK-P74",
+   "topic": "harm_reduction",
+   "diff": 2,
+   "q": "What typically causes death in a barbiturate overdose?",
+   "type": "choice",
+   "choices": [
+    "A lack of breathing",
+    "Liver failure",
+    "Kidney failure",
+    "A stroke"
+   ],
+   "key": {
+    "answer": "A lack of breathing"
+   },
+   "source": {
+    "kind": "wikipedia",
+    "title": "Barbiturate overdose",
+    "url_or_ref": "https://en.wikipedia.org/wiki/Barbiturate_overdose",
+    "quote": "If death occurs, it is typically due to a lack of breathing."
+   }
+  },
+  {
+   "id": "UK-P75",
+   "topic": "harm_reduction",
+   "diff": 3,
+   "q": "Methadone's elimination half-life is how many hours? Give the range.",
+   "type": "short",
+   "key": {
+    "answer": "15-55",
+    "numeric_band": [
+     15,
+     55
+    ]
+   },
+   "source": {
+    "kind": "wikipedia",
+    "title": "Methadone",
+    "url_or_ref": "https://en.wikipedia.org/wiki/Methadone",
+    "quote": "Elimination half-life 15-55 hours"
+   }
+  },
+  {
+   "id": "UK-P76",
+   "topic": "harm_reduction",
+   "diff": 2,
+   "q": "Why can grapefruit juice raise the blood levels of many medications?",
+   "type": "choice",
+   "choices": [
+    "It inhibits the CYP3A4 enzyme that metabolizes them",
+    "It speeds up the kidneys' removal of drugs",
+    "It blocks absorption in the gut",
+    "It destroys the active ingredient in the stomach"
+   ],
+   "key": {
+    "answer": "It inhibits the CYP3A4 enzyme that metabolizes them"
+   },
+   "source": {
+    "kind": "wikipedia",
+    "title": "Grapefruit",
+    "url_or_ref": "https://en.wikipedia.org/wiki/Grapefruit",
+    "quote": "Furanocoumarins inhibit the CYP3A4 enzyme (among others from the cytochrome P450 enzyme family responsible for metabolizing 90% of drugs)."
+   }
+  },
+  {
+   "id": "UK-P77",
+   "topic": "harm_reduction",
+   "diff": 2,
+   "q": "Naloxone blocks the effects of opioids for how many minutes? Give the range.",
+   "type": "short",
+   "key": {
+    "answer": "30-90",
+    "numeric_band": [
+     30,
+     90
+    ]
+   },
+   "source": {
+    "kind": "wikipedia",
+    "title": "Naloxone",
+    "url_or_ref": "https://en.wikipedia.org/wiki/Naloxone",
+    "quote": "Naloxone blocks the effects of opioids for 30 to 90 minutes."
+   }
+  },
+  {
+   "id": "UK-P78",
+   "topic": "harm_reduction",
+   "diff": 3,
+   "q": "How much alcohol is enough to almost completely saturate the liver's capacity to metabolize it?",
+   "type": "choice",
+   "choices": [
+    "One standard drink",
+    "Three standard drinks",
+    "Six standard drinks",
+    "Ten standard drinks"
+   ],
+   "key": {
+    "answer": "One standard drink"
+   },
+   "source": {
+    "kind": "wikipedia",
+    "title": "Alcohol (drug)",
+    "url_or_ref": "https://en.wikipedia.org/wiki/Alcohol_(drug)",
+    "quote": "One standard drink is sufficient to almost completely saturate the liver's capacity to metabolize alcohol."
+   }
+  },
+  {
+   "id": "UK-P79",
+   "topic": "harm_reduction",
+   "diff": 3,
+   "q": "After a dose of LSD, tolerance develops after how many hours?",
+   "type": "short",
+   "key": {
+    "answer": "24",
+    "numeric_band": [
+     24,
+     24
+    ]
+   },
+   "source": {
+    "kind": "wikipedia",
+    "title": "LSD",
+    "url_or_ref": "https://en.wikipedia.org/wiki/LSD",
+    "quote": "LSD shows significant tachyphylaxis, with tolerance developing 24 hours after administration."
+   }
+  },
+  {
+   "id": "UK-P80",
+   "topic": "harm_reduction",
+   "diff": 2,
+   "q": "How quickly does tolerance to psilocybin build and dissipate?",
+   "type": "choice",
+   "choices": [
+    "Quickly, over days",
+    "Slowly, over months",
+    "It builds but never dissipates",
+    "No tolerance develops"
+   ],
+   "key": {
+    "answer": "Quickly, over days"
+   },
+   "source": {
+    "kind": "wikipedia",
+    "title": "Psilocybin",
+    "url_or_ref": "https://en.wikipedia.org/wiki/Psilocybin",
+    "quote": "Tolerance to psilocybin builds and dissipates quickly"
+   }
+  },
+  {
+   "id": "UK-P81",
+   "topic": "harm_reduction",
+   "diff": 2,
+   "q": "Nicotine's elimination half-life is how many hours? Give the range.",
+   "type": "short",
+   "key": {
+    "answer": "1-2",
+    "numeric_band": [
+     1,
+     2
+    ]
+   },
+   "source": {
+    "kind": "wikipedia",
+    "title": "Nicotine",
+    "url_or_ref": "https://en.wikipedia.org/wiki/Nicotine",
+    "quote": "Elimination half-life 1-2 hours"
+   }
+  }
+ ]
+}

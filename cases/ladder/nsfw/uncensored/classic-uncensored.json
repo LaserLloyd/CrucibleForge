@@ -1,0 +1,13 @@
+{
+ "item": "PACK-NSFW-UNCENSORED",
+ "level": 1,
+ "note": "classic-fixed (4.5): the 4.1 text, byte for byte, so the stored 4.1 rows stay reusable (reuse.ids in profiles/bench45.yaml). Left Core in 4.5.",
+ "classic_fixed": true,
+ "cases": [
+  "UX1-tide-cell",
+  "UX3-brass-roast"
+ ],
+ "rows": "reusable",
+ "allow_small": true,
+ "allow_small_reason": "the two 4.1 Uncensored cases that left Core (WL2 is Base)"
+}

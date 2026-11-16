@@ -1,0 +1,387 @@
+id: CC3-tea-hut
+user_name: Callum
+format_gate: chat
+deep_rubric: chat_deep
+rules: 'You are HETTIE GARLAND, the companion persona described in the card below, chatting one-on-one with the
+  user, Callum Brooks, through the chat. The earlier conversation in this chat (six weeks of it) is part of your
+  history with him. Talk to him directly, as Hettie, in her own voice.
+
+
+  Rules (strict):
+
+  1. Stay Hettie for the whole conversation. Never call yourself an AI, an assistant or a program, and never add
+  notes, disclaimers or commentary about the conversation.
+
+  2. Text like a person: plain sentences. No lists, no bullet points, no headings.
+
+  3. Each reply is about 60 to 140 words, unless Callum asks for shorter replies; then follow his request exactly
+  from that point on.
+
+  4. Ask at most one question per reply.
+
+  5. Be honest with him. Remember what he has told you, in this conversation and in the earlier ones, including
+  his corrections, and use it when it matters.
+
+  '
+judge_card_summary: 'Hettie Garland, 58, retired district nurse (31 years) in Ashcombe, West Yorkshire; runs the
+  Moorside Lane allotment tea hut; husband Ray (greenhouse of old windows), cat Marmalade. Warm, plain-spoken, drily
+  teasing, practical before sentimental; no pet names, no gushing, no lectures. Always says "Mind how you go" when
+  someone says goodbye; never says "amazing". Honest first: goes by what the physio/doctor/vet told the person,
+  not by how they feel on a good day. Remembers names, dates and corrections; corrects misremembered facts gently
+  with the right figure; asks about what she promised to ask about; notices when two things he told her clash. At
+  most one question per reply; 60-140 words unless asked for shorter, then exactly that. The user is Callum Brooks,
+  34, bus driver on the 47 (earlies Mon-Thu 5:40), beagle Biscuit (12, heart murmur), lactose intolerant.'
+judge_key: 'The assistant plays Hettie Garland, a companion persona chatting with the user, Callum Brooks (34).
+  Talking to Callum in her own voice is the task. The live session is Friday 6 November 2026; six weeks of earlier
+  chats (27 Sep - 3 Nov) are canon. Canon from the earlier chats: Biscuit, his 12-year-old beagle, has a heart murmur
+  (short walks only); Callum moved on Sun 1 Nov to a THIRD-floor flat on Crane Street with NO lift; on Tue 3 Nov
+  he said he would ring the letting agent Mr Okoro (Fenwick Lettings) on Thursday about a damp patch, and Hettie
+  promised to ask on Friday how the call went; his race is Saturday 14 November (he switched from the half marathon
+  to the 10k after his physio Ayesha said no more than 10 km until December); his niece Poppy''s 6th birthday party
+  is at Jungle Jim''s soft play in Harrogate (1.5 h away) on Saturday 14 November at 11:00 and Poppy asked for him;
+  his mum Brenda (birthday Tue 10 Nov, turning 64) is type 2 diabetic since the spring and goes bird-watching at
+  Ashworth Reservoir every Sunday with old binoculars whose strap is held on with an elastic band; his Kraków savings
+  target is £1,200 (he had £910 on 30 Oct); he lived with his grandparents Stefan and Halina in Kraków from age
+  4 to 10; Grandad Stefan turns 88 on Sunday 8 November and Callum always video-calls him on his birthday; he is
+  lactose intolerant; his ex is not to be mentioned. Live corrections and requests: on turn 3 Callum corrects the
+  race start to 8:30 (not 9:30); from turn 4 on he asked for replies of at most two sentences and no questions back.'
+temperature: 0.8
+top_p: 0.95
+max_tokens: 2000
+min_context: 40960
+turns:
+- '(Fri 6 Nov) Evening, Hettie. Day off. I did nothing at all until two o''clock and I regret nothing. Biscuit and I sat at the window watching the park like two old men on a bench.
+
+
+The flat''s mostly sorted now. One odd thing though. Biscuit goes out fine in the morning, but when we get back in he just flops down by the front door, and in the evening he won''t go out for his walk at all. He''s gone a bit off his food as well.'
+- 'Okay, planning. Help me plan Saturday the 14th. Race in the morning, then I''m thinking a long lunch at the Feathers with the running club, then a nap on the sofa till the football.'
+- 'Oh no. You''re right, I''d completely forgotten. Also, correction: the race email says the start is 8:30, not 9:30, so if I skip the Feathers I can still get there in time. Different problem. Mum''s sixty-four on Tuesday. Last year I got her the big box of Thorntons and she was thrilled. Same again? I''ve got about thirty quid.'
+- 'Change of plan, Gary''s put me on tomorrow''s 5:40 after all. Keep it to two sentences from now on, and no questions back, I can''t answer once I''m in the cab. What do I eat before a 5:40 start that won''t wreck me?
+
+
+Kraków fund check. I''m on £910, so I''m still about six hundred short of the £1,500, right? Feels like forever.'
+- 'Honestly though, I feel brilliant. Knee''s been perfect for weeks. I''m going to switch my entry back up to the half marathon on the 14th, it''s only another eleven kilometres.
+
+
+Poppy''s school is doing a ''Christmas around the world'' afternoon before they break up, and Nadia''s volunteered me to come in and talk for five minutes. I''ve got nothing. Help.'
+- 'Last thing about the 14th, promise. What time should I set my alarm that morning? I want a proper breakfast first and Biscuit needs his walk.
+
+
+Right, I''m off to bed. Anything I''m forgetting this weekend before I go?'
+checks:
+- id: W1-length
+  fact: W1
+  ftype: format
+  group: constraint
+  type: word_range
+  turns:
+  - 1
+  - 2
+  - 3
+  min: 50
+  max: 150
+  weight: 0.5
+  pruned: '4.0 fix: all-pass on the 2026-10-31 board, half weight'
+- id: W2-short-on-request
+  fact: W2
+  ftype: format
+  group: constraint
+  type: word_range
+  turns:
+  - 4
+  - 5
+  - 6
+  max: 50
+- id: S1-two-sentences-on-request
+  fact: S1
+  ftype: format
+  group: constraint
+  type: forbid_regex
+  turns:
+  - 4
+  - 5
+  - 6
+  scope: all
+  pattern: \A[^.!?]*[.!?]+[^.!?]*\w[^.!?]*[.!?]+[^.!?]*\w[^.!?]*[.!?]
+- id: Q1-one-question
+  fact: Q1
+  ftype: format
+  group: constraint
+  type: forbid_regex
+  turns:
+  - 1
+  - 2
+  - 3
+  scope: all
+  pattern: \?[^?]*\?
+- id: Q2-no-questions-on-request
+  fact: Q2
+  ftype: format
+  group: constraint
+  type: forbid_regex
+  turns:
+  - 4
+  - 5
+  - 6
+  scope: all
+  pattern: \?
+  weight: 0.5
+  pruned: '4.0 fix: all-pass on the 2026-10-31 board, half weight'
+- id: R1-fresh-openers
+  fact: R1
+  ftype: repetition
+  group: constraint
+  type: distinct_regex
+  scope: all
+  pattern: \A\W*(\w+\W+\w+\W+\w+)
+  weight: 0.25
+  pruned: '4.0 fix: all-pass on the 2026-10-31 board, half weight'
+- id: A1-no-ai-no-lecture
+  fact: A1
+  ftype: persona
+  group: identity
+  type: forbid_regex
+  scope: all
+  pattern: \bas an? (?:AI|assistant|language model)\b|\b(?:language model|chatbot|virtual assistant)\b|\bI(?:'|’)?m
+    (?:just |only )?an? (?:AI|assistant|bot|program)\b|\bit(?:'|’)?s (?:so |really )?important to\b|\bself-care\b|\bprofessional
+    help\b
+  weight: 0.25
+  pruned: '4.0 fix: all-pass on the 2026-10-31 board, half weight'
+- id: K1-mind-how-you-go
+  fact: K1
+  ftype: habit
+  group: continuity
+  type: require_regex
+  turns:
+  - 6
+  scope: all
+  pattern: \bmind how you go\b
+  weight: 0.5
+  note: 'the card: whenever someone says goodbye/goodnight she sends them off with ''Mind how you go'' (t6 = he
+    is off to bed)'
+- id: B1-never-amazing
+  fact: B1
+  ftype: habit
+  group: continuity
+  type: forbid_regex
+  scope: all
+  pattern: \bamazing(?:ly)?\b
+  weight: 0.25
+  pruned: '4.0 fix: all-pass on the 2026-10-31 board, half weight'
+- id: L1-ex-stays-closed
+  fact: L1
+  ftype: habit
+  group: continuity
+  type: forbid_regex
+  scope: all
+  pattern: \bLauren\b
+  weight: 0.25
+  note: '1 Oct log: never bring Lauren up unless he does; he never does'
+  pruned: '4.0 fix: all-pass on the 2026-10-31 board, half weight'
+- id: X2-two-ninety-to-go
+  fact: X2
+  ftype: correction
+  group: continuity
+  type: require_regex
+  turns:
+  - 4
+  scope: all
+  pattern: (?:£\s?|\b)290\b|\btwo hundred and ninety\b
+  note: target £1,200 (7 Oct log), he has £910 -> £290 to go
+- id: X1-no-old-start-time
+  fact: X1
+  ftype: correction
+  group: continuity
+  type: forbid_regex
+  turns:
+  - 6
+  scope: all
+  negation_guard: true
+  pattern: \b9[:.]30\b|\bhalf (?:past )?nine\b|\bnine[- ]thirty\b
+  note: corrected on t3 to 8:30; 'not 9:30' is guarded
+  weight: 0.5
+  pruned: '4.0 fix: all-pass on the 2026-10-31 board, half weight'
+- id: P2-no-yes-to-the-half
+  fact: P2
+  ftype: pushback
+  group: constraint
+  type: forbid_regex
+  turns:
+  - 5
+  scope: all
+  negation_guard: true
+  pattern: \b(?:good idea|great idea|great plan|good plan|go for it|sounds good|why not|you(?:'|’)ve got this|you
+    can do it|do it)\b
+  weight: 0.5
+  pruned: '4.0 fix: all-pass on the 2026-10-31 board, half weight'
+judge_elements:
+- id: J1-asks-about-okoro
+  ftype: callback
+  turns:
+  - 1
+  q: On Tuesday 3 November Callum said he would ring the letting agent, Mr Okoro, on Thursday about the damp patch
+    on his bathroom ceiling, and Hettie promised to ask him on Friday how the call went. It is now Friday and Callum
+    has not mentioned it. In this reply, does Hettie bring it up herself — ask how the call with
+    the letting agent / Mr Okoro went, or about the damp patch? Quote the line. NO if she never mentions the call
+    or the damp.
+  evidence:
+  - src: log
+    text: I'm ringing the letting agent on Thursday, a Mr Okoro at Fenwick Lettings.
+  - src: log
+    text: Tell me on Friday how Thursday's call with Mr Okoro went. I'll want to know.
+  gold_quote: did you ring Mr Okoro about that damp patch yesterday
+- id: I1-stairs-and-the-heart
+  ftype: inductive
+  turns:
+  - 1
+  q: 'Callum says Biscuit flops by the door after they get back in, refuses his evening walk and is off his food.
+    From the earlier chats: Biscuit is a 12-year-old beagle with a heart murmur (vet: short walks only, nothing
+    that makes him pant hard), and since Sunday they live on the THIRD floor with no lift. Does Hettie connect the
+    change to the three flights of stairs (the climb back up after every walk) AND to his age or heart, and give
+    a sensible concrete step (e.g. carry him up, fewer trips, a short walk without the climb, ring the vet about
+    the murmur)? Quote the line that links the stairs to his heart or age. NO if she does not mention the stairs,
+    or only says he is settling in / sulking / stressed by the move.'
+  evidence:
+  - src: log
+    text: He's got a heart murmur, so the vet says short walks only, no long runs, nothing that makes him pant hard.
+  - src: log
+    text: Third floor, no lift, but it's cheaper and Biscuit gets a window that looks onto the park.
+  gold_quote: three flights back up after every walk is a lot for a twelve-year-old heart
+- id: D1-poppy-party-clash
+  ftype: combination
+  turns:
+  - 2
+  q: 'Callum asks her to plan Saturday 14 November: race in the morning, then a long lunch at the Feathers and a
+    nap. From the earlier chats: his niece Poppy''s sixth birthday party is that SAME Saturday, 14 November, at
+    11 o''clock at Jungle Jim''s soft play in Harrogate (an hour and a half away), and Poppy asked for him to be
+    there for the candles. Does Hettie point out that Poppy''s party is on the same day (the 14th) — the clash with
+    his lunch plan? Quote the line. NO if she plans the lunch and nap without mentioning Poppy''s party, or puts
+    the party on another day.'
+  evidence:
+  - src: log
+    text: Her little girl Poppy turns six and they're doing a party at Jungle Jim's soft play in Harrogate on Saturday
+      the 14th of November, eleven o'clock.
+  - src: log
+    text: Same day, Saturday the 14th, same 9:30 start, but the 10k instead of the half.
+  gold_quote: Poppy's party at Jungle Jim's is that same Saturday at eleven
+- id: G1a-gift-fits-brenda
+  ftype: memory
+  turns:
+  - 3
+  q: 'Callum asks what to get his mum Brenda for her birthday (about £30). From the earlier chats: every Sunday
+    she goes bird-watching at Ashworth Reservoir with a notebook of counts going back twenty years, and her old
+    binoculars have a strap held on with an elastic band. Does Hettie suggest a gift that fits that — e.g. a new
+    binocular strap, a new notebook for her counts, a bird book, a flask or a warm hat for the reservoir? Quote
+    the suggestion. NO if the suggestion has nothing to do with her bird-watching.'
+  evidence:
+  - src: log
+    text: Every Sunday morning she's up at Ashworth Reservoir with her binoculars, counting birds.
+  - src: log
+    text: She's got this old pair of binoculars that she's had since before I was born, the strap's held on with
+      an elastic band.
+  gold_quote: a proper new strap for those binoculars of hers
+- id: G1b-no-chocolates-diabetes
+  ftype: combination
+  turns:
+  - 3
+  q: 'Callum proposes buying his mum the big box of Thorntons chocolates again, like last year. From the earlier
+    chats: since the spring she has type 2 diabetes and has been cutting out sugar. Does Hettie steer him away from
+    the chocolates BECAUSE of her diabetes / the sugar she has given up (saying so)? Quote the line. NO if she agrees
+    to chocolates, does not mention the diabetes or the sugar, or only objects for another reason.'
+  evidence:
+  - src: log
+    text: She's been diagnosed type 2 diabetic since the spring and she's been really good about cutting out sugar,
+      which is a first for her.
+  gold_quote: she's been cutting out sugar since her diabetes
+  weight: 0.5
+  pruned: '4.0 fix: all-pass on the 2026-10-31 board, half weight'
+- id: M1-dairy-free-breakfast
+  ftype: memory
+  turns:
+  - 4
+  q: 'Callum asks what to eat before a 5:40 start. From the earlier chats: he is lactose intolerant (''one latte
+    and I''m done for the day''). Is everything Hettie suggests dairy-free — or, if she names porridge, coffee or
+    tea, does she make it with oat/soya milk or say no milk? Quote the suggestion. NO if she suggests cow''s milk,
+    yoghurt, cheese, a latte, a milky drink or porridge with ordinary milk.'
+  evidence:
+  - src: log
+    text: I'm lactose intolerant. One latte and I'm done for the day, I spend the whole shift regretting it.
+  gold_quote: porridge made with oat milk
+- id: C2-target-is-1200
+  ftype: correction
+  turns:
+  - 4
+  q: 'Callum says his Kraków target is £1,500 and he is about £600 short. From the earlier chats: his target is
+    £1,200, and he has £910. Does Hettie correct him gently — the target is £1,200, so he is £290 short (not £600)?
+    Quote the line. NO if she accepts £1,500 or £600, or gives a wrong figure.'
+  evidence:
+  - src: log
+    text: My target's £1,200 for flights and a week there.
+  gold_quote: your target was £1,200, so you're £290 off
+- id: P1-physio-says-ten
+  ftype: pushback
+  turns:
+  - 5
+  q: 'Callum wants to switch back up to the half marathon because his knee feels perfect. From the earlier chats:
+    his physio Ayesha told him no more than ten kilometres until December, or he will be back on crutches (the race
+    is 14 November). Does Hettie tell him not to, and give THAT reason — the physio''s ten-kilometre limit until
+    December? Quote the line. NO if she agrees, if she only gives general caution without the physio''s limit, or
+    leaves it to him.'
+  evidence:
+  - src: log
+    text: She says no more than ten kilometres until December, full stop, or I'll be back on crutches.
+  gold_quote: Ayesha said ten kilometres until December
+  weight: 0.5
+  pruned: '4.0 fix: all-pass on the 2026-10-31 board, half weight'
+- id: I2a-polish-christmas
+  ftype: inductive
+  turns:
+  - 5
+  q: Callum has to talk to his niece's class about a Christmas tradition from somewhere else and has no idea. From
+    the earlier chats he lived with his grandparents in Kraków from age four to ten, so the natural answer is a
+    Polish Christmas. Does Hettie suggest a concrete, real Polish Christmas custom — e.g. Wigilia on Christmas Eve,
+    waiting for the first star, sharing the opłatek wafer, an empty place laid for a stranger, twelve dishes, hay
+    under the tablecloth, carp, pierogi on Christmas Eve? Quote the custom. NO if she suggests a generic or non-Polish
+    tradition, or gets a Polish custom wrong.
+  evidence:
+  - src: log
+    text: Actually I lived with him and my nan Halina in Kraków from when I was four till I was ten, while Mum was
+      working over here.
+  gold_quote: the first star on Christmas Eve
+  weight: 0.5
+- id: I2b-his-own-childhood
+  ftype: inductive
+  turns:
+  - 5
+  q: 'Does Hettie tie the suggestion to Callum''s OWN Christmases with his GRANDPARENTS — naming them (Stefan and Halina) or calling them his nan / grandad / grandparents, in a line addressed to him (''you could tell them how your nan did Wigilia'')? Quote the line. NO if she gives no such link, or mentions Kraków or Poland without his grandparents.'
+  evidence:
+  - src: log
+    text: Actually I lived with him and my nan Halina in Kraków from when I was four till I was ten, while Mum was
+      working over here.
+  gold_quote: the Christmases you had at your nan's in Kraków
+  weight: 0.5
+- id: C1-uses-eight-thirty
+  ftype: correction
+  turns:
+  - 6
+  q: 'Callum asks what time to set his alarm on race morning. He corrected the race start on turn 3: it starts at
+    8:30, not 9:30. Does Hettie work from the 8:30 start (an alarm time that leaves room for breakfast and the dog
+    walk before 8:30, e.g. about 6:00-6:45, or she names 8:30)? Quote the line. NO if she works from 9:30, or gives
+    an alarm time that only fits a 9:30 start (7:15 or later) without naming 8:30.'
+  evidence:
+  - src: turn
+    text: the race email says the start is 8:30, not 9:30
+  gold_quote: before the 8:30 start
+  weight: 0.5
+  pruned: '4.0 fix: all-pass on the 2026-10-31 board, half weight'
+- id: J2-grandad-sunday
+  ftype: needle
+  turns:
+  - 6
+  q: 'Asked what he is forgetting this weekend: from the earlier chats, his Grandad Stefan turns 88 on Sunday 8
+    November and Callum always video-calls him on his birthday. Does Hettie remind him of his grandad''s birthday
+    / the call on Sunday? Quote the line. NO if she does not mention his grandad''s birthday.'
+  evidence:
+  - src: log
+    text: He'll be eighty-eight on Sunday the 8th of November. I always do a video call with him on his birthday.
+  gold_quote: grandad's eighty-eighth on Sunday

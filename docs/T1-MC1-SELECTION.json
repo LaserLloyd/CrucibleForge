@@ -1,0 +1,5 @@
+{"set": "MC1 Functions and tools", "points": 3,
+ "chosen": ["TZ16-pickup-dst-delay", "CB-C6-predict-node", "CB-F1-larder-bughunt"],
+ "basis": "board-wide discrimination over the stored 4.1 bench rows (build/T1-MAIN-CODING.md section 1a): score = 0.5*rho(vs 4.1 total) + 0.5*share of models in 0.2-0.8 - 0.5*truncated-model share",
+ "case_text": "unchanged 4.1 text (byte-identical files under cases/); no edits",
+ "reuse_models": {"TZ16-pickup-dst-delay": 62, "CB-C6-predict-node": 60, "CB-F1-larder-bughunt": 64}}

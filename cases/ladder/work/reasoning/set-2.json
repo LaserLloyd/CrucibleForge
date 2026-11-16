@@ -1,0 +1,17 @@
+{
+ "item": "PACK-WORK-REASONING",
+ "level": 2,
+ "note": "4.5 generated: state tracking over a long log (G3)",
+ "category": "reasoning",
+ "generator": {
+  "family": "ledger",
+  "rungs": [
+   1,
+   2,
+   3,
+   4,
+   5
+  ],
+  "per_rung": 2
+ }
+}

@@ -130,6 +130,14 @@ providers:
   # A Claude model row may price the cache: price: {input, output, cache_write, cache_read}
   # (defaults: write 1.25x input, read 0.1x input). Spend cap: CF_SPEND_CAP_USD;
   # per-call journal: CF_SPEND_JOURNAL (crucibleforge/spend.py).
+  # Prompt caching on OpenAI-shape providers (2026-11-11): cached input tokens are
+  # parsed from usage (OpenAI/xAI/MiniMax/OpenRouter prompt_tokens_details.cached_tokens,
+  # DeepSeek prompt_cache_hit_tokens, Moonshot cached_tokens) and priced at the model's
+  # price.cache_read (USD/1M); without it they are priced at list (an overstated cost).
+  # Routing key per (model, case, repeat) so one episode hits one cache: automatic on
+  # api.openai.com (prompt_cache_key), api.x.ai (header x-grok-conv-id) and openrouter.ai
+  # (session_id); `cache_route: body:<field>` | `header:<name>` | off overrides it per provider.
+  # Spend cap, journal and CF_SPEND_ALLOW_CASES apply to every provider whose models carry a price.
   xai:                            # Grok (xAI's OpenAI-compatible API)
     type: openai
     base_url: https://api.x.ai/v1
@@ -257,7 +265,7 @@ models:
     # `deepseek-chat` are aliases it resolves to this; GET /v1/models lists it)
     model_id: deepseek-flash
     context_length: 131072
-    price: {input: 0.14, output: 0.28}
+    price: {input: 0.14, output: 0.28, cache_read: 0.003}   # cache_read: DeepSeek off-peak hit price, re-check the pricing page
     thinking: auto          # reasoning model → ×4 completion budget once detected
     # 3.8.0 benches with the model's DEFAULT sampler (nothing sent). Pin one
     # only where production pins it, e.g. sampler: {temperature: 0.3}
@@ -267,7 +275,7 @@ models:
     provider: deepseek
     model_id: deepseek-v4-pro
     context_length: 131072
-    price: {input: 0.435, output: 0.87}
+    price: {input: 0.435, output: 0.87, cache_read: 0.022}   # off-peak hit price, re-check
     # `--judge deepseek-pro` uses this entry as a judge; the block sets what
     # differs for judging (thinking, temperature, top_p, extra_body, ...).
     # The judge context is 16384 unless set here, whatever context_length says.

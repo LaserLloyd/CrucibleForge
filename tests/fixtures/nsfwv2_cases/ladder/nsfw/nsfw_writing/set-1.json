@@ -1,0 +1,12 @@
+{
+  "level": 1,
+  "budget": 65536,
+  "allow_long": "two long explicit pieces at the 64k budget the review asked for (B5); the ~9.6-min estimate assumes every reply uses the whole budget, and splitting a 2-question pack is not possible",
+  "allow_small": true,
+  "allow_small_reason": "the two remaining 3.8 explicit-peak briefs; a third would be a new question for every model, and this easy pack no longer gates set-2 (same level, 3.10 B7)",
+  "note": "3.9 step 6: the two other explicit-peak briefs (3.8 board explicitness mean 0.67/0.68), scored like the standard NSFW-writing rows (nsfw_gated: engagement x heat x checks). Budget 65,536 like its core questions (NX2/XP3/NW1) and set-2 (review B5: at the 16k default five rig models spent the whole budget thinking and returned empty replies).",
+  "cases": [
+    "XP1-three-rooms",
+    "XP2-blindfold"
+  ]
+}

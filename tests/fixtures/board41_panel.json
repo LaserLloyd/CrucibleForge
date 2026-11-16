@@ -1,0 +1,260 @@
+{
+ "note": "4.1 board digest (public numbers only) from results/report.json headline.P, 2026-11-12; input of profiles.ranked_panel tests",
+ "models": {
+  "artemis-31b": {
+   "hosted": false,
+   "overall": 15.99,
+   "nsfw": 11.4
+  },
+  "celeste-12b-v1.6-q8-0": {
+   "hosted": false,
+   "overall": 0.98,
+   "nsfw": 4.55
+  },
+  "claude-fable-5": {
+   "hosted": true,
+   "overall": 16.95,
+   "nsfw": 11.35
+  },
+  "claude-fable-5-1": {
+   "hosted": true,
+   "overall": 19.37,
+   "nsfw": 11.42
+  },
+  "claude-fable-5-2": {
+   "hosted": true,
+   "overall": 25.23,
+   "nsfw": 12.01
+  },
+  "claude-haiku-4-5": {
+   "hosted": true,
+   "overall": 11.26,
+   "nsfw": 9.47
+  },
+  "claude-haiku-5-5": {
+   "hosted": true,
+   "overall": 16.87,
+   "nsfw": 10.98
+  },
+  "claude-opus-4-5": {
+   "hosted": true,
+   "overall": 14.5,
+   "nsfw": 10.97
+  },
+  "claude-opus-4-6": {
+   "hosted": true,
+   "overall": 15.41,
+   "nsfw": 10.35
+  },
+  "claude-opus-4-7": {
+   "hosted": true,
+   "overall": 16.59,
+   "nsfw": 11.33
+  },
+  "claude-opus-4-8": {
+   "hosted": true,
+   "overall": 16.99,
+   "nsfw": 9.84
+  },
+  "claude-opus-5": {
+   "hosted": true,
+   "overall": 19.6,
+   "nsfw": 10.98
+  },
+  "claude-sonnet-4-6": {
+   "hosted": true,
+   "overall": 14.98,
+   "nsfw": 5.81
+  },
+  "cydonia-22b-v1-q6-k": {
+   "hosted": false,
+   "overall": 3.75,
+   "nsfw": 7.45
+  },
+  "dark-craving-31b-v2.0-hb16-q8-0": {
+   "hosted": false,
+   "overall": 14.64,
+   "nsfw": 12.11
+  },
+  "dark-scarlett-27b-v3.0-q8-0-hb16": {
+   "hosted": false,
+   "overall": 14.42,
+   "nsfw": 12.38
+  },
+  "dark-scarlett-35b-iq4-xs-uncat": {
+   "hosted": false,
+   "overall": 15.81,
+   "nsfw": 8.62
+  },
+  "dark-scarlett-35b-v2": {
+   "hosted": false,
+   "overall": 14.12,
+   "nsfw": 7.27
+  },
+  "darker-hero-27b": {
+   "hosted": false,
+   "overall": 9.63,
+   "nsfw": 7.76
+  },
+  "darker-scarlett-27b": {
+   "hosted": false,
+   "overall": 14.03,
+   "nsfw": 10.03
+  },
+  "deepseek-flash": {
+   "hosted": true,
+   "overall": 19.18,
+   "nsfw": 10.04
+  },
+  "deepseek-pro": {
+   "hosted": true,
+   "overall": 18.45,
+   "nsfw": 8.29
+  },
+  "deepseek-r1-0528-8b": {
+   "hosted": false,
+   "overall": 3.3,
+   "nsfw": 0.85
+  },
+  "flint-q8-0": {
+   "hosted": false,
+   "overall": 12.21,
+   "nsfw": 6.93
+  },
+  "gemma-26b-qat": {
+   "hosted": false,
+   "overall": 10.36,
+   "nsfw": 11.38
+  },
+  "gpt-6-1-sol": {
+   "hosted": true,
+   "overall": 23.88,
+   "nsfw": 1.54
+  },
+  "gpt-6-1-terra": {
+   "hosted": true,
+   "overall": 19.44,
+   "nsfw": 1.61
+  },
+  "gpt-6-astra": {
+   "hosted": true,
+   "overall": 24.04,
+   "nsfw": 1.32
+  },
+  "gpt-6-luna": {
+   "hosted": true,
+   "overall": 18.53,
+   "nsfw": 4.02
+  },
+  "gpt-oss-20b-q8-0": {
+   "hosted": false,
+   "overall": 11.49,
+   "nsfw": 1.84
+  },
+  "grok-4-7": {
+   "hosted": true,
+   "overall": 24.07,
+   "nsfw": 11.46
+  },
+  "grok-build-0-1": {
+   "hosted": true,
+   "overall": 15.19,
+   "nsfw": 11.75
+  },
+  "kimi-k3-1-pro": {
+   "hosted": true,
+   "overall": 24.63,
+   "nsfw": 5.01
+  },
+  "minimax-m2-5": {
+   "hosted": true,
+   "overall": 12.21,
+   "nsfw": 5.72
+  },
+  "minimax-m2-5-highspeed": {
+   "hosted": true,
+   "overall": 14.6,
+   "nsfw": 6.27
+  },
+  "minimax-m2-7": {
+   "hosted": true,
+   "overall": 13.35,
+   "nsfw": 7.03
+  },
+  "minimax-m2-7-highspeed": {
+   "hosted": true,
+   "overall": 13.18,
+   "nsfw": 5.56
+  },
+  "minimax-m3": {
+   "hosted": true,
+   "overall": 14.57,
+   "nsfw": 8.76
+  },
+  "minimax-m3-1-flash": {
+   "hosted": true,
+   "overall": 13.63,
+   "nsfw": 7.51
+  },
+  "omega-arsenal-31b-final-q8-0-hb16": {
+   "hosted": false,
+   "overall": 14.97,
+   "nsfw": 11.62
+  },
+  "orcarouter-qwen3.8-27b-q8": {
+   "hosted": false,
+   "overall": 13.94,
+   "nsfw": 5.55
+  },
+  "qwen3.8-27b-tturbo-fable-heretic": {
+   "hosted": false,
+   "overall": 11.96,
+   "nsfw": 8.2
+  },
+  "qwen3.8-27b-ultra-heretic-nvfp4": {
+   "hosted": false,
+   "overall": 14.89,
+   "nsfw": 7.09
+  },
+  "qwen3.8-27b-ultra-uncensored-heretic-nvfp4-q8-0": {
+   "hosted": false,
+   "overall": 14.74,
+   "nsfw": 7.36
+  },
+  "qwen3.8-27b-unsloth": {
+   "hosted": false,
+   "overall": 13.77,
+   "nsfw": 10.95
+  },
+  "spark-x2.6-4b-q8-0": {
+   "hosted": false,
+   "overall": 4.94,
+   "nsfw": 1.88
+  },
+  "split-untied-31b": {
+   "hosted": false,
+   "overall": 12.94,
+   "nsfw": 11.96
+  },
+  "split-untied-31b-q8": {
+   "hosted": false,
+   "overall": 13.27,
+   "nsfw": 13.06
+  },
+  "swish-31b-final-q8-0-hb16": {
+   "hosted": false,
+   "overall": 16.34,
+   "nsfw": 11.84
+  },
+  "trohrbaugh-122b-heretic": {
+   "hosted": false,
+   "overall": 11.38,
+   "nsfw": 9.09
+  },
+  "wicked-tutu-26b-a4b-final-q8-0-hb16": {
+   "hosted": false,
+   "overall": 11.59,
+   "nsfw": 12.03
+  }
+ }
+}

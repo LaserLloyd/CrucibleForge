@@ -1,0 +1,51 @@
+{
+ "level": 2,
+ "points": 1.0,
+ "item": "PLANTED-OPT",
+ "budget": 65536,
+ "context": 73728,
+ "note": "CLOSED (Jake 2026-11-14, review ruling: gameable cells carry no points until fixed): draft, so no run opens or scores it. C2 pack 2 (rc1, Admin G2 g2-3; parent proposed C2 -- hidden-structure discovery like BLACK BOX -- pending the lead's ruling, was C3): planted_opt L4 (find the hidden mod-5 structure in a cost function; 30 = generic annealer, 100 = planted optimum), the pack-hardcode instances byte for byte (seed_case), 4 seeds measured twice (n=8). Haiku .15 +-.04, Sonnet .36 +-.10, DeepSeek flash .87 +-.12; MiniMax not measured (3 of 8 ran out at 65,536). Median output tokens: DeepSeek 42.5k, Haiku 8.3k, Sonnet 2.7k (Claude Code default effort, uncompensated) -- the token column carries this cell. (d) not judged: r -.74 on g2-1, +.99 on the refit, 3 measured models.",
+ "cases": [
+  {
+   "id": "PK-C2-PLANTED-L4-01",
+   "category": "coding",
+   "generator": {
+    "type": "planted_opt",
+    "level": 4,
+    "key": "3771926b0f992aa9",
+    "seed_case": "FLAT-planted_opt_L4-001-r1-a1"
+   }
+  },
+  {
+   "id": "PK-C2-PLANTED-L4-02",
+   "category": "coding",
+   "generator": {
+    "type": "planted_opt",
+    "level": 4,
+    "key": "a0abe29aebea01a6",
+    "seed_case": "FLAT-planted_opt_L4-002-r1-a1"
+   }
+  },
+  {
+   "id": "PK-C2-PLANTED-L4-03",
+   "category": "coding",
+   "generator": {
+    "type": "planted_opt",
+    "level": 4,
+    "key": "23b1c9f986a423e0",
+    "seed_case": "FLAT-planted_opt_L4-003-r1-a1"
+   }
+  },
+  {
+   "id": "PK-C2-PLANTED-L4-04",
+   "category": "coding",
+   "generator": {
+    "type": "planted_opt",
+    "level": 4,
+    "key": "b19ce5fcd1c895ff",
+    "seed_case": "FLAT-planted_opt_L4-004-r1-a1"
+   }
+  }
+ ],
+ "draft": true
+}

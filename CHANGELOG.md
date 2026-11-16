@@ -6,6 +6,60 @@ was ever published as Gauntlet, so there is no migration to do — the entries
 below are kept because the engineering they record is real, not to narrate a
 rename.
 
+## Unreleased — prompt caching survives long agentic cases (CACHE-COMPACT)
+
+- `bench45` gains `compaction: hysteresis`: past 60% of an agentic case's conversation cap the oldest
+  tool results are shortened in one step down to about 40%, and nothing earlier changes until the
+  history has grown by 20% of the cap again (`codeenv.compact`, `runner.compaction_mode`). The 4.1
+  per-turn rule rewrote the history, and broke every provider's cached prefix, on every turn past
+  60% (≈26–31k tokens re-written per call measured on LAG1). The rule is stated to the model in the
+  system prompt (`codeenv.HYSTERESIS_NOTE`) and stamped on the row (`compaction`). On a 60-turn fake
+  LAG1 episode, requests that extend the previous one byte for byte: 76% → 97% (after the first
+  compaction: 35% → 95%).
+- `anthropic_native` puts a third explicit cache breakpoint on the last shortened tool result of a
+  hysteresis episode (automatic + system + this = 3 of 4).
+- `judge.SCORING_RULES_VERSION` → `v2-2026-11-12`. `bench` requests are byte-identical (pinned by
+  `tests/test_cache_compact_20261112.py`).
+
+## Unreleased — public explicitness canary (WP-08)
+
+- The explicit judge canary is now a tracked, public text (`crucibleforge/canary_explicit.txt`,
+  sha256 pinned in `judge.CANARY_EXPLICIT_SHA256`) written at the rubric's 6 anchor, and the
+  pass rule is `explicitness >= 5` (was 4). The `canary_explicit.local.txt` override is gone:
+  the explicit probe is never read from a local file.
+
+## Unreleased — 4.5 scoring stays off the 4.1 board (review fix pass B)
+
+- **The 4.1 `bench` board scores exactly as dev did before 4.5.** Two board-time re-scorings of
+  stored verdicts are now profile switches, absent (off) on `bench` and on in `bench45`:
+  `ooc_gate: votes` (a lone judge out-of-character flag no longer zeroes rpdeep facts the judge
+  passed with verified quotes, unless the format gate, a refusal or the judge-side
+  `ooc_quote`/`in_character_votes` back it; a fact group without the judge-side keys keeps its
+  zeroing) and `quote_recheck: true` (the board-time quote re-verification described under 4.1.0
+  below, plus rpdeep's stored-quote check using the newer verifier: markdown emphasis dropped,
+  `" / "` splices, the single-sample wording; on `bench` all of it is off and stored quotes
+  verify as in 4.1, until the owner decides it is a 4.1.x scoring change). A recheck
+  flip now also restores a flag the failed element had forced False; an element that capped a
+  numeric dimension is not flipped (its pre-cap value is not stored).
+  `scripts/board_ab.py` scores one results directory with two source trees and lists every
+  model whose Total or subscore moved; `tests/test_board41_golden.py` pins a small fixture of
+  real public 4.1 rows to the 4.1 scores.
+- **Additive keys, scores unchanged:** on the default profile `report.json` gains `separation`,
+  per model `ranked`, `status`, `pending_reasons`, `tie_group`, `rank_lo`/`rank_hi`, `bench_min`,
+  `date_first`/`date_last`, `headline.separated_from`/`not_separated_from` and
+  `headline.vs_above.separated`, and the scorecard gains `subscores`; rows on every profile gain
+  `judged_ts`. No score, total or rank changes.
+- **4.5 missing rows (`missing_rows: pending`):** a provider content-filter stop on an NSFW row is
+  the model side's refusal (W=0, as in 4.1), on code or chat it is infrastructure (missing); an
+  empty reply with reasoning present is the model's own failure (0, as in 3.8.0); any score with
+  a missing job or a case with no row, in the total or not, is shown as pending (`score: null`,
+  `pending: true`, `pending_reasons`), and a ranked model now lists the reasons of its pending
+  out-of-total score.
+- A score's declared hard file that is missing, unreadable or has no `cases` list now raises
+  instead of silently scoring the score out of 8; `cases verify` reports a hard file under the
+  wrong score (work reads `code`, chat `chat`, nsfw `nsfw`) or shared by two scores. Legacy
+  T1/T2/T3 profiles keep tier-3 rows out of their declared-set stats. The judge-sample spread no
+  longer depends on row order.
 ## Unreleased
 
 - **Rows under a superseded sampler are regenerated.** A row whose protocol stamp names another sampler than the model resolves to now is stale: `bench-all --only <label>` regenerates it (a plain `bench-all` does not — retests are targeted), and the board keeps the old set until the new one covers every standard job (generated and judged), then switches whole — never a mix. Rows without a sampler stamp count as current.

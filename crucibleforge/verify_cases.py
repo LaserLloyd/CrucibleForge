@@ -23,6 +23,16 @@ _REQ = {
     "exact": [], "reference": ["reference"], "checks": ["checks"],
     "tool_call": [], "tool_parallel": ["expect_calls"], "tool_loop": [],
     "repo_tests": ["files", "hidden", "groups"],
+    "lines_prefix": ["expected"],
+    "patgen_iso": ["tiers"],      # generated trace families (gen/tracevm)
+    "console": ["key"],           # interactive console family (gen/compactor)
+    "unc_know": ["items"],        # uncensored-knowledge family (gen/unc_know)
+    "knowgap": ["items", "pairs"],  # knows-what-it-does-not-know family (gen/knowgap)
+    # generated code families: the grader rebuilds the instance from these keys
+    "implied": ["seed", "tier"],    # gen/implied (domain/variant optional: None below L5)
+    "blackbox": ["seed", "tier"],   # gen/blackbox
+    "probe": ["seed", "tier"],      # gen/probe
+    "optimize": ["seed", "level"],  # gen/planted_opt
 }
 
 
@@ -114,7 +124,11 @@ def _check(case: dict) -> list[str]:
     if g == "tool_call":
         errs += _check_step_args(gc)
     # generated long context: needle must be present
-    if case.get("generator"):
+    from . import gen as _gen
+    if _gen.is_generated(case):
+        # 4.5 registry family: deterministic, reference 1.0, mutants < 1.0
+        errs += _gen.verify_case(case)
+    elif case.get("generator"):
         gen = case["generator"]
         needles = [gen.get("needle")] if gen.get("needle") else gen.get("needles", [])
         for n in needles:
@@ -137,8 +151,11 @@ def _check(case: dict) -> list[str]:
     # partial credit a naive answer earns is the one the author intended
     if g == "python_exec" and case.get("mutants"):
         want_groups = case.get("mutants_expect") or {}
+        from .graders import unpinned_grading
         for i, m in enumerate(case["mutants"], 1):
-            v = grade(ChatResult(response_text=f"```python\n{m}\n```"), case)
+            # graded as authored: a profile's grader pin (bench45 cq_rule_group) reshapes the groups
+            with unpinned_grading():
+                v = grade(ChatResult(response_text=f"```python\n{m}\n```"), case)
             if v["grade"] == "pass":
                 errs.append(f"mutant {i} PASSES the tests")
             elif str(i) in want_groups:
@@ -302,7 +319,7 @@ def _check_tags(case: dict) -> list[str]:
     is refused here."""
     from .config import case_tag_errors
     errs = case_tag_errors(case)
-    erotic = case.get("rubric") in ("nsfw", "nsfw_craft", "erp_session")
+    erotic = case.get("rubric") in ("nsfw", "nsfw_craft", "erp_session", "erp_deep")
     if case.get("explicit_required") and not erotic:
         errs.append("explicit_required on a non-erotic rubric")
     # 3.9: an Uncensored dark-fiction row (no sex) is judged on the bare W 0-4
@@ -415,6 +432,13 @@ def _check_judge_elements(case: dict) -> list[str]:
     els = case.get("judge_elements")
     if els is None:
         return []
+    if not els:
+        # [] is legal ONLY on a generated programmatic case (graded by its checks alone);
+        # a hand-written judged case with its elements emptied would score from nothing
+        if case.get("generator") and case.get("programmatic") and case.get("checks"):
+            return []
+        return ["empty judge_elements: allowed only on a generated programmatic case "
+                "(generator + programmatic: true + checks)"]
     from .judge import GATING_DIMS, RUBRICS
     errs: list[str] = []
     rub = RUBRICS.get(case.get("rubric") or "")

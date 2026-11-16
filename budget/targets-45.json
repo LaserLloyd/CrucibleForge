@@ -1,0 +1,165 @@
+{
+ "schema": "budget-targets/1",
+ "revision": "4.5.0-v5",
+ "note": "ESTIMATE source (PLAN-45-v5-DELTA c.3: nominal = non-thinking ANSWER tokens, the measured Claude 5.x median for Base items). Generated Core instances take their tokens from the family's LEVELS answer_tokens, not from this file. A retarget_note on a case excuses a MEASURED overshoot of more than 25%. prefill_s = home seconds; the rig column scales it. 4.5 A6: `families` holds one entry per generated Core family+level (an instance id <FAMILY>[-variant]-core-<level>-<i> reads it); every number there is a design TARGET from S8-DESIGN section 6 / A7, not a measurement, until the family has rows.",
+ "cases": {
+  "CL3-paragraph-wrap": {
+   "score": "code",
+   "turns": 1,
+   "target_tokens": 1100,
+   "judge_calls": 0.0,
+   "prefill_s": 3.6,
+   "pending_from_hash": "b727e9eb"
+  },
+  "TZ16-pickup-dst-delay": {
+   "score": "code",
+   "turns": 1,
+   "target_tokens": 2100,
+   "judge_calls": 0.0,
+   "prefill_s": 1.2,
+   "pending_from_hash": "cb40f684"
+  },
+  "CC4-second-pitch": {
+   "score": "chat",
+   "turns": 6,
+   "target_tokens": 3700,
+   "judge_calls": 2.0,
+   "prefill_s": 4.0
+  },
+  "WL2-lighthouse": {
+   "score": "nsfw",
+   "turns": 1,
+   "target_tokens": 2700,
+   "judge_calls": 0.0,
+   "prefill_s": 1.1,
+   "pending_from_hash": "029b06e9"
+  },
+  "NC2-after-hours": {
+   "score": "nsfw",
+   "turns": 3,
+   "target_tokens": 2100,
+   "judge_calls": 1.0,
+   "prefill_s": 12.9
+  },
+  "RD4-kettle-saddle": {
+   "score": "chat",
+   "turns": 8,
+   "target_tokens": 4100,
+   "judge_calls": 3.0,
+   "prefill_s": 6.0,
+   "retarget_note": "answer tokens of the 4.1 thinking-run reference models (median); judge calls = the tree's elements today (3); A5 regroups to standard 45 in <= 2",
+   "pending_from_hash": "7830d96c"
+  },
+  "RV2-skarren-hut": {
+   "score": "chat",
+   "turns": 8,
+   "target_tokens": 2700,
+   "judge_calls": 4.0,
+   "prefill_s": 6.0,
+   "retarget_note": "ALTERNATE slot (Chat fallback). 4 judge calls today: needs the A5 regroup to <= 2 before it can replace RD4 inside the 6-call gate"
+  },
+  "NC1-tideglass": {
+   "score": "nsfw",
+   "turns": 3,
+   "target_tokens": 2900,
+   "judge_calls": 1.0,
+   "prefill_s": 10.0,
+   "retarget_note": "ALTERNATE slot (NSFW fallback)"
+  },
+  "NC3-palm-house": {
+   "score": "nsfw",
+   "turns": 3,
+   "target_tokens": 2600,
+   "judge_calls": 1.0,
+   "prefill_s": 10.0,
+   "retarget_note": "ALTERNATE slot (NSFW fallback)"
+  },
+  "CB-C6-predict-node": {
+   "score": "code",
+   "turns": 1,
+   "target_tokens": 700,
+   "judge_calls": 0.0,
+   "prefill_s": 3.0,
+   "note": "MC1 (T7): stored 4.1 case; visible answer median ~135 (API) tokens, 700 is the design target"
+  },
+  "NX2-juniper": {
+   "score": "nsfw",
+   "turns": 1,
+   "target_tokens": 2000,
+   "prefill_s": 1.2,
+   "note": "rc1 Main NSFW (Admin N2): design target = the case's 1,100-1,500-word band at ~1.35 tokens/word (= its max_tokens); 4.1 board median 3,274 completion tokens includes thinking, so it is not a nominal source"
+  },
+  "UX1-tide-cell": {
+   "score": "nsfw",
+   "turns": 1,
+   "target_tokens": 950,
+   "prefill_s": 1.0,
+   "note": "rc1 Main NSFW (Admin N2): design target = the case's 420-700-word band at ~1.35 tokens/word; 4.1 board median 1,723 completion tokens includes thinking, so it is not a nominal source"
+  }
+ },
+ "families": {
+  "TRACEVM-core-7": {
+   "score": "code",
+   "turns": 1,
+   "target_tokens": 100,
+   "judge_calls": 0.0,
+   "prefill_s": 3.5
+  },
+  "SESSION_STATE-multi-core-9": {
+   "score": "chat",
+   "turns": 10,
+   "target_tokens": 1500,
+   "judge_calls": 0.0,
+   "prefill_s": 8.0
+  },
+  "HEAT_SCHEDULE-core-1": {
+   "score": "nsfw",
+   "turns": 1,
+   "target_tokens": 800,
+   "judge_calls": 0.0,
+   "prefill_s": 2.0
+  },
+  "SCENE_SPEC-core-3": {
+   "score": "nsfw",
+   "turns": 1,
+   "target_tokens": 1500,
+   "judge_calls": 1.0,
+   "prefill_s": 3.0
+  },
+  "LEDGER-core-5": {
+   "score": "code",
+   "turns": 1,
+   "target_tokens": 100,
+   "judge_calls": 0.0,
+   "prefill_s": 160.0
+  },
+  "TRACEVM-core-8": {
+   "score": "code",
+   "turns": 1,
+   "target_tokens": 20,
+   "judge_calls": 0.0,
+   "prefill_s": 3.5
+  },
+  "PATCHFIX-core-7": {
+   "score": "code",
+   "turns": 1,
+   "target_tokens": 2200,
+   "judge_calls": 0.0,
+   "prefill_s": 4.0
+  },
+  "PLANTED_OPT-core-4": {
+   "score": "code",
+   "turns": 1,
+   "target_tokens": 1500,
+   "judge_calls": 0.0,
+   "prefill_s": 2.0
+  },
+  "SESSION_STATE-multi_hard-core-9": {
+   "score": "chat",
+   "turns": 10,
+   "target_tokens": 700,
+   "judge_calls": 0.0,
+   "prefill_s": 8.0
+  }
+ }
+}

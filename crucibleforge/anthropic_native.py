@@ -70,7 +70,9 @@ compat path), with no timestamps or ids in it, so turn N+1's tools, system
 and earlier messages are byte-identical to turn N's and the cache hits.
 The harness itself still rewrites old tool results under context pressure
 (codeenv.compact) — that is the benchmark's own rule for every model and
-simply restarts the cache from that point.
+simply restarts the cache from that point. Under bench45 it does so in one
+step now and then (``compaction: hysteresis``), and a third explicit
+breakpoint sits on the last shortened tool result (``_mark_last_stub``).
 """
 from __future__ import annotations
 
@@ -187,6 +189,28 @@ def translate_messages(messages: list[dict]) -> tuple[list[dict], list[dict]]:
     return system, out
 
 
+def _mark_last_stub(system: list[dict], msgs: list[dict]) -> None:
+    """Explicit breakpoint #3 (CACHE-COMPACT, 2026-11-12): on the LAST tool
+    result the harness shortened (codeenv.compact). Everything up to it stays
+    put until the next compaction step, so the next step (which rewrites
+    only later results) still reads the cache up to here. With the automatic
+    and the system breakpoints that is 3 of the API's 4. Only for an episode
+    under the hysteresis rule (its system prompt carries
+    codeenv.HYSTERESIS_NOTE), so a 4.1 bench request stays byte-identical;
+    no stub = no change."""
+    from .codeenv import HYSTERESIS_NOTE, STUB_PREFIX as _STUB_PREFIX
+    if not any(HYSTERESIS_NOTE in (b.get("text") or "") for b in system):
+        return
+    last = None
+    for m in msgs:
+        for b in m["content"]:
+            if (b.get("type") == "tool_result" and isinstance(b.get("content"), str)
+                    and b["content"].startswith(_STUB_PREFIX)):
+                last = b
+    if last is not None:
+        last["cache_control"] = dict(CACHE_CONTROL)
+
+
 def build_request(model: str, messages: list[dict], *, max_tokens: int,
                   tools: list | None = None, stop=None) -> dict:
     """The Messages request body (P1-P6). Key order is fixed."""
@@ -198,6 +222,7 @@ def build_request(model: str, messages: list[dict], *, max_tokens: int,
     if system:
         system[-1] = {**system[-1], "cache_control": dict(CACHE_CONTROL)}
         body["system"] = system
+    _mark_last_stub(system, msgs)
     body["messages"] = msgs
     if stop:
         body["stop_sequences"] = [stop] if isinstance(stop, str) else list(stop)

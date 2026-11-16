@@ -1,0 +1,99 @@
+id: CB-X1-predict-pyhard
+category: codebank
+family: predict
+difficulty: hard
+max_tokens: 4096
+issue: |
+  These snippets come from the household services' Python helpers (chores
+  rota, money, plugins, import jobs). Each one is runnable as shown. Say
+  exactly what each prints.
+snippets:
+- title: chores rota
+  lang: python
+  code: |
+    rows = [("ann", 2), ("bo", 1), ("cy", 2), ("di", 1), ("ed", 3)]
+    print([n for n, _ in sorted(rows, key=lambda r: r[1], reverse=True)])
+    print([n for n, _ in sorted(rows, key=lambda r: -r[1])][::-1])
+    print(round(0.125, 2), round(0.375, 2), round(2.675, 2), round(1250, -2), round(-0.5))
+- title: flags table
+  lang: python
+  code: |
+    d = {1: "a", True: "b", 1.0: "c", 0: "z"}
+    d[False] = "f"
+    print(d, len(d))
+    print(True + True, True * 3.5, [0, 1, 2][True], sum([True, False, True]))
+- title: shared rows
+  lang: python
+  code: |
+    t = ([1], 2)
+    try:
+        t[0] += [3]
+    except TypeError:
+        print("TypeError")
+    print(t)
+    grid = [[0] * 2] * 3
+    grid[0][1] = 7
+    print(grid, len({id(r) for r in grid}))
+- title: plugin registry
+  lang: python
+  code: |
+    class Base:
+        seen = []
+        def __init_subclass__(cls, tag="?", **kw):
+            super().__init_subclass__(**kw)
+            Base.seen.append(cls.__name__ + ":" + tag)
+    class A(Base, tag="a"): pass
+    class B(A): pass
+    class C(B, tag="c"): pass
+    print(Base.seen)
+    class X:
+        __slot = 1
+        def get(self):
+            return self.__slot
+    print(X().get(), hasattr(X, "__slot"), hasattr(X, "_X__slot"))
+- title: import job
+  lang: python
+  code: |
+    def emit(n):
+        try:
+            for i in range(n):
+                yield i
+        finally:
+            print("closed at", i)
+    g = emit(5)
+    print(next(g), next(g))
+    g.close()
+    print(list(emit(2)))
+    print([x for x in emit(4) if x < 2][:1])
+- title: bill rounding
+  lang: python
+  code: |
+    from decimal import Decimal, ROUND_HALF_UP
+    a = Decimal("1.10") + Decimal("2.205")
+    print(a, a.quantize(Decimal("0.01")), a.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP))
+    print(Decimal("1.0") == Decimal("1.00"), Decimal("1.0") * 3, Decimal("10") / Decimal("4"), Decimal(7) // Decimal(-2), -7 // 2)
+- title: batch errors
+  lang: python
+  code: |
+    try:
+        raise ExceptionGroup("batch", [ValueError("a"), KeyError("b"), ValueError("c")])
+    except* ValueError as eg:
+        print(str(eg), [str(e) for e in eg.exceptions])
+    except* KeyError as eg:
+        print(str(eg), repr(eg.exceptions[0]))
+- title: routing messages
+  lang: python
+  code: |
+    def route(p):
+        match p:
+            case {"x": 0, **rest}:
+                return f"y-axis {sorted(rest)}"
+            case [x, y, *_] if x == y:
+                return "diag"
+            case (x, y):
+                return f"pair {x}"
+            case str() | bytes():
+                return "text"
+            case other:
+                return f"other {type(other).__name__}"
+    print(route({"x": 0, "y": 2, "z": 1}), route([3, 3, 9]), route((1, 2)), route(b"x"), route(3.0), route([1, 2]), route({"x": 1}))

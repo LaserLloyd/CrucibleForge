@@ -546,7 +546,7 @@ CODEBANK_LOG = re.compile(r"^codebank_src/[^/]+/logs/[^/]+\.log$")
 # The wider set exempt from the generic /home/<user> rule alone: every file of
 # the fixture repos, plus the case JSON files that embed them as strings.
 CODEBANK_FIXTURE = re.compile(
-    r"^codebank_src/|^cases/(?:codeagent|codebank)[^/]*\.json$")
+    r"^codebank_src/|^(?:archive/[^/]+/)?cases/(?:codeagent|codebank)[^/]*\.json$")
 HOME_PATH_WHY = "an absolute path inside someone's home directory"
 
 
@@ -931,6 +931,8 @@ def selftest() -> int:
                 ("cases/codebank_x.json", '{"f": "/home/alex/x"}\n', False),  # scrub-ok: selftest fixture
                 ("cases/codebank_x.json", '{"f": "/var/home/operator/x"}\n', True),  # scrub-ok: selftest fixture
                 ("cases/other.json", '{"f": "/home/alex/x"}\n', True),  # scrub-ok: selftest fixture
+                ("archive/4.1.0/cases/codebank.json", '{"f": "/home/alex/x"}\n', False),  # scrub-ok: selftest fixture
+                ("archive/4.1.0/cases/other.json", '{"f": "/home/alex/x"}\n', True),  # scrub-ok: selftest fixture
                 ("docs/pytest.md", "decorator \\n@pytest.mark.parametrize here\n", False)):
             f = root / rel
             f.parent.mkdir(parents=True, exist_ok=True)

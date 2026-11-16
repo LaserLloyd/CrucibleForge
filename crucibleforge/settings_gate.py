@@ -272,25 +272,31 @@ def gate_plan(p: dict, cfg: dict, cfg_p: dict | None = None, templates: dict | N
             # not the judge's business)
             blocked.append(label)
     if blocked:
-        b = set(blocked)
-        groups = []
-        for g in p.get("groups") or []:
-            ms = [m for m in g["models"] if m not in b]
-            if ms:
-                groups.append({**g, "models": ms})
-        p["groups"] = groups
-        p["escalate"] = [e for e in p.get("escalate") or [] if e.get("model") not in b]
-        p["ladder"] = [lp for lp in p.get("ladder") or [] if lp.get("model") not in b]
-        p["per_model"] = {k: v for k, v in (p.get("per_model") or {}).items() if k not in b}
+        drop_from_plan(p, set(blocked))
     p["settings"] = settings
     p["settings_blocked"] = blocked
     return p
+
+
+def drop_from_plan(p: dict, b: set) -> None:
+    """Take models ``b`` out of a bench-all plan's GENERATION phases (their
+    pending rows may still be judged). Shared by settings_gate and
+    replay_rule."""
+    groups = []
+    for g in p.get("groups") or []:
+        ms = [m for m in g["models"] if m not in b]
+        if ms:
+            groups.append({**g, "models": ms})
+    p["groups"] = groups
+    p["escalate"] = [e for e in p.get("escalate") or [] if e.get("model") not in b]
+    p["ladder"] = [lp for lp in p.get("ladder") or [] if lp.get("model") not in b]
+    p["per_model"] = {k: v for k, v in (p.get("per_model") or {}).items() if k not in b}
 
 
 def plan_lines(p: dict) -> list[str]:
     L = []
     for label in p.get("settings_blocked") or []:
         v = (p.get("settings") or {}).get(label) or {}
-        L.append(f"  ! NOT RUN {label}: needs recommended settings — {v.get('reason')}")
+        L.append(f"  ! NOT RUN {label}: needs_settings — needs recommended settings — {v.get('reason')}")
         L.append("    " + str(v.get("fix") or "").replace("\n", "\n    "))
     return L

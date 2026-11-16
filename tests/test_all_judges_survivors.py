@@ -72,6 +72,7 @@ def test_a_run_phase_that_never_started_skips_judge_and_report(monkeypatch, phas
     assert phases["judge"] == [] and phases["report"] == 0
 
 
+@pytest.mark.archive_default
 def test_all_clean_run_judges_the_requested_models(monkeypatch, phases):
     _run_stub(monkeypatch, 0, ["a", "b", "c"])
     assert cli.cmd_all(_args(), {}) == 0

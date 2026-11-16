@@ -22,6 +22,7 @@ v3 additions:
 """
 from __future__ import annotations
 
+import copy
 import csv
 from pathlib import Path
 import json
@@ -32,13 +33,13 @@ import uuid
 from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait as _fwait
 from datetime import datetime, timezone
 
-from . import lms, session_checks, stopflag, studioforge
+from . import degenerate, earlystop, lms, rpdeep, session_checks, stopflag, studioforge
 from dataclasses import replace as _dc_replace
 
-from .api import (Aborted, ChatResult, GenerationRejected, RequestRejected, RowTimeout,
+from .api import (Aborted, ChatResult, GenerationRejected, ProtocolRejected, RequestRejected, RowTimeout,
                   TransportError, WindowClosed, WrongModelError, in_reasoning_flag,
                   reasoning_answer)
-from .config import CSV_COLUMNS, results_dir, append_transcript, repeats_for, transcript_path
+from .config import CSV_COLUMNS, results_dir, append_transcript, load_transcripts, repeats_for, transcript_path
 from .graders import (_extract_tool_calls_from_text, grade, grade_tool_call, prose_metrics)
 from . import spend
 from .providers import Provider, cost_usd, merge_extra_body, model_extra_body, provider_for
@@ -46,10 +47,22 @@ from .version import judge_fingerprint as _judge_fp, revision as _revision
 from .version import private_category_hash
 from .stepgrade import grade_answer_step
 from . import config as _config
+from . import subject_copies as _subject_copies
+from . import adult_guard as _adult_guard
 
 log = logging.getLogger(__name__)
 
 CREATIVE_SEEDS = [41, 42, 43, 44, 45]
+
+
+def writer_seed(case: dict, repeat: int, temperature) -> int:
+    """The writer's sampling seed of one repeat: 42 at temperature 0, else creative seed number
+    ``repeat`` -- or the case's ``gen_seed`` (rc3: a chain flat set and its seed_as alias ask the
+    same instances at two different seeds)."""
+    if temperature == 0:
+        return 42
+    gs = int(case.get("gen_seed") or 0)
+    return CREATIVE_SEEDS[((gs or repeat) - 1) % len(CREATIVE_SEEDS)]
 SANITY_CHECK_AFTER = 3
 
 # A run aborts (ModelRunError) after this many transport failures IN A ROW —
@@ -124,6 +137,55 @@ POOL_POLL_S = 0.25
 # meta then says "stopped at the time window", never FAILED.
 GEN_DEADLINE: list[float | None] = [None]
 WINDOW_STOP = threading.Event()
+# The cooperative drain (lead 2026-11-14): SIGUSR1 or the stop file (cli.py) sets DRAIN and
+# STOP: the requests in flight finish, nothing new starts, the meta reads "stopped on request,
+# the rest next run" (partial, not FAILED) and the process exits with no judge or board. No
+# ceiling by default; ``request_drain(max_minutes=N)`` cuts what is still streaming after N
+# minutes (stopflag.CUT) and the run's notes say a stream was cut.
+DRAIN = stopflag.DRAIN
+DRAIN_NOTE = "stopped on request, the rest next run"
+CUT_NOTE = ("a stream was cut by the drain ceiling: unload and reload the model before the "
+            "next run")
+#: labels whose in-flight request the drain ceiling cut
+DRAIN_CUT: set[str] = set()
+_DRAIN_TIMER: list = [None]
+_DRAIN_LOCK = threading.Lock()
+
+
+def request_drain(max_minutes: float | None = None, why: str = "request") -> bool:
+    """Ask the run to drain: finish what is in flight, start nothing new. ``max_minutes`` (None =
+    no ceiling, the default) arms the ceiling once. True when this call started the drain."""
+    with _DRAIN_LOCK:
+        first = not DRAIN.is_set()
+        DRAIN.set()
+        STOP.set()
+        if max_minutes and max_minutes > 0 and _DRAIN_TIMER[0] is None:
+            t = threading.Timer(float(max_minutes) * 60.0, _drain_ceiling, args=(max_minutes,))
+            t.daemon = True
+            t.start()
+            _DRAIN_TIMER[0] = t
+    if first:
+        log.warning("drain requested (%s): the requests in flight finish, nothing new starts, then "
+                    "the process exits (no judge, no board)%s", why,
+                    f"; streams still running after {max_minutes:g} min are cut"
+                    if max_minutes else "; no ceiling")
+    return first
+
+
+def _drain_ceiling(max_minutes) -> None:
+    log.warning("drain ceiling (%g min) reached: cutting the streams still in flight", max_minutes)
+    stopflag.CUT.set()
+
+
+def reset_drain() -> None:
+    """Tests / a GUI that runs again in the same process."""
+    with _DRAIN_LOCK:
+        if _DRAIN_TIMER[0] is not None:
+            _DRAIN_TIMER[0].cancel()
+            _DRAIN_TIMER[0] = None
+        DRAIN.clear()
+        stopflag.CUT.clear()
+        DRAIN_CUT.clear()
 
 #: Model runs in flight in this process: {label: (entry, provider, cfg)} —
 #: what cli's stop watchdog marks ``stopped`` if the process must be ended
@@ -182,12 +244,67 @@ def _rejection_kind(case: dict, e: Exception) -> str:
     return "generation" if case.get("category") in BANK_CATEGORIES else "transport"
 
 
+# --- ctx_short (4.5): a row cut by the context window is infrastructure, not the model ---
+_CTX_ERR_RE = re.compile(
+    r"(exceed\w*[^.]{0,60}(context|n_ctx)|(context|n_ctx)[^.]{0,40}(exceed|too (long|small|short)|"
+    r"overflow|limit)|maximum context|prompt is too long|available context|context_length_exceeded)",
+    re.I)
+
+
+def is_ctx_short_error(text) -> bool:
+    """Whether a server error message says the request did not fit the
+    context window."""
+    return bool(_CTX_ERR_RE.search(str(text or "")))
+
+
+def row_ctx_short(row: dict, ctx_len) -> bool:
+    """A generated row the CONTEXT window cut short: finish=length although
+    the model had budget left (completion < the budget sent) and
+    prompt + completion fills the served window. Such a row says nothing about
+    the model; it is retried and, failing that, recorded as an errored
+    (missing) row, never scored."""
+    if not ctx_len or row.get("finish_reason") != "length":
+        return False
+    m = row.get("metrics") or {}
+    p, c = m.get("prompt_tokens"), m.get("completion_tokens")
+    if not isinstance(p, (int, float)) or not isinstance(c, (int, float)):
+        return False
+    if p + c < 0.98 * int(ctx_len):
+        return False
+    sent = row.get("max_tokens_sent")
+    return not (isinstance(sent, (int, float)) and sent and c >= 0.98 * sent)
+
+
 class ModelRunError(RuntimeError):
     pass
 
 
+class EarlyStopError(ModelRunError):
+    """The early stop (earlystop.py, R3) tripped: this model's run stops, its
+    rows stay, ``record`` goes to the meta as ``early_stop`` and the batch
+    continues with the next model."""
+
+    def __init__(self, record: dict):
+        self.record = record
+        super().__init__(earlystop.describe(record))
+
+
 class RunStopped(RuntimeError):
     pass
+
+
+def stamp_degenerate(row: dict) -> None:
+    """Stamp ``row["degenerate"]`` (degenerate.py: one repeated character or short n-gram)
+    so the board, elemstats and the early stop can tell a broken instance from a model's
+    wrong answer. Never raises: a row it cannot read is left unstamped."""
+    try:
+        hit = degenerate.row_degenerate(row)
+    except Exception:  # noqa: BLE001 - a stamp must never cost a row
+        return
+    if hit and not row.get("degenerate"):
+        # a session turn stamped at run time keeps its stamp (it says the turn went into
+        # history empty)
+        row["degenerate"] = hit
 
 
 def _now() -> str:
@@ -251,9 +368,28 @@ def _metrics_sum(results: list[ChatResult]) -> dict:
             "ttft_s": results[0].ttft_s, "gen_s": gen, "total_s": tot("total_s"),
             "prompt_tokens": tot("prompt_tokens"), "completion_tokens": comp,
             "reasoning_tokens": tot("reasoning_tokens"),
+            "reasoning_tokens_source": _reasoning_source(results),
+            "answer_tokens": _answer_tokens(comp, tot("reasoning_tokens")),
             "tok_per_s": (round(comp / gen, 2) if gen and comp and comp >= 2 else None),
             "prompt_tok_per_s": results[-1].prompt_tok_per_s,
             "n_turns": len(results)}
+
+
+#: GPUs on the rig; a row's rig share = its cards / RIG_CARDS / slots
+RIG_CARDS = 4
+
+
+def rig_minutes(provider, plan: dict | None, metrics: dict) -> float | None:
+    """Rig-minutes a row cost: its wall-clock seconds / 60 x (leased cards / RIG_CARDS) / slots.
+    None for a non-rig provider or when the placement or time is unknown."""
+    if getattr(provider, "type", None) != "studioforge":
+        return None
+    devs = (plan or {}).get("devices") or []
+    slots = int((plan or {}).get("parallel") or 1)
+    secs = metrics.get("total_s")
+    if not devs or secs is None:
+        return None
+    return round(float(secs) / 60.0 * len(devs) / RIG_CARDS / max(1, slots), 4)
 
 
 def _billed_extra(results: list[ChatResult]) -> dict:
@@ -282,13 +418,34 @@ def _cache_split(results: list[ChatResult]) -> dict:
 
 def _metrics(result: ChatResult) -> dict:
     return {
-        **_billed_extra([result]), **_cache_split([result]),
+        **_billed_extra([result]),
+        # claude_code only (see claudecode.py): the input/cache split of prompt_tokens
+        **{k: getattr(result, k) for k in ("input_tokens", "cache_read_tokens",
+                                           "cache_write_tokens") if getattr(result, k, None) is not None},
+        **_cache_split([result]),
         "ttft_s": result.ttft_s, "gen_s": result.gen_s, "total_s": result.total_s,
         "prompt_tokens": result.prompt_tokens,
         "completion_tokens": result.completion_tokens,
         "reasoning_tokens": result.reasoning_tokens,
+        "reasoning_tokens_source": getattr(result, "reasoning_tokens_source", None),
+        "answer_tokens": _answer_tokens(result.completion_tokens, result.reasoning_tokens),
         "tok_per_s": result.tok_per_s, "prompt_tok_per_s": result.prompt_tok_per_s,
     }
+
+
+def _answer_tokens(completion: int | None, reasoning: int | None) -> int | None:
+    """Visible-answer tokens = completion minus reasoning (OpenAI usage shape: completion includes
+    reasoning); None when either is unknown."""
+    if completion is None or reasoning is None:
+        return None
+    return max(0, int(completion) - int(reasoning))
+
+
+def _reasoning_source(results) -> str | None:
+    """"server" when every turn's reasoning count came from the server, "estimated" when any was
+    estimated, None when no turn has one."""
+    srcs = {getattr(r, "reasoning_tokens_source", None) for r in results} - {None}
+    return "estimated" if "estimated" in srcs else ("server" if srcs else None)
 
 
 #: sampler keys sent in the request body beside temperature/top_p (llama.cpp
@@ -340,6 +497,8 @@ class _Ctx:
         self.entry = entry
         self.provider = provider
         self.model_id = entry["model_id"]
+        # subject_copies.Placement when the model is served by declared copies (else None)
+        self.placement = None
         self.ctx_len = ctx_len
         self.extra_body = model_extra_body(entry)
         # Provider-gated reasoning replay (MiniMax's documented protocol: the
@@ -347,13 +506,22 @@ class _Ctx:
         # provider without it sends byte-identical requests to before.
         self.reasoning_replay = bool(getattr(provider, "reasoning_replay", False))
         # alignment 2026-11-06 (review B1): a models.yaml row may set its own
-        # ``reasoning_replay`` (conformance c3 proved the provider default
-        # wrong for that model, e.g. a Qwen3.8 thinking fine-tune on the rig
-        # that recalls its turn-1 chain only when it is sent back). It moves
+        # ``reasoning_replay`` (4.5: the replay_rule record -- the model's own
+        # template at default settings, or a card/API rule). It moves
         # only the assistant-turn replay; the provider's request body is
         # untouched (reasoning_split stays a MiniMax-provider matter).
+        # 4.5: the value is the replay rule's record (replay_rule: the model's
+        # own template at default settings, or a card/API rule)
+        from .replay_rule import source as _replay_source, value as _replay_value
         if entry.get("reasoning_replay") is not None:
-            self.reasoning_replay = bool(entry["reasoning_replay"])
+            self.reasoning_replay = _replay_value(entry)
+        self.reasoning_replay_source = (_replay_source(entry) if entry.get("reasoning_replay") is not None
+                                        else ("provider-default" if self.reasoning_replay else "default"))
+        # claude_code: the explicit effort every request passes and every row records (4.5 default high)
+        self.cc_effort = None
+        if getattr(provider, "type", None) == "claude_code":
+            from .claudecode import effort_for
+            self.cc_effort = effort_for(entry)
         self.lock = threading.Lock()
         # serialises reloads (eviction / wrong model) WITHOUT blocking the
         # row writers on ctx.lock for the minutes a load can take (M10)
@@ -424,6 +592,27 @@ class _Ctx:
         # per-category opt-out (profile ``no_recovery``): math recoveries have
         # never produced a pass (0/85), they only cost time
         self.no_recovery = set(d.get("no_recovery") or [])
+        # 4.5 (profile ``thinking_fallback``): a reply with no visible content
+        # is asked once more with the model's own thinking switch off (call())
+        self.thinking_fallback = bool(d.get("thinking_fallback", False))
+        # 4.5 (profile ``empty_stop_rule``): a FINISHED reply with no visible content
+        # is stamped ``empty_stop`` and goes into a session's history as an empty
+        # assistant turn, never as the model's answer (see _empty_stop_stamp)
+        self.empty_stop_rule = bool(d.get("empty_stop_rule", False))
+        # 4.5 (profile ``on_empty_stop``): what a FINISHED reply with no visible content
+        # gets -- ``regenerate`` (the same request once more, settings unchanged, as a
+        # user pressing regenerate; session turns included), ``thinking_off`` (= the
+        # thinking fallback), ``none`` (no retry). Unset: the older switches decide
+        # (thinking_fallback, else the 4.0 plain re-ask on non-chain rows).
+        oes = d.get("on_empty_stop")
+        if oes not in (None, "regenerate", "regenerate_then_thinking_off", "thinking_off", "none"):
+            raise ValueError(f"on_empty_stop: {oes!r} (regenerate | regenerate_then_thinking_off"
+                             " | thinking_off | none)")
+        self.on_empty_stop = oes
+        if oes == "thinking_off":
+            self.thinking_fallback = True
+        elif oes in ("regenerate", "regenerate_then_thinking_off", "none"):
+            self.thinking_fallback = False
         # flips to False the first time the provider rejects chat_template_kwargs
         self.no_think_supported = True
         self.stall_s = float(d.get("stall_timeout_s", DEFAULT_STALL_S) or 0) or None
@@ -475,9 +664,16 @@ class _Ctx:
                 f"neither the rig nor the bench separates; this model's scores are suspect "
                 f"(teach api._THINK_TAGS the dialect or set extra_body.reasoning_format)")
 
+    def regen_for(self, case: dict) -> bool:
+        """Whether an empty stop may be regenerated (on_empty_stop: regenerate): every
+        row but a timing row -- session turns too (an empty reply is not running out)."""
+        return case["category"] != "perf"
+
     def recover_for(self, case: dict) -> bool:
         """Whether reasoning-overflow recovery applies to this case."""
-        return case["category"] != "perf" and case["category"] not in self.no_recovery
+        # a chain attempt is never re-asked with thinking off: running out IS its outcome (R23)
+        return (case["category"] != "perf" and case["category"] not in self.no_recovery
+                and not case.get("chain"))
 
     def budget(self, max_tokens: int) -> int:
         """max_tokens to actually send for this model: case budget x factor
@@ -504,7 +700,8 @@ class _Ctx:
                 "thinking": self.thinking,
                 "sampler": ({**self.sampler, "source": self.sampler_source}
                             if self.sampler else self.sampler_source)
-                if self.regime == REGIME_DEPLOYED else "case"}
+                if self.regime == REGIME_DEPLOYED else "case",
+                **({"cc_effort": self.cc_effort} if self.cc_effort else {})}
 
     def _observe(self, result: ChatResult) -> None:
         m = _SPECIAL_MARKER.search(result.response_text or "")
@@ -539,6 +736,7 @@ class _Ctx:
                                              "give the number."}],
                 # the run's own sampler: kimi-k3 refuses any temperature but 1 (2026-10-25)
                 max_tokens=256, seed=42, extra_body=self.extra_body,
+                **({"cc_effort": self.cc_effort} if self.cc_effort else {}),
                 **dict(zip(("temperature", "top_p"), self.sampling({}))))
         except (TransportError, WrongModelError) as e:
             log.warning("thinking probe failed (%s) — will auto-detect from replies", e)
@@ -571,9 +769,15 @@ class _Ctx:
         # Claude models, which 400 the whole request above it); budgets are clamped, never refused
         if self.max_output and kw.get("max_tokens") and kw["max_tokens"] > self.max_output:
             kw["max_tokens"] = self.max_output
+        if self.cc_effort:
+            kw["cc_effort"] = self.cc_effort
+        held = _subject_copies.current()
+        sid = held.serve_id if held is not None else self.model_id
         try:
-            r = self.provider.chat(self.model_id, messages, **kw)
-        except WrongModelError as e:
+            r = self.provider.chat(sid, messages, **kw)
+        except WrongModelError:
+            if self.placement is not None:
+                raise    # declared copies never reload through the provider (run_case_repeat)
             log.warning("%s — reloading and retrying once", e)
             check_abort()
             with self.reload_lock:
@@ -612,6 +816,99 @@ class _Ctx:
         every path shares (api.reasoning_answer, runner.reply_of)."""
         return r.finish_reason == "stop" and not cls._answered(r)
 
+    def _empty_stop_chain(self, messages, first: ChatResult, budget: int, kw: dict,
+                          mode: str) -> ChatResult:
+        """The 4.5 empty-stop retries (``on_empty_stop``). ``regenerate``: the same request
+        once more, nothing changed (a stray end-of-turn mid-reasoning). ``regenerate_then_
+        thinking_off``: if that retry is ALSO empty with its reply left in the reasoning
+        channel, one more attempt with the model's own thinking switch off (a template that
+        traps the reply in the block). At most two extra requests. The first visible reply
+        is returned (graded, into history); every attempt is recorded on it as
+        ``empty_stop_retry {mode, chain: [{mode, completion_tokens, reasoning_chars,
+        reasoning_tail, visible[, switch, rejected]}], graded: index | None, retry_visible}``.
+        No visible reply: the last attempt is returned (graded None -> empty_stop)."""
+        def visible(r):
+            return bool((r.response_text or "").strip() or r.tool_calls)
+
+        def entry(r, m, **extra):
+            rt = r.reasoning_text or ""
+            return {"mode": m, "completion_tokens": r.completion_tokens, "reasoning_chars": len(rt),
+                    "reasoning_tail": rt[-60:], "visible": visible(r), **extra}
+
+        first_seed = kw.get("seed")
+
+        def seeded(k, attempt):
+            # a FRESH seed per retry (a seeded llama-server request repeats its reply), the
+            # same on every re-run of the case; every other field unchanged
+            return {**k, "seed": retry_seed(first_seed, attempt)} if first_seed is not None else dict(k)
+
+        attempts = [first]
+        chain = [entry(first, "first", seed=first_seed)]
+        log.warning("%s: empty reply with finish=stop — regenerating once", self.model_id)
+        rkw = seeded(kw, 1)
+        cur = self._chat(messages, max_tokens=budget, **rkw)
+        attempts.append(cur)
+        chain.append(entry(cur, "regenerate", seed=rkw.get("seed")))
+        # Jake 2026-11-14: "regenerate, then thinking off if still empty" -- any empty stop
+        # (reply left in the reasoning channel, or nothing at all); never a degenerate one
+        if (mode == "regenerate_then_thinking_off" and not visible(cur) and _empty_stop(cur)
+                and not _degenerate_result(cur)):
+            log.warning("%s: regenerate also empty, reply in the reasoning channel — "
+                        "one more attempt with thinking off", self.model_id)
+            switch, rejected = None, False
+            if getattr(self, "no_think_supported", True):
+                fb_kw = {**seeded(kw, 2), "extra_body": merge_extra_body(kw.get("extra_body"),
+                                                                         RECOVERY_NO_THINK_KWARGS)}
+                try:
+                    cur = self._chat(messages, max_tokens=budget, **fb_kw)
+                    switch = "enable_thinking=false"
+                except RequestRejected as e:
+                    if _billing_rejection(e):
+                        raise
+                    log.warning("%s: provider rejects chat_template_kwargs (%s) — no third attempt",
+                                self.model_id, str(e)[:120])
+                    self.no_think_supported = False
+                    rejected = True
+            else:
+                rejected = True
+            if rejected:
+                # no switch to send: a third identical request would be another regenerate
+                chain.append({"mode": "thinking_off", "switch": None, "rejected": True,
+                              "visible": False, "completion_tokens": None, "reasoning_chars": 0,
+                              "reasoning_tail": "", "seed": None})
+            else:
+                attempts.append(cur)
+                chain.append(entry(cur, "thinking_off", switch=switch, seed=fb_kw.get("seed")))
+        graded = next((i for i, a in enumerate(attempts) if visible(a)), None)
+        out = attempts[graded] if graded is not None else attempts[-1]
+        out.empty_retry = True
+        out.empty_stop_retry = {"mode": mode, "chain": chain,
+                                "graded": (chain.index(next(c for c in chain if c["visible"]))
+                                           if graded is not None else None),
+                                "retry_visible": graded is not None,
+                                "first_seed": first_seed, "retry_seed": rkw.get("seed"),
+                                "answered_thinking_off": (graded is not None
+                                                          and chain[next(i for i, c in enumerate(chain)
+                                                                         if c["visible"])]["mode"]
+                                                          == "thinking_off"),
+                                # 4.5 regenerate fields kept for readers of the first build
+                                "first_completion_tokens": first.completion_tokens,
+                                "first_reasoning_chars": len(first.reasoning_text or ""),
+                                "first_reasoning_tail": (first.reasoning_text or "")[-60:]}
+        # every other attempt was billed too: billed-only extras (cost), never in
+        # prompt/completion_tokens (they feed tok/s)
+        for a in attempts:
+            if a is out:
+                continue
+            out.billed_extra_prompt_tokens += (a.prompt_tokens or 0) + a.billed_extra_prompt_tokens
+            out.billed_extra_completion_tokens += ((a.completion_tokens or 0)
+                                                   + a.billed_extra_completion_tokens)
+            out.billed_extra_cache_read_tokens += ((a.cache_read_tokens or 0)
+                                                   + a.billed_extra_cache_read_tokens)
+            out.billed_extra_cache_write_tokens += ((a.cache_write_tokens or 0)
+                                                    + a.billed_extra_cache_write_tokens)
+        return out
+
     def call(self, messages, *, max_tokens: int, recover: bool = True, **kw) -> ChatResult:
         """One completion on the CASE budget ``max_tokens`` (boosted for a
         thinking model), with recovery for a reply that never reached the
@@ -620,18 +917,80 @@ class _Ctx:
         stay single-shot."""
         kw.setdefault("extra_body", self.extra_body)
         exact = kw.pop("exact_budget", None)
+        regen = kw.pop("regen", recover)
         first = self._chat(messages, max_tokens=exact or self.budget(max_tokens), **kw)
         # (under a profile with the old thinking-off recovery, that recovery
         # handles a stop without an answer instead)
-        if recover and not self.recovery_enabled and _empty_stop(first):
+        fallback_on = bool(getattr(self, "thinking_fallback", False))
+        oes = getattr(self, "on_empty_stop", None)
+        if oes == "none":
+            pass
+        elif oes in ("regenerate", "regenerate_then_thinking_off"):
+            # a degenerate reply (degenerate.py) is never regenerated: it is a failure, graded
+            # as a blank (lead 2026-11-14); the degenerate test comes first, so a row never
+            # carries a regenerate of a degenerate attempt (the chain applies the same test
+            # to the regenerate before any thinking-off attempt)
+            if regen and _empty_stop(first) and not _degenerate_result(first):
+                first = self._empty_stop_chain(messages, first, exact or self.budget(max_tokens), kw, oes)
+        elif recover and not self.recovery_enabled and not fallback_on and _empty_stop(first):
             # 4.0 (validation item 10): a reply that comes back EMPTY with
-            # finish=stop — no content, no tool call — is a
-            # serving hiccup, not an answer: the same request is sent ONCE
-            # more (budget, sampler and thinking unchanged). A second empty
-            # reply stands.
+            # finish=stop — no content, no tool call — is a serving hiccup,
+            # not an answer: the same request is sent ONCE more (budget,
+            # sampler and thinking unchanged). A second empty reply stands.
+            # (profiles without ``thinking_fallback``: bench 4.1)
             log.warning("%s: empty reply with finish=stop — retrying once", self.model_id)
             again = self._chat(messages, max_tokens=exact or self.budget(max_tokens), **kw)
             again.empty_retry = True
+            # the first call was billed too: carry its tokens as billed-only
+            # extras (cost), NOT in prompt/completion_tokens (they feed tok/s)
+            again.billed_extra_prompt_tokens = ((first.prompt_tokens or 0)
+                                                + first.billed_extra_prompt_tokens)
+            again.billed_extra_completion_tokens = ((first.completion_tokens or 0)
+                                                    + first.billed_extra_completion_tokens)
+            again.billed_extra_cache_read_tokens = ((first.cache_read_tokens or 0)
+                                                    + first.billed_extra_cache_read_tokens)
+            again.billed_extra_cache_write_tokens = ((first.cache_write_tokens or 0)
+                                                     + first.billed_extra_cache_write_tokens)
+            first = again
+        elif recover and not self.recovery_enabled and fallback_on and (_empty_stop(first) or _capped_empty(first)):
+            # Thinking fallback (2026-11-14, maintainer: "switch off thinking
+            # ... when a reply doesn't exit thinking ... I only want to grade
+            # responses given"). A reply with NO visible content -- it
+            # finished inside its thinking block (answer filed as reasoning),
+            # ran to the cap without closing it, or came back empty -- is
+            # asked ONCE more, the same request with the model's own
+            # non-thinking switch (chat_template_kwargs enable_thinking=false;
+            # a template without the switch ignores it, so the retry is the
+            # plain re-ask of 4.0 validation item 10). The reply that comes
+            # back is graded; a second empty reply stands (blank). Same for
+            # every model; the row says what happened (thinking_fallback).
+            what = ("ran_to_cap" if first.finish_reason == "length" else
+                    "misrouted" if (first.reasoning_text or "").strip() else "empty")
+            log.warning("%s: no visible reply (%s, %s tokens) — asking once more with thinking off",
+                        self.model_id, what, first.completion_tokens)
+            budget = exact or self.budget(max_tokens)
+            fb_kw, switch = dict(kw), None
+            if getattr(self, "no_think_supported", True):
+                fb_kw = {**kw, "extra_body": merge_extra_body(kw.get("extra_body"),
+                                                              RECOVERY_NO_THINK_KWARGS)}
+                switch = "enable_thinking=false"
+            try:
+                again = self._chat(messages, max_tokens=budget, **fb_kw)
+            except RequestRejected as e:
+                if switch is None or _billing_rejection(e):
+                    raise
+                log.warning("%s: provider rejects chat_template_kwargs (%s) — plain re-ask",
+                            self.model_id, str(e)[:120])
+                self.no_think_supported = False
+                switch = None
+                again = self._chat(messages, max_tokens=budget, **kw)
+            again.empty_retry = True
+            again.thinking_fallback = {
+                "first": what, "first_finish": first.finish_reason,
+                "first_completion_tokens": first.completion_tokens,
+                "first_reasoning_chars": len(first.reasoning_text or ""),
+                "switch": switch,
+                "fallback_visible": bool((again.response_text or "").strip() or again.tool_calls)}
             # the first call was billed too: carry its tokens as billed-only
             # extras (cost), NOT in prompt/completion_tokens (they feed tok/s)
             again.billed_extra_prompt_tokens = ((first.prompt_tokens or 0)
@@ -780,7 +1139,8 @@ def run_models(cfg: dict, model_entries: list[dict], cases: list[dict],
                smoke: bool = False, jobs_by_label: dict | None = None,
                rung: int | None = None, min_ctx: int | None = None,
                record_key: str | None = None,
-               skip_conformance: bool = False) -> dict:
+               skip_conformance: bool = False,
+               bench_run_ids: dict | None = None, stage: str | None = None) -> dict:
     """jobs_by_label: optional {label: {(bench_run_id, case_id, repeat), ...}}
     restricting each model to exactly those (case, repeat) jobs, re-run under
     their ORIGINAL bench_run_id so the new rows supersede the old ones (used
@@ -789,8 +1149,13 @@ def run_models(cfg: dict, model_entries: list[dict], cases: list[dict],
     their rows carry ``budget_rung`` (see DEFAULT_ESCALATION_RUNGS).
     ``min_ctx``: load each model at least at this context (a tier-3 round,
     tiers.py). ``record_key``: the meta list a jobs round is recorded under
-    (default "escalated" for a rung, else "recovered"; a tier round: "tiers")."""
-    STOP.clear()
+    (default "escalated" for a rung, else "recovered"; a tier round: "tiers").
+    ``bench_run_ids``: {label: id} continues that run (its rows and meta) instead of a new
+    one (a routed run's locator and module stages are ONE run: routing.py)."""
+    if not DRAIN.is_set():
+        # a new phase starts with a clean STOP, but never forgets a drain: a SIGUSR1 that arrived
+        # in an earlier phase (or between two) still stops this one before it sends anything
+        STOP.clear()
     # reachability per provider, once
     seen: set[str] = set()
     for e in model_entries:
@@ -808,30 +1173,41 @@ def run_models(cfg: dict, model_entries: list[dict], cases: list[dict],
             if STOP.is_set() or ABORT.is_set():
                 log.warning("stop requested — skipping remaining models")
                 break
+            from . import quarantine
+            if quarantine.queue_halted():
+                log.error("queue halted — skipping remaining models")
+                break
             label = entry["name"]
             if not (jobs_by_label and label in jobs_by_label):
                 with _ACTIVE_LOCK:
                     ACTIVE[label] = (entry, provider_for(cfg, entry), cfg)
             try:
-                rounds = plan_rounds(cfg, entry, cases, (jobs_by_label or {}).get(label),
+                # the adult page's per-model switch (adult_guard, lead 2026-11-15): a model with
+                # adult_page off (always the Claude Code route) never plans an adult unit
+                m_cases = _adult_guard.plan_cases(cfg, entry, cases, say=lambda s: (print(s), log.info(s)))
+                rounds = plan_rounds(cfg, entry, m_cases, (jobs_by_label or {}).get(label),
                                      rung=rung, min_ctx=min_ctx)
                 if len(rounds) > 1:
                     log.info("%s: %s", label, "; ".join(
                         f"round {r['name']} at ctx {r['ctx']}" for r in rounds))
-                rid = str(uuid.uuid4())[:8]
-                carry: dict = {}
+                cont = (bench_run_ids or {}).get(label)
+                rid = cont or str(uuid.uuid4())[:8]
+                carry: dict = {"early_stop_cases": [c["id"] for c in m_cases]}
+                if stage:
+                    carry["stage"] = stage      # 4.5 routed run: "locator" | "module" on every row
                 parts = []
                 for i, rd in enumerate(rounds):
                     parts.append(_run_one_model(
                         cfg, entry, rd["cases"], csvw, smoke, only_jobs=rd["only_jobs"],
                         rung=rung, min_ctx=min_ctx, record_key=record_key,
-                        reset=(i == 0), bench_run_id=rid, perf=(i == 0),
+                        reset=(i == 0 and not cont), bench_run_id=rid, perf=(i == 0 and not cont),
                         last=(i == len(rounds) - 1),
                         round_name=rd["name"] if len(rounds) > 1 else None, carry=carry,
                         skip_conformance=skip_conformance))
                 summary[label] = _merge_round_summaries(parts)
-            except RunStopped:
-                _record_stop(cfg, entry, label, summary, jobs_by_label, record_key, rung)
+            except RunStopped as e:
+                _record_stop(cfg, entry, label, summary, jobs_by_label, record_key, rung,
+                             reason=str(e))
                 break
             except (ModelRunError, TransportError, WrongModelError,
                     lms.LmsError, studioforge.StudioForgeError) as e:
@@ -842,13 +1218,25 @@ def run_models(cfg: dict, model_entries: list[dict], cases: list[dict],
                     break
                 log.error("model %s FAILED: %s — continuing with next model", label, e)
                 summary[label] = {"failed": True, "error": str(e)[:2000]}
+                # an early stop (R3) carries its machine-readable reason; the
+                # partial rows stay but the run is never publishable
+                es_extra = ({"early_stop": e.record, "publishable": False}
+                            if isinstance(e, EarlyStopError) else None)
+                if es_extra:
+                    summary[label]["early_stop"] = e.record
+                    try:
+                        from . import quarantine
+                        from .config import transcript_path
+                        quarantine.hold_early_stop(label, e.record, str(transcript_path(label)))
+                    except Exception:  # noqa: BLE001 — the stop stands even if the record cannot be written
+                        log.error("quarantine record for %s failed", label)
                 if jobs_by_label and label in jobs_by_label:
                     _write_recover_record(label, failed=True, error=str(e)[:500],
                                           key=record_key or ("escalated" if rung else "recovered"), rung=rung)
                 else:
                     _write_meta(label, entry, provider_for(cfg, entry), failed=True,
                                 error=str(e)[:2000], profile=cfg.get("_profile"),
-                                revision=_revision(cfg))
+                                revision=_revision(cfg), extra=es_extra)
             finally:
                 with _ACTIVE_LOCK:
                     ACTIVE.pop(label, None)
@@ -916,16 +1304,50 @@ def _merge_round_summaries(parts: list[dict]) -> dict:
     out["warnings"] = [w for p in parts for w in (p.get("warnings") or [])]
     costs = [p.get("cost_usd") for p in parts if p.get("cost_usd") is not None]
     out["cost_usd"] = round(sum(costs), 4) if costs else None
+    rms = [p.get("rig_minutes") for p in parts if p.get("rig_minutes") is not None]
+    out["rig_minutes"] = round(sum(rms), 3) if rms else None
     if len(parts) > 1:
         out["rounds"] = [{"round": p.get("round"), "ctx": p.get("ctx"), "jobs": p.get("jobs"),
                           "workers": p.get("workers"), "plan": p.get("plan")} for p in parts]
     return out
 
 
-def _record_stop(cfg, entry, label, summary, jobs_by_label, record_key, rung) -> None:
+CAP_STOP = "stopped: spend cap reached"
+
+
+def cap_stop_reason(e) -> str:
+    """The stop line for a spend-cap refusal: "stopped: spend cap reached ($7.39 of the $8.00 cap)"
+    (lead 2026-11-14; it used to read "stopped by user"). A gate with no figures (an unpriced
+    hosted model) keeps its own message after the prefix."""
+    spent, cap = getattr(e, "spent", None), getattr(e, "cap", None)
+    if spent is not None and cap is not None:
+        return f"{CAP_STOP} (${spent:.2f} of the ${cap:.2f} {getattr(e, 'cap_name', 'cap')})"
+    return f"{CAP_STOP} ({e})"
+
+
+def _record_stop(cfg, entry, label, summary, jobs_by_label, record_key, rung,
+                 reason: str | None = None) -> None:
     """Summary + meta for a model whose run was stopped: a hard stop marks the
-    meta ``stopped`` (with a finished time), a cooperative one as before."""
+    meta ``stopped`` (with a finished time), a cooperative one as before. A
+    spend-cap stop (``reason`` from cap_stop_reason) says so instead of
+    "stopped by user"."""
     hard = ABORT.is_set()
+    if not hard and DRAIN.is_set() and not str(reason or "").startswith(CAP_STOP):
+        # the cooperative drain: partial, not FAILED; the rest is generated by a later run
+        cut = label in DRAIN_CUT
+        error = DRAIN_NOTE + (f"; {CUT_NOTE}" if cut else "")
+        summary[label] = {"failed": True, "error": error, "stopped": True, "drained": True,
+                          **({"stream_cut": True} if cut else {})}
+        if jobs_by_label and label in jobs_by_label:
+            _write_recover_record(label, failed=True, error=f"stopped by user (drain){'; ' + CUT_NOTE if cut else ''}",
+                                  key=record_key or ("escalated" if rung else "recovered"),
+                                  rung=rung)
+        else:
+            _write_meta(label, entry, provider_for(cfg, entry), failed=False,
+                        profile=cfg.get("_profile"), revision=_revision(cfg),
+                        extra={"drain_stopped": _now(), "drain_note": error,
+                               **({"stream_cut": True} if cut else {})})
+        return
     if not hard and WINDOW_STOP.is_set():
         # bench-all's time window, not a failure: the rows written stay, the
         # rest is generated by the next run (the board shows the model as
@@ -941,8 +1363,9 @@ def _record_stop(cfg, entry, label, summary, jobs_by_label, record_key, rung) ->
                         profile=cfg.get("_profile"), revision=_revision(cfg),
                         extra={"window_stopped": _now()})
         return
-    error = "stopped (SIGTERM)" if hard else "stopped by user"
-    summary[label] = {"failed": True, "error": error, "stopped": True}
+    cap = not hard and str(reason or "").startswith(CAP_STOP)
+    error = "stopped (SIGTERM)" if hard else (reason if cap else "stopped by user")
+    summary[label] = {"failed": True, "error": error, "stopped": True, **({"spend_cap": True} if cap else {})}
     if jobs_by_label and label in jobs_by_label:
         _write_recover_record(label, failed=True, error=error, stopped=hard or None,
                               key=record_key or ("escalated" if rung else "recovered"), rung=rung)
@@ -1046,6 +1469,15 @@ def _write_meta(label: str, entry: dict, provider: Provider, *, load_s: float | 
             meta.pop(k, None)
     if entry.get("price"):
         meta["price"] = entry["price"]
+    if provider.type == "claude_code":
+        # sampling is the Claude Code harness's own and cannot be set: rows are
+        # not comparable to API rows (docs/CONFIG.md, claude_code provider)
+        from .claudecode import SAMPLING_NOTE
+        meta["sampling"] = "harness-default"
+        meta["sampling_note"] = SAMPLING_NOTE
+        meta["cost_basis"] = "subscription"
+        from .claudecode import effort_for
+        meta["cc_effort"] = effort_for(entry)    # the explicit --effort every row of the run passed
     if profile:
         meta["profile"] = profile
         # Split profiles (`coding` + `chat`, 2026-09-08) land on the SAME
@@ -1056,6 +1488,17 @@ def _write_meta(label: str, entry: dict, provider: Provider, *, load_s: float | 
         meta["load_s"] = round(load_s, 1)
     if plan:
         meta["plan"] = plan  # the placement the numbers were measured under
+    if profile:
+        try:
+            from . import profiles as _pr
+            _p = _pr.load_profile(profile)
+            rs = (_p.get("run_settings") or {})
+            if _p.get("composition"):
+                meta["composition"] = _p["composition"]   # which Main composition the rows answer
+        except Exception:  # noqa: BLE001 - an unknown profile has no run settings
+            rs = {}
+        if rs:
+            meta["run_settings"] = dict(rs)  # e.g. kv_cache_type: the same for every model
     if ctx_len:
         meta["context_length"] = int(ctx_len)
     if bench_run_id:
@@ -1100,6 +1543,13 @@ def fixed_budget(cfg: dict, case: dict) -> int | None:
     if case.get("category") in BANK_CATEGORIES:
         b = int(cfg["defaults"].get("bank_budget") or 0)
         return b or None
+    if case.get("chain_spec"):
+        # 4.5 chains: the load floor must hold the largest rung ceiling (chains.py) plus, for
+        # a multi-turn item, its ``history_budget`` (the room the accumulated history may
+        # take: earlier turns' prompts, replies and replayed thinking)
+        cs = [int(r["ceiling"]) + int(r.get("history_budget") or 0)
+              for r in case["chain_spec"]["rungs"] if r.get("ceiling")]
+        return max(cs) if cs else None
     if case.get("ladder_budget"):
         return int(case["ladder_budget"])
     if case.get("budget"):
@@ -1146,7 +1596,13 @@ def load_context(cfg: dict, entry: dict, rung: int | None = None,
     code-bank rows, the bank's load floor (``bank_context``: 73,728, so bank
     rows get the full 65,536 budget, not one clamped to the window); an
     escalation rung needs room for a rung-sized answer."""
-    ctx_len = entry.get("context_length") or cfg["defaults"].get("context_length")
+    explicit = entry.get("context") or entry.get("load_ctx")
+    ctx_len = explicit or entry.get("context_length") or cfg["defaults"].get("context_length")
+    thinker = cfg["defaults"].get("thinker_context")
+    if thinker and not explicit and entry.get("thinking") is True:
+        # D14: a registry-declared thinker loads at least this wide (profile
+        # ``thinker_context``, 4.5: 73,728); a per-model ``context`` wins
+        ctx_len = max(int(ctx_len or 0), int(thinker))
     for floor in (cfg["defaults"].get("context_floor"), min_ctx, bank_context(cfg, cases),
                   wide_context(cfg, cases)):
         if floor and ctx_len:
@@ -1157,13 +1613,28 @@ def load_context(cfg: dict, entry: dict, rung: int | None = None,
     return ctx_len
 
 
-def _run_one_model(cfg, entry, cases, csvw: _Csv, smoke,
+class _CopyLost(Exception):
+    """The subject copy a job ran on lost its model (subject_copies): the job moves."""
+
+
+def _run_one_model(*args, **kw) -> dict:
+    """One load round of one model (:func:`_run_one_model_body`); the subject copies
+    it brought up (subject_copies) are torn down on every exit path."""
+    placed: list = []
+    try:
+        return _run_one_model_body(*args, _placed=placed, **kw)
+    finally:
+        for pl in placed:
+            pl.tear_down()
+
+
+def _run_one_model_body(cfg, entry, cases, csvw: _Csv, smoke,
                    only_jobs: set | None = None, rung: int | None = None,
                    min_ctx: int | None = None, record_key: str | None = None,
                    reset: bool = True, bench_run_id: str | None = None, perf: bool = True,
                    last: bool = True, round_name: str | None = None,
                    carry: dict | None = None,
-                   skip_conformance: bool = False) -> dict:
+                   skip_conformance: bool = False, _placed: list | None = None) -> dict:
     """One load round of one model (run_models splits a run into rounds,
     :func:`plan_rounds`). ``reset``: the first round of a board run starts a
     fresh meta; ``perf``: the perf probes run in this round; ``last``: this
@@ -1180,6 +1651,18 @@ def _run_one_model(cfg, entry, cases, csvw: _Csv, smoke,
     provider = provider_for(cfg, entry)
     bench_run_id = bench_run_id or str(uuid.uuid4())[:8]
     carry = carry if carry is not None else {}
+    # R3 early stop: judged on the run's FIRST answers, so one counter spans
+    # every load round of a board run (carried); a recover / escalation round
+    # re-runs chosen jobs and is not judged
+    es = None
+    if only_jobs is None and not rung:
+        es = carry.get("early_stop")
+        if es is None:
+            # carry["early_stop_cases"]: the whole run's case ids (run_models;
+            # a round sees only its own subset)
+            es = carry["early_stop"] = earlystop.EarlyStop(
+                cfg, label=label, skip=earlystop.targeted_reason(
+                    cfg, carry.get("early_stop_cases") or [c["id"] for c in cases]))
     ctx = _Ctx(cfg, entry, provider, ctx_len)
     if ctx.thinking is None and carry.get("thinking") is not None:
         ctx.thinking = carry["thinking"]
@@ -1217,7 +1700,29 @@ def _run_one_model(cfg, entry, cases, csvw: _Csv, smoke,
                     label, trained, ctx_len, trained)
         ctx_len = trained
         ctx.ctx_len = trained
-    load_s = provider.switch_model(model_id, ctx_len)
+    wanted_ctx = ctx_len        # what the registry asks for (before a narrower window is accepted)
+    copies = (_subject_copies.declared(cfg, entry)
+              if getattr(provider, "type", None) == "studioforge" else [])
+    if copies:
+        # declared copies (subject_copies): each leased and loaded EXPLICITLY on its cards
+        # with the run's KV type and slot ladder, verified, parity-checked; never switch_model
+        placement = _subject_copies.Placement(provider, copies, ctx_len)
+        if _placed is not None:
+            _placed.append(placement)
+        try:
+            placement.bring_up()
+        except _subject_copies.CopyError as e:
+            raise ModelRunError(f"{label}: {e}") from e
+        ctx.placement = placement
+        # from here on the run talks to the copies only: a chat to the base id goes to a
+        # copy and a load/switch of the base id raises (02:10 incident rule)
+        provider = ctx.provider = _subject_copies.PlacedProvider(provider, placement)
+        load_s = placement.load_s
+        if placement.ctx and ctx_len and placement.ctx > int(ctx_len):
+            ctx_len = wanted_ctx = placement.ctx
+            ctx.ctx_len = ctx_len
+    else:
+        load_s = provider.switch_model(model_id, ctx_len)
     live_ctx = provider.live_context(model_id)
     if live_ctx and ctx_len and live_ctx < int(ctx_len):
         log.warning("%s is serving ctx=%d, below the registry context %s — long-context "
@@ -1229,6 +1734,8 @@ def _run_one_model(cfg, entry, cases, csvw: _Csv, smoke,
             raise ModelRunError(f"escalation to {rung} tokens needs ctx >= {rung}; the rig "
                                 f"serves {label} at {live_ctx} — rung skipped")
     plan = provider.loaded_plan_for(model_id) if hasattr(provider, "loaded_plan_for") else {}
+    if ctx.placement is not None:
+        plan = {**(plan or {}), "placement": _placement_record(cfg, ctx.placement)}
     if not recover_mode and reset:
         _write_meta(label, entry, provider, load_s=load_s, bench_run_id=bench_run_id,
                     profile=cfg.get("_profile"), plan=plan or None, ctx_len=ctx_len,
@@ -1245,6 +1752,7 @@ def _run_one_model(cfg, entry, cases, csvw: _Csv, smoke,
              "block_guard": (not recover_mode and not rung
                              and not (transcript_path(label).exists()
                                       and transcript_path(label).stat().st_size > 0))}
+    chain_rows: dict[str, list[dict]] = {}      # chain attempt rows, by instance id (chains.Driver)
     min_tps = float(cfg["defaults"].get("min_tok_per_s", 0) or 0)
     revision = _revision(cfg)
     judge_fp = _judge_fp(cfg)
@@ -1287,6 +1795,23 @@ def _run_one_model(cfg, entry, cases, csvw: _Csv, smoke,
         if case["category"] in BANK_CATEGORIES:
             from .version import bank_case_hash
             extra["bank_revision"] = bank_case_hash(case["category"], case["id"])
+        if case.get("chain"):
+            # 4.5 chains (chains.py): the instance's chain block + its own content stamp
+            from .chains import revision as _chain_revision
+            extra["chain"] = dict(case["chain"])
+            extra["chain_revision"] = _chain_revision(case["chain"])
+            if case.get("judge_elements"):
+                # a judged flat instance is not in load_cases: the judge reads its elements and
+                # case fields off the row (judge.row_elements_all / case_field are row-first)
+                from .judge import _CASE_FIELD_KEYS
+                extra["judge_elements"] = copy.deepcopy(case["judge_elements"])
+                extra.update({k: copy.deepcopy(case[k]) for k in _CASE_FIELD_KEYS if k in case})
+        if case.get("route"):
+            # 4.5 bank (routing.py): the route this module unit was given, by locator score
+            extra["route"] = copy.deepcopy(case["route"])
+        if case.get("pack_gate"):
+            # a routed part's pack: the gate it opened on (target, share, threshold, opened, reason)
+            extra["pack_gate"] = copy.deepcopy(case["pack_gate"])
         if case.get("ladder_pack"):
             # a question written inside a ladder pack: outside bench_revision,
             # its own content stamp (version.ladder_case_hash)
@@ -1313,6 +1838,8 @@ def _run_one_model(cfg, entry, cases, csvw: _Csv, smoke,
             **({"round": round_name} if round_name else {}),
         }
 
+    perf_seen: list[dict] = []     # this round's perf probe rows (the run-start sanity rule)
+
     def persist(rows):
         with ctx.lock:
             # a hard stop drops in-flight jobs: one that still returns after
@@ -1323,7 +1850,10 @@ def _run_one_model(cfg, entry, cases, csvw: _Csv, smoke,
                     log.info("[%s] stopped — dropping %d late row(s) of %s",
                              label, len(rows), rows[0].get("case_id"))
                 return
+            held = _subject_copies.current()
             for row in rows:
+                if held is not None:
+                    row["subject_copy"] = held.audit()     # audit only: model_id stays canonical
                 m = row.get("metrics") or {}
                 c = cost_usd(entry,
                              (m.get("prompt_tokens") or 0) + (m.get("billed_extra_prompt_tokens") or 0)
@@ -1331,17 +1861,47 @@ def _run_one_model(cfg, entry, cases, csvw: _Csv, smoke,
                              (m.get("completion_tokens") or 0) + (m.get("billed_extra_completion_tokens") or 0)
                              if m.get("completion_tokens") is not None or m.get("billed_extra_completion_tokens") else None,
                              (m.get("cache_read_tokens") or 0) + (m.get("billed_extra_cache_read_tokens") or 0),
-                             (m.get("cache_write_tokens") or 0) + (m.get("billed_extra_cache_write_tokens") or 0))
+                             (m.get("cache_write_tokens") or 0) + (m.get("billed_extra_cache_write_tokens") or 0),
+                             native_cache=m.get("cache_write_tokens") is not None)
+                if provider.type == "claude_code":
+                    # subscription, not metered: cost 0, and say so (after cache45's pricing,
+                    # so the metered providers keep their cache-aware cost)
+                    c = 0.0
+                    row["cost_basis"] = "subscription"
                 if c is not None:
                     row["cost_usd"] = round(c, 6)
                     state["cost"] += c
+                rm = rig_minutes(provider, plan, m)
+                if rm is not None:
+                    # R23 (2026-11-13): a rig model has no dollars; its cost is rig time =
+                    # wall-clock x the share of the rig the row held (cards / RIG_CARDS / slots)
+                    row["rig_minutes"] = rm
+                    row.setdefault("cost_basis", "rig")
+                    state["rig_min"] = state.get("rig_min", 0.0) + rm
+                stamp_degenerate(row)
+                if carry.get("stage"):
+                    row["stage"] = carry["stage"]
+                if row.get("category") == "perf":
+                    perf_seen.append(row)
                 append_transcript(label, row)
+                if row.get("chain"):
+                    chain_rows.setdefault(row["case_id"], []).append(row)
                 csvw.write({**row, "run_id": row["run_id"],
                             "grade": row.get("grade"),
                             "grade_detail": row.get("grade_detail"),
                             **(row.get("metrics") or {})})
                 state["rows"] += 1
             _sanity_check(state, rows, label)
+            if es is not None:
+                had_error = es.error
+                trip = es.observe(rows)
+                if es.error and not had_error:
+                    log.error("[%s] %s — the run is not publishable", label, es.error)
+                if trip:
+                    trip = {**trip, "bench_run_id": bench_run_id}
+                    log.error("[%s] %s — stopping this model, rows kept", label,
+                              earlystop.describe(trip))
+                    raise EarlyStopError(trip)
             # viability floor: collect real gen tok/s samples; once we have a
             # few, abort if the median is below the floor (too slow to be usable)
             if min_tps > 0 and not state["speed_gated"]:
@@ -1359,6 +1919,39 @@ def _run_one_model(cfg, entry, cases, csvw: _Csv, smoke,
                             f"(n={len(ss)}) — model not viable, aborting")
 
     def run_case_repeat(case, repeat, rid=None):
+        pl = ctx.placement
+        if pl is None:
+            return _run_case_repeat(case, repeat, rid)
+        tried: set = set()
+        while True:
+            try:
+                with pl.pool.slot(exclude=tried, abort=abort) as held:
+                    try:
+                        return _run_case_repeat(case, repeat, rid)
+                    except _CopyLost as e:
+                        tried.add(held.name)
+                        others = [c for c in pl.pool.live() if c is not held]
+                        if others:
+                            pl.pool.mark_dead(held, str(e))
+                        elif not pl.reload(held):
+                            raise ModelRunError(f"{label}: the last copy of the subject is "
+                                                f"gone ({held.died})") from e
+                        log.warning("[%s] %s r%d: copy %s lost (%s) — re-running the job on "
+                                    "a live copy", label, case["id"], repeat, held.name, e)
+            except _subject_copies.SlotAborted:
+                return
+            except _subject_copies.NoCopyLeft as e:
+                raise ModelRunError(f"{label}: {e}") from e
+
+    def _held_lost() -> str | None:
+        """With declared copies: why the copy this job holds is no longer serving."""
+        pl, held = ctx.placement, _subject_copies.current()
+        if pl is None or held is None:
+            return None
+        return None if pl.healthy(held) else f"{held.serve_id} not loaded as declared"
+
+    def _run_case_repeat(case, repeat, rid=None):
+        _adult_guard.assert_sendable(cfg, entry, case)
         if STOP.is_set():
             raise RunStopped()
         check_abort()
@@ -1370,7 +1963,7 @@ def _run_one_model(cfg, entry, cases, csvw: _Csv, smoke,
         max_tokens = case["max_tokens"]
         # a sampled row (any temperature but 0) gets a seed per repeat, so
         # repeats are independent draws
-        seed = 42 if temperature == 0 else CREATIVE_SEEDS[(repeat - 1) % len(CREATIVE_SEEDS)]
+        seed = writer_seed(case, repeat, temperature)
         base_row = base_row_for(case, repeat, seed, temperature, top_p, max_tokens, rid)
 
         need_ctx = int(case.get("min_context") or 0)
@@ -1396,7 +1989,10 @@ def _run_one_model(cfg, entry, cases, csvw: _Csv, smoke,
                 state["skipped"] += 1
             return
 
-        if not provider.is_loaded(model_id):
+        lost = _held_lost()
+        if lost:
+            raise _CopyLost(lost)
+        if ctx.placement is None and not provider.is_loaded(model_id):
             log.warning("%s evicted — reloading", model_id)
             check_abort()
             # not under ctx.lock: a reload waits up to wait_ready's 900 s and
@@ -1405,15 +2001,81 @@ def _run_one_model(cfg, entry, cases, csvw: _Csv, smoke,
                 if not provider.is_loaded(model_id):
                     provider.switch_model(model_id, ctx_len)
 
-        try:
+        def _generate():
+            if case.get("needs_chain"):
+                # FC1 PATTERN: turn 2 carries the model's own turn-1 reply; the standard runner has no chain yet
+                raise GenerationRejected("needs the t1->t2 chain runner (T7 second half): recorded as a missing row")
+            if case.get("console"):
+                return [_run_console_loop(case, base_row, ctx, max_tokens, temperature, seed, top_p=top_p)]
             if case.get("env"):
-                rows = [_run_env_loop(case, base_row, ctx, max_tokens, temperature, seed, top_p=top_p)]
-            elif case.get("tool_script"):
-                rows = [_run_tool_loop(case, base_row, ctx, max_tokens, temperature, seed, top_p=top_p)]
-            elif case.get("turns"):
-                rows = _run_multiturn(case, base_row, ctx, max_tokens, temperature, top_p, seed)
-            else:
-                rows = [_run_single(case, base_row, ctx, max_tokens, temperature, top_p, seed)]
+                return [_run_env_loop(case, base_row, ctx, max_tokens, temperature, seed, top_p=top_p)]
+            if case.get("tool_script"):
+                return [_run_tool_loop(case, base_row, ctx, max_tokens, temperature, seed, top_p=top_p)]
+            if case.get("turns"):
+                return _run_multiturn(case, base_row, ctx, max_tokens, temperature, top_p, seed)
+            return [_run_single(case, base_row, ctx, max_tokens, temperature, top_p, seed)]
+
+        def _widen_possible() -> bool:
+            """A retry can change something only if the server serves a
+            narrower window than the model's context (a reload fixes it)."""
+            live = provider.live_context(model_id) if hasattr(provider, "live_context") else None
+            return bool(live and wanted_ctx and int(live) < int(wanted_ctx))
+
+        def _generate_checked():
+            """4.5: a row cut by the context window (finish=length with the
+            window full, or the server's own context error) is infrastructure:
+            retried once at the model's context, then recorded as an errored
+            (missing) row. ``ctx_short_retry: 0`` restores the old behaviour."""
+            retries = int(cfg["defaults"].get("ctx_short_retry", 0) or 0)
+            if case.get("category") in BANK_CATEGORIES:
+                retries = 0           # bank rows are skipped up front when they cannot fit
+                #                        (need_ctx above); a rejection there stays the model's
+            short = False
+            for attempt in range(retries + 1):
+                try:
+                    rows = _generate()
+                    short = any(row_ctx_short(r, ctx.ctx_len) for r in rows)
+                except RequestRejected as e:
+                    if not (retries and e.status in _CASE_LOCAL_REJECT_STATUSES
+                            and is_ctx_short_error(str(e))):
+                        raise
+                    rows, short = None, True
+                if not short:
+                    return rows
+                if attempt < retries and _widen_possible():
+                    log.warning("[%s] %s r%d: cut by the context window (ctx %s) — "
+                                "reloading at the model's context and retrying once",
+                                label, case["id"], repeat, ctx.ctx_len)
+                    check_abort()
+                    with ctx.reload_lock:
+                        provider.switch_model(model_id, wanted_ctx)
+                    now = provider.live_context(model_id) if hasattr(provider, "live_context") else None
+                    ctx.ctx_len = int(now or wanted_ctx)
+                    base_row["load_ctx"] = ctx.ctx_len     # the retry is logged at the value it used
+                    continue
+                break
+            if rows and (case.get("chain") or (trained and wanted_ctx
+                                               and int(wanted_ctx) >= int(trained))):
+                # (a chain row is sent the whole window: its end IS the model's maximum, R23)
+                # the model's OWN trained window ran out: verbosity is the
+                # model's failure, not infrastructure -> graded as ran-out
+                log.warning("[%s] %s r%d: cut at the model's trained context (%s) - "
+                            "graded as ran-out", label, case["id"], repeat, trained)
+                for r_ in rows:
+                    if row_ctx_short(r_, ctx.ctx_len):
+                        r_["ctx_short_model_limit"] = True
+                return rows
+            log.error("[%s] %s r%d: still cut by the context window (ctx %s) — recorded "
+                      "as an errored row, not scored", label, case["id"], repeat, ctx.ctx_len)
+            with ctx.lock:
+                state["case_errors"] += 1
+            return [_error_row(base_row, case,
+                               f"ctx_short: the context window ({ctx.ctx_len}) cut the "
+                               f"output; not scored", kind="ctx_short")]
+
+        try:
+            rows = _generate_checked() if int(cfg["defaults"].get("ctx_short_retry", 0) or 0) \
+                else _generate()
         except GenerationRejected as e:
             # the MODEL's output could not be delivered (malformed tool-call
             # args, a chat template llama-server cannot build a parser for) —
@@ -1429,6 +2091,19 @@ def _run_one_model(cfg, entry, cases, csvw: _Csv, smoke,
             if isinstance(e, Aborted) or ABORT.is_set():
                 # stopping: no row — the job stays pending for the next run
                 raise RunStopped("stopped (SIGTERM)") from e
+            lost = _held_lost()
+            if lost:
+                raise _CopyLost(f"{lost} ({str(e)[:120]})") from e
+            if isinstance(e, spend.SpendCapExceeded):
+                # the spend cap, not the clock: the stop says so (lead 2026-11-14); no row, the
+                # job stays pending like any other stop
+                raise RunStopped(cap_stop_reason(e)) from e
+            if isinstance(e, WindowClosed) and stopflag.CUT.is_set():
+                # the drain ceiling cut this stream: no row, the job stays pending; the
+                # model must be reloaded before the next run (the run's notes say so)
+                with _DRAIN_LOCK:
+                    DRAIN_CUT.add(label)
+                raise RunStopped("drain ceiling: stream cut") from e
             if isinstance(e, WindowClosed):
                 # the run's time window closed mid-request (bench-all
                 # --until): no row, the job is generated by the next run
@@ -1477,6 +2152,10 @@ def _run_one_model(cfg, entry, cases, csvw: _Csv, smoke,
             return
         with ctx.lock:
             state["consecutive_errors"] = 0
+        if case.get("chain"):
+            # the attempt's in-run verdict (chains.py): the chain's next step depends on it
+            from .chains import stamp_verdict
+            stamp_verdict(rows, case)
         persist(rows)
         log.info("[%s] %s r%d done (%d rows)", label, case["id"], repeat, state["rows"])
 
@@ -1484,6 +2163,10 @@ def _run_one_model(cfg, entry, cases, csvw: _Csv, smoke,
     perf_cases = ([c for c in cases if c["category"] == "perf"]
                   if not recover_mode and perf else [])
     other_cases = [c for c in cases if c["category"] != "perf"]
+    # 4.5 chains (chains.py): one placeholder per chain; its attempts are scheduled as
+    # they unlock, inside this run-start round (the early stop sees them)
+    chain_cases = [c for c in other_cases if c.get("chain_spec")]
+    other_cases = [c for c in other_cases if not c.get("chain_spec")]
     if perf_cases:
         t0, p0 = ctx.sampling({})
         ctx.call([{"role": "user", "content": "Hi"}], max_tokens=8,
@@ -1492,6 +2175,16 @@ def _run_one_model(cfg, entry, cases, csvw: _Csv, smoke,
         _run_pool([(run_case_repeat, (case, repeat, None), (case, repeat))
                    for case in perf_cases
                    for repeat in range(1, repeats_for(cfg, "perf", smoke) + 1)], 1, abort, label)
+        # run-start sanity (2026-11-14): a probe that hit its ceiling, looped into one repeated
+        # character / short n-gram, or gave no answer means a broken instance; stop before any
+        # scored item is sent (a degenerate 8B stored zeros as scores twice)
+        if earlystop.settings(cfg).get("enabled", True) and not ABORT.is_set():
+            with ctx.lock:
+                bad = degenerate.probe_failure(list(perf_seen))
+            if bad:
+                trip = {**bad, "after_answers": 0, "bench_run_id": bench_run_id}
+                log.error("[%s] %s — stopping this model", label, earlystop.describe(trip))
+                raise EarlyStopError(trip)
 
     if recover_mode:
         # job unit = the exact (run id, case, repeat) triple, so the same case
@@ -1507,12 +2200,50 @@ def _run_one_model(cfg, entry, cases, csvw: _Csv, smoke,
                         what, j[1], j[2], j[0])
         log.info("%s: %d job(s) to re-run for %s (%d not selectable)",
                  what, len(jobs), label, len(missing))
+        if chain_cases:
+            log.warning("%s: %d chain(s) are not run in a %s round", label, len(chain_cases), what)
+            chain_cases = []
     else:
         jobs = [(c, r, None) for c in other_cases
                 for r in range(1, repeats_for(cfg, c["category"], smoke, c) + 1)]
     jobs = schedule_jobs(jobs, _job_seconds_fn(label, other_cases,
                                                getattr(provider, "type", None) in _LOADING_TYPES))
-    workers = provider.workers(model_id)
+    if cfg["defaults"].get("judged_first"):
+        jobs = judged_first(jobs)       # 4.5: the judge overlaps generation
+    driver = more = None
+    chain_starts: list = []
+    if chain_cases:
+        from . import chains as _chains
+        # resume: a stored, still-current graded attempt is not presented again
+        driver = _chains.Driver(chain_cases, prior_rows=load_transcripts(label))
+        chain_starts = [(i, 1, None) for i in driver.start()]
+        # 4.5 bank: a routed module unit's route rides from its placeholder onto every row
+        routes = {c["id"]: c["route"] for c in chain_cases if c.get("route")}
+
+        def run_chain_attempt(inst):
+            try:
+                case_ = _chains.materialize(inst)
+            except Exception as e:  # noqa: BLE001 - a broken generator halts its chain, not the run
+                log.error("[%s] %s: the instance could not be generated (%s) — chain halted",
+                          label, inst["id"], e)
+                with ctx.lock:
+                    state["case_errors"] += 1
+                return
+            if routes.get(inst["chain"]["id"]):
+                case_["route"] = routes[inst["chain"]["id"]]
+            run_case_repeat(case_, 1, None)
+
+        def more(key):
+            inst, _rep = key
+            if not inst.get("chain"):
+                return []
+            with ctx.lock:
+                rows_ = chain_rows.pop(inst["id"], None)
+            return [(run_chain_attempt, (nxt,), (nxt, 1)) for nxt in driver.record(inst["id"], rows_)]
+        log.info("%s: %d chain(s), %d first attempt(s) to run", label, len(chain_cases),
+                 len(chain_starts))
+    workers = (ctx.placement.pool.total_slots() if ctx.placement is not None
+               else provider.workers(model_id))
     warnings: list[str] = []
     if ctx.thinking and workers <= FEW_SLOTS_WARN and len(jobs) > workers:
         msg = (f"thinking model on only {workers} parallel slot(s) — {len(jobs)} jobs with "
@@ -1525,8 +2256,18 @@ def _run_one_model(cfg, entry, cases, csvw: _Csv, smoke,
                         warnings=warnings, revision=_revision(cfg))
     if workers > 1:
         log.info("running %d jobs with concurrency=%d", len(jobs), workers)
-    first_err = _run_pool([(run_case_repeat, (c, r, rid), (c, r)) for c, r, rid in jobs],
-                          max(1, workers), abort, label)
+    # longest first (ship plan C8): chain first attempts and static jobs in ONE order by expected
+    # completion tokens (the model's own stored mean per cell, else the ceiling), so the long
+    # poles start first; deeper rungs are still queued as they unlock
+    try:
+        prior = tokens_prior(load_transcripts(label))
+    except Exception as e:  # noqa: BLE001 - no stored rows: every unit at its ceiling
+        log.debug("no token estimate for %s (%s)", label, e)
+        prior = {}
+    calls = [(run_chain_attempt, (u[1],), (u[1], 1)) if u[0] == "chain"
+             else (run_case_repeat, (u[1], u[2], u[3]), (u[1], u[2]))
+             for u in longest_first([i for i, _r, _rid in chain_starts], jobs, cfg, prior)]
+    first_err = _run_pool(calls, max(1, workers), abort, label, more=more)
     if isinstance(first_err, (RunStopped, ModelRunError)):
         raise first_err
     if first_err and state["rows"] == 0:
@@ -1544,9 +2285,13 @@ def _run_one_model(cfg, entry, cases, csvw: _Csv, smoke,
                  "one board budget for every row" if tr["one_budget"]
                  else ("thinking budget" if tr["thinking"] else "raw case budgets"))
     secs = round((datetime.now(timezone.utc) - t_round).total_seconds(), 1)
+    if ctx.placement is not None:
+        plan = {**(plan or {}), "placement": _placement_record(cfg, ctx.placement)}
     round_rec = {"round": round_name or "all", "ctx": ctx_len, "jobs": len(jobs),
                  "rows": state["rows"], "workers": workers, "load_s": round(load_s, 1),
                  "s": secs, "plan": plan or None}
+    if driver is not None:
+        round_rec["chains"] = driver.summary()
     if recover_mode:
         _write_recover_record(label, jobs=len(jobs), rows=state["rows"], failed=False,
                               key=record_key or ("escalated" if rung else "recovered"), rung=rung,
@@ -1559,6 +2304,13 @@ def _run_one_model(cfg, entry, cases, csvw: _Csv, smoke,
                      {"phase": f"generation round {round_name}" if round_name else "generation",
                       "s": secs, "ctx": ctx_len, "jobs": len(jobs), "workers": workers}],
                  "thinking_detect": tr}
+        if es is not None and last:
+            # what the check saw (misrouted counted, reported only); an
+            # unusable check is an error line and blocks publish (fail closed)
+            extra["early_stop"] = es.record()
+            if es.error:
+                extra["publishable"] = False
+                warnings.append(es.error)
         if last:
             # the top-level plan/context stay the FIRST round's (the standard
             # rows); every round is listed under ``rounds``
@@ -1575,10 +2327,28 @@ def _run_one_model(cfg, entry, cases, csvw: _Csv, smoke,
             "device": provider.name, "skipped": state["skipped"],
             "case_errors": state["case_errors"], "jobs": len(jobs),
             "plan": plan or None, "workers": workers, "warnings": warnings,
-            "cost_usd": round(state["cost"], 4) if entry.get("price") else None}
+            "cost_usd": round(state["cost"], 4) if entry.get("price") else None,
+            "rig_minutes": round(state["rig_min"], 3) if state.get("rig_min") else None}
 
 
-def _run_pool(calls: list[tuple], workers: int, abort: threading.Event, label: str):
+def _placement_record(cfg: dict, placement) -> dict:
+    """The meta record of a declared placement: every copy (live plan, jobs, fate) and the
+    judge schedule DERIVED from it (subject_copies.judge_mode)."""
+    rec = placement.record()
+    try:
+        j = _subject_copies.judge_instance(cfg)
+    except Exception as e:  # noqa: BLE001 - the record never stops a run
+        log.debug("judge placement unreadable: %s", e)
+        j = None
+    rec["judge_mode"] = _subject_copies.judge_mode(placement.copies,
+                                                   (j or {}).get("instance_devices"))
+    if j:
+        rec["judge_devices"] = j.get("instance_devices")
+    return rec
+
+
+def _run_pool(calls: list[tuple], workers: int, abort: threading.Event, label: str,
+              more=None):
     """Run ``fn(*args)`` for every ``(fn, args, key)`` on ``workers`` threads
     and return the first RunStopped / ModelRunError / transport error (None
     when all finished). A ModelRunError sets ``abort`` (this model's
@@ -1589,7 +2359,11 @@ def _run_pool(calls: list[tuple], workers: int, abort: threading.Event, label: s
     ``with ThreadPoolExecutor``: on a hard stop (ABORT) it cancels the queued
     jobs and leaves WITHOUT joining the workers. A worker blocked in a socket
     to an unreachable rig used to keep the ``with`` block (and so the whole
-    process) alive until systemd SIGABRTed it (STEP4 defect 1)."""
+    process) alive until systemd SIGABRTed it (STEP4 defect 1).
+
+    ``more(key)`` (4.5 chains): called on the main thread after a job finished without
+    an error; the ``(fn, args, key)`` calls it returns are queued behind everything
+    already queued (a chain's next rung)."""
     if not calls:
         return None
     pool = ThreadPoolExecutor(max_workers=max(1, workers),
@@ -1605,6 +2379,11 @@ def _run_pool(calls: list[tuple], workers: int, abort: threading.Event, label: s
                     continue
                 try:
                     fut.result()
+                    if more is not None and not abort.is_set() and not ABORT.is_set():
+                        for fn, args, key in more(futs[fut]):
+                            nf = pool.submit(fn, *args)
+                            futs[nf] = key
+                            pending.add(nf)
                 except RunStopped as e:
                     first_err = first_err or e
                 except ModelRunError as e:
@@ -1631,6 +2410,15 @@ def _run_pool(calls: list[tuple], workers: int, abort: threading.Event, label: s
     return first_err
 
 
+def _capped_empty(r) -> bool:
+    """A completion that ran to its token cap (finish=length) with no visible
+    answer and no tool call: the thinking block never closed (2026-11-14
+    thinking fallback). A capped reply WITH visible text is not this."""
+    return (getattr(r, "finish_reason", None) == "length"
+            and not (getattr(r, "response_text", "") or "").strip()
+            and not getattr(r, "tool_calls", None))
+
+
 def _empty_stop(r) -> bool:
     """A completion that finished normally (finish=stop) with no answer and no
     tool call — reasoning may be present (a model that stopped inside its
@@ -1638,6 +2426,59 @@ def _empty_stop(r) -> bool:
     return (getattr(r, "finish_reason", None) == "stop"
             and not (getattr(r, "response_text", "") or "").strip()
             and not getattr(r, "tool_calls", None))
+
+
+def retry_seed(seed, attempt: int) -> int:
+    """The seed of retry ``attempt`` (1, 2, ...) of a request sent with ``seed``: different
+    from it and from every other attempt, and the same on every re-run of the case (an empty
+    stop's regenerate must be a new sample; a seeded server repeats the old one)."""
+    return (int(seed) + 7919 * int(attempt)) % (2 ** 31 - 1)
+
+
+def _degenerate_result(r) -> dict | None:
+    """degenerate.row_degenerate on a live result (one repeated character / short n-gram)."""
+    try:
+        return degenerate.row_degenerate({"response": getattr(r, "response_text", "") or "",
+                                          "reasoning": getattr(r, "reasoning_text", "") or "",
+                                          "finish_reason": getattr(r, "finish_reason", None),
+                                          "tool_calls": getattr(r, "tool_calls", None)})
+    except Exception:  # noqa: BLE001 - the test never costs a row
+        return None
+
+
+def _blank_view(result: ChatResult) -> ChatResult:
+    """4.5 (``empty_stop_rule``): what the graders read for an empty stop or a degenerate reply
+    -- nothing (Jake: grade only the response given; a loop is a failure, like a blank)."""
+    return _dc_replace(result, response_text="", reasoning_text="")
+
+
+def _empty_stop_stamp(ctx, result) -> dict | None:
+    """The ``empty_stop`` row stamp under the 4.5 ``empty_stop_rule`` (None otherwise):
+    finish=stop, no visible content, no tool call. A llama-server reasoning parser files an
+    unclosed think block wholly as reasoning_content (no tag survives), so this is how
+    "reasoning not closed" reads from a parsed reply; a model that left a whole answer there
+    (Nanbeige) has the same shape and is not told apart here (2026-11-14 reference rows:
+    reasoning cut mid-word, finish=stop, 5-2087 tokens, turns 7-12 at 9 slots)."""
+    if not getattr(ctx, "empty_stop_rule", False) or not _empty_stop(result):
+        return None
+    rt = result.reasoning_text or ""
+    return {"reasoning_chars": len(rt),
+            "completion_tokens": getattr(result, "completion_tokens", None),
+            "reasoning_tail": rt[-60:]}
+
+
+def needs_judging(case: dict) -> bool:
+    """Whether a case's rows go to the judge (it names a rubric or carries
+    judge elements). A reference-graded case that only learns at grading
+    time that it needs the judge is not counted."""
+    return bool(case.get("rubric") or case.get("judge_elements"))
+
+
+def judged_first(jobs: list[tuple]) -> list[tuple]:
+    """Stable partition: cases that need judging first, so the judge overlaps
+    the rest of generation. The order inside each group is unchanged."""
+    return ([j for j in jobs if needs_judging(j[0])]
+            + [j for j in jobs if not needs_judging(j[0])])
 
 
 def schedule_jobs(jobs: list[tuple], seconds=None) -> list[tuple]:
@@ -1659,6 +2500,80 @@ def schedule_jobs(jobs: list[tuple], seconds=None) -> list[tuple]:
     if seconds is None:
         return sorted(jobs, key=base)
     return sorted(jobs, key=lambda j: (-float(seconds(j[0]) or 0.0), base(j)))
+
+
+_CELL_TAIL = re.compile(r"-\d+$")
+
+
+def unit_key(u: tuple) -> str:
+    """The estimate key of a dispatch unit: ``cell:<chain id less its -NNN>`` for a chain attempt (one
+    cell = one generated set, its units alike), ``case:<id>`` for a static job."""
+    if u[0] == "chain":
+        return "cell:" + _CELL_TAIL.sub("", u[1]["chain"]["id"])
+    return "case:" + u[1]["id"]
+
+
+def tokens_prior(rows: list[dict]) -> dict[str, float]:
+    """{unit_key: mean completion tokens per unit} from a model's stored rows: a unit's rows (one
+    run, one unit, one repeat; a session's turns) summed, then the mean over that cell's units.
+    Error, skipped and perf rows are no estimate."""
+    per: dict[tuple, float] = {}
+    for r in rows:
+        if r.get("error") or r.get("skipped") or r.get("category") == "perf":
+            continue
+        n = (r.get("metrics") or {}).get("completion_tokens")
+        if not isinstance(n, (int, float)):
+            continue
+        ch = r.get("chain") or {}
+        key = (unit_key(("chain", {"chain": ch})) if ch.get("id") else "case:" + str(r.get("case_id")))
+        u = (key, r.get("bench_run_id"), ch.get("id") or r.get("case_id"), r.get("repeat"))
+        per[u] = per.get(u, 0.0) + float(n)
+    acc: dict[str, list[float]] = {}
+    for (key, *_rest), v in per.items():
+        acc.setdefault(key, []).append(v)
+    return {k: sum(v) / len(v) for k, v in acc.items()}
+
+
+def expected_tokens(u: tuple, cfg: dict, prior: dict[str, float]) -> float:
+    """A unit's expected completion tokens: the model's own stored mean for its cell/case, else its
+    output ceiling (a chain attempt's per-request ``ceiling``; a static job's fixed budget, e.g. the
+    bank's ``bank_budget``; else its own ``max_tokens``; else 0)."""
+    k = unit_key(u)
+    if k in prior:
+        return float(prior[k])
+    if u[0] == "chain":
+        from .chains import MAX_PROMPT_CEILING
+        return float(u[1]["chain"].get("ceiling") or MAX_PROMPT_CEILING)
+    case = u[1]
+    return float(fixed_budget(cfg, case) or case.get("max_tokens") or 0)
+
+
+def longest_first(chain_starts: list[dict], jobs: list[tuple], cfg: dict,
+                  prior: dict[str, float]) -> list[tuple]:
+    """ONE dispatch order for a run (ship plan C8): chain first attempts (``("chain", inst)``) and static
+    jobs (``("job", case, repeat, run_id)``) by expected completion tokens, longest first, so the long
+    poles (code-bank calls, 35-65k tokens) overlap the rest instead of starting last and running alone.
+    Ties: bank rows first, then the order given (chain starts, then ``jobs`` as already scheduled)."""
+    units = [("chain", i) for i in chain_starts] + [("job", *j) for j in jobs]
+
+    def key(iu):
+        i, u = iu
+        bank = u[0] == "job" and u[1].get("category") in BANK_CATEGORIES
+        return (-expected_tokens(u, cfg, prior), 0 if bank else 1, i)
+    return [u for _i, u in sorted(enumerate(units), key=key)]
+
+
+def makespan(units: list[tuple], slots: int, duration) -> float:
+    """List scheduling of ``units`` in order on ``slots`` workers, ``duration(unit)`` each: the finish
+    time of the last one (what the dispatch order is judged by)."""
+    import heapq
+    free = [0.0] * max(1, slots)
+    end = 0.0
+    for u in units:
+        t = heapq.heappop(free) + float(duration(u))
+        end = max(end, t)
+        heapq.heappush(free, t)
+    return end
 
 
 def _job_seconds_fn(label: str, cases: list[dict], rig: bool):
@@ -1725,19 +2640,22 @@ def _error_row(base_row: dict, case: dict, error: str, kind: str = "generation")
            "prompt": case.get("prompt") or first_user,
            "response": "", "reasoning": "", "tool_calls": [], "finish_reason": "error",
            "truncated": False, "error": error[:2000], "error_kind": kind, "metrics": {}}
-    if kind in ("transport", "template"):
+    if kind in ("transport", "template", "ctx_short"):
         row["grade"] = "error"
         row["grade_detail"] = error[:300]
         return row
-    if case.get("grader") or case.get("tool_script") or case.get("env"):
+    if case.get("grader") or case.get("tool_script") or case.get("env") or case.get("console"):
         row["grade"] = "fail"
         row["grade_detail"] = error[:300]
-        if case.get("grader") == "repo_tests" or case.get("env"):
+        if case.get("grader") == "repo_tests" or case.get("env") or case.get("console"):
             row["score"] = 0.0
     if case.get("rubric") or case.get("turns"):
         # judged case: nothing to judge — recorded as an empty generation
         row["needs_judge"] = True
         row["rubric"] = case.get("rubric") or ("rp_multi" if case.get("turns") else None)
+        if rpdeep.is_programmatic(case):
+            row["rubric"] = None
+            row["judge"] = {**copy.deepcopy(rpdeep.PROGRAMMATIC_VERDICT), "empty_generation": True}
     return row
 
 
@@ -1790,8 +2708,9 @@ def blocked_rungs(label: str) -> set[int]:
             continue
         if since and str(rec.get("ts") or "") < since:
             continue
-        if "stopped by user" in str(rec.get("error") or ""):
-            continue                      # a STOP / window edge is not the rung's fault
+        if "stopped by user" in str(rec.get("error") or "") or \
+                str(rec.get("error") or "").startswith(CAP_STOP):
+            continue                      # a STOP / window edge / spend cap is not the rung's fault
         weight = ESCALATION_MAX_FAILURES if "needs ctx" in str(rec.get("error") or "") else 1
         fails[int(rec["rung"])] = fails.get(int(rec["rung"]), 0) + weight
     return {r for r, n in fails.items() if n >= ESCALATION_MAX_FAILURES}
@@ -1922,6 +2841,13 @@ def _annotate_recovery(row: dict, result: ChatResult) -> None:
     not show whether the retry ran) onto the transcript row."""
     if getattr(result, "empty_retry", False):
         row["empty_retry"] = True
+    if getattr(result, "thinking_fallback", None):
+        row["thinking_fallback"] = result.thinking_fallback
+    if getattr(result, "empty_stop_retry", None):
+        row["empty_stop_retry"] = result.empty_stop_retry
+        if result.empty_stop_retry.get("answered_thinking_off"):
+            # 4.5: the graded reply came from the thinking-off attempt (board count)
+            row["answered_thinking_off"] = True
     if result.recovery is None:
         return
     row["reasoning_overflow"] = True
@@ -1954,6 +2880,14 @@ def row_budget(ctx, case: dict, prompt_tokens: int) -> int | None:
     budget, so a ladder budget never applies inside a rung round."""
     if case.get("category") in BANK_CATEGORIES:
         return bank_budget(ctx, prompt_tokens)
+    if case.get("chain") and getattr(ctx, "ctx_len", None):
+        # 4.5 chains (R23): no scoring budget; the attempt's ceiling = the profile's per-family
+        # `ceiling` (the model's output maximum), never above the served window minus the
+        # prompt. A cut there is a failed attempt ("ran out"), never a budget rule.
+        b = int(ctx.ctx_len) - int(prompt_tokens) - BANK_WINDOW_SLACK
+        if (case["chain"].get("ceiling")):
+            b = min(b, int(case["chain"]["ceiling"]))
+        return max(b, 256)
     lb = case.get("ladder_budget") or case.get("budget")
     if not lb or getattr(ctx, "rung", None):
         return None
@@ -1974,6 +2908,7 @@ def _run_single(case, base_row, ctx: _Ctx, max_tokens, temperature, top_p, seed)
     sent = exact or ctx.budget(max_tokens)
     result = ctx.call(msgs, max_tokens=max_tokens, exact_budget=exact,
                       recover=ctx.recover_for(case),
+                      **({"regen": ctx.regen_for(case)} if hasattr(ctx, "regen_for") else {}),
                       temperature=temperature, top_p=top_p, seed=seed,
                       tools=case.get("tools"))
     if (case.get("category") in BANK_CATEGORIES and not result.finish_reason
@@ -1994,8 +2929,20 @@ def _run_single(case, base_row, ctx: _Ctx, max_tokens, temperature, top_p, seed)
                                                       result.reasoning_text,
                                                       result.tool_calls),
            "metrics": _metrics(result)}
+    es_stamp = _empty_stop_stamp(ctx, result)
+    if es_stamp is not None:
+        row["empty_stop"] = es_stamp
     _annotate_recovery(row, result)
-    verdict = grade(_answer_view(result), case)
+    blank = getattr(ctx, "empty_stop_rule", False) and (es_stamp is not None or _degenerate_result(result))
+    grade_single_row(row, result, case, blank, sent)
+    return row
+
+
+def grade_single_row(row: dict, result: ChatResult, case: dict, blank: bool, sent) -> None:
+    """The grade of one single-turn reply, written on its row: the live run and the regrade
+    of a stored row (crucibleforge.regrade) share this code, so a regrade cannot drift from a
+    fresh run. ``blank``: graded as an empty answer (4.5 empty-stop / degenerate rule)."""
+    verdict = grade(_blank_view(result) if blank else _answer_view(result), case)
     if verdict:
         row["grade"] = verdict["grade"]
         detail = verdict["detail"]
@@ -2026,6 +2973,8 @@ def _run_single(case, base_row, ctx: _Ctx, max_tokens, temperature, top_p, seed)
         row["rubric"] = case["rubric"]
     if case.get("judge_key"):
         row["judge_key"] = case["judge_key"]
+    if case.get("judge_card"):
+        row["judge_card"] = case["judge_card"]      # 4.5 adult page: what its judge prompt and scorers read
     # deterministic identity / continuity / constraint checks (session_checks)
     chk = session_checks.run_checks(case, [_answer_view(result).response_text])
     if chk:
@@ -2033,7 +2982,6 @@ def _run_single(case, base_row, ctx: _Ctx, max_tokens, temperature, top_p, seed)
     # objective prose metrics for creative writing (de-loads the judge)
     if case["category"] in CREATIVE_CATEGORIES and result.response_text.strip():
         row["prose"] = prose_metrics(result.response_text)
-    return row
 
 
 def _sendable_history(history: list[dict]) -> list[dict]:
@@ -2097,7 +3045,11 @@ def assistant_turn(result: ChatResult, replay: bool) -> dict:
     """
     text, from_reasoning = reply_of(result)
     turn = {"role": "assistant", "content": text}
-    if replay and result.reasoning_text and not from_reasoning:
+    # 4.5: only a CLOSED block is replayed -- the reply has visible content or a tool
+    # call after it. A reply with no content (cut at the cap, or stopped inside its
+    # thinking) has an unclosed block; its fragment is never sent back as reasoning.
+    closed = bool((result.response_text or "").strip() or result.tool_calls)
+    if replay and result.reasoning_text and not from_reasoning and closed:
         turn["reasoning_content"] = result.reasoning_text
     return turn
 
@@ -2111,20 +3063,109 @@ def _judged_history(history: list[dict]) -> list[dict]:
     return [{k: v for k, v in m.items() if k != "reasoning_content"} for m in history]
 
 
+#: a chain turn is not sent when less than this fits the window after its prompt (the
+#: session's context is exhausted: outcome "context", never a transport error)
+CONTEXT_MIN_TURN = 256
+
+
+def _turn_prompt_estimate(msgs: list[dict], prev: ChatResult | None, tail: list[dict]) -> int:
+    """The prompt tokens a turn will take: the character estimate of the whole request, or,
+    when the previous turn's served prompt is known, that count + its completion + the new
+    user turn's estimate (the server's own count of the history, thinking included when the
+    template keeps it), whichever is larger."""
+    est = _prompt_tokens(msgs)
+    if prev is not None and prev.prompt_tokens:
+        est = max(est, int(prev.prompt_tokens) + int(prev.completion_tokens or 0) + _prompt_tokens(tail))
+    return est
+
+
+def _context_row(base_row, i, user_turn, why: str, info: dict) -> dict:
+    """The row of a chain turn that could not be sent (or was refused by the server) because
+    the session's context is exhausted: finish_reason "context", no reply, never an error."""
+    return {**base_row, "run_id": str(uuid.uuid4())[:8], "turn": i, "prompt": user_turn,
+            "response": "", "reasoning": "", "tool_calls": [], "finish_reason": "context",
+            "truncated": False, "max_tokens_sent": 0, "answered_in_reasoning": False,
+            "metrics": {}, "context_exhausted": {"why": why, **info}}
+
+
+from .replay_rule import replayed_digest  # noqa: E402
+
+
 def _run_multiturn(case, base_row, ctx: _Ctx, max_tokens, temperature, top_p, seed) -> list[dict]:
     """Drive scripted user turns; per-turn rows carry metrics, the final row
-    carries the whole conversation and goes to the judge."""
+    carries the whole conversation and goes to the judge.
+
+    A 4.5 chain session accounts for its context: a turn whose prompt leaves less than
+    ``CONTEXT_MIN_TURN`` of the window is not sent, a context-length refusal from the server
+    is not a transport error, and a reply cut while its budget was clamped below the ceiling
+    by the window is not "ran out" — each is stamped ``context_exhausted`` (outcome
+    "context") and the session ends there; the unsent turns score 0."""
     rows: list[dict] = []
     history: list[dict] = []
     n_turns = len(case["turns"])
+    chain = case.get("chain") or None
+    ceiling = int(chain["ceiling"]) if chain and chain.get("ceiling") else None
+    prev: ChatResult | None = None
+    stopped = False
+
+    def _finish(row: dict) -> None:
+        """The final row carries the whole conversation, the checks and the judge request."""
+        row["needs_judge"] = True
+        row["rubric"] = case.get("rubric", "rp_multi")
+        if rpdeep.is_programmatic(case):
+            # scored from its checks alone: no rubric, a verdict stub so nothing waits for a judge
+            row["rubric"] = None
+            row["judge"] = copy.deepcopy(rpdeep.PROGRAMMATIC_VERDICT)
+        row["conversation"] = (
+            ([{"role": "system", "content": case["system"]}]
+             if case.get("system") else []) + _judged_history(history))
+        if case.get("judge_key"):
+            row["judge_key"] = case["judge_key"]
+        if case.get("judge_card"):
+            row["judge_card"] = case["judge_card"]  # 4.5 adult page: what its judge prompt and scorers read
+        if case.get("history"):
+            row["history_len"] = len(case["history"])
+        replies = [m["content"] for m in history if m["role"] == "assistant"]
+        if stopped:
+            # the session ended on its context: the turns never answered are empty replies
+            replies = (replies + [""] * n_turns)[:n_turns]
+        chk = session_checks.run_checks(case, replies)
+        if chk:
+            row["checks"] = chk
+        written = "\n\n".join(r for r in replies if r.strip())
+        if case["category"] in CREATIVE_CATEGORIES and written:
+            row["prose"] = prose_metrics(written)
+
     for i, user_turn in enumerate(case["turns"], start=1):
         check_abort()   # a hard stop ends a session between turns, never mid-turn
+        tail = [history[-1]] if history else []
         history.append({"role": "user", "content": user_turn})
+        tail.append(history[-1])
         msgs = _messages_for(case, _sendable_history(history))
-        exact = row_budget(ctx, case, _prompt_tokens(msgs))
-        result = ctx.call(msgs, max_tokens=max_tokens, exact_budget=exact,
-                          recover=ctx.recover_for(case),
-                          temperature=temperature, top_p=top_p, seed=seed)
+        est = _turn_prompt_estimate(msgs, prev, tail) if chain else _prompt_tokens(msgs)
+        exact = row_budget(ctx, case, est)
+        if chain and ctx.ctx_len:
+            room = int(ctx.ctx_len) - est - BANK_WINDOW_SLACK
+            if room < CONTEXT_MIN_TURN:
+                history.pop()
+                rows.append(_context_row(base_row, i, user_turn, "not sent: the window is full",
+                                         {"prompt_est": est, "ctx": int(ctx.ctx_len)}))
+                stopped = True
+                break
+        try:
+            result = ctx.call(msgs, max_tokens=max_tokens, exact_budget=exact,
+                              recover=ctx.recover_for(case),
+                              **({"regen": ctx.regen_for(case)} if hasattr(ctx, "regen_for") else {}),
+                              temperature=temperature, top_p=top_p, seed=seed)
+        except (RequestRejected, GenerationRejected) as e:
+            if not (chain and is_ctx_short_error(str(e))):
+                raise
+            history.pop()
+            rows.append(_context_row(base_row, i, user_turn, "refused by the server: context",
+                                     {"prompt_est": est, "ctx": ctx.ctx_len, "error": str(e)[:300]}))
+            stopped = True
+            break
+        prev = result
         # The content channel is the answer. The reasoning channel is NOT the
         # answer, but on a provider with reasoning replay it IS the model's
         # context: MiniMax documents that the complete assistant message
@@ -2140,7 +3181,33 @@ def _run_multiturn(case, base_row, ctx: _Ctx, max_tokens, temperature, top_p, se
         # one builder for the bench and the conformance probe (runner.
         # assistant_turn): the reasoning channel rides on the assistant turn
         # only on a provider with the reasoning replay on.
-        turn = assistant_turn(result, bool(getattr(ctx, "reasoning_replay", False)))
+        es_stamp = _empty_stop_stamp(ctx, result)
+        # 4.5 (lead 2026-11-14): a degenerate reply (a visible loop, or an empty reply whose
+        # reasoning loops) is not fed back either -- the same contagion path as a cut draft.
+        # It is recorded on its row as it happened, stamped degenerate, and the turn goes into
+        # history empty (so the session checks read an empty reply: a failure for that turn).
+        # Never regenerated (call(): the degenerate test comes first); the session goes on.
+        deg = None
+        if getattr(ctx, "empty_stop_rule", False):
+            # read as the persisted row will be: an empty stop is an empty answer, so a loop
+            # there is in the reasoning channel (api.row_answer)
+            try:
+                deg = degenerate.row_degenerate({"response": result.response_text or "",
+                                                 "reasoning": result.reasoning_text or "",
+                                                 "finish_reason": result.finish_reason,
+                                                 "tool_calls": result.tool_calls,
+                                                 **({"empty_stop": es_stamp} if es_stamp else {})})
+            except Exception:  # noqa: BLE001 - the test never costs a row
+                deg = None
+        if es_stamp is not None or deg:
+            # 4.5 empty_stop_rule: a cut draft is not the model's answer; the turn goes
+            # into history EMPTY (the recorded history keeps it, _sendable_history
+            # leaves it out and joins the user turns either side -- the blank rule),
+            # with no reasoning replayed. The session goes on: the cause may be the
+            # server, and ending it would score every later turn 0 for that.
+            turn = {"role": "assistant", "content": ""}
+        else:
+            turn = assistant_turn(result, bool(getattr(ctx, "reasoning_replay", False)))
         history.append(turn)
         row = {**base_row, "run_id": str(uuid.uuid4())[:8], "turn": i,
                "prompt": user_turn, "response": result.response_text,
@@ -2154,6 +3221,16 @@ def _run_multiturn(case, base_row, ctx: _Ctx, max_tokens, temperature, top_p, se
                                                           result.reasoning_text,
                                                           result.tool_calls),
                "metrics": _metrics(result)}
+        # 4.5 (EXP-20261114-11 bug 4): what this request sent back of earlier
+        # reasoning (index, size, sha256 per message; the turn rows hold the
+        # text) -- the stored conversation is content-only
+        sent = replayed_digest(msgs)
+        if sent:
+            row["replayed_reasoning"] = sent
+        if es_stamp is not None:
+            row["empty_stop"] = {**es_stamp, "history": "empty"}
+        if deg:
+            row["degenerate"] = {**deg, "history": "empty"}
         _annotate_recovery(row, result)
         # rpdeep: could this turn's prompt + requested budget exceed the context
         # the model was loaded at (possible), and did the turn actually die at
@@ -2166,24 +3243,20 @@ def _run_multiturn(case, base_row, ctx: _Ctx, max_tokens, temperature, top_p, se
                                                 "ctx": int(ctx.ctx_len)}
             if result.finish_reason == "length" and not (reply or "").strip():
                 row["context_overflow_actual"] = True
-        if i == n_turns:
-            row["needs_judge"] = True
-            row["rubric"] = case.get("rubric", "rp_multi")
-            row["conversation"] = (
-                ([{"role": "system", "content": case["system"]}]
-                 if case.get("system") else []) + _judged_history(history))
-            if case.get("judge_key"):
-                row["judge_key"] = case["judge_key"]
-            if case.get("history"):
-                row["history_len"] = len(case["history"])
-            replies = [m["content"] for m in history if m["role"] == "assistant"]
-            chk = session_checks.run_checks(case, replies)
-            if chk:
-                row["checks"] = chk
-            written = "\n\n".join(r for r in replies if r.strip())
-            if case["category"] in CREATIVE_CATEGORIES and written:
-                row["prose"] = prose_metrics(written)
+        if chain and result.finish_reason == "length" and (
+                (ceiling and exact is not None and exact < ceiling) or row_ctx_short(row, ctx.ctx_len)):
+            # cut by the window, not by the ceiling: the context ran out (never "ran out")
+            row["context_exhausted"] = {"why": "cut: the window clamped the turn below its ceiling",
+                                        "prompt_est": est, "budget": exact, "ceiling": ceiling,
+                                        "ctx": ctx.ctx_len}
+            stopped = i < n_turns
+        if i == n_turns or stopped:
+            _finish(row)
         rows.append(row)
+        if stopped:
+            break
+    if stopped and rows and not rows[-1].get("needs_judge"):
+        _finish(rows[-1])
     return rows
 
 
@@ -2251,6 +3324,22 @@ def _step_type(step: dict) -> str:
 TOOLS_UNAVAILABLE = '{"error": "not executed: tools are not available at this step"}'
 
 
+def keeps_reasoning(entry) -> bool:
+    """Append-only agentic history (prompt caching) for METERED models, i.e.
+    a registry row with a ``price`` block. Free rig/local rows keep the
+    historical per-turn reasoning drop so their 4.1 scores are unchanged."""
+    return bool((entry or {}).get("price"))
+
+
+def compaction_mode(ctx) -> str | None:
+    """The agentic history rule of the profile this run is for (``compaction``
+    key; bench45 = ``hysteresis``, see codeenv.compact). Absent = the 4.1 rule,
+    so bench requests stay byte-identical."""
+    from .profiles import active_name, profile_switch
+    v = profile_switch(active_name(getattr(ctx, "cfg", None)), "compaction")
+    return str(v).strip().lower() if v else None
+
+
 def _run_env_loop(case, base_row, ctx: _Ctx, max_tokens, temperature, seed, top_p=None) -> dict:
     """Code bank agent family: the model works on a project through tools
     that really execute (codeenv.RepoEnv); the final tree is graded by the
@@ -2262,7 +3351,11 @@ def _run_env_loop(case, base_row, ctx: _Ctx, max_tokens, temperature, seed, top_
     tier = envcfg.get("tier", "standard")
     _cap, stub_after, ctx_cap, max_calls = codeenv.TIERS[tier]
     env = codeenv.RepoEnv(envcfg, tier)
-    messages: list[dict] = [{"role": "system", "content": case["system"]},
+    mode = compaction_mode(ctx)
+    system = case["system"]
+    if mode == "hysteresis":
+        system = f"{system}\n{codeenv.HYSTERESIS_NOTE}"     # the rule is model-visible
+    messages: list[dict] = [{"role": "system", "content": system},
                             {"role": "user", "content": case["prompt"]}]
     calls_made, turns, truncated_turns, last = 0, 0, 0, None
     every: list[ChatResult] = []
@@ -2270,7 +3363,8 @@ def _run_env_loop(case, base_row, ctx: _Ctx, max_tokens, temperature, seed, top_
     end_reason = "answered without a tool call"
     while True:
         check_abort()
-        codeenv.compact(messages, stub_after, ctx_cap)
+        codeenv.compact(messages, stub_after, ctx_cap,
+                        keep_reasoning=keeps_reasoning(getattr(ctx, "entry", None)), mode=mode)
         # the task's own conversation cap (same for every model): the visible
         # conversation plus the tool schemas
         if codeenv.estimate_tokens(messages) + codeenv.SCHEMA_TOKENS > ctx_cap:
@@ -2364,7 +3458,108 @@ def _run_env_loop(case, base_row, ctx: _Ctx, max_tokens, temperature, seed, top_
            "tool_conversation": [{k: v2 for k, v2 in m.items()
                                   if k != "reasoning_content" and not k.startswith("_")}
                                  for m in messages],
+           # the reasoning the final context carried back (sha per message; the
+           # text is dropped from tool_conversation for size)
+           "replayed_reasoning": replayed_digest(messages),
            "n_turns": turns,
+           "metrics": _metrics_sum(every)}
+    if mode:
+        row["compaction"] = mode     # which history rule measured it (bench45 only)
+    if last is not None:
+        _annotate_recovery(row, last)
+    return row
+
+
+def _run_console_loop(case, base_row, ctx: _Ctx, max_tokens, temperature, seed, top_p=None) -> dict:
+    """Interactive console family (COMPACTOR, FC3): one command per reply, the simulator answers.
+
+    The loop is the ported jx-c probe loop (probe-c/p1c2.py) on the engine's call path: the system line and
+    the intro open the conversation, every reply is one cycle of ``Session.step_reply`` and its output is the
+    next user turn, until the session ends (halted, crushed, locked out, out of turns) or the model stops
+    answering. The row is graded /100 by the simulator (``compactor2.score``): ``score`` is that share,
+    ``grade`` is "pass" only for a clean halt of the right press, ``elements`` carry the three ladders
+    (floor / climb / edge) so a partial-credit board reads them like test groups. Every turn's budget is the case
+    budget; the row is marked truncated when ANY turn ran out, so the escalation round sees it.
+
+    Other console families (2026-11-14, C5 TOOLWORLD): ``console.family`` names the gen family; it
+    supplies ``new_session(key)`` and ``console_result(session) -> {score 0-1, elements [{id, pass,
+    detail}], detail, grade?}``; ``grade`` defaults to "pass" when the score reaches the family's
+    ``PASS_SHARE`` (1.0). COMPACTOR (no ``family`` or ``family: compactor``) is scored as before."""
+    from . import gen as _gen
+    from .gen import compactor as _compactor
+    cfg = case["console"]
+    fam_name = cfg.get("family") or "compactor"
+    fam = _compactor if fam_name == "compactor" else _gen.get(fam_name)
+    if fam is not _compactor and not hasattr(fam, "console_result"):
+        raise ValueError(f"console family {fam_name!r} has no console_result()")
+    sess = fam.new_session(cfg["key"])
+    messages: list[dict] = [{"role": "system", "content": case["system"]},
+                            {"role": "user", "content": case["prompt"]}]
+    every: list[ChatResult] = []
+    replies: list[str] = []
+    truncated_turns = 0
+    last = None
+    end_reason = "session over"
+    while sess.state == "running":
+        check_abort()
+        exact = row_budget(ctx, case, _prompt_tokens(messages))
+        result = ctx.call(messages, max_tokens=max_tokens, exact_budget=exact,
+                          recover=ctx.recover_for(case),
+                          temperature=temperature, top_p=top_p, seed=seed)
+        last = result
+        every.append(result)
+        if result.finish_reason == "length":
+            truncated_turns += 1
+        reply = result.response_text or ""
+        replies.append(reply)
+        nxt = sess.step_reply(reply)
+        messages.append({"role": "assistant", "content": reply})
+        messages.append({"role": "user", "content": nxt})
+        if not reply.strip() and result.finish_reason != "length":
+            end_reason = "empty reply"
+            break
+    halted = sess.state == "stopped"
+    if fam is _compactor:
+        sc = _compactor.c2.score(sess)
+        score = round(float(sc["score"]) / 100.0, 4)
+        elements = [{"id": "floor", "pass": sc["floor"] >= 15, "detail": f"{sc['floor']}/15"},
+                    {"id": "climb", "pass": sc["climb"] >= 25, "detail": f"{sc['climb']}/25"},
+                    {"id": "edge", "pass": sc["edge"] >= 25, "detail": f"{sc['edge']}/60"}]
+        detail = (f"{sc['score']}/100 ({sess.state}, {sess.turn} turns, {sess.strikes} faults; floor {sc['floor']} "
+                  f"climb {sc['climb']} edge {sc['edge']})")
+        grade_ = "pass" if (halted and sc["score"] >= _compactor.PASS_SCORE) else "fail"
+        cblock = {"key": cfg["key"], "state": sess.state, "turns": sess.turn, "faults": sess.strikes,
+                  "end": end_reason, "truncated_turns": truncated_turns,
+                  "ladders": {k: sc[k] for k in ("floor", "climb", "edge")}}
+    else:
+        cr = fam.console_result(sess)
+        score = round(float(cr["score"]), 4)
+        elements = [{"id": str(e["id"]), "pass": bool(e.get("pass")),
+                     **({"detail": e["detail"]} if e.get("detail") is not None else {})}
+                    for e in cr.get("elements") or []]
+        detail = str(cr.get("detail") or f"{score:.2f}")
+        grade_ = cr.get("grade") or ("pass" if score >= float(getattr(fam, "PASS_SHARE", 1.0)) - 1e-9
+                                     else "fail")
+        cblock = {"family": fam_name, "key": cfg["key"], "state": sess.state, "turns": sess.turn,
+                  "faults": getattr(sess, "strikes", None), "end": getattr(sess, "end", None) or end_reason,
+                  "truncated_turns": truncated_turns}
+    if truncated_turns and not halted:
+        detail = f"TRUNCATED ({truncated_turns} turn(s) hit the budget); {detail}"
+    row = {**base_row, "run_id": str(uuid.uuid4())[:8], "turn": None,
+           "max_tokens_sent": ctx.budget(max_tokens),
+           "prompt": case["prompt"][:200],
+           "response": (last.response_text if last else ""),
+           "reasoning": (last.reasoning_text if last else ""),
+           "tool_calls": [],
+           "finish_reason": "length" if (truncated_turns and not halted) else (last.finish_reason if last else None),
+           "truncated": bool(truncated_turns and not halted),
+           "grade": grade_,
+           "grade_detail": detail[:2000],
+           "elements": {"results": elements, "rate": score},
+           "score": score,
+           "console": cblock,
+           "tool_conversation": [m for m in messages],
+           "n_turns": sess.turn,
            "metrics": _metrics_sum(every)}
     if last is not None:
         _annotate_recovery(row, last)
@@ -2382,10 +3577,16 @@ def _run_tool_loop(case, base_row, ctx: _Ctx, max_tokens, temperature, seed, top
     messages: list[dict] = []
     if case.get("system"):
         messages.append({"role": "system", "content": case["system"]})
+    unsent_calls: dict[int, list[dict]] = {}     # message index -> a call made but not fed back (record only)
+    # the tool revision (lead 2026-11-15 08:27): on a profile with ``tool_call_feedback: all`` a call at a
+    # prose step is fed back with TOOLS_UNAVAILABLE for EVERY provider (before: only reasoning-replay ones),
+    # and each step's calls / reply are kept on its element (tooltask.task_done reads them)
+    feedback_all = _tool_call_feedback(base_row) == "all"
 
     steps: list[dict | None] = [None] * len(script)
     last_result = None
     every: list[ChatResult] = []
+    capped = False
     i = 0
     while i < len(script):
         check_abort()
@@ -2393,9 +3594,24 @@ def _run_tool_loop(case, base_row, ctx: _Ctx, max_tokens, temperature, seed, top
         if step.get("user") is not None:
             messages.append({"role": "user", "content": step["user"]})
         exact = row_budget(ctx, case, _prompt_tokens(messages))
-        result = ctx.call(list(messages), max_tokens=max_tokens, exact_budget=exact,
-                          recover=ctx.recover_for(case),
-                          temperature=temperature, top_p=top_p, seed=seed, tools=tools)
+        # the context cap (lead 2026-11-15, D's 8B TZ19 rows): every model is
+        # served the same window; a conversation the model's own replies grew
+        # past it ends the run here, graded as it stands (a failed run, never
+        # an errored/excluded row and never "ran out"), like the codeenv loop
+        if not _tool_turn_fits(ctx, messages, tools, exact, max_tokens):
+            capped = True
+            break
+        try:
+            result = ctx.call(list(messages), max_tokens=max_tokens, exact_budget=exact,
+                              recover=ctx.recover_for(case),
+                              temperature=temperature, top_p=top_p, seed=seed, tools=tools)
+        except TransportError as e:
+            # the estimate is chars/3.5; a degenerate reply can tokenize denser,
+            # so the server's own "does not fit" refusal ends the run the same way
+            if isinstance(e, ProtocolRejected) or _billing_rejection(e) or not _context_refusal(e):
+                raise
+            capped = True
+            break
         last_result = result
         every.append(result)
         if step.get("expect_tool"):
@@ -2413,6 +3629,8 @@ def _run_tool_loop(case, base_row, ctx: _Ctx, max_tokens, temperature, seed, top
                                      "required_args": script[k].get("required_args", {}),
                                      "forbid_args": script[k].get("forbid_args", {}),
                                      "max_calls": 1})
+                    if feedback_all:
+                        steps[k] = {**steps[k], **_step_record([call], "")}
                 msg, ids = _assistant_tool_turn(result, ordered)
                 messages.append(msg)
                 for k, cid in zip(block, ids):
@@ -2425,6 +3643,8 @@ def _run_tool_loop(case, base_row, ctx: _Ctx, max_tokens, temperature, seed, top
                                         "required_args": step.get("required_args", {}),
                                         "forbid_args": step.get("forbid_args", {}),
                                         "max_calls": step.get("max_calls", 1)})
+            if feedback_all:
+                steps[i] = {**steps[i], **_step_record(calls, _answer_view(result).scoreable_text())}
             # feed the model's call(s) + our canned result back into context.
             # Every call needs an answer or the next request is malformed: the
             # step's result goes to the first, an explicit "not executed" to
@@ -2447,8 +3667,10 @@ def _run_tool_loop(case, base_row, ctx: _Ctx, max_tokens, temperature, seed, top
                 if called:
                     verdict["calls"] = [{"name": c.get("name"), "arguments": c.get("arguments")}
                                         for c in calls][:5]
+            if feedback_all:
+                verdict = {**verdict, **_step_record(calls, text, keep_text=True)}
             steps[i] = verdict
-            if getattr(ctx, "reasoning_replay", False) and calls:
+            if (getattr(ctx, "reasoning_replay", False) or feedback_all) and calls:
                 # The model called a tool where the case wanted prose. The
                 # step still FAILS (the case wanted no tool) — but the
                 # conversation must stay well-formed: the call stays on the
@@ -2469,12 +3691,26 @@ def _run_tool_loop(case, base_row, ctx: _Ctx, max_tokens, temperature, seed, top
                 # for a finished reply); the conversation carries the same
                 # answer forward (assistant_turn / reply_of), and the stored
                 # tool_conversation keeps it for stepgrade's re-grade
+                if calls:
+                    # a call where the case wanted prose, not fed back (no
+                    # reasoning replay): the request stays as it was, but the
+                    # stored record says what the model did (scrub 2026-11-15:
+                    # TZ16 step 4 read as an empty reply, the call only in the
+                    # grade's elements)
+                    unsent_calls[len(messages)] = [{"name": c.get("name"), "arguments": c.get("arguments")}
+                                                   for c in calls]
                 messages.append(assistant_turn(result, bool(getattr(ctx, "reasoning_replay",
                                                                     False))))
         i += 1
 
+    if capped:
+        # every step never reached counts as wrong: the step share is over ALL
+        # the case's steps, and the run cannot pass
+        for k in range(len(script)):
+            if steps[k] is None:
+                steps[k] = {"grade": "fail", "detail": TOOL_CAP_NOT_REACHED, "not_reached": True}
     graded = [s for s in steps if s is not None]
-    passed = bool(graded) and all(s["grade"] == "pass" for s in graded)
+    passed = bool(graded) and all(s["grade"] == "pass" for s in graded) and not capped
     detail = "; ".join(f"step{k+1}:{s['grade']}({s['detail']})"
                        for k, s in enumerate(steps) if s is not None)
     # one step = one element (BFCL multi-turn / tau-bench milestones): the
@@ -2483,8 +3719,14 @@ def _run_tool_loop(case, base_row, ctx: _Ctx, max_tokens, temperature, seed, top
                 "pass": s["grade"] == "pass", "detail": str(s["detail"])[:1000],
                 **({"called_tool": s["called_tool"]} if "called_tool" in s else {}),
                 # validation item 8: the call made at a no-tool step, auditable
-                **({"calls": s["calls"]} if s.get("calls") else {})}
+                **({"calls": s["calls"]} if s.get("calls") else {}),
+                **({"not_reached": True} if s.get("not_reached") else {}),
+                # the tool revision: every step's calls and whether it wrote a reply (tooltask)
+                **({k2: s[k2] for k2 in ("said", "text") if k2 in s}),
+                **({"calls": s["step_calls"]} if "step_calls" in s else {})}
                for k, s in enumerate(steps) if s is not None]
+    if capped:
+        detail = f"CONTEXT CAP (the conversation no longer fit the served window); {detail}"
     rate = round(sum(r["pass"] for r in results) / len(results), 3) if results else None
     row = {**base_row, "run_id": str(uuid.uuid4())[:8], "turn": None,
             # every step went out on the boosted budget, like a single row
@@ -2492,7 +3734,10 @@ def _run_tool_loop(case, base_row, ctx: _Ctx, max_tokens, temperature, seed, top
             "prompt": case["tool_script"][0].get("user", ""),
             "response": (last_result.response_text if last_result else ""),
             "reasoning": (last_result.reasoning_text if last_result else ""),
-            "tool_calls": [], "finish_reason": (last_result.finish_reason if last_result else None),
+            "tool_calls": [],
+            # a capped run is not a reply cut at its ceiling: its finish is the cap
+            "finish_reason": (TOOL_CAP if capped else
+                              (last_result.finish_reason if last_result else None)),
             "truncated": False,
             "answered_in_reasoning": (in_reasoning_flag(last_result.response_text,
                                                         last_result.reasoning_text,
@@ -2504,10 +3749,67 @@ def _run_tool_loop(case, base_row, ctx: _Ctx, max_tokens, temperature, seed, top
             # can be checked against what the model actually said (only the
             # LAST reply used to be stored — step 10's "forbidden content"
             # was unverifiable). The reasoning channel is dropped for size.
-            "tool_conversation": [{k: v for k, v in m.items() if k != "reasoning_content"}
-                                  for m in messages],
+            "tool_conversation": [{**{k: v for k, v in m.items() if k != "reasoning_content"},
+                                   **({"tool_calls_not_sent": unsent_calls[j]} if j in unsent_calls else {})}
+                                  for j, m in enumerate(messages)],
+            "replayed_reasoning": replayed_digest(messages),
             "n_turns": len(every),
             "metrics": _metrics_sum(every)}
+    if feedback_all:
+        row["tool_call_feedback"] = "all"
+    if capped:
+        row["end_reason"] = TOOL_CAP
     if last_result is not None:
         _annotate_recovery(row, last_result)
     return row
+
+
+def _tool_call_feedback(base_row: dict):
+    """The profile's tool revision switch (``tool_call_feedback``) for the row being made."""
+    from . import profiles as _profiles
+    return _profiles.profile_switch(base_row.get("profile") or _profiles.active_name(), "tool_call_feedback")
+
+
+def _step_record(calls, text: str, keep_text: bool = False) -> dict:
+    """What a step kept under the tool revision: every call (name + arguments), whether a reply was written,
+    and (a prose step that made a call) the reply itself, so the task-done rule can read it."""
+    from .api import strip_thinking_tags
+    said = bool(strip_thinking_tags(text or "").strip())
+    out = {"step_calls": [{"name": c.get("name"), "arguments": c.get("arguments")} for c in calls or []],
+           "said": said}
+    if keep_text and calls and said:
+        out["text"] = strip_thinking_tags(text).strip()[:2000]
+    return out
+
+
+#: the tool loop's recorded end when the conversation outgrew the served window
+TOOL_CAP = "context cap"
+TOOL_CAP_NOT_REACHED = "not reached (context cap)"
+_FIT_REFUSAL_RE = re.compile(r"does not fit the context", re.I)
+
+
+def _context_refusal(e: Exception) -> bool:
+    """A server refusal saying the request did not fit the context window."""
+    text = f"{e} {getattr(e, 'body', '') or ''}"
+    return bool(_FIT_REFUSAL_RE.search(text)) or is_ctx_short_error(text)
+
+
+def _tool_turn_fits(ctx, messages: list[dict], tools, exact, max_tokens) -> bool:
+    """Whether the next tool-loop request fits the served window: the visible
+    conversation (+ any replayed reasoning) + the tool schemas + this turn's
+    budget, within the window less the template slack. A replayed reasoning
+    channel is dropped first (as in the codeenv loop). No window known = fits."""
+    if not getattr(ctx, "ctx_len", None):
+        return True
+    schema = int(len(json.dumps(tools or [])) / 3.5)
+    window = int(ctx.ctx_len) - BANK_WINDOW_SLACK
+    # the server refuses only a PROMPT that does not fit; the turn must still
+    # have a working floor to answer in (the codeenv loop's MIN_TURN_BUDGET),
+    # never more than the budget it is actually sent
+    from .codeenv import MIN_TURN_BUDGET
+    need_out = min(MIN_TURN_BUDGET, int(exact or ctx.budget(max_tokens)))
+    if _prompt_tokens(messages) + schema + need_out <= window:
+        return True
+    for m in messages:
+        m.pop("reasoning_content", None)
+    return _prompt_tokens(messages) + schema + need_out <= window

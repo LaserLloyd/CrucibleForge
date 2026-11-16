@@ -1,0 +1,58 @@
+[
+  {
+    "id": "PL1-rate-limit",
+    "difficulty": "medium",
+    "smoke": true,
+    "system": "You are a senior engineer. Given a goal, produce a concrete, ordered plan: the steps to take and exactly what to check/verify before and after. Be specific to THIS task, not generic.",
+    "prompt": "Add rate limiting to an existing REST API. The service is a Python FastAPI app (single Uvicorn worker, systemd unit) backing a self-hosted family chat app; it exposes ~30 JSON endpoints, a few of them public and unauthenticated (login, password-reset), most behind a session cookie. It sits behind an nginx reverse proxy and is also reachable over a private tunnel. There is no rate limiting today, and last week a scripted client hammered POST /api/login thousands of times. Requirements: throttle abusive clients without hurting normal family usage, apply much stricter limits to the auth endpoints than to ordinary read endpoints, return proper HTTP 429 responses (with Retry-After), and behave sanely across a process restart. Produce a concrete, ordered plan: how you decide and store the limits, where the limiting logic hooks into the request path, what you check before and after rollout, and the real risks.",
+    "temperature": 0.3,
+    "max_tokens": 1500,
+    "rubric": "planning"
+  },
+  {
+    "id": "PL2-file-upload",
+    "difficulty": "medium",
+    "smoke": true,
+    "system": "You are a senior engineer. Given a goal, produce a concrete, ordered plan: the steps to take and exactly what to check/verify before and after. Be specific to THIS task, not generic.",
+    "prompt": "Add a file-upload feature to a self-hosted chat web app: FastAPI backend, vanilla-JS frontend, files stored on the local disk, served to family members on the LAN and remotely through an nginx reverse proxy. Users should be able to attach an image or a document to a message, and other users can then view or download it. There is no upload capability today, and the app already has a login/session auth gate. Build a plan that covers the upload endpoint, where and how files are stored on disk, what validation and security checks are required, how the download/serve path works, how the frontend sends the file and renders it in the chat, and exactly what you verify. Be specific about the security-relevant steps (not just 'validate input').",
+    "temperature": 0.3,
+    "max_tokens": 1500,
+    "rubric": "planning"
+  },
+  {
+    "id": "PL3-zero-downtime-column",
+    "difficulty": "hard",
+    "system": "You are a senior engineer. Given a goal, produce a concrete, ordered plan: the steps to take and exactly what to check/verify before and after. Be specific to THIS task, not generic.",
+    "prompt": "Add a new column to a live production database table without downtime. The table is `messages` in a PostgreSQL database behind a FastAPI chat service running as 3 replicas; the table has ~40 million rows and is written to continuously. You need to add a `read_at TIMESTAMPTZ` column, backfill it for existing rows, and have the app start populating it going forward. Deploys are rolling restarts, so during a deploy the OLD code and the NEW code run against the same database at the same time. Produce a concrete, ordered plan: the exact migration steps, how the application code changes are sequenced relative to the schema change, how you backfill 40M rows safely, and everything you verify at each stage. Explicitly call out what, done in the wrong order, would take a lock, cause replication lag, or bring the service down.",
+    "temperature": 0.3,
+    "max_tokens": 1500,
+    "rubric": "planning"
+  },
+  {
+    "id": "PL4-auth-migration",
+    "difficulty": "hard",
+    "system": "You are a senior engineer. Given a goal, produce a concrete, ordered plan: the steps to take and exactly what to check/verify before and after. Be specific to THIS task, not generic.",
+    "prompt": "Migrate a running web service from server-side session-cookie authentication to stateless JWT bearer tokens, without logging everyone out or breaking any client. The service is a FastAPI app with a browser SPA frontend plus a handful of scripted API clients you don't fully control; today they authenticate with a `session` cookie set at POST /login, and sessions live in a server-side database table. You want to move to signed JWT access tokens plus refresh tokens. Constraints: users who are currently logged in must NOT be forced to re-authenticate, and the scripted clients must keep working throughout the transition. Produce a concrete, ordered plan: how the two auth schemes coexist during the cutover, the exact sequence of server, frontend, and client changes, how tokens are issued/stored/refreshed/revoked, when it is safe to drop the old session table, and everything you verify. Flag the security pitfalls specific to this switch.",
+    "temperature": 0.3,
+    "max_tokens": 1500,
+    "rubric": "planning"
+  },
+  {
+    "id": "PL5-debug-duplicate-messages",
+    "difficulty": "hard",
+    "system": "You are a senior engineer. Given a goal, produce a concrete, ordered plan: the steps to take and exactly what to check/verify before and after. Be specific to THIS task, not generic.",
+    "prompt": "Debug an intermittent bug: in a self-hosted chat app, messages SOMETIMES arrive twice — the same message is persisted as two rows and shows up duplicated for some users, but it isn't reliably reproducible. Architecture: a FastAPI backend delivers messages to clients over a WebSocket and also writes them to SQLite; separately, a background poller ingests messages from an upstream gateway and writes them to the same table; clients auto-reconnect their WebSocket after network blips. There is no consistent repro and no obvious error in the logs. Produce a concrete, ordered plan: how you INVESTIGATE to find the actual cause rather than guessing, what data and instrumentation you gather first, the specific mechanisms in THIS system where a duplicate could originate, how you fix it once the cause is confirmed, and how you verify the fix and prevent regressions. Be specific to this two-ingest-path, auto-reconnect design.",
+    "temperature": 0.3,
+    "max_tokens": 1500,
+    "rubric": "planning"
+  },
+  {
+    "id": "PL6-breaking-api-rollout",
+    "difficulty": "hard",
+    "system": "You are a senior engineer. Given a goal, produce a concrete, ordered plan: the steps to take and exactly what to check/verify before and after. Be specific to THIS task, not generic.",
+    "prompt": "Safely roll out a breaking change to a REST API that existing clients depend on. The endpoint GET /api/messages currently returns a bare JSON array of message objects; you need to change it to a paginated object `{ \"items\": [...], \"next_cursor\": ... }` AND rename the field `body` to `content` on each message object. Callers you do not control — a shipped mobile app and some third-party scripts — hit this endpoint and cannot all upgrade at once. You control the FastAPI server and the first-party web frontend. Produce a concrete, ordered plan: how you introduce the new response shape without breaking current callers, the exact sequence of server change, first-party client migration, and rollout, how outside clients discover and move to the new shape, and how the old behavior is eventually retired. Explicitly explain how you would KNOW it is safe to remove the old array/`body` behavior, and your rollback path if something breaks.",
+    "temperature": 0.3,
+    "max_tokens": 1500,
+    "rubric": "planning"
+  }
+]

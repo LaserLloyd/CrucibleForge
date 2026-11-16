@@ -1,0 +1,156 @@
+{
+ "_note": "rc3 judged Chat cards (Admin N2, 2026-11-14). Safe for work; every person is a fictional adult. person: texting cards (JUDGE's six from EXP-20261114-34 word for word + six in the same style), judged by the real_person rubric. roleplay: 4.1 role-play cases reused from cases/rp.json by id (prompt, system and turns read from that file at materialize time; RPX scene cards are judged by rp_single, their 4.1 rp_scene rubric has no prose / emotion / character axes).",
+ "person": [
+  {
+   "id": "RP1-cancel",
+   "person": "Dana, 31, nurse, dry humour, texts in lowercase",
+   "thread": "Sam: still on for tacos at 7? i booked the table\nDana: yesss\nSam: you ok? you went quiet all day\n[It is 6:15 pm. Dana just got asked to cover a colleague's night shift and said yes. She feels bad because she cancelled on Sam last week too.]",
+   "ask": "Write Dana's next two or three texts to Sam.",
+   "source": "JUDGE EXP-20261114-34 cards_rp.json"
+  },
+  {
+   "id": "RP2-favour",
+   "person": "Theo, 24, Marco's younger brother, broke, sheepish, uses a lot of emoji",
+   "thread": "Marco: what's up\nTheo: nothing much hbu\nMarco: working. you never text me at 11am on a tuesday. what do you need\n[Theo needs to borrow Marco's car this weekend to move his stuff out of his ex's flat. He scratched the bumper the last time he borrowed it.]",
+   "ask": "Write Theo's next two or three texts to Marco.",
+   "source": "JUDGE EXP-20261114-34 cards_rp.json"
+  },
+  {
+   "id": "RP3-colleague",
+   "person": "Priya, 42, Jordan's team lead, warm, plain-spoken, no emoji, hates office drama",
+   "thread": "Jordan: hey can I ask you something kind of weird\nJordan: did you say something to Kevin about my presentation? he was really off with me after the meeting\n[Priya did tell Kevin the slides ran long, in passing, nothing harsh. She likes Jordan and wants this settled tonight, not turned into a meeting.]",
+   "ask": "Write Priya's next two or three texts to Jordan.",
+   "source": "CHAT-RP 2026-11-14 night: rewritten (the judge marked it low for every model on rc3); same situation",
+   "was": {
+    "person": "Priya, 42, team lead, warm but careful, writes full words, few emoji",
+    "thread": "Jordan: hey can I ask you something kind of weird\nJordan: did you say something to Kevin about my presentation? he was really off with me after the meeting\n[Priya did tell Kevin the slides ran long, in passing, nothing harsh. She likes Jordan and does not want this to become a thing.]",
+    "source": "JUDGE EXP-20261114-34 cards_rp.json"
+   }
+  },
+  {
+   "id": "RP4-mum",
+   "person": "Lou, 36, Ellie's mum, busy, affectionate, a bit anxious, voice-to-text typos",
+   "thread": "Ellie: mum can i stay at jess's tonight her parents said its fine\nLou: is her mum home\nEllie: yes\nEllie: pleeeease i already packed\n[Ellie is 19 and home from university for the weekend. Lou was hoping for a family dinner tonight because Ellie leaves tomorrow.]",
+   "ask": "Write Lou's next two or three texts to Ellie.",
+   "source": "JUDGE EXP-20261114-34 cards_rp.json"
+  },
+  {
+   "id": "RP5-ex",
+   "person": "Ray, 45, gruff, short sentences, never uses emoji, still a bit hurt",
+   "thread": "Nina: hi. sorry to text out of nowhere\nNina: I think I still have your grandfather's watch. found it in a box when I moved. do you want it back?\n[Ray and Nina split up two years ago, badly. Ray has looked for that watch for months and assumed it was lost.]",
+   "ask": "Write Ray's next two or three texts to Nina.",
+   "source": "JUDGE EXP-20261114-34 cards_rp.json"
+  },
+  {
+   "id": "RP6-groupchat",
+   "person": "Kemi, 28, the organiser of the friend group, sarcastic, fast typer",
+   "thread": "[group chat: Kemi, Ollie, Bea, Raf]\nKemi: cabin is booked for the 14th, need 80 each by friday\nOllie: 👍\nBea: sent!\nRaf: wait was that this month? i thought it was december\n[It is Thursday. Only Bea has paid. Raf asked the same question last week.]",
+   "ask": "Write Kemi's next two or three texts in the group chat.",
+   "source": "JUDGE EXP-20261114-34 cards_rp.json"
+  },
+  {
+   "id": "RP7-rent",
+   "person": "Hana, 52, landlady, kind, brief, signs off with \"H\"",
+   "thread": "Leo: hi Hana, sorry, rent is going to be a few days late this month\nLeo: my hours got cut, I'll have it by the 8th\n[Leo has rented Hana's flat for four years and has never been late before. Hana's mortgage payment goes out on the 5th. She can manage, but she needs a date she can count on.]",
+   "ask": "Write Hana's next two or three texts to Leo.",
+   "source": "CHAT-RP 2026-11-14 night: rewritten (the judge marked it low for every model on rc3); same situation",
+   "was": {
+    "person": "Hana, 52, landlady, kind but businesslike, full sentences, signs off with \"H\"",
+    "thread": "Leo: hi Hana, sorry, rent is going to be a few days late this month\nLeo: my hours got cut, I'll have it by the 8th\n[Leo has rented Hana's flat for four years and has never been late before. Hana's mortgage payment goes out on the 5th.]",
+    "source": "Admin N2 2026-11-14 (JUDGE card style)"
+   }
+  },
+  {
+   "id": "RP8-captain",
+   "person": "Dev, 29, captain of a Sunday-league football team, loud, hypes everyone up, types in bursts",
+   "thread": "Sol: mate I'm gutted but I can't do the final sunday\nSol: work conference, they won't move it\n[The final is in five days. Sol is the only left-back who turns up every week. Dev has no one obvious to replace him.]",
+   "ask": "Write Dev's next two or three texts to Sol.",
+   "source": "Admin N2 2026-11-14 (JUDGE card style)"
+  },
+  {
+   "id": "RP9-photos",
+   "person": "Gordon, 67, retired, new to smartphones, types with one finger, signs every text \"Dad\"",
+   "thread": "Amira: did you get the photos from the weekend??\nAmira: the ones of the baby at the beach\n[Gordon got them and loved them, but he cannot work out how to save them, and he accidentally deleted one. He wants her to send that one again.]",
+   "ask": "Write Gordon's next two or three texts to Amira.",
+   "source": "CHAT-RP 2026-11-14 night: rewritten (the judge marked it low for every model on rc3); same situation",
+   "was": {
+    "person": "Gordon, 67, retired, new to smartphones, full punctuation, signs every text \"Dad\"",
+    "thread": "Amira: did you get the photos from the weekend??\nAmira: the ones of the baby at the beach\n[Gordon got them and loved them, but he cannot work out how to save them, and he accidentally deleted one.]",
+    "source": "Admin N2 2026-11-14 (JUDGE card style)"
+   }
+  },
+  {
+   "id": "RP10-dishes",
+   "person": "Ines, 26, flatmate, conflict-avoidant, softens everything with \"lol\" and \"no worries\"",
+   "thread": "Ines: hey are you home tonight?\nBen: yeah back around 9 why\n[The sink has been full of Ben's dishes for four days. Ines has friends coming over at 8.]",
+   "ask": "Write Ines's next two or three texts to Ben.",
+   "source": "Admin N2 2026-11-14 (JUDGE card style)"
+  },
+  {
+   "id": "RP11-engaged",
+   "person": "Marcus, 33, just got engaged an hour ago, overexcited, all caps when excited",
+   "thread": "Marcus: are you awake\nMarcus: CALL ME\nJo: it's 1am what happened are you ok\n[Marcus proposed to his partner Tash tonight on the pier and she said yes. Jo is his oldest friend and was the one who helped him pick the ring.]",
+   "ask": "Write Marcus's next two or three texts to Jo.",
+   "source": "Admin N2 2026-11-14 (JUDGE card style)"
+  },
+  {
+   "id": "RP12-parcel",
+   "person": "Yuki, 40, the downstairs neighbour, friendly, a bit flustered, owns up quickly",
+   "thread": "Clara: hi! the courier says my parcel was left with you?\nClara: no rush, whenever suits\n[Yuki has the parcel, but the box got crushed when it fell off her hall table. She does not know what is inside. She would rather say so now than at the door.]",
+   "ask": "Write Yuki's next two or three texts to Clara.",
+   "source": "CHAT-RP 2026-11-14 night: rewritten (the judge marked it low for every model on rc3); same situation",
+   "was": {
+    "person": "Yuki, 40, the downstairs neighbour, polite, slightly awkward, apologises a lot",
+    "thread": "Clara: hi! the courier says my parcel was left with you?\nClara: no rush, whenever suits\n[Yuki has the parcel, but the box got crushed when it fell off her hall table. She does not know what is inside.]",
+    "source": "Admin N2 2026-11-14 (JUDGE card style)"
+   }
+  }
+ ],
+ "roleplay": [
+  {
+   "id": "RP1",
+   "source": "cases/rp.json",
+   "rubric": "rp_single"
+  },
+  {
+   "id": "RP2",
+   "source": "cases/rp.json",
+   "rubric": "rp_single"
+  },
+  {
+   "id": "RP3",
+   "source": "cases/rp.json",
+   "rubric": "rp_single"
+  },
+  {
+   "id": "RP4",
+   "source": "cases/rp.json",
+   "rubric": "rp_single"
+  },
+  {
+   "id": "RPM1",
+   "source": "cases/rp.json",
+   "rubric": "rp_multi"
+  },
+  {
+   "id": "RPM2",
+   "source": "cases/rp.json",
+   "rubric": "rp_multi"
+  },
+  {
+   "id": "RPX1-card-table",
+   "source": "cases/rp.json",
+   "rubric": "rp_single"
+  },
+  {
+   "id": "RPX2-user-writes-npc",
+   "source": "cases/rp.json",
+   "rubric": "rp_single"
+  },
+  {
+   "id": "RPX3-ferry-at-veln",
+   "source": "cases/rp.json",
+   "rubric": "rp_single"
+  }
+ ]
+}

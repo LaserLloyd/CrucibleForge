@@ -1,0 +1,29 @@
+{
+ "note": "Readings of EL-17 wording hits against docs/CONTENT-RULES.md rule 1 (judge what is depicted, not the word). One entry per (case, term); element_lint.load_content_reviews reads this file.",
+ "reviews": [
+  {
+   "case": "R16-r3-c4",
+   "term": "petite",
+   "rule": 1,
+   "reading": "Thessaly Brannock, 30, 'a petite woman with warm brown eyes': an adult body type; nothing childlike in persona, turns or references",
+   "by": "Admin N2 (lead ruling)",
+   "date": "2026-11-14"
+  },
+  {
+   "case": "R24-r3-c4",
+   "term": "petite",
+   "rule": 1,
+   "reading": "Gwendal Delacroix, 31, 'a petite woman with sharp cheekbones', the torturer in a non-sexual row: an adult body type",
+   "by": "Admin N2 (lead ruling)",
+   "date": "2026-11-14"
+  },
+  {
+   "case": "R27-r3-c34",
+   "term": "child",
+   "rule": 1,
+   "reading": "Fabian (48) recalls abuse in his own childhood ('emotional and physical pain') to Brigid (32) in the non-sexual despair row; no child on the page, nothing sexual",
+   "by": "Admin N2 (lead accepted)",
+   "date": "2026-11-14"
+  }
+ ]
+}

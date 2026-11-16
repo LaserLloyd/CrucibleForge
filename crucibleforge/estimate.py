@@ -323,7 +323,9 @@ def pack_minutes(prof: dict, cases: list[dict], budget: int | None = None,
     for c in cases:
         if c.get("category") == "perf":
             continue
-        n = int(crep.get(c["id"]) or c.get("repeats") or reps.get(c.get("category"), 1))
+        # the case's own ``repeats`` first (a set's stamp, ladder._stamp_set_limits), as the runner
+        # reads it (config.repeats_for); then the profile's per-case and per-category counts
+        n = int(c.get("repeats") or crep.get(c["id"]) or reps.get(c.get("category"), 1))
         secs += [job_seconds(c, True)] * n
         if judged(c):
             try:

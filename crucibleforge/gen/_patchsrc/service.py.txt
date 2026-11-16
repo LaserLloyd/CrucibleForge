@@ -1,0 +1,74 @@
+"""The command loop: one script line in, answer lines out."""
+from . import render
+from .book import Book
+from .journal import Journal
+from .proto import ParseError, parse_line
+from .store import Store
+
+
+class Service:
+    def __init__(self):
+        self.store = Store()
+        self.journal = Journal()
+        self.book = Book(self.store, self.journal)
+        self.now = 0
+
+    def handle(self, line):
+        try:
+            t, cmd, args = parse_line(line)
+        except ParseError as e:
+            return ["ERR parse %s" % e]
+        if t < self.now:
+            return ["ERR time %d<%d" % (t, self.now)]
+        self.now = t
+#<F queue>
+        pre = self.book.process_queue(t)
+        return pre + self._command(cmd, args, t)
+
+    def _command(self, cmd, args, t):
+#</F>
+        if cmd == "ACQ":
+#<F !queue>
+            holder, cls, units, ttl = args
+            return self.book.acquire(holder, cls, units, ttl, t)
+#</F>
+#<F queue>
+            holder, cls, units, ttl, queued = args
+            return self.book.acquire(holder, cls, units, ttl, t, queued)
+        if cmd == "REL" and args[0].startswith("W"):
+            return self.book.cancel(args[0], t)
+#</F>
+        if cmd == "REL":
+            return self.book.release(args[0], t)
+        if cmd == "TOUCH":
+            return self.book.touch(args[0], t)
+#<F extend>
+        if cmd == "EXTEND":
+            return self.book.extend(args[0], args[1], t)
+#</F>
+#<F quota>
+        if cmd == "QUOTA":
+            return self.book.set_quota(args[0], args[1], t)
+#</F>
+        if cmd == "SWEEP":
+            return self.book.sweep(t)
+        if cmd == "RESTART":
+            self.book = Book(self.store, self.journal)
+            return self.book.restore(t)
+        if cmd == "STATUS":
+            return render.status(self.book, t)
+        if cmd == "LOG":
+            return ["LOG %d" % args[0]] + ["  " + ev for ev in self.journal.render(args[0])]
+        return ["ERR parse command"]
+
+
+def run(script):
+    """Run a whole script; returns every answer line, newline-terminated."""
+    svc = Service()
+    out = []
+    for line in script.splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        out.extend(svc.handle(line))
+    return "\n".join(out) + "\n"

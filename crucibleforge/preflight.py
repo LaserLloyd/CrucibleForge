@@ -134,7 +134,7 @@ def check_link_health(cfg: dict, entries: list[dict]) -> None:
 # request per hosted provider says "out of credit" up front, by name.
 
 _BILLING_RE = re.compile(
-    r"insufficient|balance|spending.?limit|usage limit|out of credit|billing"
+    r"insufficient (?:balance|funds|credit|quota)|balance|spending.?limit|usage limit|out of credit|billing"
     r"|payment required|exceeded your (?:current )?quota", re.IGNORECASE)
 
 #: provider host -> the account-balance URL (a GET that costs nothing)
@@ -142,6 +142,16 @@ _BALANCE_URLS = {"api.deepseek.com": "https://api.deepseek.com/user/balance"}
 
 
 _ROW_STATUS_RE = re.compile(r"\bHTTP (\d{3})\b")
+
+
+def _stored_shape_off(r: dict) -> bool:
+    """G-41Freeze: the stored-shape recognition is a 4.5 change; a profile that
+    sets ``billing_stored_rows: false`` (bench = 4.1) keeps such rows scored as
+    before. A row names its own profile; an unstamped row reads the active one."""
+    from . import profiles
+    # a row reused from another profile (E11b) is scored by the board's profile
+    return profiles.row_switch({**r, "profile": r.get("profile") or profiles.active_name()},
+                               "billing_stored_rows", None) is False
 
 
 def billing_error_row(r: dict) -> bool:
@@ -157,6 +167,8 @@ def billing_error_row(r: dict) -> bool:
         # an agentic episode whose provider call was refused for billing was
         # graded as the model's own failure by older engines (Fable 5.2 LAG1-3,
         # HTTP 400 "credit balance is too low"): recognise the stored shape
+        if _stored_shape_off(r):
+            return False
         end = str((r.get("agent") or {}).get("end") or "")
         return (end.startswith("request rejected mid-episode")
                 and bool(_BILLING_RE.search(end) or re.search(r"suspended", end, re.IGNORECASE)))
@@ -172,6 +184,9 @@ def billing_error_row(r: dict) -> bool:
 def _is_billing_answer(status: int, body: str) -> bool:
     if status == 402:
         return True
+    from .runner import is_ctx_short_error   # lazy: runner imports this module
+    if is_ctx_short_error(body):
+        return False            # a context-window 400 is the ctx_short path, not billing
     return status in (400, 401, 403, 429) and bool(
         _BILLING_RE.search(body or "") or re.search(r"suspended", body or "", re.IGNORECASE))
 

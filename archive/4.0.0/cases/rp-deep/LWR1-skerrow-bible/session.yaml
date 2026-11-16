@@ -1,0 +1,855 @@
+id: LWR1-skerrow-bible
+user_name: the author
+format_gate: chat
+deep_rubric: chat_deep
+rules: |
+  You are the co-writer described in the card below, working one-on-one in a chat with the user, an author who is writing a short story with you one section at a time.
+
+  Rules (strict):
+  1. Each reply is exactly the text the author asks for — the section itself, nothing before or after it: no greeting, no commentary, no notes, no questions back.
+  2. Plain text only: no markdown, no headings, no bold or italics, no lists. A title, when asked for, is a plain line.
+  3. Follow every instruction the author gives. Rules set in an earlier message hold for the whole story unless the author changes them.
+  4. Count carefully: word limits are limits, and exact wording is exact.
+  5. Keep every reply under 450 words.
+judge_card_summary: 'The Writing Desk co-writer: an author and a co-writer draft one short story section by section in a chat. The co-writer replies with exactly the requested section (no commentary, no markdown, title as a plain line). Rules set "for the whole piece" hold until the author changes them; a midway change ("from here on") holds forward only. Plain, concrete prose; feeling shown through hands, voices and objects; endings land on something seen or heard; nothing planted is wasted.'
+judge_key: 'The assistant is the co-writer; the user is the author. The story so far is the assistant''s replies, one section per turn. Bible: Skerrow Light, October 1931, 91 steps, lamp three flashes every twenty seconds, foghorn broken since March, supply boat Marigold run by Corran Voe (29), keeper on paper Aldous Pryce (62), never seen; hoist basket, pencilled block-capital unsigned notes, Harrow''s Navy Cut, coins knotted in a tern-bordered handkerchief, one-eyed cat Pennant, smoke that smells of toast, teapot of geraniums. SECRET: Aldous died in February; his daughter Odile (24) keeps the light under his name. Clues 9, 11, 13, 14 must be planted as plain detail in sections 1-3 with fair play (no reveal words, the keeper never called he/him, never seen) and the reveal in section 4 comes through a two-handed logbook. From section 4 the POV is close third on Odile, the boat is the Gannet, Corran is 31, the tower has 93 steps. Section 5 echoes the last sentence of section 1 with one word changed and ends on a 14-word sentence. Turn 6 asks for a recap of exactly the three bible changes (boat, age, steps).'
+temperature: 0.8
+top_p: 0.95
+max_tokens: 2000
+min_context: 40960
+turns:
+- |
+  Let's write a short story together, one section per message. I'm giving you the story bible first. Every line of it is true in the story and has to stay consistent in every section.
+
+  STORY BIBLE
+  1. Place: Skerrow Light, a lighthouse tower on a bare rock three miles off the coast of Maun island.
+  2. Time: October 1931.
+  3. The tower has 91 steps.
+  4. The lamp shows three flashes every twenty seconds.
+  5. The foghorn has been broken since March.
+  6. Corran Voe, 29, runs the supply boat Marigold out of Maun harbour and delivers to the rock on alternate Tuesdays.
+  7. On paper the keeper is Aldous Pryce, 62. In seven months on this run Corran has never once seen the keeper.
+  8. Stores go up from the boat in a hoist basket cranked up from the gallery; the empty basket comes down with a note in it.
+  9. The notes are in pencil, in block capitals, on the backs of old paraffin receipts, and they are never signed.
+  10. The order is nearly always a sack of flour, two cans of paraffin and a tin of Harrow's Navy Cut tobacco.
+  11. It is paid for in exact coins knotted into a handkerchief of white linen with a border of tiny embroidered terns.
+  12. Pennant, a grey cat with one eye, is the only living thing Corran ever sees on the rock. She sits on the gallery rail.
+  13. The smoke from the tower's stovepipe smells of toast, never of pipe tobacco.
+  14. On the gallery sill stands a cracked teapot of red geraniums.
+  15. The tower door at the foot is green and always shut.
+  16. The only landing is a stone stage with one iron ring.
+  17. The boat's engine is a single-cylinder Kelvin that coughs on the second beat.
+  18. Corran lodges with his sister Netta, a baker's wife in Maun.
+  19. The harbourmaster, Mr. Dunbar, pays Corran eleven shillings a run.
+  20. In its whole life the light has never once failed.
+
+  THE SECRET (the reader must not learn it before section 4): Aldous Pryce died in February. His daughter Odile, 24, has kept the light alone ever since and signs nothing, so that the Board goes on paying "A. Pryce". Corran has been serving her for months without knowing. Facts 9, 11, 13 and 14 are the clues.
+
+  RULES FOR THE WHOLE PIECE
+  - Typing and counting: straight quotes and apostrophes only, no hyphens or dashes anywhere. A word is anything between spaces (numerals count as words). A sentence ends at a full stop, question mark or exclamation mark, so avoid abbreviations with full stops.
+  - Close third person on Corran, past tense, until I say otherwise. Outside quoted speech the narration never uses I, me, my, we, us or our.
+  - Plain text. The title goes on the first line of section 1 only, four words at most.
+  - Never use any form of "seem", and never use somehow, suddenly, almost, quite, "as if" or "as though".
+  - Fair play: until section 4 the words daughter, died, dead, death, funeral, grave, widow and Odile do not appear at all. The narration may refer to the keeper only as "the keeper" or "Pryce", never with he, him or his, and may never say or imply that Corran has seen the keeper. Plant the clues as plain detail; Corran never comments on what they might mean.
+
+  HOUSE STYLE: this is the page of my draft that comes just before your section 1. Write the way it is written.
+
+  Rain came down on Maun harbour from four o'clock until after dark. Tenders slapped at the quay. Dunbar locked his office, shook the key twice, and went up the hill to supper. Men on the quay looked at the sky once and went home; there was nothing in it to read. By seven the lamps along the breakwater stood in their own halos, one after another, lit by no hand that Corran could see.
+
+  Netta's oven was the only warm thing in the town. Bread came out of it in the old order, loaves first, then rolls, then the dark rye nobody paid for. Corran took a rye and ate it standing, with his back to the glass. Tuesday was a day away and the boat was ready.
+
+  Section 1 (exactly 204 words, the title included, in three paragraphs of three sentences each after the title): begin with exactly this sentence: "On alternate Tuesdays, Corran Voe brought the Marigold in under the lee of Skerrow Light." Establish the place, the month and year, and the island by name, and state the number of steps once, as a numeral. Plant clues 9 and 11 (the word "capitals" and the word "terns" must both appear). The last sentence of the section is exactly: The basket went up, and the basket came down.
+- |
+  New rule from section 2 on: no sentence in the story begins with the word "The" (the two exact sentences I dictate in section 1 are the only exceptions, and the dictated closing sentence of section 1 may be reused in section 5).
+
+  Section 2: exactly twelve sentences in four paragraphs of 3, 2, 4 and 3 sentences, and sentence number n has exactly n+4 words (so 5 words, then 6, then 7, up to 16 words in the twelfth). The lamp's pattern (three flashes, every twenty seconds, written out like that) goes in paragraph 2 and nowhere else. Pennant appears in paragraph 3. Plant clue 13: the word "toast" must appear. The word "basket" appears exactly twice in the section. Still Corran's close third, past tense.
+- |
+  New rule from section 3 on: no word of more than nine letters, names included.
+
+  Section 3 (exactly 160 words): Corran calls up the tower twice, so there are exactly two quoted lines in the section, both his; nobody answers aloud. Plant clue 14: the words "teapot" and "geraniums" must both appear. The section's final sentence contains the word "foghorn".
+- |
+  Author's note before section 4. Four changes from here to the end of the story; earlier sections stay as they are, so write forward:
+  (1) The point of view moves to Odile Pryce, the keeper: close third on her, still past tense. Corran is seen and heard only as she sees and hears him, and the narration never enters his head.
+  (2) His boat is the Gannet, not the Marigold.
+  (3) Corran is 31, not 29.
+  (4) The tower has 93 steps, not 91.
+
+  New rule from section 4 on, besides the note: no word ending in "ly".
+
+  Section 4 (exactly 240 words, in exactly three paragraphs): the reveal. A fog has come down and the foghorn is dead, so Corran climbs the tower for the first time. Show the truth through an object: the keeper's logbook, which is in two hands. Name Odile. The month February must appear. At least two of the four clues (capitals, terns, toast, teapot) are recalled here by their specific detail and recast by what is now known. Exactly one line of quoted speech in the section, and it is Corran's.
+- |
+  Section 5, the last one (exactly 100 words): exactly three paragraphs of 2, 2 and 1 sentences. The final paragraph is a single sentence of exactly 14 words and it contains the phrases "three flashes" and "twenty seconds". Somewhere in the section bring back the last sentence of section 1 with exactly one word changed. Keep every change from my note. Stay with Odile; show her feeling only through what she does with her hands.
+- |
+  Thanks. Last thing, for the next co-writer: in no more than 60 words, plain sentences, nothing else, list every fact of the bible that I changed during the story, giving the old value and the new one.
+checks:
+- id: TL-title-opening
+  fact: TL
+  ftype: format
+  group: constraint
+  type: require_regex
+  turns:
+  - 1
+  pattern: \A\s*(?:\S+[ \t]+){0,3}\S+[ \t]*\n\s*On alternate Tuesdays, Corran Voe brought the Marigold in under the lee of Skerrow Light\.
+  scope: all
+  note: a title of at most four words, then the exact opening sentence
+  weight: 0.08
+- id: W1-exact-204
+  fact: W1
+  ftype: format
+  group: constraint
+  type: word_range
+  turns:
+  - 1
+  min: 204
+  max: 204
+  note: exactly 204 words, title included
+  weight: 0.08
+- id: A1-paragraph-sentences
+  fact: A1
+  ftype: format
+  group: constraint
+  type: require_regex
+  turns:
+  - 1
+  pattern: \A\s*[^\n.!?]+\n(?:[ \t]*\n)+(?:[ \t]*[A-Za-z0-9\"'(][^.!?\n]*[.!?]+[\"')]*[ \t]*){3}\n(?:[ \t]*\n)+(?:[ \t]*[A-Za-z0-9\"'(][^.!?\n]*[.!?]+[\"')]*[ \t]*){3}\n(?:[ \t]*\n)+(?:[ \t]*[A-Za-z0-9\"'(][^.!?\n]*[.!?]+[\"')]*[ \t]*){3}\s*\Z
+  scope: all
+  note: title, then three paragraphs of three sentences
+  weight: 0.08
+- id: L1-last-sentence
+  fact: L1
+  ftype: format
+  group: constraint
+  type: require_regex
+  turns:
+  - 1
+  pattern: (?:^|[.!?]\s+)The basket went up, and the basket came down\.[\"”]?\s*\Z
+  scope: all
+  weight: 0.08
+- id: N1-numeral-steps
+  fact: N1
+  ftype: format
+  group: constraint
+  type: require_regex
+  turns:
+  - 1
+  pattern: \b91\b
+  scope: all
+  weight: 0.08
+- id: C1-capitals-terns
+  fact: C1
+  ftype: format
+  group: constraint
+  type: require_regex
+  turns:
+  - 1
+  pattern: \A(?=[\s\S]*\bcapitals\b)(?=[\s\S]*\bterns\b)
+  scope: all
+  note: clues 9 and 11 planted in section 1
+  weight: 0.08
+- id: P1-place-time
+  fact: P1
+  ftype: format
+  group: constraint
+  type: require_regex
+  turns:
+  - 1
+  pattern: \A(?=[\s\S]*\bMaun\b)(?=[\s\S]*\bOctober 1931\b)(?=[\s\S]*\bSkerrow\b)
+  scope: all
+  weight: 0.08
+- id: A2-paragraph-sentences
+  fact: A2
+  ftype: format
+  group: constraint
+  type: require_regex
+  turns:
+  - 2
+  pattern: \A\s*(?:[ \t]*[A-Za-z0-9\"'(][^.!?\n]*[.!?]+[\"')]*[ \t]*){3}\n(?:[ \t]*\n)+(?:[ \t]*[A-Za-z0-9\"'(][^.!?\n]*[.!?]+[\"')]*[ \t]*){2}\n(?:[ \t]*\n)+(?:[ \t]*[A-Za-z0-9\"'(][^.!?\n]*[.!?]+[\"')]*[ \t]*){4}\n(?:[ \t]*\n)+(?:[ \t]*[A-Za-z0-9\"'(][^.!?\n]*[.!?]+[\"')]*[ \t]*){3}\s*\Z
+  scope: all
+  note: four paragraphs of 3, 2, 4, 3 sentences
+  weight: 0.72
+- id: S2a-sentence-2-six-words
+  fact: S2a
+  ftype: format
+  group: constraint
+  type: require_regex
+  turns:
+  - 2
+  pattern: \A\s*(?:[ \t]*[A-Za-z0-9\"'(][^.!?]*[.!?]+[\"')]*\s*){1}[ \t]*(?:[^\s.!?]+[ \t]+){5}[^\s.!?]+[.!?]+
+  scope: all
+  weight: 0.08
+- id: S2b-sentence-5-nine-words
+  fact: S2b
+  ftype: format
+  group: constraint
+  type: require_regex
+  turns:
+  - 2
+  pattern: \A\s*(?:[ \t]*[A-Za-z0-9\"'(][^.!?]*[.!?]+[\"')]*\s*){4}[ \t]*(?:[^\s.!?]+[ \t]+){8}[^\s.!?]+[.!?]+
+  scope: all
+  weight: 0.08
+- id: S2c-sentence-8-twelve-words
+  fact: S2c
+  ftype: format
+  group: constraint
+  type: require_regex
+  turns:
+  - 2
+  pattern: \A\s*(?:[ \t]*[A-Za-z0-9\"'(][^.!?]*[.!?]+[\"')]*\s*){7}[ \t]*(?:[^\s.!?]+[ \t]+){11}[^\s.!?]+[.!?]+
+  scope: all
+  weight: 0.08
+- id: S2d-sentence-11-fifteen-words
+  fact: S2d
+  ftype: format
+  group: constraint
+  type: require_regex
+  turns:
+  - 2
+  pattern: \A\s*(?:[ \t]*[A-Za-z0-9\"'(][^.!?]*[.!?]+[\"')]*\s*){10}[ \t]*(?:[^\s.!?]+[ \t]+){14}[^\s.!?]+[.!?]+
+  scope: all
+  weight: 0.08
+- id: W2-exact-126
+  fact: W2
+  ftype: format
+  group: constraint
+  type: word_range
+  turns:
+  - 2
+  min: 126
+  max: 126
+  note: 5+6+...+16 = 126 words
+  weight: 0.72
+- id: F2-pattern-in-para-2
+  fact: F2
+  ftype: format
+  group: constraint
+  type: require_regex
+  turns:
+  - 2
+  pattern: \A\s*(?:[ \t]*\S[^\n]*(?:\n[ \t]*\S[^\n]*)*\n(?:[ \t]*\n)+){1}[^\n]*(?:three flashes[^\n]*\btwenty seconds\b|\btwenty seconds\b[^\n]*three flashes)
+  scope: all
+  note: three flashes / twenty seconds, written out, in paragraph 2
+  weight: 0.08
+- id: G2-pattern-only-para-2
+  fact: G2
+  ftype: format
+  group: constraint
+  type: forbid_regex
+  turns:
+  - 2
+  pattern: \A\s*[^\n]*(?:three flashes|twenty seconds)|\A\s*(?:[ \t]*\S[^\n]*(?:\n[ \t]*\S[^\n]*)*\n(?:[ \t]*\n)+){2}[^\n]*(?:three flashes|twenty seconds)|\A\s*(?:[ \t]*\S[^\n]*(?:\n[ \t]*\S[^\n]*)*\n(?:[ \t]*\n)+){3}[^\n]*(?:three flashes|twenty seconds)
+  scope: all
+  note: the lamp pattern appears in no other paragraph
+  weight: 0.08
+- id: H2-pennant-para-3
+  fact: H2
+  ftype: format
+  group: constraint
+  type: require_regex
+  turns:
+  - 2
+  pattern: \A\s*(?:[ \t]*\S[^\n]*(?:\n[ \t]*\S[^\n]*)*\n(?:[ \t]*\n)+){2}[^\n]*(?:\bPennant\b)
+  scope: all
+  weight: 0.08
+- id: T2-toast
+  fact: T2
+  ftype: format
+  group: constraint
+  type: require_regex
+  turns:
+  - 2
+  pattern: \btoast\b
+  scope: all
+  weight: 0.08
+- id: K2-basket-twice
+  fact: K2
+  ftype: format
+  group: constraint
+  type: require_regex
+  turns:
+  - 2
+  pattern: \A(?:(?!\bbasket\b)[\s\S])*(?:\bbasket\b(?:(?!\bbasket\b)[\s\S])*){2}\Z
+  scope: all
+  note: the word basket exactly twice
+  weight: 0.08
+- id: W3-exact-160
+  fact: W3
+  ftype: format
+  group: constraint
+  type: word_range
+  turns:
+  - 3
+  min: 160
+  max: 160
+  weight: 0.72
+- id: Q3-two-quoted-lines
+  fact: Q3
+  ftype: format
+  group: constraint
+  type: require_regex
+  turns:
+  - 3
+  pattern: \A(?:[^\"“”]*[\"“][^\"”“\n]{2,}[\"”]){2}[^\"“”]*\Z
+  scope: all
+  note: exactly two quoted spans
+  weight: 0.72
+- id: E3-teapot-geraniums
+  fact: E3
+  ftype: format
+  group: constraint
+  type: require_regex
+  turns:
+  - 3
+  pattern: \A(?=[\s\S]*\bteapot\b)(?=[\s\S]*\bgeraniums\b)
+  scope: all
+  weight: 0.08
+- id: O3-foghorn-last
+  fact: O3
+  ftype: format
+  group: constraint
+  type: require_regex
+  turns:
+  - 3
+  pattern: \bfoghorn\b[^.!?]*[.!?][\"”’]?\s*\Z
+  scope: all
+  note: the final sentence contains foghorn
+  weight: 0.08
+- id: R1-fair-play-words
+  fact: R1
+  ftype: format
+  group: continuity
+  type: forbid_regex
+  turns:
+  - 1
+  - 2
+  - 3
+  pattern: \b(?:daughter|died|dead|death|funeral|grave|widow|Odile)\b
+  scope: all
+  note: no reveal words before section 4
+  weight: 0.72
+- id: B1-banned-words
+  fact: B1
+  ftype: format
+  group: constraint
+  type: forbid_regex
+  turns:
+  - 1
+  - 2
+  - 3
+  - 4
+  - 5
+  pattern: \b(?:seem\w*|somehow|suddenly|almost|quite|as if|as though)\b
+  scope: all
+  weight: 0.08
+- id: U2-no-The-sentence-start
+  fact: U2
+  ftype: format
+  group: constraint
+  type: forbid_regex
+  turns:
+  - 2
+  - 3
+  - 4
+  - 5
+  pattern: (?:^|[.!?][\"')]*\s+)The\b(?!\s+basket went up, and the basket came down)
+  scope: all
+  note: from section 2 on no sentence begins with The (the dictated sentence may return)
+  weight: 0.72
+- id: U3-nine-letters
+  fact: U3
+  ftype: format
+  group: constraint
+  type: forbid_regex
+  turns:
+  - 3
+  - 4
+  - 5
+  pattern: \b[A-Za-z]{10,}\b
+  scope: all
+  note: from section 3 on no word over nine letters
+  weight: 0.72
+- id: U4-no-ly
+  fact: U4
+  ftype: format
+  group: constraint
+  type: forbid_regex
+  turns:
+  - 4
+  - 5
+  pattern: \b\w+ly\b
+  scope: all
+  note: from section 4 on no word ending in ly
+  weight: 0.08
+- id: S2-ramp-all-twelve
+  fact: S2
+  ftype: format
+  group: constraint
+  type: require_regex
+  turns:
+  - 2
+  pattern: "\\A\\s*(?:[ \t]*(?:[^\\s.!?]+[ \\t]+){4}[^\\s.!?]+[.!?]+[ \\t]*[ \t]*(?:[^\\s.!?]+[ \\t]+){5}[^\\s.!?]+[.!?]+[ \\t]*[ \t]*(?:[^\\s.!?]+[ \\t]+){6}[^\\s.!?]+[.!?]+[ \\t]*)\\n(?:[ \\t]*\\n)+(?:[ \t]*(?:[^\\s.!?]+[ \\t]+){7}[^\\s.!?]+[.!?]+[ \\t]*[ \t]*(?:[^\\s.!?]+[ \\t]+){8}[^\\s.!?]+[.!?]+[ \\t]*)\\n(?:[ \\t]*\\n)+(?:[ \t]*(?:[^\\s.!?]+[ \\t]+){9}[^\\s.!?]+[.!?]+[ \\t]*[ \t]*(?:[^\\s.!?]+[ \\t]+){10}[^\\s.!?]+[.!?]+[ \\t]*[ \t]*(?:[^\\s.!?]+[ \\t]+){11}[^\\s.!?]+[.!?]+[ \\t]*[ \t]*(?:[^\\s.!?]+[ \\t]+){12}[^\\s.!?]+[.!?]+[ \\t]*)\\n(?:[ \\t]*\\n)+(?:[ \t]*(?:[^\\s.!?]+[ \\t]+){13}[^\\s.!?]+[.!?]+[ \\t]*[ \t]*(?:[^\\s.!?]+[ \\t]+){14}[^\\s.!?]+[.!?]+[ \\t]*[ \t]*(?:[^\\s.!?]+[ \\t]+){15}[^\\s.!?]+[.!?]+[ \\t]*)\\s*\\Z"
+  scope: all
+  note: every sentence n has n+4 words, in paragraphs of 3, 2, 4, 3
+  weight: 0.72
+- id: H1-no-pronoun-start
+  fact: HA
+  ftype: format
+  group: continuity
+  type: forbid_regex
+  turns:
+  - 1
+  - 2
+  - 3
+  - 4
+  - 5
+  pattern: (?:^|[.!?][\"')]*\s+)(?:He|She|It|They|We|I|You|His|Her|Its|Their|This|That|There|These|Those)\b
+  scope: narration
+  note: 'house style: no sentence begins with a pronoun'
+  weight: 2.0
+- id: H2-digits-only-authorised
+  fact: HB
+  ftype: format
+  group: continuity
+  type: forbid_regex
+  turns:
+  - 1
+  - 2
+  - 3
+  - 4
+  - 5
+  pattern: \b(?!(?:91|93|1931|29|31)\b)\d+\b
+  scope: all
+  note: 'house style: numbers are words (only the bible numerals may be digits)'
+  weight: 0.08
+- id: HD-no-question-exclaim
+  fact: HD
+  ftype: format
+  group: continuity
+  type: forbid_regex
+  turns:
+  - 1
+  - 2
+  - 3
+  - 4
+  - 5
+  pattern: '[?!]'
+  scope: narration
+  note: 'house style: no question or exclamation marks in narration'
+  weight: 0.08
+- id: HF-no-contractions
+  fact: HF
+  ftype: format
+  group: continuity
+  type: forbid_regex
+  turns:
+  - 1
+  - 2
+  - 3
+  - 4
+  - 5
+  pattern: \b\w+n['’]t\b|\b(?:he|she|it|we|they|that|there|who|what)['’](?:s|d|ll|re|ve|m)\b
+  scope: narration
+  note: 'house style: no contractions in narration'
+  weight: 0.08
+- id: HG-no-conjunction-start
+  fact: HG
+  ftype: format
+  group: continuity
+  type: forbid_regex
+  turns:
+  - 1
+  - 2
+  - 3
+  - 4
+  - 5
+  pattern: (?:^|[.!?][\"')]*\s+)(?:And|But|Then|So|Yet|Or)\b
+  scope: narration
+  note: 'house style: no sentence begins with a conjunction'
+  weight: 0.08
+- id: HE2-weather-first-s2
+  fact: HE2
+  ftype: format
+  group: continuity
+  type: require_regex
+  turns:
+  - 2
+  pattern: \A\s*[^.!?]*\b(?:rain|wind|gale|fog|frost|snow|mist|sleet|squall|storm|drizzle|cloud|haze|swell|sun|sunlight|hail|thunder|breeze)\w*\b
+  scope: all
+  note: 'house style: a section opens on the weather (section 2)'
+  weight: 1.15
+- id: HE3-weather-first-s3
+  fact: HE3
+  ftype: format
+  group: continuity
+  type: require_regex
+  turns:
+  - 3
+  pattern: \A\s*[^.!?]*\b(?:rain|wind|gale|fog|frost|snow|mist|sleet|squall|storm|drizzle|cloud|haze|swell|sun|sunlight|hail|thunder|breeze)\w*\b
+  scope: all
+  note: 'house style: a section opens on the weather (section 3)'
+  weight: 1.57
+- id: HE4-weather-first-s4
+  fact: HE4
+  ftype: format
+  group: continuity
+  type: require_regex
+  turns:
+  - 4
+  pattern: \A\s*[^.!?]*\b(?:rain|wind|gale|fog|frost|snow|mist|sleet|squall|storm|drizzle|cloud|haze|swell|sun|sunlight|hail|thunder|breeze)\w*\b
+  scope: all
+  note: 'house style: a section opens on the weather (section 4)'
+  weight: 0.08
+- id: HE5-weather-first-s5
+  fact: HE5
+  ftype: format
+  group: continuity
+  type: require_regex
+  turns:
+  - 5
+  pattern: \A\s*[^.!?]*\b(?:rain|wind|gale|fog|frost|snow|mist|sleet|squall|storm|drizzle|cloud|haze|swell|sun|sunlight|hail|thunder|breeze)\w*\b
+  scope: all
+  note: 'house style: a section opens on the weather (section 5)'
+  weight: 1.57
+- id: HT2-clock-time-s2
+  fact: HT2
+  ftype: format
+  group: continuity
+  type: require_regex
+  turns:
+  - 2
+  pattern: \b(?:o'clock|half past|quarter (?:past|to))
+  scope: all
+  note: 'house style: a clock time is given in words (o''clock / half past)'
+  weight: 2.0
+- id: HT3-clock-time-s3
+  fact: HT3
+  ftype: format
+  group: continuity
+  type: require_regex
+  turns:
+  - 3
+  pattern: \b(?:o'clock|half past|quarter (?:past|to))
+  scope: all
+  note: 'house style: a clock time is given in words (o''clock / half past)'
+  weight: 2.0
+- id: HT4-clock-time-s4
+  fact: HT4
+  ftype: format
+  group: continuity
+  type: require_regex
+  turns:
+  - 4
+  pattern: \b(?:o'clock|half past|quarter (?:past|to))
+  scope: all
+  note: 'house style: a clock time is given in words (o''clock / half past)'
+  weight: 2.0
+- id: HT5-clock-time-s5
+  fact: HT5
+  ftype: format
+  group: continuity
+  type: require_regex
+  turns:
+  - 5
+  pattern: \b(?:o'clock|half past|quarter (?:past|to))
+  scope: all
+  note: 'house style: a clock time is given in words (o''clock / half past)'
+  weight: 2.0
+- id: H3-no-like
+  fact: HC
+  ftype: format
+  group: continuity
+  type: forbid_regex
+  turns:
+  - 1
+  - 2
+  - 3
+  - 4
+  - 5
+  pattern: \blike\b
+  scope: all
+  note: 'house style: no ''like'' similes'
+  weight: 0.08
+- id: Y1-straight-no-hyphens
+  fact: Y1
+  ftype: format
+  group: constraint
+  type: forbid_regex
+  turns:
+  - 1
+  - 2
+  - 3
+  - 4
+  - 5
+  - 6
+  pattern: '[‘’“”‐‑–—-]'
+  scope: all
+  note: straight quotes only; no hyphens or dashes
+  weight: 0.72
+- id: V1-no-first-person
+  fact: V1
+  ftype: format
+  group: constraint
+  type: forbid_regex
+  turns:
+  - 1
+  - 2
+  - 3
+  - 4
+  - 5
+  pattern: \b(?:I|me|my|mine|myself|we|us|our|ours)\b
+  scope: narration
+  note: no first person outside quoted speech
+  weight: 0.08
+- id: T1-past-tense
+  fact: T1
+  ftype: format
+  group: constraint
+  type: tense
+  turns:
+  - 1
+  - 2
+  - 3
+  - 4
+  - 5
+  want: past
+  weight: 0.08
+- id: W4-exact-240
+  fact: W4
+  ftype: format
+  group: constraint
+  type: word_range
+  turns:
+  - 4
+  min: 240
+  max: 240
+  weight: 0.08
+- id: A4-three-paragraphs
+  fact: A4
+  ftype: format
+  group: constraint
+  type: require_regex
+  turns:
+  - 4
+  pattern: \A\s*[ \t]*\S[^\n]*(?:\n[ \t]*\S[^\n]*)*\n(?:[ \t]*\n)+[ \t]*\S[^\n]*(?:\n[ \t]*\S[^\n]*)*\n(?:[ \t]*\n)+[ \t]*\S[^\n]*(?:\n[ \t]*\S[^\n]*)*\s*\Z
+  scope: all
+  weight: 0.08
+- id: O4-odile-logbook-february
+  fact: O4
+  ftype: format
+  group: constraint
+  type: require_regex
+  turns:
+  - 4
+  pattern: \A(?=[\s\S]*\bOdile\b)(?=[\s\S]*\blogbook\b)(?=[\s\S]*\bFebruary\b)
+  scope: all
+  weight: 0.08
+- id: C4-two-clues-recalled
+  fact: C4
+  ftype: format
+  group: constraint
+  type: require_regex
+  turns:
+  - 4
+  pattern: \A(?:(?=[\s\S]*\bterns\b)(?=[\s\S]*\bcapitals\b)|(?=[\s\S]*\bterns\b)(?=[\s\S]*\btoast\b)|(?=[\s\S]*\bterns\b)(?=[\s\S]*\bteapot\b)|(?=[\s\S]*\bcapitals\b)(?=[\s\S]*\btoast\b)|(?=[\s\S]*\bcapitals\b)(?=[\s\S]*\bteapot\b)|(?=[\s\S]*\btoast\b)(?=[\s\S]*\bteapot\b))
+  scope: all
+  note: at least two of terns / capitals / toast / teapot named again
+  weight: 0.08
+- id: D4-one-quoted-line
+  fact: D4
+  ftype: format
+  group: constraint
+  type: require_regex
+  turns:
+  - 4
+  pattern: \A(?=[\s\S]*?[\"“][^\"”\n]{2,}[\"”])(?![\s\S]*?[\"“][^\"”\n]*[\"”][\s\S]*?[\"“])
+  scope: all
+  note: exactly one quoted span
+  weight: 0.08
+- id: G4-gannet-31-93
+  fact: G4
+  ftype: format
+  group: continuity
+  type: require_regex
+  turns:
+  - 4
+  pattern: \A(?=[\s\S]*\bGannet\b)(?=[\s\S]*\b31\b)(?=[\s\S]*\b93\b)
+  scope: all
+  note: the three bible changes show up in section 4
+  weight: 1.57
+- id: X4-old-values-gone
+  fact: X4
+  ftype: format
+  group: continuity
+  type: forbid_regex
+  turns:
+  - 4
+  - 5
+  pattern: \bMarigold\b|\b29\b|\b91\b|\bninety-one\b
+  scope: all
+  note: boat, age and steps changed by the note
+  weight: 0.08
+- id: W5-exact-100
+  fact: W5
+  ftype: format
+  group: constraint
+  type: word_range
+  turns:
+  - 5
+  min: 100
+  max: 100
+  weight: 1.15
+- id: A5-paragraph-sentences
+  fact: A5
+  ftype: format
+  group: constraint
+  type: require_regex
+  turns:
+  - 5
+  pattern: \A\s*(?:[ \t]*[A-Za-z0-9\"'(][^.!?\n]*[.!?]+[\"')]*[ \t]*){2}\n(?:[ \t]*\n)+(?:[ \t]*[A-Za-z0-9\"'(][^.!?\n]*[.!?]+[\"')]*[ \t]*){2}\n(?:[ \t]*\n)+(?:[ \t]*[A-Za-z0-9\"'(][^.!?\n]*[.!?]+[\"')]*[ \t]*){1}\s*\Z
+  scope: all
+  note: three paragraphs of 2, 2, 1 sentences
+  weight: 1.57
+- id: Z5-last-para-14-words
+  fact: Z5
+  ftype: format
+  group: constraint
+  type: require_regex
+  turns:
+  - 5
+  pattern: (?:\A|\n[ \t]*\n)\s*(?:(?=[^\s.!?]*[A-Za-z0-9])[^\s.!?]+\s+(?:[—–-]+\s+)?){13}(?=[^\s.!?]*[A-Za-z0-9])[^\s.!?]+[.!]?[\"”]?\s*\Z
+  scope: all
+  note: final paragraph = one sentence of exactly 14 words
+  weight: 0.72
+- id: F5-pattern-last-para
+  fact: F5
+  ftype: format
+  group: constraint
+  type: require_regex
+  turns:
+  - 5
+  pattern: \n[ \t]*\n\s*(?=[^\n]*three flashes)(?=[^\n]*twenty seconds)[^\n]*\s*\Z
+  scope: all
+  weight: 0.08
+- id: K5-callback-one-word
+  fact: K5
+  ftype: format
+  group: continuity
+  type: require_regex
+  turns:
+  - 5
+  pattern: (?<![A-Za-z'])(?:(?!The\b)[A-Za-z']+\s+basket\s+went\s+up,\s+and\s+the\s+basket\s+came\s+down|The\s+(?!basket\b)[A-Za-z']+\s+went\s+up,\s+and\s+the\s+basket\s+came\s+down|The\s+basket\s+(?!went\b)[A-Za-z']+\s+up,\s+and\s+the\s+basket\s+came\s+down|The\s+basket\s+went\s+(?!up\b)[A-Za-z']+,\s+and\s+the\s+basket\s+came\s+down|The\s+basket\s+went\s+up,\s+(?!and\b)[A-Za-z']+\s+the\s+basket\s+came\s+down|The\s+basket\s+went\s+up,\s+and\s+(?!the\b)[A-Za-z']+\s+basket\s+came\s+down|The\s+basket\s+went\s+up,\s+and\s+the\s+(?!basket\b)[A-Za-z']+\s+came\s+down|The\s+basket\s+went\s+up,\s+and\s+the\s+basket\s+(?!came\b)[A-Za-z']+\s+down|The\s+basket\s+went\s+up,\s+and\s+the\s+basket\s+came\s+(?!down\b)[A-Za-z']+)\.
+  scope: all
+  note: last sentence of section 1 returns with exactly one word changed
+  weight: 0.72
+- id: E5-no-named-feeling
+  fact: E5
+  ftype: format
+  group: constraint
+  type: forbid_regex
+  turns:
+  - 5
+  pattern: \b(?:sad\w*|grie\w*|sorrow\w*|tears?|cr(?:y|ied|ies|ying)|wept|weep\w*|lonel\w*|afraid|fear\w*|relie\w*|angr\w*|love[sd]?|happy|joy\w*|ache[sd]?|longing|miss(?:ed|es)?)\b
+  scope: all
+  weight: 0.08
+- id: S6-recap-length
+  fact: S6
+  ftype: format
+  group: constraint
+  type: word_range
+  turns:
+  - 6
+  min: 12
+  max: 60
+  scope: all
+  weight: 0.08
+- id: M6-recap-values
+  fact: M6
+  ftype: format
+  group: continuity
+  type: require_all
+  turns:
+  - 6
+  scope: all
+  needles:
+  - - Marigold
+  - - Gannet
+  - - '29'
+  - - '31'
+  - - '91'
+  - - '93'
+  note: old and new value of each of the three bible changes
+  weight: 0.08
+- id: N6-recap-no-extras
+  fact: N6
+  ftype: format
+  group: continuity
+  type: forbid_regex
+  turns:
+  - 6
+  pattern: \bAldous\b|\bPryce\b|\bPennant\b|\bKelvin\b|\bNetta\b|\bDunbar\b|\bshillings\b
+  scope: all
+  note: only the three changed facts are listed
+  weight: 0.72
+judge_elements:
+- id: J1-clues-plain
+  ftype: applied
+  turns:
+  - 1
+  - 2
+  q: 'In sections 1 and 2 the clues (block-capital unsigned notes, the tern-bordered handkerchief, the smoke that smells of toast) must be planted as plain detail. Check three things and quote the lines: (a) all three clues are on the page, (b) Corran or the narration never comments on what they might mean, and (c) the narration never calls the keeper he, him or his and never says or implies Corran has seen the keeper. NO if a clue is missing, explained, or the narration misleads (a he/him for the keeper, a glimpse of the keeper).'
+  evidence:
+  - src: turn
+    text: Plant the clues as plain detail; Corran never comments on what they might mean.
+  gold_quote: 'A note, in capitals, on the back of a receipt: FLOUR. TWO PARAFFIN. NAVY CUT.'
+  weight: 1.0
+- id: J2-reveal-by-object
+  ftype: applied
+  turns:
+  - 3
+  - 4
+  q: 'Section 3 plants the teapot of geraniums; section 4 must then reveal the secret THROUGH the logbook written in two hands (an object shown on the page: e.g. a copperplate hand that stops at a dated entry and block capitals that go on). Quote the line that shows the two hands. NO if the reveal is delivered by speech, by narration simply stating what happened, or if the logbook does not show two hands.'
+  evidence:
+  - src: turn
+    text: 'Show the truth through an object: the keeper''s logbook, which is in two hands.'
+  gold_quote: The entries stopped in copperplate on the eleventh of February and went on in block capitals.
+  weight: 1.0
+- id: J3-clues-recast
+  ftype: applied
+  turns:
+  - 4
+  q: Does section 4 recall at least two of the earlier clues by their specific detail (terns, capitals, toast, teapot) AND recast each one, saying or showing what it was for or meant in Odile's secret (not just naming it again)? Quote the two lines. NO if fewer than two are recalled with their detail, or if they are only listed.
+  evidence:
+  - src: turn
+    text: At least two of the four clues (capitals, terns, toast, teapot) are recalled here by their specific detail and recast by what is now known.
+  gold_quote: The toast was hers; the tobacco went into the stove to make the smoke honest.
+  weight: 1.0
+- id: J4-pov-odile
+  ftype: applied
+  turns:
+  - 4
+  q: Section 4 must be close third on Odile only. Does the narration give Odile's perceptions or thoughts and never enter Corran's head (no Corran thinking, wondering, knowing or feeling anything the narration states as fact)? Quote any line that breaks this; if none, quote a line that shows her point of view. NO if the narration reports what Corran thinks or feels.
+  evidence:
+  - src: turn
+    text: close third on her, still past tense. Corran is seen and heard only as she sees and hears him, and the narration never enters his head.
+  gold_quote: She watched him read, and watched his mouth go flat.
+  weight: 1.0
+- id: J5-no-reply-s3
+  ftype: applied
+  turns:
+  - 3
+  q: In section 3 Corran calls up twice and nobody answers aloud. Does the section stay silent on the tower side (no spoken reply, no voice, no humming, no words from the keeper, not even faint)? Quote the line that shows the silence, or the line that breaks it. NO if anything from the tower speaks or hums.
+  evidence:
+  - src: turn
+    text: nobody answers aloud
+  gold_quote: Only the wind came back down the stairwell.
+  weight: 1.0
+- id: J6-hands-and-image
+  ftype: applied
+  turns:
+  - 5
+  q: The last section shows Odile's feeling only through what she does with her hands, and its final sentence is a concrete image (something seen or heard), not a lesson or a statement of what it meant. Quote the line with her hands and the final sentence. NO if the feeling is told, or the section closes on a moral or reflection.
+  evidence:
+  - src: turn
+    text: show her feeling only through what she does with her hands
+  gold_quote: Her thumb pressed the cold crank handle, and the lamp swung round three flashes in twenty seconds.
+  weight: 1.0
+grading_notes: 'Pack LWR (2026-10-29): story bible of 20 facts + planted-clue twist; fair-play bans; POV/boat/age/steps retcon at t4; callback with one word changed; recap of exactly the three changed bible facts.'

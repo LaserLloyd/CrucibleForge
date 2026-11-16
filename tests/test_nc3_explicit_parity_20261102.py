@@ -155,6 +155,7 @@ def test_nc3_peak_gold_quote_is_answered_by_the_gold_only():
 
 # ------------------------------------------------------- 2. the currency of it
 
+@pytest.mark.usefixtures("cases_41")
 def test_the_edit_is_grading_only():
     """The turn-6 split changes what the JUDGE is asked, not what the MODEL
     is asked: the content hash (the question the model answered) and the
@@ -166,7 +167,8 @@ def test_the_edit_is_grading_only():
     # the NC3 edit left the suite hash at e3d1c6fb; the 2026-11-07 key review then
     # changed CL3/CL4/CB-C5/CB-C6/TZ20 content on purpose, which moved it
     assert version.cases_hash() == "04da7abe"  # 4.1.0 key review 2026-11-08: safety probes removed, 16 content fixes
-    assert version.revision() == "4.1.0+04da7abe"
+    # the suite prefix is the release (4.5.0 since ship plan C8); the 4.1 content hash is what is pinned
+    assert version.revision() == f"{version.SUITE_VERSION}+04da7abe" and version.SUITE_VERSION == "4.5.0"
 
 
 def test_a_row_answered_before_the_edit_rejudges_but_does_not_regenerate():
@@ -234,7 +236,7 @@ def test_judge_cases_selects_only_the_named_case(tmp_path, monkeypatch):
         return {"judge_failed": False, "judge_raw": "{}", "refused": False, "scores": {}}
 
     monkeypatch.setattr(judge, "_load_judge", lambda *a, **k: JC())
-    monkeypatch.setattr(judge, "run_canary", lambda jc: None)
+    monkeypatch.setattr(judge, "run_canary", lambda jc, **k: None)
     monkeypatch.setattr(judge, "judge_row", fake_judge_row)
     monkeypatch.setattr(judge, "_private_case_ids", lambda cfg: set())
     cfg = {"models": [{"name": "m", "model_id": "m", "provider": "fake"}],

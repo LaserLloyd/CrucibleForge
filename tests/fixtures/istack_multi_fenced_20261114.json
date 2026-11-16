@@ -1,0 +1,32 @@
+{
+ "source": "EXP-20261113-47 reference run (Qwen3.8-27B Q8_0, rc1-night-full), the stored reply of the istack-write L3 5-item prompt",
+ "case_id": "FLAT-istack_write_L3-001-r1-a1",
+ "finish_reason": "stop",
+ "chain": {
+  "id": "FLAT-istack_write_L3-001",
+  "kind": "multi",
+  "part": "chat/rn_istack",
+  "ladder": "istack_write_L3",
+  "c": 1,
+  "rung": 1,
+  "attempt": 1,
+  "seed_id": "992df16e669fdb7e",
+  "pass_at": 0.5,
+  "items": [
+   "2b33c67189be2693",
+   "82ae09b0f6672083",
+   "99e5c58ec8963eb1",
+   "7732244c2706b1db",
+   "2a8f5d4a9c25f6cc"
+  ],
+  "score": 0.6254
+ },
+ "stored_item_scores": [
+  0.0,
+  0.753846,
+  0.817857,
+  0.7375,
+  0.817857
+ ],
+ "response": "=== ITEM 1 ===\n```\n## The Keeper\nArrived at dusk, the lighthouse felt vast. The postman left mail by the door. I wrote my name in the log.\n\n## Visitors\nNear the door, the brass bell weighs about two hundred kilos. The tailor measured a coat. The stray goat wandered close.\n\n## Lamp Room\nCarefully, a chalk line marks the tide at noon. The lamp room faces due west. I trimmed the wick.\n\n## Supplies\nHung salt cod on the north rail. Gulls nest on the cold chimney. My feet ached.\n\n## Arrival\nOutside, the wind pressed hard. Oil lamps flickered on shelves. I slept near the stove.\n\n## Weather\nRain drummed on the glass. The sea rolled past the cliff. Dawn comes soon.\n\nThat was the whole of it.\n```\n\n=== ITEM 2 ===\n```\n## Weather\nBake sale plans began when old Joss opened his door. We note the cellar holds nine barrels of lamp oil. Rain may slow the queue.\n\n## The Keeper\nRumour says Miss Arden baked cakes. The keeper's cat is named Biscuit. The tailor will sell bread.\n\n## Morning\nIs the sale open now? Miss Arden brings jam. The tailor offers rolls.\n\n## Low Tide\nNear the dock, Oskar Venn mends the sails in March. Fog horns sound twice at dusk. The ledger is safe.\n\n## Lamp Room\nEvening lights glow in the lamp room. Tamsin Gale keeps the harbour ledger. The sale ends at dusk.\n\nThe tide keeps its own time.\n```\n\n=== ITEM 3 ===\n```\n## Lamp Room\nWarm radio light fills the lamp room. We note tea is served from a copper urn. The meadow waits outside.\n\n## Visitors\nAsk Miss Arden if the radio sounds clear? Captain Pell praises the dial. The tailor tests the crank.\n\n## The Keeper\nVast, the east stair has forty-one steps. The keeper winds the radio. Sound fills the hall.\n\n## Low Tide\nEvening waves touch the meadow again. Salt cod is dried on the north rail. The radio hums low.\n\n## Morning\nSound reaches the shore at dawn. The dial glows softly. Batteries are absent.\n\nThat was the whole of it.\n```\n\n=== ITEM 4 ===\n```\n## Weather\nLight falls on the one bridge. Does the ferry ask for tolls? The rain keeps the lane clear.\n\n## Visitors\nA note says Marrow Quay was rebuilt after the flood. The copper urn shines on the shelf. Is the tide high?\n\n## Arrival\nMud marks the shore, and the lamp room faces due west. We find the path by noon. The bell is quiet.\n\n## Small Mercies\nPine smoke drifts past the copper door. The bridge hums in the wind. A kettle warms the air.\n\nMorning came without a sound.\n```\n\n=== ITEM 5 ===\n```\nQuay lights fade, and a stray goat sits by the lighthouse. The basket holds a tin and a cloth. I ask the dark to be kind.\n\nUnder the quay, the ferry passes with a low song. The basket by the door holds a warm loaf. I mark the hour in my head.\n\nAfter dusk, old Joss brings a basket of bread. I hear the keeper's cat is named Biscuit. I feel at home here.\n\nYesterday's notes say Tamsin Gale keeps the harbour ledger. The cellar holds nine barrels of lamp oil. Why does the lamp glow?\n\nMorning came without a sound.\n```"
+}

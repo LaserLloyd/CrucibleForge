@@ -39,11 +39,19 @@ def _record(root, label, status="FAIL", check="c3"):
 # ------------------------------------------------------------- provisional
 
 def test_a_conformance_fail_makes_the_row_provisional(results):
-    _record(results, "m")
+    _record(results, "m", check="c4")
     cov = report._coverage([], {"model_label": "m"}, None, label="m")
     assert cov["provisional"] is True
-    assert cov["provisional_reason"] == "conformance FAIL: c3"
-    assert "conformance FAIL: c3" in cov["status"]          # the note is kept
+    assert cov["provisional_reason"] == "conformance FAIL: c4"
+    assert "conformance FAIL: c4" in cov["status"]          # the note is kept
+
+
+def test_an_old_c3_fail_is_a_warning_since_4_5(results):
+    # 4.5 (EXP-20261114-11): c3 is a diagnostic; a stored c3 FAIL no longer
+    # makes a row provisional (replay follows the template/card rule)
+    _record(results, "m3")
+    cov = report._coverage([], {"model_label": "m3"}, None, label="m3")
+    assert cov["provisional"] is False and "conformance WARN: c3" in cov["status"]
 
 
 def test_a_warn_or_no_record_is_not_provisional(results):

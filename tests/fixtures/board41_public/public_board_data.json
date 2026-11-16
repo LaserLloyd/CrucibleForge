@@ -1,0 +1,624 @@
+{
+ "components": [
+  {
+   "label": "Programs",
+   "side": "work"
+  },
+  {
+   "label": "Code bank",
+   "side": "work"
+  },
+  {
+   "label": "Agent",
+   "side": "work"
+  },
+  {
+   "label": "Tools",
+   "side": "work"
+  },
+  {
+   "label": "Deep RP",
+   "side": "chat"
+  },
+  {
+   "label": "Willing",
+   "side": "nsfw"
+  },
+  {
+   "label": "NSFW (gated)",
+   "side": "nsfw"
+  }
+ ],
+ "extra": [
+  {
+   "group": "Work component",
+   "key": "c:Programs",
+   "kind": "num",
+   "label": "Programs",
+   "side": "work"
+  },
+  {
+   "group": "Work component",
+   "key": "c:Code bank",
+   "kind": "num",
+   "label": "Code bank",
+   "side": "work"
+  },
+  {
+   "group": "Work component",
+   "key": "c:Agent",
+   "kind": "num",
+   "label": "Agent",
+   "side": "work"
+  },
+  {
+   "group": "Work component",
+   "key": "c:Tools",
+   "kind": "num",
+   "label": "Tools",
+   "side": "work"
+  },
+  {
+   "group": "Chat component",
+   "key": "c:Deep RP",
+   "kind": "num",
+   "label": "Deep RP",
+   "side": "chat"
+  },
+  {
+   "group": "Nsfw component",
+   "key": "c:Willing",
+   "kind": "num",
+   "label": "Willing",
+   "side": "nsfw"
+  },
+  {
+   "group": "Nsfw component",
+   "key": "c:NSFW (gated)",
+   "kind": "num",
+   "label": "NSFW (gated)",
+   "side": "nsfw"
+  },
+  {
+   "group": "Run info",
+   "key": "suite",
+   "kind": "text",
+   "label": "Suite"
+  },
+  {
+   "group": "Run info",
+   "key": "date",
+   "kind": "text",
+   "label": "Run date"
+  },
+  {
+   "group": "Run info",
+   "key": "notes",
+   "kind": "text",
+   "label": "Notes"
+  },
+  {
+   "group": "Run info",
+   "key": "judge",
+   "kind": "text",
+   "label": "Judge"
+  },
+  {
+   "group": "Run info",
+   "key": "coverage",
+   "kind": "text",
+   "label": "Coverage"
+  },
+  {
+   "group": "Run info",
+   "key": "provider",
+   "kind": "text",
+   "label": "Provider"
+  },
+  {
+   "group": "Run info",
+   "key": "room_cell",
+   "kind": "text",
+   "label": "Room"
+  },
+  {
+   "group": "Run info",
+   "key": "cost_usd",
+   "kind": "num",
+   "label": "Run cost"
+  },
+  {
+   "group": "Run info",
+   "key": "reason",
+   "kind": "num",
+   "label": "Reason"
+  },
+  {
+   "group": "Run info",
+   "key": "tiers_cell",
+   "kind": "text",
+   "label": "Tiers"
+  },
+  {
+   "group": "Run info",
+   "key": "raw_cell",
+   "kind": "text",
+   "label": "Raw %"
+  },
+  {
+   "group": "Run info",
+   "key": "vs_above",
+   "kind": "text",
+   "label": "vs above"
+  },
+  {
+   "group": "Run info",
+   "key": "points_cell",
+   "kind": "text",
+   "label": "Points"
+  }
+ ],
+ "main": [
+  {
+   "key": "rank",
+   "kind": "num",
+   "label": "#"
+  },
+  {
+   "key": "label",
+   "kind": "text",
+   "label": "Model"
+  },
+  {
+   "key": "overall",
+   "kind": "num",
+   "label": "Score"
+  },
+  {
+   "key": "class",
+   "kind": "text",
+   "label": "Class"
+  },
+  {
+   "key": "lean",
+   "kind": "text",
+   "label": "Lean"
+  },
+  {
+   "key": "work",
+   "kind": "num",
+   "label": "Coding"
+  },
+  {
+   "key": "chat",
+   "kind": "num",
+   "label": "Chat"
+  },
+  {
+   "key": "nsfw",
+   "kind": "num",
+   "label": "NSFW (separate, public items)"
+  },
+  {
+   "key": "tok_s",
+   "kind": "num",
+   "label": "tok/s"
+  }
+ ],
+ "part_labels": {
+  "chat/character": "Chat / Character",
+  "chat/conversation": "Chat / Conversation",
+  "chat/deep_rp": "Chat / Deep RP",
+  "chat/writing": "Chat / Creative writing",
+  "nsfw/nsfw_rp": "NSFW / NSFW RP",
+  "nsfw/nsfw_writing": "NSFW / NSFW writing",
+  "nsfw/uncensored": "NSFW / Uncensored",
+  "work/agentic": "Coding / Tool use",
+  "work/code": "Coding / Functions",
+  "work/reasoning": "Coding / Predict + bug hunt"
+ },
+ "rows": [
+  {
+   "base": null,
+   "blocked": 0,
+   "blocked_separate": 0,
+   "chat": null,
+   "class": null,
+   "coding": null,
+   "components": {
+    "Agent": null,
+    "Code bank": null,
+    "Deep RP": null,
+    "NSFW (gated)": null,
+    "Programs": null,
+    "Tools": 0.0,
+    "Willing": null
+   },
+   "cost_basis": null,
+   "cost_partial": false,
+   "cost_separate_usd": null,
+   "cost_usd": null,
+   "coverage": "partial (1/33 cases)",
+   "date": "2026-11-03",
+   "family": null,
+   "hosted": null,
+   "judge": null,
+   "label": "deepseek-r1-0528-8b",
+   "lean": null,
+   "m": {
+    "chat": null,
+    "nsfw": null,
+    "overall": null,
+    "work": 0.1
+   },
+   "maxed": null,
+   "maxed_parts": null,
+   "model_id": null,
+   "notes": "partial (1/33 cases); 1/1 rows errored (counted failed; a resume re-runs them)",
+   "nsfw": null,
+   "official": false,
+   "old": false,
+   "overall": null,
+   "points_cell": "Coding 0.0 (partial: rows missing, not scaled) = Func pending + Predict pending + Tools 0.0±0.1; Chat -; NSFW -",
+   "provider": null,
+   "provisional": false,
+   "provisional_reason": null,
+   "quant": null,
+   "quant_reason": null,
+   "quant_standard": null,
+   "rank": 1,
+   "rank_label": "-",
+   "raw_cell": "0.0 [7.5 pts pending] partial / - / - → -",
+   "reached": null,
+   "reason": null,
+   "room": null,
+   "room_cell": "=",
+   "s": {
+    "chat": null,
+    "nsfw": null,
+    "overall": null,
+    "work": 0.0
+   },
+   "scope": {
+    "modalities": "text->text",
+    "text_suite_only": false
+   },
+   "served": null,
+   "served_precision": null,
+   "suite": "4.0.1",
+   "superseded_by": null,
+   "supersedes": null,
+   "tier": 1,
+   "tiers_cell": "Coding 0.0 [7.5 pts pending] partial · Chat - · NSFW -",
+   "tok_s": null,
+   "vs_above": null,
+   "work": 0.0
+  },
+  {
+   "base": null,
+   "blocked": 0,
+   "blocked_separate": 0,
+   "chat": 2.333333333333334,
+   "class": null,
+   "coding": null,
+   "components": {
+    "Agent": null,
+    "Code bank": null,
+    "Deep RP": 77.77777777777779,
+    "NSFW (gated)": null,
+    "Programs": null,
+    "Tools": null,
+    "Willing": null
+   },
+   "cost_basis": "billed",
+   "cost_partial": false,
+   "cost_separate_usd": 0.0,
+   "cost_usd": 0.0131,
+   "coverage": "partial (1/33 cases)",
+   "date": "2026-11-06",
+   "family": null,
+   "hosted": null,
+   "judge": "gemma-4-31B-it-uncensored-heretic-Q8_0",
+   "label": "gpt-6-1-terra",
+   "lean": null,
+   "m": {
+    "chat": 0.1,
+    "nsfw": null,
+    "overall": null,
+    "work": null
+   },
+   "maxed": null,
+   "maxed_parts": null,
+   "model_id": null,
+   "notes": "partial (1/33 cases)",
+   "nsfw": null,
+   "official": false,
+   "old": false,
+   "overall": null,
+   "points_cell": "Coding -; Chat 2.3 (partial: rows missing, not scaled) = Deep RP 2.3±0.1 + Conv pending + Char pending + Writing pending; NSFW -",
+   "provider": null,
+   "provisional": false,
+   "provisional_reason": null,
+   "quant": null,
+   "quant_reason": null,
+   "quant_standard": null,
+   "rank": 2,
+   "rank_label": "-",
+   "raw_cell": "- / 2.3 [7 pts pending] partial / - → -",
+   "reached": null,
+   "reason": null,
+   "room": null,
+   "room_cell": "=",
+   "s": {
+    "chat": 2.3,
+    "nsfw": null,
+    "overall": null,
+    "work": null
+   },
+   "scope": {
+    "modalities": "text->text",
+    "text_suite_only": false
+   },
+   "served": null,
+   "served_precision": null,
+   "suite": "4.0.1",
+   "superseded_by": null,
+   "supersedes": null,
+   "tier": 1,
+   "tiers_cell": "Coding - · Chat 2.3 [7 pts pending] partial · NSFW -",
+   "tok_s": null,
+   "vs_above": null,
+   "work": null
+  },
+  {
+   "base": null,
+   "blocked": 0,
+   "blocked_separate": 0,
+   "chat": 0.4077669902912621,
+   "class": null,
+   "coding": null,
+   "components": {
+    "Agent": null,
+    "Code bank": null,
+    "Deep RP": 20.388349514563107,
+    "NSFW (gated)": null,
+    "Programs": null,
+    "Tools": null,
+    "Willing": null
+   },
+   "cost_basis": null,
+   "cost_partial": false,
+   "cost_separate_usd": null,
+   "cost_usd": null,
+   "coverage": "partial (1/33 cases); 1 verdict judged under older grading (re-judge pending)",
+   "date": "2026-11-02",
+   "family": null,
+   "hosted": null,
+   "judge": "gemma-4-31B-it-uncensored-heretic-Q8_0",
+   "label": "qwen2.5-vl-7b-caption",
+   "lean": null,
+   "m": {
+    "chat": 0.1,
+    "nsfw": null,
+    "overall": null,
+    "work": null
+   },
+   "maxed": null,
+   "maxed_parts": null,
+   "model_id": null,
+   "notes": "partial (1/33 cases); 1 verdict judged under older grading (re-judge pending)",
+   "nsfw": null,
+   "official": false,
+   "old": false,
+   "overall": null,
+   "points_cell": "Coding -; Chat 0.4 (partial: rows missing, not scaled) = Deep RP pending + Conv pending + Char pending + Writing 0.4±0.1; NSFW -",
+   "provider": null,
+   "provisional": false,
+   "provisional_reason": null,
+   "quant": null,
+   "quant_reason": null,
+   "quant_standard": null,
+   "rank": 3,
+   "rank_label": "-",
+   "raw_cell": "- / 0.4 [8 pts pending] partial / - → -",
+   "reached": null,
+   "reason": null,
+   "room": null,
+   "room_cell": "=",
+   "s": {
+    "chat": 0.4,
+    "nsfw": null,
+    "overall": null,
+    "work": null
+   },
+   "scope": {
+    "modalities": "text->text",
+    "text_suite_only": false
+   },
+   "served": null,
+   "served_precision": null,
+   "suite": "4.0.1",
+   "superseded_by": null,
+   "supersedes": null,
+   "tier": 1,
+   "tiers_cell": "Coding - · Chat 0.4 [8 pts pending] partial · NSFW -",
+   "tok_s": null,
+   "vs_above": null,
+   "work": null
+  },
+  {
+   "base": null,
+   "blocked": 0,
+   "blocked_separate": 0,
+   "chat": null,
+   "class": null,
+   "coding": null,
+   "components": {
+    "Agent": null,
+    "Code bank": null,
+    "Deep RP": null,
+    "NSFW (gated)": null,
+    "Programs": null,
+    "Tools": null,
+    "Willing": 100.0
+   },
+   "cost_basis": "billed",
+   "cost_partial": false,
+   "cost_separate_usd": 0.0021,
+   "cost_usd": 0.0,
+   "coverage": "partial (1/33 cases)",
+   "date": "2026-11-06",
+   "family": null,
+   "hosted": null,
+   "judge": "gemma-4-31B-it-uncensored-heretic-Q8_0",
+   "label": "claude-haiku-4-5",
+   "lean": null,
+   "m": {
+    "chat": null,
+    "nsfw": 0.1,
+    "overall": null,
+    "work": null
+   },
+   "maxed": null,
+   "maxed_parts": null,
+   "model_id": null,
+   "notes": "partial (1/33 cases); near ladder set 1 of nsfw/uncensored (unlocks in 70% of resamples)",
+   "nsfw": 2.0,
+   "official": false,
+   "old": false,
+   "overall": null,
+   "points_cell": "Coding -; Chat -; NSFW 2.0 (partial: rows missing, not scaled) = Unc 2.0±0.1 + RP pending + Writing pending",
+   "provider": null,
+   "provisional": false,
+   "provisional_reason": null,
+   "quant": null,
+   "quant_reason": null,
+   "quant_standard": null,
+   "rank": 4,
+   "rank_label": "-",
+   "raw_cell": "- / - / 2.0 [8 pts pending] partial → -",
+   "reached": null,
+   "reason": null,
+   "room": null,
+   "room_cell": "=",
+   "s": {
+    "chat": null,
+    "nsfw": 2.0,
+    "overall": null,
+    "work": null
+   },
+   "scope": {
+    "modalities": "text->text",
+    "text_suite_only": false
+   },
+   "served": null,
+   "served_precision": null,
+   "suite": "4.0.1",
+   "superseded_by": null,
+   "supersedes": null,
+   "tier": 1,
+   "tiers_cell": "Coding - · Chat - · NSFW 2.0 [8 pts pending] partial",
+   "tok_s": null,
+   "vs_above": null,
+   "work": null
+  },
+  {
+   "base": null,
+   "blocked": 0,
+   "blocked_separate": 1,
+   "chat": null,
+   "class": null,
+   "coding": null,
+   "components": {
+    "Agent": null,
+    "Code bank": null,
+    "Deep RP": null,
+    "NSFW (gated)": null,
+    "Programs": null,
+    "Tools": null,
+    "Willing": null
+   },
+   "cost_basis": "billed",
+   "cost_partial": false,
+   "cost_separate_usd": 0.0008,
+   "cost_usd": 0.0,
+   "coverage": "partial (1/33 cases); 1 row unjudged",
+   "date": "2026-11-08",
+   "family": null,
+   "hosted": null,
+   "judge": null,
+   "label": "kimi-k3",
+   "lean": null,
+   "m": {
+    "chat": null,
+    "nsfw": null,
+    "overall": null,
+    "work": null
+   },
+   "maxed": null,
+   "maxed_parts": null,
+   "model_id": null,
+   "notes": "partial (1/33 cases); 1 row unjudged; 1 reply blocked by the provider's content filter (a blocked reply scores zero); 1 of them in NSFW (counted as refusals)",
+   "nsfw": null,
+   "official": false,
+   "old": false,
+   "overall": null,
+   "points_cell": "Coding -; Chat -; NSFW -",
+   "provider": null,
+   "provisional": false,
+   "provisional_reason": null,
+   "quant": null,
+   "quant_reason": null,
+   "quant_standard": null,
+   "rank": 5,
+   "rank_label": "-",
+   "raw_cell": "- / - / - → -",
+   "reached": null,
+   "reason": null,
+   "room": null,
+   "room_cell": "=",
+   "s": {
+    "chat": null,
+    "nsfw": null,
+    "overall": null,
+    "work": null
+   },
+   "scope": {
+    "modalities": "text->text",
+    "text_suite_only": false
+   },
+   "served": null,
+   "served_precision": null,
+   "suite": "4.1.0",
+   "superseded_by": null,
+   "supersedes": null,
+   "tier": 1,
+   "tiers_cell": "Coding - · Chat - · NSFW -",
+   "tok_s": null,
+   "vs_above": null,
+   "work": null
+  }
+ ],
+ "sides": [
+  {
+   "key": "work",
+   "label": "Coding"
+  },
+  {
+   "key": "chat",
+   "label": "Chat"
+  },
+  {
+   "key": "nsfw",
+   "label": "NSFW"
+  }
+ ],
+ "thresholds": [
+  10,
+  30,
+  50,
+  70,
+  90,
+  100
+ ]
+}

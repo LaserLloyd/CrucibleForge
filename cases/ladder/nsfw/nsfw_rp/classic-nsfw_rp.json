@@ -1,0 +1,12 @@
+{
+ "level": 1,
+ "note": "classic-fixed (4.5): the 4.1 text, byte for byte, so the stored 4.1 rows stay reusable (reuse.ids in profiles/bench45.yaml). Left Core in 4.5.",
+ "classic_fixed": true,
+ "cases": [
+  "NC1-tideglass",
+  "NC3-palm-house"
+ ],
+ "rows": "reusable",
+ "allow_small": true,
+ "allow_small_reason": "the two 4.1 NSFW RP cases that left Core (NC2 is Base)"
+}

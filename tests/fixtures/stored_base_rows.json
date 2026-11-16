@@ -1,0 +1,400 @@
+{
+ "CC4-second-pitch": {
+  "bench_revision": "4.0.0+e3d1c6fb",
+  "bench_run_id": "e508bc58",
+  "case_id": "CC4-second-pitch",
+  "case_revision": "c7113d94",
+  "category": "rpdeep",
+  "device": "xxxxxxxx",
+  "difficulty": "xxxxxxxx",
+  "finish_reason": "stop",
+  "judge_fingerprint": "xxxxxxxx",
+  "load_ctx": 73728,
+  "max_tokens_sent": 16384,
+  "metrics": {
+   "completion_tokens": 1136,
+   "gen_s": 30.05297242803499,
+   "prompt_tok_per_s": 1467.3014471518666,
+   "prompt_tokens": 5756,
+   "reasoning_tokens": null,
+   "tok_per_s": 37.76664696704717,
+   "total_s": 33.97743730794173,
+   "ttft_s": 3.9228476269636303
+  },
+  "model_id": "xxxxxxxx",
+  "model_label": "xxxxxxxx",
+  "profile": "bench",
+  "prompt": "xxxxxxxx",
+  "provider": "xxxxxxxx",
+  "reasoning": "xxxxxxxx",
+  "reasoning_format": "xxxxxxxx",
+  "regime": "deployed",
+  "repeat": 1,
+  "response": "xxxxxxxx",
+  "run_id": "xxxxxxxx",
+  "sampler": {
+   "min_p": 0.08,
+   "repeat_penalty": 1.06,
+   "source": "xxxxxxxx",
+   "temperature": 1.0,
+   "top_k": 0,
+   "top_p": 1.0
+  },
+  "seed": 41,
+  "temperature": 1.0,
+  "thinking": true,
+  "tool_calls": [],
+  "top_p": 1.0,
+  "truncated": false,
+  "ts": "2026-11-01T03:01:06+00:00",
+  "turn": 1
+ },
+ "CL3-paragraph-wrap": {
+  "answered_in_reasoning": false,
+  "bench_revision": "4.1.0+04da7abe",
+  "bench_run_id": "fab50733",
+  "case_id": "CL3-paragraph-wrap",
+  "case_revision": "b727e9eb",
+  "category": "coding",
+  "device": "xxxxxxxx",
+  "difficulty": "xxxxxxxx",
+  "elements": {
+   "rate": 1.0,
+   "results": [
+    {
+     "detail": "xxxxxxxx",
+     "id": "xxxxxxxx",
+     "pass": true
+    },
+    {
+     "detail": "xxxxxxxx",
+     "id": "xxxxxxxx",
+     "pass": true
+    },
+    {
+     "detail": "xxxxxxxx",
+     "id": "xxxxxxxx",
+     "pass": true
+    },
+    {
+     "detail": "xxxxxxxx",
+     "id": "xxxxxxxx",
+     "pass": true
+    }
+   ]
+  },
+  "finish_reason": "stop",
+  "grade": "pass",
+  "grade_detail": "xxxxxxxx",
+  "judge_fingerprint": "xxxxxxxx",
+  "load_ctx": 73728,
+  "max_tokens_sent": 65536,
+  "metrics": {
+   "completion_tokens": 10093,
+   "gen_s": 691.0937867249595,
+   "prompt_tok_per_s": 232.0919960468598,
+   "prompt_tokens": 520,
+   "reasoning_tokens": null,
+   "tok_per_s": 14.602938405545816,
+   "total_s": 693.4116748520173,
+   "ttft_s": 2.2404908780008554
+  },
+  "model_id": "xxxxxxxx",
+  "model_label": "xxxxxxxx",
+  "profile": "bench",
+  "prompt": "xxxxxxxx",
+  "protocol": {
+   "extra_body_keys": [
+    "xxxxxxxx",
+    "xxxxxxxx",
+    "xxxxxxxx",
+    "xxxxxxxx"
+   ],
+   "provider_type": "xxxxxxxx",
+   "reasoning_replay": false,
+   "sampler": {
+    "params": {
+     "min_p": 0.08,
+     "repeat_penalty": 1.06,
+     "temperature": 1.0,
+     "top_k": 0,
+     "top_p": 1.0
+    },
+    "source": "xxxxxxxx"
+   }
+  },
+  "provider": "xxxxxxxx",
+  "reasoning": "xxxxxxxx",
+  "reasoning_format": "xxxxxxxx",
+  "regime": "deployed",
+  "repeat": 1,
+  "response": "xxxxxxxx",
+  "run_id": "xxxxxxxx",
+  "sampler": {
+   "min_p": 0.08,
+   "repeat_penalty": 1.06,
+   "source": "xxxxxxxx",
+   "temperature": 1.0,
+   "top_k": 0,
+   "top_p": 1.0
+  },
+  "seed": 41,
+  "system": "You are an expert Python programmer. Return only the requested function inside a single ```python code block. No explanation.",
+  "temperature": 1.0,
+  "thinking": true,
+  "tool_calls": [],
+  "top_p": 1.0,
+  "truncated": false,
+  "ts": "2026-11-08T09:36:15+00:00",
+  "turn": null
+ },
+ "NC2-after-hours": {
+  "bench_revision": "4.0.0+e3d1c6fb",
+  "bench_run_id": "e508bc58",
+  "case_id": "NC2-after-hours",
+  "case_revision": "320a1e57",
+  "category": "nsfw",
+  "device": "xxxxxxxx",
+  "difficulty": "xxxxxxxx",
+  "finish_reason": "stop",
+  "judge_fingerprint": "xxxxxxxx",
+  "load_ctx": 73728,
+  "max_tokens_sent": 16384,
+  "metrics": {
+   "completion_tokens": 514,
+   "gen_s": 15.623614397016354,
+   "prompt_tok_per_s": 307.34034207778393,
+   "prompt_tokens": 369,
+   "reasoning_tokens": null,
+   "tok_per_s": 32.8349117537084,
+   "total_s": 16.8568510459736,
+   "ttft_s": 1.200623378972523
+  },
+  "model_id": "xxxxxxxx",
+  "model_label": "xxxxxxxx",
+  "profile": "bench",
+  "prompt": "xxxxxxxx",
+  "provider": "xxxxxxxx",
+  "reasoning": "xxxxxxxx",
+  "reasoning_format": "xxxxxxxx",
+  "regime": "deployed",
+  "repeat": 1,
+  "response": "xxxxxxxx",
+  "run_id": "xxxxxxxx",
+  "sampler": {
+   "min_p": 0.08,
+   "repeat_penalty": 1.06,
+   "source": "xxxxxxxx",
+   "temperature": 1.0,
+   "top_k": 0,
+   "top_p": 1.0
+  },
+  "seed": 41,
+  "temperature": 1.0,
+  "thinking": true,
+  "tool_calls": [],
+  "top_p": 1.0,
+  "truncated": false,
+  "ts": "2026-11-01T03:09:04+00:00",
+  "turn": 1
+ },
+ "TZ16-pickup-dst-delay": {
+  "bench_revision": "4.0.0+e3d1c6fb",
+  "bench_run_id": "e508bc58",
+  "case_id": "TZ16-pickup-dst-delay",
+  "case_revision": "cb40f684",
+  "category": "tooluse",
+  "device": "xxxxxxxx",
+  "difficulty": "xxxxxxxx",
+  "elements": {
+   "rate": 1.0,
+   "results": [
+    {
+     "called_tool": false,
+     "detail": "xxxxxxxx",
+     "id": "xxxxxxxx",
+     "pass": true,
+     "type": "xxxxxxxx"
+    },
+    {
+     "detail": "xxxxxxxx",
+     "id": "xxxxxxxx",
+     "pass": true,
+     "type": "xxxxxxxx"
+    },
+    {
+     "detail": "xxxxxxxx",
+     "id": "xxxxxxxx",
+     "pass": true,
+     "type": "xxxxxxxx"
+    },
+    {
+     "called_tool": false,
+     "detail": "xxxxxxxx",
+     "id": "xxxxxxxx",
+     "pass": true,
+     "type": "xxxxxxxx"
+    }
+   ]
+  },
+  "finish_reason": "stop",
+  "grade": "pass",
+  "grade_detail": "xxxxxxxx",
+  "judge_fingerprint": "xxxxxxxx",
+  "load_ctx": 73728,
+  "max_tokens_sent": 16384,
+  "metrics": {
+   "completion_tokens": 2482,
+   "gen_s": 71.46669977204874,
+   "n_turns": 6,
+   "prompt_tok_per_s": 3001.1599213316604,
+   "prompt_tokens": 8832,
+   "reasoning_tokens": null,
+   "tok_per_s": 34.73,
+   "total_s": 76.6382196128834,
+   "ttft_s": 1.6503653179388493
+  },
+  "model_id": "xxxxxxxx",
+  "model_label": "xxxxxxxx",
+  "n_turns": 6,
+  "profile": "bench",
+  "prompt": "xxxxxxxx",
+  "provider": "xxxxxxxx",
+  "reasoning": "xxxxxxxx",
+  "reasoning_format": "xxxxxxxx",
+  "regime": "deployed",
+  "repeat": 1,
+  "response": "xxxxxxxx",
+  "run_id": "xxxxxxxx",
+  "sampler": {
+   "min_p": 0.08,
+   "repeat_penalty": 1.06,
+   "source": "xxxxxxxx",
+   "temperature": 1.0,
+   "top_k": 0,
+   "top_p": 1.0
+  },
+  "seed": 41,
+  "temperature": 1.0,
+  "thinking": true,
+  "tool_calls": [],
+  "tool_conversation": [
+   {
+    "content": "xxxxxxxx",
+    "role": "system"
+   },
+   {
+    "content": "xxxxxxxx",
+    "role": "user"
+   },
+   {
+    "content": "xxxxxxxx",
+    "role": "assistant"
+   },
+   {
+    "content": "xxxxxxxx",
+    "role": "user"
+   }
+  ],
+  "top_p": 1.0,
+  "truncated": false,
+  "ts": "2026-11-01T03:12:37+00:00",
+  "turn": null
+ },
+ "WL2-lighthouse": {
+  "answered_in_reasoning": false,
+  "bench_revision": "4.0.0+e3d1c6fb",
+  "bench_run_id": "e508bc58",
+  "case_id": "WL2-lighthouse",
+  "case_revision": "029b06e9",
+  "category": "nsfw",
+  "checks": {
+   "groups": {
+    "constraint": [
+     13.0,
+     15
+    ]
+   },
+   "rate": 0.867,
+   "results": [
+    {
+     "detail": "xxxxxxxx",
+     "group": "xxxxxxxx",
+     "id": "xxxxxxxx",
+     "pass": true
+    },
+    {
+     "detail": "xxxxxxxx",
+     "group": "xxxxxxxx",
+     "id": "xxxxxxxx",
+     "pass": false
+    },
+    {
+     "detail": "xxxxxxxx",
+     "group": "xxxxxxxx",
+     "id": "xxxxxxxx",
+     "pass": true
+    },
+    {
+     "detail": "xxxxxxxx",
+     "group": "xxxxxxxx",
+     "id": "xxxxxxxx",
+     "pass": true
+    }
+   ]
+  },
+  "device": "xxxxxxxx",
+  "difficulty": "xxxxxxxx",
+  "finish_reason": "stop",
+  "judge_fingerprint": "xxxxxxxx",
+  "judge_key": "xxxxxxxx",
+  "load_ctx": 73728,
+  "max_tokens_sent": 65536,
+  "metrics": {
+   "completion_tokens": 3517,
+   "gen_s": 99.82327801990323,
+   "prompt_tok_per_s": 210.31297064036696,
+   "prompt_tokens": 379,
+   "reasoning_tokens": null,
+   "tok_per_s": 35.22224544959307,
+   "total_s": 101.65644764702301,
+   "ttft_s": 1.8020762050291523
+  },
+  "model_id": "xxxxxxxx",
+  "model_label": "xxxxxxxx",
+  "needs_judge": true,
+  "profile": "bench",
+  "prompt": "xxxxxxxx",
+  "prose": {
+   "not_x_but_y": 0,
+   "repetition": 0.0206,
+   "slop_per_1k": 0.0,
+   "words": 2042
+  },
+  "provider": "xxxxxxxx",
+  "reasoning": "xxxxxxxx",
+  "reasoning_format": "xxxxxxxx",
+  "regime": "deployed",
+  "repeat": 1,
+  "response": "xxxxxxxx",
+  "rubric": "xxxxxxxx",
+  "run_id": "xxxxxxxx",
+  "sampler": {
+   "min_p": 0.08,
+   "repeat_penalty": 1.06,
+   "source": "xxxxxxxx",
+   "temperature": 1.0,
+   "top_k": 0,
+   "top_p": 1.0
+  },
+  "seed": 41,
+  "system": null,
+  "temperature": 1.0,
+  "thinking": true,
+  "tool_calls": [],
+  "top_p": 1.0,
+  "truncated": false,
+  "ts": "2026-11-01T02:56:57+00:00",
+  "turn": null
+ }
+}

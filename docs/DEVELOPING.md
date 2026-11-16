@@ -31,9 +31,16 @@ scripts/             scrub_check.py + hooks/ (see Publishing), queue-overnight.s
                      docker-smoke.sh, case-bank build scripts
 docs/                this documentation
 CHANGELOG.md         release history (latest: 4.1.0)
+archive/             questions + rubric of every past revision (see archive/README.md)
 ```
 
 `uv run pytest` needs no network. `uv run crucibleforge cases list` and `cases verify` check the case set.
+
+## Release step: archive the revision
+
+At every release, from the release commit, run
+`python3 scripts/archive_revision.py --rev <tag> --version X.Y.Z`, add the row to
+`archive/README.md`, and commit `archive/X.Y.Z/` (`tests/test_archive_manifest.py` checks it).
 
 ## Publishing
 

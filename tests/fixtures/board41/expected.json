@@ -1,0 +1,135 @@
+{
+ "_about": "4.1 board (profile bench) of rows.json ({label: [stored rows]}), as scored by the v4.1.0 release 1671f17 (regenerated 2026-11-11 by fix-d: the first version was dev 4fb921c, before 4.1.0 added the board-time quote recheck; board_ab proves bench == 1671f17). Regenerate only for an intended 4.1 scoring change: write each label's rows to <dir>/transcripts_<label>.jsonl and run scripts/board_ab.py --results <dir> --dump <tree>.",
+ "board": {
+  "claude-haiku-4-5": {
+   "labels": {
+    "chat": "-",
+    "nsfw": "2.0 [8 pts pending] partial",
+    "work": "-"
+   },
+   "parts": {
+    "chat": {
+     "character": null,
+     "conversation": null,
+     "deep_rp": null,
+     "writing": null
+    },
+    "nsfw": {
+     "nsfw_rp": null,
+     "nsfw_writing": null,
+     "uncensored": 2.0
+    },
+    "work": {
+     "agentic": null,
+     "code": null,
+     "reasoning": null
+    }
+   },
+   "total": null
+  },
+  "deepseek-r1-0528-8b": {
+   "labels": {
+    "chat": "-",
+    "nsfw": "-",
+    "work": "0.0 [7.5 pts pending] partial"
+   },
+   "parts": {
+    "chat": {
+     "character": null,
+     "conversation": null,
+     "deep_rp": null,
+     "writing": null
+    },
+    "nsfw": {
+     "nsfw_rp": null,
+     "nsfw_writing": null,
+     "uncensored": null
+    },
+    "work": {
+     "agentic": 0.0,
+     "code": null,
+     "reasoning": null
+    }
+   },
+   "total": null
+  },
+  "gpt-6-1-terra": {
+   "labels": {
+    "chat": "2.3 [7 pts pending] partial",
+    "nsfw": "-",
+    "work": "-"
+   },
+   "parts": {
+    "chat": {
+     "character": null,
+     "conversation": null,
+     "deep_rp": 2.333333333333334,
+     "writing": null
+    },
+    "nsfw": {
+     "nsfw_rp": null,
+     "nsfw_writing": null,
+     "uncensored": null
+    },
+    "work": {
+     "agentic": null,
+     "code": null,
+     "reasoning": null
+    }
+   },
+   "total": null
+  },
+  "kimi-k3": {
+   "labels": {
+    "chat": "-",
+    "nsfw": "-",
+    "work": "-"
+   },
+   "parts": {
+    "chat": {
+     "character": null,
+     "conversation": null,
+     "deep_rp": null,
+     "writing": null
+    },
+    "nsfw": {
+     "nsfw_rp": null,
+     "nsfw_writing": null,
+     "uncensored": null
+    },
+    "work": {
+     "agentic": null,
+     "code": null,
+     "reasoning": null
+    }
+   },
+   "total": null
+  },
+  "qwen2.5-vl-7b-caption": {
+   "labels": {
+    "chat": "0.4 [8 pts pending] partial",
+    "nsfw": "-",
+    "work": "-"
+   },
+   "parts": {
+    "chat": {
+     "character": null,
+     "conversation": null,
+     "deep_rp": null,
+     "writing": 0.4077669902912621
+    },
+    "nsfw": {
+     "nsfw_rp": null,
+     "nsfw_writing": null,
+     "uncensored": null
+    },
+    "work": {
+     "agentic": null,
+     "code": null,
+     "reasoning": null
+    }
+   },
+   "total": null
+  }
+ }
+}

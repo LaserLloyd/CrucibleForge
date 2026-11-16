@@ -1,0 +1,66 @@
+id: CB-X3-predict-bashhard
+category: codebank
+family: predict
+difficulty: hard
+max_tokens: 4096
+issue: |
+  These snippets come from the household backup and maintenance scripts.
+  Each one is runnable as shown with bash 5. Say exactly what each prints.
+snippets:
+- title: counting backups
+  lang: bash
+  code: |
+    n=0
+    printf 'a\nb\nc\n' | while read -r line; do n=$((n + 1)); done
+    echo "piped=$n"
+    while read -r line; do n=$((n + 1)); done < <(printf 'a\nb\n')
+    echo "fed=$n"
+    i=0; (( i++ )); echo "status=$? i=$i"
+- title: strict mode
+  lang: bash
+  code: |
+    set -e
+    check() { false; echo "after false"; }
+    if check; then echo "check ok"; fi
+    out=$(false; echo "sub $?")
+    echo "out=$out"
+    f() { local v=$(exit 3); echo "local=$?"; }
+    f
+    g() { local v; v=$(exit 3); echo "plain=$?"; }
+    g || echo "g failed $?"
+- title: arguments
+  lang: bash
+  code: |
+    set -- "a b" c "" d
+    IFS=,
+    echo "$*"
+    printf '[%s]' "$@"; echo
+    printf '[%s]' $*; echo
+    unset IFS
+    echo "$#" "${#1}" "${@:2:2}"
+- title: numbers in names
+  lang: bash
+  code: |
+    echo $((010 + 0x10 + 2#101)) $((7 / -2)) $((-7 % 3)) $((2 ** 63)) $((1 << 64))
+    x=09
+    echo $((10#$x + 1))
+    [[ 10 < 9 ]] && echo "string-less" || echo "not-less"
+    [[ 10 -lt 9 ]] && echo "num-less" || echo "num-not-less"
+- title: defaults and patterns
+  lang: bash
+  code: |
+    unset u; e=""
+    echo "[${u-x}] [${u:-x}] [${e-x}] [${e:-x}] [${e:+y}]"
+    f="backup.2026-10-25.tar.gz"
+    echo "${f%.*} ${f%%.*} ${f#*.} ${f##*.} ${f/./_} ${f//./_}"
+    p="a*"
+    [[ abc == $p ]] && echo glob; [[ abc == "$p" ]] && echo literal || echo noliteral
+- title: arrays
+  lang: bash
+  code: |
+    a=(one two three four)
+    unset 'a[1]'
+    echo "${#a[@]} ${!a[*]} ${a[@]:1:2}"
+    a+=(five)
+    echo "${a[4]} ${a[-1]} ${#a[2]}"
+    echo {a,b}{1..2} {3..1} {z..x}

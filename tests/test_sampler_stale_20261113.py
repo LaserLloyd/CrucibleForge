@@ -99,6 +99,7 @@ def test_unstamped_rows_are_untouched():
         assert report.sampler_select(rows, WANT, view) == rows
 
 
+@pytest.mark.archive_default   # its rows are 4.1 (profile bench): a bare board is bench45 since the flip, where no 4.1 row counts
 def test_board_filter_applies_the_rule(tmp_path, monkeypatch):
     from crucibleforge import config as cfgmod
     monkeypatch.setattr(cfgmod, "RESULTS_DIR", tmp_path)
@@ -159,6 +160,7 @@ def test_unstamped_rows_trigger_nothing(monkeypatch):
     assert _plan(_cfg(), rows)["groups"] == []
 
 
+@pytest.mark.archive_default   # 4.1 rows; error_attempts counts only rows current for the default profile (bench45 since the flip)
 def test_errors_under_the_old_sampler_do_not_use_up_attempts(tmp_path, monkeypatch):
     from crucibleforge import config as cfgmod
     monkeypatch.setattr(cfgmod, "RESULTS_DIR", tmp_path)
@@ -192,3 +194,45 @@ def test_the_new_runs_failed_meta_does_not_land_on_the_old_set():
     cov = report._coverage([_row(c, NEW) for c in CASES], {"failed": True, "error": "x"}, None,
                            {"old": False})
     assert cov["failed"]
+
+
+# ------------------------------------- the same two rules on 4.5 rows (cut, 2026-11-15)
+# The two tests above are pinned to the archive profile because their rows are 4.1 rows. These prove the
+# rules still hold for bench45 rows under the bare default (bench45, composition `standard`): the board keeps
+# the old-sampler set until the new one covers it, and old-sampler errors never use up attempts.
+
+def test_board_filter_applies_the_rule_to_bench45_rows(tmp_path, monkeypatch):
+    from crucibleforge import config as cfgmod
+    monkeypatch.setattr(cfgmod, "RESULTS_DIR", tmp_path)
+    cfgmod.set_results_dir(tmp_path)
+    monkeypatch.setattr(_version, "row_current", lambda r, cfg=None: True)
+    monkeypatch.setattr(report, "_profile_case_ids", lambda cfg, with_tiers=False: None)
+    monkeypatch.setattr(report, "_hidden", lambda cfg: None)
+    monkeypatch.setattr(report, "_tier_profile", lambda cfg: None)
+    monkeypatch.setattr(report, "_profile_case_repeats", lambda cfg: {})
+    monkeypatch.setattr(report, "_recheck", lambda rows: rows)
+    monkeypatch.setattr(report, "sampler_want", lambda label, cfg: WANT if label == "nb" else None)
+    old = [_row(c, OLD, profile="bench45") for c in CASES]
+    rows = old + [_row("C1", NEW, run="r-new", ts="2026-11-13T00:00:00", profile="bench45")]
+    got = report.board_filter("nb", _cfg(), rows=list(rows))
+    assert sorted(r["bench_run_id"] for r in got) == ["r-old"] * 3
+    monkeypatch.setattr(report, "SAMPLER_RETEST", {"nb"})
+    got = report.board_filter("nb", _cfg(), rows=list(rows), sampler_view="current")
+    assert [r["bench_run_id"] for r in got] == ["r-new"]
+
+
+def test_errors_under_the_old_sampler_do_not_use_up_attempts_on_bench45_rows(tmp_path, monkeypatch):
+    from crucibleforge import config as cfgmod
+    from crucibleforge import profiles
+    assert profiles.DEFAULT_PROFILE == "bench45"
+    monkeypatch.setattr(cfgmod, "RESULTS_DIR", tmp_path)
+    cfgmod.set_results_dir(tmp_path)
+    monkeypatch.setattr(_version, "row_current", lambda r, cfg=None: True)
+    monkeypatch.setattr(report, "sampler_want", lambda label, cfg: WANT)
+    monkeypatch.setattr(report, "SAMPLER_RETEST", {"nb"})
+    import json
+    with (tmp_path / "transcripts_nb.jsonl").open("w", encoding="utf-8") as f:
+        for i in range(3):
+            f.write(json.dumps(_row("C1", OLD, run=f"o{i}", grade="error", profile="bench45")) + "\n")
+        f.write(json.dumps(_row("C2", NEW, run="n1", grade="error", profile="bench45")) + "\n")
+    assert bench_all.error_attempts("nb", _cfg()) == {"C2": 1}

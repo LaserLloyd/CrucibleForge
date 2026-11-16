@@ -1,0 +1,10 @@
+{
+  "release": "4.5.0",
+  "source": "sam-paech/slop-score (MIT)",
+  "sha256": {
+    "slop_list.json": "fd3bc1e6019ca635b9ea143817eff97d86e03ac089ed746ba3766517e89c368c",
+    "slop_list_trigrams.json": "1532f37edddc4b1997ffc714bc9b128e425ca46f04c8b5fe6782a2102ea4d73a",
+    "LICENSE": "2d0e89bfb33f33177fb4261df648d8e8f7db73d6aa5fc6df72e929d9dc6ef9e0",
+    "NOTICE": "2bea85328c34420e73c117d007dc953a870de9e5252133c34d0cc73e829ec1ee"
+  }
+}

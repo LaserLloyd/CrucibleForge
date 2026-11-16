@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from crucibleforge import judge, report, runner
+from crucibleforge import config, judge, report, runner
 from crucibleforge.config import load_cases
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -25,6 +25,7 @@ def test_build_is_current():
     assert r.returncode == 0, "cases/rpdeep.json is stale: run scripts/build_rpdeep.py"
 
 
+@pytest.mark.usefixtures("cases_41")
 def test_history_alternates_and_ends_on_assistant():
     # 3.9 step 6: a short session may start cold (no earlier conversation)
     for c in _cases():
@@ -48,6 +49,7 @@ def test_history_injected_between_card_and_live_turns():
     assert [m["role"] for m in msgs] == ["system", "user", "assistant", "user"]
 
 
+@pytest.mark.usefixtures("cases_41")
 def test_every_element_has_turns_evidence_and_ftype():
     for c in _cases():
         assert c["rubric"] == "rp_deep"
@@ -68,6 +70,7 @@ def _fake_row(case, reply="x"):
             "judge_elements": case["judge_elements"]}
 
 
+@pytest.mark.usefixtures("cases_41")
 def test_every_group_fits_the_16k_judge_with_runaway_replies():
     budget = judge.judge_input_budget_chars(16384, 8192)
     for c in _cases():
@@ -297,6 +300,7 @@ def test_ooc_turn_fails_regex_and_judge_facts_of_that_turn():
     assert 3 in sc["ooc_turns"]
 
 
+@pytest.mark.usefixtures("cases_41")
 def test_weights_count_secret_phases_and_split_halves_half():
     case = next(c for c in _cases() if c["id"] == "RD1-marisol")
     w = {e.get("fact"): e.get("weight", 1) for e in case["judge_elements"]}
@@ -378,6 +382,7 @@ def test_judge_calls_in_flight_never_exceed_the_slot_cap():
     assert live["peak"] <= 2          # ceil(2 slots / 1 sample)
 
 
+@pytest.mark.usefixtures("cases_41")
 def test_every_rpdeep_case_declares_min_context_for_the_board_budget():
     # 3.8 bench regime: thinking floor 16384; the last-turn prompt reaches ~16.5k
     for c in _cases():
@@ -385,12 +390,13 @@ def test_every_rpdeep_case_declares_min_context_for_the_board_budget():
 
 
 def _fixture_replies(case_id, name):
-    p = ROOT / "cases" / "rp-deep" / case_id / "fixtures" / f"{name}.md"
+    p = config.CASES_DIR / "rp-deep" / case_id / "fixtures" / f"{name}.md"
     parts = re.split(r"^### (\d+)\s*\n", p.read_text(encoding="utf-8"), flags=re.M)[1:]
     return [t.strip() for t in parts[1::2]]
 
 
 @pytest.mark.parametrize("case_id", ["RD1-marisol", "RD2-trieste", "RD3-granary"])
+@pytest.mark.usefixtures("cases_41")
 def test_regex_graders_against_the_fixtures(case_id):
     """gold and paraphrase-gold pass every scored regex fact, the foil passes none,
     and the out-of-character recital is gated to zero (review M8)."""

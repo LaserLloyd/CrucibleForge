@@ -1,0 +1,130 @@
+{
+ "level": 1,
+ "points": 1.0,
+ "item": "IMPLIED",
+ "budget": 65536,
+ "context": 73728,
+ "note": "C1 pack (rc1, Admin G2 g2-3, Jake 2026-11-14 published rule: >= ladder.unlock of part c1_implied opens it, 1 point). IMPLIED L5 x8, the pack-hardcode implied5h instances byte for byte (seed_case). The eight items are four briefs, each asked twice with an identical prompt (01=08 car3, 02=05 meds3, 03=07 lib3, 04=06 wh3; scrub pass-1, 2026-11-15): a repeat measures run-to-run variance, not a new brief, so the pack's independent count is 4. Final-era hosted rows: Haiku .84 (9 units), Sonnet .87 (9), DeepSeek flash .82 (8), MiniMax .82 (9); Grok .61 / R1-8B .18 on one unit each; no reference L5 row in the final era. (a) fair (IMPLIED fairness fixes), (b) headroom .13-.18 for the models that reach it, (c) margin taken per brief (4 independent units, the two runs of a brief averaged first), not ~.05 from 8 units; (d) not judged (two of six models on one unit). Tokens and the thinking setting print beside the score.",
+ "cases": [
+  {
+   "id": "PK-C1-IMPLIED-L5-01",
+   "category": "coding",
+   "generator": {
+    "type": "implied",
+    "level": 5,
+    "key": "118a7b0ac145912e",
+    "deal": {
+     "key": "0bfefc1fe6dfa4bd",
+     "slot": 0,
+     "of": 8
+    },
+    "seed_case": "FLAT-implied5h_L5-001-r1-a1"
+   }
+  },
+  {
+   "id": "PK-C1-IMPLIED-L5-02",
+   "category": "coding",
+   "generator": {
+    "type": "implied",
+    "level": 5,
+    "key": "5d1a4eccb78a08c2",
+    "deal": {
+     "key": "0bfefc1fe6dfa4bd",
+     "slot": 1,
+     "of": 8
+    },
+    "seed_case": "FLAT-implied5h_L5-002-r1-a1"
+   }
+  },
+  {
+   "id": "PK-C1-IMPLIED-L5-03",
+   "category": "coding",
+   "generator": {
+    "type": "implied",
+    "level": 5,
+    "key": "d74fa181ebb238cf",
+    "deal": {
+     "key": "0bfefc1fe6dfa4bd",
+     "slot": 2,
+     "of": 8
+    },
+    "seed_case": "FLAT-implied5h_L5-003-r1-a1"
+   }
+  },
+  {
+   "id": "PK-C1-IMPLIED-L5-04",
+   "category": "coding",
+   "generator": {
+    "type": "implied",
+    "level": 5,
+    "key": "c05d2e451cdba377",
+    "deal": {
+     "key": "0bfefc1fe6dfa4bd",
+     "slot": 3,
+     "of": 8
+    },
+    "seed_case": "FLAT-implied5h_L5-004-r1-a1"
+   }
+  },
+  {
+   "id": "PK-C1-IMPLIED-L5-05",
+   "category": "coding",
+   "generator": {
+    "type": "implied",
+    "level": 5,
+    "key": "420adfe880127998",
+    "deal": {
+     "key": "0bfefc1fe6dfa4bd",
+     "slot": 4,
+     "of": 8
+    },
+    "seed_case": "FLAT-implied5h_L5-005-r1-a1"
+   }
+  },
+  {
+   "id": "PK-C1-IMPLIED-L5-06",
+   "category": "coding",
+   "generator": {
+    "type": "implied",
+    "level": 5,
+    "key": "3838fdb993286341",
+    "deal": {
+     "key": "0bfefc1fe6dfa4bd",
+     "slot": 5,
+     "of": 8
+    },
+    "seed_case": "FLAT-implied5h_L5-006-r1-a1"
+   }
+  },
+  {
+   "id": "PK-C1-IMPLIED-L5-07",
+   "category": "coding",
+   "generator": {
+    "type": "implied",
+    "level": 5,
+    "key": "c7e47072e6f2c8e3",
+    "deal": {
+     "key": "0bfefc1fe6dfa4bd",
+     "slot": 6,
+     "of": 8
+    },
+    "seed_case": "FLAT-implied5h_L5-007-r1-a1"
+   }
+  },
+  {
+   "id": "PK-C1-IMPLIED-L5-08",
+   "category": "coding",
+   "generator": {
+    "type": "implied",
+    "level": 5,
+    "key": "6232812af4ba9495",
+    "deal": {
+     "key": "0bfefc1fe6dfa4bd",
+     "slot": 7,
+     "of": 8
+    },
+    "seed_case": "FLAT-implied5h_L5-008-r1-a1"
+   }
+  }
+ ]
+}

@@ -1,0 +1,71 @@
+{
+ "level": 1,
+ "points": 1.0,
+ "item": "RPSESSION-STATE",
+ "draft": true,
+ "budget": 16384,
+ "context": 73728,
+ "note": "H2 State pack (PACKS2, 2026-11-14 late): the code-checked half of CHAT-RP's harder role-play sessions (8-12 turns): each standing rule held at each push (ruleA@t, ruleB@t), planted details recalled at turn 8+ (recall-*@t), canon misstatements corrected and held (canon1@t, canon1-held, canon2@t), no bleed after the scene change (bleed), the user's side never written (nopuppet), voice limits (voice-cap/banned/habit). Every check its own 0/1 element, judge off. What the standard State cell (session_state L10, 3 sessions) does not ask: state held under social pressure and length, not just recited. Cost: the pack re-generates each session (variant state = the same card and seed as role-play's scene unit, judge off): one more 8-12-turn session per card per model that opens it, about 6 reference stream-minutes per card on the rig, hosted cents. A seed_case alias onto the scene rows is NOT possible as the engine stands: report.alias_refusal needs the pack case to materialise byte-identical to the stored row (grader config included), and the state variant's check list differs from scene's; aliasing would need either CHAT-RP to give scene and state one materialisation (the pack scoring a named check subset) or an engine change in alias_refusal (K). DRAFT until rpsession is merged (branch chat-rp-ship45), the case check passes and the hosted maxers screen below 90%. Screen 2026-11-14 (hosted, judge off, every failing reply read): DeepSeek flash 68/72 as graded, MiniMax 67/72, Sonnet (validation row) 69/72; all four ruleB misses (greenhouse) are a key fault (the forbid pattern fires on correct refusals: 'pump shutdown refused'), and bleed (a forbid-word list) cannot tell an off-scene mention from a presence (on Sonnet all 3 hits are mentions, e.g. 'Biscuit's minding the landing', which is the separation the check wants). Read carefully, all three score 97-100%: NO ROOM. Not to ship as a pack from these cards; kept only as the record of the screen. Cards are named per case in this file (nothing hard-coded in the engine): if the pilot gives these six sessions to the standard Role-play part and the eight deep role-play cases become the packs instead, only this file's cases change. Not live until the lead rules on the pilot. RE-SCREEN on CHAT-RP's fixed keys (chat-rp-ship45 87adba3, BANK_SHA 83df36b172a81bca; every failing reply read): DeepSeek flash 77/78, MiniMax 77/78, Sonnet 78/78; the remaining misses are real (ferry '78 ignored, bakery 'Friday' not corrected). NO ROOM: not a pack.",
+ "cases": [
+  {
+   "id": "PK-H2-STATE-RPS-01",
+   "category": "rpdeep",
+   "generator": {
+    "type": "rpsession",
+    "variant": "state",
+    "level": 1,
+    "card": "RPS2-greenhouse"
+   }
+  },
+  {
+   "id": "PK-H2-STATE-RPS-02",
+   "category": "rpdeep",
+   "generator": {
+    "type": "rpsession",
+    "variant": "state",
+    "level": 1,
+    "card": "RPS5-butler"
+   }
+  },
+  {
+   "id": "PK-H2-STATE-RPS-03",
+   "category": "rpdeep",
+   "generator": {
+    "type": "rpsession",
+    "variant": "state",
+    "level": 1,
+    "card": "RPS1-harbour"
+   }
+  },
+  {
+   "id": "PK-H2-STATE-RPS-04",
+   "category": "rpdeep",
+   "generator": {
+    "type": "rpsession",
+    "variant": "state",
+    "level": 1,
+    "card": "RPS3-bakery"
+   }
+  },
+  {
+   "id": "PK-H2-STATE-RPS-05",
+   "category": "rpdeep",
+   "generator": {
+    "type": "rpsession",
+    "variant": "state",
+    "level": 1,
+    "card": "RPS4-ferry"
+   }
+  },
+  {
+   "id": "PK-H2-STATE-RPS-06",
+   "category": "rpdeep",
+   "generator": {
+    "type": "rpsession",
+    "variant": "state",
+    "level": 1,
+    "card": "RPS6-arctic"
+   }
+  }
+ ]
+}

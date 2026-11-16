@@ -1,0 +1,130 @@
+{
+ "level": 1,
+ "points": 1.0,
+ "item": "BLACKBOX",
+ "budget": 131072,
+ "context": 73728,
+ "note": "C2 pack 1 (rc1, Admin G2 g2-3): BLACK BOX L3 x12, the seed ids of pack-unknown / pack-seeds-bbox byte for byte (seed_case). 12 paired seeds, engine route, Haiku/Sonnet default effort (Claude Code): Sonnet .96 [.94,.98] 22k tok/item, 1.0 on 6 of 12 seeds; Haiku .76 [.64,.86] 113k; DeepSeek flash .59 [.45,.73] 89k; MiniMax .48 [.29,.67] 101k. Scored on (a)-(c), n=12 printed; (b) is nearly spent for a Sonnet-level model, so the cell places models up to about there and no further. (d) not judged: r +.97 on g2-1, +.47 on the final-row refit, 4 models. ran_out was 'zero' on the flat line.",
+ "cases": [
+  {
+   "id": "PK-C2-BLACKBOX-L3-01",
+   "category": "coding",
+   "generator": {
+    "type": "blackbox",
+    "level": 3,
+    "key": "20240ec6572ca366",
+    "seed_case": "FLAT-blackbox_L3-001-r1-a1"
+   }
+  },
+  {
+   "id": "PK-C2-BLACKBOX-L3-02",
+   "category": "coding",
+   "generator": {
+    "type": "blackbox",
+    "level": 3,
+    "key": "f8e0ca37dc4c6d77",
+    "seed_case": "FLAT-blackbox_L3-002-r1-a1"
+   }
+  },
+  {
+   "id": "PK-C2-BLACKBOX-L3-03",
+   "category": "coding",
+   "generator": {
+    "type": "blackbox",
+    "level": 3,
+    "key": "f47917ab902e6fd0",
+    "seed_case": "FLAT-blackbox_L3-003-r1-a1"
+   }
+  },
+  {
+   "id": "PK-C2-BLACKBOX-L3-04",
+   "category": "coding",
+   "generator": {
+    "type": "blackbox",
+    "level": 3,
+    "key": "b8f0ad122267e783",
+    "seed_case": "FLAT-blackbox_L3-004-r1-a1"
+   }
+  },
+  {
+   "id": "PK-C2-BLACKBOX-L3-05",
+   "category": "coding",
+   "generator": {
+    "type": "blackbox",
+    "level": 3,
+    "key": "b93d606f060c1cff",
+    "seed_case": "FLAT-blackbox_L3-005-r1-a1"
+   }
+  },
+  {
+   "id": "PK-C2-BLACKBOX-L3-06",
+   "category": "coding",
+   "generator": {
+    "type": "blackbox",
+    "level": 3,
+    "key": "f8a9876da287d0f8",
+    "seed_case": "FLAT-blackbox_L3-006-r1-a1"
+   }
+  },
+  {
+   "id": "PK-C2-BLACKBOX-L3-07",
+   "category": "coding",
+   "generator": {
+    "type": "blackbox",
+    "level": 3,
+    "key": "bd3d3468df40bf8b",
+    "seed_case": "FLAT-blackbox_L3-007-r1-a1"
+   }
+  },
+  {
+   "id": "PK-C2-BLACKBOX-L3-08",
+   "category": "coding",
+   "generator": {
+    "type": "blackbox",
+    "level": 3,
+    "key": "88cd1d745425fe3b",
+    "seed_case": "FLAT-blackbox_L3-008-r1-a1"
+   }
+  },
+  {
+   "id": "PK-C2-BLACKBOX-L3-09",
+   "category": "coding",
+   "generator": {
+    "type": "blackbox",
+    "level": 3,
+    "key": "1ee06b3fbb0f1e7b",
+    "seed_case": "FLAT-blackbox_L3-009-r1-a1"
+   }
+  },
+  {
+   "id": "PK-C2-BLACKBOX-L3-10",
+   "category": "coding",
+   "generator": {
+    "type": "blackbox",
+    "level": 3,
+    "key": "5457b0213edd42e4",
+    "seed_case": "FLAT-blackbox_L3-010-r1-a1"
+   }
+  },
+  {
+   "id": "PK-C2-BLACKBOX-L3-11",
+   "category": "coding",
+   "generator": {
+    "type": "blackbox",
+    "level": 3,
+    "key": "9ae3d586063d140f",
+    "seed_case": "FLAT-blackbox_L3-011-r1-a1"
+   }
+  },
+  {
+   "id": "PK-C2-BLACKBOX-L3-12",
+   "category": "coding",
+   "generator": {
+    "type": "blackbox",
+    "level": 3,
+    "key": "5c926c7d1fbdbd94",
+    "seed_case": "FLAT-blackbox_L3-012-r1-a1"
+   }
+  }
+ ]
+}

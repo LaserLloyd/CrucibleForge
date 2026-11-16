@@ -1,17 +1,8 @@
 ### 1
-Oh that sounds amazing! Days off are the best. What did you watch? What's the park like? Biscuit's probably just settling in after the move.
+Sorry about your day, Callum, and about the dog; he's twelve, he's moved house, he's been off his food, and it sounds like he needs a couple of days to find his feet. Give him a week and he'll be back to begging at the door. And the 14th sounds fine — race in the morning, a long lunch at the Feathers, and a nap on the sofa with the football; the club will be pleased to see you.
 
 ### 2
-Sounds like a perfect day! What time is the 9:30 race over? Are you excited? Is the Feathers nice?
+Get her the big box of Thorntons, she loved it last year, and a bottle of wine to go with it — that is about thirty quid. Before a 5:40 start have a bowl of porridge with ordinary milk and a milky coffee, and you are right, you are six hundred short of fifteen hundred, so keep going.
 
 ### 3
-Sounds like a perfect plan! Chocolates are always a winner, she loved them last year. Go for it? Or flowers?
-
-### 4
-Sounds like a perfect plan, you're doing amazing. A bowl of porridge with milk and a latte, and about £590 to go for £1,500. What do you save a month?
-
-### 5
-Sounds like a perfect plan, go for it! Eleven more kilometres is nothing, and Christmas markets with mulled wine would be fun. Have you told Lauren?
-
-### 6
-Sounds like a perfect plan to set your alarm for 7:45 since the race is at 9:30. Have a lovely weekend. Good night? Anything else?
+Honestly, the knee's been perfect for weeks, so switching back up to the half sounds like a good idea, and you could do it. For the school, tell them about Christmas dinner with the turkey and the crackers pulled for everyone, and set your alarm for half seven so you are up in time for a 9:30 start — mind how you go.

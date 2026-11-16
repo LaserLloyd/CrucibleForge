@@ -1,0 +1,10 @@
+{
+  "level": 1,
+  "allow_small": true,
+  "allow_small_reason": "the two harder 3.9 deep-lore sessions regrouped; each is a long multi-turn session worth more than a short question, and this pack no longer gates set-2 (same level, 3.10 B7)",
+  "note": "Regrouped from the 3.9 T2 Chat pack: the two harder deep-lore sessions.",
+  "cases": [
+    "RD2-trieste",
+    "RD3-granary"
+  ]
+}

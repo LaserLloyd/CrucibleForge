@@ -1,0 +1,103 @@
+"""The lease record and the small rules every other module shares."""
+from dataclasses import dataclass
+
+from . import config
+
+
+@dataclass
+class Lease:
+    id: str
+    seq: int
+    holder: str
+    units: tuple
+    cls: int
+    ttl: int
+    created: int
+    last: int
+    vacating_until: object = None
+
+    @property
+    def family(self):
+        return family_of(self.holder)
+
+
+def family_of(holder):
+    """Everything before the first separator; the whole name when there is none."""
+    return holder.split(config.FAMILY_SEP, 1)[0]
+
+
+def better(a, b):
+    """True when class a is strictly more important than class b."""
+    if config.BEST_CLASS == 1:
+        return a < b
+    return a > b
+
+
+def rank(cls):
+    """Sort key: the most important class sorts first."""
+    return cls if config.BEST_CLASS == 1 else -cls
+
+
+def idle_for(lease, now):
+    return now - lease.last
+
+
+def is_expired(lease, now):
+    idle = idle_for(lease, now)
+    if config.EXPIRE_AT_TTL:
+        return idle >= lease.ttl
+    return idle > lease.ttl
+
+
+def time_left(lease, now):
+    """Time until the lease expires (0 or less once it has)."""
+    left = lease.ttl - idle_for(lease, now)
+    if not config.EXPIRE_AT_TTL:
+        left += 1
+    return left
+
+
+def to_row(lease, written_at):
+    return {"id": lease.id, "seq": lease.seq, "holder": lease.holder, "units": list(lease.units),
+            "cls": lease.cls, "ttl": lease.ttl, "created": lease.created, "last": lease.last,
+            "vacating_until": lease.vacating_until, "written_at": written_at}
+
+
+def from_row(row):
+    return Lease(id=row["id"], seq=row["seq"], holder=row["holder"], units=tuple(row["units"]),
+                 cls=row["cls"], ttl=row["ttl"], created=row["created"], last=row["last"],
+                 vacating_until=row["vacating_until"])
+
+
+def unit_list(units):
+    return ",".join(str(u) for u in units)
+#<F queue>
+
+
+@dataclass
+class Request:
+    qid: str
+    n: int
+    holder: str
+    units: tuple
+    cls: int
+    ttl: int
+    queued: int
+
+
+def effective_class(req, now):
+    """The class moves one step toward BEST_CLASS for every AGING ticks of time waited, never past it."""
+    steps = (now - req.queued) // config.AGING
+    cls = req.cls
+    while steps > 0 and cls != config.BEST_CLASS:
+        cls = cls - 1 if config.BEST_CLASS == 1 else cls + 1
+        steps -= 1
+    return cls
+
+
+def request_expired(req, now):
+    waited = now - req.queued
+    if config.EXPIRE_AT_TTL:
+        return waited >= req.ttl
+    return waited > req.ttl
+#</F>

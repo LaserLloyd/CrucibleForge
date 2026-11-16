@@ -414,6 +414,11 @@ may not want to read: explicit and dark-but-legal fiction briefs in `cases/nsfw.
 break a rule in `cases/steer.json`, and mature role-play and fiction in `cases/rp.json` and `cases/story.json`. Model
 outputs (`results/`) never enter the repository. Skip categories with `--categories`.
 
+From 4.5 the generated NSFW parts are held to [docs/CONTENT-RULES.md](docs/CONTENT-RULES.md) as written and nothing
+more: inside its five rules they test "dark and non-consensual fantasy, mind control, violence, gore, profanity, drugs
+and their effects" at full intensity, every participant an adult with a stated age. The stored 4.1 cases in
+`cases/nsfw.json` keep their older, narrower statement.
+
 ## Licence
 
 MIT No Attribution ([MIT-0](LICENSE)). You do not need to credit this project, but a link back is appreciated.

@@ -199,17 +199,12 @@ def test_load_cases_materializes_generated_and_min_context():
 
 # ---------------------------------------------------------- case verifier
 
-def test_case_set_verifies_clean():
-    cases = config.load_cases()
-    from crucibleforge.codebank import Unsupported
-    bad = []
-    for c in cases:
-        try:
-            errs = verify_cases._check(c)
-        except Unsupported:          # Windows / no node: those cases cannot run here
-            continue
-        if errs:
-            bad.append((c["id"], errs))
+@pytest.mark.slow
+def test_case_set_verifies_clean(case_set_check):
+    # the per-case _check results are computed once per session (conftest);
+    # None = Unsupported on this host (Windows / no node): those cases cannot run here
+    cases, results = case_set_check
+    bad = [(c["id"], results[id(c)]) for c in cases if results[id(c)]]
     assert not bad, bad
 
 

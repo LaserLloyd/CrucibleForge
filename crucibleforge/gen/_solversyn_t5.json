@@ -1,0 +1,476 @@
+{
+"5:3": {
+"rules": [
+{
+"name": "E",
+"arity": 3,
+"body": "x (y z)"
+},
+{
+"name": "H",
+"arity": 3,
+"body": "y z (x z)"
+},
+{
+"name": "J",
+"arity": 3,
+"body": "x z (y z)"
+},
+{
+"name": "P",
+"arity": 3,
+"body": "z (x y)"
+},
+{
+"name": "Q",
+"arity": 3,
+"body": "x z"
+}
+],
+"targets": [
+{
+"result": "c (b (a b) c)",
+"min": 6,
+"ref": "J (E (J (H E Q)))",
+"id": "t01"
+},
+{
+"result": "c (b c) (c (b c))",
+"min": 5,
+"ref": "Q (J (H P H))",
+"id": "t02"
+},
+{
+"result": "a c (a c) (c (a c)) (a c)",
+"min": 8,
+"ref": "E Q (J H (J H (J H)))",
+"id": "t03"
+},
+{
+"result": "a b c (a b)",
+"min": 6,
+"ref": "J H (E (E E) P)",
+"id": "t04"
+},
+{
+"result": "b (a (b (a b (a b))) c)",
+"min": 8,
+"ref": "H E (J P (J H)) (J E)",
+"id": "t05"
+},
+{
+"result": "b c (b (c (b c))) (b c)",
+"min": 8,
+"ref": "Q (J H (J J (H E H)))",
+"id": "t06"
+},
+{
+"result": "a (c (a c) (c (a c))) (b c)",
+"min": 8,
+"ref": "E J (J E (J (H P H)))",
+"id": "t07"
+},
+{
+"result": "a c (c (a b))",
+"min": 5,
+"ref": "H P (E E J)",
+"id": "t08"
+},
+{
+"result": "a (a (b c) (c (b c)))",
+"min": 7,
+"ref": "E J (H J (E E E))",
+"id": "t09"
+},
+{
+"result": "b c (a (a (a b)) c)",
+"min": 8,
+"ref": "E (J J) (J E (H Q H))",
+"id": "t10"
+},
+{
+"result": "b c (a c) (a c (a c))",
+"min": 8,
+"ref": "E J (E (E (H H E)) P)",
+"id": "t11"
+},
+{
+"result": "c (a c) (a c (c (a c)))",
+"min": 7,
+"ref": "E Q (J (J H (J P)))",
+"id": "t12"
+},
+{
+"result": "a (b (a b) (a (a b)) c)",
+"min": 7,
+"ref": "H (H H H) (E E E)",
+"id": "t13"
+},
+{
+"result": "c (b (b (a b) (b (a b))))",
+"min": 7,
+"ref": "J (H P (E (J E) H))",
+"id": "t14"
+},
+{
+"result": "c (c (a c)) (a c)",
+"min": 8,
+"ref": "E Q (J H (J (H Q H)))",
+"id": "t15"
+},
+{
+"result": "c (a (b c) (c (b c)))",
+"min": 6,
+"ref": "E J (E (J E) J)",
+"id": "t16"
+},
+{
+"result": "b c (b c) (b c (a c))",
+"min": 8,
+"ref": "E (J (E J (H P H))) H",
+"id": "t17"
+},
+{
+"result": "b (b (a b) (a b (a b))) c",
+"min": 7,
+"ref": "J H (E (J E) (J J))",
+"id": "t18"
+}
+],
+"pairs": {
+"2": 25,
+"3": 250,
+"4": 3125,
+"5": 37500,
+"6": 475000,
+"7": 6101720,
+"8": 80018190
+},
+"nodes": {
+"1": 5,
+"2": 25,
+"3": 250,
+"4": 2500,
+"5": 28750,
+"6": 341422,
+"7": 4232209,
+"8": 0
+}
+},
+"5:4": {
+"rules": [
+{
+"name": "E",
+"arity": 3,
+"body": "z (x y)"
+},
+{
+"name": "L",
+"arity": 3,
+"body": "z y x"
+},
+{
+"name": "N",
+"arity": 3,
+"body": "x z (y z)"
+},
+{
+"name": "Q",
+"arity": 3,
+"body": "y (x z)"
+},
+{
+"name": "X",
+"arity": 3,
+"body": "x y z y"
+}
+],
+"targets": [
+{
+"result": "a (b a) (b (b a)) a c b",
+"min": 8,
+"ref": "Q (X (X (Q N (N Q)))) X",
+"id": "t01"
+},
+{
+"result": "a c (b c) c b",
+"min": 5,
+"ref": "Q X (Q N X)",
+"id": "t02"
+},
+{
+"result": "a b c (a b (b (a b)) c)",
+"min": 5,
+"ref": "N (N (N Q N))",
+"id": "t03"
+},
+{
+"result": "a b a a (a b a) a c",
+"min": 8,
+"ref": "X (X (X (X L Q) (X L)))",
+"id": "t04"
+},
+{
+"result": "c (b (a (a b (b (a b))) a))",
+"min": 8,
+"ref": "Q (X (X (N (N E)))) (N E)",
+"id": "t05"
+},
+{
+"result": "b a (b a) (c (b a)) b",
+"min": 8,
+"ref": "Q (L (X N)) (Q (Q E) X)",
+"id": "t06"
+},
+{
+"result": "b b (b b b b) a c",
+"min": 8,
+"ref": "Q L (N (E (N N (X X))))",
+"id": "t07"
+},
+{
+"result": "b c (a b a a a c)",
+"min": 7,
+"ref": "Q (X (X (X L))) (N N)",
+"id": "t08"
+},
+{
+"result": "a a b (a a) (a a) a c",
+"min": 7,
+"ref": "X (N (L (X (X L))) E)",
+"id": "t09"
+},
+{
+"result": "c (a (a a) b) b",
+"min": 6,
+"ref": "N (L (N L)) (N E)",
+"id": "t10"
+},
+{
+"result": "b c (a b a c) b",
+"min": 7,
+"ref": "Q (X L) (Q (N N) X)",
+"id": "t11"
+},
+{
+"result": "a b (a a a b a) c",
+"min": 7,
+"ref": "N N (N (L X) (N L))",
+"id": "t12"
+},
+{
+"result": "b (b a (a b)) c",
+"min": 8,
+"ref": "Q L (N (Q (E X (N Q))))",
+"id": "t13"
+},
+{
+"result": "b a (a c (a c))",
+"min": 7,
+"ref": "X (Q (X (Q N) Q) N)",
+"id": "t14"
+},
+{
+"result": "a (a (b b)) b c",
+"min": 8,
+"ref": "X (X (X L) (X (X Q)) Q)",
+"id": "t15"
+},
+{
+"result": "b (a a) (a (a a)) c",
+"min": 6,
+"ref": "N (L L) (N (N L))",
+"id": "t16"
+},
+{
+"result": "a (b b) (a b) a c",
+"min": 8,
+"ref": "X (X (N (X (Q Q (Q L)))))",
+"id": "t17"
+},
+{
+"result": "a (a b) (a b (a a)) c",
+"min": 6,
+"ref": "N Q (N N (X Q))",
+"id": "t18"
+}
+],
+"pairs": {
+"2": 25,
+"3": 250,
+"4": 3125,
+"5": 37500,
+"6": 475870,
+"7": 6141490,
+"8": 81118890
+},
+"nodes": {
+"1": 5,
+"2": 25,
+"3": 250,
+"4": 2500,
+"5": 28837,
+"6": 344964,
+"7": 4320219,
+"8": 0
+}
+},
+"5:6": {
+"rules": [
+{
+"name": "E",
+"arity": 3,
+"body": "x z"
+},
+{
+"name": "G",
+"arity": 3,
+"body": "z y x"
+},
+{
+"name": "L",
+"arity": 3,
+"body": "x (z y)"
+},
+{
+"name": "R",
+"arity": 3,
+"body": "x z (y z)"
+},
+{
+"name": "V",
+"arity": 3,
+"body": "z (x y)"
+}
+],
+"targets": [
+{
+"result": "c (a (a a) (b (a a)))",
+"min": 8,
+"ref": "R (L (L V L)) (R (R G))",
+"id": "t01"
+},
+{
+"result": "b (b b (a b b)) c",
+"min": 8,
+"ref": "R (E (R (R L R))) (R G)",
+"id": "t02"
+},
+{
+"result": "c (b c) (a c (b c))",
+"min": 5,
+"ref": "R (E R) (R R)",
+"id": "t03"
+},
+{
+"result": "c (b (a b b))",
+"min": 5,
+"ref": "R (R (L V) L)",
+"id": "t04"
+},
+{
+"result": "c (b b (b b))",
+"min": 7,
+"ref": "E (R (R G R) (L V))",
+"id": "t05"
+},
+{
+"result": "c (b a) (c (b a)) (c (b a))",
+"min": 8,
+"ref": "L (L (R (R G G) (G G)))",
+"id": "t06"
+},
+{
+"result": "c (b (a b) (b (a b))) (a b)",
+"min": 6,
+"ref": "R (R (L (R G)) R)",
+"id": "t07"
+},
+{
+"result": "c (b (a a b (a (a a) b)))",
+"min": 7,
+"ref": "R (L (R V)) (R (R R))",
+"id": "t08"
+},
+{
+"result": "c (a a) (b b)",
+"min": 8,
+"ref": "R (G L) L (R (V (L G)))",
+"id": "t09"
+},
+{
+"result": "c (b (a a a b))",
+"min": 7,
+"ref": "R (G (R (L (R V)))) G",
+"id": "t10"
+},
+{
+"result": "b (a a (a a a a)) c",
+"min": 7,
+"ref": "R (L (R V (R R))) G",
+"id": "t11"
+},
+{
+"result": "b a c (c (b a c))",
+"min": 6,
+"ref": "L (R (R (R E E)))",
+"id": "t12"
+},
+{
+"result": "a a a a c (b c)",
+"min": 7,
+"ref": "R (G (R (L R))) (R G)",
+"id": "t13"
+},
+{
+"result": "c (b b b b (a b))",
+"min": 8,
+"ref": "R (R (G (R (L V))) (R G))",
+"id": "t14"
+},
+{
+"result": "a b (b b b (b b b)) c",
+"min": 8,
+"ref": "R (R R L (R (G V) G))",
+"id": "t15"
+},
+{
+"result": "b (b b) (c (a b))",
+"min": 6,
+"ref": "R (R (G L) (R V))",
+"id": "t16"
+},
+{
+"result": "b a a c c b",
+"min": 8,
+"ref": "R (L (R (R (E R) G))) G",
+"id": "t17"
+},
+{
+"result": "a a (a a a) c",
+"min": 8,
+"ref": "R (G E) (R (L V) (R R))",
+"id": "t18"
+}
+],
+"pairs": {
+"2": 25,
+"3": 250,
+"4": 3125,
+"5": 37500,
+"6": 475000,
+"7": 6095000,
+"8": 79894280
+},
+"nodes": {
+"1": 5,
+"2": 25,
+"3": 250,
+"4": 2500,
+"5": 28750,
+"6": 340750,
+"7": 4223178,
+"8": 0
+}
+}
+}

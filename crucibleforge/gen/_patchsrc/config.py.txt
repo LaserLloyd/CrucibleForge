@@ -1,0 +1,31 @@
+"""Tunable constants. SPEC.md section 1 says what each one means."""
+
+#: lease ids are this prefix followed by a sequence number
+ID_PREFIX = "@ID_PREFIX@"
+#: units are numbered 0 .. UNITS-1
+UNITS = @UNITS@
+#: how long a holder asked to vacate has before the ask turns into a plain conflict
+VACATE_TIMEOUT = @VACATE_TIMEOUT@
+#: re-ask interval handed out with a WAIT answer
+RETRY_AFTER = @RETRY_AFTER@
+#: a touch is written to the store only when this long has passed since the row was last written
+TOUCH_COALESCE = @TOUCH_COALESCE@
+#: a lease with this much time (or less) left before it expires shows as "expiring"
+EXPIRING_WINDOW = @EXPIRING_WINDOW@
+#: which class number is the most important one (1 or 3)
+BEST_CLASS = @BEST_CLASS@
+#: True: a lease idle for exactly its ttl has expired. False: only once it is idle for longer.
+EXPIRE_AT_TTL = @EXPIRE_AT_TTL@
+#: the holder family whose leases belong to this process; they never survive a restart
+OWN_FAMILY = "@OWN_FAMILY@"
+#: separator between a holder's family and the rest of its name
+FAMILY_SEP = "@FAMILY_SEP@"
+#: how many journal events are kept
+LOG_KEEP = @LOG_KEEP@
+#: smallest and largest ttl an ACQ may ask for
+MIN_TTL = 1
+MAX_TTL = @MAX_TTL@
+#<F queue>
+#: a queued request improves its class by one step for every AGING ticks of time it has waited
+AGING = @AGING@
+#</F>

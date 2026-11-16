@@ -136,6 +136,7 @@ def test_models_yaml_has_the_q5plus_provider_as_an_openrouter_copy():
         assert q5["extra_body"] == {"provider": {"quantizations": Q5PLUS, "allow_fallbacks": False}}
 
 
+@pytest.mark.archive_default   # an unpriced hosted model: bench45 (the bare default since the flip) refuses it at the spend gate
 def test_provider_extra_body_reaches_the_request_body(monkeypatch):
     monkeypatch.setenv("OPENROUTER_API_KEY", "test-not-a-key")
     cfg = yaml.safe_load((ROOT / "models.example.yaml").read_text(encoding="utf-8"))

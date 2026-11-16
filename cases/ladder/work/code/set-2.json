@@ -1,0 +1,12 @@
+{
+ "item": "PACK-WORK-CODE",
+ "level": 2,
+ "note": "classic-fixed: CL4/CL8 moved out of Core (CL3 is Base and stays in Core; v3 s3 content fixes pending: WP-5b)",
+ "cases": [
+  "CL4-workday-mask",
+  "CL8-machine-plan"
+ ],
+ "budget": 65536,
+ "allow_small": true,
+ "allow_small_reason": "classic-fixed pair CL4 + CL8 (CL3 is a Base case and stays in Core)"
+}

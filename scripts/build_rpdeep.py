@@ -47,7 +47,54 @@ def parse_history(text: str) -> list[dict]:
     return msgs
 
 
-def build_case(d: Path) -> tuple[dict, list[str]]:
+#: Keys a hand-assembled 4.5 case carries that session.yaml does not: they are
+#: kept from the existing cases/rpdeep.json on a rebuild (E6).
+STAMP_STANDARD = 45
+
+
+#: Row keys only a hand pass sets (element metadata, retire records): kept from
+#: the existing JSON row. Every other key is source-owned (session.yaml).
+META_KEYS = ("class", "evidence_type", "anchor", "gold_quote", "quote_scope", "weight",
+             "scored", "status", "pruned", "unpruned", "replaces", "veto", "note")
+
+
+def _merge_rows(src: list[dict], old: list[dict]) -> list[dict]:
+    """Rows keyed by id: the source owns every key except the metadata
+    (META_KEYS), which an existing row keeps; an old row the source no longer
+    lists (a retire record, ``status: retire``) is kept as is. Order = the old
+    rows' order, then new source rows."""
+    by_src = {r["id"]: r for r in src if isinstance(r, dict) and "id" in r}
+    out, seen = [], set()
+    for r in old:
+        s = by_src.get(r.get("id"))
+        if s is None:
+            out.append(r)
+        else:
+            row = dict(s)
+            row.update({k: r[k] for k in META_KEYS if k in r})
+            out.append(row)
+        seen.add(r.get("id"))
+    out += [r for r in src if not (isinstance(r, dict) and r.get("id") in seen)]
+    return out
+
+
+def merge_existing(case: dict, old: dict | None) -> dict:
+    """Overlay the existing JSON case: the source owns every key it builds
+    (q, pattern, temperature ...), the old JSON only adds keys the source does
+    not build (hand-added stamps), and a 45.x case is stamped
+    ``element_standard: 45``."""
+    if old:
+        merged = {**old, **case}
+        for k in ("judge_elements", "checks"):
+            if k in case:
+                merged[k] = _merge_rows(case[k], old.get(k) or [])
+        case = merged
+    if str(case.get("case_revision", "")).startswith("45") and "element_standard" not in case:
+        case["element_standard"] = STAMP_STANDARD
+    return case
+
+
+def build_case(d: Path, old: dict | None = None) -> tuple[dict, list[str]]:
     warns: list[str] = []
     card = (d / "card.md").read_text(encoding="utf-8").strip()
     # a short session may start cold: no earlier conversation (3.9 step 6)
@@ -120,11 +167,21 @@ def build_case(d: Path) -> tuple[dict, list[str]]:
     }
     if s.get("smoke"):
         case["smoke"] = True
+    for k in ("case_revision", "element_standard", "meta", "note", "revision_note",
+              "review_status"):
+        if s.get(k) is not None:
+            case[k] = s[k]
     case = {k: v for k, v in case.items() if v is not None}
-    return case, warns
+    return merge_existing(case, old), warns
 
 
 LADDER = ROOT / "cases" / "ladder"
+
+
+def _pack_files() -> list[Path]:
+    """Every pack file: ``set-<n>.json`` (hand-written or generated) and the 4.5
+    classic-fixed ``classic-<name>.json`` packs."""
+    return sorted(set(LADDER.rglob("set-*.json")) | set(LADDER.rglob("classic-*.json")))
 
 
 def _ladder_sets() -> dict[str, Path]:
@@ -134,8 +191,10 @@ def _ladder_sets() -> dict[str, Path]:
     not into rpdeep.json: rpdeep.json is part of the suite hash, so a new pack
     must never touch it (that would mark every existing row stale)."""
     out = {}
-    for f in sorted(LADDER.rglob("set-*.json")):
-        for c in json.loads(f.read_text(encoding="utf-8"))["cases"]:
+    for f in _pack_files():
+        # 4.5: a generated set holds ``generator`` and no ``cases`` (it expands at load time),
+        # and a classic-fixed pack may list plain ids only: neither inlines a session
+        for c in json.loads(f.read_text(encoding="utf-8")).get("cases") or []:
             # only entries written as objects ({"id": ...}) are inlined; a
             # plain id string keeps that session in rpdeep.json (3.9 packs)
             if isinstance(c, dict) and (SRC / c["id"] / "session.yaml").exists():
@@ -143,12 +202,34 @@ def _ladder_sets() -> dict[str, Path]:
     return out
 
 
+def _retired_pack_sessions(listed: dict[str, Path]) -> set[str]:
+    """Session dirs of 4.1 ladder-pack questions (written inline in the 4.1.0 pack files) that no
+    live pack lists any more: 4.5 replaced those packs with generated sets, the session sources
+    stay under cases/rp-deep/ for the archive. They belong in no JSON (rpdeep.json is hashed into
+    the suite; a retired pack question must not move it), so the build leaves them out."""
+    arch = ROOT / "archive" / "4.1.0" / "cases" / "ladder"
+    ids: set[str] = set()
+    for f in sorted(arch.rglob("set-*.json")):
+        for c in json.loads(f.read_text(encoding="utf-8")).get("cases") or []:
+            if isinstance(c, dict) and (SRC / c["id"] / "session.yaml").exists():
+                ids.add(c["id"])
+    return ids - set(listed)
+
+
 def main() -> int:
     cases, warns = [], []
+    try:
+        existing = {c["id"]: c for c in json.loads(OUT.read_text(encoding="utf-8"))}
+    except (OSError, ValueError):
+        existing = {}
     in_pack = _ladder_sets()
+    retired = _retired_pack_sessions(in_pack)
     pack_cases: dict[str, dict] = {}
     for d in sorted(p for p in SRC.iterdir() if p.is_dir() and (p / "session.yaml").exists()):
-        c, w = build_case(d)
+        if d.name in retired:
+            print(f"{d.name}: retired 4.1 pack session (no live pack lists it), not built")
+            continue
+        c, w = build_case(d, existing.get(d.name))
         if d.name in in_pack:
             pack_cases[d.name] = dict(c, category="rpdeep")
         else:

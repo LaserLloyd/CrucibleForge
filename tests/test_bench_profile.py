@@ -14,12 +14,15 @@ def _bench():
     return prof, cfg2, cases
 
 
-def test_bench_is_the_only_profile_and_the_default():
+def test_bench_is_the_archive_profile_and_selectable():
+    """Since the release flip a bare command selects bench45; the 4.1 profile bench is the archive,
+    selected with --profile bench (its judge and cases unchanged)."""
     cfg = config.load_config(config.EXAMPLE_CONFIG_PATH)
-    assert profiles.list_profiles(cfg) == ["bench"]
-    assert profiles.DEFAULT_PROFILE == "bench"
-    # no --profile on the command line -> the bench profile is applied
-    args = cli.argparse.Namespace(profile=None, judge=None, smoke=False)
+    assert profiles.list_profiles(cfg) == ["bench", "bench45"]
+    assert profiles.DEFAULT_PROFILE == "bench45" and profiles.ARCHIVE_PROFILE == "bench"
+    bare = cli.argparse.Namespace(profile=None, judge=None, smoke=False)
+    assert cli._apply_profile_arg(bare, config.load_config(config.EXAMPLE_CONFIG_PATH))[2]["name"] == "bench45"
+    args = cli.argparse.Namespace(profile="bench", judge=None, smoke=False)
     cfg2, cases, prof = cli._apply_profile_arg(args, cfg)
     assert prof["name"] == "bench" and cfg2["_profile"] == "bench"
     assert cases and args.judge["model_id"].endswith("gemma-4-31B-it-uncensored-heretic-Q8_0")

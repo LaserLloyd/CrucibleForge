@@ -191,6 +191,7 @@ def _episode(mock):
     return m, case, row
 
 
+@pytest.mark.archive_default   # bench45 (the bare default since the flip) appends the shortening note to the system prompt
 def test_three_turn_tool_episode_translates_both_ways(mock):
     m, case, row = _episode(mock)
     assert row["n_turns"] == 3 and row["agent"]["tool_calls"] == 3
@@ -434,7 +435,7 @@ def test_cap_reached_refuses_the_next_call_as_billing(mock, monkeypatch, tmp_pat
     assert row["grade"] == "error" and preflight.billing_error_row(row)
     assert cli.done_jobs([row]) == set()
     assert bench_all.missing_cases([row], [case["id"]]) == [case["id"]]
-    lines = [json.loads(x) for x in journal.read_text().splitlines()]
+    lines = [json.loads(x) for x in journal.read_text(encoding="utf-8").splitlines()]
     assert len(lines) == 2
     first, refused = lines
     assert first["case_id"] == "LAG1-potkeeper-yearend" and first["repeat"] == 1
@@ -445,7 +446,10 @@ def test_cap_reached_refuses_the_next_call_as_billing(mock, monkeypatch, tmp_pat
 
 
 def test_cap_mid_episode_ends_the_episode_as_infra(mock, monkeypatch):
-    monkeypatch.setenv("CF_SPEND_CAP_USD", "0.02")
+    # one contract (merge r2): a call is admitted only if spent + its worst-case estimate
+    # (~$0.211 at max_tokens 4096) fits the cap; the first call (real cost $0.0305) fits $0.22,
+    # the second (0.0305 + 0.211 > 0.22) is refused unsent
+    monkeypatch.setenv("CF_SPEND_CAP_USD", "0.22")
     m = mock((200, reply(tools=[("toolu_01", "list_files", {"path": ""})], stop="tool_use",
                          usage={"input_tokens": 3000, "output_tokens": 10})))
     case = _agent_case()
@@ -458,7 +462,7 @@ def test_journal_lines_record_the_cache_split(mock, monkeypatch, tmp_path):
     journal = tmp_path / "j.jsonl"
     monkeypatch.setenv("CF_SPEND_JOURNAL", str(journal))
     _episode(mock)
-    lines = [json.loads(x) for x in journal.read_text().splitlines()]
+    lines = [json.loads(x) for x in journal.read_text(encoding="utf-8").splitlines()]
     assert [x["cache_read_tokens"] for x in lines] == [0, 3000, 3600]
     assert [x["cache_write_tokens"] for x in lines] == [0, 600, 900]
     assert [x["input_tokens"] for x in lines] == [3000, 10, 10]
@@ -466,6 +470,11 @@ def test_journal_lines_record_the_cache_split(mock, monkeypatch, tmp_path):
 
 
 def test_unpriced_models_are_not_capped(mock, monkeypatch):
+    # 41051a7 (2026-11-12) made an unpriced hosted call under a cap fail closed unless --allow-unpriced
+    # (tests/test_unpriced_hosted_gate.py); this test predates it and asserted the old default. Its claim
+    # now holds for an ALLOWED unpriced model: it is sent and never capped (EXP-20261113-19).
+    from crucibleforge import providers as _providers
+    monkeypatch.setattr(_providers, "ALLOW_UNPRICED", True)
     monkeypatch.setenv("CF_SPEND_CAP_USD", "0")
     m = mock((200, reply(text="free")))
     p = get_provider({**_cfg(m.url), "models": []}, "anthropic")
@@ -474,7 +483,8 @@ def test_unpriced_models_are_not_capped(mock, monkeypatch):
 
 def test_missing_cases_ignores_a_stored_billing_episode_row():
     from test_billing_agentic_20261111 import _episode_fail_row
-    assert bench_all.missing_cases([_episode_fail_row("A")], ["A"]) == ["A"]
+    # the stored-shape billing rule is a 4.5 switch (bench = 4.1 off): stamp bench45 as wp4 did
+    assert bench_all.missing_cases([{**_episode_fail_row("A"), "profile": "bench45"}], ["A"]) == ["A"]
     real = _episode_fail_row("A", end="turn limit")
     assert bench_all.missing_cases([real], ["A"]) == []
 
@@ -534,7 +544,7 @@ def test_allow_cases_gates_a_staged_run(mock, monkeypatch, tmp_path):
     assert m.requests == []
     spend.set_context(label=MODEL, case_id="LAG1-potkeeper-yearend", repeat=1)
     assert p.chat(MODEL, [{"role": "user", "content": "Hi"}], max_tokens=8).response_text == "ok"
-    lines = [json.loads(x) for x in journal.read_text().splitlines()]
+    lines = [json.loads(x) for x in journal.read_text(encoding="utf-8").splitlines()]
     assert lines[0]["refused"] and lines[0]["case_id"] == "LAG2-seedbank-units"
     assert lines[1]["case_id"] == "LAG1-potkeeper-yearend" and "refused" not in lines[1]
     import types

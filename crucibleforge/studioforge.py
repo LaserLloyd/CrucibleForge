@@ -64,6 +64,7 @@ then 507s).
 from __future__ import annotations
 
 import logging
+import os
 import re
 import time
 from json import loads as json_loads
@@ -92,7 +93,9 @@ STATUS_ERROR_TOLERANCE = 3
 DEFAULT_WAIT_BUSY_S = 600.0
 # Lease defaults: holder name the rig shows, and a safety TTL so a crashed
 # client cannot hold the cards forever (the keepalive touches it meanwhile).
-LEASE_HOLDER = "crucibleforge"
+#: ``$CF_LEASE_HOLDER`` overrides it for a labelled side run (e.g. a lab throughput run the night
+#: watch expects by name); the default is unchanged
+LEASE_HOLDER = os.environ.get("CF_LEASE_HOLDER", "").strip() or "crucibleforge"
 LEASE_IDLE_TTL_S = 7200.0
 
 
@@ -190,16 +193,32 @@ def _mgmt(method: str, base_url: str, api_key: str, headers: dict | None, path: 
     """One management call. Returns (status, parsed body). Raises
     StatusUnavailable on a transport failure so callers can tell "the server
     did not answer" from "the server said no"."""
-    try:
-        with httpx.Client(timeout=_timeout(timeout)) as http:
-            resp = http.request(method, f"{_api(base_url)}{path}", json=json,
-                                headers=_hdrs(api_key, headers))
-    except httpx.HTTPError as e:
-        raise StatusUnavailable(f"StudioForge management API {method} {path}: {e}") from e
-    try:
-        data = resp.json() if resp.content else {}
-    except ValueError:
-        data = {"raw": resp.text[:300]}
+    from .api import log_rate_limit, rate_limit_wait
+    limited_s = 0.0
+    while True:
+        try:
+            with httpx.Client(timeout=_timeout(timeout)) as http:
+                resp = http.request(method, f"{_api(base_url)}{path}", json=json,
+                                    headers=_hdrs(api_key, headers))
+        except httpx.HTTPError as e:
+            raise StatusUnavailable(f"StudioForge management API {method} {path}: {e}") from e
+        try:
+            data = resp.json() if resp.content else {}
+        except ValueError:
+            data = {"raw": resp.text[:300]}
+        if resp.status_code != 429:
+            break
+        # a credential lockout / key rate cap (lead 2026-11-15): wait it out
+        # like a chat call; past the budget the 429 is returned as before
+        wait = rate_limit_wait(_retry_after(data, resp), limited_s)
+        if wait <= 0:
+            break
+        code = ((data.get("error") or {}).get("code")
+                if isinstance(data, dict) and isinstance(data.get("error"), dict) else None)
+        log_rate_limit(f"{method} {path}", code, wait, limited_s)
+        if stopflag.sleep(wait, time.sleep):
+            break
+        limited_s += wait
     if isinstance(data, dict):
         data = dict(data)
         data["_status"] = resp.status_code
@@ -751,6 +770,63 @@ def load_model(model_id: str, base_url: str, api_key: str,
     log.info("%s serving: parallel=%s ctx=%s devices=%s", model_id,
              live.get("parallel"), live.get("ctx_size"), live.get("devices"))
     return time.perf_counter() - t0
+
+
+def load_exact(model_id: str, base_url: str, api_key: str, headers: dict | None,
+               ctx: int, ladder, devices=None, kv: str | None = None) -> dict:
+    """Serve ``model_id`` at exactly ``ctx`` per slot with the widest slot
+    count of ``ladder`` the rig accepts (a model instance's ``parallel``:
+    e.g. 16 -> 14 -> 12). Already resident at ctx with a ladder width: kept
+    as is. Each refused width (4xx/507, or a load that never gets ready)
+    steps down; none fits -> StudioForgeError. Returns the live plan."""
+    ladder = sorted({int(n) for n in ladder}, reverse=True)
+    try:
+        live = loaded_plan(model_id, base_url, api_key, headers) or {}
+    except StatusUnavailable:
+        live = {}
+    if (live.get("state") == "ready" and int(live.get("ctx_size") or 0) == int(ctx)
+            and int(live.get("parallel") or 0) == ladder[0]
+            and (not kv or str(live.get("kv_cache_type") or "").lower() == str(kv).lower())
+            and (not devices or sorted(int(d) for d in live.get("devices") or [])
+                 == sorted(int(d) for d in devices))):
+        return live
+    body = {"ctx_size": int(ctx)}
+    if devices:
+        body["devices"] = [int(d) for d in devices]
+    if kv:
+        body["kv_cache_type"] = kv
+        body["kv_cache_type_v"] = kv
+    last = None
+    for n in ladder:
+        try:
+            if live:
+                _mgmt("POST", base_url, api_key, headers,
+                      f"/api/models/{_quote(model_id)}/unload", timeout=WARMUP_TIMEOUT_S)
+            code, data = _mgmt("POST", base_url, api_key, headers,
+                               f"/api/models/{_quote(model_id)}/load",
+                               json={**body, "parallel": n}, timeout=WARMUP_TIMEOUT_S)
+        except StatusUnavailable as e:
+            last = str(e)
+            continue
+        if code >= 400:
+            last = f"HTTP {code}: {str(data)[:200]}"
+            log.warning("%s: %d slots at ctx %d refused (%s) — trying fewer",
+                        model_id, n, ctx, last)
+            live = {}
+            continue
+        try:
+            wait_ready(model_id, base_url, api_key, headers=headers)
+        except StudioForgeError as e:
+            last = str(e)
+            log.warning("%s: %d slots did not come up (%s) — trying fewer", model_id, n, e)
+            live = {"state": "failed"}
+            continue
+        live = loaded_plan(model_id, base_url, api_key, headers) or {}
+        log.info("%s serving at exactly %s slots x ctx %s on %s", model_id,
+                 live.get("parallel"), live.get("ctx_size"), live.get("devices"))
+        return live
+    raise StudioForgeError(f"{model_id}: no slot count of {ladder} at ctx {ctx} was "
+                           f"accepted ({last})", status=507)
 
 
 # ------------------------------------------ wider placement (2026-11-13)
@@ -1362,7 +1438,8 @@ def acquire_lease(base_url: str, api_key: str, headers: dict | None, devices: li
                   model_ids: list[str] | None = None, holder: str = LEASE_HOLDER,
                   reason: str = "", idle_ttl_s: float | None = LEASE_IDLE_TTL_S,
                   force: bool = False, wait_busy_s: float = DEFAULT_WAIT_BUSY_S,
-                  busy_unload_after_s: float | None = None) -> dict:
+                  busy_unload_after_s: float | None = None, priority: int | None = None,
+                  vacate_url: str | None = None, vacate_token: str | None = None) -> dict:
     """POST /api/leases — give ``devices`` to ``holder`` and load ``model_ids``
     onto exactly them.
 
@@ -1398,6 +1475,14 @@ def acquire_lease(base_url: str, api_key: str, headers: dict | None, devices: li
     Returns the server's lease record with ``_lease_id`` filled in."""
     body = {"devices": [int(d) for d in devices], "model_ids": model_ids,
             "holder": holder, "reason": reason, "idle_ttl_s": idle_ttl_s, "force": force}
+    if priority is not None:
+        body["priority"] = int(priority)
+    if vacate_url:
+        # StudioForge D56: a better class asking for these cards gets one
+        # POST to this URL (X-SF-Vacate-Token = our token); we release
+        body["vacate_url"] = vacate_url
+        if vacate_token:
+            body["vacate_token"] = vacate_token
     busy_since: float | None = None
     unloaded: set[str] = set()
     if force:

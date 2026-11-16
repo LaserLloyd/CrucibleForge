@@ -299,8 +299,8 @@ if mode == "parent":
             if g.get("runner") == "node":
                 cmd = [spec["node"], os.path.join(base, "_cb_runner.mjs"), wd, g["file"], fname]
             else:
-                cmd = [sys.executable, "-I", "-B", os.path.join(base, "_cb_runner.py"), base, wd, "child",
-                       g["file"], fname]
+                cmd = [sys.executable] + spec.get("py_flags", ["-I", "-B"]) + [
+                       os.path.join(base, "_cb_runner.py"), base, wd, "child", g["file"], fname]
             try:
                 p = subprocess.run(cmd, stdin=subprocess.DEVNULL, capture_output=True, text=True, cwd=wd,
                                    timeout=g.get("timeout", 30), errors="replace")
@@ -332,6 +332,8 @@ def _die(code, msg=""):
     _exit(code)
 tfile, tname = sys.argv[4], sys.argv[5]
 spec = json.load(open(os.path.join(base, "spec.json")))
+if spec.get("prelude"):
+    exec(compile(spec["prelude"], "prelude", "exec"), {})
 sys.path[:0] = [os.path.join(base, "_shim"), os.path.join(work, "_hidden")] + [os.path.join(work, p) for p in spec.get("pythonpath", ["."])]
 os.chdir(work)
 import importlib.util, inspect, signal, traceback, pathlib, itertools
@@ -635,6 +637,14 @@ def run_groups(tree: dict[str, str], hidden: dict[str, str], groups: list[dict],
                      "timeout": int(cfg.get("group_timeout_s", 30))})
     spec = {"groups": plan, "pythonpath": cfg.get("pythonpath", ["."]),
             "per_test_timeout": int(cfg.get("per_test_timeout_s", PER_TEST_TIMEOUT_S)), "node": node}
+    # 4.5 families set ``deterministic`` (gen/_det.py: hash seed honoured, seeded random/urandom in every
+    # child before model code); a case without it (every 4.1 code-bank case) runs exactly as before
+    det = bool(cfg.get("deterministic"))
+    if det:
+        from .gen import _det
+        spec["py_flags"] = _det.DET_FLAGS + ["-B"]
+        spec["prelude"] = _det.prelude("codebank")
+    py_flags = spec.get("py_flags", ["-I", "-B"])
     n_funcs = sum(len(p["functions"]) for p in plan)
     stdout, stderr = "", ""
     with tempfile.TemporaryDirectory(prefix="cb-") as td:
@@ -669,13 +679,13 @@ def run_groups(tree: dict[str, str], hidden: dict[str, str], groups: list[dict],
             cmd = _g._bwrap_args(_g._BWRAP) + ["--ro-bind", td, "/work-src"] + extra
             for k, v in {**envs, "PATH": path}.items():
                 cmd += ["--setenv", k, v]
-            cmd += [_g._REAL_PY, "-I", "-B", "/work-src/_cb_runner.py", "/work-src", "/tmp", "parent"]
-            env = _g._child_env()
+            cmd += [_g._REAL_PY] + py_flags + ["/work-src/_cb_runner.py", "/work-src", "/tmp", "parent"]
+            env = _det.det_env() if det else _g._child_env()
         else:
             work = root / "_w"
             work.mkdir()
-            cmd = [_g._REAL_PY, "-I", "-B", str(root / "_cb_runner.py"), td, str(work), "parent"]
-            env = {**_g._child_env(), **envs}
+            cmd = [_g._REAL_PY] + py_flags + [str(root / "_cb_runner.py"), td, str(work), "parent"]
+            env = {**(_det.det_env() if det else _g._child_env()), **envs}
         try:
             proc = subprocess.run(cmd, stdin=subprocess.DEVNULL, capture_output=True, text=True,
                                   encoding="utf-8", errors="replace", env=env,
@@ -846,6 +856,9 @@ def grade_repo_tests(response_text: str, cfg: dict, finish_reason: str | None = 
     v["format_errors"] = errors
     v["applied"] = applied
     v["env"] = env_stamp()
+    if cfg.get("deterministic"):
+        from .gen import _det
+        v["detail"] = (v.get("detail") or "") + _det.py_note()
     return v
 
 

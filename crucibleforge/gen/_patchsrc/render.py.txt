@@ -1,0 +1,39 @@
+"""Text rendering of the STATUS answer."""
+from . import config
+from .model import idle_for, is_expired, rank, time_left, unit_list
+#<F queue>
+from .model import effective_class
+#</F>
+
+
+def state_of(lease, now):
+    if lease.vacating_until is not None:
+        return "vacating"
+    if is_expired(lease, now):
+        return "expired"
+    if time_left(lease, now) <= config.EXPIRING_WINDOW:
+        return "expiring"
+    return "active"
+
+
+def status(book, now):
+    live = [lease for lease in book.leases.values() if not is_expired(lease, now)]
+    held = set()
+    for lease in live:
+        held.update(lease.units)
+    free = [u for u in range(config.UNITS) if u not in held]
+    out = ["STATUS t=%d leases=%d free=%s" % (now, len(book.leases), unit_list(free) or "-")]
+    for lease in sorted(book.leases.values(), key=lambda lease: (rank(lease.cls), lease.created, lease.seq)):
+        out.append("  %s %s u=%s c=%d %s idle=%d" % (lease.id, lease.holder, unit_list(lease.units), lease.cls,
+                                                    state_of(lease, now), idle_for(lease, now)))
+#<F queue>
+    for req in sorted(book.queue.values(), key=lambda r: (rank(effective_class(r, now)), r.n)):
+        out.append("  queue %s %s u=%s c=%d/%d waited=%d" % (req.qid, req.holder, unit_list(req.units), req.cls,
+                                                           effective_class(req, now), now - req.queued))
+#</F>
+#<F quota>
+    for fam in sorted(book.store.quotas):
+        used = sum(len(lease.units) for lease in live if lease.family == fam)
+        out.append("  quota %s %d/%d" % (fam, used, book.store.quotas[fam]))
+#</F>
+    return out

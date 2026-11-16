@@ -35,6 +35,34 @@ RETRY_BACKOFF_S = 2.0
 PRIORITY_HOLD_WAIT_S = 600.0
 # Fallback pause when a hold arrives with no hint (the server sends 15 s).
 PRIORITY_HOLD_POLL_S = 15.0
+# HTTP 429 (lead 2026-11-15): StudioForge's per-address credential lockout (1 s
+# doubling to 300 s, code ``too_many_credential_attempts``) or one key's
+# 20-a-minute cap (``key_rate_limited``). Waited out on Retry-After without
+# spending a transport retry: each wait at most RATE_LIMIT_MAX_WAIT_S, all the
+# waits of one call at most RATE_LIMIT_BUDGET_S; past that it is an ordinary
+# transport error.
+RATE_LIMIT_DEFAULT_S = 5.0
+RATE_LIMIT_MAX_WAIT_S = 300.0
+RATE_LIMIT_BUDGET_S = 900.0
+RATE_LIMIT_CODES = ("too_many_credential_attempts", "key_rate_limited")
+
+
+def rate_limit_wait(retry_after_s: float | None, waited_s: float) -> float:
+    """The next 429 wait (Retry-After, else 5 s; at most 300 s; never past the
+    15-minute budget). 0 = the budget is spent."""
+    hint = RATE_LIMIT_DEFAULT_S if retry_after_s is None else max(float(retry_after_s), 1.0)
+    return max(0.0, min(hint, RATE_LIMIT_MAX_WAIT_S, RATE_LIMIT_BUDGET_S - waited_s))
+
+
+def _billing_words(body: str) -> bool:
+    from .preflight import _BILLING_RE      # lazy: preflight imports this module
+    return bool(_BILLING_RE.search(body or ""))
+
+
+def log_rate_limit(path: str, code: str | None, wait: float, waited_s: float) -> None:
+    """One plain line per 429 wait: the path and the server's error code, never the key."""
+    log.warning("HTTP 429 on %s (%s): waiting %.0fs (%.0fs of %.0fs spent)",
+                path, code or "no error code", wait, waited_s, RATE_LIMIT_BUDGET_S)
 
 # Thinking models (gemma `(think)`, deepseek/qwen `<think>`, qwen3
 # `<|thinking|>`) emit CoT wrapped in these delimiters. When the server fails
@@ -178,14 +206,46 @@ def reasoning_answer(response: str | None, reasoning: str | None,
     return strip_thinking_tags((reasoning or "").strip()).strip()
 
 
+def completion_with_reasoning(usage: dict) -> int | None:
+    """``usage.completion_tokens`` with the reasoning included. Most OpenAI-shape servers count the
+    reasoning inside completion_tokens; xAI reports it beside it (total = prompt + completion + reasoning,
+    billed at the output rate; 2026-11-14 a Grok row read 7 completion / 231 reasoning). Detected from the
+    usage itself, never by provider name: when total_tokens equals prompt + completion + reasoning (and
+    reasoning > 0), the reasoning is added so cost, the spend cap and answer_tokens see what was billed."""
+    ct = usage.get("completion_tokens")
+    rt = (usage.get("completion_tokens_details") or {}).get("reasoning_tokens")
+    pt, tt = usage.get("prompt_tokens"), usage.get("total_tokens")
+    if (isinstance(ct, int) and isinstance(rt, int) and rt > 0 and isinstance(pt, int)
+            and isinstance(tt, int) and tt == pt + ct + rt):
+        return ct + rt
+    return ct
+
+
+def estimate_reasoning_tokens(completion_tokens: int | None, reasoning: str | None,
+                              answer: str | None) -> int | None:
+    """The reasoning share of an exact ``completion_tokens`` count, split by characters (None when
+    there is no count or no reasoning). Labelled "estimated" wherever it is stored."""
+    rc, ac = len((reasoning or "").strip()), len((answer or "").strip())
+    if not completion_tokens or not rc:
+        return None
+    return int(round(completion_tokens * rc / (rc + ac)))
+
+
 def row_answer(row: dict) -> str:
     """A stored transcript row's effective answer: its content, else the
     reasoning-channel answer under :func:`reasoning_answer`'s policy. Derived
     from the raw fields (not the stamp), so rows written before the
-    multi-turn paths stamped ``answered_in_reasoning`` read the same."""
+    multi-turn paths stamped ``answered_in_reasoning`` read the same.
+
+    4.5 (``empty_stop``, Jake: grade only the response given): a row stamped ``empty_stop``
+    (written only under the profile switch ``empty_stop_rule``, on a reply still empty after
+    its regenerate) is an EMPTY reply: the reasoning channel is never read as its answer.
+    Rows without the stamp (every 4.1 row) read exactly as before."""
     resp = row.get("response") or ""
     if resp.strip():
         return resp
+    if row.get("empty_stop"):
+        return ""
     return reasoning_answer(resp, row.get("reasoning"), row.get("finish_reason"),
                             row.get("tool_calls"))
 
@@ -270,6 +330,19 @@ _GENERATION_REJECT_MARKERS = (
     # (precog-123b aborted a whole run on three of these in a row)
     "unable to generate parser",
 )
+
+
+class RateLimited(TransportError):
+    """HTTP 429 (or an SSE error carrying a rate-limit code): the server asks the
+    caller to wait ``retry_after_s`` (None = not said). Waited out by
+    ``stream_chat_retried`` on its own budget, without spending a retry."""
+
+    def __init__(self, msg: str, *, status: int | None = 429,
+                 retry_after_s: float | None = None, code: str | None = None):
+        super().__init__(msg)
+        self.status = status
+        self.retry_after_s = retry_after_s
+        self.code = code
 
 
 class VramContention(TransportError):
@@ -422,11 +495,16 @@ def classify_server_error(status: int | None, body: str,
             ra = float(retry_after_header)
         except ValueError:
             pass
+    code = _error_code(body)
+    if (status == 429 or code in RATE_LIMIT_CODES) and not _billing_words(body):
+        # a hosted 429 that says the quota/credit is spent is billing, not a
+        # wait: it keeps the plain transport path (and the stored row reads
+        # "pending" through preflight.billing_error_row, as before)
+        return RateLimited(msg, status=status, retry_after_s=ra, code=code)
     hold = _parse_priority_hold(body)
     if hold is not None:
         return PriorityHold(msg, status=status, retry_after_s=ra, suggestions=sugg, body=body,
                             model_id=hold.get("model_id"), priority=hold.get("priority"))
-    code = _error_code(body)
     if code == "insufficient_vram" or status == 507:
         # Structured fields decide this, never prose. The
         # SSE-embedded error path never carries a transport status (status is
@@ -462,6 +540,10 @@ class ChatResult:
     prompt_tokens: int | None = None
     completion_tokens: int | None = None
     reasoning_tokens: int | None = None
+    # "server" = usage.completion_tokens_details.reasoning_tokens; "estimated" = the server's exact
+    # completion_tokens split by the reasoning channel's share of the generated characters
+    # (llama.cpp reports no split; R23 2026-11-13: cost is captured per row in thinking-on tokens)
+    reasoning_tokens_source: str | None = None
     # tokens of an earlier, discarded call that was still billed (the empty-reply
     # retry); priced into cost_usd but kept OUT of the speed metrics.
     # completion_tokens already includes reasoning tokens (OpenAI usage shape),
@@ -499,6 +581,34 @@ class ChatResult:
             return ""
         return strip_thinking_tags(
             self.response_text.strip() or self.reasoning_text.strip())
+
+
+def extract_cached_tokens(usage: dict | None) -> int | None:
+    """Cached (prompt-cache hit) input tokens from an OpenAI-shape ``usage``,
+    or None when the provider names none. ``prompt_tokens`` is always the
+    total, so this is a subset of it. Shapes (CACHING-PROVIDERS.md):
+    OpenAI/xAI/OpenRouter/MiniMax ``prompt_tokens_details.cached_tokens``;
+    DeepSeek ``prompt_cache_hit_tokens``; Responses-style
+    ``input_tokens_details.cached_tokens``. UNVERIFIED shapes parsed
+    tolerantly: Moonshot's top-level ``cached_tokens``, Anthropic-style
+    ``cache_read_input_tokens``."""
+    if not isinstance(usage, dict):
+        return None
+
+    def num(v):
+        try:
+            return max(0, int(v))
+        except (TypeError, ValueError):
+            return None
+
+    for outer in ("prompt_tokens_details", "input_tokens_details"):
+        d = usage.get(outer)
+        if isinstance(d, dict) and num(d.get("cached_tokens")) is not None:
+            return num(d.get("cached_tokens"))
+    for k in ("prompt_cache_hit_tokens", "cached_tokens", "cache_read_input_tokens"):
+        if num(usage.get(k)) is not None:
+            return num(usage.get(k))
+    return None
 
 
 def _merge_tool_call_deltas(raw_deltas: list[dict]) -> list[dict]:
@@ -680,6 +790,8 @@ def stream_chat(base_url: str, api_key: str, model: str, messages: list[dict], *
                 for raw_chunk in resp.iter_text():
                     if stopflag.ABORT.is_set():
                         raise Aborted("stopping: stream dropped")
+                    if stopflag.CUT.is_set():
+                        raise WindowClosed("drain ceiling reached: stream cut")
                     if max_wall_s and time.perf_counter() - t0 > max_wall_s:
                         raise RowTimeout(f"request exceeded its {max_wall_s:.0f}s wall-clock ceiling")
                     if deadline and time.time() >= deadline:
@@ -746,6 +858,17 @@ def stream_chat(base_url: str, api_key: str, model: str, messages: list[dict], *
     r.prompt_tokens = usage.get("prompt_tokens")
     r.completion_tokens = usage.get("completion_tokens")
     r.reasoning_tokens = (usage.get("completion_tokens_details") or {}).get("reasoning_tokens")
+    if r.reasoning_tokens is not None:
+        r.reasoning_tokens_source = "server"
+        r.completion_tokens = completion_with_reasoning(usage)
+    else:
+        est = estimate_reasoning_tokens(r.completion_tokens, r.reasoning_text, r.response_text)
+        if est is not None:
+            r.reasoning_tokens, r.reasoning_tokens_source = est, "estimated"
+    # prompt-cache hits of an OpenAI-shape provider (None = field absent).
+    # cache_write_tokens stays None: only the native Anthropic path reports
+    # writes, and None tells the pricer to charge list, not Claude defaults.
+    r.cache_read_tokens = extract_cached_tokens(usage)
     if first_tok_t and last_tok_t and last_tok_t > first_tok_t:
         r.gen_s = last_tok_t - first_tok_t
         if r.completion_tokens and r.completion_tokens >= 2:
@@ -789,19 +912,53 @@ def stream_chat_retried(base_url: str, api_key: str, model: str, messages: list[
     succeed — the caller must shorten the request or stand down."""
     last_err: Exception | None = None
     held_s = 0.0
+    limited_s = 0.0
     attempt = 0
+    # spend-cap hooks (providers.Provider.chat): ``pre_send`` runs before EVERY
+    # attempt (a retry is a new bill), ``on_billed_error`` after an attempt
+    # that was billed but raised
+    pre_send = kwargs.pop("pre_send", None)
+    on_billed_error = kwargs.pop("on_billed_error", None)
+
+    def _billed(exc):
+        if on_billed_error is not None and not isinstance(
+                exc, (Aborted, WindowClosed, RequestRejected, VramExhausted, PriorityHold,
+                      VramContention, WrongModelError, RateLimited)):
+            on_billed_error(exc)
+
     while attempt < MAX_TRANSPORT_RETRIES:
         attempt += 1
         if stopflag.ABORT.is_set():
             raise Aborted("stopping: request not started")
+        if stopflag.CUT.is_set():
+            raise WindowClosed("drain ceiling reached: request not started")
+        if pre_send is not None:
+            pre_send()
         try:
             return stream_chat(base_url, api_key, model, messages, **kwargs)
         except (WrongModelError, RequestRejected, GenerationRejected, VramExhausted,
-                StreamStalled, RowTimeout, Aborted, WindowClosed, ProtocolRejected):
+                StreamStalled, RowTimeout, Aborted, WindowClosed, ProtocolRejected) as e:
+            _billed(e)
             # retrying an identical bad request / bad generation / full VRAM
             # cannot succeed, and a stalled or over-budget row must not cost
             # the run its ceiling three times over
             raise
+        except RateLimited as e:
+            # A credential lockout or a key's rate cap: the server says how
+            # long. Waited out WITHOUT spending a transport retry (so it never
+            # becomes an errored row or feeds the consecutive-error abort while
+            # it lasts); past the budget it is an ordinary transport error.
+            last_err = e
+            wait = rate_limit_wait(e.retry_after_s, limited_s)
+            if wait <= 0:
+                log.error("HTTP 429 (%s) still standing after %.0fs of waiting — giving up",
+                          e.code or "no error code", limited_s)
+                raise
+            log_rate_limit("/chat/completions", e.code, wait, limited_s)
+            if stopflag.sleep(wait, time.sleep):
+                raise Aborted("stopping: rate-limit wait abandoned") from e
+            limited_s += wait
+            attempt -= 1
         except PriorityHold as e:
             # Somebody's chat/agent model is loading. Wait it out on the hold
             # budget WITHOUT spending a transport retry: this is the server
@@ -823,6 +980,7 @@ def stream_chat_retried(base_url: str, api_key: str, model: str, messages: list[
             attempt -= 1
         except TransportError as e:
             last_err = e
+            _billed(e)
             if attempt < MAX_TRANSPORT_RETRIES:
                 wait = RETRY_BACKOFF_S * (2 ** (attempt - 1))
                 if isinstance(e, VramContention) and e.retry_after_s:

@@ -46,7 +46,7 @@ Marisol filed the allergy away the way she filed a band's input list — without
 
 She smiled, briefly, at the table rather than at him.
 
-"My mama put them in the room at the end of the hall and fed them before she asked a single question. That was the house rule. Feed first, questions after, and most of the time no questions at all. I went down to look at the new girl and she was sitting on the bed hitting that snare with two wooden spoons from our kitchen. She looked at me and said 'Do you play anything?' and I said 'No,' and she said 'Well, you better learn,' and that was the next five years of my life decided."
+"My mama put them in room 6 at the Conti house and fed them before she asked a single question. That was the house rule. Feed first, questions after, and most of the time no questions at all. I went down to look at the new girl and she was sitting on the bed hitting that snare with two wooden spoons from our kitchen. She looked at me and said 'Do you play anything?' and I said 'No,' and she said 'Well, you better learn,' and that was the next five years of my life decided."
 
 The food came. Marisol salted hers without tasting it, which Ottavio would have hit her for, and pointed her fork at him.
 
@@ -82,7 +82,7 @@ She took out her phone — an old one, in a case wrapped with gaffer tape — an
 
 She put the phone away and looked at him with one eyebrow up, a bargain being struck.
 
-"And I'll make you a trade for those letters. You know your mother and I had a band. She probably told you we were terrible." She lifted her chin. "We were magnificent. We were also terrible. We made one tape. A demo, four songs, recorded on a four-track in my daddy's shop with the shop fan going because it was a hundred degrees. There's exactly one copy left in the world and it's in a shoebox in my closet. Your mother is on it, singing harmony she couldn't hit, laughing in the middle of the second song. You've never heard her at sixteen." She held his eye. "You bring the letters to Cleveland. I'll bring the tape. Deal?"
+"And I'll make you a trade for those letters. You know your mother and I had a band. We were the Fuse Box Saints, which tells you everything about our musical ambitions. She probably told you we were terrible." She lifted her chin. "We were magnificent. We were also terrible. We made one tape. A demo, four songs, recorded on a four-track in my daddy's shop with the shop fan going because it was a hundred degrees. There's exactly one copy left in the world and it's in a shoebox in my closet. Your mother is on it, singing harmony she couldn't hit, laughing in the middle of the second song. You've never heard her at sixteen." She held his eye. "You bring the letters to Cleveland. I'll bring the tape. Deal?"
 
 ### USER
 Noah has to look away for a second. When he looks back, his eyes are wet and he's grinning. "Deal. God. Yes." He wipes his face with the heel of his hand, embarrassed. "Okay — one more thing and then I'll stop interviewing you over eggs. I'm seeing someone, Katya. Her family's huge and Russian and they've basically adopted me, which is terrifying. She keeps saying I need to 'learn the rules.' I'm telling you so that if I show up in Cleveland in a panic about some family thing, you'll know why." He smiles. "And — what do I call you now? Mom always said 'Mari.' Is that allowed?"

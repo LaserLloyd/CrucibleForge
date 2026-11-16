@@ -1,0 +1,14 @@
+{
+ "level": 1,
+ "points": 1,
+ "item": "CQ-FROMSCRATCH",
+ "budget": 65536,
+ "classic_fixed": true,
+ "note": "FC4 CQ1-3 (the 4.1 text byte for byte; definitions stay in work/code/classic-code.json, excluded there by profile pack_exclude). Graded under Python 3.13 with the source rule as one group (profile grader_pins). PROVISIONAL (T7, 2026-11-13): weights and counts are one number each; gates re-opened 16:15.",
+ "cases": [
+  "CQ1-format-spec-from-scratch",
+  "CQ2-regex-engine-from-scratch",
+  "CQ3-spreadsheet-engine"
+ ],
+ "frontier": true
+}

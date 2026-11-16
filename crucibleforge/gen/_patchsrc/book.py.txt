@@ -1,0 +1,213 @@
+"""The lease book: who holds which units, and the rules for taking them."""
+from . import config
+from .model import Lease, better, family_of, is_expired, unit_list
+#<F queue>
+from .model import Request, effective_class, rank, request_expired
+#</F>
+
+
+class Book:
+    def __init__(self, store, journal):
+        self.store = store
+        self.journal = journal
+        self.leases = {}
+#<F queue>
+        self.queue = {}
+#</F>
+
+    def ordered(self):
+        """Every lease in the book, oldest (lowest sequence number) first."""
+        return sorted(self.leases.values(), key=lambda lease: lease.seq)
+
+    def holding(self, units, exclude=None):
+        """Leases other than ``exclude`` that share at least one unit with ``units``, oldest first."""
+        want = set(units)
+        return [lease for lease in self.ordered() if lease is not exclude and want.intersection(lease.units)]
+
+    def _drop(self, lease, now, kind):
+        del self.leases[lease.id]
+        self.store.delete(lease.id)
+        self.journal.add(now, kind, lease.id)
+
+    def reclaim(self, lease, now):
+        """An expired lease that an ACQ or a TOUCH runs into is removed on the spot."""
+        self._drop(lease, now, "expired")
+
+#<F !queue>
+    def acquire(self, holder, cls, units, ttl, now):
+#</F>
+#<F queue>
+    def acquire(self, holder, cls, units, ttl, now, queued=False):
+#</F>
+        for u in units:
+            if u >= config.UNITS:
+                return ["ERR badunit %d" % u]
+        if ttl < config.MIN_TTL or ttl > config.MAX_TTL:
+            return ["ERR badttl %d" % ttl]
+        for lease in self.ordered():
+            if lease.holder == holder and lease.units == tuple(units) and not is_expired(lease, now):
+                lease.last = now
+                self.store.touch(lease, now)
+                return ["OK %s again" % lease.id]
+#<F quota>
+        fam = family_of(holder)
+        limit = self.store.quotas.get(fam)
+        if limit is not None:
+            used = sum(len(lease.units) for lease in self.ordered()
+                       if lease.family == fam and not is_expired(lease, now))
+            if used + len(units) > limit:
+                return ["ERR quota %s %d/%d" % (fam, used, limit)]
+#</F>
+        conflicts = []
+        for lease in self.holding(units):
+            if is_expired(lease, now):
+                self.reclaim(lease, now)
+            else:
+                conflicts.append(lease)
+        if not conflicts:
+            seq = self.store.take_seq()
+            lease = Lease(id="%s%d" % (config.ID_PREFIX, seq), seq=seq, holder=holder, units=tuple(units),
+                          cls=cls, ttl=ttl, created=now, last=now)
+            self.leases[lease.id] = lease
+            self.store.put(lease, now)
+            self.journal.add(now, "acquire", "%s %s %s" % (lease.id, holder, unit_list(lease.units)))
+            return ["OK %s" % lease.id]
+        ids = " ".join(lease.id for lease in conflicts)
+        if all(better(cls, lease.cls) for lease in conflicts):
+            for lease in conflicts:
+                if lease.vacating_until is None:
+                    lease.vacating_until = now + config.VACATE_TIMEOUT
+                    self.store.put(lease, now)
+                    self.journal.add(now, "vacate", lease.id)
+            if all(now <= lease.vacating_until for lease in conflicts):
+#<F !queue>
+                return ["WAIT %s retry=%d" % (ids, config.RETRY_AFTER)]
+        return ["ERR conflict %s" % ids]
+#</F>
+#<F queue>
+                return self._maybe_queue("WAIT %s retry=%d" % (ids, config.RETRY_AFTER), queued,
+                                         holder, cls, units, ttl, now)
+        return self._maybe_queue("ERR conflict %s" % ids, queued, holder, cls, units, ttl, now)
+
+    def _maybe_queue(self, answer, queued, holder, cls, units, ttl, now):
+        if not queued:
+            return [answer]
+        n = self.store.take_q()
+        req = Request(qid="W%d" % n, n=n, holder=holder, units=tuple(units), cls=cls, ttl=ttl, queued=now)
+        self.queue[req.qid] = req
+        self.store.put_request(req)
+        self.journal.add(now, "queue", "%s %s %s" % (req.qid, holder, unit_list(req.units)))
+        return ["%s queued=%s" % (answer, req.qid)]
+
+    def cancel(self, qid, now):
+        req = self.queue.get(qid)
+        if req is None:
+            return ["ERR unknown %s" % qid]
+        del self.queue[qid]
+        self.store.delete_request(qid)
+        self.journal.add(now, "cancel", qid)
+        return ["OK %s cancelled" % qid]
+
+    def process_queue(self, now):
+        """Runs before every command: drop requests that waited too long, then grant what fits."""
+        out = []
+        for req in sorted(self.queue.values(), key=lambda r: r.n):
+            if request_expired(req, now):
+                del self.queue[req.qid]
+                self.store.delete_request(req.qid)
+                self.journal.add(now, "unqueue", req.qid)
+                out.append("UNQUEUED %s" % req.qid)
+        held = set()
+        for lease in self.leases.values():
+            if not is_expired(lease, now):
+                held.update(lease.units)
+        blocked = set()
+        for req in sorted(self.queue.values(), key=lambda r: (rank(effective_class(r, now)), r.n)):
+            want = set(req.units)
+            if want & held or want & blocked:
+                blocked |= want
+                continue
+            for lease in self.holding(req.units):
+                self.reclaim(lease, now)
+            seq = self.store.take_seq()
+            lease = Lease(id="%s%d" % (config.ID_PREFIX, seq), seq=seq, holder=req.holder, units=req.units,
+                          cls=req.cls, ttl=req.ttl, created=now, last=now)
+            self.leases[lease.id] = lease
+            self.store.put(lease, now)
+            del self.queue[req.qid]
+            self.store.delete_request(req.qid)
+            self.journal.add(now, "grant", "%s %s" % (req.qid, lease.id))
+            held |= want
+            out.append("GRANT %s %s" % (req.qid, lease.id))
+        return out
+#</F>
+
+    def release(self, lease_id, now):
+        lease = self.leases.get(lease_id)
+        if lease is None:
+            return ["ERR unknown %s" % lease_id]
+        self._drop(lease, now, "release")
+        return ["OK %s released" % lease_id]
+
+    def touch(self, lease_id, now):
+        lease = self.leases.get(lease_id)
+        if lease is None:
+            return ["ERR unknown %s" % lease_id]
+        if is_expired(lease, now):
+            self.reclaim(lease, now)
+            return ["ERR expired %s" % lease_id]
+        lease.last = now
+        wrote = self.store.touch(lease, now)
+        return ["OK %s%s" % (lease_id, "" if wrote else " cached")]
+#<F extend>
+
+    def extend(self, lease_id, more, now):
+        lease = self.leases.get(lease_id)
+        if lease is None:
+            return ["ERR unknown %s" % lease_id]
+        if is_expired(lease, now):
+            self.reclaim(lease, now)
+            return ["ERR expired %s" % lease_id]
+        if lease.vacating_until is not None:
+            return ["ERR vacating %s" % lease_id]
+        if lease.ttl + more > config.MAX_TTL:
+            return ["ERR badttl %d" % (lease.ttl + more)]
+        lease.ttl += more
+        lease.last = now
+        self.store.put(lease, now)
+        self.journal.add(now, "extend", "%s %d" % (lease_id, lease.ttl))
+        return ["OK %s ttl=%d" % (lease_id, lease.ttl)]
+#</F>
+#<F quota>
+
+    def set_quota(self, family, limit, now):
+        self.store.set_quota(family, limit)
+        self.journal.add(now, "quota", "%s %d" % (family, limit))
+        return ["OK quota %s=%d" % (family, limit)]
+#</F>
+
+    def sweep(self, now):
+        gone = [lease for lease in self.ordered() if is_expired(lease, now)]
+        for lease in gone:
+            self._drop(lease, now, "expired")
+        return ["SWEPT %s" % (" ".join(lease.id for lease in gone) if gone else "-")]
+
+    def restore(self, now):
+        """Rebuild the book from the store after a restart."""
+        self.leases = {}
+        kept = dropped = 0
+        for lease in self.store.load():
+            if lease.family == config.OWN_FAMILY or is_expired(lease, now):
+                self.store.delete(lease.id)
+                dropped += 1
+                continue
+            if lease.vacating_until is not None:
+                lease.vacating_until = None
+                self.store.put(lease, now)
+            self.leases[lease.id] = lease
+            kept += 1
+#<F queue>
+        self.queue = {req.qid: req for req in self.store.load_requests()}
+#</F>
+        self.journal.add(now, "restart", "kept=%d dropped=%d" % (kept, dropped))
+        return ["RESTARTED kept=%d dropped=%d" % (kept, dropped)]

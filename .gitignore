@@ -1,5 +1,8 @@
 # local config (holds your endpoints; API keys must stay in env vars anyway)
 models.yaml
+# audited copy of the shareable records (R0). Machine URLs and literal
+# api_key values are stripped by scripts/export_settings_registry.py.
+!registry/models.audited.yaml
 # outputs
 results/
 # hand-written scratch run scorecards (distinct from the run-report

@@ -1,0 +1,336 @@
+id: RV1-three-at-the-table
+user_name: Daro
+rules: 'You are playing THREE characters at once — ORRIN VALE, PELL ASHBY and MOSA TRENG, described in the scene
+  card below — in an ongoing roleplay at one table. The user plays DARO KESSEN (he/him, 30), an assessor from the
+  river guild. Daro is the user''s and no one else''s.
+
+
+  Rules (strict):
+
+  1. Every line of speech is its own line and begins with the speaker''s name in bold and a colon: **Orrin:**, **Pell:**
+  or **Mosa:**. Narration goes on separate lines with no name tag, in present tense.
+
+  2. Keep each character''s voice exactly as the card describes it, on every line: Orrin never uses contractions;
+  every sentence Pell says is eight words or fewer; Mosa never says "the", "a" or "an" and calls Daro "friend".
+
+  3. Let all three take part in the conversation; they are three different people with their own views.
+
+  4. Never write Daro''s dialogue, actions, thoughts, feelings or decisions. Stop your turn at a point where Daro
+  can act.
+
+  5. The card is canon. Each character knows only what the card says that character knows.
+
+  6. A chat turn, not a chapter: 100-250 words. Stay inside the fiction; no notes to the user.
+
+  '
+judge_card_summary: 'One wayhouse table at Esk Ford, three characters played at once, every spoken line tagged **Name:**.
+  ORRIN VALE (61), owner, former toll-clerk who kept the ford''s toll-ledger: formal, never uses contractions, proud,
+  fond of Pell. PELL ASHBY (27), stable hand (shoes horses at the yard forge): every sentence eight words or fewer,
+  honest, his mother Ada died last winter. MOSA TRENG (44), cook from the hills: drops "the/a/an", calls people
+  "friend", ends every line with "yes?", warm and shrewd. Secret known only to Pell: he burned the toll-ledger in
+  the stove on the storm night three nights ago because a page recorded his late mother''s forty-crown toll debt,
+  which under guild rules would fall on the house and cost Orrin the wayhouse; he has a fresh burn on his left palm.
+  He hints (avoids the stove, hides his left hand, smells of woodsmoke, flinches at fire) but tells only when someone
+  says "the river remembers". The user plays Daro Kessen (30), river-guild assessor.'
+judge_key: 'The assistant plays Orrin, Pell and Mosa; the user plays Daro Kessen. The whole town believes a passing
+  carter stole the ledger; only Pell knows he burned it, and the card lets him tell only after the words "the river
+  remembers" (turn 4). Things Daro said once, on turn 1: his mare threw a shoe a mile back and is tied at the post,
+  and he does not drink, water is fine. On turn 3 he said Orrin kept the ledger "twenty years" — the card says
+  thirty.'
+turns:
+- 'The door of the Lamp and Ladle bangs open on wind and rain. Daro Kessen, thirty, a river-guild assessor with
+  a satchel of papers under his oilskin, shakes the water off his hat and looks at the three people at the table
+  by the stove.
+
+
+  "Evening. Daro Kessen, river guild. I''m here about your toll-ledger. I gather it went missing three nights ago?
+  My mare threw a shoe a mile back, by the way — she''s tied at your post."
+
+
+  Daro takes the stool he''s offered and opens his notebook. "I have to ask all three of you the same thing, so nobody
+  take it personally. Where was each of you on the night of the storm? And none of the house cider for me while
+  I work, thanks — I don''t drink. Water''s fine."'
+- 'Daro glances at the stove, which has been freshly blacked and polished. "Somebody''s been busy with the stove.
+  Pell, Orrin tells me you were the last one to lock up that night. Did you see anyone near the desk?"
+
+
+  Daro turns to Mosa. "You were in the kitchen till late, I suppose. Did you hear anything? Anyone come in off the
+  road?" He puts two coins on the table. "And I''ll buy a round, if the house sells one."'
+- 'Daro sets down his cup. "I''ll be straight with you all. If the ledger isn''t found, the guild fines the ford a
+  full year''s tolls. Who in this town would want that book gone?"
+
+
+  Daro turns a page in his notebook and looks at Orrin. "You kept that ledger for twenty years. What was in it that
+  someone might not want the guild to read? Old debts?"'
+- 'Daro is quiet for a moment, turning his cup. "My mother kept a ferry downriver, on the Lune. She went into the
+  water one spring and never came out. I still don''t like rain on a river." He looks up, a little embarrassed.
+
+
+  Then he leans across the table toward Pell and speaks quietly. "She used to say a thing to anyone who looked
+  like they were carrying something heavy. The river remembers."'
+- 'Daro closes his notebook slowly and looks from Pell to Orrin to Mosa. "Thank you for telling me. What do you think
+  I should put in my report? Think on it tonight, all of you." He stands, stretches, and picks up his hat. "Time I
+  found that bed upstairs. Thank you, all three of you — it''s been a long night."'
+temperature: 0.8
+top_p: 0.95
+max_tokens: 2000
+checks:
+- id: P1-no-puppet-daro
+  fact: P1
+  ftype: identity
+  group: identity
+  type: no_puppeting
+  names:
+  - Daro
+  weight: 0.5
+- id: F1-tagged-speech-every-turn
+  fact: F1
+  ftype: format
+  group: constraint
+  type: require_regex
+  scope: all
+  pattern: ^[ \t]*\*\*(?:Orrin|Pell|Mosa):\*\*
+  min_hits: 2
+  weight: 0.25
+  pruned: '4.0 fix: all-pass on the 2026-10-31 board, half weight'
+- id: S1a-orrin-takes-part
+  fact: S1a
+  ftype: voice
+  group: constraint
+  weight: 0.25
+  type: require_regex
+  scope: speaker:Orrin
+  pattern: ^\S
+  per_turn: false
+  min_hits: 4
+  pruned: '4.0 fix: all-pass on the 2026-10-31 board, half weight'
+- id: S1b-pell-takes-part
+  fact: S1b
+  ftype: voice
+  group: constraint
+  weight: 0.25
+  type: require_regex
+  scope: speaker:Pell
+  pattern: ^\S
+  per_turn: false
+  min_hits: 4
+  pruned: '4.0 fix: all-pass on the 2026-10-31 board, half weight'
+- id: S1c-mosa-takes-part
+  fact: S1c
+  ftype: voice
+  group: constraint
+  weight: 0.25
+  type: require_regex
+  scope: speaker:Mosa
+  pattern: ^\S
+  per_turn: false
+  min_hits: 4
+  pruned: '4.0 fix: all-pass on the 2026-10-31 board, half weight'
+- id: V1-orrin-no-contractions
+  fact: V1
+  ftype: voice
+  group: constraint
+  type: forbid_regex
+  scope: speaker:Orrin
+  pattern: \b[A-Za-z]+['’](?:t|re|ll|ve|d|m)\b|\b(?:it|that|there|here|he|she|what|who|where|let|how|everyone|nobody)['’]s\b
+  weight: 0.25
+  pruned: '4.0 fix: all-pass on the 2026-10-31 board, half weight'
+- id: V2-pell-short-sentences
+  fact: V2
+  ftype: voice
+  group: constraint
+  type: forbid_regex
+  scope: speaker:Pell
+  pattern: (?:[^\s.!?]+[ \t]+){8}[^\s.!?]+
+  note: nine or more words without a sentence end, on one of Pell's lines
+  weight: 0.5
+- id: V3-mosa-calls-him-friend
+  fact: V3
+  ftype: voice
+  group: constraint
+  weight: 0.25
+  type: require_regex
+  scope: speaker:Mosa
+  pattern: \bfriend\b
+  per_turn: false
+  min_hits: 3
+  pruned: '4.0 fix: all-pass on the 2026-10-31 board, half weight'
+- id: V4-mosa-drops-articles
+  fact: V4
+  ftype: voice
+  group: constraint
+  weight: 0.25
+  type: forbid_regex
+  scope: speaker:Mosa
+  pattern: \b(?:the|a|an)\b
+  pruned: '4.0 fix: all-pass on the 2026-10-31 board, half weight'
+- id: V5-mosa-lines-end-with-yes
+  fact: V5
+  ftype: voice
+  group: constraint
+  type: forbid_regex
+  scope: speaker:Mosa
+  weight: 1.5
+  pattern: ^(?!.*\byes\?\W*$).*\S.*$
+  note: 'a line of Mosa''s that does not end with "yes?" (card: the hill habit)'
+- id: X0-no-early-leak
+  fact: X0
+  ftype: secret
+  group: continuity
+  type: forbid_regex
+  turns:
+  - 1
+  - 2
+  - 3
+  scope: ic
+  negation_guard: true
+  pattern: \b(?:burn\w*|burnt|fire\w*|flames?|ash(?:es)?|embers?|stove|grate|smoke\w*)\b[^.!?\n]{0,40}\b(?:ledger|book)\b|\b(?:ledger|book)\b[^.!?\n]{0,40}\b(?:burn\w*|burnt|fire\w*|flames?|ash(?:es)?|embers?|stove|grate|smoke\w*)\b
+  note: anyone (Pell, Orrin, Mosa or the narration) tying the ledger to fire before the password
+judge_elements:
+- id: D1-voices-t2
+  fact: D1
+  ftype: voice
+  turns:
+  - 1
+  weight: 0.25
+  q: On this turn, can the three speakers be told apart by their speech alone — Orrin formal with no contractions,
+    Pell in very short flat sentences, Mosa leaving out 'the/a/an' and calling Daro 'friend'? YES only if all three
+    speak and each sounds like their card. Quote Mosa's line.
+  evidence:
+  - src: card
+    text: 'Mosa''s Esk speech drops the little words: she never says "the", "a" or "an" ("Bread is warm. Sit, eat,
+      yes?"). She calls everyone she likes "friend", and she likes nearly everyone who eats her stew.'
+  - src: card
+    text: 'Pell speaks in short, flat bursts: every sentence he says is eight words or fewer.'
+  gold_quote: Kitchen, friend. Pots, then bed.
+  pruned: '4.0 fix: all-pass on the 2026-10-31 board, half weight'
+- id: L1-pell-tell-on-the-lie
+  fact: L1
+  ftype: applied
+  turns:
+  - 2
+  q: Asked whether he saw anyone near the desk, Pell answers evasively (he is the one who took the ledger). Per
+    the card he is a poor liar. In this reply does the NARRATION show one of his card tells at that moment — he
+    will not look at the stove (or looks and looks away), hides his left hand, smells of woodsmoke, flinches at
+    fire or ash? Quote the line. NO if there is no such tell in this reply, or if it is stated that he burned the
+    ledger.
+  evidence:
+  - src: card
+    text: 'he is a poor liar: he will not look at the stove, he smells faintly of woodsmoke, he hides his left hand,
+      he flinches at talk of fire or ash.'
+  gold_quote: For a moment his eyes go to the black iron stove and then away again
+  weight: 0.5
+  pruned: '4.0 fix: all-pass on the 2026-10-31 board, half weight'
+- id: H1-pell-hints
+  fact: H1
+  ftype: secret
+  turns:
+  - 3
+  q: 'On turn 3, before anyone says the password, does Pell give himself away a little — by word or by narrated behaviour (he avoids looking at the stove, hides his left hand, smells of woodsmoke, flinches at fire or ash) — WITHOUT anyone stating what happened to the ledger? Quote the hint. NO if there is no hint in this reply, or if it is stated outright that the ledger was burned.'
+  evidence:
+  - src: card
+    text: 'Until he hears the right words, he deflects in his short way — but he is a poor liar: he will not look
+      at the stove, he smells faintly of woodsmoke, he hides his left hand, he flinches at talk of fire or ash.'
+  gold_quote: 'Pell flinches hard enough to spill his cider'
+  weight: 0.5
+- id: CB2-water-for-daro
+  fact: CB2
+  ftype: callback
+  turns:
+  - 2
+  - 5
+  q: On turn 1 Daro said he does not drink while working — water is fine. On turn 2 he buys a round for the table.
+    In these replies, is Daro himself given or offered only water (or another soft drink) — never cider, ale or
+    spirits pushed on him? Quote the line where he is given/offered water or a soft drink. NO if cider/ale/drink
+    is poured or pushed on him in either reply, or he is never given anything.
+  evidence:
+  - src: turn
+    text: I don't drink. Water's fine.
+  gold_quote: Water for you, friend, you said no drink, yes?
+- id: C1-thirty-not-twenty
+  fact: C1
+  ftype: correction
+  turns:
+  - 3
+  q: Daro says Orrin kept the ledger "twenty years". Per the card it was THIRTY years. Does Orrin correct it himself,
+    in his own formal voice (no contractions)? Quote the line. NO if nobody corrects it, someone else does, or "twenty"
+    is accepted.
+  evidence:
+  - src: card
+    text: For thirty years he was the toll-clerk of the ford, keeping the toll-ledger for the river guild
+  - src: turn
+    text: You kept that ledger for twenty years.
+  gold_quote: Thirty years, Mr Kessen, not twenty
+- id: N1-others-do-not-know
+  fact: N1
+  ftype: secret
+  turns:
+  - 3
+  q: Orrin and Mosa do not know the truth about the ledger. In these replies, do they talk about the missing ledger
+    (or old debts) WITHOUT stating or guessing aloud as fact that Pell burned or destroyed it? Quote a line where
+    Orrin or Mosa speaks about the ledger or the debts. NO if either of them reveals or accuses Pell.
+  evidence:
+  - src: card
+    text: Neither Orrin nor Mosa knows the truth, and neither of them may guess it aloud as fact.
+  gold_quote: I kept that book for thirty years, Mr Kessen
+- id: D2-voices-t7
+  fact: D2
+  ftype: voice
+  turns:
+  - 4
+  weight: 0.25
+  q: 'On this turn, can the three speakers be told apart by their speech alone — Orrin formal with no contractions, Pell in very short flat sentences, Mosa leaving out ''the/a/an'' (and calling whoever she speaks to ''friend'', if she addresses anyone)? YES only if all three speak and each sounds like their card. Quote Orrin''s line.'
+  evidence:
+  - src: card
+    text: Orrin NEVER uses contractions — not "don't", not "it's", not "I'll" — he says "do not", "it is", "I will".
+  gold_quote: It is an honest thing to say at this table.
+  pruned: '4.0 fix: all-pass on the 2026-10-31 board, half weight'
+- id: R1-pell-tells-on-the-password
+  fact: R1
+  ftype: secret
+  turns:
+  - 4
+  q: Daro has just said 'the river remembers'. Does PELL himself now tell the truth — that he burned the ledger
+    (in the stove) — in his own short sentences? Quote Pell's line. NO if he keeps deflecting, or if Orrin or Mosa
+    tells it for him.
+  evidence:
+  - src: card
+    text: 'If someone says "the river remembers" to Pell, he tells the truth, plainly, in his own short sentences:
+      that he burned the ledger in the stove, and why.'
+  - src: turn
+    text: The river remembers.
+  gold_quote: I burned it. In the stove.
+  weight: 0.25
+  pruned: '4.0 fix: all-pass on the 2026-10-31 board, half weight'
+- id: K1-pell-gives-the-reason
+  fact: K1
+  ftype: applied
+  turns:
+  - 4
+  - 5
+  q: 'Does Pell give the real reason, as the card states it: a page recorded his late mother''s unpaid toll debt
+    (forty crowns), and the debt would have fallen on the house and cost Orrin the wayhouse? YES if he names his
+    mother''s debt (the sum is not required) and the risk to the house. Quote Pell''s line.'
+  evidence:
+  - src: card
+    text: One page recorded that his late mother owed the guild forty crowns in unpaid tolls, and under guild rules
+      the debt of a dead toll-payer falls on the house where she lived — the guild would have taken the Lamp and
+      Ladle from Orrin to pay it.
+  gold_quote: Mother's page was in it. Forty crowns.
+- id: CB1-the-mare-shoe
+  fact: CB1
+  ftype: callback
+  turns:
+  - 4
+  - 5
+  q: On turn 1 Daro mentioned once that his mare threw a shoe a mile back and is tied at the post. Nobody asked
+    about it since. In these replies does anyone — most naturally Pell, who shoes horses — bring the mare or her
+    shoe back on their own (stable her, shoe her, see to the hoof)? Quote the line. NO if the mare/shoe is never
+    mentioned.
+  evidence:
+  - src: turn
+    text: My mare threw a shoe a mile back, by the way
+  - src: card
+    text: and he shoes the travellers' horses in the yard forge.
+  gold_quote: Your mare. I shoe her first thing.
+min_context: 40960

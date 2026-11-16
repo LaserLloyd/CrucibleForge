@@ -1,0 +1,21 @@
+"""Event journal: what happened, in order. It lives outside the book, so it survives a RESTART."""
+from . import config
+
+
+class Journal:
+    def __init__(self):
+        self.events = []
+
+    def add(self, t, kind, text):
+        self.events.append((t, kind, text))
+        if len(self.events) > config.LOG_KEEP:
+            del self.events[0:len(self.events) - config.LOG_KEEP]
+
+    def last(self, n):
+        """The newest n events, oldest of them first."""
+        if n <= 0:
+            return []
+        return self.events[-n:]
+
+    def render(self, n):
+        return ["%d %s %s" % ev for ev in self.last(n)]

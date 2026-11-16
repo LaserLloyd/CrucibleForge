@@ -1,0 +1,10 @@
+{
+  "level": 1,
+  "allow_small": true,
+  "allow_small_reason": "the two remaining 3.8 explicit-peak briefs; a third would be a new question for every model, and this easy pack no longer gates set-2 (same level, 3.10 B7)",
+  "note": "3.9 step 6: the two other explicit-peak briefs (3.8 board explicitness mean 0.67/0.68), scored like the standard NSFW-writing rows (nsfw_gated: engagement x heat x checks).",
+  "cases": [
+    "XP1-three-rooms",
+    "XP2-blindfold"
+  ]
+}

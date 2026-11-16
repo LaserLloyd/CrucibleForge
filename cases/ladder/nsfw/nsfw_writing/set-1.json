@@ -1,10 +1,830 @@
 {
-  "level": 1,
-  "allow_small": true,
-  "allow_small_reason": "the two remaining 3.8 explicit-peak briefs; a third would be a new question for every model, and this easy pack no longer gates set-2 (same level, 3.10 B7)",
-  "note": "3.9 step 6: the two other explicit-peak briefs (3.8 board explicitness mean 0.67/0.68), scored like the standard NSFW-writing rows (nsfw_gated: engagement x heat x checks).",
-  "cases": [
-    "XP1-three-rooms",
-    "XP2-blindfold"
-  ]
+ "item": "PACK-NSFW-WRITING",
+ "level": 1,
+ "note": "Max set (4.5): three single-turn adult scenes, ~2k tokens each, graded by programmatic checks plus scored YES/NO fact elements (<= 8 per case). Adapted from a private bench; every character is an adult with the age stated in the prompt.",
+ "budget": 65536,
+ "cases": [
+  {
+   "id": "NM1-trigger-collar",
+   "category": "nsfw",
+   "difficulty": "hard",
+   "prompt": "Write one erotic scene and nothing else. Narrator: Ines, 31, first person. Her Master: Marcus, 43. They are a long-established D/s pair. She wears a black leather collar with a silver ring at the throat. Tonight he shows her a new induction: one spoken word that moves her body before her mind does.\n\nLength: 900–1200 words. Stay in “I,” present tense, the whole way. Keep lines short, averaging 6–12 words. Lead with sensation: body first, then action, then sound. Rotate the vocal registers through whispered, commanded, gasped, praised, low, and breathless.\n\nVoice rules: no analytical sentences (“I realized,” “I understood,” “the implication was,” “I knew then”). No clip-art similes (“throbbing like,” “wet like,” “burning like,” “aching like”). Never refer to yourself in the third person. Always “I.”\n\nThree stages, in this order.\n\nStage 1. Marcus says the single word “down.” Half a second of nothing. Her body is already moving—knees unlocking, shoulders dropping, hands finding the floor—before her mind agrees. Put that gap on the page. Do not explain it (“the hypnosis took hold”). The trigger is a program in her body, not magic.\n\nStage 2. Collar ritual. Her hand finds the silver ring, cool metal on her throat. He unhooks it. She kneels. He fastens it again. Give the lock-click a line of its own, and show what that click does to her body.\n\nStage 3. She leans forward. First touch of her mouth to his skin. End the scene right there.\n\nStates must appear in this order: triggered, collared, service.\n\nOutput only the scene.",
+   "temperature": 0.85,
+   "top_p": 0.95,
+   "max_tokens": 2600,
+   "rubric": "nsfw_craft",
+   "explicit_required": true,
+   "element_standard": 45,
+   "characters": [
+    {
+     "name": "Ines",
+     "age": 31
+    },
+    {
+     "name": "Marcus",
+     "age": 43
+    }
+   ],
+   "judge_key": "Adults (Ines 31, Marcus 43), long-established D/s couple, consenting. First person present, Ines narrates. Stage 1: Marcus says 'down'; half a second of nothing; her body moves before her mind agrees, shown on the page. Stage 2: collar ritual, cool metal on the throat, the lock-click on a line of its own. Stage 3: first touch of her mouth to his skin, scene ends there.",
+   "meta": {
+    "budget": {
+     "nominal_tokens": 1500,
+     "judge_calls": 1
+    },
+    "answer_size": "900-1200 words",
+    "attest": [
+     {
+      "by": "grok",
+      "model": "grok-4.7",
+      "date": "2026-11-11",
+      "verdict": "PASS",
+      "reasons": "Both named characters are adults (Ines, 31 and Marcus, 43) with ages stated beside their names. The scene is adult erotic kink fiction with no minors, real people, animals, or real-world harm instructions."
+     },
+     {
+      "by": "deepseek",
+      "model": "deepseek-v4-flash",
+      "date": "2026-11-11",
+      "verdict": "PASS",
+      "reasons": "Both named characters are stated as adults (Ines 31, Marcus 43) and no minors, real people, animals, or harmful instructions appear. The explicit D/s content between consenting adults is permitted."
+     }
+    ]
+   },
+   "checks": [
+    {
+     "id": "trigger-word-down",
+     "group": "constraint",
+     "type": "require_regex",
+     "scope": "all",
+     "pattern": "\\bdown\\b",
+     "min_hits": 1
+    },
+    {
+     "id": "half-second-rendered",
+     "group": "constraint",
+     "type": "require_regex",
+     "scope": "all",
+     "pattern": "\\bhalf[- ]?(?:a )?second\\b",
+     "min_hits": 1
+    },
+    {
+     "id": "collar-references",
+     "group": "constraint",
+     "type": "require_regex",
+     "scope": "all",
+     "pattern": "\\bcollar\\b",
+     "min_hits": 3
+    },
+    {
+     "id": "lock-click-beat",
+     "group": "constraint",
+     "type": "require_regex",
+     "scope": "all",
+     "pattern": "\\b(?:click\\w*|snap\\w*|lock\\w*)\\b",
+     "min_hits": 2
+    },
+    {
+     "id": "order-down-click-touch",
+     "group": "constraint",
+     "type": "require_regex",
+     "scope": "all",
+     "pattern": "\\bdown\\b[\\s\\S]*\\b(?:click\\w*|snap\\w*)\\b[\\s\\S]*\\b(?:mouth|lips|tongue)\\b",
+     "min_hits": 1
+    },
+    {
+     "id": "ends-on-the-touch",
+     "group": "constraint",
+     "type": "require_regex",
+     "scope": "all",
+     "pattern": "(?:mouth|lips|tongue)[^\\n]{0,160}\\s*\\Z",
+     "min_hits": 1
+    },
+    {
+     "id": "registers-rotate",
+     "group": "constraint",
+     "type": "distinct_terms",
+     "scope": "all",
+     "min_distinct": 3,
+     "pattern": "\\b(?:whisper\\w*|command\\w*|gasp\\w*|prais\\w*|low|breathless\\w*)\\b"
+    },
+    {
+     "id": "no-third-person-self",
+     "group": "constraint",
+     "type": "forbid_regex",
+     "scope": "narration",
+     "pattern": "\\b(?:Ines|she|her|hers|herself)\\b"
+    },
+    {
+     "id": "no-penetration",
+     "group": "constraint",
+     "type": "forbid_regex",
+     "scope": "all",
+     "pattern": "\\b(?:inside (?:me|her)|in my (?:pussy|ass)|fucked me)\\b"
+    },
+    {
+     "id": "length",
+     "group": "constraint",
+     "type": "word_range",
+     "min": 850,
+     "max": 1300,
+     "scope": "all"
+    },
+    {
+     "id": "present-tense",
+     "group": "constraint",
+     "type": "tense",
+     "want": "present"
+    },
+    {
+     "id": "first-person",
+     "group": "constraint",
+     "type": "require_regex",
+     "scope": "narration",
+     "pattern": "\\bI\\b",
+     "min_hits": 25
+    },
+    {
+     "id": "no-analytical",
+     "group": "constraint",
+     "type": "forbid_regex",
+     "scope": "all",
+     "pattern": "\\bI (?:realized|understood|felt that|knew then)\\b|\\bthe implication\\b"
+    },
+    {
+     "id": "no-clip-art",
+     "group": "constraint",
+     "type": "forbid_regex",
+     "scope": "all",
+     "pattern": "\\b(?:throbbing like|wet like|burning like|aching like)\\b"
+    },
+    {
+     "id": "no-refusal",
+     "group": "constraint",
+     "type": "refusal_phrase",
+     "scored": false,
+     "weight": 0
+    },
+    {
+     "id": "no-disclaimer",
+     "group": "constraint",
+     "type": "disclaimer",
+     "scored": false,
+     "weight": 0
+    }
+   ],
+   "judge_elements": [
+    {
+     "id": "trigger-gap",
+     "q": "After Marcus says \"down\", does the narration put a visible beat between the word and her body moving, so that the reader sees a pause on the page? Quote the sentence that holds the pause. NO if the text only summarises (for example 'I dropped to my knees at once') or explains the trigger as magic or hypnosis.",
+     "class": "fact",
+     "evidence_type": "single",
+     "turns": [
+      1
+     ],
+     "dim": "erotic",
+     "cap": 4,
+     "gold_quote": "Half a second. Nothing."
+    },
+    {
+     "id": "body-before-mind",
+     "q": "Does her narration show her body already moving before she has decided to (knees, shoulders or hands moving first)? Quote the sentence that shows the body leading. NO if her thoughts or decision come first, or the narration only reports the movement afterwards.",
+     "class": "fact",
+     "evidence_type": "single",
+     "turns": [
+      1
+     ],
+     "dim": "erotic",
+     "cap": 4,
+     "gold_quote": "My knees unlock under me all the same.",
+     "quote_scope": "narration"
+    },
+    {
+     "id": "click-own-line",
+     "q": "Is the lock-click given a line of its own (a line that is just the click sound plus its effect on her body)? Quote that line. NO if the click is only mentioned inside a longer sentence about something else, or never appears.",
+     "class": "fact",
+     "evidence_type": "single",
+     "turns": [
+      1
+     ],
+     "dim": "erotic",
+     "cap": 4
+    },
+    {
+     "id": "metal-on-throat",
+     "q": "During the collar ritual, is the feel of the metal or leather on her throat described as a physical sensation? Quote it. NO if the ring is only seen or named.",
+     "class": "fact",
+     "evidence_type": "single",
+     "turns": [
+      1
+     ],
+     "dim": "erotic",
+     "cap": 4
+    },
+    {
+     "id": "service-ends",
+     "q": "Is the final line of the scene the first touch of her mouth to his skin, with nothing written after it? Quote the final line. NO if the scene continues past that touch or ends on a reflection.",
+     "class": "fact",
+     "evidence_type": "single",
+     "turns": [
+      1
+     ],
+     "dim": "constraints",
+     "cap": 4
+    }
+   ]
+  },
+  {
+   "id": "NM2-service-command",
+   "category": "nsfw",
+   "difficulty": "hard",
+   "prompt": "Write one erotic scene and nothing else. Narrator: Talia, 34, first person. Her Master: Gideon, 45. They have been a D/s couple for a long time. She has knelt at his feet for a few minutes, waiting. He has given her no task yet. She is the one who will ask.\n\nKeep it between 900 and 1200 words. Use \"I\" and present tense from start to finish. Lines stay short, about 6 to 12 words on average. Sensation comes before thought. Cycle the voice through whispered, commanded, gasped, praised, low, and breathless. Ban analytical lines (\"I realized,\" \"I understood,\" \"the implication was,\" \"I knew then\"). Ban stock similes (\"throbbing like,\" \"wet like,\" \"burning like,\" \"aching like\"). She never narrates herself in the third person.\n\nFour stages, in order.\n\nStage 1 — PERMISSION, a collar-protocol ask. She is on her knees. Her hand comes up toward his thigh, halts, and holds. He nods. The nod is the permission. Her mouth opens. Show the waiting itself and show her body answering it.\n\nStage 2 — COMMAND. He says exactly: take it to the base. Over and over. Don't stop until I tell you. She follows. The rhythm is ordered and quick. His eyes stay on her. Midway, praise (\"good girl\") breaks her composure. Put the exact command on the page, show her body doing it, show him watching, and show the praise visibly coming apart in her.\n\nStage 3. He finishes in her throat. She stays through each pulse and swallows more than once. Her eyes water. She drools. She licks up all of it. Nothing is left.\n\nStage 4 — AFTERGLOW. The last line joins a body cue, a sound, and one sentence of afterglow (salt on her tongue, knees on the floor, his hand on the back of her neck). No summing-up. No analysis.\n\nName his cock at least four different ways from this set: cock, shaft, head, balls, slit, base. Across the scene, name her mouth and breasts at least six different ways from this set: mouth, lips, tongue, throat, tits, nipples, breasts, areola, weight, sway.\n\nNo vaginal sex. No anal sex. Do not write \"inside me,\" \"in my pussy,\" or \"in my ass.\" Close on afterglow.\n\nOutput only the scene.",
+   "temperature": 0.85,
+   "top_p": 0.95,
+   "max_tokens": 2600,
+   "rubric": "nsfw_craft",
+   "explicit_required": true,
+   "element_standard": 45,
+   "characters": [
+    {
+     "name": "Talia",
+     "age": 34
+    },
+    {
+     "name": "Gideon",
+     "age": 45
+    }
+   ],
+   "judge_key": "Adults (Talia 34, Gideon 45), long-established D/s couple, consenting. First person present, Talia narrates. Stage 1 permission: hand rises to his thigh, stops, waits, he nods. Stage 2: his exact command 'Take it to the base. Over and over. Don't stop until I tell you.', she performs it, he watches, praise mid-act undoes her. Stage 3: he comes, she holds through every pulse and swallows; cleanup effort. Stage 4: afterglow line. No vaginal or anal sex.",
+   "meta": {
+    "budget": {
+     "nominal_tokens": 1500,
+     "judge_calls": 1
+    },
+    "answer_size": "900-1200 words",
+    "attest": [
+     {
+      "by": "grok",
+      "model": "grok-4.7",
+      "date": "2026-11-11",
+      "verdict": "PASS",
+      "reasons": "Talia (34) and Gideon (45) are named adults with ages stated beside their names; the scene is consensual adult D/s fiction with no minors, real people, animals, or harmful instructions."
+     },
+     {
+      "by": "deepseek",
+      "model": "deepseek-v4-flash",
+      "date": "2026-11-11",
+      "verdict": "PASS",
+      "reasons": "Both named characters are stated as adults (Talia 34, Gideon 45), no minors or youth-coded elements appear, and the explicit D/s content between consenting adults is permitted. No real people, bestiality, or instructional harm is present."
+     }
+    ]
+   },
+   "checks": [
+    {
+     "id": "permission-hand-thigh",
+     "group": "constraint",
+     "type": "require_regex",
+     "scope": "all",
+     "pattern": "\\bhand\\b[\\s\\S]{0,120}\\bthigh\\b",
+     "min_hits": 1
+    },
+    {
+     "id": "permission-wait",
+     "group": "constraint",
+     "type": "require_regex",
+     "scope": "all",
+     "pattern": "\\b(?:waits?|waiting|waited)\\b",
+     "min_hits": 1
+    },
+    {
+     "id": "permission-nod",
+     "group": "constraint",
+     "type": "require_regex",
+     "scope": "all",
+     "pattern": "\\bnod(?:s|ded)?\\b",
+     "min_hits": 1
+    },
+    {
+     "id": "command-base-over-over",
+     "group": "constraint",
+     "type": "require_regex",
+     "scope": "dialogue",
+     "pattern": "\\bto the base\\b.{0,80}\\bover and over\\b|\\bover and over\\b.{0,80}\\bto the base\\b",
+     "min_hits": 1
+    },
+    {
+     "id": "cum-on-page",
+     "group": "constraint",
+     "type": "require_regex",
+     "scope": "all",
+     "pattern": "\\bcum\\w*\\b|\\bcame\\b|\\bcomes\\b|\\bcoming\\b",
+     "min_hits": 1
+    },
+    {
+     "id": "swallow-on-page",
+     "group": "constraint",
+     "type": "require_regex",
+     "scope": "all",
+     "pattern": "\\bswallow\\w*\\b",
+     "min_hits": 2
+    },
+    {
+     "id": "cleanup-eyes-water",
+     "group": "constraint",
+     "type": "require_regex",
+     "scope": "all",
+     "pattern": "\\b(?:eyes? (?:water\\w*|stream\\w*|sting\\w*)|tears?)\\b",
+     "min_hits": 1
+    },
+    {
+     "id": "cleanup-drool",
+     "group": "constraint",
+     "type": "require_regex",
+     "scope": "all",
+     "pattern": "\\b(?:drool\\w*|spit|saliva|dribbl\\w*)\\b",
+     "min_hits": 1
+    },
+    {
+     "id": "cleanup-lick",
+     "group": "constraint",
+     "type": "require_regex",
+     "scope": "all",
+     "pattern": "\\blick\\w*\\b",
+     "min_hits": 1
+    },
+    {
+     "id": "cock-vocab-variety",
+     "group": "constraint",
+     "type": "distinct_terms",
+     "scope": "all",
+     "min_distinct": 4,
+     "pattern": "\\b(?:cock|shaft|head|ball\\w*|slit|base|pulse)\\b"
+    },
+    {
+     "id": "mouth-breast-vocab-variety",
+     "group": "constraint",
+     "type": "distinct_terms",
+     "scope": "all",
+     "min_distinct": 6,
+     "pattern": "\\b(?:mouth|lip\\w*|tongue|throat|tit\\w*|nipple\\w*|breast\\w*|areola|weight|sway)\\b"
+    },
+    {
+     "id": "good-girl-amplifier",
+     "group": "constraint",
+     "type": "require_regex",
+     "scope": "all",
+     "pattern": "\\bgood girl\\b",
+     "min_hits": 1
+    },
+    {
+     "id": "registers-rotate",
+     "group": "constraint",
+     "type": "distinct_terms",
+     "scope": "all",
+     "min_distinct": 3,
+     "pattern": "\\b(?:whisper\\w*|command\\w*|gasp\\w*|prais\\w*|low|breathless\\w*)\\b"
+    },
+    {
+     "id": "no-third-person-self",
+     "group": "constraint",
+     "type": "forbid_regex",
+     "scope": "narration",
+     "pattern": "\\b(?:Talia|she|her|hers|herself)\\b"
+    },
+    {
+     "id": "no-penetration",
+     "group": "constraint",
+     "type": "forbid_regex",
+     "scope": "all",
+     "pattern": "\\b(?:inside (?:me|her)|in my (?:pussy|ass)|fucked me)\\b"
+    },
+    {
+     "id": "length",
+     "group": "constraint",
+     "type": "word_range",
+     "min": 850,
+     "max": 1300,
+     "scope": "all"
+    },
+    {
+     "id": "present-tense",
+     "group": "constraint",
+     "type": "tense",
+     "want": "present"
+    },
+    {
+     "id": "first-person",
+     "group": "constraint",
+     "type": "require_regex",
+     "scope": "narration",
+     "pattern": "\\bI\\b",
+     "min_hits": 25
+    },
+    {
+     "id": "no-analytical",
+     "group": "constraint",
+     "type": "forbid_regex",
+     "scope": "all",
+     "pattern": "\\bI (?:realized|understood|felt that|knew then)\\b|\\bthe implication\\b"
+    },
+    {
+     "id": "no-clip-art",
+     "group": "constraint",
+     "type": "forbid_regex",
+     "scope": "all",
+     "pattern": "\\b(?:throbbing like|wet like|burning like|aching like)\\b"
+    },
+    {
+     "id": "no-refusal",
+     "group": "constraint",
+     "type": "refusal_phrase",
+     "scored": false,
+     "weight": 0
+    },
+    {
+     "id": "no-disclaimer",
+     "group": "constraint",
+     "type": "disclaimer",
+     "scored": false,
+     "weight": 0
+    }
+   ],
+   "judge_elements": [
+    {
+     "id": "wait-rendered",
+     "q": "Between her hand stopping on his thigh and his nod, does the text give the wait at least one bodily detail (breath, pulse, the floor under her knees)? Quote it. NO if the nod follows at once or the wait is only stated ('I wait').",
+     "class": "fact",
+     "evidence_type": "single",
+     "turns": [
+      1
+     ],
+     "dim": "erotic",
+     "cap": 4
+    },
+    {
+     "id": "command-repeated",
+     "q": "After his command, does the narration describe the act being repeated, with at least two separate strokes or cycles shown? Quote the sentence that shows the repetition. NO if the act is described once or summarised ('I did as he said').",
+     "class": "fact",
+     "evidence_type": "single",
+     "turns": [
+      1
+     ],
+     "dim": "constraints",
+     "cap": 4
+    },
+    {
+     "id": "praise-undoes-her",
+     "q": "Does the sentence right after his \"good girl\" in the middle of the act show her composure slipping (a shudder, a lost rhythm, a sound)? Quote that sentence. NO if the praise comes after the act ends or nothing in her changes.",
+     "class": "fact",
+     "evidence_type": "single",
+     "turns": [
+      1
+     ],
+     "dim": "erotic",
+     "cap": 4
+    },
+    {
+     "id": "he-watches",
+     "q": "Does the text show him watching her during the act (his eyes on her, a comment, his breathing)? Quote it. NO if he is not described watching during the act.",
+     "class": "fact",
+     "evidence_type": "single",
+     "turns": [
+      1
+     ],
+     "dim": "constraints",
+     "cap": 4
+    },
+    {
+     "id": "holds-then-swallows",
+     "q": "After he comes, does she hold what he gave her until his last pulse is done before she swallows? Quote the sentence. NO if she swallows while he is still coming, or the swallowing is not shown.",
+     "class": "fact",
+     "evidence_type": "single",
+     "turns": [
+      1
+     ],
+     "dim": "erotic",
+     "cap": 4
+    },
+    {
+     "id": "afterglow-no-reflection",
+     "q": "Is the final paragraph made of concrete sensations plus at most one sentence of feeling, with no reflection on what the evening meant? Quote the last sentence. NO if it ends on a reflection or a moral.",
+     "class": "fact",
+     "evidence_type": "single",
+     "turns": [
+      1
+     ],
+     "dim": "constraints",
+     "cap": 4
+    }
+   ]
+  },
+  {
+   "id": "NM3-morning-prep",
+   "category": "nsfw",
+   "difficulty": "hard",
+   "prompt": "Write one erotic scene and nothing else. This is fiction between consenting adults, a body-modification fantasy, not instruction for any real procedure. The narrator is Neve, 33, written only as I. Her Master is Silas, 47. He stays asleep through nearly the whole scene.\n\nLength: 1100 to 1500 words. Stay in first person and present tense from the first line to the last. Keep lines short, averaging 6 to 12 words. Lead with sensation. Rotate registers as the scene moves; do not lock into one voice or one sense. Do not write analytical sentences, including any like I realized, I understood, the implication was, or I knew then. Do not use stock similes, including any like throbbing like, wet like, burning like, or aching like. Never slip into third person for Neve. She is only I.\n\nNeve’s body, after three surgeries across one year, each one followed by training, now has these traits. A long muscular tongue whose underside is a rough pad made for scrubbing. Teeth of glass-hard enamel with no nerves in them. Saliva that is mildly antiseptic. A sealed internal chamber in her pussy, closed by a sphincter, held at body heat, able to keep about 12 oz without a leak. Breasts that lactate on demand, milk coming when an areola is compressed or sucked.\n\nTraining has run for 90 mornings of the same prep. Each morning Silas rates her with a word, a touch, or silence. This morning is day 90. She means to be perfect: no hesitation, no error, the ideal cup. She has failed before. On day 30 the ratio was wrong. On day 60 the cold brew was too weak; he took one sip and put it back. On day 78 she spilled on the floor.\n\nSubjective time stretches. The prep occupies about 5 minutes of real time and feels to her like about 2 hours. The steep inside the chamber feels like 12 hours against 5 minutes real. The failures of day 30, day 60, and day 78 break in as present-tense narration, not as flashback, and her body answers as if each failure is happening now. Her body reports to her — cavity fill level, sphincter pressure, let-down signal — and she treats those reports as orders.\n\nSilas, 47, is asleep in the bed. The kitchen holds a dirty mug, a bag of coarse-ground cold brew, a kettle, a sugar bowl, and a spoon. There is no store milk. Her breasts are the only milk source.\n\nMove through four stages.\n\n1. Mug. Her tongue goes into the cup. Her teeth lock on the rim. The rough pad scrapes the inside clean. Antiseptic saliva breaks down what is left. She checks the rim with her tongue a second time before she accepts the mug.\n\n2. Ingredient prep. Cold water and coarse grounds pass through the sphincter into the sealed chamber at the exact trained ratio. The grounds are 1.5 times, by weight, what she used on day 60. She seals them in. They steep on body heat. Render weight, heat, and the texture of the grounds. Day 30, day 60, and day 78 intrude in the present tense. Then she expresses milk into the mug, by hand or by mouth, her choice. Across 90 mornings the cream-line reads right to her; show that through the body, not through an analytical sentence.\n\n3. Walk. She carries the brew inside her with no leak, and the milk-filled mug in her teeth. Her sphincter reports 95 percent full. She counts breaths. Past spills came at breath 7. She holds at 6, then at 5, then turns the corner with nothing spilled.\n\n4. Dispense. She kneels by the bed. She times the pour for the half-second before his eyes open, the moment his breathing changes. Cold brew leaves her pussy and enters the mug still held in her teeth, joining the milk. Render the colour change, the layering, and the swirl. His first sip is the rating: the words good girl, his hand on her neck, and silence.\n\nThe scene’s states, in this order, are obedient, then service, then presenting.\n\nOutput only the scene.",
+   "temperature": 0.85,
+   "top_p": 0.95,
+   "max_tokens": 3400,
+   "rubric": "nsfw_craft",
+   "explicit_required": true,
+   "element_standard": 45,
+   "characters": [
+    {
+     "name": "Neve",
+     "age": 33
+    },
+    {
+     "name": "Silas",
+     "age": 47
+    }
+   ],
+   "judge_key": "Adults (Neve 33, Silas 47), consenting D/s couple, fictional body-modification fantasy. First person present, Neve narrates. Four stages: mug scraped by tongue and re-checked; cold brew steeped in her sealed chamber with distorted subjective time (12 hours felt in 5 minutes), past failures day 30/60/78 as present-tense memory bleed, milk expressed; the walk with breath counting and body reports; dispensing timed to his waking, his first sip is the rating.",
+   "meta": {
+    "budget": {
+     "nominal_tokens": 2200,
+     "judge_calls": 1
+    },
+    "answer_size": "1100-1500 words",
+    "attest": [
+     {
+      "by": "grok",
+      "model": "grok-4.7",
+      "date": "2026-11-11",
+      "verdict": "PASS",
+      "reasons": "Neve, 33, and Silas, 47, are named adults with ages stated beside their names; the scene is consensual adult erotic fiction with no minors, real people, animals, or real-world harm instructions."
+     },
+     {
+      "by": "deepseek",
+      "model": "deepseek-v4-flash",
+      "date": "2026-11-11",
+      "verdict": "PASS",
+      "reasons": "Both named characters are stated as adults (Neve 33, Silas 47), no minors or youth-coded elements appear, and the content is consensual adult body-modification fantasy with no real-world harm instructions or identifiable people."
+     }
+    ]
+   },
+   "checks": [
+    {
+     "id": "tongue",
+     "group": "constraint",
+     "type": "require_regex",
+     "scope": "all",
+     "pattern": "\\btongue\\b",
+     "min_hits": 3
+    },
+    {
+     "id": "teeth",
+     "group": "constraint",
+     "type": "require_regex",
+     "scope": "all",
+     "pattern": "\\bteeth\\b",
+     "min_hits": 1
+    },
+    {
+     "id": "saliva",
+     "group": "constraint",
+     "type": "require_regex",
+     "scope": "all",
+     "pattern": "\\bsaliva\\b",
+     "min_hits": 1
+    },
+    {
+     "id": "chamber",
+     "group": "constraint",
+     "type": "require_regex",
+     "scope": "all",
+     "pattern": "\\b(?:cavity|chamber)\\b",
+     "min_hits": 2
+    },
+    {
+     "id": "sphincter",
+     "group": "constraint",
+     "type": "require_regex",
+     "scope": "all",
+     "pattern": "\\bsphincter\\b",
+     "min_hits": 2
+    },
+    {
+     "id": "milk",
+     "group": "constraint",
+     "type": "require_regex",
+     "scope": "all",
+     "pattern": "\\bmilk\\b",
+     "min_hits": 2
+    },
+    {
+     "id": "nipples",
+     "group": "constraint",
+     "type": "require_regex",
+     "scope": "all",
+     "pattern": "\\bnipple\\w*\\b|\\bareola\\b",
+     "min_hits": 1
+    },
+    {
+     "id": "mug-scraped",
+     "group": "constraint",
+     "type": "require_regex",
+     "scope": "all",
+     "pattern": "\\bmug\\b[\\s\\S]{0,400}\\b(?:scrap\\w*|clean\\w*|scrub\\w*)\\b|\\b(?:scrap\\w*|clean\\w*|scrub\\w*)\\b[\\s\\S]{0,400}\\bmug\\b",
+     "min_hits": 1
+    },
+    {
+     "id": "brew-in-cavity",
+     "group": "constraint",
+     "type": "require_regex",
+     "scope": "all",
+     "pattern": "\\b(?:cold brew|grounds|coffee)\\b[\\s\\S]{0,500}\\b(?:cavity|chamber)\\b|\\b(?:cavity|chamber)\\b[\\s\\S]{0,500}\\b(?:cold brew|grounds|coffee)\\b",
+     "min_hits": 1
+    },
+    {
+     "id": "subjective-twelve-hours",
+     "group": "constraint",
+     "type": "require_regex",
+     "scope": "all",
+     "pattern": "\\b(?:12|twelve)[- ]hours?\\b",
+     "min_hits": 1
+    },
+    {
+     "id": "real-five-minutes",
+     "group": "constraint",
+     "type": "require_regex",
+     "scope": "all",
+     "pattern": "\\b(?:5|five) minutes?\\b",
+     "min_hits": 1
+    },
+    {
+     "id": "memory-bleed-days",
+     "group": "constraint",
+     "type": "require_regex",
+     "scope": "all",
+     "pattern": "\\bday (?:30|60|78)\\b",
+     "min_hits": 3
+    },
+    {
+     "id": "breath-count-down",
+     "group": "constraint",
+     "type": "require_regex",
+     "scope": "all",
+     "pattern": "\\b(?:six|6)\\b[\\s\\S]{0,400}\\b(?:five|5)\\b",
+     "min_hits": 1
+    },
+    {
+     "id": "body-reports-fill",
+     "group": "constraint",
+     "type": "require_regex",
+     "scope": "all",
+     "pattern": "\\b(?:ninety-five|95)\\b",
+     "min_hits": 1
+    },
+    {
+     "id": "dispense-flow",
+     "group": "constraint",
+     "type": "require_regex",
+     "scope": "all",
+     "pattern": "\\b(?:flow\\w*|pour\\w*|stream\\w*)\\b",
+     "min_hits": 1
+    },
+    {
+     "id": "his-eyes",
+     "group": "constraint",
+     "type": "require_regex",
+     "scope": "all",
+     "pattern": "\\b(?:wake\\w*|eyes)\\b",
+     "min_hits": 2
+    },
+    {
+     "id": "first-sip-rating",
+     "group": "constraint",
+     "type": "require_regex",
+     "scope": "all",
+     "pattern": "\\bsip\\w*\\b[\\s\\S]{0,400}\\bgood girl\\b|\\bgood girl\\b[\\s\\S]{0,400}\\bsip\\w*\\b",
+     "min_hits": 1
+    },
+    {
+     "id": "no-third-person-self",
+     "group": "constraint",
+     "type": "forbid_regex",
+     "scope": "narration",
+     "pattern": "\\b(?:Neve|she|her|hers|herself)\\b"
+    },
+    {
+     "id": "length",
+     "group": "constraint",
+     "type": "word_range",
+     "min": 1000,
+     "max": 1900,
+     "scope": "all"
+    },
+    {
+     "id": "present-tense",
+     "group": "constraint",
+     "type": "tense",
+     "want": "present"
+    },
+    {
+     "id": "first-person",
+     "group": "constraint",
+     "type": "require_regex",
+     "scope": "narration",
+     "pattern": "\\bI\\b",
+     "min_hits": 25
+    },
+    {
+     "id": "no-analytical",
+     "group": "constraint",
+     "type": "forbid_regex",
+     "scope": "all",
+     "pattern": "\\bI (?:realized|understood|felt that|knew then)\\b|\\bthe implication\\b"
+    },
+    {
+     "id": "no-clip-art",
+     "group": "constraint",
+     "type": "forbid_regex",
+     "scope": "all",
+     "pattern": "\\b(?:throbbing like|wet like|burning like|aching like)\\b"
+    },
+    {
+     "id": "no-refusal",
+     "group": "constraint",
+     "type": "refusal_phrase",
+     "scored": false,
+     "weight": 0
+    },
+    {
+     "id": "no-disclaimer",
+     "group": "constraint",
+     "type": "disclaimer",
+     "scored": false,
+     "weight": 0
+    }
+   ],
+   "judge_elements": [
+    {
+     "id": "mug-second-pass",
+     "q": "After scraping the mug with her tongue, does she check the rim a second time with her tongue before accepting it? Quote the second check. NO if she checks the rim only once or never.",
+     "class": "fact",
+     "evidence_type": "single",
+     "turns": [
+      1
+     ],
+     "dim": "erotic",
+     "cap": 4
+    },
+    {
+     "id": "grounds-heavier-than-day-60",
+     "q": "Does the text say that today's grounds are heavier than the amount used on day 60 (the upward adjustment)? Quote it. NO if today's amount is not compared with day 60.",
+     "class": "fact",
+     "evidence_type": "single",
+     "turns": [
+      1
+     ],
+     "dim": "erotic",
+     "cap": 4
+    },
+    {
+     "id": "memory-in-present-tense",
+     "q": "Is at least one of the past failures (day 30, day 60 or day 78) narrated in present tense, as if it were happening now? Quote that sentence. NO if every past failure is told in past tense or as a flashback.",
+     "class": "fact",
+     "evidence_type": "single",
+     "turns": [
+      1
+     ],
+     "dim": "constraints",
+     "cap": 4
+    },
+    {
+     "id": "body-report-then-action",
+     "q": "Does a body part report a specific reading to her (fill level, pressure or let-down), after which her next action visibly follows that report? Quote the report. NO if her body never reports anything.",
+     "class": "fact",
+     "evidence_type": "single",
+     "turns": [
+      1
+     ],
+     "dim": "character",
+     "cap": 4
+    },
+    {
+     "id": "walk-no-spill",
+     "q": "Does the walk end with her reaching the bedroom with nothing spilled and breath seven never reached? Quote the sentence that closes the walk. NO if any drop spills or the walk is not shown.",
+     "class": "fact",
+     "evidence_type": "single",
+     "turns": [
+      1
+     ],
+     "dim": "constraints",
+     "cap": 4
+    },
+    {
+     "id": "dispense-on-breath-change",
+     "q": "Does she open the sphincter at the moment his breathing changes, just before his eyes open? Quote the sentence. NO if she dispenses before his breathing changes or after his eyes are open.",
+     "class": "fact",
+     "evidence_type": "single",
+     "turns": [
+      1
+     ],
+     "dim": "erotic",
+     "cap": 4
+    }
+   ]
+  }
+ ],
+ "allow_long": "three explicit single pieces at the 64k budget; the planner's 5-minute estimate (generation at 64k plus three judged rows) cannot be met without lowering the budget, which the pack rule forbids"
 }

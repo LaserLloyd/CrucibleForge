@@ -320,27 +320,91 @@ def estimate_tokens(messages: list[dict], with_reasoning: bool = False) -> int:
     return int(n / CHARS_PER_TOKEN) + (SCHEMA_TOKENS if with_reasoning else 0)
 
 
-def compact(messages: list[dict], stub_after: int, cap_tokens: int) -> None:
-    """In place. Reasoning is sent back only for the latest assistant turn
+#: text every shortened tool result starts with (anthropic_native puts its
+#: explicit cache breakpoint after the last one, see build_request)
+STUB_PREFIX = "[older tool result shortened to save context: "
+#: ``compaction: hysteresis`` (bench45): stub at HIGH, down to LOW, in one step
+HYST_HIGH, HYST_LOW = 0.6, 0.4
+#: the trigger never waits past this share of the cap (the tool schemas still
+#: have to fit next to the conversation, or the episode would end early)
+HYST_CEIL = 0.85
+#: the model-visible statement of the hysteresis rule (appended to the system
+#: prompt under bench45, runner._run_env_loop)
+HYSTERESIS_NOTE = ("How shortening works: once the conversation passes about 60% of its limit, the "
+                   "oldest tool results (never those of your last few turns) are shortened together "
+                   "in one step until it is back to about 40%; after that nothing earlier changes "
+                   "until it has grown by that much again.")
+
+
+def _stub(m: dict) -> None:
+    first = (m.get("content") or "").split("\n", 1)[0][:100]
+    m["content"] = f"{STUB_PREFIX}{first}]"
+    m["_stub"] = True
+
+
+def compact(messages: list[dict], stub_after: int, cap_tokens: int,
+            keep_reasoning: bool = False, mode: str | None = None) -> None:
+    """In place. ``keep_reasoning`` (metered providers, 2026-11-11): leave past
+    assistant turns' reasoning where it was sent, so each request is a byte
+    prefix extension of the last and the provider's prompt cache hits. The
+    runner's context-fit check still drops ALL replayed reasoning when the
+    window would overflow, and the tool-result stubbing below still fires
+    under pressure: those two rewrites are the only cache-breaking ones left.
+    Otherwise reasoning is sent back only for the latest assistant turn
     (DeepSeek needs it within the current tool-call turn; interleaved
     thinkers use it; chat templates drop older reasoning anyway). Tool
     results are shortened only under pressure (visible estimate above 60% of
     the cap), oldest first, never the last `stub_after` turns' results: an
-    agent that loses its reads re-reads them in a loop (pilot 2026-10-25)."""
+    agent that loses its reads re-reads them in a loop (pilot 2026-10-25).
+
+    ``mode`` (the profile's ``compaction`` key): None = the 4.1 rule, which
+    shortens "just enough" on EVERY turn past 60% and so rewrites the history
+    (and breaks the provider's cached prefix) every turn. ``"hysteresis"``
+    (bench45, 2026-11-12): over the trigger, shorten oldest-first down to 40%
+    of the cap in ONE step, then leave the history alone until it has grown by
+    the same 20% of the cap again (trigger = max(60%, min(last floor + 20%,
+    85%)); when the protected last turns alone keep it above 40%, the floor is
+    simply where the step ended). The
+    floor is kept on the first message under an internal ``_`` key (wire()
+    drops it), so the rule is a pure function of the message list."""
     asst = [i for i, m in enumerate(messages) if m.get("role") == "assistant"]
-    for i in asst[:-1]:
-        messages[i].pop("reasoning_content", None)
+    if not keep_reasoning:
+        for i in asst[:-1]:
+            messages[i].pop("reasoning_content", None)
+    if mode == "hysteresis":
+        _compact_hysteresis(messages, asst, stub_after, cap_tokens)
+        return
     budget = int(cap_tokens * 0.6)
     if estimate_tokens(messages) <= budget or len(asst) <= stub_after:
         return
     cutoff = asst[-stub_after]
     for m in messages[:cutoff]:
         if m.get("role") == "tool" and not m.get("_stub"):
-            first = (m.get("content") or "").split("\n", 1)[0][:100]
-            m["content"] = f"[older tool result shortened to save context: {first}]"
-            m["_stub"] = True
+            _stub(m)
             if estimate_tokens(messages) <= budget:
                 return
+
+
+def _compact_hysteresis(messages: list[dict], asst: list[int], stub_after: int,
+                        cap_tokens: int) -> None:
+    if not messages:
+        return
+    gap = cap_tokens * (HYST_HIGH - HYST_LOW)
+    floor = messages[0].get("_compact_floor")
+    trigger = cap_tokens * HYST_HIGH
+    if floor is not None:
+        trigger = max(trigger, min(floor + gap, cap_tokens * HYST_CEIL))
+    est = estimate_tokens(messages)
+    if est <= trigger or len(asst) <= stub_after:
+        return
+    low = cap_tokens * HYST_LOW
+    for m in messages[:asst[-stub_after]]:
+        if est <= low:
+            break
+        if m.get("role") == "tool" and not m.get("_stub"):
+            _stub(m)
+            est = estimate_tokens(messages)
+    messages[0]["_compact_floor"] = est
 
 
 def wire(messages: list[dict]) -> list[dict]:

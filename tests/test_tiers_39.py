@@ -282,6 +282,7 @@ def test_overall_is_the_mean_of_the_three_totals():
     assert tiers.overall({"code": {"total": 100.0}, "chat": {"total": None}}) == 100.0
 
 
+@pytest.mark.archive_default
 def test_tier_weights_cover_only_what_the_tier_measures(bench):
     from crucibleforge import report
     sc = report.scoring_config(bench.cfg)
@@ -335,6 +336,7 @@ def _tiered_rows():
     return rows
 
 
+@pytest.mark.archive_default
 def test_board_scores_tiers_and_labels_the_tier_reached(tmp_path, monkeypatch, bench):
     _seed(tmp_path, monkeypatch, "m", _tiered_rows())
     md = report.generate(cfg=bench.cfg)
@@ -361,6 +363,7 @@ def test_board_scores_tiers_and_labels_the_tier_reached(tmp_path, monkeypatch, b
     assert "tierTag" in html and "Tiers" in html
 
 
+@pytest.mark.archive_default
 def test_tier_rows_never_decide_completeness(tmp_path, monkeypatch, bench):
     """A tier-2 row pending the judge must not send the board back to old
     values; completeness is judged on the tier-1 cases."""
@@ -393,6 +396,7 @@ def test_rpdeep_component_scores_complete_rows_only(monkeypatch):
 
 # ------------------------------------------------- the private component
 
+@pytest.mark.archive_default
 def test_public_board_scrubs_a_private_score_with_tiers(tmp_path, monkeypatch):
     """A private custom score stays private on the 3.9 profile: a private overlay
     component (as profiles/bench.private.yaml adds it) counts on the local
@@ -472,6 +476,7 @@ def test_tier_todo_runs_only_the_unlocked_scores(tmp_path, monkeypatch, bench):
     assert cli.tier_todo("m", cfg_p, bench.prof, 3)[0] == []
 
 
+@pytest.mark.archive_default
 def test_tier_phases_run_t2_then_t3_and_judge_each(tmp_path, monkeypatch, bench):
     rows = _tiered_rows()
     rows = [r for r in rows if r["case_id"] != "CZ01-prime-census"]   # T2 Code = 100 -> T3
@@ -518,6 +523,7 @@ def test_no_tiers_flag_and_smoke_skip_the_tier_phases(bench):
     assert cli._tier_phases(args, bench.cfg, ["m"]) == 0
 
 
+@pytest.mark.archive_default
 def test_plan_prints_rows_repeats_budgets_and_tiers_without_a_model(capsys, monkeypatch, bench):
     import crucibleforge.runner as runner_mod
     monkeypatch.setattr(runner_mod, "run_models", lambda *a, **k: pytest.fail("ran a model"))
@@ -553,7 +559,7 @@ def test_plan_prints_rows_repeats_budgets_and_tiers_without_a_model(capsys, monk
 # ---------------------------------------------------------------- version
 
 def test_suite_390_and_per_case_bank_stamps():
-    assert version.SUITE_VERSION == "4.1.0"  # key review 2026-11-08
+    assert version.SUITE_VERSION == "4.5.0"  # 4.5 release (ship plan C8)
     h = version.bank_case_hash("codebank", "CB-D4-watch-sessions")
     row = {"category": "codebank", "case_id": "CB-D4-watch-sessions", "bank_revision": h,
            "bench_revision": version.revision()}
@@ -564,6 +570,7 @@ def test_suite_390_and_per_case_bank_stamps():
     assert "3.8.0+36a60ec6" in version.previous_regime_revisions()
 
 
+@pytest.mark.archive_default
 def test_a_t1_item_the_context_cannot_serve_is_labelled(bench):
     from crucibleforge import report as rep
     st = {"tier_stats": {}, "tier_states": {2: {}, 3: {}},
@@ -575,6 +582,7 @@ def test_a_t1_item_the_context_cannot_serve_is_labelled(bench):
     assert c["labels"]["chat"] == "80.0 (T1) [T2 pending] [Deep RP n/a (ctx)]"
 
 
+@pytest.mark.archive_default
 def test_old_values_count_tier_one_cases_only(bench, monkeypatch):
     """A 3.8 run had CZ02 in tier 1: as old values it must not be scored as
     a tier-2 result the model never had to unlock."""

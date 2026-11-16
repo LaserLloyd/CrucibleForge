@@ -358,7 +358,7 @@ def test_run_judge_separates_empty_generations_from_parse_failures(tmp_path, mon
                            "refused": False, "sanitized": False, "note": ""}}
 
     monkeypatch.setattr(judge, "_load_judge", lambda *a, **k: FakeJC())
-    monkeypatch.setattr(judge, "run_canary", lambda jc: None)
+    monkeypatch.setattr(judge, "run_canary", lambda jc, **k: None)
     monkeypatch.setattr(judge, "judge_row", fake_judge_row)
     cfg = {"models": [{"name": "m", "model_id": "m", "provider": "sf"}],
            "judge": {"samples": 1}, "providers": {}, "defaults": {}}

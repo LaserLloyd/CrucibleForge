@@ -1,0 +1,12 @@
+{
+ "item": "PACK-WORK-AGENTIC",
+ "level": 1,
+ "note": "classic-fixed (4.5): the 45.1 rewrite of a 4.1 case. Its stored 4.1 rows are gone (the prompt changed), so this pack has no rows yet. Left Core in 4.5.",
+ "classic_fixed": true,
+ "cases": [
+  "TZ20-swim-saturday-age-day"
+ ],
+ "rows": "none",
+ "allow_small": true,
+ "allow_small_reason": "one 45.1 rewrite (TZ20)"
+}

@@ -302,6 +302,7 @@ def test_lease_load_widens_after_a_short_load(rig, monkeypatch):
     assert plan["ctx_size"] == 73728                    # the window never shrinks
 
 
+@pytest.mark.archive_default   # its resident plan names no KV type; a bare bench45 load enforces q8_0 (run_settings) and reloads
 def test_lease_load_does_not_widen_a_model_that_already_has_its_slots(rig, monkeypatch):
     p = _prov(target_slots=8)
     p._start_keepalive = lambda: None

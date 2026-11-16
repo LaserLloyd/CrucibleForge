@@ -332,13 +332,15 @@ def test_c3_chain_passes_when_the_current_replay_setting_is_the_right_one():
     assert "current replay setting holds" in c.detail
 
 
-def test_c3_chain_fails_when_the_opposite_setting_recalls_better():
-    """THE MINIMAX DEFECT: the harness drops the reasoning between turns, so
-    the model cannot remember what it thought.  The check must say so."""
+def test_c3_chain_warns_when_the_opposite_setting_recalls_better():
+    """The MiniMax-shaped recall gap is still REPORTED, but since 4.5 c3 is a
+    diagnostic (EXP-20261114-11): a WARN that names the replay's source; the
+    replay itself follows replay_rule (template / card / API doc)."""
     rec = _run(_cfg(reasoning_replay=False))
     c = _check(rec, "c3")
-    assert c.status == conformance.FAIL
-    assert "replay setting is wrong for this model" in c.detail
+    assert c.status == conformance.WARN
+    assert "diagnostic" in c.detail and "replay=False" in c.detail
+    assert rec.verdict != conformance.FAIL
 
 
 def test_c3_chain_is_info_for_a_model_that_does_not_think():

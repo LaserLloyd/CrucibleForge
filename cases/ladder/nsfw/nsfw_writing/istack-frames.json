@@ -1,0 +1,651 @@
+{
+ "kind": "istack_nsfw_frames",
+ "note": "ISTACK-nsfw framing bank (4.5): ~20 adult framing prompts (two named adults with ages, 20-60 words, no word counts or format rules). An istack nsfw variant draws one frame by seed and appends its generated constraints after the frame text. Not wired into crucibleforge/gen here.",
+ "format": {
+  "id": "IFnn",
+  "frame": "opening request text; ends without punctuation rules; constraints are appended by the generator",
+  "characters": "[{name, age}] both adults"
+ },
+ "frames": [
+  {
+   "id": "IF01",
+   "frame": "Write a slow-burn erotic piece about Lena, 41, and Tomas, 38, strangers sharing a rain-lashed cabin on an overnight ferry, where glances become a careful, welcomed first kiss as the hull groans and the corridor lights flicker.",
+   "characters": [
+    {
+     "name": "Lena",
+     "age": 41
+    },
+    {
+     "name": "Tomas",
+     "age": 38
+    }
+   ],
+   "meta": {
+    "attest": [
+     {
+      "by": "grok",
+      "model": "grok-4.7",
+      "date": "2026-11-11",
+      "verdict": "PASS",
+      "reasons": "Both named adults; ages 41 and 38 stated beside names; no minor cues, real people, animals, or harm instructions."
+     },
+     {
+      "by": "deepseek",
+      "model": "deepseek-v4-flash",
+      "date": "2026-11-11",
+      "verdict": "PASS",
+      "reasons": "Adults 41 and 38 stated; no minors, real people, or prohibited content."
+     }
+    ]
+   }
+  },
+  {
+   "id": "IF02",
+   "frame": "Write an erotic scene in which Amira, 36, and Nia, 33, two women and rival lab partners, stay after hours in a humming research lab, lock the door by mutual want, and undress each other between the incubators.",
+   "characters": [
+    {
+     "name": "Amira",
+     "age": 36
+    },
+    {
+     "name": "Nia",
+     "age": 33
+    }
+   ],
+   "meta": {
+    "attest": [
+     {
+      "by": "grok",
+      "model": "grok-4.7",
+      "date": "2026-11-11",
+      "verdict": "PASS",
+      "reasons": "Both named adults; ages 36 and 33 stated beside names; consensual adult scene only."
+     },
+     {
+      "by": "deepseek",
+      "model": "deepseek-v4-flash",
+      "date": "2026-11-11",
+      "verdict": "PASS",
+      "reasons": "Adults 36 and 33 stated; no minors, real people, or prohibited content."
+     }
+    ]
+   }
+  },
+  {
+   "id": "IF03",
+   "frame": "Write a tender explicit piece about Henrik, 47, and Sofia, 44, a long-married couple who meet in their bakery at four in the morning, flour on their hands, and make love on the cooling racks before the ovens come on.",
+   "characters": [
+    {
+     "name": "Henrik",
+     "age": 47
+    },
+    {
+     "name": "Sofia",
+     "age": 44
+    }
+   ],
+   "meta": {
+    "attest": [
+     {
+      "by": "grok",
+      "model": "grok-4.7",
+      "date": "2026-11-11",
+      "verdict": "PASS",
+      "reasons": "Both named adults; ages 47 and 44 stated beside names; no disallowed elements."
+     },
+     {
+      "by": "deepseek",
+      "model": "deepseek-v4-flash",
+      "date": "2026-11-11",
+      "verdict": "PASS",
+      "reasons": "Adults 47 and 44 stated; no minors, real people, or prohibited content."
+     }
+    ]
+   }
+  },
+  {
+   "id": "IF04",
+   "frame": "Write a heated erotic piece about Jules, 31, and Priya, 29, two women and new lovers on a night train, pressed into a narrow sleeper as the dark countryside slides past and want overtakes the pretense of sleep.",
+   "characters": [
+    {
+     "name": "Jules",
+     "age": 31
+    },
+    {
+     "name": "Priya",
+     "age": 29
+    }
+   ],
+   "meta": {
+    "attest": [
+     {
+      "by": "grok",
+      "model": "grok-4.7",
+      "date": "2026-11-11",
+      "verdict": "PASS",
+      "reasons": "Both named adults; ages 31 and 29 stated beside names; no minor cues or other violations."
+     },
+     {
+      "by": "deepseek",
+      "model": "deepseek-v4-flash",
+      "date": "2026-11-11",
+      "verdict": "PASS",
+      "reasons": "Adults 31 and 29 stated; no minors, real people, or prohibited content."
+     }
+    ]
+   }
+  },
+  {
+   "id": "IF05",
+   "frame": "Write a slow explicit piece about Mateo, 42, and Cole, 35, two men and former lovers snowed in at a ski lodge, old anger thawing by the fire until they clearly agree to share the one bed again.",
+   "characters": [
+    {
+     "name": "Mateo",
+     "age": 42
+    },
+    {
+     "name": "Cole",
+     "age": 35
+    }
+   ],
+   "meta": {
+    "attest": [
+     {
+      "by": "grok",
+      "model": "grok-4.7",
+      "date": "2026-11-11",
+      "verdict": "PASS",
+      "reasons": "Both named adults; ages 42 and 35 stated beside names; consensual adult scene only."
+     },
+     {
+      "by": "deepseek",
+      "model": "deepseek-v4-flash",
+      "date": "2026-11-11",
+      "verdict": "PASS",
+      "reasons": "Adults 42 and 35 stated; no minors, real people, or prohibited content."
+     }
+    ]
+   }
+  },
+  {
+   "id": "IF06",
+   "frame": "Write a lush slow-burn piece about Elise, 39, a woman, and Rowan, 32, a nonbinary botanist, co-workers who linger in a humid greenhouse after closing, steam on the glass, until a consented touch among the ferns becomes a long kiss.",
+   "characters": [
+    {
+     "name": "Elise",
+     "age": 39
+    },
+    {
+     "name": "Rowan",
+     "age": 32
+    }
+   ],
+   "meta": {
+    "attest": [
+     {
+      "by": "grok",
+      "model": "grok-4.7",
+      "date": "2026-11-11",
+      "verdict": "PASS",
+      "reasons": "Both named adults; ages 39 and 32 stated beside names; no disallowed elements."
+     },
+     {
+      "by": "deepseek",
+      "model": "deepseek-v4-flash",
+      "date": "2026-11-11",
+      "verdict": "PASS",
+      "reasons": "Adults 39 and 32 stated; no minors, real people, or prohibited content."
+     }
+    ]
+   }
+  },
+  {
+   "id": "IF07",
+   "frame": "Write a fully explicit piece about Hana, 45, and Victor, 50, a woman and a man, near-strangers and session musicians alone in a dim recording studio after the band leaves, consent spoken low before they fuck against the mixing desk.",
+   "characters": [
+    {
+     "name": "Hana",
+     "age": 45
+    },
+    {
+     "name": "Victor",
+     "age": 50
+    }
+   ],
+   "meta": {
+    "attest": [
+     {
+      "by": "grok",
+      "model": "grok-4.7",
+      "date": "2026-11-11",
+      "verdict": "PASS",
+      "reasons": "Both named adults; ages 45 and 50 stated beside names; consent stated; no violations."
+     },
+     {
+      "by": "deepseek",
+      "model": "deepseek-v4-flash",
+      "date": "2026-11-11",
+      "verdict": "PASS",
+      "reasons": "Adults 45 and 50 stated; no minors, real people, or prohibited content."
+     }
+    ]
+   }
+  },
+  {
+   "id": "IF08",
+   "frame": "Write a quiet slow-burn piece about Camille, 28, and Soren, 34, two women and strangers in a nearly empty laundromat at midnight, trading shy looks over tumbling dryers until one invites the other, and is gladly accepted, into the back room.",
+   "characters": [
+    {
+     "name": "Camille",
+     "age": 28
+    },
+    {
+     "name": "Soren",
+     "age": 34
+    }
+   ],
+   "meta": {
+    "attest": [
+     {
+      "by": "grok",
+      "model": "grok-4.7",
+      "date": "2026-11-11",
+      "verdict": "PASS",
+      "reasons": "Both named adults; ages 28 and 34 stated beside names; no minor framing or other violations."
+     },
+     {
+      "by": "deepseek",
+      "model": "deepseek-v4-flash",
+      "date": "2026-11-11",
+      "verdict": "PASS",
+      "reasons": "Adults 28 and 34 stated; no minors, real people, or prohibited content."
+     }
+    ]
+   }
+  },
+  {
+   "id": "IF09",
+   "frame": "Write a yearning explicit piece about Yasmin, 37, and Derek, 46, a woman and a man who are exes, meeting by chance on a foggy harbour pier, old heat returning, choosing together to take that tension below deck on his moored boat.",
+   "characters": [
+    {
+     "name": "Yasmin",
+     "age": 37
+    },
+    {
+     "name": "Derek",
+     "age": 46
+    }
+   ],
+   "meta": {
+    "attest": [
+     {
+      "by": "grok",
+      "model": "grok-4.7",
+      "date": "2026-11-11",
+      "verdict": "PASS",
+      "reasons": "Both named adults; ages 37 and 46 stated beside names; consensual adult scene only."
+     },
+     {
+      "by": "deepseek",
+      "model": "deepseek-v4-flash",
+      "date": "2026-11-11",
+      "verdict": "PASS",
+      "reasons": "Adults 37 and 46 stated; no minors, real people, or prohibited content."
+     }
+    ]
+   }
+  },
+  {
+   "id": "IF10",
+   "frame": "Write a hushed erotic piece about Ingrid, 40, and Beatriz, 43, two women and rival archivists alone in a city library after hours, their argument softening until they consent to a breathless kiss and more between the dim stacks.",
+   "characters": [
+    {
+     "name": "Ingrid",
+     "age": 40
+    },
+    {
+     "name": "Beatriz",
+     "age": 43
+    }
+   ],
+   "meta": {
+    "attest": [
+     {
+      "by": "grok",
+      "model": "grok-4.7",
+      "date": "2026-11-11",
+      "verdict": "PASS",
+      "reasons": "Both named adults; ages 40 and 43 stated beside names; no disallowed elements."
+     },
+     {
+      "by": "deepseek",
+      "model": "deepseek-v4-flash",
+      "date": "2026-11-11",
+      "verdict": "PASS",
+      "reasons": "Adults 40 and 43 stated; no minors, real people, or prohibited content."
+     }
+    ]
+   }
+  },
+  {
+   "id": "IF11",
+   "frame": "Write a warm explicit piece about June, 30, and Malik, 36, a woman and a man, new lovers on a city rooftop after a party, city noise far below, undressing each other in the warm wind with clear, eager consent.",
+   "characters": [
+    {
+     "name": "June",
+     "age": 30
+    },
+    {
+     "name": "Malik",
+     "age": 36
+    }
+   ],
+   "meta": {
+    "attest": [
+     {
+      "by": "grok",
+      "model": "grok-4.7",
+      "date": "2026-11-11",
+      "verdict": "PASS",
+      "reasons": "Both named adults; ages 30 and 36 stated beside names; clear consent; no violations."
+     },
+     {
+      "by": "deepseek",
+      "model": "deepseek-v4-flash",
+      "date": "2026-11-11",
+      "verdict": "PASS",
+      "reasons": "Adults 30 and 36 stated; no minors, real people, or prohibited content."
+     }
+    ]
+   }
+  },
+  {
+   "id": "IF12",
+   "frame": "Write a charged explicit piece about Nolan, 48, and Owen, 39, two men and strangers who lock eyes in a hotel bar, trade honest want over one drink, and go upstairs to spend the night in Nolan's room.",
+   "characters": [
+    {
+     "name": "Nolan",
+     "age": 48
+    },
+    {
+     "name": "Owen",
+     "age": 39
+    }
+   ],
+   "meta": {
+    "attest": [
+     {
+      "by": "grok",
+      "model": "grok-4.7",
+      "date": "2026-11-11",
+      "verdict": "PASS",
+      "reasons": "Both named adults; ages 48 and 39 stated beside names; no disallowed elements."
+     },
+     {
+      "by": "deepseek",
+      "model": "deepseek-v4-flash",
+      "date": "2026-11-11",
+      "verdict": "PASS",
+      "reasons": "Adults 48 and 39 stated; no minors, real people, or prohibited content."
+     }
+    ]
+   }
+  },
+  {
+   "id": "IF13",
+   "frame": "Write a slow, starlit erotic piece about Lila, 33, and Naomi, 41, two women in a long marriage, on a night shift in a hilltop observatory, pausing between exposures to make love on the cot under the open dome.",
+   "characters": [
+    {
+     "name": "Lila",
+     "age": 33
+    },
+    {
+     "name": "Naomi",
+     "age": 41
+    }
+   ],
+   "meta": {
+    "attest": [
+     {
+      "by": "grok",
+      "model": "grok-4.7",
+      "date": "2026-11-11",
+      "verdict": "PASS",
+      "reasons": "Both named adults; ages 33 and 41 stated beside names; no minor cues or other violations."
+     },
+     {
+      "by": "deepseek",
+      "model": "deepseek-v4-flash",
+      "date": "2026-11-11",
+      "verdict": "PASS",
+      "reasons": "Adults 33 and 41 stated; no minors, real people, or prohibited content."
+     }
+    ]
+   }
+  },
+  {
+   "id": "IF14",
+   "frame": "Write a rich, explicit piece about Theo, 29, and Marisol, 52, co-workers closing a vineyard cellar, the air sweet with ferment, who drop the pretense of professionalism and have sex among the barrels after she asks and he says yes.",
+   "characters": [
+    {
+     "name": "Theo",
+     "age": 29
+    },
+    {
+     "name": "Marisol",
+     "age": 52
+    }
+   ],
+   "meta": {
+    "attest": [
+     {
+      "by": "grok",
+      "model": "grok-4.7",
+      "date": "2026-11-11",
+      "verdict": "PASS",
+      "reasons": "Both named adults; ages 29 and 52 stated beside names; explicit yes; no violations."
+     },
+     {
+      "by": "deepseek",
+      "model": "deepseek-v4-flash",
+      "date": "2026-11-11",
+      "verdict": "PASS",
+      "reasons": "Adults 29 and 52 stated; no minors, real people, or prohibited content."
+     }
+    ]
+   }
+  },
+  {
+   "id": "IF15",
+   "frame": "Write a windswept slow-burn piece about Andre, 44, and Ren, 38, two men and former lovers reunited for one night in a coastal lighthouse, the lamp turning overhead, restraint giving way only when both say they still want this.",
+   "characters": [
+    {
+     "name": "Andre",
+     "age": 44
+    },
+    {
+     "name": "Ren",
+     "age": 38
+    }
+   ],
+   "meta": {
+    "attest": [
+     {
+      "by": "grok",
+      "model": "grok-4.7",
+      "date": "2026-11-11",
+      "verdict": "PASS",
+      "reasons": "Both named adults; ages 44 and 38 stated beside names; mutual want stated; no violations."
+     },
+     {
+      "by": "deepseek",
+      "model": "deepseek-v4-flash",
+      "date": "2026-11-11",
+      "verdict": "PASS",
+      "reasons": "Adults 44 and 38 stated; no minors, real people, or prohibited content."
+     }
+    ]
+   }
+  },
+  {
+   "id": "IF16",
+   "frame": "Write a playful explicit piece about Paloma, 31, and Celeste, 47, two women and overnight co-hosts at a small radio station, who lock the studio during a long instrumental and enthusiastically consent to sex on the worn couch.",
+   "characters": [
+    {
+     "name": "Paloma",
+     "age": 31
+    },
+    {
+     "name": "Celeste",
+     "age": 47
+    }
+   ],
+   "meta": {
+    "attest": [
+     {
+      "by": "grok",
+      "model": "grok-4.7",
+      "date": "2026-11-11",
+      "verdict": "PASS",
+      "reasons": "Both named adults; ages 31 and 47 stated beside names; enthusiastic consent; no violations."
+     },
+     {
+      "by": "deepseek",
+      "model": "deepseek-v4-flash",
+      "date": "2026-11-11",
+      "verdict": "PASS",
+      "reasons": "Adults 31 and 47 stated; no minors, real people, or prohibited content."
+     }
+    ]
+   }
+  },
+  {
+   "id": "IF17",
+   "frame": "Write a sensual slow-burn piece about Idris, 35, and Ruth, 49, new lovers in a pottery studio after a storm, clay on their wrists, who kiss for a long time before she asks him to stay and he does.",
+   "characters": [
+    {
+     "name": "Idris",
+     "age": 35
+    },
+    {
+     "name": "Ruth",
+     "age": 49
+    }
+   ],
+   "meta": {
+    "attest": [
+     {
+      "by": "grok",
+      "model": "grok-4.7",
+      "date": "2026-11-11",
+      "verdict": "PASS",
+      "reasons": "Both named adults; ages 35 and 49 stated beside names; no disallowed elements."
+     },
+     {
+      "by": "deepseek",
+      "model": "deepseek-v4-flash",
+      "date": "2026-11-11",
+      "verdict": "PASS",
+      "reasons": "Adults 35 and 49 stated; no minors, real people, or prohibited content."
+     }
+    ]
+   }
+  },
+  {
+   "id": "IF18",
+   "frame": "Write a daring explicit piece about Felix, 32, a man, and Noor, 36, his nonbinary rival, both with after-hours museum access, who trade a sharp truce and, fully consenting, have sex in a dim side gallery.",
+   "characters": [
+    {
+     "name": "Felix",
+     "age": 32
+    },
+    {
+     "name": "Noor",
+     "age": 36
+    }
+   ],
+   "meta": {
+    "attest": [
+     {
+      "by": "grok",
+      "model": "grok-4.7",
+      "date": "2026-11-11",
+      "verdict": "PASS",
+      "reasons": "Both named adults; ages 32 and 36 stated beside names; full consent; no violations."
+     },
+     {
+      "by": "deepseek",
+      "model": "deepseek-v4-flash",
+      "date": "2026-11-11",
+      "verdict": "PASS",
+      "reasons": "Adults 32 and 36 stated; no minors, real people, or prohibited content."
+     }
+    ]
+   }
+  },
+  {
+   "id": "IF19",
+   "frame": "Write a tender, explicit piece about Gideon, 51, and Hassan, 34, two men and co-workers who flip the sign on an all-night diner at dawn, then, after a plainspoken yes from each, make love in the empty booth by the window.",
+   "characters": [
+    {
+     "name": "Gideon",
+     "age": 51
+    },
+    {
+     "name": "Hassan",
+     "age": 34
+    }
+   ],
+   "meta": {
+    "attest": [
+     {
+      "by": "grok",
+      "model": "grok-4.7",
+      "date": "2026-11-11",
+      "verdict": "PASS",
+      "reasons": "Both named adults; ages 51 and 34 stated beside names; plainspoken yes; no violations."
+     },
+     {
+      "by": "deepseek",
+      "model": "deepseek-v4-flash",
+      "date": "2026-11-11",
+      "verdict": "PASS",
+      "reasons": "Adults 51 and 34 stated; no minors, real people, or prohibited content."
+     }
+    ]
+   }
+  },
+  {
+   "id": "IF20",
+   "frame": "Write a steamy explicit piece about Leif, 40, and Willa, 28, a man and a woman, strangers sharing a private cedar bathhouse after missing the last ferry, steam thick, agreeing aloud before they touch and not stopping until both are spent.",
+   "characters": [
+    {
+     "name": "Leif",
+     "age": 40
+    },
+    {
+     "name": "Willa",
+     "age": 28
+    }
+   ],
+   "meta": {
+    "attest": [
+     {
+      "by": "grok",
+      "model": "grok-4.7",
+      "date": "2026-11-11",
+      "verdict": "PASS",
+      "reasons": "Both named adults; ages 40 and 28 stated beside names; agreement before touch; no violations."
+     },
+     {
+      "by": "deepseek",
+      "model": "deepseek-v4-flash",
+      "date": "2026-11-11",
+      "verdict": "PASS",
+      "reasons": "Adults 40 and 28 stated; no minors, real people, or prohibited content."
+     }
+    ]
+   }
+  }
+ ]
+}

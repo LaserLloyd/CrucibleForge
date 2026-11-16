@@ -1,0 +1,29 @@
+{
+  "case_count": 256,
+  "commit": "2843cbf3d5074fedb6cde187c7dfec71ed83dfe7",
+  "date": "2026-09-29",
+  "excluded": [
+    {
+      "path": "cases/nsfw.json",
+      "reason": "EL-17 stated adult ages: N1-suggestive: no character age is stated in the card/prompt text (+5 more)"
+    }
+  ],
+  "files": {
+    "cases/coding.json": "dd7700034b9fe683deb062f8954dbe4f99bc71fc50a666721ae6a8d879d1aaa6",
+    "cases/instruct.json": "229e5af995bca1f314a8a5197a965ab3cc096ba023e4a9f6ac3d1efe993c8030",
+    "cases/longctx.json": "955e1aec5679652d8a00b9b285a03885ec5cea6a168f30b6029f5467d42c1fdb",
+    "cases/math.json": "13287f8a673627d124da6819578aa599b57a924e83aeb4dbc130eaca600aad9e",
+    "cases/overrefusal.json": "45f3a9e8b128dc36723b55cf201f9bd498dc882008d6bfbdadb51ee6140131e4",
+    "cases/perf.json": "cd259e67adcd78105b5a91bad893db6b53f2ce888e224b8a31afd104f1fb9e11",
+    "cases/planning.json": "82f519b5a9ff9a4e79e40dc943ebb6f8e0a0575406d92a56214a2ae04c7c74c1",
+    "cases/reasoning.json": "70b45aed908bebee067f04e5808048133eddaf6a8f1365de843b9d4229d963ae",
+    "cases/rp.json": "e7d2811f19ef99f8679bc4eec85cf7b8561e5fb97d4958ab9a6addc280c2e215",
+    "cases/steer.json": "1d56777056793494ef60c687f8c0a3d519f80a1912c6a101c550fafec8f730cc",
+    "cases/story.json": "4b5275328dfb17e56e5bb7d330ce87b97f0fc61b5850195deae9756e04a7eb12",
+    "cases/tooluse.json": "fb2a84ca3dbd3e6cad6a2e84ecc507615210842c24f17cc97c47d69c0f00a71c",
+    "profiles/bench.yaml": "ac5e9b5d593abc80458cb05e633ff8229a7198af91275d1e00017f1abcf5d48f"
+  },
+  "notes": "",
+  "source_tag": null,
+  "version": "3.5.0"
+}

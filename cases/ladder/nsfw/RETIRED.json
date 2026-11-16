@@ -1,0 +1,8 @@
+{
+  "reason": "4.5 section 3.4/4: the NSFW ladder is the Max set (nsfw_writing/set-1), the Mechanisms set (nsfw_rp/set-1) and the Lockout flag (uncensored/lockout.json). These 4.1 sets are kept in git, but profiles/bench45.yaml must not run them (they hold ungraded-by-attestation 4.1 cases).",
+  "files": ["nsfw_writing/set-2.json", "uncensored/set-1.json"],
+  "replaced_in_place": {
+    "nsfw_writing/set-1.json": "was XP1-three-rooms + XP2-blindfold (cases/nsfw.json ids); now the Max set. XP1/XP2 stay in cases/nsfw.json and must be dropped from any 4.5 profile list.",
+    "nsfw_rp/set-1.json": "was LNC1-glasshouse-keys, LNC2-boathouse-three, LNC3-break-room (12-16 turn sessions); now the Mechanisms set. The old file is in git history."
+  }
+}

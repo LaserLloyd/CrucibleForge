@@ -1,0 +1,9 @@
+{
+  "level": 3,
+  "staged": true,
+  "note": "4.5 generated (A7): SCENE-SPEC, a full technically accurate scene from a seeded card (stages, equipment properties, domain facts, a clock question). Rungs 1-5 = 3..8 stages. Staged until the lead wires the profile; the Core slot draws SCENE_SPEC level 3 directly. Structure by Claude, explicit snippets by Grok (a Grok-family model is not comparable), attested by DeepSeek Flash; see scene-bank.json.",
+  "category": "nsfw",
+  "budget": 65536,
+  "allow_long": "single-piece explicit scenes of 700-1,300 words at the 64k budget; one judge call each, and a one-question pack cannot be split",
+  "generator": {"family": "scene_spec", "rungs": [1, 2, 3, 4, 5], "per_rung": 1}
+}
