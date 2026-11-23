@@ -370,6 +370,32 @@ def _apply_main_nsfw_rc2(prof: dict, mn: dict) -> dict:
 # parser was a third of its time (report profile 2026-11-12). A changed file
 # has a new stat key and is parsed again; every caller gets its own deep copy.
 _YAML_CACHE: dict[tuple[str, int, int], object] = {}
+_YAML_PLAIN: dict[tuple[str, int, int], bool] = {}
+
+
+_ATOMS = (str, int, float, bool, type(None), bytes)
+
+
+def _shared_or_odd(o, seen: set) -> bool:
+    """True when ``o`` holds a container reachable twice (a YAML alias) or a value type other than dict / list /
+    plain scalar: only then does ``copy.deepcopy`` do something a plain structural copy would not."""
+    if isinstance(o, dict) or isinstance(o, list):
+        if id(o) in seen:
+            return True
+        seen.add(id(o))
+        it = o.values() if isinstance(o, dict) else o
+        if isinstance(o, dict) and not all(type(k) in _ATOMS for k in o):
+            return True
+        return any(_shared_or_odd(v, seen) for v in it)
+    return type(o) not in _ATOMS
+
+
+def _plain_copy(o):
+    if type(o) is dict:
+        return {k: _plain_copy(v) for k, v in o.items()}
+    if type(o) is list:
+        return [_plain_copy(v) for v in o]
+    return o
 
 
 def _yaml_file(p: Path):
@@ -378,8 +404,14 @@ def _yaml_file(p: Path):
     if key not in _YAML_CACHE:
         if len(_YAML_CACHE) > 256:
             _YAML_CACHE.clear()
-        _YAML_CACHE[key] = yaml.safe_load(p.read_text(encoding="utf-8"))
-    return copy.deepcopy(_YAML_CACHE[key])
+            _YAML_PLAIN.clear()
+        obj = yaml.safe_load(p.read_text(encoding="utf-8"))
+        _YAML_CACHE[key] = obj
+        # a profile is read tens of thousands of times in a board's bootstrap (profile of a 25-minute resolution run,
+        # 2026-11-20: 12.8k loads, 8 minutes inside copy.deepcopy). A tree of plain dicts / lists / scalars with no
+        # shared container copies identically without the memo and the type dispatch (several times faster).
+        _YAML_PLAIN[key] = not _shared_or_odd(obj, set())
+    return _plain_copy(_YAML_CACHE[key]) if _YAML_PLAIN[key] else copy.deepcopy(_YAML_CACHE[key])
 
 
 #: selects one of a profile's named ``compositions:`` (2026-11-14, rc1-night); unset = the profile's own
@@ -389,10 +421,18 @@ COMPOSITION_ENV = "CF_COMPOSITION"
 #: ``reuse`` (2026-11-15, lead): which stored rows of another profile may count; the shipping composition has none
 _COMPOSITION_KEYS = ("cases", "core_level", "core_generated", "board_notes", "chains", "routing",
                      "judge_stamp_required", "reuse",
+                     # 2026-11-19: Assistant basics (checked), a column outside Overall (assistant45.py)
+                     "assistant",
+                     # realignment 2026-11-19: the score tree and the NSFW+ numbers (segments45.py, nsfwplus45.py)
+                     "segments45", "nsfw_plus", "rplong_score", "segment_marks", "marks_index",
                      # rc4 (release owner 2026-11-14): no scaling over pending parts
                      "pending_scaling",
                      # 2026-11-15 (lead): which of a chain section's ``judge_modes`` replaces its judge_mode
-                     "judge_mode_select")
+                     "judge_mode_select",
+                     # lane-j (2026-11-19): judged parts count only when their second-reader marks pass
+                     "judge_agreement",
+                     # 2026-11-19 (b): a routed composition states the plain cut rule its scale applies
+                     "cut_at_full_budget")
 
 
 def _deep_merge(base, over):
@@ -845,9 +885,11 @@ def _select(prof: dict, mapping: dict, smoke: bool = False) -> list[dict]:
     (``repeats`` on the case, read by config.repeats_for) applied."""
     all_cases = {c["id"]: c for c in load_cases(list(mapping.keys()))}
     from . import gen as _gen
+    from .lazycase import LazyCase
     for c in core_generated_cases(prof):        # Core instances live in the profile, not in a file
         if c["id"] not in all_cases and c["category"] in mapping:
-            all_cases[c["id"]] = _gen.materialize_case(c)
+            # rendered when first read (lazycase.py): a profile load renders no Core instance a command does not use
+            all_cases[c["id"]] = LazyCase(c, _gen.materialize_case)
     per_case = prof.get("case_repeats") or {}
     selected: list[dict] = []
     for cat, ids in mapping.items():
@@ -859,7 +901,7 @@ def _select(prof: dict, mapping: dict, smoke: bool = False) -> list[dict]:
                 raise ConfigError(f"profile {prof['name']}: {cid} is not in category {cat}")
             if smoke and not c.get("smoke"):
                 continue
-            c = dict(c)
+            c = c.lazy_copy() if isinstance(c, LazyCase) else dict(c)
             mt = (prof.get("max_tokens") or {}).get(cat)
             if mt:
                 c["max_tokens"] = int(mt)
@@ -910,10 +952,10 @@ def profile_judge(prof: dict) -> dict | str | None:
 
 
 def default_judge_id(cfg: dict | None = None) -> str | None:
-    """model_id of the benchmark's judge (the 122B) — the only judge whose
-    verdicts count on the board."""
+    """model_id of the active profile's judge (:func:`active_name`): the only judge
+    whose verdicts count on that board (a 4.1 render names the 4.1 judge, 4.5 its own since amendment r)."""
     try:
-        j = profile_judge(load_profile(DEFAULT_PROFILE, cfg))
+        j = profile_judge(load_profile(active_name(cfg), cfg))
     except ConfigError:
         return None
     if isinstance(j, dict):

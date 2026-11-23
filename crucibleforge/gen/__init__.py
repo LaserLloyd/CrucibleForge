@@ -235,6 +235,40 @@ def _fam_gen(gen: dict) -> dict:
     return g
 
 
+#: Board-time memo of what a family renders (2026-11-20). A family renders from exactly (type, generator block, release
+#: seed, seed case id), and a board render / the resolution bootstrap asks for the same case thousands of times (the
+#: trace-VM and patch-fix families cost 0.1-40 s per render: 5,100 renders in a 7-minute profile). OFF by default, because
+#: tests patch family internals between calls; the report and resolution entry points turn it on. Callers get a deep
+#: copy, so nobody shares the stored dict.
+_MAT_CACHE: dict = {}
+_MAT_CACHE_ON = [False]
+
+
+def enable_materialize_cache(on: bool = True) -> None:
+    _MAT_CACHE_ON[0] = bool(on)
+    if not on:
+        _MAT_CACHE.clear()
+
+
+def _cached_materialize(fam, gen: dict, rs: str, seed_id: str) -> dict:
+    import json
+    fg = _fam_gen(gen)
+
+    def render():
+        with family_lock(gen["type"]):
+            return fam.materialize(fg, release_seed=rs, case_id=seed_id)
+    if not _MAT_CACHE_ON[0]:
+        return render()
+    key = (gen["type"], json.dumps(fg, sort_keys=True, default=str), rs, seed_id)
+    hit = _MAT_CACHE.get(key)
+    if hit is None:
+        out = render()
+        if not isinstance(out, dict):
+            return out
+        _MAT_CACHE[key] = hit = copy.deepcopy(out)
+    return copy.deepcopy(hit)
+
+
 def materialize_case(case: dict, release_seed_: str | None = None) -> dict:
     """Render a generated case IN PLACE (what config.load_cases calls) and
     return it. The generator block stays on the case; the materialised keys
@@ -243,8 +277,7 @@ def materialize_case(case: dict, release_seed_: str | None = None) -> dict:
     fam = get(gen["type"])
     check_variant(fam, gen)
     rs = release_seed() if release_seed_ is None else str(release_seed_)
-    with family_lock(gen["type"]):
-        out = fam.materialize(_fam_gen(gen), release_seed=rs, case_id=seed_case_id(case))
+    out = _cached_materialize(fam, gen, rs, seed_case_id(case))
     if not isinstance(out, dict):
         raise GeneratorError(f"{case['id']}: {gen['type']}.materialize must return a dict")
     for k, v in out.items():

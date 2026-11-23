@@ -1,0 +1,26 @@
+# Dated addendum 2026-11-20 (b, runs-lane pilot) to chat-readers-45.yaml, written before any launch row was read.
+# Supersedes chat-readers-45-addendum-20261120.yaml, whose row stays in the marks index for the record: the only change is
+# that role R-Q now names its model (the Qwen-family local classing reader of nsfw-classing-readers-45-addendum-20261120.json),
+# so a DeepSeek row has a non-DeepSeek reader. Everything else is copied unchanged.
+# Second change: pins {minimax: deepseek-flash}, so the MiniMax scenes keep the hosted reader that already read them
+# (local readers are otherwise first in file order). The pin is one reader per graded family, as the file's own
+# comment on pins allows.
+# (Text of the 2026-11-20 addendum follows.)
+# Supersedes chat-readers-45.yaml. Changes: the hosted reader is
+# named by the engine label that carries a price (deepseek-flash, shown to visitors as "DeepSeek v4 flash"), the same
+# label the classing readers use; Grok is not a reader; DeepSeek-family rows are read by local readers only (none is
+# named yet, so they print "readers not named yet"). Rules enforced in code (rplong_mean): reader family != judge
+# family != graded model family; readers think; an entry without an id never fits.
+chat_readers:
+  judge_family: google
+  # pins: {<graded family>: <reader id>}  one reader per graded family; empty = the first fitting reader in file order
+  pins: {minimax: deepseek-flash}
+  # graded families that only local readers may read (lead decision f)
+  local_only_families: [deepseek]
+  local:
+    - {role: R-Q, family: qwen, id: qwen3.8-27b-ultra-heretic-nvfp4}
+    - {role: R-M, family: mistral, id: null}
+    - {role: R-O, family: openai, id: null}
+  hosted:
+    - {role: H-1, id: deepseek-flash, display: DeepSeek v4 flash, family: deepseek, provider: deepseek, thinking: true,
+       price: {input: 0.14, output: 0.28}}

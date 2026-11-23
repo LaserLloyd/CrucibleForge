@@ -7,7 +7,7 @@
   theme_rp_pipeline.py refs                                  # stage B for valid cards without final references
   theme_rp_pipeline.py fixrefs                               # one repair call per card whose references fail a check
   theme_rp_pipeline.py assemble [--per-cell 5]
-Work dir: /var/tmp/mb45-build/n2-work/rp-bank (WORK). Every probe launch writes EXPECTED.md first; exit 7/5 stop.
+Work dir: $RP_WORK (WORK). Every probe launch writes EXPECTED.md first; exit 7/5 stop.
 """
 from __future__ import annotations
 
@@ -25,8 +25,8 @@ sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "tools"))
 import theme_rp_bank as B  # noqa: E402
 
-WORK = Path(os.environ.get("RP_WORK", "/var/tmp/mb45-build/n2-work/rp-bank"))
-PROBE = "/var/tmp/mb45-build/n-work/probe.py"
+WORK = Path(os.environ.get("RP_WORK", "rp-bank"))
+PROBE = os.environ.get("RP_PROBE", "probe.py")
 import os
 N_RUN = int(os.environ.get('RP_RUNNERS', '4'))
 BUDGET = float(os.environ.get("RP_BUDGET", "25.0"))

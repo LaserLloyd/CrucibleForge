@@ -102,6 +102,7 @@ def _env(tmp_path, monkeypatch):
     return env
 
 
+@pytest.mark.archive_default
 def test_content_filtered_nsfw_rows_score_w0_not_missing(tmp_path, monkeypatch):
     env = _env(tmp_path, monkeypatch)
     rows = pb._rows() + w13._hard_rows() + [_nsfw_row(c) for c in NSFW_IDS]
@@ -112,6 +113,7 @@ def test_content_filtered_nsfw_rows_score_w0_not_missing(tmp_path, monkeypatch):
     assert st["ranked"] and st["pending_reasons"] == []
 
 
+@pytest.mark.archive_default
 def test_an_errored_nsfw_job_nulls_nsfw_with_a_reason_but_the_model_stays_ranked(
         tmp_path, monkeypatch):
     env = _env(tmp_path, monkeypatch)
@@ -128,6 +130,7 @@ def test_an_errored_nsfw_job_nulls_nsfw_with_a_reason_but_the_model_stays_ranked
     assert st["scorecard"]["total"] is not None
 
 
+@pytest.mark.archive_default
 def test_empty_code_reply_with_reasoning_scores_zero_on_the_board(tmp_path, monkeypatch):
     env = _env(tmp_path, monkeypatch)
     rows = [{**r, "response": "", "reasoning": "thinking ...", "finish_reason": "stop",

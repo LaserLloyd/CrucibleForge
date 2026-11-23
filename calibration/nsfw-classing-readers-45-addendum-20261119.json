@@ -1,0 +1,15 @@
+{
+ "about": "Dated readers addendum (spec section 3, review M6): names the hosted classing reader for the hosted_fallback role. Admitted only by a stored C1 pass for this exact model id under the current classing prompt sha. Local reader roles (R-Q, R-M, R-O) stay unnamed. Written 2026-11-19 before any launch row was read.",
+ "written": "2026-11-19",
+ "written_before_launch_rows": true,
+ "readers": {
+  "deepseek-v4-flash": {
+   "provider": "deepseek",
+   "model_id": "deepseek-flash",
+   "family": "deepseek",
+   "hosted": true,
+   "price": {"input": 0.14, "output": 0.28},
+   "note": "DeepSeek V4 Flash, thinking on (the API default); the engine's priced id for it is deepseek-flash, the API alias deepseek-v4-flash resolves to the same model; price per million tokens as models.yaml"
+  }
+ }
+}

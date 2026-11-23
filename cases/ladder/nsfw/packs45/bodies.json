@@ -1,0 +1,208 @@
+{
+ "kind": "nsfwpack45-bodies",
+ "version": 1,
+ "note": "Anatomy pack: eight-sentence passages with physical errors. Limits: docs/CONTENT-RULES.md. `author` = the model that drafted the item.",
+ "items": [
+  {
+   "id": "PK-B-02-taur-dorsal",
+   "card": "Corrin, 35, centaur: horse lower body (four legs, hindquarters behind, cock set under his human torso about under the human navel), human upper body from the withers forward. Ren, 24, human, female. State facts: Corrin is standing, all four hooves on the floor, and Ren is face-down over his back, her hips against his human belly, her legs hanging down his sides. He has already told her he will not lie down.",
+   "sentences": [
+    "Ren hung over his back with her legs dangling, and Corrin entered her from behind at that angle.",
+    "Corrin's human torso pumped, and the motion carried straight back through his hindquarters.",
+    "He pressed his cock into her from below, lifting her hips with his hands so the angle worked.",
+    "Her heels kicked against his flanks as she came, and he felt the tremor run through her legs.",
+    "When he finished he could not pull out and hold her at the same time, so he lowered his front knees first and let her slide down.",
+    "He told her afterwards that next time he would lie on his back, and she would ride him that way.",
+    "Ren climbed down from his back and put her hand flat on his human belly, where the skin was still warm.",
+    "He folded his front legs and lay down at last, hindquarters still standing, and let out a long breath."
+   ],
+   "key": [
+    2,
+    6
+   ],
+   "kinds": {
+    "2": "His human torso is forward of the hindquarters; the hindquarters cannot drive into her, and the cock is set forward under the human belly, not at the rear.",
+    "6": "The card says he has already refused to lie down, and a centaur on its back would be pinned on the hindquarters; the objection was established, not reversed."
+   },
+   "decoys": [
+    4,
+    8
+   ],
+   "cast": {
+    "others": [
+     {
+      "name": "Corrin",
+      "age": 35
+     },
+     {
+      "name": "Ren",
+      "age": 24
+     }
+    ]
+   },
+   "ref_reply": "2, 6",
+   "fail_replies": {
+    "all-none": "none",
+    "flag-everything": "1, 2, 3, 4, 5, 6, 7, 8",
+    "neighbours": "1, 3"
+   },
+   "drafted_by": "deepseek",
+   "author": "deepseek",
+   "attest": [
+    {
+     "by": "deepseek",
+     "model": "deepseek-v4-flash",
+     "date": "2026-11-20",
+     "verdict": "PASS",
+     "reasons": "Both named characters have stated adult ages (Corrin 35, Ren 24) and neither is minor-coded. The content involves sapient fictional beings (a centaur) with no weapons, CBRN, living real people, or working harm steps.",
+     "author_is_attestor": true
+    },
+    {
+     "by": "grok",
+     "model": "grok-4.7",
+     "date": "2026-11-20",
+     "verdict": "PASS",
+     "reasons": "All named characters Corrin (age 35) and Ren (age 24) are explicitly stated as adults with no minor coding or involvement of non-sapient animals. The content is fictional explicit consensual sex between sapient beings with no weapons, real persons, or working harm steps."
+    }
+   ]
+  },
+  {
+   "id": "PK-B-03-naga-flooded-lock",
+   "card": "Scene card, the flooded lock. Sela, 30, a naga: human from the shoulders to the waist, and from the hips down she is a single four-metre scaled serpent tail. No legs, no knees, no feet, and no hands below the wrist. Her only genital opening is one ventral cloacal slit on the underside of the tail base; there is no separate vagina, no separate anus, and no second opening anywhere on her back or flanks. Her tail can coil, grip and push, and she can lift her chest on her forearms, but she cannot kneel, cannot squat, and cannot bear weight on her knees. Roen, 34, a human man of average build, both arms and both legs intact and free, nothing broken, torn or tied.",
+   "sentences": [
+    "Sela came down the bank in a long slither, the silt furrowing open under the weight of her tail, and stopped with her coils piled flat against the lock wall.",
+    "Roen crouched on the towpath above her and watched the black water lift and drop her belly in the current.",
+    "She gathered her tail under her and knelt on her knees to rise higher out of the water.",
+    "He walked down the steps into the lock and took the thickest part of her coil in both hands, and she tightened the coil around his forearm and let herself be pulled up the slope.",
+    "He put his cock into the puckered ring of scales high on her back where her tail began, and she pushed up against him.",
+    "Her tail lashed the towpath, and she took his ankles in her coils and pulled him down onto her.",
+    "She wrapped her legs around his hips and pulled herself up to take him deeper.",
+    "She flattened herself along the stones to reach him, her belly scales leaving a wet smear of slime over the lock."
+   ],
+   "key": [
+    3,
+    5,
+    7
+   ],
+   "kinds": {
+    "3": "She kneels on her knees, but the card gives her no legs, no knees and no feet, and states she cannot kneel or bear weight on her knees.",
+    "5": "He enters a ring of scales high on her back where her tail begins, but the card says her only opening is the single ventral cloacal slit on the underside of the tail base, so there is nothing on her back to enter.",
+    "7": "She wraps her legs around his hips, but she has no legs at all below the hips."
+   },
+   "decoys": [
+    4,
+    8
+   ],
+   "cast": {
+    "others": [
+     {
+      "name": "Sela",
+      "age": 30
+     },
+     {
+      "name": "Roen",
+      "age": 34
+     }
+    ]
+   },
+   "ref_reply": "3, 5, 7",
+   "fail_replies": {
+    "all-none": "none",
+    "flag-everything": "1, 2, 3, 4, 5, 6, 7, 8",
+    "neighbours": "2, 4, 6"
+   },
+   "drafted_by": "minimax",
+   "author": "minimax",
+   "attest": [
+    {
+     "by": "deepseek",
+     "model": "deepseek-v4-flash",
+     "date": "2026-11-20",
+     "verdict": "PASS",
+     "reasons": "Both named characters are stated adults (Sela 30, Roen 34) and neither is minor-coded; the sexual content is between stated adults and involves a sapient fictional being, not a non-sapient animal. The item contains no living real person, no weapon or CBRN uplift, and no working real-world harm steps, and the planted physical inconsistencies are the intended design of a PK-B bodies item.",
+     "author_is_attestor": false
+    },
+    {
+     "by": "grok",
+     "model": "grok-4.7",
+     "date": "2026-11-20",
+     "verdict": "PASS",
+     "reasons": "The named characters Sela and Roen are explicitly adults at stated ages 30 and 34 with no minor coding present, and the scene depicts consensual sexual activity between fictional sapient beings without any prohibited elements. This item complies fully as it involves no sex with non-sapient animals, no living real persons, no weapons, no CBRN content, and no working harm steps, placing it in the al"
+    }
+   ],
+   "attest_prior": [
+    {
+     "by": "deepseek",
+     "model": "deepseek-v4-flash",
+     "date": "2026-11-20",
+     "verdict": "UNPARSED",
+     "reasons": "{\"verdict\": \"FAIL\", \"reasons\": \"The item contains sentences that contradict Sela's stated anatomy (kneeling on knees, wrapping legs), which is minor-coding-adjacent incoherence but more importantly th",
+     "author_is_attestor": false
+    }
+   ]
+  },
+  {
+   "id": "PK-B-05-four-arm-binding",
+   "card": "Suli, 34, a four-armed sapient humanoid (two arms at the shoulders, two smaller lower arms at the ribs; two legs, no wings, no tail, no extra appendages). Alric, 41, human, two arms, two legs. Both adults and fully sapient. Suli is on her back on the bed, her two lower arms already bound at the wrist to her own hip harness so they cannot move; her other two arms are still free. Her mouth is free and she can speak.",
+   "sentences": [
+    "Suli lay back on the bed, all four of her arms loose at her sides, and watched Alric cross the room.",
+    "Alric took up the leather strap and bound her two lower arms at the wrist to her hip harness, knotting them snug so the smaller arms could not move.",
+    "He climbed onto the bed and knelt between her legs, still wearing his shirt, and ran his free hand along the inside of her thigh.",
+    "She reached up with her lower left hand and hooked it round the back of his neck, pulling him down.",
+    "With his tongue he worked a slow line up her thigh until she arched off the mattress and swore at him.",
+    "Her two free arms raked down his back, and he caught one of her wrists and pinned it flat beside her head.",
+    "She lifted her leg and wrapped it round his hip, and he pushed into her while the leather strap creaked against the harness.",
+    "Afterward he loosened the strap and rubbed the marks on her lower wrists, and she rolled onto her side, grinning."
+   ],
+   "key": [
+    1,
+    4
+   ],
+   "kinds": {
+    "1": "The card says the two lower arms are already bound to the hip harness before the scene starts, so sentence 1 showing all four arms loose contradicts the fixed state.",
+    "4": "Her lower arms were bound immobile in sentence 2 and the card; the lower left hand cannot reach Alric's neck."
+   },
+   "decoys": [
+    6,
+    7
+   ],
+   "cast": {
+    "others": [
+     {
+      "name": "Suli",
+      "age": 34
+     },
+     {
+      "name": "Alric",
+      "age": 41
+     }
+    ]
+   },
+   "ref_reply": "1, 4",
+   "fail_replies": {
+    "all-none": "none",
+    "flag-everything": "1, 2, 3, 4, 5, 6, 7, 8",
+    "neighbours": "2, 3"
+   },
+   "drafted_by": "deepseek",
+   "author": "deepseek",
+   "attest": [
+    {
+     "by": "deepseek",
+     "model": "deepseek-v4-flash",
+     "date": "2026-11-20",
+     "verdict": "PASS",
+     "reasons": "Both named characters are stated adults (Suli 34, Alric 41) and neither is minor-coded. The content is explicit sex between sapient adults with no animals, real living people, weapons, CBRN, or working harm steps.",
+     "author_is_attestor": true
+    },
+    {
+     "by": "grok",
+     "model": "grok-4.7",
+     "date": "2026-11-20",
+     "verdict": "PASS",
+     "reasons": "The item features two adult fictional sapient characters, Suli (age 34) and Alric (age 41), both explicitly stated as adults over 18 with no minor involvement. The content is consensual explicit sex between these characters with no prohibited elements like minors, real people, animals, weapons, or working harm steps."
+    }
+   ]
+  }
+ ]
+}

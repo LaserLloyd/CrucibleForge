@@ -60,6 +60,8 @@ def _patch_board(monkeypatch, metas):
         monkeypatch.setattr(report, name, lambda *a, **k: None)
     monkeypatch.setattr(report, "row_facts", lambda label, meta, cfg: {})
     monkeypatch.setattr(report, "room_stats", lambda *a, **k: {})
+    # the stub rows carry no grader stamps; the stale/undisclosed hold has its own tests (lane-t hooks file)
+    monkeypatch.setattr(report, "held45", lambda *a, **k: [])
 
 
 def test_public_board_leaves_claude_code_rows_out(monkeypatch):
@@ -260,3 +262,13 @@ def test_board_data_components_carry_key_max_and_note():
                                           "max": 1.25, "note": "scored by prefix"}, {"label": "Old", "side": "chat"}])
     assert comps == [{"label": "Reads and traces code", "side": "work", "key": "work/c2_trace", "max": 1.25,
                       "note": "scored by prefix"}, {"label": "Old", "side": "chat"}]
+
+
+def test_an_absent_private_list_says_the_check_was_skipped(monkeypatch, capsys):
+    monkeypatch.delenv(profiles.PRIVATE_FROM_ENV, raising=False)
+    assert report.check_private_scope({"terms": []}) == 0
+    err = capsys.readouterr().err
+    assert "private-term check SKIPPED, no list is configured" in err
+    assert profiles.PRIVATE_FROM_ENV in err
+    assert report.check_private_scope({"terms": ["x"]}) == 1
+    assert "SKIPPED" not in capsys.readouterr().err

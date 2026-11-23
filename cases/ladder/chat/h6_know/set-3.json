@@ -1,0 +1,16 @@
+{
+  "category": "instruct",
+  "level": 1,
+  "points": 1.0,
+  "item": "EVERYGAP",
+  "budget": 16384,
+  "note": "WIRED 2026-11-20 after the PACKS-LANE-45 kill-test verdict 'safe'. GAP-lane Everyday pack (written 2026-11-20): stacked interacting line rules and amended rules, regex-checked. Hung on h6_know, the only ladder-capable part of Everyday (the other half, Assistant basics, is not a ladder part); see docs/PACKS-GAPS-45.md.",
+  "generator": {
+    "family": "everygap",
+    "rungs": [
+      1,
+      2
+    ],
+    "per_rung": 3
+  }
+}

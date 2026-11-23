@@ -50,7 +50,7 @@ def test_frozen_tree_matches_manifest():
 
 def test_bench45_profile_shape(tmp_path):
     p = profiles.load_profile("bench45")
-    assert p["release_seed"] == "4.5.0" and p["ladder"] == {"unlock": 0.9, "rung_stop": 0.5}   # Jake 2026-11-14: "The unlock is .9."
+    assert p["release_seed"] == "4.5.0" and p["ladder"] == {"unlock": 0.9, "rung_stop": 0.5}   # the owner 2026-11-14: "The unlock is .9."
     assert not any("hard" in (s or {}) for s in p["scores"].values())
     w = {k: sum(x["max"] for x in v["parts"].values()) for k, v in p["scores"].items()}
     assert w == {"work": 10, "chat": 10, "nsfw": 10}

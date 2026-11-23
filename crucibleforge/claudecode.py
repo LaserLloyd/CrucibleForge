@@ -10,7 +10,7 @@ models.yaml::
 
 One request = one fixed-argv subprocess (never a shell), prompt on stdin, run
 in an empty temp directory ``<root>/<uuid>`` (default
-``/var/tmp/mb45-build/cc-tmp``; override with ``CRUCIBLEFORGE_CC_TMP``), the
+``/var/tmp/crucibleforge-cc-tmp``; override with ``CRUCIBLEFORGE_CC_TMP``), the
 directory removed afterwards::
 
     claude -p --model <id> --output-format json
@@ -77,7 +77,7 @@ from pathlib import Path
 from .api import ChatResult, RequestRejected, TransportError
 
 DEFAULT_SYSTEM = "You are a helpful assistant. Answer the user's message directly."
-DEFAULT_TMP_ROOT = "/var/tmp/mb45-build/cc-tmp"
+DEFAULT_TMP_ROOT = "/var/tmp/crucibleforge-cc-tmp"
 SAMPLING_NOTE = "run via Claude Code (harness sampling)"
 
 _ACCOUNT_RE = re.compile(
@@ -207,7 +207,7 @@ def child_env() -> dict:
 
 #: the reasoning efforts the Claude Code CLI accepts (``--effort``)
 EFFORTS = ("low", "medium", "high", "xhigh", "max")
-#: the 4.5 default (lead 2026-11-14, on Jake's word): explicit, recorded on every row
+#: the 4.5 default (lead 2026-11-14, on the owner's word): explicit, recorded on every row
 DEFAULT_EFFORT = "high"
 EFFORT_ENV = "CRUCIBLEFORGE_CC_EFFORT"
 #: what a row made before the effort was passed is read as (the CLI's own default)

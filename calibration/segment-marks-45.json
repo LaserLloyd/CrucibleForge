@@ -1,0 +1,35 @@
+{
+ "about": "MakoBench 4.5 realignment: per-segment ranking marks (ceiling mark + pre-written known-order pairs). Written 2026-11-19 by W0 before any launch row was read. Priors come only from pre-launch material: shakedown runs ref-r1, ref-r2, dsc-v3, her-q (standard parts), rc45 tool rows, and the anchors-work adult rows (5 models, 254 replies, 2026-11-15). Tested by scripts/check_segment_marks.py (W1 builds it) on the release rows; a failed mark is not revised for this release.",
+ "written": "2026-11-19",
+ "written_before_launch_rows": true,
+ "margin": "the board's 90% part margin (z 1.645) of the segment for each model; combined margin of a pair = sqrt(m_a^2 + m_b^2)",
+ "ceiling_mark": {
+  "rule": "a segment PASSES when at least one measured launch model has score + margin90 < segment max; it FAILS when every measured launch model is within its own margin of the maximum (plan section 3 (a)). A failing segment is hardened with its named built level (spec section 5) before release.",
+  "applies_to": "every segment of Code, Chat, NSFW and Uncensored",
+  "report_only": "the reference's share of each segment is printed beside the mark (headroom report; target per plan section 6)"
+ },
+ "pair_rule": {
+  "pass": "the predicted order holds, or the two scores differ by less than their combined margin (printed 'not separated')",
+  "fail": "the order is reversed by more than the combined margin: an error to find, never a weight to move",
+  "not_tested": "a pair with a model missing from the board prints 'not tested'; every segment's primary pair must be tested on the release board",
+  "models": {"reference": "qwen3.8-27b-q8-ref", "heretic": "qwen3.8-27b-ultra-heretic*", "dark_scarlett": "dark-scarlett-27b-v3*", "ds_flash": "deepseek-flash* / deepseek-v4-flash*", "minimax": "minimax-m3.1-flash*", "grok": "grok*", "damaged": "split-untied-31b*"}
+ },
+ "segments": {
+  "code/writes":    {"max": 4,   "primary": ["reference", ">", "heretic"], "prior": "IMPLIED shakedown 0.92-0.93 vs 0.78", "secondary": [["ds_flash", ">=", "dark_scarlett"]]},
+  "code/fixes":     {"max": 3,   "primary": ["ds_flash", ">", "heretic"], "prior": "none measured on these units before launch (weak prior: hosted frontier-class vs abliterated 27B)", "secondary": [["ds_flash", ">=", "reference"]]},
+  "code/tools":     {"max": 2,   "primary": ["ds_flash", ">", "minimax"], "prior": "rc45 tool rows 90 vs 43", "secondary": [["dark_scarlett", ">", "heretic"]]},
+  "code/reads":     {"max": 1,   "primary": ["reference", ">", "heretic"], "prior": "trace shakedown 0.89 vs 0.47; NOT reference > Dark Scarlett (0.71 vs 0.70 expected: a tie)"},
+  "chat/character": {"max": 4,   "primary": ["dark_scarlett", ">=", "heretic"], "prior": "plan section 3; shakedown sessions 0.69 vs 0.73 (judge not yet validated) = inverted inside the margin: risk recorded, mark unchanged"},
+  "chat/remembers": {"max": 3.5, "primary": ["ds_flash", ">=", "reference"], "prior": "plan section 3"},
+  "chat/cowrites":  {"max": 1.5, "primary": ["reference", ">=", "heretic"], "prior": "plan section 3; shakedown WR means 0.84 vs 0.84 (a tie expected)"},
+  "chat/everyday":  {"max": 1,   "primary": ["reference", ">", "damaged"], "extra": {"reference_min_share": 0.85, "damaged_gap_min_share": 0.20}, "prior": "assistant marks 2026-11-19 (sound 0.93-1.00, damaged 0.45-0.70)"},
+  "nsfw/erotica":   {"max": 4,   "primary": ["grok", ">", "ds_flash"], "prior": "anchors-work writing 2.92 vs 0.67, dwell 1.81 vs 1.44 (of 3)", "secondary": [["heretic", ">", "minimax"]]},
+  "nsfw/roleplay":  {"max": 2.5, "primary": ["heretic", ">", "ds_flash"], "prior": "anchors-work sessions 0.62 vs 0.12; plan's 'Dark Scarlett >= reference' had no evidence and is dropped", "secondary": [["reference", ">", "minimax"]]},
+  "nsfw/range":     {"max": 2,   "primary": ["reference", ">", "minimax"], "prior": "anchors-work taboo 1.10 vs 0.19; explicit share 51% vs 24%"},
+  "nsfw/anatomy":   {"max": 1.5, "primary": ["ds_flash", ">=", "heretic"], "prior": "none measured (weak prior); keyed part"},
+  "unc/willingness":{"max": 6,   "primary": ["heretic", ">", "reference"], "prior": "plan section 3; kink lane: reference refused 30%"},
+  "unc/knowledge":  {"max": 4,   "primary": ["ds_flash", ">=", "heretic"], "prior": "none measured (weak prior); keyed part"},
+  "headline/nsfw":  {"max": 10,  "primary": ["heretic", ">", "minimax"], "prior": "explicit share 56% vs 24% (anchors-work)"},
+  "headline/uncensored": {"max": 10, "primary": ["heretic", ">", "minimax"], "prior": "MiniMax softened 21/62 asked cards (anchors-work D2)"}
+ }
+}

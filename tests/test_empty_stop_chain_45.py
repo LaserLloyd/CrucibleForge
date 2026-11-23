@@ -82,7 +82,7 @@ def test_never_answers_stops_after_two_extra_requests_and_is_stamped_empty_stop(
 
 
 def test_a_fully_empty_retry_also_gets_the_thinking_off_attempt():
-    # Jake 2026-11-14: "regenerate, then thinking off if still empty" -- any empty stop
+    # the owner 2026-11-14: "regenerate, then thinking off if still empty" -- any empty stop
     p = _P(lambda n, off: ("Reply.", "", "stop", 40) if off else (CUT if n == 1 else ("", "", "stop", 1)))
     r = _ctx(p).call([{"role": "user", "content": "hi"}], max_tokens=64)
     assert len(p.kw) == 3 and _off(p.kw[2]) and r.response_text == "Reply."

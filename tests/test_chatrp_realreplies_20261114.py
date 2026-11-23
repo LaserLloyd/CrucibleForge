@@ -18,7 +18,7 @@ import pytest
 from crucibleforge import session_checks
 from crucibleforge.gen import rpsession
 
-FIX = json.loads((Path(__file__).parent / "fixtures" / "rpsession_real_replies_20261114.json").read_text())["entries"]
+FIX = json.loads((Path(__file__).parent / "fixtures" / "rpsession_real_replies_20261114.json").read_text(encoding="utf-8"))["entries"]
 CARDS = {c["id"]: c for c in rpsession.load_bank()["cards"]}
 
 

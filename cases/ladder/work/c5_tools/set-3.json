@@ -1,0 +1,17 @@
+{
+  "category": "coding",
+  "level": 2,
+  "points": 1.0,
+  "item": "TOOLGAP",
+  "budget": 16384,
+  "note": "WIRED 2026-11-20 after the PACKS-LANE-45 kill-test verdict 'safe'. GAP-lane Tools pack (written 2026-11-20): deceptive-tool order desk, see docs/PACKS-GAPS-45.md. Level 2 of part c5_tools (set-2 is level 1). Console family: the ladder path for console families is untested here.",
+  "generator": {
+    "family": "toolgap",
+    "rungs": [
+      1,
+      2,
+      3
+    ],
+    "per_rung": 2
+  }
+}

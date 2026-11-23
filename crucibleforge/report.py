@@ -30,15 +30,17 @@ import copy
 import json
 import logging
 import os
+import sys
 import re
 import statistics
-from datetime import datetime
+from datetime import datetime, timezone
 
 from .api import row_answer
 from .config import ConfigError, results_dir, load_config, load_transcripts, set_results_dir
 from .graders import refusal_heuristic
 from . import lineage as _lineage
 from . import notes45 as _notes45
+from . import attempts45 as _attempts45
 
 log = logging.getLogger(__name__)
 
@@ -267,8 +269,10 @@ def check_private_scope(scope: dict) -> int:
         raise PrivateLeak(f"${PRIVATE_FROM_ENV} is set but the guard loaded 0 private terms: refusing "
                           "to write a public board unchecked")
     if n == 0:
-        log.warning("public render: 0 private terms in this tree (no cases/private here); set "
-                    f"${PRIVATE_FROM_ENV}=<checkout with the private files> to check against them")
+        # one plain line on stderr (a log line is easy to miss): the check did NOT run
+        print(f"public render: private-term check SKIPPED, no list is configured (this tree has no "
+              f"cases/private); set ${PRIVATE_FROM_ENV}=<checkout holding the private files> to run it",
+              file=sys.stderr)
     return n
 
 
@@ -359,6 +363,11 @@ def _declared_weights(prof: dict, layers: list[dict] | None,
     for d in defs:
         for p in d.get("parts") or []:
             w = parts[d["key"]][p["key"]]
+            if is_pack_part(prof, d["key"], p["key"]):
+                # a Chat pack part (packs45 scores it, max 0) weighs no old-tree component: its ``cases: []``
+                # would otherwise count every profile case of its component (3 packs x 8 rpdeep = +24)
+                w.clear()
+                continue
             ids = cases_of.get(f"{d['key']}/{p['key']}")
             for comp in [k for k, v in w.items() if v is None]:
                 cats = _component_categories(comp)
@@ -415,7 +424,7 @@ def declared_case_sets(prof: dict, cfg: dict | None,
 
 def case_part_ran_out(prof: dict | None, part: dict) -> str | None:
     """The ran-out rule of a CASE part (lead 2026-11-14, D's 8B rc2 run): the part's own ``ran_out``,
-    else ``exclude`` for a code-bank part of a 4.5 profile (one with chains: Jake's ruling, a cut reply
+    else ``exclude`` for a code-bank part of a 4.5 profile (one with chains: the owner's ruling, a cut reply
     is not counted). None = no rule (a 4.1 profile: its grading stays byte-identical)."""
     rule = part.get("ran_out")
     if rule is None and (prof or {}).get("chains") and "codebank" in (part.get("scoring") or []):
@@ -453,7 +462,40 @@ def task_rate(rows: list[dict], cases: dict) -> float | None:
 
 
 def _row_cut(r: dict) -> bool:
-    return r.get("finish_reason") == "length" or bool(r.get("truncated"))
+    return r.get("finish_reason") == "length" or bool(r.get("truncated")) or bool(r.get("cut"))
+
+
+#: D10 as amended (fix round 2026-11-18): "not measured" needs at least this many cut units as well as more than
+#: scale.RAN_OUT_NOT_MEASURED of them (a three-unit part must not lose its points to one long think)
+RAN_OUT_MIN_UNITS = 2
+
+
+def empty_units45(chain_rows: list[dict]) -> dict[str, int]:
+    """{"<score>/<part>": units with an empty reply} over the generated rows the board counts (a unit = a chain
+    id; an empty reply is one with no text, no tool call and no ceiling cut)."""
+    seen: dict[str, set] = {}
+    for r in chain_rows or []:
+        ch = r.get("chain") or {}
+        if ch.get("part") and ch.get("id") and _row_empty_reply(r):
+            seen.setdefault(str(ch["part"]), set()).add(ch["id"])
+    return {k: len(v) for k, v in seen.items()}
+
+
+def cut_not_measured(n_cut: int, n_units: int) -> bool:
+    """The one truncation rule for every part (D10): a part is "not measured" when more than a quarter of its
+    units were cut at their ceiling AND at least RAN_OUT_MIN_UNITS were. Below that the cut units leave the
+    mean and are counted."""
+    from .scale import RAN_OUT_NOT_MEASURED
+    n_cut, n_units = int(n_cut or 0), int(n_units or 0)
+    return bool(n_units) and n_cut >= RAN_OUT_MIN_UNITS and n_cut / n_units > RAN_OUT_NOT_MEASURED
+
+
+def _row_empty_reply(r: dict) -> bool:
+    """A reply with no text and no tool call that was not cut at its ceiling (the model's own empty answer). A
+    multi-step tool row keeps its steps in ``tool_conversation`` (its own text and calls fields stay empty): it was
+    played and graded step by step, so it is never an empty reply."""
+    return (not str(r.get("response") or "").strip() and not r.get("tool_calls") and not r.get("tool_conversation")
+            and not _row_cut(r) and not r.get("error"))
 
 
 def route_cannot_run(meta: dict | None, part: dict) -> str | None:
@@ -469,38 +511,106 @@ def route_cannot_run(meta: dict | None, part: dict) -> str | None:
     return None
 
 
-def case_part_rows(rows: list[dict], rule: str | None) -> tuple[list[dict], dict | None]:
-    """(the rows a case part is scored on, its ran-out record). Under ``exclude`` a cut reply that is
-    not degenerate is left out (reported, not scored as a failed answer); a degenerate cut reply stays
-    a 0. Above scale.RAN_OUT_NOT_MEASURED of the part's calls cut, the part is "not measured": no row
-    is scored and the score is scaled from its measured parts."""
+#: what the one cut rule does with a unit (:func:`unit_cut`): scored as usual, left out of the mean (counted), did
+#: not finish at the full budget (graded as delivered, kept in the mean, counted), or a degenerate cut reply (a
+#: loop: graded as delivered, kept, never counted as a cut)
+CUT_SCORED, CUT_LEFT_OUT, CUT_DNF, CUT_DEGENERATE = "scored", "left_out", "did_not_finish", "degenerate"
+
+
+def cut_disposition(*, numbered: bool, cut: bool, full: bool, degenerate: bool, cut_at_full_budget: str) -> str:
+    """The one cut rule (D10, D10a) for one unit, from its facts. A multi-turn session with a turn cut at its ceiling
+    is left out as a whole (never "did not finish"); a single reply cut at >= 98% of the full budget under ``zero``
+    did not finish (graded as delivered); any other cut is left out; a degenerate cut reply is graded as delivered
+    and not counted as a cut. Code, Chat and NSFW+ all call this (through :func:`unit_cut`)."""
+    if not cut:
+        return CUT_DEGENERATE if degenerate else CUT_SCORED
+    if numbered:
+        return CUT_LEFT_OUT
+    return CUT_DNF if (cut_at_full_budget == "zero" and full) else CUT_LEFT_OUT
+
+
+def unit_cut(rows: list[dict], cut_at_full_budget: str = "omit", full_ceiling: int | None = None,
+             numbered: bool | None = None) -> str:
+    """:func:`cut_disposition` of ONE unit's rows: a single call (rows with no turn number) or a multi-turn session
+    (numbered turns; ``numbered`` overrides when the caller knows, e.g. a single reply stored as turn 1).
+    ``full_ceiling`` = the budget used when a row did not record the one it was sent."""
+    from . import degenerate as _dg
+    from .chains import full_budget_cut
+    num = [r for r in rows if r.get("turn") not in (None, "final")]
+    look = [r for r in rows if r.get("turn") != "final"] or list(rows)
+    if numbered is not None:
+        num = look if numbered else []
+    cut_rows = [r for r in look if _row_cut(r)]
+    live = [r for r in cut_rows if not _dg.is_degenerate(r)]
+    full = bool(live) and all(full_budget_cut(r, r.get("max_tokens_sent") or full_ceiling) for r in live)
+    return cut_disposition(numbered=bool(num), cut=bool(live), full=full, degenerate=bool(cut_rows) and not live,
+                           cut_at_full_budget=cut_at_full_budget)
+
+
+def case_part_rows(rows: list[dict], rule: str | None, cut_at_full_budget: str = "omit",
+                   full_ceiling: int | None = None) -> tuple[list[dict], dict | None]:
+    """(the rows a case part is scored on, its ran-out record). Under ``exclude`` each unit (a single call, or the
+    numbered turns of one job = one session) follows :func:`unit_cut`: a cut reply that is not degenerate is left
+    out (reported, not scored as a failed answer); a degenerate cut reply stays (graded as delivered); under ``zero``
+    a single reply cut at the full budget did not finish and stays (graded as delivered, counted apart). When
+    :func:`cut_not_measured` holds (more than a quarter of the part's units cut, and at least two), the part is "not
+    measured": no row is scored. The record also counts the empty replies (``empty``)."""
     if rule != "exclude":
         return rows, None
-    from . import degenerate as _dg
-    from .scale import RAN_OUT_NOT_MEASURED
     calls = [r for r in rows if r.get("turn") in (None, "final")]
-    cut = [r for r in calls if _row_cut(r) and not _dg.is_degenerate(r)]
-    drop = {id(r) for r in cut}
     # a multi-turn case (the 4.1 deep role-play cases, rc4's long scenes) stores one row per numbered turn: the
-    # job (case, repeat) is the call, and a turn cut at its ceiling makes the whole job ran out (lead 2026-11-15:
+    # job (case, repeat) is the unit, and a turn cut at its ceiling makes the whole job ran out (lead 2026-11-15:
     # MiniMax WR1-ninth-string turn 3 cut at 16,384 with no text was scored 0; under exclude it leaves the mean).
-    # Before this, numbered-turn rows were never counted, so the rule silently never applied to them.
     jobs: dict[tuple, list[dict]] = {}
     for r in rows:
         if r.get("turn") not in (None, "final"):
             jobs.setdefault((r.get("case_id"), r.get("repeat")), []).append(r)
-    n_cut = len(cut)
+    drop: set = set()
+    dnf: list[dict] = []
+    n_cut = 0
+    for r in calls:
+        d = unit_cut([r], cut_at_full_budget, full_ceiling)
+        if d == CUT_LEFT_OUT:
+            n_cut += 1
+            drop.add(id(r))
+        elif d == CUT_DNF:
+            dnf.append(r)
     for jrows in jobs.values():
-        if any(_row_cut(r) and not _dg.is_degenerate(r) for r in jrows):
+        if unit_cut(jrows, cut_at_full_budget, full_ceiling) == CUT_LEFT_OUT:
             n_cut += 1
             drop |= {id(r) for r in jrows}
     n_calls = len(calls) + len(jobs)
     share = n_cut / n_calls if n_calls else 0.0
+    n_empty = (sum(1 for r in calls if _row_empty_reply(r))
+               + sum(1 for jrows in jobs.values() if any(_row_empty_reply(r) for r in jrows)))
     rec = {"rule": rule, "calls": n_calls, "ran_out": n_cut, "share": share,
-           "not_measured": share > RAN_OUT_NOT_MEASURED}
+           "not_measured": cut_not_measured(n_cut, n_calls)}
+    if n_empty:
+        rec["empty"] = n_empty        # only when there is one (the record's shape is pinned elsewhere)
+    if dnf:
+        rec["did_not_finish"] = {"n": len(dnf), "of": n_calls,
+                                 "ceiling": int(max(r.get("max_tokens_sent") or full_ceiling for r in dnf)),
+                                 "units": [[r.get("case_id"), r.get("repeat")] for r in dnf]}
     if rec["not_measured"]:
         return [], rec
     return [r for r in rows if id(r) not in drop], rec
+
+
+def cut_words(rec: dict | None) -> str:
+    """What happened to a segment's cut units, in plain words, from the scorer's own record ``{left_out,
+    did_not_finish, dnf_zero, of}``: "2 of 21 cut, left out of the mean; 1 of 21 did not finish at the full budget,
+    scored 0". "" when nothing was cut. The same words for Code, Chat and NSFW+."""
+    if not rec:
+        return ""
+    of = int(rec.get("of") or 0)
+    bits = []
+    lo, dn = int(rec.get("left_out") or 0), int(rec.get("did_not_finish") or 0)
+    if lo:
+        bits.append(f"{lo} of {of} cut, left out of the mean")
+    if dn:
+        bits.append(f"{dn} of {of} did not finish at the full budget, "
+                    + ("scored 0" if rec.get("dnf_zero", True) else "graded as delivered"))
+    return "; ".join(bits)
 
 
 #: components measured by deterministic graders only (never wait for the judge)
@@ -756,7 +866,9 @@ def _score_case_ids(d: dict, prof: dict) -> set[str]:
         for comp in p.get("scoring") or ():
             for cat in _component_categories(comp):
                 ids |= set(by_cat.get(cat) or [])
-    return ids
+    # Assistant basics (checked) shares categories with the Know part but is no part of any score
+    from . import assistant45 as _a45
+    return ids - set(_a45.case_ids(prof)) if _a45.block(prof) else ids
 
 
 def _refusal_case_ids(prof: dict) -> frozenset:
@@ -776,7 +888,7 @@ PACK_GATE_MARGIN = None
 
 def _routed_pack_gate(prof: dict, pkey: str, p: dict, gate: float | None, unlock: float,
                       route: dict | None) -> tuple[float | None, bool | None, dict]:
-    """(gate, opened, pack_gate record) for a routed profile's part with ladder sets (Jake's pack
+    """(gate, opened, pack_gate record) for a routed profile's part with ladder sets (the owner's pack
     rule: a pack opens when the model has maxed its own segment of Main, by score). The figure is
     the part's raw standard share on its own rows (``gate``; an ``unlock_part`` target's when the
     part declares one), evaluated only when the model's route module is at or above the part's
@@ -813,17 +925,252 @@ PENDING_VALIDATION = {False: "pending validation",
                       "pending-owner": "pending validation (owner's blind read)"}
 
 
-def part_pending_validation(prof: dict, score: str, pk: str) -> str | None:
+def part_pending_validation(prof: dict, score: str, pk: str, label: str | None = None,
+                            run_ids=None) -> str | None:
     """4.5 (lead 2026-11-14, both boards): a part marked ``validated: false | pending-machine | pending-owner``
     runs and is shown with this reason, but is not counted until its marks pass their validation (scaled over on
     a profile without ``pending_scaling: none``; on rc4 it simply adds nothing). None = counted."""
     p = ((((prof or {}).get("scores") or {}).get(score) or {}).get("parts") or {}).get(pk) or {}
     v = p.get("validated", True)
-    if v is True or v is None:
+    ag = judge_agreement_entry(prof, score, pk, p)
+    if (v == "pending-machine" and ag is not None and ag.get("pass") and ag.get("validates")
+            and not _marks_other(judge_marks_result())):
+        if label is not None and not agreement_covers(ag, label, run_ids):
+            return AGREEMENT_NOT_MEASURED_MODEL
+        v = True      # lane-j: the part's machine checks ARE its judge marks (long scenes: D1), and they passed
+    if v is not True and v is not None:
+        if v not in PENDING_VALIDATION:
+            raise ValueError(f"scores.{score}.parts.{pk}.validated is true, false, pending-machine or pending-owner")
+        return PENDING_VALIDATION[v]
+    return judge_agreement_reason(prof, score, pk, p, label, run_ids)
+
+
+#: lane-j (judge agreement, REVIEW finding 4): what a judged part waits for when its second-reader marks have not
+#: passed. The profile switch is ``judge_agreement: required`` (on for bench45 standard).
+AGREEMENT_NOT_MEASURED = "pending: judge agreement not measured"
+AGREEMENT_FAILED = "pending: judge agreement below its mark"
+#: lead 2026-11-19 (b): the marks pass, but the agreement run never read this model's own units (or not the rows the
+#: board shows): the part is pending for this model only
+AGREEMENT_NOT_MEASURED_MODEL = "pending: judge agreement not measured for this model"
+#: the result was checked against a marks file other than the frozen calibration/judge-marks-45.json
+AGREEMENT_OTHER_MARKS = "pending: judge agreement checked against other marks"
+_AGREEMENT_CACHE: dict = {}
+
+
+def judge_agreement_required(prof: dict | None) -> bool:
+    return str((prof or {}).get("judge_agreement") or "").strip().lower() == "required"
+
+
+#: a marks result named explicitly (scripts/resolution45.py --marks) in place of <results>/judge_marks.json, so a
+#: tool that takes the judge term from one file also gates the judged parts by that same file
+MARKS_ENV = "CF_JUDGE_MARKS"
+
+
+def judge_marks_result() -> dict | None:
+    """<results>/judge_marks.json (scripts/check_judge_marks.py --out), or the file ``CF_JUDGE_MARKS`` names,
+    cached by mtime; None when absent."""
+    from .agree_marks import RESULT_NAME
+    from pathlib import Path as _P
+    p = _P(os.environ[MARKS_ENV]) if os.environ.get(MARKS_ENV) else results_dir() / RESULT_NAME
+    try:
+        mt = p.stat().st_mtime_ns
+    except OSError:
         return None
-    if v not in PENDING_VALIDATION:
-        raise ValueError(f"scores.{score}.parts.{pk}.validated is true, false, pending-machine or pending-owner")
-    return PENDING_VALIDATION[v]
+    key = (str(p), mt)
+    if key not in _AGREEMENT_CACHE:
+        _AGREEMENT_CACHE.clear()
+        try:
+            _AGREEMENT_CACHE[key] = json.loads(p.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            _AGREEMENT_CACHE[key] = {"parts": {}}
+    return _AGREEMENT_CACHE[key]
+
+
+#: lane-j: the replicate runs' spread (scripts/resolution45.py --write-precision), read beside judge_marks.json
+RUNS_NAME = "precision45.json"
+_RUNS_CACHE: dict = {}
+
+
+def run_to_run_result() -> dict | None:
+    """<results>/precision45.json ``run_to_run`` block ({by_model, runs, n, pooled, pooled_df, means, ranges}) when the
+    file is on the board's own scale (``"scale": "board45"``, scripts/resolution45.py); None when absent or on the
+    old score tree (a pre-step-8 file: its keys are not the board's, review A F3-F5)."""
+    p = results_dir() / RUNS_NAME
+    try:
+        mt = p.stat().st_mtime_ns
+    except OSError:
+        return None
+    key = (str(p), mt)
+    if key not in _RUNS_CACHE:
+        _RUNS_CACHE.clear()
+        try:
+            body_ = json.loads(p.read_text(encoding="utf-8")) or {}
+            _RUNS_CACHE[key] = (body_.get("run_to_run") or None) if body_.get("scale") == "board45" else None
+        except (OSError, ValueError):
+            _RUNS_CACHE[key] = None
+    return _RUNS_CACHE[key]
+
+
+#: the three docs a public render ships with; a ``{{MEASURED: ...}}`` placeholder in any of them is a figure not yet filled in
+PLACEHOLDER_DOCS = ("README.md", "docs/SCORING.md", "docs/RUNNING.md")
+
+
+def doc_placeholders(root=None) -> list[tuple[str, str]]:
+    """[(file, placeholder text)] left in the three docs (whitespace folded); empty when none or no docs here."""
+    import re
+    from pathlib import Path as _P
+    base = _P(root) if root else _P(__file__).resolve().parent.parent
+    out = []
+    for rel in PLACEHOLDER_DOCS:
+        try:
+            txt = (base / rel).read_text(encoding="utf-8")
+        except OSError:
+            continue
+        for m in re.finditer(r"\{\{MEASURED:.*?\}\}", txt, re.S):
+            out.append((rel, " ".join(m.group(0).split())))
+    return out
+
+
+SESSIONS_MARKS_NOTE = ("Role-play sessions count under judge marks v2: agreement on ladder placements (the measured "
+                       "figures come from judge_marks.json at render). The first marks, which measured agreement on "
+                       "pairwise comparisons, failed on stored rows (0.43 against a 0.60 mark) and were replaced "
+                       "before any fresh row was read.")
+
+
+def judged_part_notes(prof: dict | None) -> list[str]:
+    """The board's notes on the judged parts (judge_agreement: required): the sessions' marks history, and, for a
+    part that fails its marks, why in numbers read from judge_marks.json ("pending: judge disagreement adds 5.8% of
+    the part, limit 5%")."""
+    if not judge_agreement_required(prof):
+        return []
+    from . import agree_marks as _am
+    res = judge_marks_result() or {}
+    try:
+        lim = float((_am.load_marks().get("primary") or {}).get("max_judge_term_share", 0.05))
+    except (OSError, ValueError):
+        lim = 0.05
+    out = []
+    for score, d in ((prof or {}).get("scores") or {}).items():
+        for pk, p in (d.get("parts") or {}).items():
+            if p.get("tag") != "judged":
+                continue
+            e = (res.get("parts") or {}).get(f"{score}/{pk}")
+            label = p.get("label") or pk
+            if pk == "j_rpsession":
+                bit = SESSIONS_MARKS_NOTE
+                jt = (e or {}).get("judge_term_share")
+                if jt is not None:
+                    bit += f" Measured: judge term {100 * jt:.1f}% of the part, limit {100 * lim:g}%."
+                out.append(bit)
+            if e is not None and not e.get("pass"):
+                jt = e.get("judge_term_share")
+                why = (f"judge disagreement adds {100 * jt:.1f}% of the part, limit {100 * lim:g}%"
+                       if jt is not None and jt > lim else str(e.get("reason") or "its marks are not met"))
+                out.append(f"{label}: pending: {why}.")
+    return out
+
+
+def replicate_info(label: str) -> dict | None:
+    """The replicate view of one model from <results>/precision45.json: {n, means, range}; None without the file.
+    n = the model's complete runs listed there (1 for a model the file does not list)."""
+    r = run_to_run_result()
+    if r is None:
+        return None
+    n = int((r.get("runs") or {}).get(label) or 1)
+    return {"n": n, "means": (r.get("means") or {}).get(label) or {}, "range": (r.get("ranges") or {}).get(label) or {}}
+
+
+def replicate_note(hl: dict | None) -> str | None:
+    """"3 runs, Overall 9.1–9.6" / "single run" (printed in a replicated board's Notes)."""
+    rp = (hl or {}).get("replicates")
+    if not rp:
+        return None
+    rg = rp.get("overall")
+    if int(rp.get("n") or 1) > 1 and (rg or rp.get("shown")):
+        nb = rp.get("n_by") or {}
+        bits = []
+        for k, lab in (("overall", "Overall"), ("code", "Code"), ("chat", "Chat"), ("nsfw_plus", "NSFW+")):
+            r_ = rg if k == "overall" else (rp.get("shown") or {}).get(k)
+            if r_:
+                nn = nb.get(k)
+                bits.append(f"{lab} {r_[0]:.1f}–{r_[1]:.1f}" + (f" ({nn} runs)" if nn and nn != rp["n"] else ""))
+        head = f"{rp['n']} runs" + (" (scores are the mean of the runs)" if rp.get("shown") else "")
+        return head + ", " + ", ".join(bits)
+    return "single run"
+
+
+def margin_note45(ranked: list[str], stats: dict) -> str:
+    """lane-j: what the printed ± includes (report.json headline.precision has the components per key)."""
+    pr = [((stats[l].get("headline") or {}).get("precision") or {}) for l in ranked]
+    j = any(v.get("judge") for p in pr for v in p.values())
+    r = any(v.get("run_to_run") for p in pr for v in p.values())
+    pooled = any("pooled" in str(v.get("run_source") or "") for p in pr for v in p.values())
+    head = "± = the 90% margin: the spread over items and repeats inside one run (bootstrap)"
+    if not j and not r:
+        return head + "; the judge's own error and the run-to-run spread are not measured yet and are not in it."
+    bits = []
+    if r:
+        bits.append("the run-to-run spread of replicate whole runs, whichever of the two is larger"
+                    + (" (pooled over the models with replicates where a model has fewer than two runs)"
+                       if pooled else ""))
+    else:
+        bits.append("no run-to-run term yet (no replicate runs)")
+    bits.append("combined with the judge's error on judged parts, measured by a second reader of another model "
+                "family" if j else "no judge term yet (judge agreement not measured)")
+    return head + ", or " + "; ".join(bits) + "."
+
+
+def judge_agreement_entry(prof, score: str, pk: str, p: dict | None = None) -> dict | None:
+    if not judge_agreement_required(prof):
+        return None
+    res = judge_marks_result()
+    return None if res is None else (res.get("parts") or {}).get(f"{score}/{pk}")
+
+
+def _marks_other(res: dict | None) -> bool:
+    """The marks result was not checked against the frozen marks file (no hash, or another one)."""
+    if res is None:
+        return False
+    from .agree_marks import marks_sha256
+    try:
+        return res.get("marks_sha256") != marks_sha256()
+    except OSError:
+        return True
+
+
+def agreement_covers(entry: dict | None, label: str, run_ids=None, res: dict | None = None) -> bool:
+    """lead 2026-11-19 (b): the agreement run read this model's own units with a fitting reader
+    (``n_units_by_model`` > 0; agree.measured already left out a reader of the judge's or the model's family) and,
+    when the board knows its rows' run ids, every one of them is a run the check read (``covered``)."""
+    if not (entry or {}).get("n_units_by_model", {}).get(label):
+        return False
+    if run_ids is None:
+        return True
+    res = res if res is not None else (judge_marks_result() or {})
+    seen = set(((res.get("covered") or {}).get(label) or {}).get("run_ids") or [])
+    return set(run_ids) <= seen
+
+
+def judge_agreement_reason(prof, score: str, pk: str, p: dict | None = None, label: str | None = None,
+                           run_ids=None) -> str | None:
+    """Why a judged part (``tag: judged``) of a ``judge_agreement: required`` profile is not counted: no marks
+    result, no row for the part in it, a result checked against other marks, a failed mark (board-level), or,
+    with ``label``, a model the agreement run did not cover. None = counted (or the switch is off)."""
+    if not judge_agreement_required(prof) or (p or {}).get("tag") != "judged":
+        return None
+    res = judge_marks_result()
+    if res is None:
+        return AGREEMENT_NOT_MEASURED
+    if _marks_other(res):
+        return AGREEMENT_OTHER_MARKS
+    e = judge_agreement_entry(prof, score, pk, p)
+    if e is None:
+        return AGREEMENT_NOT_MEASURED
+    if not e.get("pass"):
+        return AGREEMENT_FAILED
+    if label is not None and not agreement_covers(e, label, run_ids, res):
+        return AGREEMENT_NOT_MEASURED_MODEL
+    return None
 
 
 def _ran_out_nm() -> float:
@@ -837,7 +1184,16 @@ def no_scaling(prof: dict | None) -> bool:
 
 
 #: how a pending reason reads after "pts pending" (release owner 2026-11-14: name the pending points)
-_PENDING_WORDS = {"pending validation (owner's blind read)": "the owner's read",
+#: fix round 2026-11-18 (S5 wired into the board): a judged unit the provider's content filter stopped off the adult
+#: page waits; the part says so and adds nothing (never a zero)
+FILTER_WHY = "provider filter"
+
+
+_PENDING_WORDS = {"pending validation (owner's blind read)": "the owner's read", FILTER_WHY: "(provider filter)",
+                  AGREEMENT_NOT_MEASURED: "judge agreement (not measured)",
+                  AGREEMENT_FAILED: "judge agreement (below its mark)",
+                  AGREEMENT_NOT_MEASURED_MODEL: "judge agreement (not measured for this model)",
+                  AGREEMENT_OTHER_MARKS: "judge agreement (checked against other marks)",
                   "pending validation (machine checks)": "machine checks",
                   "pending validation": "validation", "not built": "not built yet"}
 
@@ -868,7 +1224,7 @@ def _held_part_why(ids: set, missing: set, job_missing: dict) -> str:
 def unranked_why(card: dict, in_total: list[dict]) -> str:
     """rc4 (lead 2026-11-15): why a model with rows missing has no Overall, in words: "not ranked: 2 jobs to re-run
     (Tools); not run (RPL); units still running (RPS, Person)". Only missing rows count here; a part pending
-    validation, not measured or one its route cannot run never stops the ranking."""
+    validation or one its route cannot run never stops the ranking; a counted part that is not measured does (F4)."""
     import re as _re
     groups: dict[str, list[str]] = {}
     jobs = 0
@@ -888,6 +1244,10 @@ def unranked_why(card: dict, in_total: list[dict]) -> str:
                 ph = "units still running"
             elif first == "the judge":
                 ph = "waiting for the judge"
+            elif first == "not measured":
+                ph = "not measured"
+            elif first == FILTER_WHY:
+                ph = "pending (provider filter)"
             else:
                 continue
             groups.setdefault(ph, []).append(short.get(x["part"], x["part"]))
@@ -936,20 +1296,47 @@ def pending_points_text(pend: list[dict]) -> str:
     return " (" + "; ".join(bits) + ")"
 
 
+def _chain_pending_why(per: dict) -> str:
+    """Why a chain part with undecided units adds nothing yet: the provider filter, the judge, or its other units."""
+    if _never_started(per):
+        return "not run"         # e.g. the standard parts when the adult folder is rendered alone
+    if any(u.get("pending_filter") for u in per.values()):
+        return FILTER_WHY
+    if any(u.get("pending_judge") for u in per.values()):
+        return "the judge"
+    return "the rest of its units"
+
+
+def filter_pending_parts(s: dict) -> list[str]:
+    """Short names of the parts a row has pending on a provider content-filter stop (notes_cell)."""
+    card = s.get("scorecard") or {}
+    out = []
+    for key, pend in (card.get("pending_points") or {}).items():
+        for x in pend or []:
+            if FILTER_WHY in (x.get("whys") or [x.get("why")]):
+                nm = x.get("short") or x.get("part")
+                if nm not in out:
+                    out.append(nm)
+    return out
+
+
 def _unscored_why(chain_stats: dict | None, key: str, pk: str) -> str:
     """Why a part with no points has none: "the judge" when its units ran and wait for verdicts (lead 2026-11-15: a
     part that ran is never "not run"), "the rest of its units" when some ran and the run is not over, else "not run"."""
     st = (chain_stats or {}).get(f"{key}/{pk}") or {}
     per = st.get("per_chain") or {}
-    if any(u.get("pending_judge") for u in per.values()):
-        return "the judge"
     if per:
-        return "the rest of its units"
+        return _chain_pending_why(per)
     return "not run"
 
 
+def _never_started(per: dict) -> bool:
+    """No unit of the part was attempted (nothing of it is on this page)."""
+    return bool(per) and all(not u.get("attempts") and not u.get("held") for u in per.values())
+
+
 def score_subtotals(card: dict, defs: list[dict], prof: dict, chain_stats: dict | None = None) -> dict:
-    """rc3 (Jake R52: the adult page shows two numbers, each out of 10): ``score_subtotals: {name: {label,
+    """rc3 (the owner R52: the adult page shows two numbers, each out of 10): ``score_subtotals: {name: {label,
     score: <score key>, parts: [...]}}`` on the profile (main_nsfw.rc2.subtotals). Each = its MEASURED
     parts' points / their max x 10; a part with no points is pending and the number is scaled from the
     measured points and says so (``label`` "6.3 [4 pts pending]", the standard board's wording); None while
@@ -1055,6 +1442,34 @@ def _chains_view(prof: dict, key: str) -> bool:
     return any(s["part"] == key and s.get("view_of") for s in _chains.sections(prof))
 
 
+#: R4 (fix round 2026-11-18, D2): what the adult page prints in 4.5.0 instead of an NSFW number
+ADULT_WITHHELD45 = "not measured in 4.5.0"
+#: the adult subtotals that still print their measured points in 4.5.0 (unranked, "x of y measured")
+ADULT_SHOWN45 = ("uncensored",)
+
+
+def adult_withheld45(prof: dict | None) -> bool:
+    """D2: a 4.5.x board (chains, release_seed 4.5.*) prints no NSFW number, rank or sort key."""
+    return bool((prof or {}).get("chains")) and str((prof or {}).get("release_seed") or "").startswith("4.5")
+
+
+def _sub_withheld(s: dict, name: str | None) -> bool:
+    """A subtotal (or, with ``name`` None, the adult score itself) whose number the 4.5.0 board withholds."""
+    return bool((s.get("scorecard") or {}).get("adult_withheld")) and name not in ADULT_SHOWN45
+
+
+def withheld_parts45(s: dict) -> set[str]:
+    """{"<score>/<part>"} of the not-in-total parts whose numbers are withheld in 4.5.0: every part of an adult
+    score except the parts of a shown subtotal (Uncensored)."""
+    card = s.get("scorecard") or {}
+    if not card.get("adult_withheld"):
+        return set()
+    shown = {f"{v.get('score')}/{pk}" for nm, v in (card.get("subtotals") or {}).items()
+             if nm in ADULT_SHOWN45 and isinstance(v, dict) for pk in v.get("parts") or []}
+    return {f"{d['key']}/{p['key']}" for d in card.get("score_defs") or [] if not d.get("in_total", True)
+            for p in d.get("parts") or []} - shown
+
+
 def adult_subtotals(ranked: list[str], stats: dict) -> tuple[str | None, list[tuple[str, str]]]:
     """(score key, [(subtotal name, label)]) of the board's subtotals (rc3 adult page: NSFW and
     Uncensored, score_subtotals), from the first row that carries them; (None, []) otherwise."""
@@ -1062,7 +1477,10 @@ def adult_subtotals(ranked: list[str], stats: dict) -> tuple[str | None, list[tu
         sub = (stats[l].get("scorecard") or {}).get("subtotals") or {}
         if sub:
             key = next(iter(sub.values())).get("score")
-            return key, [(nm, v.get("label") or nm) for nm, v in sub.items() if v.get("score") == key]
+            # two numbers only (lead decision 2026-11-19): the summed NSFW + Uncensored total stays in the JSON
+            # (scorecard.subtotals.total) but is never a board column
+            return key, [(nm, v.get("label") or nm) for nm, v in sub.items()
+                         if v.get("score") == key and v.get("kind") != "total"]
     return None, []
 
 
@@ -1109,8 +1527,12 @@ def subtotal_cell(s: dict, name: str) -> str:
     model has no measured part of it (an adult page that did not run is never 0)."""
     from . import headline as _h
     sub = ((s.get("scorecard") or {}).get("subtotals") or {}).get(name)
+    if _sub_withheld(s, name):
+        return ADULT_WITHHELD45
     if not sub or sub.get("points") is None:
         return "not run"
+    if (s.get("scorecard") or {}).get("adult_withheld"):
+        return f"{sub['points']:.1f} of {float(sub.get('measured_max') or 0):g} measured, not ranked"
     tag = subtotal_pending_tag(sub)
     return _h.fmt_s(sub["points"], subtotal_margin_of(s, name)) + (" " + tag if tag else "")
 
@@ -1172,6 +1594,8 @@ def subtotal_parts_line(s: dict, name: str, d: dict) -> str:
     sub = subs.get(name) or {}
     lab = sub.get("label") or name
     aw = (s.get("scorecard") or {}).get("adult_willingness") or {}
+    if _sub_withheld(s, name):
+        return f"{lab} {ADULT_WITHHELD45}"
     if sub.get("points") is None:
         return f"{lab} not run"
     hl = s.get("headline") or {}
@@ -1230,6 +1654,8 @@ def points_scorecard(s: dict, sc: dict, prof: dict) -> dict:
     in-total categories. Components stay standard-level."""
     from . import ladder as _ladder
     from . import tiers as _tiers
+    # lead 2026-11-19 (b): judge agreement counts per model, for the runs its check read (None = not known)
+    _rids = set(s["run_ids"]) if s.get("run_ids") is not None else None
     # every part is computed (its ladder detail stays in the card); the routed board SHOWS only
     # board_defs (points_cell, _routed_columns, the headline)
     defs = _tiers.scores(prof)
@@ -1290,6 +1716,10 @@ def points_scorecard(s: dict, sc: dict, prof: dict) -> dict:
             pkey = f"{key}/{p['key']}"
             weights = {k: v for k, v in (pw.get(key, {}).get(p["key"]) or {}).items()
                        if k in (sc.get(g) or {}) and v}
+            if not p["weight"] and is_pack_part(prof, key, p["key"]):
+                # a Chat pack part (packs45, max 0) scores no standard rows: it is never held, pending or partial,
+                # and its packs open on the segment share (_chat_packs45), not on a share of the long-scene rows
+                weights = {}
             total_max += p["weight"]
             held: str | None = None
             chain_st = (s.get("chain_stats") or {}).get(pkey)
@@ -1300,7 +1730,9 @@ def points_scorecard(s: dict, sc: dict, prof: dict) -> dict:
                 if not chain_st["complete"]:
                     partial_parts.append(p["key"])
                 nu = int(chain_st.get("units") or 0)
-                if no_scale and nu and int(chain_st.get("ran_out_excluded_units") or 0) / nu > _ran_out_nm():
+                n_cutu = int(chain_st.get("ran_out_excluded_units") or 0)
+                cut_rec = {"cut": n_cutu, "of": nu, "empty": int((s.get("empty45") or {}).get(pkey) or 0)}
+                if no_scale and cut_not_measured(n_cutu, nu):
                     # rc4 (release owner 2026-11-14): more than a quarter of the part's units cut at their ceiling =
                     # not measured for this model: it adds nothing (never scaled over) and the row is provisional
                     chain_st = dict(chain_st, share=None, not_measured=True)
@@ -1313,8 +1745,7 @@ def points_scorecard(s: dict, sc: dict, prof: dict) -> dict:
                     per_ = chain_st.get("per_chain") or {}
                     chain_st = dict(chain_st, share=None)
                     pend_pts.append({"part": p["key"], "points": float(p["weight"]),
-                                     "why": "the judge" if any(u.get("pending_judge") for u in per_.values())
-                                     else "the rest of its units"})
+                                     "why": _chain_pending_why(per_), "short": p.get("short") or p["key"]})
             elif not weights:
                 no_items += p["weight"]      # nothing in the profile: scale over it
                 if p["weight"]:
@@ -1483,11 +1914,12 @@ def points_scorecard(s: dict, sc: dict, prof: dict) -> dict:
                 gate = None                          # routed: no ladder here, so no share gate
             elif is_routed:
                 gate, opened, pack_gate = _routed_pack_gate(prof, pkey, p, gate, unlock, s.get("route"))
-            if part_pending_validation(prof, key, p["key"]):
+            why_unval = part_pending_validation(prof, key, p["key"], s.get("label"), _rids)
+            if why_unval:
                 # lead 2026-11-15: a part whose points do not count (validated: false / pending-*) never opens
                 # a pack and never reads MAXED: no gate (the run side reads unlock_share None: nothing due)
                 gate, opened = None, (False if opened is not None else None)
-                gate_why = gate_why or f"{part_pending_validation(prof, key, p['key'])}: its packs stay locked"
+                gate_why = gate_why or f"{why_unval}: its packs stay locked"
             states = _ladder.states(gate, set_shares, seq, unlock, terminal, opened=opened)
             gate_ok = opened if opened is not None else (gate is not None and gate >= unlock)
             _pts = {x["n"]: float(x.get("points", 1.0)) for x in seq}
@@ -1510,7 +1942,10 @@ def points_scorecard(s: dict, sc: dict, prof: dict) -> dict:
                 pts = 0.0
                 card.setdefault("pack_mean", {})[pkey] = chain_st["mean"]
             parts_pts[p["key"]] = pts
-            why_unval = part_pending_validation(prof, key, p["key"])
+            oj = ((chain_st or {}).get("ladder") or {}).get("other_judges") if chain_st is not None else None
+            if oj:
+                # D13: placed by a judge other than the profile's (rpladder_run): shown, never ranked or published
+                card.setdefault("other_judge", {})[f"{key}/{p['key']}"] = sorted(oj)
             if why_unval:
                 # 4.5 (lead 2026-11-14): a judged part whose marks have not passed their validation runs and is
                 # shown ("pending validation"), never counted: the score is scaled over it like a part with no item
@@ -1567,6 +2002,26 @@ def points_scorecard(s: dict, sc: dict, prof: dict) -> dict:
                     detail[p["key"]]["not_measured"] = True
             if chain_st is not None:
                 detail[p["key"]]["chains"] = {k: v for k, v in chain_st.items() if k != "per_chain"}
+                detail[p["key"]]["cut"] = cut_rec
+                if chain_st.get("did_not_finish"):
+                    detail[p["key"]]["did_not_finish"] = chain_st["did_not_finish"]
+                if chain_st.get("not_measured"):
+                    detail[p["key"]]["not_measured"] = True
+            elif (src or {}).get("ran_out_case") and not src["ran_out_case"].get("not_run"):
+                ro_ = src["ran_out_case"]
+                detail[p["key"]]["cut"] = {"cut": int(ro_.get("ran_out") or 0), "of": int(ro_.get("calls") or 0),
+                                           "empty": int(ro_.get("empty") or 0)}
+                if ro_.get("did_not_finish"):
+                    dn_ = {k: v for k, v in ro_["did_not_finish"].items() if k != "units"}
+                    fs_ = (src or {}).get("finished_src")
+                    if fs_ is not None and weights:
+                        vf_ = scorecard(fs_, {g: weights}, partial=partial)[g]
+                        dn_["finished_share"] = None if vf_ is None else vf_ / 100.0
+                    ds_ = (src or {}).get("dnf_src")
+                    if ds_ is not None and weights:
+                        vd_ = scorecard(ds_, {g: weights}, partial=partial)[g]
+                        dn_["all_zero"] = not vd_
+                    detail[p["key"]]["did_not_finish"] = dn_
             if has_wc and v2_marks:
                 # r2's willingness x capability split is a 4.5 board field: a
                 # 4.1 ``bench`` row ships no ``wc`` (Fable checkpoint 12)
@@ -1686,6 +2141,8 @@ def points_scorecard(s: dict, sc: dict, prof: dict) -> dict:
                 card[tg] = totals[inc]
                 card["labels"][inc] = f"{totals[inc]:.1f} (+ {d['label']})"
     card["subtotals"] = score_subtotals(card, defs, prof, s.get("chain_stats"))
+    if any(not d.get("in_total", True) for d in defs) and adult_withheld45(prof):
+        card["adult_withheld"] = True
     if no_scale:
         # rc4: the adult headline IS NSFW + Uncensored (one total, computed one way): a total that covers every
         # part of its score replaces the score's own number (release owner 2026-11-14)
@@ -1711,11 +2168,19 @@ def points_scorecard(s: dict, sc: dict, prof: dict) -> dict:
     in_total = [d["key"] for d in defs if d["in_total"]]
     vals = [totals.get(k) for k in in_total]
     card["partial"] = partial_cats
-    if not vals or any(v is None for v in vals) or any(k in partial_cats for k in in_total):
+    # F4 (2026-11-19): a counted standard part that is "not measured" (too many of its replies cut) leaves its points
+    # out of Overall, so Overall is "x of y" and the row is not ranked (lane-r R2: no cell mixes maxima). Parts
+    # pending validation (long scenes, judge agreement) are NOT this: they add nothing and never stop the ranking.
+    unmeasured = no_scale and bool(vals) and all(v is not None for v in vals) and any(
+        x.get("why") == "not measured" for k in in_total for x in merge_pending((card.get("pending_points") or {}).get(k) or []))
+    if not vals or any(v is None for v in vals) or any(k in partial_cats for k in in_total) or unmeasured:
         card["total"] = None
         if no_scale:
             # rc4 (lead 2026-11-15): a model with rows missing is not ranked, and its Overall says why in words
             card["unranked_why"] = unranked_why(card, [d for d in defs if d["in_total"]])
+            if unmeasured and not any(k in partial_cats for k in in_total):
+                card["overall_measured"] = {"sections": list(in_total), "points": sum(vals),
+                                            "of": sum(float((card.get("measured_max") or {}).get(k) or 0) for k in in_total)}
     elif ((prof.get("headline") or {}).get("overall") or "sum") == "sum":
         card["total"] = sum(vals)
     else:
@@ -1984,8 +2449,9 @@ def _coverage(rows: list[dict], meta: dict, cfg: dict | None,
                      and (r.get("rubric") or "") != "reference"})
     primary = _primary_judge(cfg)
     judge_mismatch = bool(judges and primary and judges != [primary])
-    self_judged = sorted({r["case_id"] for r in rows if r.get("judge_model")
-                          and r["judge_model"] == meta.get("model_id")})
+    self_judged = sorted({r["case_id"] for r in rows if (r.get("judge_model")
+                                                         and r["judge_model"] == meta.get("model_id"))
+                          or (r.get("judge_ladder") or {}).get("self_graded")})
     stale_rubric = sum(1 for r in rows if r.get("judge_pending"))
     pending = sum(1 for r in rows if r.get("needs_judge") and "judge" not in r) - stale_rubric
     unparsable = sum(1 for r in rows if (r.get("judge") or {}).get("judge_failed")
@@ -3314,6 +3780,46 @@ def _v2_board_fields(cfg: dict | None) -> bool:
             or str(profile_switch(name, _s45.MISSING_POLICY_KEY) or "").lower() == _s45.PENDING)
 
 
+def pack_parts(prof) -> set[str]:
+    """``score/part`` keys of the profile's Chat pack parts (``pack_segment``): THE predicate for "a pack part"
+    (packs45 scores them; they weigh no old-tree component and their scene rows enter no old-tree component mean)."""
+    return {f"{sk}/{pk}" for sk, sc_ in ((prof or {}).get("scores") or {}).items()
+            for pk, part in ((sc_ or {}).get("parts") or {}).items() if (part or {}).get("pack_segment")}
+
+
+def is_pack_part(prof, score: str, part: str) -> bool:
+    return f"{score}/{part}" in pack_parts(prof)
+
+
+def pack_case_ids(prof) -> frozenset:
+    """Case ids of every pack part's sets (set-1 judged scenes and the generated levels): the cases whose ladder
+    set sits in a :func:`pack_parts` folder. Derived from the same part keys as the weights, so they cannot drift."""
+    keys = pack_parts(prof)
+    if not keys:
+        return frozenset()
+    out = set()
+    for cid, c in _cases_by_id().items():
+        lp = c.get("ladder_pack")
+        if lp and "/".join(str(lp).replace("\\", "/").split("/")[-3:-1]) in keys:
+            out.add(cid)
+    return frozenset(out)
+
+
+def _tier_facts(cfg: dict | None) -> tuple[frozenset, bool]:
+    """(pack case ids, chains board?) of the active profile: the only two things model_stats reads from it. Inside a
+    bootstrap (boot_mode) they are derived once per cfg and reused: the profile cannot change mid-render, and a
+    load_profile per call was most of a render (step 8 profile: 46k loads, about 75% of a folder render)."""
+    b = _BOOT.get()
+    key = ("tier_facts", id(cfg))
+    if b is not None and key in b and b[key][0] is cfg:
+        return b[key][1]
+    prof = _tier_profile(cfg)
+    out = (pack_case_ids(prof), bool((prof or {}).get("chains")))
+    if b is not None:
+        b[key] = (cfg, out)
+    return out
+
+
 def model_stats(label: str, cfg: dict | None = None, rows: list[dict] | None = None,
                 meta: dict | None = None, era: dict | None = None) -> dict:
     """Aggregate one model. ``rows`` = the (board-filtered) rows to use;
@@ -3326,6 +3832,7 @@ def model_stats(label: str, cfg: dict | None = None, rows: list[dict] | None = N
         meta = load_meta(label)
 
     anchors = bank_anchors(cfg)
+    _pack_ids45, w45 = _tier_facts(cfg)
     by_cat: dict[str, list[dict]] = {}
     for r in rows:
         by_cat.setdefault(r.get("category", "?"), []).append(r)
@@ -3523,7 +4030,6 @@ def model_stats(label: str, cfg: dict | None = None, rows: list[dict] | None = N
 
     # ---- objective categories (with easy/medium/hard breakdown) ----
     # a 4.5 board (a profile with chains): element shares are weighted (_element_rate)
-    w45 = bool((_tier_profile(cfg) or {}).get("chains"))
 
     def pass_rate(cat):
         # 'skipped' (needs more context than the model has) and 'pending'
@@ -3708,7 +4214,8 @@ def model_stats(label: str, cfg: dict | None = None, rows: list[dict] | None = N
                          expected=_bank_expected(cfg, c)) for c in BANK_CATS},
         "bank_anchor": bank_stats([r for c in BANK_CATS for r in by_cat.get(c, [])
                                    if r.get("case_id") in anchors]) if anchors else {},
-        "rpdeep": rpdeep_block(by_cat.get("rpdeep", []), rows),
+        # pack scene rows (packs45 scores them) never enter the old-tree deep-RP mean
+        "rpdeep": rpdeep_block([r for r in by_cat.get("rpdeep", []) if r.get("case_id") not in _pack_ids45], rows),
         "hard": hard, "objective_truncated_fails": obj_trunc,
         # main board = Code + Chat only (cost_main_usd); NSFW is kept apart
         "cost_usd": (round(cost_total, 4) if priced else None),
@@ -3915,6 +4422,8 @@ def cost_cell(s: dict) -> str:
     """The Run cost cell: ``$11.77``, ``~$0.42`` (estimated from token counts
     at list price), ``$0.66*`` (some requests returned no usage data), ``<$0.01``,
     ``—`` for a local model."""
+    if s.get("no_standard_rows45"):
+        return "-"          # no standard test on this page: nothing to price (never "$0.00")
     v = s.get("cost_main_usd")
     if v is None:
         # a hosted model whose counted rows all lacked usage data: unknown, not "ran on our hardware"
@@ -3950,6 +4459,182 @@ def run_date(s: dict) -> str | None:
     return str(ts)[:10] if ts else None
 
 
+LADDER_PHASE_PREFIX = "ladder round"
+
+
+def _iso(v):
+    try:
+        t = datetime.fromisoformat(str(v))
+    except (TypeError, ValueError):
+        return None
+    return t if t.tzinfo else t.replace(tzinfo=timezone.utc)
+
+
+def _invocation_rows(meta: dict | None, rows: list[dict]) -> list[dict]:
+    """The counted rows that are NOT part of the invocation the meta describes (F2, 2026-11-19): a row of the
+    meta's own bench_run_id, or one written inside the invocation's window (its start to its last recorded phase:
+    the ladder-pack rounds of one ``all`` carry their own bench_run_id), belongs to it; any other is a different
+    run. The window only decides membership; no row timestamp ever sets a duration."""
+    m = meta or {}
+    rid = m.get("bench_run_id")
+    t0 = _iso(m.get("started"))
+    ends = [_iso(t.get("at")) for t in m.get("timing") or [] if isinstance(t, dict)]
+    ends = [e for e in ends if e]
+    t1 = max(ends) if ends else None
+    out = []
+    for r in rows:
+        if rid and r.get("bench_run_id") == rid:
+            continue
+        ts = _iso(r.get("ts"))
+        if rid and r.get("bench_run_id") and t0 and t1 and ts and t0 <= ts <= t1:
+            continue
+        out.append(r)
+    return out
+
+
+def _phase_minutes(meta: dict | None, packs: bool) -> float | None:
+    secs = [float(t["s"]) for t in (meta or {}).get("timing") or [] if isinstance(t, dict)
+            and isinstance(t.get("s"), (int, float))
+            and str(t.get("phase") or "").startswith(LADDER_PHASE_PREFIX) == packs]
+    return round(sum(secs) / 60, 1) if secs else None
+
+
+def timing_minutes45(meta: dict | None, rows: list[dict] | None = None) -> float | None:
+    """R6 (fix round 2026-11-18, REVIEW finding 11): the run's minutes = the phases its command recorded in
+    ``meta.timing`` (generation, judge, report, ...), summed, less the ladder-pack rounds (:func:`timing_pack_minutes45`,
+    printed beside it); None when no phase carries seconds (an old row: "not recorded") or when ``rows`` (the counted
+    rows) come from more than the one invocation the timing describes (a row without ``bench_run_id`` counts as
+    another run). Row timestamps are never used for a duration: their gaps under-count a long single item."""
+    rid = (meta or {}).get("bench_run_id")
+    if rows is not None and (not rid or any(not r.get("bench_run_id") for r in rows)
+                             or _invocation_rows(meta, rows)):
+        return None
+    return _phase_minutes(meta, False)
+
+
+def timing_pack_minutes45(meta: dict | None) -> float | None:
+    """Minutes of the ladder-pack rounds (generation + judge) one invocation recorded; None when it ran none."""
+    v = _phase_minutes(meta, True)
+    return v if v else None
+
+
+def disclosure45(rows: list[dict]) -> dict:
+    """R7 (fix round 2026-11-18, REVIEW finding 12, D11): how a row was run, from the fields the run path writes on
+    every row: ``thinking`` ("on", "off", "mixed (n on, m off)"), ``effort`` (as sent, joined when several; the
+    run path writes "provider default" when none was sent) and the median reasoning tokens per answer
+    (``reasoning_tokens``, else ``metrics.reasoning_tokens``). None = not recorded (a row from before the fields)."""
+    import statistics
+    th = [r["thinking"] for r in rows if isinstance(r.get("thinking"), bool)]
+    on, off = sum(1 for t in th if t), sum(1 for t in th if not t)
+    thinking = None if not th else "on" if not off else "off" if not on else f"mixed ({on} on, {off} off)"
+    efforts = sorted({str(r["effort"]) for r in rows if r.get("effort") not in (None, "")})
+    rt = []
+    for r in rows:
+        v = r.get("reasoning_tokens")
+        if v is None:
+            v = (r.get("metrics") or {}).get("reasoning_tokens")
+        if isinstance(v, (int, float)) and not isinstance(v, bool):
+            rt.append(float(v))
+    return {"thinking": thinking, "effort": ", ".join(efforts) or None,
+            "reasoning_tokens_median": round(statistics.median(rt)) if rt else None}
+
+
+def _reasoning_tokens(r: dict):
+    v = r.get("reasoning_tokens")
+    if v is None:
+        v = (r.get("metrics") or {}).get("reasoning_tokens")
+    return float(v) if isinstance(v, (int, float)) and not isinstance(v, bool) else None
+
+
+def reasoning_by_section45(rows: list[dict], prof: dict | None) -> dict:
+    """{section label: median reasoning tokens per answer} (fix round 2026-11-18, lane-r note): one median across
+    every row mixed short role-play turns with long coding answers (DeepSeek's "66"); each section of the profile
+    gets its own. A chain row's section is its part's prefix; a case row's is the score whose part lists its case or
+    category. Rows of no section and sections with no figure are left out. {} without a ``scores:`` profile."""
+    import statistics
+    from . import tiers as _tiers
+    try:
+        defs = _tiers.scores(prof) if (prof or {}).get("scores") else []
+    except Exception:  # noqa: BLE001 - a display figure never breaks the board
+        defs = []
+    if not defs:
+        return {}
+    labels = {d["key"]: d.get("label") or d["key"] for d in defs}
+    if (prof or {}).get("segments45"):
+        labels = {k: {"work": "Code", "chat": "Chat"}.get(k, v) for k, v in labels.items()}
+    by_case: dict[str, str] = {}
+    by_cat: dict[str, str] = {}
+    for d in defs:
+        for p in d.get("parts") or []:
+            for c in p.get("cases") or []:
+                by_case.setdefault(c, d["key"])
+            for comp in p.get("scoring") or []:
+                for cat in _component_categories(comp):
+                    by_cat.setdefault(cat, d["key"])
+    vals: dict[str, list[float]] = {}
+    for r in rows:
+        v = _reasoning_tokens(r)
+        if v is None:
+            continue
+        ch = r.get("chain")
+        if isinstance(ch, dict) and ch.get("part"):
+            sec = str(ch["part"]).split("/")[0]
+        else:
+            sec = by_case.get(r.get("case_id")) or by_cat.get(r.get("category"))
+        if sec in labels:
+            vals.setdefault(sec, []).append(v)
+    return {labels[k]: round(statistics.median(vals[k])) for k in labels if vals.get(k)}
+
+
+def _tok_txt(v) -> str:
+    return f"{v / 1000:.1f}k" if v >= 1000 else f"{v:g}"
+
+
+def _cut_empty_totals(s: dict) -> tuple[int, int]:
+    """The row's cut and empty units over every part (R1's per-part counts)."""
+    n_cut = n_empty = 0
+    for parts in ((s.get("scorecard") or {}).get("ladder") or {}).values():
+        for det in (parts or {}).values():
+            ct = (det or {}).get("cut") or {}
+            n_cut += int(ct.get("cut") or 0)
+            n_empty += int(ct.get("empty") or 0)
+    return n_cut, n_empty
+
+
+def _dnf_total(s: dict) -> int:
+    """The row's did-not-finish replies over every part (D10a: graded, so not in the cut count)."""
+    return sum(int(((det or {}).get("did_not_finish") or {}).get("n") or 0)
+               for parts in ((s.get("scorecard") or {}).get("ladder") or {}).values()
+               for det in (parts or {}).values())
+
+
+def disclosure45_cell(s: dict) -> str:
+    """"thinking on · effort high · median 2.5k reasoning tokens · 3 cut · 1 empty"; what a row lacks reads
+    "not recorded"."""
+    d = s.get("disclosure45") or {}
+    n_cut, n_empty = _cut_empty_totals(s)
+    rt = d.get("reasoning_tokens_median")
+    by = d.get("reasoning_by_section") or {}
+    if by:
+        # one median per section: role-play turns and coding answers are never mixed into one figure
+        rtxt = "median reasoning tokens " + ", ".join(f"{k} {_tok_txt(v)}" for k, v in by.items())
+    else:
+        rtxt = ("reasoning tokens not recorded" if rt is None else
+                f"median {rt / 1000:.1f}k reasoning tokens" if rt >= 1000 else f"median {rt} reasoning tokens")
+    return " · ".join([f"thinking {d.get('thinking') or 'not recorded'}",
+                       f"effort {d.get('effort') or 'not recorded'}", rtxt, f"{n_cut} cut",
+                       *([f"{_dnf_total(s)} did not finish"] if _dnf_total(s) else []), f"{n_empty} empty"])
+
+
+def minutes45_cell(s: dict) -> str:
+    v = s.get("run_minutes45")
+    n = s.get("run_ids45") or 0
+    if v is None:
+        return f"not recorded (rows from {n} runs)" if n > 1 else "not recorded"
+    p = s.get("run_minutes_packs45")
+    return f"{v:.1f}" + (f" (+ {p:.1f} ladder packs)" if p else "")
+
+
 def run_minutes(meta: dict) -> float | None:
     """Wall-clock minutes from the run's start to its last recorded phase
     (judge, else generation)."""
@@ -3977,7 +4662,8 @@ def rank_labels(labels: list[str], stats: dict) -> list[str]:
 
         def neg(x):
             return -x if x is not None else float("inf")
-        groups = [d["group"] for d in c.get("score_defs") or []] or ["chat", "coding"]
+        # R4: only the scores in the total order a tie (the adult page is never a sort key)
+        groups = [d["group"] for d in c.get("score_defs") or [] if d.get("in_total", True)] or ["chat", "coding"]
         hl = stats[l].get("headline")
         tot = hl.get("sort") if hl else c.get("total")
         # alignment 2026-11-06: a provisional row (conformance FAIL) follows
@@ -4077,7 +4763,7 @@ def board_status45(prof: dict | None) -> str | None:
 
 
 def class_hidden45(prof: dict | None) -> bool:
-    """A board whose status marks it an internal candidate shows no Class (Jake 2026-11-14:
+    """A board whose status marks it an internal candidate shows no Class (the owner 2026-11-14:
     rc1 is an internal candidate only; Lean stays)."""
     return (board_status45(prof) or "").lower().startswith("internal candidate")
 
@@ -4085,7 +4771,7 @@ def class_hidden45(prof: dict | None) -> bool:
 def banner45(prof: dict | None, ranked: list[str], stats: dict) -> list[str]:
     """The status banner's plain lines, top of the text and html boards: the status, then the
     provisional-bonus line when the profile marks its packs provisional
-    (``board_notes.packs_provisional``, default off; Jake approved the packs 2026-11-14) and any
+    (``board_notes.packs_provisional``, default off; the owner approved the packs 2026-11-14) and any
     row's packs added points. [] = no status."""
     status = board_status45(prof)
     if not status:
@@ -4217,7 +4903,7 @@ def render_board45(ranked: list[str], stats: dict, prof: dict) -> list[str]:
     summed the generated parts' maxima: Coding 9, since its tool-use part is a flat case, and
     Overall 19 -- a second, different total.)"""
     from . import chains as _chains
-    rows = [(l, key, s) for l in ranked for key, s in (stats[l].get("chain_stats") or {}).items()]
+    rows = [(l, key, s) for l in ranked for key, s in page_chain_stats45(stats[l].get("chain_stats"), prof).items()]
     if not rows:
         return []
     cols = _chains._COLS
@@ -4296,10 +4982,58 @@ def packs45_table(ranked: list[str], stats: dict, prof: dict) -> list[str]:
                     "Overall's margins, which therefore understate the uncertainty.*"] if few else []))
 
 
+def _part_shorts(s: dict) -> dict[str, str]:
+    card = s.get("scorecard") or {}
+    return {f"{d['key']}/{p['key']}": (p.get("short") or p.get("label") or p["key"])
+            for d in card.get("score_defs") or [] for p in d.get("parts") or []}
+
+
+def cut_empty_notes(s: dict) -> list[str]:
+    """R1 (fix round 2026-11-18): the row's cut and empty counts per part, e.g. "cut at the ceiling (left out of
+    the score): Predict 1 of 5, RPL 2 of 8"; "empty replies (scored 0): RPS 1". Nothing when both are zero."""
+    card = s.get("scorecard") or {}
+    short = _part_shorts(s)
+    cuts, empties, dnfs = [], [], []
+    for cat, parts in (card.get("ladder") or {}).items():
+        for pk, det in (parts or {}).items():
+            ct = (det or {}).get("cut") or {}
+            nm = short.get(f"{cat}/{pk}", pk)
+            dn = (det or {}).get("did_not_finish") or {}
+            if dn.get("n"):
+                dnfs.append(f"{nm}: {dnf_text(dn, (det or {}).get('max') or 0)}")
+            if ct.get("cut"):
+                cuts.append(f"{nm} {ct['cut']} of {ct['of']}" + (" (not measured)" if det.get("not_measured") else ""))
+            if ct.get("empty"):
+                empties.append(f"{nm} {ct['empty']}")
+    out = []
+    if dnfs:
+        out.append("did not finish (graded as delivered, kept in the mean): " + "; ".join(dnfs))
+    if cuts:
+        out.append("cut at the ceiling (left out of the score): " + ", ".join(cuts))
+    if empties:
+        out.append("empty replies (scored 0): " + ", ".join(empties))
+    return out
+
+
+def reruns45(rows: list[dict]) -> dict | None:
+    """``{"jobs": n, "by_job": {"<case>#r<repeat>": {"run_ids": [...], "kept": id}}}`` over the board rows that
+    carry _board_rows' ``rerun`` mark (a finished job replaced by a complete re-draw), or None."""
+    by: dict[str, dict] = {}
+    for r in rows:
+        m = r.get("rerun")
+        if isinstance(m, dict):
+            by.setdefault(f"{r.get('case_id')}#r{r.get('repeat') or 1}",
+                          {"run_ids": list(m.get("run_ids") or []), "kept": m.get("kept")})
+    return {"jobs": len(by), "by_job": dict(sorted(by.items()))} if by else None
+
+
 def notes_cell(s: dict) -> str:
     """Scorecard Notes: only what makes a row NOT comparable (failed,
     partial, unjudged, stale, other judge), plus a real vendor version."""
     notes = list((s.get("coverage") or {}).get("notes") or [])
+    rn = replicate_note(s.get("headline"))
+    if rn:
+        notes.append(rn)
     if s.get("validation_cc"):
         notes.insert(0, staged_cc_mark(_cc_effort(s)))   # a staged board's Claude Code row, with its effort
     half = (s.get("scorecard") or {}).get("half_only")
@@ -4311,6 +5045,11 @@ def notes_cell(s: dict) -> str:
     if s.get("board_note"):
         # PUBOUT 4.5: the models file's per-model note for readers (models.yaml `board_note`)
         notes.append(s["board_note"])
+    # the judge is also the board's reference model (INTENT-45): its own row says which scores it graded itself
+    selfg = (["Chat"] if (s.get("coverage") or {}).get("self_judged") else []) \
+        + (["NSFW+"] if (s.get("nsfw_plus") or {}).get("self_graded") else [])
+    if selfg:
+        notes.append(f"graded by itself: {' and '.join(selfg)} (this model is the judge)")
     cf = s.get("content_filtered") or {}
     if cf.get("total"):
         n = cf["total"]
@@ -4322,12 +5061,22 @@ def notes_cell(s: dict) -> str:
     if s.get("cost_unknown_rows"):
         n_u = s["cost_unknown_rows"]
         notes.append(f"cost: {n_u} row{'s' if n_u != 1 else ''} without usage data")
+    notes += cut_empty_notes(s)
     er = s.get("errored_rows") or {}
     if er.get("n"):
         notes.append(f"{er['n']}/{er['total']} rows errored (counted failed; a resume re-runs them)")
+    rr = s.get("reruns45") or {}
+    if rr.get("jobs"):
+        n = rr["jobs"]
+        notes.append(f"{n} job{'s' if n != 1 else ''} re-run (the newest complete run counts; "
+                     "run ids in report.json)")
+    pf = filter_pending_parts(s)
+    if pf:
+        notes.append(f"pending (provider filter): {', '.join(pf)}")
     for g in (s.get("headline") or {}).get("near_gate") or []:
         if "/" in g["area"]:
-            notes.append(f"near ladder set 1 of {g['area']} "
+            from . import segments45 as _s45n
+            notes.append(f"near ladder set 1 of {_s45n.plain_text(g['area'], s.get('part_names45'))} "
                          f"(unlocks in {g['pass_share'] * 100:.0f}% of resamples)")
         else:
             notes.append(f"near T{g['tier']} gate: {g['area'].title()} "
@@ -4527,14 +5276,29 @@ def _cells45(prof, rows, us, ro_units, nm, cal) -> dict:
 
 
 def _ladder_sets(prof: dict) -> dict:
-    """ladder.discover, read once per bootstrap (files do not change mid-report)."""
+    """ladder.discover, read once per bootstrap (files do not change mid-report), WITHOUT the NSFW+ pack sets
+    (nsfwpack45.is_pack_set): those are scored apart (nsfw_plus.packs45) and never enter the old-tree scorecard,
+    the headroom maxima, the headline strata or the ladder levels, staged or not."""
     from . import ladder
     b = _BOOT.get()
     if b is not None:
         if b.get("ladder") is None:
-            b["ladder"] = ladder.discover(prof)
+            b["ladder"] = _board_sets(ladder.discover(prof))
         return b["ladder"]
-    return ladder.discover(prof)
+    return _board_sets(ladder.discover(prof))
+
+
+def _pack_rows_of(label: str) -> list[dict]:
+    """The NSFW+ pack rows of ``label`` from its stored transcript (deduped as every reader does). The board's
+    row filter and tiers never carry pack rows (they are not board sets), so the pack column reads them here."""
+    from .nsfwpack45 import is_pack_row
+    return [r for r in load_transcripts(label) if is_pack_row(r)]
+
+
+def _board_sets(sets: dict) -> dict:
+    from .nsfwpack45 import is_pack_set
+    out = {k: [s for s in seq if not is_pack_set(s)] for k, seq in sets.items()}
+    return {k: seq for k, seq in out.items() if seq}
 
 
 def _staged_case_ids(prof: dict) -> set[str]:
@@ -4569,9 +5333,11 @@ def tier_rows(prof: dict, rows: list[dict], era: dict | None) -> dict[int, list[
         from .profiles import hard_case_ids
         hard_ids = hard_case_ids(prof)
         held = _staged_case_ids(prof) - set(lad)
+        from .nsfwpack45 import is_pack_row
         for r in rows:
-            if r.get("case_id") in held:
-                continue        # a staged pack's row never reaches the board (spec v2 G0)
+            if r.get("case_id") in held or is_pack_row(r):
+                continue        # a staged pack's row never reaches the board (spec v2 G0); an NSFW+ pack row is
+                                # scored apart (nsfw_plus.packs45), staged or not
             # 4.5: hard-set rows ride in "tier 3" (unused on the points board)
             # so no standard part without its own case list ever sees them
             by_t[2 if r.get("case_id") in lad else 3 if r.get("case_id") in hard_ids
@@ -4614,14 +5380,68 @@ def model_boots(labels: list[str], inputs: dict, cfg: dict | None,
     hs = headline_settings(prof)
     allowed = _profile_case_ids(cfg, with_tiers=True)
     st = _h.strata(prof, sc, allowed)
-    mults = _h.draws(st, hs["resamples"], hs["seed"])
+    mults = _h.draws(st, hs["resamples"], hs["seed"], per_stratum=_h.per_stratum(prof))
     jobs = []
+    # the judge term only: the run-to-run file is on the board's scale and never enters the item bootstrap (its
+    # old-tree excess inflated the item-sampling figure and the pack totals, review A F5)
+    marks = judge_marks_result() if points_mode(prof) else None
     for l in labels:
         rows, meta, era = inputs[l]
+        pr = _h.model_precision(l, prof, marks, None) if marks else None
         jobs.append(((tier_rows(prof, rows, era), l, cfg, meta, era, prof, sc, st, mults),
-                     {"two_level": hs["two_level"]}))
+                     {"two_level": hs["two_level"], **({"precision": pr} if pr else {})}))
     results = _parallel_boots(jobs)
     return dict(zip(labels, results))
+
+
+def repeat_noise45(labels: list[str], inputs: dict, cfg: dict | None, prof: dict) -> dict[str, dict]:
+    """Each model's OWN run noise per headline part (INTENT-45, accuracy45): the engine's bootstrap
+    (headline.boot_model, the same strata and scorer as the item margin) with every case kept exactly once and only
+    its repeats redrawn. {label: {"sd": {part key: SD of the part's share}, "n": {part key: most repeats of a case}}}.
+    A part whose cases all have one repeat has nothing to redraw (n = 1): accuracy45 says so."""
+    import random as _random
+    from . import accuracy45 as _A
+    from . import headline as _h
+    sc = scoring_config(cfg)
+    allowed = _profile_case_ids(cfg, with_tiers=True)
+    st = _h.strata(prof, sc, allowed)
+    n = int(((prof or {}).get("intent") or {}).get("repeat_resamples") or 200)
+    rnd = _random.Random(f"{_h.SEED}:repeats45")
+    ids = sorted({i for v in st.values() for i in v})
+    mults = [{cid: [rnd.getrandbits(32)] for cid in ids} for _ in range(n)]
+    jobs = [((tier_rows(prof, inputs[l][0], inputs[l][2]), l, cfg, inputs[l][1], inputs[l][2], prof, sc, st, mults),
+             {"two_level": True}) for l in labels]
+    res = dict(zip(labels, _parallel_boots(jobs)))
+    out: dict = {}
+    for l in labels:
+        reps: dict = {}
+        for r in inputs[l][0]:
+            # a generated unit's rows carry rung/attempt in case_id; the stratum names the unit (chain id)
+            cid = (r.get("chain") or {}).get("id") if isinstance(r.get("chain"), dict) else None
+            reps.setdefault(cid or r.get("case_id"), set()).add(r.get("repeat"))
+        # n1 (the printed range, review A F8): repeats the redraw can actually reach in the STANDARD part: tier-1
+        # strata only, counted by the row's own case id (resample_rows redraws rows whose case_id is a stratum id; a
+        # generated unit's rows carry rung/attempt in case_id and pass through unchanged). ``n`` (max over every
+        # tier, by chain id) stays the pack gates' input.
+        own_reps: dict = {}
+        for r in inputs[l][0]:
+            own_reps.setdefault(r.get("case_id"), set()).add(r.get("repeat"))
+        sd: dict = {}
+        nn: dict = {}
+        n1: dict = {}
+        for (tier, name), cids in st.items():
+            key = str(name).split("@", 1)[0]
+            nn[key] = max([nn.get(key, 0)] + [len(reps.get(c) or ()) for c in cids])
+            if tier == 1:
+                n1[key] = max([n1.get(key, 0)] + [len(own_reps.get(c) or ()) for c in cids])
+        for key, xs in ((res.get(l) or {}).get("samples") or {}).items():
+            vals = [x for x in xs if x is not None]
+            if "/" in key and len(vals) >= 2:
+                m = sum(vals) / len(vals)
+                sd[key] = (sum((x - m) ** 2 for x in vals) / (len(vals) - 1)) ** 0.5
+        out[l] = {"sd": sd, "n": {k: v for k, v in nn.items() if "/" in k},
+                  "n1": {k: v for k, v in n1.items() if "/" in k}}
+    return out
 
 
 # ------------------------------------------------- multi-core bootstrap
@@ -4819,6 +5639,689 @@ def superseded_map(labels: list[str], stats: dict, cfg: dict | None = None) -> d
     return out
 
 
+def _rplong45(label: str, rows: list[dict], prof: dict | None = None) -> dict:
+    """The eight 4.1 scenes. 4.5 (11b, lead 2026-11-21; ``rplong_score.definition: judge_only``): the judge's fact
+    rate alone, stored second-reader votes never read. Older definition (mean_of_two_readers): judge + the pinned
+    reader of ``<results>/readers45/<model>.jsonl``. Per scene: the mean over its repeats when every repeat is
+    scored, else the first pending reason; ``values`` = the per-repeat scores (each model's own range, accuracy45)."""
+    from . import rplong_mean as _rm
+    if _rm.judge_only(prof):
+        scores = _rm.judge_scores(rows, label=label)
+    else:
+        recs = list(_rm.load_store(results_dir(), label).values())
+        scores = _rm.scene_scores(rows, recs, label=label)
+    per: dict = {}
+    for u in scores.values():
+        per.setdefault(u["case"], []).append(u)
+    scenes = {}
+    for case, us in per.items():
+        ok = [u["mean"] for u in us if u["status"] == "ok"]
+        bad = [u["reason"] for u in us if u["status"] != "ok"]
+        scenes[case] = {"score": (sum(ok) / len(ok)) if ok and not bad else None,
+                        "reason": None if not bad else f"pending: {bad[0]}", "repeats": len(us),
+                        "values": ok}
+    return {"scenes": scenes, "coverage": _rm.coverage(scores)}
+
+
+def _chat_packs45(label: str, rows: list[dict] | None, model: dict, tb_chat: dict | None,
+                  prof: dict | None = None, ranges: dict | None = None) -> dict | None:
+    """{segment: pack state} of the Chat packs (packs45.board_packs) when the profile carries ``chat/pk_*`` parts;
+    None otherwise. The generated level's share comes from the engine's ladder detail (set 2 of the part)."""
+    from . import packs45 as _pk
+    lad = ((model.get("scorecard") or {}).get("ladder") or {}).get("chat") or {}
+    if not any(p in lad for p in _pk.PART_OF.values()):
+        return None
+    scores = {}
+    if rows is not None:
+        from . import rplong_mean as _rm
+        if _rm.judge_only(prof):
+            scores = _pk.judge_scores(rows, label=label)            # 11b: the judge alone
+        else:
+            recs = list(_rm.load_store(results_dir(), label).values())
+            scores = _pk.scene_scores(rows, recs, label=label)
+    code = {}
+    for seg, part in _pk.PART_OF.items():
+        sets = {x["n"]: x for x in (lad.get(part) or {}).get("sets") or []}
+        code[seg] = (sets.get(2) or {}).get("share")
+    from . import segments45 as _s45
+    return _pk.board_packs(tb_chat, scores, code, unlock=_pk.unlock_of(prof), marks=_s45.load_pack_marks(results_dir()),
+                           ranges=ranges)
+
+
+def _fix_cases(prof: dict | None) -> list[str]:
+    from . import segments45 as _s45
+    fx = ((_s45.tree(prof) or {}).get("code") or {}).get("fixes") or {}
+    return list(fx.get("cases") or [])
+
+
+def _apply_segments45(labels: list[str], stats: dict, prof: dict | None, inputs: dict | None = None) -> None:
+    """Realignment score tree (segments45.py): Code and Chat from their segments, Overall = Code + Chat. Report-time
+    only: stored rows and stamps are untouched. A model with a pending segment keeps its measured points, names
+    what is missing, and has no Overall (it is not ranked until the missing scorer reports). ``inputs``
+    ({label: (rows, meta, era)}) feeds the three report-time scorers: the chat scenes' second reader
+    (rplong_mean), the fix rows (fixrows45 over fixcheck stamps) and the NSFW+ numbers (classing45 ->
+    nsfwplus45)."""
+    from . import segments45 as _s45
+    if not _s45.tree(prof):
+        return
+    from . import accuracy45 as _A45
+    from . import fixrows45 as _fr
+    from . import nsfwplus45 as _np
+    rtr45 = run_to_run_result()          # the board's replicate runs (board scale), None in a folder report
+    for l in labels:
+        rows = list((inputs or {}).get(l, ((),))[0] or [])
+        if inputs is not None:
+            stats[l]["rplong45"] = _rplong45(l, rows, prof)
+            stats[l]["fix45"] = _fr.case_scores(rows, _fix_cases(prof))
+        marks = _s45.load_marks(results_dir())
+        raw_tb = _s45.segment_table(stats[l], prof, None)       # before any mark holds a segment (marksinput45)
+        raw_nums = None
+        tb = _s45.segment_table(stats[l], prof, marks)
+        if not tb:
+            continue
+        stats[l]["segments45"] = tb
+        stats[l]["part_names45"] = _s45.part_names(prof)
+        stats[l]["marks45"] = {k: dict(v) for k, v in marks.items()}
+        stats[l]["scorer_stamp"] = _s45.scorer_stamp()
+        if not _np.enabled(prof):
+            stats[l]["nsfw_plus"] = {"state": "not run", "reason": "NSFW+: not run", "numbers": None}
+        elif inputs is None:
+            stats[l]["nsfw_plus"] = {"state": "pending", "reason": "pending: stored rows not loaded", "numbers": None}
+        else:
+            blk_ = _np.report_block(rows, l, results_dir(), prof,
+                                    model_id=((stats[l].get("meta") or {}).get("model_id")))
+            raw_nums = blk_.get("numbers")
+            raw_nums = copy.deepcopy(raw_nums) if raw_nums else None
+            stats[l]["nsfw_plus"] = _s45.nsfw_marks(blk_, marks)      # the scorer's own cut records
+            # NSFW+ /20 = NSFW + Uncensored (owner 2026-11-21), from the numbers as printed (after the marks)
+            stats[l]["nsfw_plus"]["total"] = _np.total_of(stats[l]["nsfw_plus"].get("numbers"))
+            # NSFW+ packs (nsfwpack45): pack units scored apart from the standard units, gated on the segment's
+            # standard share as printed (after the marks), points in the pack column only; absent = no pack rows
+            try:
+                from . import nsfwpack45 as _npk
+                pb_ = _npk.report_block(_pack_rows_of(l), l, results_dir(), prof,
+                                        stats[l]["nsfw_plus"].get("numbers"))
+            except Exception as e:                  # noqa: BLE001 -- a pack never breaks the standard numbers
+                pb_ = {"error": f"{type(e).__name__}: {e}", "board": None, "points": 0.0}
+            if pb_ is not None:
+                stats[l]["nsfw_plus"]["packs45"] = pb_
+        try:
+            from . import marksinput45 as _mi
+            stats[l]["marks_input45"] = _mi.build(rows if inputs is not None else None, l, results_dir(), prof,
+                                                  raw_tb, raw_nums)
+        except Exception as e:                      # noqa: BLE001 -- bookkeeping for the mark checks, never a score
+            stats[l]["marks_input45"] = {"error": f"{type(e).__name__}: {e}"}
+        if stats[l].get("nsfw_plus"):
+            stats[l]["nsfw_plus"]["notes"] = _s45.notes(marks, stats[l]["nsfw_plus"])
+        hl = stats[l]["headline"]
+        packs = {}
+        acc_ = _A45.model_accuracy({**stats[l], "segments45": tb}, prof)
+        # step 2 (2026-11-21): the engine's ladder packs open on the TOP of the model's own range, as the Chat and
+        # NSFW+ packs do; the Fixes pack (work/c3_fix) gates on the Fixes segment's share on the top of its range
+        from . import enginepacks45 as _ep
+        from .packs45 import unlock_of as _unlock_of
+        _ladder_card = (stats[l].get("scorecard") or {}).get("ladder") or {}
+        _eng = _ep.engine_delta(_ladder_card, _s45.tree(prof), acc_["segments"], _part_ranges45(stats[l]),
+                                _unlock_of(prof))
+        _fix = _ep.fixes_pack((_ladder_card.get("work") or {}).get("c3_fix"), tb.get("code"), acc_["segments"],
+                              _unlock_of(prof)) if (_ladder_card.get("work") or {}).get("c3_fix") else None
+        for key, sec in (("work", "code"), ("chat", "chat")):
+            # ladder packs stay on top of the section (unchanged rule): the engine's pack points = its old S - its old T1
+            old_s, old_std = (hl.get("S") or {}).get(key), (hl.get("T1") or {}).get(key)
+            pk = max(0.0, float(old_s) - float(old_std)) if old_s is not None and old_std is not None else 0.0
+            pk += sum(v["delta"] for k, v in _eng["parts"].items() if k.startswith(key + "/"))
+            if sec == "code" and _fix is not None:
+                tb["code"]["fixes_pack"] = _fix
+                pk += float(_fix["points"])
+            if _eng["parts"]:
+                tb[sec].setdefault("engine_packs", {}).update(
+                    {k: v for k, v in _eng["parts"].items() if k.startswith(key + "/")})
+            if sec == "chat":
+                # Chat packs (packs45, integration 2026-11-20): parts chat/pk_* gate on their SEGMENT's standard share
+                # and score the judged scenes as the mean of two readers; the engine ladder never scores them (max 0,
+                # no standard share), so their points are added here, once
+                rg_ = {k.split("/", 1)[1]: (b.get("half") or 0.0) for k, b in acc_["segments"].items()
+                       if k.startswith("chat/")}
+                cp = _chat_packs45(l, rows if inputs is not None else None, stats[l], tb.get("chat"), prof, rg_)
+                if cp is not None:
+                    tb["chat"]["packs45"] = cp
+                    pk += sum(float(v.get("points") or 0.0) for v in cp.values())
+            packs[key] = (pk, 0.0)
+            std = tb[sec]["points"]
+            tb[sec]["pack_points"] = round(pk, 4)
+            hl.setdefault("pack_of", {})[key] = pack_max45(
+                key, _ladder_card, _eng["parts"], _fix if sec == "code" else None,
+                tb[sec].get("packs45") if sec == "chat" else None, _unlock_of(prof))
+            v = None if std is None else std + pk
+            hl.setdefault("S", {})[key] = None if v is None else round(v, 1)
+            hl.setdefault("P", {})[key] = v
+            hl.setdefault("T1", {})[key] = std
+            hl.setdefault("m", {})[key] = tb[sec]["margin"]
+        # INTENT-45: each model's own accuracy range, beside every score (board cells and report.json): from its
+        # replicate runs on the board's scale when the board has them (precision45.json), labelled with source and n.
+        # The pack gates above keep reading ``acc_`` (this run's repeats, the stamped rule): no pack point moves here.
+        acc = _A45.printed_accuracy(stats[l], prof, label=l, runs=rtr45)
+        stats[l]["accuracy45"] = acc
+        hl["accuracy"] = {k: acc.get(k) for k in ("code", "chat", "overall")}
+        for sec in ("code", "chat", "overall"):
+            if tb.get(sec) is not None:
+                tb[sec]["accuracy"] = acc.get(sec)
+        for sec in ("code", "chat"):
+            for k, g in ((tb.get(sec) or {}).get("segments") or {}).items():
+                g["accuracy"] = acc["segments"].get(f"{sec}/{k}")
+        if stats[l].get("nsfw_plus"):
+            stats[l]["nsfw_plus"]["accuracy"] = {k: acc.get(k) for k in ("nsfw", "uncensored", "nsfw_plus")}
+            pb_ = stats[l]["nsfw_plus"].get("packs45")
+            if pb_ and pb_.get("shares") is not None and pb_.get("board") is not None:
+                # NSFW+ packs open on the TOP of the gating segment's own range (amendment q), now that it is known
+                from . import nsfwpack45 as _npk
+                from .packs45 import unlock_of as _unlock_of
+                pb_["board"] = _npk.board_packs(stats[l]["nsfw_plus"].get("numbers"), pb_["shares"],
+                                                _npk.load_marks(results_dir()), unlock=_unlock_of(prof),
+                                                ranges=_npk.share_ranges(acc_.get("segments")))
+                pb_["points"] = round(sum(b["points"] for b in pb_["board"].values()), 4)
+        ov = tb["overall"]
+        pk_all = sum(p[0] for p in packs.values())
+        ov["pack_points"] = round(pk_all, 4)
+        # Overall = Code + Chat STANDARD points only: pack points are printed in their own column, never in Overall
+        tot = ov["points"]
+        hl["S"]["overall"] = None if tot is None else round(tot, 1)
+        hl["P"]["overall"] = tot
+        hl["sort"] = tot
+        hl["m"]["overall"] = ov["margin"]
+        hl["overall_of"] = None
+        hl.pop("not_ranked", None)
+        if ov["pending"]:
+            from . import display45 as _d45
+            hl["not_ranked"] = _d45.overall_text(ov)
+        _replicate_means45(l, stats[l], rtr45)
+
+
+def _replicate_means45(label: str, s: dict, rtr: dict | None) -> None:
+    """Review A F3/F4/(e): a model with two or more replicate runs on the board (``precision45.json``, board scale) is
+    shown at the MEAN of its runs: Code, Chat, Overall, NSFW, Uncensored, NSFW+ /20, every segment, and the Code and
+    Chat pack points (the mean of each run's own pack points). The NSFW+ pack column keeps the newest run's packs
+    (per-pack states do not average). A key with fewer than two runs keeps this render's own value. The notes say
+    "n runs" with the min-max. A folder report has no precision file and shows its run alone."""
+    if not rtr:
+        return
+    n = (rtr.get("n") or {}).get(label) or {}
+    means = (rtr.get("means") or {}).get(label) or {}
+    ranges = (rtr.get("ranges") or {}).get(label) or {}
+
+    def mean(k):
+        return float(means[k]) if int(n.get(k) or 0) >= 2 and means.get(k) is not None else None
+
+    tb = s.get("segments45") or {}
+    hl = s.get("headline") or {}
+    changed = False
+    pks = {}
+    for key, sec in (("work", "code"), ("chat", "chat")):
+        t = tb.get(sec)
+        if not t:
+            continue
+        for sk, g in (t.get("segments") or {}).items():
+            v = mean(f"{sec}/{sk}")
+            if v is not None:
+                g["points"] = round(v, 4)
+                changed = True
+        std, pk = mean(sec), mean(f"{sec}_packs")
+        if std is None:
+            continue
+        changed = True
+        t["points"] = round(std, 4)
+        if pk is None:
+            pk = float(t.get("pack_points") or 0.0)
+        t["pack_points"] = round(pk, 4)
+        pks[key] = pk
+        po = hl.setdefault("pack_of", {})
+        if po.get(key) is not None and pk > float(po[key]):
+            po[key] = round(pk, 4)            # a mean of runs whose packs opened differently: never print above it
+        hl.setdefault("S", {})[key] = round(std + pk, 1)
+        hl.setdefault("P", {})[key] = std + pk
+        hl.setdefault("T1", {})[key] = std
+    ov = tb.get("overall")
+    v = mean("overall")
+    if ov is not None and v is not None and not ov.get("pending"):
+        changed = True
+        ov["points"] = round(v, 4)
+        ov["measured_points"] = round(v, 4)
+        if pks:
+            ov["pack_points"] = round(sum(pks.values()), 4)
+        hl.setdefault("S", {})["overall"] = round(v, 1)
+        hl.setdefault("P", {})["overall"] = v
+        hl["sort"] = v
+    nums = (s.get("nsfw_plus") or {}).get("numbers") or {}
+    for half, pre in (("nsfw", "nsfw"), ("uncensored", "unc")):
+        h = nums.get(half)
+        if not h:
+            continue
+        for sk, g in (h.get("segments") or {}).items():
+            v = mean(f"{pre}/{sk}")
+            if v is not None and g.get("value") is not None:
+                g["value"] = round(v, 6)
+                changed = True
+        v = mean(half)
+        if v is not None and h.get("value") is not None:
+            h["value"] = h["partial"] = round(v, 6)
+            changed = True
+    tot = (s.get("nsfw_plus") or {}).get("total")
+    v = mean("nsfw_plus")
+    if tot and v is not None and tot.get("value") is not None:
+        tot["value"] = tot["partial"] = round(v, 6)
+        for half in ("nsfw", "uncensored"):
+            if (nums.get(half) or {}).get("value") is not None:
+                tot[half] = nums[half]["value"]
+        changed = True
+    if not changed:
+        hl["replicates"] = {"n": 1, "overall": None}
+        return
+    shown = {k: ranges.get(k) for k in ("overall", "code", "chat", "nsfw_plus")
+             if int(n.get(k) or 0) >= 2 and ranges.get(k)}
+    hl["replicates"] = {"n": max(int(n.get(k) or 0) for k in ("code", "chat", "overall", "nsfw_plus")),
+                        "overall": shown.get("overall"), "shown": shown,
+                        "n_by": {k: int(n.get(k) or 0) for k in shown}}
+
+def _part_ranges45(st: dict) -> dict:
+    """{"work/c2_trace": 90% half-width as a share} for the parts whose repeats this run measured (two or more;
+    ``repeat45`` holds the share's repeat spread, as accuracy45 reads it)."""
+    from .accuracy45 import Z90
+    out = {}
+    for k, sd in (st.get("repeat45") or {}).items():
+        if sd is not None and int(((st.get("repeat45_n") or {}).get(k)) or 0) >= 2:
+            out[k] = Z90 * float(sd)
+    return out
+
+
+def _s45cell(tb: dict, sec: str) -> str:
+    from . import display45 as _d45
+    return _d45.section_cell(tb.get(sec))
+
+
+def _count_of(x) -> int:
+    if isinstance(x, (list, tuple, set, dict)):
+        return len(x)
+    try:
+        return int(x or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+#: validation anchors (release45 --anchors): runs the marks use, listed apart, never ranked
+ANCHORS_NOTE = ("Validation anchors: runs used only to check the marks (a damaged stand-in, a small model); they are "
+                "not ranked and not launch rows. Only their Everyday share is shown.")
+
+
+def anchors_lines(folder=None) -> list[str]:
+    """``["<label>: Everyday share 54%", ...]`` from ``<results>/anchors45.json`` (written by release45); [] when
+    absent or unreadable."""
+    try:
+        from pathlib import Path as _P
+        d = json.loads(((_P(folder) if folder else results_dir()) / "anchors45.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError, TypeError):
+        return []
+    out = []
+    for a in (d.get("anchors") if isinstance(d, dict) else None) or []:
+        if not isinstance(a, dict) or not a.get("label"):
+            continue
+        sh = a.get("everyday_share")
+        out.append(f"{a['label']}: Everyday share " + (f"{float(sh) * 100:.0f}%" if isinstance(sh, (int, float))
+                                                        else "not measured"))
+    return out
+
+
+def scorer_stamp_note(labels: list[str], stats: dict, published: dict | None = None) -> str | None:
+    """The footer line naming the report-time scorer stamp (``segments45.scorer_stamp``): "scored with <stamp>", or
+    "re-scored under <stamp> (published under <old>)" when the published report (``results/public/report.json``)
+    carried another stamp for one of these models. None when no row carries a stamp."""
+    from . import segments45 as _s45
+    cur = sorted({(stats.get(l) or {}).get("scorer_stamp") for l in labels} - {None})
+    if not cur:
+        return None
+    if published is None:
+        try:
+            published = _s45.published_stamps(public_dir() / "report.json")
+        except Exception:            # noqa: BLE001 -- no results folder: nothing published
+            published = {}
+    old = sorted({published.get(l) for l in labels if published.get(l)} - set(cur))
+    head = "Numbers " + _s45.stamp_line(", ".join(cur), ", ".join(old) or None) + " (report-time scorer stamp)."
+    return head
+
+
+def seg45_notes(labels: list[str], stats: dict) -> list[str]:
+    """The plain lines a realigned board prints per model under the numbers: later attempts ignored (first-reply
+    rule), session units with more than one attempt per turn, replies cut per segment, the marks that are not
+    applied, and the two NSFW+ notes (opinion flags not validated; classing readers not named yet)."""
+    out = []
+    for l in labels:
+        s = stats.get(l) or {}
+        bits = []
+        ign = _count_of((s.get("attempts45") or {}).get("ignored"))
+        if ign:
+            bits.append(f"{ign} later attempt(s) ignored (the first reply of a unit is the scored one)")
+        npb = s.get("nsfw_plus") or {}
+        multi = _count_of((npb.get("attempts") or {}).get("sessions_multi"))
+        if multi:
+            bits.append(f"{multi} role-play session(s) have more than one attempt for a turn (the oldest reply of each "
+                        "turn is scored)")
+        tb = s.get("segments45") or {}
+        from . import segments45 as _s45
+        segs_ = [g for sec in ("code", "chat") if tb.get(sec) for g in tb[sec]["segments"].values()]
+        segs_ += [g for n in ((npb.get("numbers") or {}).values()) for g in (n.get("segments") or {}).values()]
+        cuts = [f"{g['label']}: {cut_words(_s45.cut_record(g.get('cut')))}" for g in segs_
+                if _s45.cut_record(g.get("cut"))]
+        if cuts:
+            bits.append("cut replies: " + "; ".join(cuts))
+        bits += list(npb.get("notes") or [])
+        noted = [f"{g['label']} ({'; '.join(g['notes'])})" for sec in ("code", "chat") if tb.get(sec)
+                 for g in tb[sec]["segments"].values() if g.get("notes")]
+        if noted:
+            # INTENT-45: marks print as notes; they hold no number
+            bits.append("mark notes: " + ", ".join(noted))
+        if bits:
+            out.append(f"{l}: " + "; ".join(bits))
+    return out
+
+
+def _d45_cell(sect: dict) -> str:
+    from . import display45 as _d45
+    return _d45.section_cell(sect)
+
+
+def _s45line(tb: dict, sec: str, marks: dict | None = None) -> str:
+    """"7.2 of 10 = Writes working code 3.7 + Fixes and changes existing code pending: no fix rows yet + ..." for the
+    Points table (short words; the long reasons are in the held-back section)."""
+    from . import display45 as _d45
+    from . import segments45 as _s45
+    return _d45.points_line(tb, sec, lambda c: cut_words(_s45.cut_record(c)), marks)
+
+
+def held_back45(labels: list[str], stats: dict, prof: dict | None) -> dict:
+    from . import display45 as _d45
+    from . import segments45 as _s45
+    return _d45.held_back(labels, stats, prof, lambda c: cut_words(_s45.cut_record(c)))
+
+
+#: the NSFW+ section's anchor and the two halves it holds; NSFW+ /20 = their sum (owner 2026-11-21), never in Overall
+NSFW_PLUS_ANCHOR = "nsfw-plus"
+NSFW_PLUS_KEYS = (("nsfw", "NSFW"), ("uncensored", "Uncensored"))
+NSFW_PLUS_NOT_RUN = "NSFW+: not run"
+_NP_SEG_LABEL = {"erotica": "Erotica", "roleplay": "Adult role-play", "range": "Range", "anatomy": "Anatomy",
+                 "willingness": "Willingness", "knowledge": "Knowledge"}
+_NP_PLAIN = (("erotica_written", "written pieces"), ("erotica_dwell", "dwell pieces"),
+             ("roleplay_session", "role-play sessions"), ("roleplay_probe", "depth probes"),
+             ("track_probes", "depth probes"), ("track_sessions", "session memory checks"),
+             ("u1", "asks"), ("u2", "open questions"), ("u3", "knowledge hands"), ("u4", "ground items"),
+             ("dark", "dark sessions"), ("anatomy", "body passages"), ("range", "theme asks"))
+
+
+def _np_plain(text: str | None) -> str:
+    """A pending reason in plain words: no internal part ids, no 'pending:' prefix."""
+    t = re.sub(r"^pending:\s*", "", text or "").strip()
+    if "C6 removed" in t:            # R1: a family left with one reader after a removal waits for readers
+        t = re.sub(r"classing readers:\s*C6 removed[^|]*", "pending readers (a reader was removed for this run and "
+                   "fewer than two readers of other families are left) ", t)
+    elif "classing readers" in t:
+        t = re.sub(r"classing readers:[^|]*", "classing readers not named yet", t)
+    for k, v in _NP_PLAIN:
+        t = re.sub(rf"\b{k}\b", v, t)
+    return t or "not measured yet"
+
+
+def _np_num(s: dict, key: str) -> dict | None:
+    return ((s.get("nsfw_plus") or {}).get("numbers") or {}).get(key)
+
+
+def _np_state(s: dict) -> str | None:
+    """None when the model has NSFW+ numbers; else the plain line that replaces them."""
+    blk = s.get("nsfw_plus")
+    if not blk:
+        return NSFW_PLUS_NOT_RUN
+    if blk.get("numbers"):
+        return None
+    why = blk.get("reason") or NSFW_PLUS_NOT_RUN
+    return why if why.startswith("NSFW+") else _np_plain(why) if why.startswith("pending") else why
+
+
+def _np_measured(num: dict) -> tuple[float, float]:
+    """(points, maximum) of the segments that finished."""
+    segs = [g for g in (num.get("segments") or {}).values() if g.get("value") is not None]
+    return sum(g["value"] for g in segs), sum(g["max"] for g in segs)
+
+
+def np_cell(s: dict, key: str) -> str:
+    """One NSFW+ number as a board cell: ``6.2`` when complete, ``4.1 of 7.5 measured, not ranked`` while a
+    segment is pending, the plain not-run line otherwise."""
+    st = _np_state(s)
+    if st:
+        return st
+    num = _np_num(s, key)
+    if not num:
+        return NSFW_PLUS_NOT_RUN
+    if num.get("value") is not None:
+        return f"{num['value']:.1f}" + _np_range(s, key)
+    pts, mx = _np_measured(num)
+    return f"{pts:.1f} of {mx:g} measured, not ranked" if mx else "pending"
+
+
+def _np_range(s: dict, key: str) -> str:
+    """`` ±0.40 (2.0% of max)`` / `` range not measured (...)`` beside an NSFW+ number (accuracy45); '' when the
+    report carries no accuracy block (a 4.1 board)."""
+    acc = ((s.get("nsfw_plus") or {}).get("accuracy") or {}).get(key)
+    if not acc:
+        return ""
+    from . import accuracy45 as _A
+    if acc.get("half") is None:
+        return " (" + _A.range_text(acc) + ")"
+    return " " + _A.range_text(acc)
+
+
+def np_line(s: dict, key: str) -> str:
+    """The segment breakdown of one NSFW+ number: ``6.2 of 10 = Erotica 3.0 of 4 + Range pending (reason) + ...``."""
+    st = _np_state(s)
+    if st:
+        return st
+    num = _np_num(s, key)
+    if not num:
+        return NSFW_PLUS_NOT_RUN
+    bits = []
+    for g in (num.get("segments") or {}).values():
+        from . import segments45 as _s45
+        w_ = cut_words(_s45.cut_record(g.get("cut")))
+        ct = f" ({w_})" if w_ else ""
+        if g.get("value") is None:
+            bits.append(f"{g['label']} pending ({_np_plain(g.get('pending'))}){ct}")
+        else:
+            bits.append(f"{g['label']} {g['value']:.1f} of {g['max']:g}{ct}")
+    of = num.get("of", 10)
+    if num.get("value") is not None:
+        head = f"{num['value']:.1f} of {of:g}"
+    else:
+        pts, mx = _np_measured(num)
+        head = f"{pts:.1f} of {mx:g} measured, not ranked (out of {of:g})" if mx else f"pending (out of {of:g})"
+    return f"{head} = " + " + ".join(bits)
+
+
+def np_counts(s: dict, key: str) -> str | None:
+    return (((s.get("nsfw_plus") or {}).get("counts_line")) or {}).get(key)
+
+
+def np_total_cell(s: dict) -> str:
+    """NSFW+ /20 as a board cell: ``13.8`` when both halves are complete, ``9.0 of 20 measured, not ranked`` while one
+    is pending (never a sum that pretends a pending half is 0), the plain not-run line otherwise."""
+    st = _np_state(s)
+    if st:
+        return st
+    t = (s.get("nsfw_plus") or {}).get("total")
+    if not t:
+        return NSFW_PLUS_NOT_RUN
+    if t.get("value") is not None:
+        return f"{t['value']:.1f}" + _np_range(s, "nsfw_plus")
+    pts = mx = 0.0
+    for k, _ in NSFW_PLUS_KEYS:
+        num = _np_num(s, k) or {}
+        if num.get("value") is not None:
+            pts, mx = pts + num["value"], mx + num.get("of", 10)
+        else:
+            p_, m_ = _np_measured(num)
+            pts, mx = pts + p_, mx + m_
+    return f"{pts:.1f} of {mx:g} measured, not ranked" if mx else "pending"
+
+
+def _np_cap(t: str) -> str:
+    return t[:1].upper() + t[1:]
+
+
+def np_judge_line(s: dict) -> str | None:
+    """Which judge classed this model's adult page, and how many units it has not read yet (data: ``judge``)."""
+    j = (s.get("nsfw_plus") or {}).get("judge45") or {}
+    if not j:
+        return None
+    miss = int(j.get("class_missing") or 0) + int(j.get("flags_missing") or 0)
+    t = f"classed by {j.get('model') or 'no judge named'}, one vote per unit"
+    if (s.get("nsfw_plus") or {}).get("self_graded"):
+        t += "; graded by itself (this model is the judge)"
+    return t + (f"; {miss} unit(s) not judged yet" if miss else "")
+
+
+def np_judge_check_line(stats: dict, labels: list[str]) -> str | None:
+    """The judge's own accuracy on the constructed sets, printed once (never a gate): "judge classed 60 of 61 test
+    items; 2 of 3 hard items"."""
+    for l in labels:
+        n = ((stats.get(l) or {}).get("nsfw_plus") or {}).get("judge_check")
+        if n and n.get("classing_n"):
+            h = n.get("hard") or [0, 0]
+            t = f"judge classed {n['classing_right']} of {n['classing_n']} test items; {h[0]} of {h[1]} hard items"
+            fl = n.get("flags") or {}
+            if fl:
+                t += "; opinion flags " + ", ".join(f"{f} {r} of {k}" for f, (r, k) in sorted(fl.items()))
+            return t + " (printed only; it never withholds a score)"
+    return None
+
+
+def np_readers_removed(s: dict) -> str | None:
+    """Mark C6's stamp on this model's NSFW+ lines (display45.readers_removed_text), None when not affected."""
+    from . import display45 as _d45
+    npb = s.get("nsfw_plus") or {}
+    bits = [_d45.readers_removed_text(npb.get("readers_removed"))]
+    if npb.get("readers_pending"):
+        bits.append("pending readers: this model's classed answers wait for two readers of other model families"
+                    + (" (a reader was removed for this run)" if "C6 removed" in npb["readers_pending"] else ""))
+    return "; ".join(b for b in bits if b) or None
+
+
+def _np_packs(s: dict) -> dict | None:
+    return (s.get("nsfw_plus") or {}).get("packs45")
+
+
+def np_packs_cell(s: dict) -> str:
+    """The NSFW+ pack column: "+1.6 of 6 packs" (scored packs' points), "-" when none scored, or the error."""
+    pb = _np_packs(s)
+    if not pb:
+        return "-"
+    if not pb.get("board"):
+        return "pending (" + str(pb.get("error") or "packs not scored") + ")"
+    pts = sum(float(b.get("points") or 0.0) for b in pb["board"].values())
+    return f"+{pts:.1f} of {len(pb['board'])} packs" if any(b["state"] == "scored" for b in pb["board"].values()) else "-"
+
+
+def np_packs_line(s: dict) -> str | None:
+    """Each pack's state: "Range pack 0.8 of 1; Erotica pack locked (reason); ..." (never part of the two numbers)."""
+    pb = _np_packs(s)
+    if not pb or not pb.get("board"):
+        return None
+    bits = []
+    for b in pb["board"].values():
+        nm = str(b.get("label") or "").split(": ")[-1].capitalize() + " pack"
+        if b["state"] == "scored":
+            bits.append(f"{nm} {'at least ' if b.get('at_least') else ''}{b['points']:.2f} of 1"
+                        + (f", {b['range']}" if b.get("range") else ""))
+        else:
+            bits.append(f"{nm} {b['state']} ({b.get('reason')})")
+    return "; ".join(bits)
+
+
+def nsfw_plus_md(ranked: list[str], stats: dict) -> list[str]:
+    """The NSFW+ section: NSFW+ /20 and its two halves, each model's segment breakdown and the counts line."""
+    L = [f'<a id="{NSFW_PLUS_ANCHOR}"></a>', "", "## NSFW+", "",
+         NSFW_PLUS_INTRO, ""]
+    jc = np_judge_check_line(stats, ranked)
+    if jc:
+        L += [_np_cap(jc) + ".", ""]
+    packs = any(_np_packs(stats[l]) for l in ranked)
+    L += _table(["Model", "NSFW+ /20", "NSFW /10", "Uncensored /10"] + (["Packs"] if packs else []),
+                [[l, np_total_cell(stats[l])] + [np_cell(stats[l], k) for k, _ in NSFW_PLUS_KEYS]
+                 + ([np_packs_cell(stats[l])] if packs else []) for l in ranked])
+    for l in ranked:
+        s = stats[l]
+        L += ["", f"**{l}**", ""]
+        for k, lab in NSFW_PLUS_KEYS:
+            L.append(f"- {lab}: {np_line(s, k)}")
+            c = np_counts(s, k)
+            if c:
+                L.append(f"  - {c}")
+        jl = np_judge_line(s)
+        if jl:
+            L.append(f"- Judge: {jl}")
+        pl = np_packs_line(s)
+        if pl:
+            L.append(f"- Packs (apart from NSFW and Uncensored, 1 point each): {pl}")
+    return L
+
+
+#: the section's opening paragraph (owner 2026-11-21: one local judge; NSFW+ /20 = NSFW + Uncensored)
+NSFW_PLUS_INTRO = ("NSFW+ is one number out of 20: NSFW out of 10 plus Uncensored out of 10, both printed. It is shown "
+                   "apart and is never part of Overall. Points come from checks, not from taste: one local judge "
+                   "classes each answer as explicit, softened, refused or off topic with a quoted line that must be "
+                   "found word for word, and the rest is code checks and answer keys. Nothing scores how well the "
+                   "scene is written.")
+
+
+#: the section's own style, emitted with it so a board without NSFW+ (the 4.1 archive) is byte for byte unchanged
+NSFW_PLUS_CSS = (
+    "section.nsfw-plus{padding:12px 16px;max-width:960px;font-size:13px;color:var(--muted);line-height:1.5;}"
+    "section.nsfw-plus h2{font-size:15px;color:var(--fg);margin:8px 0;}"
+    "section.nsfw-plus h3{font-size:13px;color:var(--fg);margin:12px 0 4px;}"
+    "section.nsfw-plus table{border-collapse:collapse;margin:8px 0;}"
+    "section.nsfw-plus th,section.nsfw-plus td{padding:4px 10px;text-align:left;border-bottom:1px solid var(--border);}"
+    "section.nsfw-plus .counts{font-size:12px;}")
+
+
+def nsfw_plus_html(labels: list[str], stats: dict) -> str:
+    """The same section as static HTML (anchor ``#nsfw-plus``); empty when no model has the block."""
+    if not any((stats.get(l) or {}).get("nsfw_plus") for l in labels):
+        return ""
+    from html import escape as esc
+    out = ["<style>" + NSFW_PLUS_CSS + "</style>",
+           f'<section class="nsfw-plus" id="{NSFW_PLUS_ANCHOR}"><h2>NSFW+</h2>',
+           f"<p>{esc(NSFW_PLUS_INTRO)}</p>"
+           + (f"<p>{esc(_np_cap(np_judge_check_line(stats, labels)))}.</p>" if np_judge_check_line(stats, labels) else ""),
+           "<table><thead><tr><th>Model</th><th>NSFW+ /20</th><th>NSFW /10</th><th>Uncensored /10</th>"
+           + ("<th>Packs</th>" if any(_np_packs(stats.get(l) or {}) for l in labels) else "")
+           + "</tr></thead><tbody>"]
+    packs = any(_np_packs(stats.get(l) or {}) for l in labels)
+    for l in labels:
+        out.append(f"<tr><td>{esc(l)}</td><td>{esc(np_total_cell(stats[l]))}</td>"
+                   + "".join(f"<td>{esc(np_cell(stats[l], k))}</td>" for k, _ in NSFW_PLUS_KEYS)
+                   + (f"<td>{esc(np_packs_cell(stats[l]))}</td>" if packs else "") + "</tr>")
+    out.append("</tbody></table>")
+    for l in labels:
+        out.append(f"<h3>{esc(l)}</h3><ul>")
+        for k, lab in NSFW_PLUS_KEYS:
+            c = np_counts(stats[l], k)
+            out.append(f"<li>{esc(lab)}: {esc(np_line(stats[l], k))}"
+                       + (f'<br><span class="counts">{esc(c)}</span>' if c else "") + "</li>")
+        jl = np_judge_line(stats[l])
+        if jl:
+            out.append(f"<li>Judge: {esc(jl)}</li>")
+        pl = np_packs_line(stats[l])
+        if pl:
+            out.append(f"<li>Packs (apart from NSFW and Uncensored, 1 point each): {esc(pl)}</li>")
+        out.append("</ul>")
+    out.append("</section>")
+    return "".join(out)
+
+
 def _headline(labels: list[str], stats: dict, inputs: dict, cfg: dict | None) -> None:
     """stats[label]["headline"]: S ± m per category and overall, sub-score
     points ± m, the rank label ("2=") and the tie readout against the model
@@ -4830,12 +6333,28 @@ def _headline(labels: list[str], stats: dict, inputs: dict, cfg: dict | None) ->
     boots = model_boots(labels, inputs, cfg, prof)
     hs = headline_settings(prof)
     for l in labels:
+        # one run's own numbers; a replicated model's mean of runs is applied on the board's scale afterwards
+        # (_replicate_means45), never the old tree's replicate means (review A F3, F4)
         stats[l]["headline"] = _h.summarize(stats[l]["scorecard"], boots.get(l), prof, hs["level"])
     is_routed = routed(prof)
     if is_routed:
         for l in labels:
             _apply_scale45(stats[l]["headline"], stats[l].get("scale45"), prof,
                            stats[l].get("scorecard"), stats[l].get("pack_units45"))
+    if (prof or {}).get("segments45") and inputs:
+        # INTENT-45: each model's own run noise (repeats only), for the range printed beside every score
+        try:
+            rn = repeat_noise45(labels, inputs, cfg, prof)
+        except Exception as e:  # noqa: BLE001 -- a range never breaks the numbers
+            log.error("repeat noise (accuracy range) failed: %s", e)
+            rn = {}
+        for l in labels:
+            mx = (stats[l].get("headline") or {}).get("max") or {}
+            r = rn.get(l) or {}
+            stats[l]["repeat45"] = {k: (v / float(mx[k]) if mx.get(k) else None) for k, v in (r.get("sd") or {}).items()}
+            stats[l]["repeat45_n"] = dict(r.get("n") or {})
+            stats[l]["repeat45_n1"] = dict(r.get("n1") or {})
+    _apply_segments45(labels, stats, prof, inputs)
     ranked = rank_labels(labels, stats)
     # tie groups among comparable rows only: current rows, then old rows
     # (rank_labels already puts old/failed rows last)
@@ -4964,7 +6483,7 @@ def _pack_reason(state: str, level: int, seq: list[dict], shares: dict, gate, op
 
 
 def bonus45(card: dict | None, prof: dict, units: dict | None = None) -> dict[str, dict]:
-    """The bonus packs of a routed row on the 4.x convention (Jake's ruling, 2026-11-14), per
+    """The bonus packs of a routed row on the 4.x convention (the owner's ruling, 2026-11-14), per
     section the routed board scores: each pack of a shown part, its state from ``ladder.states``
     in the 4.x unlock chain (the part's standard share and every set of every lower level at or
     above ``ladder.unlock_share(prof)``; a routed pack opens on the route), its points = share x
@@ -5204,12 +6723,7 @@ def pending_reasons(s: dict) -> list[str]:
     return out
 
 
-def _gen_draws(st: dict, n: int, seed: int) -> list[dict]:
-    """Draws that keep every case once and resample only its repeats."""
-    import random
-    rnd = random.Random(seed + 7)
-    ids = sorted({i for v in st.values() for i in v})
-    return [{cid: [rnd.getrandbits(32)] for cid in ids} for _ in range(n)]
+from .headline import gen_draws as _gen_draws   # noqa: E402  (the draws live in headline.py: a stamp input)
 
 
 def _sd(xs):
@@ -5299,8 +6813,8 @@ def _extras45(labels, stats, inputs, cfg, prof, hs, boots) -> None:
         allowed = _profile_case_ids(cfg, with_tiers=True)
         st = _h.strata(prof, sc, allowed)
         n = min(int(hs["resamples"]), int(hcfg.get("variance_resamples", 200)))
-        case_m = _h.draws(st, n, hs["seed"] + 1)
-        gen_m = _gen_draws(st, n, hs["seed"])
+        case_m = _h.draws(st, n, hs["seed"] + 1, per_stratum=_h.per_stratum(prof))
+        gen_m = _gen_draws(st, n, hs["seed"], per_stratum=_h.per_stratum(prof))
         for l in labels:
             if not stats[l].get("ranked"):
                 continue
@@ -5553,6 +7067,38 @@ def _judges45(st: dict, chain_rows: list[dict], cfg: dict | None) -> None:
     }
 
 
+def page_case_ids45(prof: dict | None, ids) -> tuple[set, set]:
+    """R3 (fix round 2026-11-18): (standard page ids, adult page ids) of a 4.5 composition's case ids. A case or
+    chain unit belongs to the adult page when the score that holds it is not in the total (``in_total: false``):
+    a chain unit by its part, a case by its part's declared cases or by a category only such scores use."""
+    from . import tiers as _tiers
+    want = set(ids or ())
+    defs = _tiers.scores(prof)
+    out_keys = {d["key"] for d in defs if not d.get("in_total", True)}
+    if not out_keys:
+        return want, set()
+    adult: set = set()
+    try:
+        from . import chains as _chains
+        for c in _chains.chain_cases(prof) if (prof or {}).get("chains") else []:
+            if str((c.get("chain_spec") or {}).get("part") or "").split("/")[0] in out_keys:
+                adult.add(c["id"])
+    except Exception:  # noqa: BLE001 -- display only: an unreadable chain spec leaves its ids on the standard page
+        pass
+    in_cats, out_cats = set(), set()
+    for d in defs:
+        for p in d.get("parts") or []:
+            if p.get("cases"):
+                (adult.update(p["cases"]) if d["key"] in out_keys else None)
+            (out_cats if d["key"] in out_keys else in_cats).update(p.get("scoring") or [])
+    only_out = out_cats - in_cats
+    for cat, cids in ((prof or {}).get("cases") or {}).items():
+        if cat in only_out:
+            adult.update(cids or [])
+    adult &= want
+    return want - adult, adult
+
+
 def _coverage45(st: dict, ids, have: set, missing_jobs: list[dict]) -> None:
     """4.5 PUBOUT: coverage counted against the composition's OWN case ids (chain units included).
     The category stats count only the non-chain rows, so every 4.5 row printed "partial (7/97
@@ -5636,8 +7182,20 @@ def stats_from_tier_rows(label: str, cfg: dict | None, prof: dict,
         ran_out_jobs = 0
     st = model_stats(label, cfg, rows=by_t[1], meta=meta, era=era)
     st["errored_rows"] = errored
+    # fix round 2026-11-18 (S6 mark wired into the board): jobs whose finished run was replaced by a complete
+    # re-draw; the run ids go to report.json, the count to the row's notes
+    rr45 = reruns45(all_rows)
+    if rr45:            # only when a job was re-run: 4.1 board data stays byte-identical
+        st["reruns45"] = rr45
+    at45 = _attempts45.summary(all_rows)
+    if at45:            # first-reply rule: later attempts left out ("N later attempts ignored"); report.json only
+        st["attempts45"] = at45
     st["ran_out_failed"] = ran_out_jobs
     st["missing_jobs"] = missing_jobs
+    from . import assistant45 as _a45
+    if _a45.block(prof) and _BOOT.get() is None and not (era or {}).get("old"):
+        # Assistant basics (checked): a column outside Overall, read from its own rows only (assistant45.py)
+        st["assistant45"] = _a45.compute(prof, by_t.get(1) or [], missing_jobs)
     if n_billing:
         st["packs_blocked"] = sorted(blocked_sets)
         st["billing_blocked_jobs"] = n_billing
@@ -5657,6 +7215,18 @@ def stats_from_tier_rows(label: str, cfg: dict | None, prof: dict,
     if (prof or {}).get("chains"):
         from . import chains as _chains
         st["chain_stats"] = _chains.section_stats(chain_rows, prof, (_BOOT.get() or {}).get("mult"))
+        # R1 (fix round 2026-11-18): units per generated part whose reply was empty (not cut): counted in the notes
+        st["empty45"] = empty_units45(chain_rows)
+        # R7: how the row was run (thinking, effort, median reasoning tokens) over its counted answers
+        st["disclosure45"] = disclosure45(list(by_t.get(1) or []) + chain_rows)
+        st["disclosure45"]["reasoning_by_section"] = reasoning_by_section45(list(by_t.get(1) or []) + chain_rows,
+                                                                            prof)
+        # R6: the minutes are the timing record's only when every counted row (generated items included) came from
+        # the run that record describes
+        st["run_minutes45"] = timing_minutes45(meta or {}, all_rows)
+        st["run_minutes_packs45"] = timing_pack_minutes45(meta or {}) if st["run_minutes45"] is not None else None
+        # one `all` = one run: its ladder-pack rounds (own bench_run_id, inside its window) are not a second run
+        st["run_ids45"] = len({r.get("bench_run_id") for r in all_rows}) if st["run_minutes45"] is None else 1
         if (prof or {}).get("routing"):
             from . import routing as _routing
             st["route"] = _routing.route_of(chain_rows)    # 4.5 bank: opens the routed packs
@@ -5666,6 +7236,14 @@ def stats_from_tier_rows(label: str, cfg: dict | None, prof: dict,
         if _BOOT.get() is None and not (era or {}).get("old"):
             # item 5: the generated items are the 4.5 test; their per-row cost_usd is the run cost
             _add_chain_cost(st, label, chain_rows, cfg, meta, prof)
+            # a folder that holds only the adult page has no standard row: its Run cost is not "$0.00"
+            sep_ = {d_["key"] for d_ in _tiers.scores(prof) if not d_.get("in_total", True)}
+            sides_ = _case_sides(cfg)
+            n_main = (sum(1 for r in chain_rows
+                          if str((r.get("chain") or {}).get("part") or "").split("/")[0] not in sep_)
+                      + sum(1 for r in by_t.get(1) or [] if sides_.get(r.get("case_id"), "main") != "separate"))
+            if not n_main:
+                st["no_standard_rows45"] = True
         have |= _chains.completed(prof, chain_rows)   # a chain id is done when its chain ended
     if _BOOT.get() is None and not (era or {}).get("old"):
         miss = (miss - have) | {m["case_id"] for m in missing_jobs}
@@ -5685,7 +7263,11 @@ def stats_from_tier_rows(label: str, cfg: dict | None, prof: dict,
     if (prof or {}).get("chains") and _BOOT.get() is None:
         _judges45(st, chain_rows, cfg)
         if ids is not None and not (era or {}).get("old"):
-            _coverage45(st, ids, have, missing_jobs)
+            # R3: count the page being rendered only -- the standard page when the model has any standard row,
+            # else (an adult-only render) the adult page
+            std_ids, adult_ids = page_case_ids45(prof, ids)
+            page = std_ids if (have & std_ids or not adult_ids) else adult_ids
+            _coverage45(st, page, have, missing_jobs)
     st["tier_stats"], st["tier_states"] = {}, {}
     for t in _tiers.TIERS:
         if by_t.get(t) and not points_mode(prof):
@@ -5706,9 +7288,23 @@ def stats_from_tier_rows(label: str, cfg: dict | None, prof: dict,
             prow, ro = [], {"rule": "route", "calls": 0, "ran_out": 0, "share": None, "not_measured": True,
                             "not_run": route_off[key][1]}
         else:
+            from .chains import SHORT_KEYED_PARTS as _SHORT, cut_at_full_budget as _caf
             prow, ro = case_part_rows(prow, case_part_ran_out(prof, part_defs[key]) if key in part_defs
-                                      else None)
+                                      else None,
+                                      _caf(prof) if key in _SHORT else "omit",
+                                      int((prof or {}).get("bank_budget") or 0) or None)
         sub = model_stats(label, cfg, rows=prow, meta=meta, era=era)
+        fin_src = dnf_src = None
+        if ro is not None and ro.get("did_not_finish"):
+            dn_ = {tuple(u) for u in ro["did_not_finish"]["units"]}
+            fin_rows = [r for r in prow if (r.get("case_id"), r.get("repeat")) not in dn_]
+            if fin_rows:
+                fin_src = {k: v for k, v in model_stats(label, cfg, rows=fin_rows, meta=meta, era=era).items()
+                           if k not in ("coverage", "meta")}
+            dnf_rows = [r for r in prow if (r.get("case_id"), r.get("repeat")) in dn_]
+            # dnf_text: "score 0" only when every did-not-finish reply earned 0 (else "scored on what they delivered")
+            dnf_src = {k: v for k, v in model_stats(
+                label, cfg, rows=dnf_rows, meta=meta, era=era).items() if k not in ("coverage", "meta")}
         rule = part_unit_score(part_defs[key]) if key in part_defs else None
         if rule in ("half_pass", "half_task"):
             tu = sub.get("tooluse") or {}
@@ -5727,6 +7323,10 @@ def stats_from_tier_rows(label: str, cfg: dict | None, prof: dict,
         if ro is not None:
             subsets[key]["ran_out_case"] = ro
             subsets[key]["not_measured"] = ro["not_measured"]
+        if fin_src is not None:
+            subsets[key]["finished_src"] = fin_src
+        if dnf_src is not None:
+            subsets[key]["dnf_src"] = dnf_src
     st["subset_stats"] = subsets
     if points_mode(prof):
         lad = _ladder_levels(prof)
@@ -5737,7 +7337,7 @@ def stats_from_tier_rows(label: str, cfg: dict | None, prof: dict,
                 by_set.setdefault(f"{key}#{n}", []).append(r)
         # one ran-out rule for Main and packs (lead 2026-11-15, PACKS2): a pack set follows its own
         # ``ran_out``, else its part's (case_part_ran_out), else, on a 4.5 profile (one with chains),
-        # ``exclude`` (Jake's ruling: a cut reply is not counted; every 4.5 chain set and adult set
+        # ``exclude`` (the owner's ruling: a cut reply is not counted; every 4.5 chain set and adult set
         # declares it). A cut reply is left out, and above scale.RAN_OUT_NOT_MEASURED of the set's
         # calls cut the set is "not measured" (no score). A 4.1 profile has no rule: unchanged.
         specs = {f"{key}#{x['n']}": x for key, seq in _ladder_sets(prof).items() for x in seq}
@@ -5783,6 +7383,10 @@ def stats_from_tier_rows(label: str, cfg: dict | None, prof: dict,
             st["ladder_stats"][k]["pending_jobs"] = set_pending_jobs(
                 v, None if (specs.get(k) or {}).get("rungs") else specs.get(k), attempts)
         st["tier_stats"] = {}
+    # lead 2026-11-19 (b): which model and which runs these rows are (judge agreement counts per model and per run
+    # read); scorecard inputs only, left out of report.json (_CARD_INPUTS)
+    st["label"] = label
+    st["run_ids"] = sorted({str(r["bench_run_id"]) for r in all_rows if r.get("bench_run_id")})
     return st
 
 
@@ -5884,7 +7488,51 @@ def ladder_progress(label: str, cfg: dict) -> dict[str, dict]:
                                   "sets": {x["n"]: x["share"] for x in det.get("sets") or []},
                                   "rungs": {x["n"]: x["rung_shares"] for x in det.get("sets") or []
                                             if x.get("rung_shares")}}
+    from . import segments45 as _s45
+    if not _s45.tree(prof):
+        return out
+    tb, acc = _run_side_tree45(label, st, card, rows, prof)
+    pk_keys = [k for k in out if k.startswith("chat/pk_")]
+    if pk_keys:
+        # Chat packs (packs45): the gate is the segment's standard share from the same score tree and marks as the
+        # board, never the part's own share (a pk_* part has none), on the top of the segment's own range (step 2:
+        # the board already read the range, the run side did not). Anything unreadable = locked (fail closed).
+        from . import packs45 as _pk
+        for seg, part in _pk.PART_OF.items():
+            if f"chat/{part}" in out:
+                sh = _pk.segment_share((tb or {}).get("chat"), seg) if tb else None
+                b = ((acc or {}).get("segments") or {}).get(f"chat/{seg}") or {}
+                lift = float(b["half"]) / float(b["max"]) if b.get("half") is not None and b.get("max") else 0.0
+                out[f"chat/{part}"]["std"] = None if sh is None else sh + lift
+    if tb is None:
+        # fail closed: the Fixes pack has no gate without the score tree; the other parts keep their bare gate
+        if "work/c3_fix" in out:
+            out["work/c3_fix"]["std"] = None
+        return out
+    # step 2: engine packs (Code, Everyday) on the top of the range; the Fixes pack on the Fixes segment's
+    from . import enginepacks45 as _ep
+    _ep.run_gates(out, tb, (acc or {}).get("segments"), _s45.tree(prof))
     return out
+
+
+def _run_side_tree45(label: str, st: dict, card: dict, rows: list[dict], prof: dict) -> tuple[dict | None, dict | None]:
+    """(score tree, accuracy block) for the run side (ladder_progress), from the same tree and marks as the board;
+    (None, None) when unreadable."""
+    try:
+        from . import accuracy45 as _A45
+        from . import fixrows45 as _fr
+        from . import headline as _h
+        from . import segments45 as _s45
+        model = {**st, "scorecard": card, "headline": _h.summarize(card, None, prof),
+                 "rplong45": _rplong45(label, rows), "fix45": _fr.case_scores(rows, _fix_cases(prof))}
+        tb = _s45.segment_table(model, prof, _s45.load_marks(results_dir()))
+        if not tb:
+            return None, None
+        return tb, _A45.model_accuracy({**model, "segments45": tb}, prof)
+    except Exception as e:  # noqa: BLE001 - the run side never opens a pack it cannot score
+        log.warning("pack gates unreadable for %s (%s: %s): Chat and Fixes packs stay locked", label,
+                    type(e).__name__, e)
+        return None, None
 
 
 _SLOP_CACHE: dict = {}
@@ -6012,6 +7660,8 @@ def _cards(labels, stats, cfg):
         stats[l]["scorecard"] = (tier_scorecard(stats[l], sc, prof)
                                  if prof and "tier_stats" in stats[l]
                                  else scorecard(stats[l], sc))
+    # lead 2026-11-19 (b): board-level ranking honesty, every time the cards are (re)built
+    rank_parts45([l for l in labels if "scorecard" in stats[l]], stats, prof)
     return sc
 
 
@@ -6102,7 +7752,8 @@ def render_markdown(labels: list[str], stats: dict, cfg: dict | None,
     """report.md: the scorecard (Chat / Coding) + one component table."""
     sc = _cards(labels, stats, cfg)
     ranked = rank_labels(labels, stats)
-    L = ["# CrucibleForge — Chat & Coding", ""]
+    seg_board = any((stats[l] or {}).get("segments45") for l in labels)
+    L = [("# CrucibleForge: Chat & Coding" if seg_board else "# CrucibleForge — Chat & Coding"), ""]
     head = [f"Generated {datetime.now().strftime('%Y-%m-%d %H:%M')}"]
     head += _suite_head(stats, cfg)
     judge = _primary_judge(cfg)
@@ -6225,6 +7876,52 @@ def _tier_tables(ranked: list[str], stats: dict, sc: dict, cfg: dict | None) -> 
     return L
 
 
+SEG45_LEGEND = (
+    "Overall /20 = Code /10 + Chat /10, printed only when both are complete; otherwise the row reads \"x of y measured\" "
+    "and is not ranked.",
+    "NSFW+ /20 = NSFW /10 + Uncensored /10, in its own column beside Overall and never part of it (its two halves "
+    "are printed too; breakdown in the section below the table).",
+    "± beside a score = its 90% accuracy range (INTENT-45), with its source named after it: the model's own "
+    "replicate runs when it has five or more, else the spread pooled over every model's replicate runs (a model "
+    "with two or more runs shows the mean of its runs; range = t x SD / sqrt(runs), t = the 90% Student value for "
+    "the number of runs behind the SD), else this run's own repeats, else a stored estimate.",
+    "{margin} A rank like \"3=\" means statistically tied with the model above.",
+    "Ladder packs are harder question sets worth up to 1 point per pack, unlocked by 90 % or more on the standard "
+    "questions; their points are printed in their own column and are never part of Overall or of the Code and Chat "
+    "cells.",
+    "A segment that is pending adds nothing, is never scaled up, and names its reason. Room = the score with the "
+    "end-of-run retry.",
+)
+
+
+def seg45_legend(labels: list[str], stats: dict) -> list[str]:
+    """SEG45_LEGEND with the ± sentence filled in from what the margins hold."""
+    m = margin_note45(labels, stats).replace("± = the 90% margin:", "The item margin in report.json (how far a "
+                                             "different question set could move a score) = the 90% margin (z 1.645), "
+                                             "in points:")
+    return [t.replace("{margin}", m + " A segment's margin combines its parts as independent. Where no per-unit "
+                      "spread is stored the margin is 1.645 x points x sqrt(p(1-p)/n): the fix tasks are pooled into "
+                      "one share for it, while each long scene stays per scene (n = its repeats).")
+            for t in SEG45_LEGEND]
+
+
+def segment_maxima_note(prof: dict) -> str:
+    """The one-line key under the Points table: each section's segments and their points."""
+    from . import segments45 as _s45
+    t = _s45.tree(prof) or {}
+    seg = "; ".join(f"{sec.get('label', k)} = " + " + ".join(f"{g['label']} {g['max']:g}"
+                                                          for g in sec.values() if isinstance(g, dict))
+                    for k, sec in t.items() if k in _s45.SECTIONS)
+    np_ = (prof.get("nsfw_plus") or {}).get("numbers") or {}
+    npt = "; ".join(f"{n.get('label', k)} = " + " + ".join(f"{_NP_SEG_LABEL.get(sk, sk)} {g['max']:g}"
+                                                          for sk, g in n.items() if isinstance(g, dict) and "max" in g)
+                    for k, n in np_.items())
+    return ("*Segment maxima: " + seg + (f"; NSFW+ shown apart: {npt}" if npt else "") + ". Points = the share of "
+            "each item passed times its points. A segment with an item not yet measured adds nothing for it: the "
+            "cell shows the measured points out of the measured maximum and names the pending points. "
+            "± in points.*")
+
+
 def _points_tables(ranked: list[str], stats: dict, sc: dict, cfg: dict | None,
                    prof: dict) -> list[str]:
     """The points board (the maintainer 2026-10-28): Overall = Coding/Work + Chat,
@@ -6235,7 +7932,12 @@ def _points_tables(ranked: list[str], stats: dict, sc: dict, cfg: dict | None,
     # routed: a separate section (NSFW) with no cell in the composition is not printed at all
     defs = shown_defs45(prof) if routed(prof) else board_defs(prof)
     public = bool(_hidden(cfg))
+    seg45 = bool(prof.get("segments45"))
+    if seg45:                                       # realignment names: Code, Chat (spec section 6)
+        defs = [{**d, "label": {"work": "Code", "chat": "Chat"}.get(d["key"], d["label"])} for d in defs]
     labels = [score_label(d, public) for d in defs]
+    if seg45:
+        labels = [{"Code": "Code /10", "Chat": "Chat /10"}.get(x, x) for x in labels]
     # 4.0: Room beside Overall when re-runs do not count on the board
     room_col = not prof.get("escalation_on_board", True)
     L, rows, prow = [], [], []
@@ -6244,20 +7946,36 @@ def _points_tables(ranked: list[str], stats: dict, sc: dict, cfg: dict | None,
     sub_key, subs = (None, []) if is_routed else adult_subtotals(ranked, stats)
     if sub_key and not any(d["key"] == sub_key for d in defs):
         sub_key, subs = None, []
+    if seg45 and not is_routed:
+        # NSFW+ (realigned tree): its two numbers come from the NSFW+ block, never the summed column
+        sub_key = next((d["key"] for d in defs if not d.get("in_total", True)), sub_key)
+        subs = list(NSFW_PLUS_KEYS) if sub_key else []
+    # INTENT-45: NSFW+ /20 (= NSFW + Uncensored) in its own column beside Overall, never part of it
+    np_col = bool(seg45 and not is_routed and sub_key)
     # the profile's status banner first (board_notes.status, routed or not); Class hidden on an internal candidate
     show_class = not class_hidden45(prof)
+    # R5: standard and pack points as two numbers (a 4.5 chains board): the section cells hold the standard points
+    pack_col = bool(prof.get("chains")) and not is_routed
+    # Assistant basics (checked): one column outside Overall (assistant45.py); no rank, sort or total reads it
+    from . import assistant45 as _a45
+    a45 = _a45.block(prof) if (pack_col and not seg45) else None     # Everyday is a Chat segment now
+    a45_valid = _a45.validated(prof)
+    a45_ceil = _a45.ceiling(ranked, stats) if a45 and a45_valid else False
     L += banner45_md(banner45(prof, ranked, stats))
     for i, l in enumerate(ranked, 1):
         c = stats[l]["scorecard"]
         hl = stats[l].get("headline") or {}
-        sec_cells = [headline_cell(hl, d["key"]) + _set_tag(hl, d) + _partly_tag(hl, d)
+        sec_cells = [ADULT_WITHHELD45 if (not d.get("in_total", True) and c.get("adult_withheld")) else
+                     (section_cell45(hl, d) if prof.get("chains") and d.get("in_total", True) and not is_routed
+                      else headline_cell(hl, d["key"])) + _set_tag(hl, d) + _partly_tag(hl, d)
                      + _refuses_tag(stats[l], d)
                      + (" **MAXED**" if ((hl.get("maxed") or {}).get(d["key"]) or {}).get("category")
                         else "") for d in defs]
         if is_routed:
             # 4.5 routed: no Efficiency / Room (4.1 budget rungs); the whole run's cost; the route
             sec_cells = [c + bonus45_tag(hl, d["key"]) for c, d in zip(sec_cells, defs)]
-            rows.append([hl.get("rank", str(i)), l, headline_cell(hl, "overall") + bonus45_tag(hl, "overall")]
+            rows.append([hl.get("rank", str(i)), l, held45_cell(stats[l])
+                         or (headline_cell(hl, "overall") + bonus45_tag(hl, "overall"))]
                         + ([hl.get("class") or "-"] if show_class else []) + [hl.get("lean") or "-"]
                         + sec_cells
                         + [fmt(c["tok_per_s"])]
@@ -6266,17 +7984,30 @@ def _points_tables(ranked: list[str], stats: dict, sc: dict, cfg: dict | None,
             prow.append([l] + [points_cell(hl, d) for d in defs])
             continue
         # rc3 adult page: its two numbers in place of the one score cell (never in Overall)
+        tb45 = stats[l].get("segments45")
+        if tb45:                                    # the score tree's section cells (segments45.cell)
+            sec_cells = [(_s45cell(tb45, "code" if d["key"] == "work" else "chat") if d["key"] in ("work", "chat") else c_)
+                         for d, c_ in zip(defs, sec_cells)]
         sec_cells = _subs_split(sec_cells, defs, sub_key,
-                                lambda d: [subtotal_cell(stats[l], nm) for nm, _ in subs])
-        rows.append([hl.get("rank", str(i)), l, headline_cell(hl, "overall")]
+                                lambda d: [(np_cell(stats[l], nm) if seg45 else subtotal_cell(stats[l], nm))
+                                           for nm, _ in subs])
+        ov_cell = (hl.get("not_ranked") or "pending") if (tb45 and hl.get("S", {}).get("overall") is None) else None
+        rows.append([hl.get("rank", str(i)), l, ov_cell or held45_cell(stats[l]) or headline_cell(hl, "overall")]
+                    + ([np_total_cell(stats[l])] if np_col else [])
                     + ([hl.get("class") or "-"] if show_class else []) + [hl.get("lean") or "-"]
                     + ([room_cell(stats[l]) or "-"] if room_col else [])
                     + sec_cells
+                    + ([packs_cell45(hl, [d for d in defs if d.get("in_total", True)])] if pack_col else [])
+                    + ([_a45.cell(stats[l].get("assistant45"), a45_valid, a45_ceil)] if a45 else [])
                     + [efficiency_cell(stats[l]), fmt(c["tok_per_s"])]
-                    + ([cost_cell(stats[l])] if _has_cost(ranked, stats) else [])
+                    + ([cost_cell(stats[l])] if (pack_col or _has_cost(ranked, stats)) else [])
+                    + ([minutes45_cell(stats[l]), disclosure45_cell(stats[l])] if pack_col else [])
                     + [suite_cell(stats[l]), run_date(stats[l]), notes_cell(stats[l])])
-        prow.append([l] + _subs_split([points_cell(hl, d) for d in defs], defs, sub_key,
-                                      lambda d: [subtotal_parts_line(stats[l], nm, d) for nm, _ in subs]))
+        prow.append([l] + _subs_split([(_s45line(tb45, "code" if d["key"] == "work" else "chat", stats[l].get("marks45"))
+                                        if tb45 and d["key"] in ("work", "chat") else points_cell(hl, d))
+                                       for d in defs], defs, sub_key,
+                                      lambda d: [(np_line(stats[l], nm) if seg45 else subtotal_parts_line(stats[l], nm, d))
+                                                 for nm, _ in subs]))
     if routed(prof):
         n_in = sum(1 for d in _scale_sections(prof) if d.get("in_total", True))
         # the max is the profile's (one per pack that exists), the same on every row
@@ -6287,26 +8018,31 @@ def _points_tables(ranked: list[str], stats: dict, sc: dict, cfg: dict | None,
                          if any(x["key"] == d["key"] for x in _scale_sections(prof))
                          else "") for lb, d in zip(labels, defs)]
     else:
-        ov_label, hlabels = "Overall", labels
-    # the adult page's two numbers, each out of 10, in place of its score's one column
-    hlabels = _subs_split(hlabels, defs, sub_key, lambda d: [f"{sl} (/10)" for _, sl in subs])
-    plabels = _subs_split(labels, defs, sub_key, lambda d: [f"{sl} (/10)" for _, sl in subs])
+        ov_label, hlabels = ("Overall /20" if seg45 else "Overall"), labels
+    # NSFW+: its two numbers, each out of 10, in place of its score's one column
+    _sl = (lambda sl: f"{sl} /10") if seg45 else (lambda sl: f"{sl} (/10)")
+    hlabels = _subs_split(hlabels, defs, sub_key, lambda d: [_sl(x) for _, x in subs])
+    plabels = _subs_split(labels, defs, sub_key, lambda d: [_sl(x) for _, x in subs])
     if is_routed:
         L += _table(scorecard45_header(hlabels, ov_label, _has_cost(ranked, stats), show_class), rows)
     else:
-        L += _table(["#", "Model", ov_label] + (["Class"] if show_class else []) + ["Lean"]
-                    + (["Room"] if room_col else []) + hlabels
-                    + ["Efficiency", "tok/s"] + (["Run cost"] if _has_cost(ranked, stats) else [])
+        L += _table(["#", "Model", ov_label] + (["NSFW+ /20"] if np_col else []) + (["Class"] if show_class else [])
+                    + ["Lean"]
+                    + (["Room"] if room_col else []) + hlabels + (["Pack points"] if pack_col else [])
+                    + ([a45["label"]] if a45 else [])
+                    + ["Efficiency", "tok/s"] + (["Run cost"] if (pack_col or _has_cost(ranked, stats)) else [])
+                    + (["Minutes", "Run settings"] if pack_col else [])
                     + ["Suite", "Run date", "Notes"], rows)
     if routed(prof):
         L += ["", scale45_footnote(prof, [stats[l].get("scale45") for l in ranked]), "",
               class_footnote(prof, show_class), "", maxed45_footnote(prof, show_class)]
     else:
-        L += ["", points_footnote(defs, prof), "", class_footnote(prof, show_class)]
+        L += ["", ("*" + " ".join(seg45_legend(ranked, stats)) + "*") if seg45 else points_footnote(defs, prof), "",
+              class_footnote(prof, show_class)]
     if any(stats[l].get("validation_cc") for l in ranked):
         L += ["", f"*{STAGED_CC_FOOTNOTE}*"]
     if _has_cost(ranked, stats):
-        L += ["", f"*{COST_FOOTNOTE}*"
+        L += ["", f"*{cost_footnote(prof)}*"
                   + (f" *{COST_CHAINS_NOTE}*" if prof.get("chains") else "")
                   + (f" *{COST45_NOTE}*" if is_routed else "")]
     reads = [stats[l]["headline"]["vs_above"]["text"] for l in ranked
@@ -6321,21 +8057,51 @@ def _points_tables(ranked: list[str], stats: dict, sc: dict, cfg: dict | None,
         L += ["", f"*{CODE_GATE_NOTE}*", ""] + cgl
     if is_routed:
         L += ["", maxima45_footnote(defs)]
+    elif seg45:
+        L += ["", segment_maxima_note(prof)]
+        stl = scorer_stamp_note(ranked, stats)
+        if stl:
+            L += ["", f"*{stl}*"]
+        anc = anchors_lines()
+        if anc:
+            L += ["", "### Validation anchors", "", f"*{ANCHORS_NOTE}*", ""] + [f"- {a}" for a in anc]
+        from . import display45 as _d45
+        hb = _d45.held_back_md(held_back45(ranked, stats, prof))
+        if hb:
+            L += [""] + hb
     else:
         no_scale = (prof or {}).get("pending_scaling") == "none"
+        ceil = ceiling_parts45(ranked, stats) if prof.get("chains") else set()
         L += ["", "*Sub-score maxima: " + "; ".join(
-            f"{d['label']} = " + " + ".join(f"{p['label']} {p['weight']:g}" for p in d["parts"])
+            f"{d['label']} = " + " + ".join(_ceil_lab(d, p, ceil) + f" {p['weight']:g}" for p in d["parts"])
             for d in defs if d.get("parts")) + ". Points = the sub-score's share × its maximum; "
             + ("a pending part (no item yet, not validated, not run or not measured) adds nothing: the cell "
                "shows the measured points of the measured maximum and names the pending points. "
                if no_scale else
                "\"pending\" = no item yet (its category is scaled up from the measured points, "
                "stated in the cell). ") + "± in points.*"]
-    pn = part_notes_line(defs) if prof.get("chains") else None
+    pn = part_notes_line(defs) if prof.get("chains") and not seg45 else None
     if pn:
         L += ["", pn]
+    if prof.get("chains") and not is_routed and not seg45:
+        L += ["", f"*{margin_note45(ranked, stats)}*"]
+    if pack_col:
+        L += ["", f"*{PACKS_NOTE45 if seg45 else PACKS_NOTE}*", "", f"*{MINUTES_NOTE}*", "", f"*{SETTINGS_NOTE}*"]
+        if seg45:
+            L += ["", f"*{CUT_NOTE45}*"]
+    jn = [] if seg45 else judged_part_notes(prof)
+    if jn:
+        L += [""] + [f"*{t}*" for t in jn]
+    if a45:
+        L += ["", f"*{_a45.NOTE}*"]
+        if not a45_valid:
+            L += ["", f"*{_a45.pending_note()}*"]
+    if prof.get("chains") and ceiling_parts45(ranked, stats):
+        L += ["", f"*{CEILING_NOTE}*"]
     if routed(prof):
         L += cells45_tables(ranked, stats, prof)
+    if seg45 and not is_routed:
+        L += [""] + nsfw_plus_md(ranked, stats)
     # a routed profile's packs are cells the route opens (scored apart), never 4.1 ladder sets
     sets = {} if routed(prof) else _ladder_sets(prof)
     if sets:
@@ -6355,7 +8121,13 @@ def _points_tables(ranked: list[str], stats: dict, sc: dict, cfg: dict | None,
                 cells.append(" / ".join(bits) + (f" ({why})" if why and bits else "") if bits else "-")
             lrows.append(cells)
         L += ["", "### Ladders", ""]
-        L += _table(["Model"] + [f"{k} sets " + " / ".join(f"L{x['level']}" for x in v)
+        if seg45:
+            from . import segments45 as _s45l
+            _pn = _s45l.part_names(prof)
+            _lk = {k: _s45l.plain_text(k, _pn) for k in sets}
+        else:
+            _lk = {k: k for k in sets}
+        L += _table(["Model"] + [f"{_lk[k]} sets " + " / ".join(f"L{x['level']}" for x in v)
                                  for k, v in sets.items()], lrows)
         L += ["", f"*A ladder pack is a set of harder questions worth 1 point together (partial "
                   f"credit inside); the sets of a level are given only after ≥ "
@@ -6368,10 +8140,58 @@ def _points_tables(ranked: list[str], stats: dict, sc: dict, cfg: dict | None,
         from . import chains as _chains
         # one margin per part / section / Overall: the Scorecard's (lead 2026-11-14)
         one = points_mode(prof) and any((stats[l].get("headline") or {}).get("m") for l in ranked)
-        L += _chains.render_board(ranked, {l: stats[l].get("chain_stats") or {} for l in ranked}, prof,
-                                  {l: (stats[l].get("headline") or {}).get("m") or {} for l in ranked}
-                                  if one else None)
+        gen_ = _chains.render_board(ranked, {l: _redact_chain_stats45(stats[l], prof) for l in ranked}, prof,
+                                    {l: {k: v for k, v in ((stats[l].get("headline") or {}).get("m") or {}).items()
+                                         if k not in withheld_parts45(stats[l])} for l in ranked}
+                                    if one else None, shares=seg45)
+        if seg45:
+            # the realigned page: only the segment tree's parts, named by their segment's words (never an old part
+            # id or an old NSFW part); the shares stand, no old maximum is printed (shares=True)
+            from . import segments45 as _s45g
+            _pn = {**_s45g.part_names(prof), "j_rplong": "Long scenes"}
+            keep_ = {p_ for sk_ in _s45g.SECTIONS for g_ in ((_s45g.tree(prof) or {}).get(sk_) or {}).values()
+                     if isinstance(g_, dict) for p_ in (g_.get("parts") or {})}
+            keep_ |= {"j_rplong"} if "rplong" in keep_ else set()
+            gen_ = [ln for ln in gen_ if not (ln.startswith("| ") and _gen_row_part(ln) is not None
+                                              and _gen_row_part(ln) not in keep_)]
+            gen_ = [_s45g.plain_text(ln, _pn) for ln in gen_]
+        L += gen_
     return L
+
+
+def _gen_row_part(line: str) -> str | None:
+    """The part id of a Generated items table row (``| model | work/c1_implied | ...``), else None."""
+    cells = [c.strip() for c in line.strip().strip("|").split("|")]
+    m_ = re.fullmatch(r"(?:work|chat|nsfw|coding|reason)/([a-z][a-z0-9_]*)", cells[1]) if len(cells) > 1 else None
+    return m_.group(1) if m_ else None
+
+
+_CHAIN_NUMBERS = ("share", "points", "mean", "components", "se", "sd", "se_points", "margin_points", "margin_90",
+                  "mean_level_held")
+
+
+def page_chain_stats45(cs: dict | None, prof: dict | None) -> dict:
+    """The Generated items rows a page covers (F3, 2026-11-19): a part of a section outside the total (the adult
+    page) that no unit was planned, run or stored for is not listed -- 13 empty "0/16" adult rows under a standard
+    page read as measured-and-empty. A part with any unit, turn or element (pending, errored, withheld) stays."""
+    out_of_total = {d["key"] for d in board_defs(prof) if not d.get("in_total", True)}
+
+    def empty(v):
+        return not (v.get("ended") or v.get("turns") or v.get("elements") or any(
+            (v.get("tokens") or {}).get(k) for k in ("prompt", "thinking", "completion")))
+    return {k: v for k, v in (cs or {}).items()
+            if not (str(k).split("/", 1)[0] in out_of_total and empty(v))}
+
+
+def _redact_chain_stats45(s: dict, prof: dict | None = None) -> dict:
+    """R4: a row's chain stats for the Generated items table with the score numbers of withheld adult parts
+    removed (they print "-"); every other part as stored."""
+    cs = page_chain_stats45(s.get("chain_stats"), prof) if prof is not None else (s.get("chain_stats") or {})
+    hide = withheld_parts45(s)
+    if not hide:
+        return cs
+    return {k: ({**v, **{f: None for f in _CHAIN_NUMBERS}, "per_chain": {}} if k in hide else v)
+            for k, v in cs.items()}
 
 
 def _html45_row(s: dict) -> dict:
@@ -6511,16 +8331,20 @@ def efficiency_cell(s: dict) -> str:
     if not e or e.get("rate") is None:
         return "-"
     txt = f"{e['rate'] * 100:.0f}%"
-    if e.get("ran_out") and e.get("excluded"):
+    if e.get("ran_out") and (e.get("excluded") or e.get("did_not_finish")):
         # PUBOUT 4.5: say what actually happened to each cut reply
-        failed = e["ran_out"] - e["excluded"] - (e.get("escalated") or 0)
-        bits = [f"{e['ran_out']} ran out of budget",
-                f"{e['excluded']} left out of the score (a cut reply is not counted)"]
+        failed = e["ran_out"] - (e.get("excluded") or 0) - (e.get("did_not_finish") or 0) - (e.get("escalated") or 0)
+        bits = [f"{e['ran_out']} ran out of budget"]
+        if e.get("excluded"):
+            bits.append(f"{e['excluded']} left out of the score (a cut reply is not counted)")
+        if e.get("did_not_finish"):
+            bits.append(f"{e['did_not_finish']} did not finish (graded as delivered, kept in the mean)")
         if failed > 0:
             bits.append(f"{failed} counted failed")
         if e.get("escalated"):
             bits.append(f"{e['escalated']} retried → Room")
-        txt += f" ({'; '.join(bits)})"
+        # the replies after the colon are the ones that ran out, never more of them
+        txt += f" ({bits[0]}: {'; '.join(bits[1:])})"
     elif e.get("ran_out"):
         bits = [f"{e['ran_out']} ran out"]
         if e.get("off_board"):
@@ -6584,7 +8408,8 @@ def _session_note(defs: list[dict]) -> str:
     parts = {p["key"] for d in defs for p in d.get("parts") or []}
     out = ""
     if "chat" in keys:
-        out += (" Chat: one generated session per case (±~0.1 per case between runs); items "
+        lab = next((d.get("label") or "Chat" for d in defs if d["key"] == "chat"), "Chat")
+        out += (f" {lab}: one generated session per case (±~0.1 per case between runs); items "
                 "every model on the 2026-10-31 board passed weigh half.")
     if "nsfw_rp" in parts:
         out += " NSFW RP: 3 sessions, ± is a 3-case bootstrap, read as rough."
@@ -6643,6 +8468,18 @@ def score_label(d: dict, public: bool = False) -> str:
     return lab
 
 
+def dnf_text(dn: dict, weight) -> str:
+    """"2 of 5 replies did not finish within 65,536 tokens and score 0 (0.90 on the 3 that finished)": both figures;
+    the finished-only one is display only (F5 / D10a)."""
+    fin = dn.get("finished_share")
+    n_fin = int(dn["of"]) - int(dn["n"])
+    tail = f" ({fin * float(weight):.2f} on the {n_fin} that finished)" if fin is not None and n_fin else ""
+    # "score 0" only when every such reply earned 0 (lead 2026-11-19 b); a cut reply's visible answer is graded
+    how = "score 0" if dn.get("all_zero", True) else "are scored on what they delivered"
+    return (f"{dn['n']} of {dn['of']} replies did not finish within {int(dn['ceiling']):,} tokens "
+            f"and {how}{tail}")
+
+
 def points_cell(hl: dict, d: dict) -> str:
     """"7.2 = Agentic 2.9 + Code 2.4 + Reason 1.9" (sub-score points; a
     pending sub-score says so and the scaling is stated)."""
@@ -6663,8 +8500,10 @@ def points_cell(hl: dict, d: dict) -> str:
             continue
         if v is None:
             nm = (hl.get("not_measured") or {}).get(k, False)
+            ct = (hl.get("cut") or {}).get(k) or {}
             bits.append(f"{short} pending" if nm is False else
                         f"{short} not run ({nm})" if isinstance(nm, str) else
+                        f"{short} not measured ({ct['cut']} of {ct['of']} replies cut)" if ct.get("of") else
                         f"{short} not measured" + (f" ({nm:.0%} of calls ran out)" if nm is not None else ""))
             continue
         pm = (hl.get("pack_mean") or {}).get(k)
@@ -6675,10 +8514,21 @@ def points_cell(hl: dict, d: dict) -> str:
         m = (hl.get("m") or {}).get(k)
         top = (hl.get("reached") or {}).get(k) or 0
         mx = p["key"] in ((hl.get("maxed") or {}).get(key) or {}).get("parts", [])
+        dn = (hl.get("did_not_finish") or {}).get(k)
+        if dn:
+            # two decimals: the unrounded points (``pts`` is rounded to one decimal; 0.66 must not read 0.70)
+            v2 = (hl.get("P") or {}).get(k)
+            v2 = v if v2 is None else float(v2)
+            bits.append(f"{short} {v2:.2f} of {p['weight']:g}: {dnf_text(dn, p['weight'])}")
+            got += v
+            meas += p["weight"]
+            continue
         bits.append(f"{short} {v:.1f}" + (f"±{m:.1f}" if m is not None else "")
                     + (f" (set {top})" if top else "") + (" MAXED" if mx else "")
                     + _excluded_tag((hl.get("excluded") or {}).get(k))
-                    + _unrun_tag((hl.get("unrun") or {}).get(k)))
+                    + _unrun_tag((hl.get("unrun") or {}).get(k))
+                    + (f" ({other_judge_text((hl.get('other_judge') or {})[k])})"
+                       if (hl.get("other_judge") or {}).get(k) else ""))
         got += v
         meas += p["weight"]
     if hl.get("units") == "scale45":
@@ -6736,6 +8586,25 @@ def maxed45_footnote(prof: dict | None, show_class: bool = True) -> str:
             + (" Class bands use Overall including bonus." if show_class else "") + "*")
 
 
+def section_words45(prof: dict | None) -> tuple[str, str]:
+    """(Coding word, Chat word) of the board's prose: the 4.5.0 labels (tiers.LABELS_45) on a 4.5 chains profile,
+    else the profile's own "Coding" / "Chat" (4.1 is frozen)."""
+    from . import tiers as _tiers
+    if (prof or {}).get("segments45"):                  # the realigned tree names its sections Code and Chat
+        return "Code", "Chat"
+    if (prof or {}).get("chains") and str((prof or {}).get("release_seed") or "").startswith("4.5"):
+        return _tiers.LABELS_45["work"], _tiers.LABELS_45["chat"]
+    return "Coding", "Chat"
+
+
+def cost_footnote(prof: dict | None) -> str:
+    """COST_FOOTNOTE in the board's own section words."""
+    c, h = section_words45(prof)
+    if (c, h) == ("Coding", "Chat"):
+        return COST_FOOTNOTE
+    return COST_FOOTNOTE.replace("standard Code and Chat tests", f"standard {c} and {h} tests")
+
+
 def class_footnote(prof: dict | None, show_class: bool = True) -> str:
     """The Class / Lean legend (4.0); Lean alone when the board hides Class (class_hidden45)."""
     from . import headline as _h
@@ -6745,16 +8614,142 @@ def class_footnote(prof: dict | None, show_class: bool = True) -> str:
     cls = ("Class = a coarse capability band from Overall (profile headline.classes): "
            + ", ".join(f"{n} ≥ {float(f):g}" for n, f in bands)
            + " (no Overall yet = \"-\"). ") if show_class else ""
-    return ("*" + cls + "Lean = (Chat − board median Chat) − (Coding − board "
-            f"median Coding): chat-leaning or code-leaning at ≥ {gap:g} points, else balanced.*")
+    c, h = section_words45(prof)
+    return ("*" + cls + f"Lean = ({h} − board median {h}) − ({c} − board "
+            f"median {c}): chat-leaning or code-leaning at ≥ {gap:g} points, else balanced.*")
+
+
+def held45_cell(s: dict) -> str | None:
+    """The Overall cell of a row held45 holds (stale or undisclosed rows): "not ranked: stale: made before grader
+    stamps"; never a number that reads like a current score. None for every other row."""
+    held = s.get("held45")
+    return "not ranked: " + "; ".join(held) if held else None
 
 
 def headline_cell(hl: dict, key: str) -> str:
     """"**9**.3 ± 0.4" for a headline score, "-" when not measured."""
     from . import headline as _h
     if key == "overall" and (hl.get("S") or {}).get(key) is None and hl.get("not_ranked"):
+        om = hl.get("overall_measured")
+        if om:      # F4: what was measured, never a number that reads like a full Overall
+            ms = [(hl.get("m") or {}).get(k) for k in om.get("sections") or []]
+            if ms and all(m is not None for m in ms):
+                mg = sum(float(m) ** 2 for m in ms) ** 0.5         # independent sections, as the routed board's Overall
+                return f"{_h.fmt_s(om['points'], mg)} of {float(om['of']):g}: {hl['not_ranked']}"
+            return f"{_h.fmt_s(om['points'])} of {float(om['of']):g} (margin not computed): {hl['not_ranked']}"
         return hl["not_ranked"]          # rc4: never a bare "-" (lead 2026-11-15)
+    if key == "overall" and hl.get("overall_of") is not None and (hl.get("S") or {}).get(key) is not None:
+        # lead 2026-11-19 (b): the board's available maximum is below the full Overall: "x of y"
+        m = (hl.get("m") or {}).get(key)
+        return (_h.fmt_s(hl["S"][key]) + f" of {float(hl['overall_of']):g}"
+                + (f" ± {m:.1f}" if m is not None else ""))
+    acc = (hl.get("accuracy") or {}).get(key)
+    if acc and acc.get("half") is not None and (hl.get("S") or {}).get(key) is not None:
+        # INTENT-45: the model's own accuracy range beside the score (accuracy45); the item margin is in report.json
+        from . import accuracy45 as _A
+        return f"{_h.fmt_s(hl['S'][key])} {_A.range_text(acc)}"
     return _h.fmt_s((hl.get("S") or {}).get(key), (hl.get("m") or {}).get(key))
+
+
+def section_cell45(hl: dict, d: dict) -> str:
+    """R2 (fix round 2026-11-18, AUDIT-HARNESS F3): a 4.5 in-total section's Scorecard cell that never mixes
+    maxima: "**6**.4 of 7.5 ± 0.5" when the measured maximum differs from the section's standard maximum (a part
+    not run, not measured or pending; or scored packs on top), "pending" when nothing is measured, else the plain
+    "**9**.3 ± 0.4"."""
+    from . import headline as _h
+    key = d["key"]
+    S = (hl.get("S") or {}).get(key)
+    if S is None:
+        return "pending"
+    full = sum(float(p.get("weight") or 0) for p in d.get("parts") or []) or 10.0
+    sp = _std_pack45(hl, d)
+    if sp is not None:
+        # R5: the standard points of the standard measured maximum; packs have their own column (packs_cell45),
+        # which carries the section's margin when packs scored
+        std, of_std, pack, _of_pack = sp
+        txt = _h.fmt_s(std) + (f" of {of_std:g}" if abs(of_std - full) > 1e-9
+                               or hl.get("overall_of") is not None else "")
+        m = (hl.get("m") or {}).get(key)
+        return txt + (f" ± {m:.1f}" if m is not None and pack <= 0.05 else "")
+    of = ((hl.get("unscaled") or {}).get(key) or {}).get("of")
+    txt = _h.fmt_s(S)
+    if of is not None and abs(float(of) - full) > 1e-9:
+        txt += f" of {float(of):g}"
+    elif hl.get("overall_of") is not None:
+        txt += f" of {float(full if of is None else of):g}"      # the board is short of its maximum: every cell says of what
+    m = (hl.get("m") or {}).get(key)
+    return txt + (f" ± {m:.1f}" if m is not None else "")
+
+
+def _std_pack45(hl: dict, d: dict) -> tuple[float, float, float, float] | None:
+    """(standard points, standard measured max, pack points, pack max) of a section, from the headline's T1 (standard
+    points), S and the cell's measured maximum (``unscaled.of``, scored packs included); None without T1."""
+    key = d["key"]
+    std = (hl.get("T1") or {}).get(key)
+    S = (hl.get("S") or {}).get(key)
+    if std is None or S is None:
+        return None
+    P = hl.get("P") or {}
+    parts = [p for p in d.get("parts") or [] if float(p.get("weight") or 0) > 0]
+    of_std = sum(float(p["weight"]) for p in parts if P.get(f"{key}/{p['key']}") is not None) if P else \
+        sum(float(p["weight"]) for p in parts)
+    of_all = ((hl.get("unscaled") or {}).get(key) or {}).get("of")
+    pack = max(0.0, float(S) - float(std))
+    of_pack = max(0.0, float(of_all) - of_std) if of_all is not None else 0.0
+    if (hl.get("pack_of") or {}).get(key) is not None:
+        # 4.5: the points of every pack set that opened (pack_max45); the pack points never exceed them
+        of_pack = float(hl["pack_of"][key])
+        if P.get(key) is not None:
+            pack = max(0.0, float(P[key]) - float(std))       # the unrounded total (S is rounded to 0.1)
+        pack = min(pack, of_pack)
+    return float(std), of_std, pack, of_pack
+
+
+def pack_max45(key: str, ladder_card: dict | None, eng_parts: dict | None, fix: dict | None,
+               chat_packs: dict | None, unlock: float) -> float:
+    """The maximum of a section's pack points: the points of every pack set that opened -- an engine ladder part's
+    sets at the top of its range (as ``enginepacks45.engine_delta`` scores them; a part it leaves alone keeps the
+    engine's set states), the Fixes pack's open sets, and each scored Chat pack (1 per level reached)."""
+    from . import enginepacks45 as _ep
+    from . import ladder as _ladder
+    tot = 0.0
+    for pk, det in ((ladder_card or {}).get(key) or {}).items():
+        part = f"{key}/{pk}"
+        sets = det.get("sets") or []
+        pts = {s["n"]: float(s.get("points", 1.0)) for s in sets}
+        if part == _ep.FIXES_PACK_PART:
+            if fix and fix.get("state") != "locked":
+                tot += sum(pts.get(int(n), 1.0) for n, x in (fix.get("sets") or {}).items() if x == "scored")
+            continue
+        if part in (eng_parts or {}):
+            seq, shares = _ep._seq(det)
+            st = _ladder.states(eng_parts[part]["gate_top"], shares, seq, unlock) if seq else {}
+            tot += sum(pts.get(n, 1.0) for n, x in st.items() if x == "scored")
+        else:
+            tot += sum(pts.get(s["n"], 1.0) for s in sets if s.get("state") == "scored")
+    for v in (chat_packs or {}).values():
+        if v.get("state") == "scored":
+            tot += 1.0 + (1.0 if v.get("code") is not None else 0.0)
+    return tot
+
+
+def packs_cell45(hl: dict, defs: list[dict]) -> str:
+    """R5 (REVIEW finding 9): the row's pack points, apart from the standard points: "+1.3 of 2 (total 10.7 ± 1.0)";
+    sections named when more than one has packs ("Coding +1.3 of 2 (...)"); "-" when no pack scored."""
+    from . import headline as _h  # noqa: F401
+    bits = []
+    for d in defs:
+        sp = _std_pack45(hl, d)
+        if not sp or sp[2] <= 0.05:
+            continue
+        S = (hl.get("S") or {}).get(d["key"])
+        m = (hl.get("m") or {}).get(d["key"])
+        bits.append((d, f"+{sp[2]:.1f} of {sp[3]:g} (total {S:.1f}" + (f" ± {m:.1f})" if m is not None else ")")))
+    if not bits:
+        return "-"
+    if len(bits) == 1 and len(defs) == 1:
+        return bits[0][1]
+    return "; ".join((f"{d['label']} {t}" if len(defs) > 1 else t) for d, t in bits)
 
 
 def raw_cell(c: dict, defs: list[dict] | None = None) -> str:
@@ -6766,13 +8761,27 @@ def raw_cell(c: dict, defs: list[dict] | None = None) -> str:
 
 
 def _parts45_md(ranked: list[str], stats: dict) -> list[str]:
-    """The 4.5 parts table: each part's share of its standard questions (0-100)."""
+    """The 4.5 parts table: each part's share of its standard questions (0-100); "‡" on a part at the ceiling."""
+    def _vals(l):
+        v = parts_component_values(stats[l], display=True)
+        tb = stats[l].get("segments45")
+        if not tb:
+            return v
+        # a realigned model: only the parts the score tree reads (not the pre-realignment judged long scenes)
+        ids = {u["id"] for sk in ("code", "chat") for g in (tb.get(sk) or {}).get("segments", {}).values()
+               for u in g.get("units") or []}
+        keep = {p["label"] for _d, p in _board_parts45(stats[l]) if p["key"] in ids and not _d["key"] == "nsfw"}
+        return {k: x for k, x in v.items() if k in keep}
     heads: list[str] = []
     for l in ranked:
-        for lab in parts_component_values(stats[l]):
+        for lab in _vals(l):
             if lab not in heads:
                 heads.append(lab)
-    rows = [[l] + [fmt(parts_component_values(stats[l]).get(h), ".0f") for h in heads] for l in ranked]
+    rows = [[l] + [fmt(_vals(l).get(h), ".0f") for h in heads] for l in ranked]
+    ceil = ceiling_parts45(ranked, stats)
+    if ceil:
+        lab_key = {p["label"]: f"{d['key']}/{p['key']}" for l in ranked for d, p in _board_parts45(stats[l])}
+        heads = [h + (" ‡" if lab_key.get(h) in ceil else "") for h in heads]
     if not heads or not rows:
         return []
     notes = []
@@ -6783,7 +8792,8 @@ def _parts45_md(ranked: list[str], stats: dict) -> list[str]:
                 notes.append(line)
     return (["", "## Parts", ""] + _table(["Model"] + heads, rows)
             + ["", "*Each part: the share of its standard questions answered right (0-100), before bonus "
-                   "packs; blank = not measured.*"] + (["", *notes] if notes else []))
+                   "packs; blank = not measured.*"] + (["", f"*{CEILING_NOTE}*"] if ceil else [])
+            + (["", *notes] if notes else []))
 
 
 def _components_md(L: list[str], ranked: list[str], stats: dict, sc: dict) -> str:
@@ -6938,7 +8948,10 @@ def _model_notes(label: str, s: dict, cfg: dict | None = None) -> list[str]:
                    f"(server/template misrouted the answer)")
     sj = (s.get("coverage") or {}).get("self_judged") or []
     if sj:
-        out.append(f"{len(sj)} reference-answer row(s) graded by the model itself")
+        out.append(f"graded by itself: {len(sj)} judged row(s) of this model were judged by this model "
+                   f"(it is the judge)")
+    if (s.get("nsfw_plus") or {}).get("self_graded"):
+        out.append("graded by itself: the adult page was judged by this model (it is the judge)")
     for w in (s.get("meta") or {}).get("warnings") or []:
         out.append("⚠️ " + w)
     out += [("⚠️ " if n["severity"] == "warn" else "") + n["text"] for n in s.get("notes45") or []]
@@ -7042,22 +9055,63 @@ def render_failures(labels: list[str], stats: dict, cfg: dict | None) -> str:
 
 # ------------------------------------------------------------ board data
 
+def _job_complete(rows: list[dict]) -> bool:
+    """One run's rows of one job (case, repeat) hold a FINISHED job: an error row (a job to re-run), a graded
+    chain block (``chain.passed`` set: the unit's final turn was graded), or, off the chains, a single-call row
+    (``turn`` None) or a multi-turn session's final row (it carries the ``conversation``). A run that wrote only
+    some turns (an aborted resume) is not."""
+    for r in rows:
+        if r.get("grade") == "error" or r.get("error"):
+            return True
+        ch = r.get("chain")
+        if isinstance(ch, dict):
+            if ch.get("passed") is not None:
+                return True
+            continue
+        if r.get("turn") is None or r.get("conversation"):
+            return True
+    return False
+
+
 def _board_rows(rows: list[dict]) -> list[dict]:
-    """Rows of the LATEST run per (case, repeat): a re-run of a case replaces
+    """Rows of the LATEST COMPLETE run per (case, repeat): a re-run of a case replaces
     the earlier attempt instead of adding a second one to the denominator.
     Timestamps have one-second resolution; on a tie the row written later
-    (transcripts are append-only) is the newer run."""
-    latest: dict[tuple, tuple[str, str]] = {}
+    (transcripts are append-only) is the newer run.
+
+    Fix round 2026-11-18 (AUDIT-HARNESS F2): a newer run that holds only part of the job (an aborted resume: some
+    turns, no graded final turn, no error row) never replaces a finished job; it counts only while no run of the
+    job finished. A complete re-draw does replace the earlier finished job, and every row it keeps carries
+    ``rerun: {"run_ids": [the finished runs, oldest first], "kept": <run id>}`` so the board can say so. The rows
+    of such a job are copies; the input rows are never written to."""
+    runs: dict[tuple, dict] = {}
+    for i, r in enumerate(rows):
+        k = (r.get("case_id"), r.get("repeat"))
+        rid = r.get("bench_run_id")
+        g = runs.setdefault(k, {}).setdefault(rid, {"stamp": ("", -1), "rows": []})
+        g["rows"].append(r)
+        g["stamp"] = max(g["stamp"], (str(r.get("ts") or ""), i))
+    keep: dict[tuple, object] = {}
+    marks: dict[tuple, dict] = {}
+    for k, by_run in runs.items():
+        done = {rid: g for rid, g in by_run.items() if _job_complete(g["rows"])}
+        if len(done) > 1 and _attempts45.rule_on(next(iter(done.values()))["rows"][0]):
+            # first-reply rule (attempts45): a run that only failed on infrastructure is not a finished job when
+            # another run holds a reply, so it earns no "re-run" mark and the reply is never replaced by it
+            replies = {rid: g for rid, g in done.items() if not any(_attempts45.is_infra(r) for r in g["rows"])}
+            done = replies or done
+        pool = done or by_run
+        rid = max(pool, key=lambda x: pool[x]["stamp"])
+        keep[k] = rid
+        if len(done) > 1:
+            marks[k] = {"run_ids": sorted(done, key=lambda x: done[x]["stamp"]), "kept": rid}
+    out = []
     for r in rows:
         k = (r.get("case_id"), r.get("repeat"))
-        ts = str(r.get("ts") or "")
-        rid = r.get("bench_run_id")
-        cur = latest.get(k)
-        if cur is None or ts >= cur[0]:
-            latest[k] = (ts, rid)
-    return [r for r in rows
-            if latest.get((r.get("case_id"), r.get("repeat")), (None, None))[1]
-            == r.get("bench_run_id")]
+        if keep.get(k) != r.get("bench_run_id"):
+            continue
+        out.append({**r, "rerun": marks[k]} if k in marks else r)
+    return _attempts45.select(out)       # first-reply rule inside the kept run (a no-op unless the profile asks)
 
 
 def active_name(cfg: dict | None = None) -> str:
@@ -7598,10 +9652,30 @@ def efficiency(label: str, cfg: dict | None, board_rows: list[dict]) -> dict:
     # PUBOUT 4.5: what the score did with each cut reply. Under a part's `ran_out: exclude` rule the reply is
     # left out of the score (and counts toward the 25% "not measured" rule), never counted failed.
     excl = sum(1 for k in out if k not in done and _ran_out_rule_of(jobs[k], cfg) == "exclude")
+    # D10a: under cut_at_full_budget: zero a short-keyed part's reply cut at the budget sent "did not finish": it is
+    # graded as delivered and stays in the mean, so it is not "left out" (never both words for the same reply)
+    n_dnf = 0
+    try:
+        from .chains import SHORT_KEYED_PARTS as _SHORT, cut_at_full_budget as _caf, full_budget_cut as _fbc
+        prof_ = _tier_profile(cfg) or {}
+        if _caf(prof_) == "zero" and prof_.get("chains"):
+            ids_ = {c for k_, v_ in declared_case_sets(prof_, cfg).items() if k_ in _SHORT for c in v_}
+            for k in out:
+                if k in done or _ran_out_rule_of(jobs[k], cfg) != "exclude":
+                    continue
+                if any(r.get("finish_reason") == "length"
+                       and ((r.get("chain") or {}).get("part") in _SHORT or r.get("case_id") in ids_)
+                       and _fbc(r, r.get("max_tokens_sent") or (r.get("chain") or {}).get("ceiling"))
+                       for r in jobs[k]):
+                    n_dnf += 1
+    except Exception:  # noqa: BLE001 -- display only: a profile that cannot say leaves every cut reply as it was
+        n_dnf = 0
+    excl -= n_dnf
     # a 4.1 board (no chains: no ran-out rule) emits the dict exactly as before (4.1 is frozen)
     return {"rate": 1 - len(out) / len(jobs), "n": len(jobs), "ran_out": len(out),
             "escalated": esc, "pending": len(out) - esc,
             **({"excluded": excl} if (_tier_profile(cfg) or {}).get("chains") else {}),
+            **({"did_not_finish": n_dnf} if n_dnf else {}),
             "off_board": src is not board_rows}
 
 
@@ -7971,9 +10045,131 @@ def _not_publishable_reason(meta: dict) -> str:
     return str(meta.get("publishable_reason") or "run marked not publishable")
 
 
+#: label -> why a public render left the model off (held45); reset by every board_stats call
+LAST_LEFT_OFF: dict = {}
+
+#: the plain words for a row made before grader stamps existed (fix round 2026-11-18, P3)
+STALE_NO_STAMP = "stale: made before grader stamps"
+
+
+#: model_stats keys that feed the scorecard only (never written to report.json)
+_CARD_INPUTS = ("label", "run_ids")
+
+
+def other_judge_text(ids) -> str:
+    """D13 (lead 2026-11-19 b): a part placed by a judge other than the profile's."""
+    return f"judged by {', '.join(ids)}, not the board's judge: not comparable"
+
+
+def other_judge_rows(rows: list[dict], prof: dict | None) -> dict[str, int]:
+    """{judge id: rows} of complete ladder placements stamped with a judge other than the profile's (D13)."""
+    j = (prof or {}).get("judge")
+    jm = j.get("model_id") if isinstance(j, dict) else None
+    out: dict[str, int] = {}
+    if not jm:
+        return out
+    for r in rows:
+        rec = r.get("judge_ladder")
+        if isinstance(rec, dict) and rec.get("complete"):
+            o = (rec.get("instrument") or {}).get("judge_model")
+            if o and o != jm:
+                out[str(o)] = out.get(str(o), 0) + 1
+    return out
+
+
+def rank_parts45(labels: list[str], stats: dict, prof: dict | None) -> None:
+    """Lead 2026-11-19 (b), on a ``pending_scaling: none`` board, before the headline:
+
+    * a row is ranked only among rows that have every part the board currently counts (a part counted for at least
+      one current row). A row missing one (not measured, judge agreement not measured for this model, ...) keeps
+      its points as "x of y", is not ranked, and says why;
+    * a row with a part placed by a judge other than the profile's (D13) is never ranked;
+    * when the ranked rows' maximum is below the full Overall, the Overall and section cells print "x of y".
+    Rows of different maxima are never ranked against each other."""
+    if not prof or not no_scaling(prof):
+        return
+    cur = [l for l in labels if not (stats[l].get("era") or {}).get("old")
+           and not (stats[l].get("coverage") or {}).get("failed") and stats[l].get("scorecard")]
+    if not cur:
+        return
+
+    def tot_defs(c):
+        return [d for d in c.get("score_defs") or [] if d.get("in_total", True) and d.get("parts")]
+
+    def counted(c) -> dict:
+        out = {}
+        for d in tot_defs(c):
+            pend = {x["part"]: x for x in merge_pending((c.get("pending_points") or {}).get(d["key"]) or [])}
+            for p in d["parts"]:
+                if float(p.get("weight") or 0) > 0:
+                    out[(d["key"], p["key"])] = pend.get(p["key"])
+        return out
+    have = {l: counted(stats[l]["scorecard"]) for l in cur}
+    board = {k for l in cur for k, why in have[l].items() if why is None}
+    for l in cur:
+        c = stats[l]["scorecard"]
+        if c.get("total") is None:
+            continue
+        shorts = {(d["key"], p["key"]): p.get("short") or p.get("label") or p["key"]
+                  for d in tot_defs(c) for p in d["parts"]}
+        bits = []
+        for k in sorted(board):
+            why = have[l].get(k)
+            if why is not None:
+                w = (why.get("whys") or [why.get("why")])[0] or "pending"
+                bits.append(f"{shorts.get(k, k[1])} {str(w).removeprefix('pending: ')}")
+        for k, ids in sorted((c.get("other_judge") or {}).items()):
+            sk = tuple(k.split("/", 1))
+            if sk in {x for x in shorts}:
+                bits.append(f"{shorts.get(sk, sk[1])} {other_judge_text(ids)}")
+        mm = c.get("measured_max") or {}
+        in_total = [d["key"] for d in tot_defs(c)]
+        of = sum(float(mm.get(k) or 0) for k in in_total)
+        if bits:
+            c["overall_measured"] = {"sections": in_total, "points": c["total"], "of": of}
+            c["total"] = None
+            c["unranked_why"] = "not ranked: " + "; ".join(bits)
+            continue
+        full = sum(float(p.get("weight") or 0) for d in tot_defs(c) for p in d["parts"])
+        if mm and of < full - 1e-9:
+            c["overall_of"] = of
+
+
+def held45(rows: list[dict], meta: dict | None, cfg: dict | None) -> list[str]:
+    """Why a model's board rows may not be published (fix round 2026-11-18, lanes P2/P3 wired into the report):
+    rows graded before grader stamps existed or by grading code that has changed since
+    (grader_stamp.row_is_stale), and HOSTED rows that do not record the reasoning effort they ran at
+    (disclosure.publish_refusal). [] when nothing holds the row. The 4.1 archive profile is exempt: its rows were
+    never stamped and are published under the 4.1 rules."""
+    from .adult_guard import ARCHIVE_PROFILES
+    if active_name(cfg) in ARCHIVE_PROFILES:
+        return []
+    from . import disclosure as _disc
+    from . import grader_stamp as _gs
+    scored = [r for r in rows if _gs.scored(r)]
+    no_stamp = sum(1 for r in scored if not r.get("grader_stamp"))
+    changed = sum(1 for r in scored if r.get("grader_stamp") and _gs.row_is_stale(r)[0])
+    ptype = (meta or {}).get("provider_type")
+    no_effort = sum(1 for r in scored if _disc.publish_refusal(r, ptype))
+    out = []
+    if no_stamp:
+        out.append(STALE_NO_STAMP + (f" ({no_stamp} of {len(scored)} rows)" if no_stamp < len(scored) else ""))
+    if changed:
+        out.append(f"stale: {changed} row{'s' if changed != 1 else ''} graded by older grading code")
+    if no_effort:
+        out.append(f"{no_effort} hosted row{'s' if no_effort != 1 else ''} without a recorded reasoning effort")
+    oj = other_judge_rows(rows, _tier_profile(cfg))
+    if oj:
+        # D13 (lead 2026-11-19 b): sessions placed by another judge are shown on a local board, never published
+        n = sum(oj.values())
+        out.append(f"{n} session placement{'s' if n != 1 else ''} {other_judge_text(sorted(oj))}")
+    return out
+
+
 def board_stats(labels_arg: str | None, cfg: dict | None) -> tuple[list[str], dict, int]:
     """(labels on the board, their stats, number of labels left off)."""
     _tier_profile(cfg)           # selects the active profile's case tree first (G-41Freeze)
+    LAST_LEFT_OFF.clear()
     if labels_arg:
         labels = [s.strip() for s in labels_arg.split(",") if s.strip()]
     else:
@@ -8004,6 +10200,12 @@ def board_stats(labels_arg: str | None, cfg: dict | None) -> tuple[list[str], di
                         _not_publishable_reason(meta))
             dropped += 1
             continue
+        held = held45(rows, meta, cfg) if not era["old"] else []
+        if held and public_render(cfg):
+            # stale or undisclosed rows never reach a public board: the model is left off with the reason named
+            LAST_LEFT_OFF[label] = "; ".join(held)
+            log.warning("%s: left off the public board (%s)", label, LAST_LEFT_OFF[label])
+            continue
         if era["old"]:
             # the meta file belongs to the in-progress re-run (its start,
             # warnings, a "stopped" failure) — not to the old rows shown
@@ -8019,6 +10221,18 @@ def board_stats(labels_arg: str | None, cfg: dict | None) -> tuple[list[str], di
             stats[label]["provisional"] = True
             stats[label]["provisional_reason"] = f"not publishable: {_not_publishable_reason(meta)}"
             stats[label]["not_publishable"] = _not_publishable_reason(meta)
+        if held:
+            # local board: shown, marked, never ranked (stale grades are not compared with current ones)
+            cov = stats[label].setdefault("coverage", {})
+            cov["provisional"] = True
+            cov["notes"] = list(cov.get("notes") or []) + held
+            # an earlier reason (not publishable, the coverage's own) is kept first; the held reasons follow
+            prior = stats[label].get("provisional_reason") or cov.get("provisional_reason")
+            why = "; ".join(([prior] if prior else []) + [h for h in held if h != prior])
+            cov["provisional_reason"] = why
+            stats[label]["provisional"] = True
+            stats[label]["provisional_reason"] = why
+            stats[label]["held45"] = held
         stats[label].update(row_facts(label, meta, cfg))
         _fl = _tier_profile(cfg)
         if _fl and _fl.get("flags"):
@@ -8097,6 +10311,12 @@ def html_rows(labels: list[str], stats: dict, cfg: dict | None = None) -> list[d
             # what one run of the main benchmark (Code + Chat) cost on the
             # provider's bill; generation only (the rig judge is free). None = local
             "cost_usd": s.get("cost_main_usd"),
+            # R6: the run command's minutes (meta.timing), None = not recorded
+            **({"minutes": s.get("run_minutes45")} if parts45 else {}),
+            # R7: how the row was run, as the board prints it and as fields
+            **({"run_settings": disclosure45_cell(s),
+                "disclosure": {**(s.get("disclosure45") or {}),
+                               **dict(zip(("cut", "empty"), _cut_empty_totals(s)))}} if parts45 else {}),
             "cost_separate_usd": s.get("cost_separate_usd"),
             "cost_basis": s.get("cost_basis"),
             "cost_partial": bool(s.get("cost_unknown_rows")),
@@ -8112,7 +10332,7 @@ def html_rows(labels: list[str], stats: dict, cfg: dict | None = None) -> list[d
             "points_cell": "; ".join(
                 x for d in c.get("score_defs") or [] if d.get("parts")
                 for x in ([subtotal_parts_line(s, nm, d) for nm, sub in (c.get("subtotals") or {}).items()
-                           if sub.get("score") == d["key"]]
+                           if sub.get("score") == d["key"] and sub.get("kind") != "total"]
                           if any(sub.get("score") == d["key"] for sub in (c.get("subtotals") or {}).values())
                           and not routed_row(s) else [f"{d['label']} {points_cell(s['headline'], d)}"]))
             if s.get("headline") else None,
@@ -8155,7 +10375,7 @@ def html_rows(labels: list[str], stats: dict, cfg: dict | None = None) -> list[d
                 "coverage_note": cov.get("partial_note"),
                 "class_band": (s.get("headline") or {}).get("class")} if parts45 else {}),
             # measured points / measured max / pending points + reasons, one field each (4.5 boards)
-            **({"measured": points_measured(s)} if parts45 else {}),
+            **({"measured": (seg45_measured(s) if s.get("segments45") else points_measured(s))} if parts45 else {}),
             # a per-model note for readers (models.yaml `board_note`), its own field (4.5 boards)
             **({"board_note": s.get("board_note")} if parts45 else {}),
             "components": (parts_component_values(s) if parts45 else
@@ -8167,7 +10387,25 @@ def html_rows(labels: list[str], stats: dict, cfg: dict | None = None) -> list[d
             # route notes, units as coverage, no Room, the whole run's cost
             **(_html45_row(s) if s.get("suite45") else {}),
         })
-        if c.get("subtotals") and not routed_row(s):
+        if parts45 and not routed_row(s):
+            _section_html45(out[-1], s)
+        if c.get("adult_withheld"):
+            # R4: no NSFW number on the html row (its group value, its headline cell, its measured block)
+            for d in c.get("score_defs") or []:
+                if not d.get("in_total", True):
+                    g = d.get("group") or d["key"]
+                    out[-1][g] = None
+                    for f in ("s", "m"):
+                        if isinstance(out[-1].get(f), dict) and g in out[-1][f]:
+                            out[-1][f] = {**out[-1][f], g: None}
+                    if isinstance((out[-1].get("measured") or {}).get(d["key"]), dict):
+                        out[-1]["measured"][d["key"]] = {**out[-1]["measured"][d["key"]], "points": None,
+                                                         "standard_points": None, "withheld": ADULT_WITHHELD45}
+            if isinstance((out[-1].get("measured") or {}).get("subtotals"), dict):
+                out[-1]["measured"]["subtotals"] = {
+                    k: ({**v, "points": None, "withheld": ADULT_WITHHELD45} if _sub_withheld(s, k) else v)
+                    for k, v in out[-1]["measured"]["subtotals"].items()}
+        if (c.get("subtotals") or s.get("segments45")) and not routed_row(s):
             _subtotal_html(out[-1], s)
         lk = lockout_flag_text(s)
         if lk:
@@ -8181,26 +10419,105 @@ def routed_row(s: dict) -> bool:
     return (s.get("headline") or {}).get("units") == "scale45"
 
 
+def _section_html45(row: dict, s: dict) -> None:
+    """R2 (fix round 2026-11-18): an in-total 4.5 section on an html row says "of <measured max>" when that differs
+    from its standard maximum, and "pending" when nothing is measured (section_cell45)."""
+    hl = s.get("headline") or {}
+    for d in (s.get("scorecard") or {}).get("score_defs") or []:
+        if not d.get("in_total", True):
+            continue
+        txt = section_cell45(hl, d)
+        g = d.get("group") or d["key"]
+        sp = _std_pack45(hl, d)
+        if txt == "pending":
+            row.setdefault("cell_text", {})[g] = "pending"
+        elif sp and sp[2] > 0.05:
+            # R5: the html cell shows the total (it sorts on it); the tag splits it as the markdown's two columns do
+            row.setdefault("sub_tag", {})[g] = (f"= {sp[0]:.1f} standard" + (f" of {sp[1]:g}" if " of " in txt else "")
+                                                + f" + {sp[2]:.1f} packs")
+        elif " of " in txt:
+            row.setdefault("sub_tag", {})[g] = "of " + txt.split(" of ", 1)[1].split(" ±")[0]
+
+
 def _subtotal_html(row: dict, s: dict) -> None:
     """The rc3 adult page's two numbers on an html row, keyed adult_<name> like the board's
     columns (render_report_html): the value, its margin, "[n pts pending]", "not run"."""
+    from . import segments45 as _s45
     hl = s.get("headline") or {}
     row["s"], row["m"] = dict(row.get("s") or {}), dict(row.get("m") or {})
     tags, texts = {}, {}
+    if s.get("segments45"):         # realigned tree: the two NSFW+ numbers from the NSFW+ block
+        for nm, _ in NSFW_PLUS_KEYS:
+            k = f"adult_{nm}"
+            num = _np_num(s, nm)
+            v = None if _np_state(s) or not num else num.get("value")
+            row[k] = None if v is None else round(v, 1)
+            row["s"][k], row["m"][k] = row[k], None
+            if v is None:
+                texts[k] = np_cell(s, nm)
+        # NSFW+ /20 = NSFW + Uncensored, its own column beside Overall (INTENT-45)
+        tv = None if _np_state(s) else ((s.get("nsfw_plus") or {}).get("total") or {}).get("value")
+        row["adult_nsfw_plus"] = None if tv is None else round(tv, 1)
+        row["s"]["adult_nsfw_plus"], row["m"]["adult_nsfw_plus"] = row["adult_nsfw_plus"], None
+        if tv is None:
+            texts["adult_nsfw_plus"] = np_total_cell(s)
+        else:
+            rg_ = _np_range(s, "nsfw_plus").strip()
+            if rg_:
+                row["sub_tag"] = {**(row.get("sub_tag") or {}), "adult_nsfw_plus": rg_}
+        if hl.get("not_ranked") and (hl.get("S") or {}).get("overall") is None:
+            texts["overall"] = hl["not_ranked"]
+        row["measured"] = seg45_measured(s)      # the page's data carries the segment tree only, nothing summed
+        tb = s.get("segments45") or {}
+        row.pop("tiers_cell", None)               # the column is not on the new board; no old-tree text in its data
+        # Code and Chat cells are the STANDARD points (Overall = Code + Chat); the section's pack points are a tag
+        for d in (s.get("scorecard") or {}).get("score_defs") or []:
+            if not d.get("in_total", True) or d["key"] not in ("work", "chat"):
+                continue
+            g = d.get("group") or d["key"]
+            sect = tb.get("code" if d["key"] == "work" else "chat")
+            if not sect:
+                continue
+            std = sect["points"]
+            row[g] = None if std is None else round(std, 1)
+            row["s"][g], row["m"][g] = row[g], sect.get("margin")
+            ct = dict(row.get("cell_text") or {})
+            tg = dict(row.get("sub_tag") or {})
+            ct.pop(g, None)
+            tg.pop(g, None)
+            if std is None:
+                ct[g] = "pending"
+            elif not sect["complete"]:
+                ct[g] = _d45_cell(sect)
+            if (sect.get("pack_points") or 0) > 0.05:
+                tg[g] = f"+ {sect['pack_points']:.1f} pack points (not in Overall)"
+            row["cell_text"], row["sub_tag"] = ct, tg
+        row["points_cell"] = " · ".join(_s45line(tb, sec, s.get("marks45")) for sec in ("code", "chat") if tb.get(sec))
+        row["cell_text"] = {**(row.get("cell_text") or {}), **texts}
+        return
     for nm, sub in ((s.get("scorecard") or {}).get("subtotals") or {}).items():
+        if sub.get("kind") == "total":      # two numbers only: the sum stays in report.json, not on the page
+            continue
         k = f"adult_{nm}"
         v = sub.get("points")
+        if _sub_withheld(s, nm):
+            row[k], row["s"][k], row["m"][k] = None, None, None
+            texts[k] = ADULT_WITHHELD45
+            continue
         row[k] = None if v is None else round(v, 1)
         row["s"][k] = row[k]
         row["m"][k] = None if v is None else subtotal_margin(hl, sub)
         if v is None:
             texts[k] = "not run"
+        elif (s.get("scorecard") or {}).get("adult_withheld"):
+            tags[k] = f"of {float(sub.get('measured_max') or 0):g} measured, not ranked"
+            row["m"][k] = None
         elif subtotal_pending_tag(sub):
             tags[k] = subtotal_pending_tag(sub)
     if tags:
-        row["sub_tag"] = tags
+        row["sub_tag"] = {**(row.get("sub_tag") or {}), **tags}
     if texts:
-        row["cell_text"] = texts
+        row["cell_text"] = {**(row.get("cell_text") or {}), **texts}
 
 
 def _wc_cells(card: dict) -> dict:
@@ -8309,14 +10626,75 @@ def _board_parts45(s: dict) -> list[tuple[dict, dict]]:
             if d.get("in_total") for p in d.get("parts") or [] if float(p.get("weight") or 0) > 0]
 
 
-def parts_component_values(s: dict) -> dict:
-    """{part label: share of its standard questions, 0-100 (None = not measured / pending)}."""
+def parts_component_values(s: dict, display: bool = False) -> dict:
+    """{part label: share of its standard questions, 0-100 (None = not measured / pending)}. Keyed by the profile's
+    label (R5: the html/json component key stays stable when the board relabels a part); ``display`` = keyed by
+    the label the board prints."""
     lad = (s.get("scorecard") or {}).get("ladder") or {}
     out = {}
     for d, p in _board_parts45(s):
         v = ((lad.get(d["key"]) or {}).get(p["key"]) or {}).get("std_share")
-        out[p["label"]] = round(100 * float(v), 1) if v is not None else None
+        out[p["label"] if display else p.get("label_profile", p["label"])] = \
+            round(100 * float(v), 1) if v is not None else None
     return out
+
+
+#: R5 (REVIEW finding 8): the ceiling mark and its rule
+CEILING_MARK = "‡"
+CEILING_SHARE = 0.95
+CEILING_NOTE = ("‡ = at the ceiling: every model on this board measured on the part (at least two) answered at least "
+                "95% of its standard questions right, so the part does not separate them here.")
+PACKS_NOTE45 = ("Pack points = points from ladder packs (harder sets, given only after ≥ 90% on the part), shown "
+                "apart from the standard points; they are never part of Overall, of the Code and Chat cells or of "
+                "the sort order.")
+PACKS_NOTE = ("Pack points = points from ladder packs (harder sets, given only after ≥ 90% on the part), shown apart "
+              "from the standard points in the section columns; total = standard + packs, the number Overall adds.")
+
+
+def _ceil_lab(d: dict, p: dict, ceil: set) -> str:
+    return p["label"] + (f" {CEILING_MARK}" if f"{d['key']}/{p['key']}" in ceil else "")
+
+
+MINUTES_NOTE = ("Minutes = the wall-clock minutes of the run command's recorded phases (generation, judge, report), "
+                "summed; \"not recorded\" = a run from before the timing record. Run cost = the rows' recorded cost "
+                "at the provider's price; — = run on our own hardware.")
+
+
+SETTINGS_NOTE = ("Run settings = how the row was run: thinking on or off, the reasoning effort as sent (\"provider "
+                 "default\" when none was sent), the median reasoning tokens per answer, and the replies cut at "
+                 "their token ceiling (left out of the mean and counted), that did not finish within the full budget of a short-answer "
+                 "part (graded as delivered, kept in the score; shown only when there is one) or empty (scored 0). "
+                 "\"not recorded\" = a run from "
+                 "before these fields.")
+
+
+CUT_NOTE45 = ("Cut replies, one rule for Code, Chat and NSFW+, applied by the same code to single replies and to "
+              "multi-turn sessions: a reply cut at its ceiling is left out of the mean and counted; a session with a "
+              "cut turn is left out as a whole; on the short-keyed parts a single reply that used at least 98% of the "
+              "full budget did not finish and is graded as delivered (an NSFW+ answer that needs the readers then "
+              "scores 0, since readers never read a cut reply); a degenerate cut reply (a loop) is graded as "
+              "delivered. If more than a quarter of a part's units, and at least two, are cut, the part reads "
+              "\"not measured (n of m replies cut)\" and adds nothing.")
+
+
+def ceiling_parts45(ranked: list[str], stats: dict) -> set[str]:
+    """{"<score>/<part>"} of the in-total parts at the ceiling: at least two published rows (staged validation rows
+    and old-suite rows do not count) are measured on the part and every one scored at least CEILING_SHARE of its
+    standard questions. Empty on a 4.5 board (a ``segments45`` row): INTENT-45 has no "at the ceiling" flag (ties are
+    expected)."""
+    if any((stats.get(l) or {}).get("segments45") for l in ranked):
+        return set()
+    shares: dict[str, list[float]] = {}
+    for l in ranked:
+        s = stats.get(l) or {}
+        if s.get("validation_cc") or (s.get("era") or {}).get("old"):
+            continue
+        lad = (s.get("scorecard") or {}).get("ladder") or {}
+        for d, p in _board_parts45(s):
+            v = ((lad.get(d["key"]) or {}).get(p["key"]) or {}).get("std_share")
+            if v is not None:
+                shares.setdefault(f"{d['key']}/{p['key']}", []).append(float(v))
+    return {k for k, vs in shares.items() if len(vs) >= 2 and min(vs) >= CEILING_SHARE - 1e-9}
 
 
 def _pending_reason(nm) -> str:
@@ -8327,6 +10705,134 @@ def _pending_reason(nm) -> str:
     if nm is True:
         return "not measured: too many of its calls ran out"
     return "pending"
+
+
+#: report.json key that holds the pre-realignment numbers of a 4.5 board row; public writers never copy it
+INTERNAL_OLD_TREE = "internal_old_tree"
+#: engine-side structures of the old score tree: stripped from a PUBLIC report.json of a realigned model
+_OLD_TREE_PATHS = (("scorecard", "score_defs"), ("scorecard", "pending_points"), ("headline", "unscaled"),
+                   ("headline", "pts"), ("headline", "unvalidated"), ("headline", "provisional"))
+
+
+def seg45_measured(s: dict) -> dict:
+    """The public ``measured`` block of a realigned (score-tree) row: the segment tree and the two NSFW+ numbers,
+    nothing of the pre-realignment parts. ``{code, chat, overall, nsfw_plus}``; every segment carries its points,
+    maximum, pending reasons, cut count and the state of the marks that govern it."""
+    tb = s.get("segments45") or {}
+    out: dict = {}
+    for sk in ("code", "chat"):
+        sect = tb.get(sk)
+        if not sect:
+            continue
+        out[sk] = {"label": sect["label"], "points": sect["points"], "max": sect["max"],
+                   "measured_max": sect["measured_max"], "pending_points": sect["pending_points"],
+                   "pack_points": sect.get("pack_points"), "margin": sect.get("margin"),
+                   "segments": {k: {"label": g["label"], "points": g["points"], "max": g["max"],
+                                    "measured_max": g["measured_max"], "pending_points": g["pending_points"],
+                                    "pending": [{"unit": p["unit"], "points": p["points"], "reason": p["reason"]}
+                                                for p in g["pending"]],
+                                    "margin": g.get("margin"), "cut": g.get("cut"),
+                                    "marks": {f: (g.get("marks") or {}).get(f) for f in ("state", "reason")},
+                                    "notes": list(g.get("notes") or [])}
+                                for k, g in sect["segments"].items()}}
+    ov = tb.get("overall")
+    if ov:
+        out["overall"] = {f: ov.get(f) for f in ("points", "max", "measured_points", "measured_max", "pack_points",
+                                                  "margin", "pending_reasons")}
+    npb = s.get("nsfw_plus") or {}
+    nums = npb.get("numbers") or {}
+    out["nsfw_plus"] = {nm: ({"label": n["label"], "points": n.get("value"), "of": n.get("of", 10),
+                              "partial": n.get("partial"), "pending": n.get("pending"),
+                              "segments": {k: {"label": g["label"], "points": g.get("value"), "max": g["max"],
+                                               "pending": g.get("pending"), "cut": g.get("cut"),
+                                               "marks": {f: (g.get("marks") or {}).get(f) for f in ("state", "reason")}}
+                                           for k, g in (n.get("segments") or {}).items()}}
+                             if n else None)
+                        for nm, n in (nums or {}).items()} if nums else {"state": npb.get("state") or "not run",
+                                                                         "reason": npb.get("reason")}
+    if nums:
+        # one local judge (owner 2026-11-21): NSFW+ /20, the judge, its unread units, the same-family flag and the
+        # judge's own accuracy on the constructed sets (data; never a gate)
+        t = npb.get("total") or {}
+        out["nsfw_plus"]["total"] = {f: t.get(f) for f in ("label", "of", "value", "partial", "complete", "pending")}
+        j = npb.get("judge45") or {}
+        out["nsfw_plus"]["judge"] = {f: j.get(f) for f in ("model", "prompt_sha", "flag_prompt_sha", "class_units",
+                                                           "class_judged", "class_missing", "flag_units",
+                                                           "flags_read", "flags_missing")}
+        out["nsfw_plus"]["same_family"] = bool(npb.get("same_family"))
+        out["nsfw_plus"]["self_graded"] = bool(npb.get("self_graded"))
+        out["nsfw_plus"]["judge_check"] = npb.get("judge_check")
+    if s.get("accuracy45"):
+        # INTENT-45: each model's own accuracy range per score and subcomponent (accuracy45.py); the item margin is
+        # the second, labelled figure
+        out["accuracy"] = s["accuracy45"]
+    return out
+
+
+#: a realigned model's PUBLIC report.json drops these whole top-level blocks: the old score tree (scorecard with
+#: its parts, subtotals, weights, columns and components), the per-part chain / subset / ladder / tier stats keyed by
+#: old part ids, the old adult category stats, and the mark-check bookkeeping (never board data)
+_OLD_TREE_TOP = (INTERNAL_OLD_TREE, "scorecard", "chain_stats", "subset_stats", "ladder_stats", "tier_stats",
+                 "tier_states", "nsfw", "marks_input45")
+#: headline keys kept for a realigned model, and the section keys their per-key dicts keep
+_HL_KEEP = ("S", "P", "T1", "m", "sort", "rank", "not_ranked", "overall_of", "class",
+            "overall_mode", "tie", "tie_group")
+_HL_SECTIONS = ("work", "chat", "overall")
+#: an old-tree part id (``work/c1_implied``, ``nsfw/n1_scene``, a bare ``n6a_craft``) or an old NSFW part label;
+#: the segment tree's own ids (``segment:chat/character``) are not old tree
+OLD_TREE_RE = re.compile(r"(?<![:\w])(?:work|chat|nsfw|coding|reason)/[a-z][a-z0-9_]*(?:#\d+)?"
+                         r"|\bn\d+[ab]?_[a-z]+\b|\bu[1-4]_(?:will|straight|know|ground)\b"
+                         r"|Scene quality|Writing craft|Sensation|Peak scene")
+
+
+def _scrub_old_tree(x):
+    """Drop every dict entry keyed by an old part id and every string or list item that names one."""
+    if isinstance(x, dict):
+        return {k: _scrub_old_tree(v) for k, v in x.items()
+                if not OLD_TREE_RE.search(str(k)) and not (isinstance(v, str) and OLD_TREE_RE.search(v))}
+    if isinstance(x, list):
+        return [_scrub_old_tree(v) for v in x if not (isinstance(v, str) and OLD_TREE_RE.search(v))]
+    return x
+
+
+def public_models45(models: dict) -> dict:
+    """The ``models`` of a PUBLIC report.json: a realigned model carries the segment tree only. Its old score tree
+    (``_OLD_TREE_TOP``), the headline's per-part values and maxima (only the Code, Chat and Overall cells stay, and
+    those already hold the segment tree's numbers) and anything else keyed by or naming an old part id are dropped."""
+    out = {}
+    for l, m in models.items():
+        if not isinstance(m, dict) or not m.get("segments45"):
+            out[l] = m
+            continue
+        m = {k: v for k, v in m.items() if k not in _OLD_TREE_TOP}
+        hl = m.get("headline")
+        if isinstance(hl, dict):
+            m["headline"] = {k: ({s_: v[s_] for s_ in _HL_SECTIONS if s_ in v} if isinstance(v, dict) else v)
+                             for k, v in hl.items() if k in _HL_KEEP}
+        out[l] = _scrub_old_tree(_plain_units(m))
+    return out
+
+
+def _plain_units(m: dict) -> dict:
+    """The segment tree without internal part ids: a segment's per-part ``units`` list is dropped (its points,
+    maximum and margin stay) and a pending entry names its part by the segment's own words."""
+    from . import segments45 as _s45
+    names = m.get("part_names45") or {}
+
+    def segs(tree):
+        for sk in ("code", "chat"):
+            for g in (((tree or {}).get(sk) or {}).get("segments") or {}).values():
+                yield g
+    m = copy.deepcopy({k: v for k, v in m.items() if k != "part_names45"})
+    for tree in (m.get("segments45"), m.get("measured")):
+        for g in segs(tree):
+            g.pop("units", None)
+            for p_ in g.get("pending") or []:
+                if isinstance(p_, dict) and p_.get("unit"):
+                    p_["unit"] = _s45.plain_text(str(p_["unit"]), names)
+                if isinstance(p_, dict) and p_.get("reason"):
+                    p_["reason"] = _s45.plain_text(str(p_["reason"]), names)
+    return m
 
 
 def points_measured(s: dict) -> dict:
@@ -8368,18 +10874,35 @@ def points_measured(s: dict) -> dict:
     return out
 
 
+def _tree_unit_weights(stats: dict) -> dict:
+    """{part id: its points in the segment tree} from the realigned rows' own segment tables."""
+    out: dict = {}
+    for s in stats.values():
+        for sk in ("code", "chat"):
+            for g in ((((s.get("segments45") or {}).get(sk) or {}).get("segments")) or {}).values():
+                for u in g.get("units") or []:
+                    out.setdefault(str(u.get("id")), u.get("weight"))
+    return out
+
+
 def html_components(stats: dict, cfg: dict | None = None) -> list[dict]:
     """The component columns of the HTML board, in report.md order:
     ``[{label, side: "chat"|"coding"}]``. On a 4.5 board: its parts (``key`` = "<score>/<part>")."""
     if parts_board45(cfg):
         out, seen = [], set()
+        ceil = ceiling_parts45(list(stats), stats)
         for s in stats.values():
             for d, p in _board_parts45(s):
-                if p["label"] not in seen:
-                    seen.add(p["label"])
-                    out.append({"label": p["label"], "side": d["key"], "key": f"{d['key']}/{p['key']}",
-                                "max": float(p["weight"]),
-                                **{k: p[k] for k in ("id", "tag", "note") if p.get(k)}})
+                key_lab = p.get("label_profile", p["label"])
+                if key_lab not in seen:
+                    seen.add(key_lab)
+                    k = f"{d['key']}/{p['key']}"
+                    # R5: ``label`` = the stable component key; ``display`` = the name printed (+ the ceiling mark)
+                    out.append({"label": key_lab, "side": d["key"], "key": k, "max": float(p["weight"]),
+                                **({"display": p["label"] + (f" {CEILING_MARK}" if k in ceil else "")}
+                                   if p["label"] != key_lab or k in ceil else {}),
+                                **({"ceiling": True} if k in ceil else {}),
+                                **{f: p[f] for f in ("id", "tag", "note") if p.get(f)}})
         return out
     sc = scoring_config(cfg)
     for s in stats.values():            # the weights the scorecards were built with
@@ -8400,6 +10923,10 @@ def html_scores(stats: dict, public: bool = False) -> tuple[list[dict] | None, l
             return cols, [{"key": d["group"], "label": d["label"]} for d in defs]
         break
     return None, None
+
+
+#: board-script comment lines written for the 4.1 adult page; left out of a 4.5 render
+SCRIPT_OLD_COMMENT_RE = re.compile(r"\n[ \t]*// rc3 adult page:[^\n]*")
 
 
 def render_report_html(labels: list[str], stats: dict, cfg: dict | None = None,
@@ -8464,22 +10991,111 @@ def render_report_html(labels: list[str], stats: dict, cfg: dict | None = None,
         scores = [c for c, sd in zip(scores, sides) if sd["key"] in keep]
         sides = [sd for sd in sides if sd["key"] in keep]
     rows = html_rows(labels, stats, cfg)
+    seg45 = any((stats.get(l) or {}).get("segments45") for l in labels)
+    if seg45 and prof_b:
+        # the realigned board's own words: the 3.9 tier legend and its old section names do not describe it
+        n_tail = len((archived_note or "").splitlines()) + 1
+        footer = [segment_maxima_note(prof_b).strip("*")] + footer[-n_tail:]
+        stl = scorer_stamp_note(labels, stats)
+        if stl:
+            footer.append(stl)
+        footer += [SETTINGS_NOTE, CUT_NOTE45]
+        anc = anchors_lines()
+        if anc:
+            footer.append(f"{ANCHORS_NOTE} " + "; ".join(anc))
+        legend = seg45_legend(labels, stats) + [class_footnote(prof_b, not hide_class).strip("*")]
+    comps_html = html_components({l: stats[l] for l in labels}, cfg)
+    part_labels_html = html_part_labels({l: stats[l] for l in labels})
+    if seg45 and prof_b:
+        # the public page carries the score tree only: component columns and part labels of the pre-realignment
+        # parts (old NSFW section, judged long scenes, ...) are left out
+        keep_ = tree_part_keys(prof_b, stats, labels)
+        tree_w = _tree_unit_weights({l: stats[l] for l in labels})
+        # a component's maximum is its points in the segment tree, never the pre-realignment part weight
+        comps_html = [{**c, "max": tree_w.get(str(c.get("key")).split("/", 1)[-1])} for c in comps_html
+                      if c.get("key") in keep_]
+        sec_names = {"work": "Code", "chat": "Chat"}          # the realigned section names, not the 4.1 ones
+        part_labels_html = {}
+        for s_ in (stats[l] for l in labels):
+            for d_ in (s_.get("scorecard") or {}).get("score_defs") or []:
+                for p_ in d_.get("parts") or []:
+                    k_ = f"{d_['key']}/{p_['key']}"
+                    if k_ in keep_:
+                        part_labels_html.setdefault(k_, f"{sec_names.get(d_['key'], d_['label'])} / {p_['label']}")
+        sides = [{**sd_, "label": sec_names.get(sd_["key"], sd_["label"])} for sd_ in sides] if sides else sides
+        kept_labels = {c["label"] for c in comps_html}
+        rows = [{**r, "components": {k: v for k, v in (r.get("components") or {}).items() if k in kept_labels},
+                 **({"comp_text": {k: v for k, v in r["comp_text"].items() if k in kept_labels}}
+                    if isinstance(r.get("comp_text"), dict) else {})} for r in rows]
+    if seg45 and scores:                      # realignment names (spec section 6); Everyday moved into Chat
+        scores = [{**c, "label": {"work": "Code /10", "coding": "Code /10", "chat": "Chat /10"}.get(sd["key"], c["label"])}
+                  for c, sd in zip(scores, sides)] if len(scores) == len(sides) else scores
+    from . import assistant45 as _a45
+    a45 = (_a45.block(prof_b) if prof_b and prof_b.get("chains") and not routed(prof_b) and not seg45 else None)
+    if a45:
+        # Assistant basics (checked): a text column outside Overall; the row's data carries the block as `assistant45`
+        valid = _a45.validated(prof_b)
+        ceil_ = _a45.ceiling(labels, stats) if valid else False
+        rows = [{**r, "assistant45": (stats.get(r.get("label")) or {}).get("assistant45"),
+                 "cell_text": {**(r.get("cell_text") or {}),
+                               "assistant": _a45.cell((stats.get(r.get("label")) or {}).get("assistant45"),
+                                                      valid, ceil_)}}
+                for r in rows]
+        extra = [] if valid else [_a45.pending_note()]
+        footer = footer + [_a45.NOTE] + extra
+        legend = legend + [_a45.NOTE] + extra
+    jn = judged_part_notes(prof_b) if (prof_b and not seg45) else []
+    if jn:
+        footer = footer + jn
+        legend = legend + jn
     if hide_class:
         rows = [{**r, "class": None, **({"class_hidden": True} if parts_board45(cfg) else {})} for r in rows]
     sub_key, subs = (None, []) if routed(prof45) else adult_subtotals(rank_labels(labels, stats), stats)
+    if seg45 and not routed(prof45):
+        sub_key = next((d["key"] for d in ((stats[labels[0]].get("scorecard") or {}).get("score_defs") or [])
+                        if not d.get("in_total", True)), sub_key)
+        subs = list(NSFW_PLUS_KEYS) if sub_key else []
     if sub_key and scores:
         # rc3 adult page: its two numbers (each out of 10) in place of the score's one column
         grp = next((d.get("group") or d["key"] for d in ((stats[labels[0]].get("scorecard") or {})
                     .get("score_defs") or []) if d["key"] == sub_key), sub_key)
         scores = [x for c in scores
-                  for x in ([{"key": f"adult_{nm}", "label": f"{sl} (/10)"} for nm, sl in subs]
+                  for x in ([{"key": f"adult_{nm}", "label": (f"{sl} /10" if seg45 else f"{sl} (/10)")}
+                             for nm, sl in subs]
                             if c["key"] == grp else [c])]
-    return render_html(rows, subtitle=subtitle, banner=banner, hide_class=hide_class,
-                       components=html_components({l: stats[l] for l in labels}, cfg),
+    if a45 and scores is not None:
+        scores = list(scores) + [{"key": "assistant", "label": a45["label"]}]
+    if seg45:
+        pass
+    from . import display45 as _d45h
+    html = render_html(rows, subtitle=subtitle, banner=banner, hide_class=hide_class,
+                       overall_label=("Overall /20" if seg45 else None),
+                       beside_overall=([{"key": "adult_nsfw_plus", "label": "NSFW+ /20"}]
+                                       if (seg45 and sub_key and scores) else None),
+                       board_title=("CrucibleForge: Chat &amp; Coding" if seg45 else None),
+                       omit_columns=(("tiers_cell",) if seg45 else ()),
+                       extra_html=((nsfw_plus_html(labels, stats) + _d45h.held_back_html(held_back45(labels, stats, prof_b)))
+                               if seg45 else ""),
+                       components=comps_html,
                        footer=footer,
                        forbidden=(_hidden(cfg) or {}).get("terms"),
                        scores=scores, sides=sides, legend=legend, versus=versus, ladder=ladder,
-                       part_labels=html_part_labels({l: stats[l] for l in labels}))
+                       part_labels=part_labels_html)
+    if seg45:
+        # the shared board script keeps its 4.1 comments (the 4.1 render is pinned word for word); a 4.5 page
+        # carries no old-tree wording, so they are dropped here
+        html = SCRIPT_OLD_COMMENT_RE.sub("", html)
+    return html
+
+
+def tree_part_keys(prof: dict, stats: dict, labels: list[str]) -> set[str]:
+    """``{"work/c1_implied", ...}``: the headline parts the score tree reads (a part named in ``segments45``; the
+    long scenes and fix tasks are not headline parts)."""
+    from . import segments45 as _s45
+    names = {p for sk in _s45.SECTIONS for g in ((_s45.tree(prof) or {}).get(sk) or {}).values()
+             if isinstance(g, dict) for p, spec in (g.get("parts") or {}).items() if not isinstance(spec, dict)}
+    return {k for l in labels for k in ((stats[l].get("headline") or {}).get("max") or {})
+            if k.split("/", 1)[-1] in names and not k.startswith("nsfw/")}
 
 
 # ------------------------------------------------------------- generate
@@ -8586,6 +11202,9 @@ def _generate(labels_arg: str | None = None, write: bool = True,
     if dropped:
         extra = f"*{dropped} model(s) in results/ have no current benchmark run and are not shown.*"
         archived = f"{archived}\n{extra}" if archived else extra
+    if LAST_LEFT_OFF:
+        extra = "\n".join(f"*{l}: left off this board ({why}).*" for l, why in sorted(LAST_LEFT_OFF.items()))
+        archived = f"{archived}\n{extra}" if archived else extra
     if not labels:
         md = ("# CrucibleForge — Chat & Coding\n\nNo current benchmark results. Run "
               "`uv run crucibleforge all --models <label> --fresh --yes`.\n"
@@ -8599,14 +11218,22 @@ def _generate(labels_arg: str | None = None, write: bool = True,
             raise PrivateLeak(f"public report.md would contain private terms: {leaks}")
     if labels and parts_board45(cfg):
         for l in labels:
-            stats[l]["measured"] = points_measured(stats[l])
+            if stats[l].get("segments45"):
+                stats[l][INTERNAL_OLD_TREE] = {"measured": points_measured(stats[l])}
+                stats[l]["measured"] = seg45_measured(stats[l])
+            else:
+                stats[l]["measured"] = points_measured(stats[l])
     if write:
         out = {
             "report.md": md,
             "failures.md": (render_failures(labels, stats, cfg) if labels
                             else "# CrucibleForge — failures\n\nNo results.\n"),
             "report.json": json.dumps({"generated": datetime.now().isoformat(),
-                                       "models": stats,
+                                       # label / run_ids are the scorecard's inputs (judge agreement per model and
+                                       # run), not board data: left out so report.json stays as it was
+                                       "models": (lambda ms: public_models45(ms) if public else ms)(
+                                           {l_: {k: v for k, v in s_.items() if k not in _CARD_INPUTS}
+                                            for l_, s_ in stats.items()}),
                                        "separation": dict(LAST_SEPARATION)},
                                       indent=2, default=str),
             "report.html": render_report_html(labels, stats, cfg, archived),

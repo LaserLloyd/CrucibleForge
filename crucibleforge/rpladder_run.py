@@ -163,21 +163,51 @@ def plan(cfg: dict, prof: dict, labels: list[str], judge_model: str, windows: li
     return out
 
 
+class _OtherJudge(Exception):
+    """The judge that loaded is not the profile's: the pass restarts under that judge's own id (D13)."""
+
+
 def run(cfg: dict, prof: dict, labels: list[str], *, windows: list[int], judge_override=None,
         deadline: float | None = None, rung_check_only: bool = False, force: bool = False,
         attach: bool = False, client: str | None = None) -> dict:
+    """The ladder pass. D13 (lead 2026-11-19 b): a judge other than the profile's is accepted. Its verdicts, rung
+    check and placements are keyed and stamped with its own id (``instrument.judge_model``), never the profile
+    judge's, and a unit already placed by the profile judge is left alone. The board prints such a part as
+    "judged by <id>, not the board's judge: not comparable" and never ranks the row; a public render refuses it."""
+    j = prof.get("judge") or {}
+    board_judge = j.get("model_id") if isinstance(j, dict) else str(j)
+    held: dict = {}
+    try:
+        return _run(cfg, prof, labels, windows=windows, judge_override=judge_override, deadline=deadline,
+                    rung_check_only=rung_check_only, force=force, attach=attach, client=client,
+                    judge_model=board_judge, board_judge=board_judge, held=held)
+    except _OtherJudge:
+        other = held["jc"].model_id
+        log.warning("ladder: the loaded judge %s is not the profile's %s: its placements are stamped with its own "
+                    "id and the board marks them not comparable", other, board_judge)
+        out = _run(cfg, prof, labels, windows=windows, judge_override=judge_override, deadline=deadline,
+                   rung_check_only=rung_check_only, force=force, attach=attach, client=client,
+                   judge_model=other, board_judge=board_judge, held=held)
+        out["other_judge"] = other
+        return out
+
+
+def _run(cfg: dict, prof: dict, labels: list[str], *, windows: list[int], judge_override, deadline,
+         rung_check_only: bool, force: bool, attach: bool, client, judge_model: str, board_judge: str,
+         held: dict) -> dict:
     from .config import append_transcript, results_dir
     from .judge import _load_judge
     from .shard import LabelLocks
     cards = RL.load()
-    j = prof.get("judge") or {}
-    judge_model = j.get("model_id") if isinstance(j, dict) else str(j)
     res_dir = results_dir()
     cache = RL.VerdictCache(cache_path(res_dir))
     stats: dict = {"calls": 0}
+    from . import judge45 as _J45
     by_name = {m["name"]: m for m in cfg.get("models") or []}
-    benched = {by_name[l]["model_id"] for l in labels if l in by_name}
-    jc = None
+    # 4.5 (amendment r): the judge is the board's reference model; under test it places its own sessions (noted)
+    self_ok = _J45.self_grades(prof)
+    benched = set() if self_ok else {by_name[l]["model_id"] for l in labels if l in by_name}
+    jc = held.get("jc")
 
     def judge(reqs):
         nonlocal jc
@@ -186,8 +216,10 @@ def run(cfg: dict, prof: dict, labels: list[str], *, windows: list[int], judge_o
                   else _load_judge(cfg, benched, rows=len(reqs), samples=1, override=judge_override))
             if deadline:
                 jc.deadline = deadline
-            if jc.model_id != judge_model:
-                raise RuntimeError(f"ladder: the loaded judge {jc.model_id} is not the profile's {judge_model}")
+            held["jc"] = jc
+        if jc.model_id != judge_model:
+            # D13: never key another judge's verdicts under this id; nothing has been asked yet
+            raise _OtherJudge(jc.model_id)
         return make_judge_fn(jc, stats)(reqs)
 
     chk = RL.load_check(res_dir, cards, judge_model)
@@ -203,8 +235,9 @@ def run(cfg: dict, prof: dict, labels: list[str], *, windows: list[int], judge_o
     locks = LabelLocks(res_dir)
     placed = {}
     try:
-        got, held = locks.acquire(labels)
-        out["skipped_labels"] = held
+        # (not `held`: that name is the judge holder above; rebinding it broke a placement that loads the judge)
+        got, locked_out = locks.acquire(labels)
+        out["skipped_labels"] = locked_out
         for label in got:
             rows = current_session_rows(label, cfg)
             units, other = _units(rows, cards)
@@ -212,9 +245,15 @@ def run(cfg: dict, prof: dict, labels: list[str], *, windows: list[int], judge_o
                 cur = {}
                 for u in units:
                     rec = rows[u["unit"]].get("judge_ladder")
+                    # fix round 2026-11-18 (S3): the unit's own replies go in, so a placement that met a
+                    # substitute rung is stale here exactly as on the board (chains), and is placed again
                     if (isinstance(rec, dict) and rec.get("complete") and rec.get("windows") == list(windows)
-                            and RL.stale_reason(rec, cards, chk, judge_model) is None):
+                            and RL.stale_reason(rec, cards, chk, judge_model,
+                                                unit_sha=RL.anchor_sha(u["replies"])) is None):
                         cur[u["unit"]] = True
+                    elif (judge_model != board_judge and isinstance(rec, dict) and rec.get("complete")
+                          and (rec.get("instrument") or {}).get("judge_model") == board_judge):
+                        cur[u["unit"]] = True      # D13: placed by the board's judge: another judge never replaces it
                 units = [u for u in units if u["unit"] not in cur]
             res = RL.place_units(units, cards, judge, cache, judge_model=judge_model, check=chk,
                                  windows_used=tuple(windows), own_other=other)
@@ -223,6 +262,8 @@ def run(cfg: dict, prof: dict, labels: list[str], *, windows: list[int], judge_o
                 if not rec.get("complete"):
                     continue
                 row = dict(rows[uid])
+                if self_ok and (by_name.get(label) or {}).get("model_id") == judge_model:
+                    rec = {**rec, "self_graded": True}       # the board prints "graded by itself"
                 row["judge_ladder"] = rec
                 row["judge_ladder_ts"] = time.strftime("%Y-%m-%dT%H:%M:%S%z")
                 append_transcript(label, row)

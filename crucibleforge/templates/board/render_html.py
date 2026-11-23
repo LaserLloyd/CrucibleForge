@@ -82,7 +82,8 @@ def _components(rows: list[dict], components: list[dict] | None) -> list[dict]:
     if components:
         # 4.5 parts also carry their id ("work/c1_implied"), maximum, and the profile's note/tag (PUBOUT)
         return [{"label": c["label"], "side": c.get("side") or "chat",
-                 **{k: c[k] for k in ("key", "max", "id", "tag", "note") if c.get(k) is not None}}
+                 **{k: c[k] for k in ("key", "max", "id", "tag", "note", "display", "ceiling")
+                    if c.get(k) is not None}}
                 for c in components]
     seen: dict[str, None] = {}
     for r in rows:
@@ -116,7 +117,9 @@ BASE_COLUMN = ("base", "Built on", "text")
 
 
 def columns(comps: list[dict], headline: bool = False,
-            scores: list[dict] | None = None, has_base: bool = False) -> tuple[list[dict], list[dict]]:
+            scores: list[dict] | None = None, has_base: bool = False,
+            overall_label: str | None = None, omit: tuple = (),
+            beside_overall: list[dict] | None = None) -> tuple[list[dict], list[dict]]:
     """``(main, extra)`` column specs baked into the page. ``extra`` is what
     the ⚙ Columns chooser offers: every component (the default right-hand
     set, in scoring order), then the run-info columns. ``scores`` = a
@@ -125,7 +128,10 @@ def columns(comps: list[dict], headline: bool = False,
     if scores:
         main = ([{"key": "rank", "label": "#", "kind": "num"},
                  {"key": "label", "label": "Model", "kind": "text"},
-                 {"key": "overall", "label": "Score", "kind": "num"},
+                 {"key": "overall", "label": overall_label or "Score", "kind": "num"}]
+                # 4.5: a score shown beside Overall and never part of it (NSFW+ /20)
+                + [{"key": x["key"], "label": x["label"], "kind": "num"} for x in beside_overall or []]
+                + [
                  # 4.0: capability class (from Overall) and the Chat/Coding lean
                  {"key": "class", "label": "Class", "kind": "text"},
                  {"key": "lean", "label": "Lean", "kind": "text"}]
@@ -137,7 +143,8 @@ def columns(comps: list[dict], headline: bool = False,
         main = [{**c, "label": HEADLINE_LABELS.get(c["key"], c["label"])} for c in main]
     extra = [{"key": f"c:{c['label']}", "label": c["label"], "kind": "num", "side": c["side"],
               "group": f"{c['side'].title()} component"} for c in comps]
-    info = INFO_COLUMNS[:1] + ([BASE_COLUMN] if has_base else []) + INFO_COLUMNS[1:]
+    info = [c for c in INFO_COLUMNS[:1] + ([BASE_COLUMN] if has_base else []) + INFO_COLUMNS[1:]
+            if c[0] not in omit]
     extra += [{"key": k, "label": t, "kind": kind, "group": "Run info"} for k, t, kind in info]
     return main, extra
 
@@ -172,7 +179,12 @@ def render_html(rows: list[dict], subtitle: str = "",
                 ladder: list[str] | None = None,
                 part_labels: dict | None = None,
                 banner: list[str] | None = None,
-                hide_class: bool = False) -> str:
+                hide_class: bool = False,
+                overall_label: str | None = None,
+                extra_html: str = "",
+                board_title: str | None = None,
+                omit_columns: tuple = (),
+                beside_overall: list[dict] | None = None) -> str:
     """The full HTML document.
 
     ``rows``: ``report.html_rows`` shape. ``components``: ordered
@@ -198,8 +210,19 @@ def render_html(rows: list[dict], subtitle: str = "",
         comps = [c for c in comps if c["label"].lower() not in bad]
         rows = [{**r, "components": {k: v for k, v in (r.get("components") or {}).items()
                                      if k.lower() not in bad}} for r in rows]
+    if any(c.get("display") for c in comps):
+        # R5 (fix round 2026-11-18): a part the board relabels (4.5.0 names, "‡" at the ceiling) is printed under its
+        # display name; the page keys its components by it. The report's own data (board.json, report.json) keeps
+        # the profile label as the key. A page without display names (4.1) is untouched, byte for byte.
+        ren = {c["label"]: c["display"] for c in comps if c.get("display")}
+        comps = [{**c, "label": ren.get(c["label"], c["label"]), "label_key": c["label"]} if c["label"] in ren
+                 else c for c in comps]
+        rows = [{**r, "components": {ren.get(k, k): v for k, v in (r.get("components") or {}).items()},
+                 **({"comp_text": {ren.get(k, k): v for k, v in r["comp_text"].items()}}
+                    if isinstance(r.get("comp_text"), dict) else {})} for r in rows]
     has_base = any(r.get("base") for r in rows)
-    main, extra = columns(comps, headline=any(r.get("s") for r in rows), scores=scores, has_base=has_base)
+    main, extra = columns(comps, headline=any(r.get("s") for r in rows), scores=scores, has_base=has_base,
+                          overall_label=overall_label, omit=omit_columns, beside_overall=beside_overall)
     if hide_class:
         main = [c for c in main if c["key"] != "class"]
     sides = sides or [{"key": "chat", "label": "Chat"}, {"key": "coding", "label": "Coding"}]
@@ -215,7 +238,8 @@ def render_html(rows: list[dict], subtitle: str = "",
             sort_opts += f'<optgroup label="{title}">{grp}</optgroup>'
     sort_opts += '<optgroup label="Run info">' + "".join(
         f'<option value="{k}">{esc(t)}</option>'
-        for k, t, _ in (INFO_COLUMNS[:1] + ([BASE_COLUMN] if has_base else []) + INFO_COLUMNS[1:])) + "</optgroup>"
+        for k, t, _ in (INFO_COLUMNS[:1] + ([BASE_COLUMN] if has_base else []) + INFO_COLUMNS[1:])
+        if k not in omit_columns) + "</optgroup>"
     mobile = ('<div class="viewtog m-only" role="group" aria-label="phone layout">'
               '<button id="viewTable" type="button" aria-pressed="true">Table</button>'
               '<button id="viewCards" type="button" aria-pressed="false">Cards</button></div>'
@@ -246,7 +270,7 @@ def render_html(rows: list[dict], subtitle: str = "",
         '<meta name="color-scheme" content="dark light">'
         '<title>CrucibleForge Board</title>'
         f"<style>{FONT_CSS}{CSS}</style></head><body data-view=\"table\">"
-        "<header><h1>CrucibleForge — Chat &amp; Coding</h1>"
+        f"<header><h1>{board_title or 'CrucibleForge — Chat &amp; Coding'}</h1>"
         f'<div class="meta">{esc(scrub(subtitle))}</div>'
         + ('<div class="banner" role="note">'
            + "".join(f"<p>{esc(scrub(x))}</p>" for x in (banner or []) if x) + "</div>"
@@ -272,6 +296,7 @@ def render_html(rows: list[dict], subtitle: str = "",
         '</div>'
         '<div class="wrap"><table><thead id="thead"></thead><tbody id="tbody"></tbody></table></div>'
         '<div class="cards" id="cards"></div>'
+        f"{scrub(extra_html)}"
         f"{below}"
         f'<script type="application/json" id="board-data">{payload}</script>'
         f"<script>{JS}</script></body></html>"

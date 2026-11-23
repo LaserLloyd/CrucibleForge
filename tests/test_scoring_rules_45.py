@@ -112,7 +112,13 @@ def test_no_scaling_and_the_headline_is_the_sum(good):
     assert good["scorecard"]["labels"]["nsfw"] == tot["label_text"]
 
 
-def test_validated_switch_both_boards(prof, good):
+def test_validated_switch_both_boards(prof, good, monkeypatch):
+    # lane-j: a judged part also waits for its second-reader marks; with none it is pending, with a pass it counts
+    assert report.part_pending_validation(prof, "chat", "j_rpsession") in (None, report.AGREEMENT_NOT_MEASURED)
+    from crucibleforge.agree_marks import marks_sha256
+    monkeypatch.setattr(report, "judge_marks_result",
+                        lambda: {"marks_sha256": marks_sha256(),
+                                 "parts": {"chat/j_rpsession": {"pass": True}, "chat/j_rplong": {"pass": True}}})
     # rc4 role-play = sessions 4 + long scenes 3 (lead 2026-11-15); the rc3 j_roleplay part left the composition and
     # the owner removed real person (j_person) from the test
     # sessions: validated on the ladder judge since 2026-11-15 (lead; docs/SCORING-RULES-45.md "Sessions on the ladder")

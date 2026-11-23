@@ -2,7 +2,8 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    # main is the release; dev is the weekly branch; rc* are release-candidate branches (rc45-rel)
+    branches: [main, dev, "rc*"]
   pull_request:
 
 concurrency:

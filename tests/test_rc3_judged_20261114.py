@@ -6,7 +6,6 @@ se_cluster: card, a piece = mean of its axes / 10 (sexual axes only on a sexual 
 seeds averaged inside a card. The jcard family and the rc3-main composition."""
 import json
 import math
-import os
 from pathlib import Path
 
 import pytest
@@ -235,19 +234,10 @@ def test_jcard_deal_asks_every_card_once_and_person_prompt_is_judges():
     assert jcard.person_prompt(c) == (
         f"You are texting as {c['person']}. Here is the conversation so far:\n\n{c['thread']}\n\n"
         f"{c['ask']} Reply with the texts only, one text per line, nothing else.")
-    judge_cards = json.loads(Path("/var/tmp/mb45-build/judge-work/cards_rp.json").read_text()) \
-        if Path("/var/tmp/mb45-build/judge-work/cards_rp.json").exists() else None
-    if judge_cards:
-        mine = {x["id"]: x for x in bank["person"]}
-        for jc_ in judge_cards:
-            # a card CHAT-RP rewrote (low for every model on rc3) keeps JUDGE's text in its ``was`` block
-            m = dict(mine[jc_["id"]], **mine[jc_["id"]].get("was", {}))
-            assert {k: m[k] for k in ("person", "thread", "ask")} == \
-                {k: jc_[k] for k in ("person", "thread", "ask")}
 
 
 def test_jcard_roleplay_reuses_rp_json_verbatim():
-    rp = {c["id"]: c for c in json.loads((ROOT / "cases" / "rp.json").read_text())}
+    rp = {c["id"]: c for c in json.loads((ROOT / "cases" / "rp.json").read_text(encoding="utf-8"))}
     bank = jcard.load_bank()
     n = len(bank["roleplay"])
     for s in range(n):
@@ -292,7 +282,7 @@ def test_rc3_main_composition(monkeypatch):
     # rc2's checked sets keep their names (their seeds and stored rows count here)
     names = {f["name"] for s in secs.values() for f in s["flat"]}
     assert {"rc2_implied1_L1", "rc2_state_L10", "rc2_ledger1_L1", "rc2_know3_L3"} <= names
-    subs = p["score_subtotals"]     # Jake R52: two numbers, each out of 10
+    subs = p["score_subtotals"]     # the owner R52: two numbers, each out of 10
     assert subs["nsfw"]["parts"] == ["a", "sexting", "b", "anatomy"]
     assert subs["uncensored"]["parts"] == ["lockout", "k"]
     nsfw = p["scores"]["nsfw"]["parts"]
@@ -475,7 +465,7 @@ def _long_draft(seed: str) -> str:
 
 def _four(monkeypatch, model):
     monkeypatch.setenv("CF_COMPOSITION", "rc3-main")
-    rows = json.loads(_FOUR.read_text())[model]
+    rows = json.loads(_FOUR.read_text(encoding="utf-8"))[model]
     for r in rows:
         if r.get("finish_reason") == "length" and not r["response"] and not r["reasoning"]:
             r["reasoning"] = _long_draft(r["chain"]["id"])
@@ -521,7 +511,7 @@ def test_four_rows_other_parts_unchanged(monkeypatch):
 
 
 def test_line_loop_needs_repeats_to_dominate():
-    loop = next(r["reasoning"] for r in json.loads(_FOUR.read_text())["mm"] if r["reasoning"])
+    loop = next(r["reasoning"] for r in json.loads(_FOUR.read_text(encoding="utf-8"))["mm"] if r["reasoning"])
     assert chains.line_loop(loop)
     assert not chains.line_loop(_long_draft("x"))                 # recurring dialogue in a long draft
     assert not chains.line_loop("SHE SAID YES JO\n" * 3 + "fine\n")  # three is not a loop

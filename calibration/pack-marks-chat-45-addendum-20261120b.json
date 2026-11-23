@@ -1,0 +1,16 @@
+{
+  "about": "MakoBench 4.5 Chat pack marks, clarification (identity only): which run label is the 'sonnet-class' and the 'haiku-class' role named by P2_known_order in pack-marks-chat-45-addendum-20261120.json. Written on 2026-11-20 after launch rows of non-anchor models had been graded in part, and before any Sonnet- or Haiku-class pack row existed. It changes no threshold, margin rule, weight or pair order, and adds no mark.",
+  "written": "2026-11-20",
+  "written_before_launch_rows": false,
+  "written_after_launch_rows_graded_in_part": true,
+  "written_before_any_sonnet_or_haiku_pack_row": true,
+  "clarifies": [
+    "pack-marks-chat-45-addendum-20261120.json"
+  ],
+  "role_identity": {
+    "sonnet-class": "sonnet",
+    "haiku-class": "haiku",
+    "rule": "A run label is the sonnet-class (haiku-class) role when it contains the substring 'sonnet' ('haiku'), compared case-insensitively. These are the same substrings calibration/judge-marks-45.json d_known_order already uses. Exactly one such label per role must be on the board (anchor folders count); none or several = 'order not tested'."
+  },
+  "note": "Identity only: this file changes no threshold."
+}

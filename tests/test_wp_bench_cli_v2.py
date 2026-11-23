@@ -220,6 +220,7 @@ def test_cli_main_run_writes_v2_contract_end_to_end(tmp_path, monkeypatch):
     assert (run_dir / "report.md").exists()
 
 
+@pytest.mark.archive_default
 def test_cli_main_all_writes_v2_contract_exactly_once_not_from_inner_run(tmp_path, monkeypatch):
     """`all` calls cmd_run() internally — the write contract must fire ONCE,
     for the whole run+judge+report unit dispatched at the top level, not a

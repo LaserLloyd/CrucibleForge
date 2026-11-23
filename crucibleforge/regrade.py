@@ -728,7 +728,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--stamp", choices=STAMPS, help="record this case fact on the rows (no regrade); "
                     "refused unless the case is shown to be the row's own")
     ap.add_argument("--from-tree", type=Path, help="with --stamp pack_location: the checkout the pack rows "
-                    "were made from (e.g. /var/tmp/mb45-build/wt-rc2n)")
+                    "were made from (a path)")
     ap.add_argument("--go", action="store_true", help="append the superseding rows (default: dry run)")
     ap.add_argument("--json", action="store_true", help="print the records (without rows) as JSON")
     a = ap.parse_args(argv)

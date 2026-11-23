@@ -166,6 +166,14 @@ models:
   last reviewed. `conform` WARNs (c7) when a hosted provider carries no docs,
   or when the review is older than 120 days — the "review the vendor docs"
   step becomes visible instead of being silently skipped.
+* `sampler`, `settings_checked` (per model): the model's recommended sampler
+  (or a `recommended_samplers` rule in the profile). A rig model with neither
+  is **not run** until its card was read: `settings_checked: {sampler:
+  none_published, source: <card URL>, template: <what the chat template does>}`.
+  `crucibleforge card-check <label>` proposes it. Hosted APIs are exempt.
+* `price: {input, output}` (USD per 1M tokens) is required for a hosted model
+  unless the run passes `--allow-unpriced`; add `basis: list` for a flat-plan
+  provider (the cost then shows as an estimate).
 * Config search order: `--config`, `$CRUCIBLEFORGE_CONFIG`, `./models.yaml`,
   `<repo>/models.yaml`, `~/.config/crucibleforge/models.yaml`. A v2 registry
   (`endpoint:`/`rig:`) is upgraded in memory; `crucibleforge config --upgrade`

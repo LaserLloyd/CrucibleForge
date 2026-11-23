@@ -1,4 +1,4 @@
-"""4.5 automatic board notes for one model (Jake, 2026-11-11: "when a model gets
+"""4.5 automatic board notes for one model (the owner, 2026-11-11: "when a model gets
 a 0 for something, or refuses a category we should make a note on it. Same goes
 for any abnormalities").
 

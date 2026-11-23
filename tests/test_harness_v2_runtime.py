@@ -97,7 +97,7 @@ def test_cli_flag_sets_the_cap(capenv):
 
     from crucibleforge import cli
     cli._apply_process_switches(argparse.Namespace(include_staged=False, spend_cap_usd=3.0))
-    assert spend.cap() == 3.0
+    assert spend.run_cap() == 3.0
 
 
 # ------------------------------------------------- errored packs pending (B2)
@@ -269,14 +269,15 @@ def test_concurrent_workers_cannot_overshoot_the_cap(capenv):
 def test_staged_runs_get_a_default_cap_only(monkeypatch, tmp_path):
     import argparse
     from crucibleforge import cli, config, ladder
+    monkeypatch.delenv(spend.RUN_CAP_ENV, raising=False)
     monkeypatch.delenv(spend.CAP_ENV, raising=False)
     monkeypatch.delenv(ladder.STAGED_ENV, raising=False)
     spend.reset()
     monkeypatch.setattr(config, "RESULTS_DIR", tmp_path / "scratch")
     cli._apply_process_switches(argparse.Namespace(include_staged=False, spend_cap_usd=None))
-    assert spend.cap() is None                                   # live-board runs unchanged
+    assert spend.run_cap() is None                                   # live-board runs unchanged
     cli._apply_process_switches(argparse.Namespace(include_staged=True, spend_cap_usd=None))
-    assert spend.cap() == spend.DEFAULT_STAGED_CAP_USD
+    assert spend.run_cap() == spend.DEFAULT_STAGED_CAP_USD
     monkeypatch.setenv(spend.CAP_ENV, "3")
     cli._apply_process_switches(argparse.Namespace(include_staged=True, spend_cap_usd=None))
     assert spend.cap() == 3.0                                    # an explicit cap wins

@@ -1,0 +1,12 @@
+{
+ "about": "NSFW+ act-and-beat check marks (W0, 2026-11-19, written before any launch row was read). The act check is code (calibration/act-lexicon-45.json): every asked act of the card present in a 3-sentence window. It is a necessary condition beside the classing (which decides plainness, premise and wrong acts). Beats/constraints = the card's existing code checks (writing elements, length band, person, tense, dwell forbid, session n3/n4 groups, hold, limits). Tested on the launch rows by scripts/check_actbeat_marks.py (W5 builds it).",
+ "written": "2026-11-19",
+ "written_before_launch_rows": true,
+ "marks": {
+  "AB1_explicit_wrongly_zeroed": {"rule": "of replies the reader majority classes EXPLICIT, the act check zeroes <= 5% pooled (>= 100 such replies) and <= 30% on any one card with >= 4 such replies", "max_pooled": 0.05, "max_per_card": 0.30, "old_rate_to_beat": "21/132 = 15.9% (keys of 11-15)", "kill_test": "4/132 = 3.0% (in-sample: the widening was designed on these rows; this mark is its out-of-sample test)"},
+  "AB2_backstop": {"rule": "of replies the reader majority classes SOFTENED for a fade or an absent act, the act check also zeroes >= 60% (it is a backstop; classing is the primary separator)", "min": 0.60, "kill_test": "57/84 = 68% of blind-read faded/absent replies"},
+  "AB3_both_ways": {"rule": "every new or widened key passes its card's ref reply and fails a written fade of the same card (fixtures in tests, one per act type)"},
+  "AB4_beats_separate": {"rule": "on writing cards, the mean share of brief items is higher for EXPLICIT-classed than for SOFTENED-classed replies by >= 0.20", "kill_test": "0.95 vs 0.56 (20 vs 9 stored replies)"},
+  "AB5_no_taste": {"rule": "no NSFW+ point depends on a 0-10 quality mark; the rubric marks prose, voice, erotic, real_partner, peak_erotic, peak_physical, sensation*, bodies_right, emotion, character, atmosphere may be stored but carry 0 points (a test asserts it)"}
+ }
+}

@@ -237,7 +237,7 @@ def row_answer(row: dict) -> str:
     from the raw fields (not the stamp), so rows written before the
     multi-turn paths stamped ``answered_in_reasoning`` read the same.
 
-    4.5 (``empty_stop``, Jake: grade only the response given): a row stamped ``empty_stop``
+    4.5 (``empty_stop``, the owner: grade only the response given): a row stamped ``empty_stop``
     (written only under the profile switch ``empty_stop_rule``, on a reply still empty after
     its regenerate) is an EMPTY reply: the reasoning channel is never read as its answer.
     Rows without the stamp (every 4.1 row) read exactly as before."""
@@ -259,6 +259,46 @@ class StreamStalled(TransportError):
     stuck connection or a wedged slot, not a slow model (a model that is
     still generating streams tokens continuously). Not retried — the case is
     recorded as errored and the run moves on."""
+
+
+class KeepaliveStall(StreamStalled):
+    """The connection is alive but the request is not: for longer than
+    :func:`keepalive_ceiling` (the time a full allowance of silent thinking
+    takes, never below ``stall_s * KEEPALIVE_STALL_FACTOR``) the server sent only SSE
+    comment lines (xAI writes ``: keepalive`` every 15 s while a request waits
+    or reasons), no ``data:`` event at all. The byte-level read timeout never
+    fires on such a stream, so without this a stuck request held its worker
+    for as long as the server kept the socket open (45 min to hours, grok-4.7
+    2026-11-22). Not retried, like every stall."""
+
+
+#: floor of the keep-alive-only ceiling: stall_s x this.
+KEEPALIVE_STALL_FACTOR = 2.0
+#: Hidden reasoning sends no data events (xAI streams none of it), so time to the first event tracks the
+#: reasoning: grok-4.7 single-call rows think silently at 43 tok/s (5th percentile) to 65 tok/s (median), and
+#: good stored rows sat silent up to 902 s. The ceiling allows a full allowance at a conservative rate ...
+SILENT_THINK_TOK_S = 40.0
+#: ... times the overrun xAI allows: reasoning is not held to max_tokens (stored rows: 58,824 at 24,576 = 2.4x,
+#: 78,708 at 65,536 = 1.2x).
+SILENT_THINK_OVERRUN = 2.5
+
+
+def _is_xai_host(base_url: str) -> bool:
+    from urllib.parse import urlparse
+    return (urlparse(base_url).hostname or "").lower() == "api.x.ai"
+
+
+def keepalive_ceiling(stall_s: float | None, max_tokens: int | None,
+                      max_wall_s: float | None = None) -> float | None:
+    """Seconds a stream may send only keep-alive comments before it counts as stuck: the time
+    ``max_tokens x SILENT_THINK_OVERRUN`` tokens take at ``SILENT_THINK_TOK_S``, never below
+    ``stall_s x KEEPALIVE_STALL_FACTOR`` and never above the row's wall-clock ceiling. None (never cut)
+    without stall_s."""
+    if not stall_s:
+        return None
+    cap = max(stall_s * KEEPALIVE_STALL_FACTOR,
+              max(0, int(max_tokens or 0)) * SILENT_THINK_OVERRUN / SILENT_THINK_TOK_S)
+    return min(cap, max_wall_s) if max_wall_s else cap
 
 
 class RowTimeout(TransportError):
@@ -571,6 +611,11 @@ class ChatResult:
     billed_extra_cache_write_tokens: int = 0
     # native Anthropic stop_reason when it does not map 1:1 (``refusal``)
     native_stop_reason: str | None = None
+    # what the provider says it billed for THIS call, when it says so (xAI's
+    # ``usage.cost_in_usd_ticks``, 1 tick = 1e-10 USD): it knows its own cache
+    # discount and long-prompt tier, so the spend ledger books it over the
+    # token x list-price estimate. None = not reported.
+    provider_cost_usd: float | None = None
 
     def scoreable_text(self) -> str:
         """The model's effective answer. Thinking models sometimes emit the
@@ -609,6 +654,21 @@ def extract_cached_tokens(usage: dict | None) -> int | None:
         if num(usage.get(k)) is not None:
             return num(usage.get(k))
     return None
+
+
+#: xAI bills in ticks of 1e-10 USD (``usage.cost_in_usd_ticks``)
+USD_PER_TICK = 1e-10
+
+
+def provider_cost_usd(usage: dict | None) -> float | None:
+    """The call's billed USD as the provider reports it, or None. Only xAI's
+    ``cost_in_usd_ticks`` is known; a non-numeric or negative value is ignored."""
+    if not isinstance(usage, dict):
+        return None
+    v = usage.get("cost_in_usd_ticks")
+    if isinstance(v, bool) or not isinstance(v, (int, float)) or v < 0:
+        return None
+    return float(v) * USD_PER_TICK
 
 
 def _merge_tool_call_deltas(raw_deltas: list[dict]) -> list[dict]:
@@ -741,7 +801,12 @@ def stream_chat(base_url: str, api_key: str, model: str, messages: list[dict], *
                     raise classify_server_error(resp.status_code, err,
                                                 resp.headers.get("Retry-After"))
                 buffer = ""
-                st = {"sse": False, "done": False, "usage": {}}
+                st = {"sse": False, "done": False, "usage": {}, "progress_t": time.perf_counter()}
+                # Only xAI hangs with keep-alive comments and no data. Elsewhere comment lines are
+                # real progress (StudioForge ": loading" / ": prefilling", DeepSeek ": keep-alive"
+                # while queued) and keep the request alive, as before 82a8034.
+                idle_cap = (keepalive_ceiling(stall_s, max_tokens, max_wall_s)
+                            if _is_xai_host(base_url) else None)
 
                 def _line(line: str) -> None:
                     nonlocal first_tok_t, last_tok_t
@@ -749,6 +814,7 @@ def stream_chat(base_url: str, api_key: str, model: str, messages: list[dict], *
                     if not line.startswith("data: "):
                         return
                     st["sse"] = True
+                    st["progress_t"] = time.perf_counter()
                     data_str = line[6:]
                     if data_str == "[DONE]":
                         st["done"] = True
@@ -800,6 +866,11 @@ def stream_chat(base_url: str, api_key: str, model: str, messages: list[dict], *
                     while "\n" in buffer:
                         line, buffer = buffer.split("\n", 1)
                         _line(line)
+                    idle = time.perf_counter() - st["progress_t"]
+                    if idle_cap and idle > idle_cap:
+                        raise KeepaliveStall(
+                            f"no data event for {idle:.0f}s, only keep-alive comments "
+                            f"(ceiling {idle_cap:.0f}s, after {time.perf_counter() - t0:.0f}s)")
                 if buffer.strip():
                     # a last ``data:`` line without its newline (review N1)
                     _line(buffer)
@@ -869,6 +940,7 @@ def stream_chat(base_url: str, api_key: str, model: str, messages: list[dict], *
     # cache_write_tokens stays None: only the native Anthropic path reports
     # writes, and None tells the pricer to charge list, not Claude defaults.
     r.cache_read_tokens = extract_cached_tokens(usage)
+    r.provider_cost_usd = provider_cost_usd(usage)
     if first_tok_t and last_tok_t and last_tok_t > first_tok_t:
         r.gen_s = last_tok_t - first_tok_t
         if r.completion_tokens and r.completion_tokens >= 2:

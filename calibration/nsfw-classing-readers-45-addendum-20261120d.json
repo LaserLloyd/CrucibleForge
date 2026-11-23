@@ -1,0 +1,115 @@
+{
+ "about": "Dated readers addendum 2026-11-20 (d, readers hunt lane): names the next candidate classing readers, hosted then local, in the lane's written order. Each is admitted only by its own stored C1 pass (and C7 for flags) for its exact model id under the current prompt. Not named: Artemis-31B (rig arch gemma4 = google, barred), any MiniMax, Grok, Google, Anthropic or DeepSeek model. Families from lineage where it resolves, else declared. Written 2026-11-20 before any launch row was read.",
+ "written": "2026-11-20",
+ "written_before_launch_rows": true,
+ "readers": {
+  "RH-kimi": {
+   "provider": "moonshot",
+   "model_id": "kimi-k2.6",
+   "family": "moonshot",
+   "hosted": true,
+   "price": {
+    "input": 0.65,
+    "output": 3.41
+   },
+   "note": "Moonshot API direct, key KIMI_API_KEY"
+  },
+  "RH-gpt": {
+   "provider": "openrouter-paid",
+   "model_id": "openai/gpt-6.2-sol",
+   "family": "openai",
+   "hosted": true,
+   "price": {
+    "input": 2.0,
+    "output": 10.0
+   },
+   "note": ""
+  },
+  "RH-mistral": {
+   "provider": "openrouter-paid",
+   "model_id": "mistralai/mistral-large-4-0",
+   "family": "mistral",
+   "hosted": true,
+   "price": {
+    "input": 0.7,
+    "output": 2.1
+   },
+   "note": ""
+  },
+  "RH-llama": {
+   "provider": "openrouter-paid",
+   "model_id": "meta-llama/llama-4-maverick",
+   "family": "llama",
+   "hosted": true,
+   "price": {
+    "input": 0.35,
+    "output": 1.0
+   },
+   "note": ""
+  },
+  "RH-glm": {
+   "provider": "openrouter-paid",
+   "model_id": "z-ai/glm-5.3",
+   "family": "glm",
+   "hosted": true,
+   "price": {
+    "input": 0.0699,
+    "output": 1.4
+   },
+   "note": ""
+  },
+  "RH-cohere": {
+   "provider": "openrouter-paid",
+   "model_id": "cohere/command-a-plus",
+   "family": "cohere",
+   "hosted": true,
+   "price": {
+    "input": 0.3,
+    "output": 1.5
+   },
+   "note": "family declared: lineage has no entry"
+  },
+  "RL-qwen122": {
+   "provider": "studioforge",
+   "model_id": "mradermacher/trohrbaugh-Qwen3.5-122B-A10B-heretic-i1-GGUF/trohrbaugh-Qwen3.5-122B-A10B-heretic.i1-Q4_K_S",
+   "family": "qwen",
+   "hosted": false,
+   "note": ""
+  },
+  "RL-qwen27": {
+   "provider": "studioforge",
+   "model_id": "unsloth/Qwen3.8-27B-GGUF/Qwen3.8-27B-Q8_0",
+   "family": "qwen",
+   "hosted": false,
+   "note": ""
+  },
+  "RL-gptoss": {
+   "provider": "studioforge",
+   "model_id": "unsloth/gpt-oss-20b-GGUF/gpt-oss-20b-Q8_0",
+   "family": "openai",
+   "hosted": false,
+   "note": ""
+  },
+  "RL-clover": {
+   "provider": "studioforge",
+   "model_id": "Diffuspace/Clover-35B-A3B-Preview-GGUF/Clover-35B-A3B-Preview-Q8_0",
+   "family": "clover",
+   "hosted": false,
+   "note": "arch clover_moe on the rig; no lineage entry, family declared as its own"
+  },
+  "RL-ds3": {
+   "provider": "studioforge",
+   "model_id": "ReadyArt/Dark-Scarlett-27B-v3.0-GGUF/Dark-Scarlett-27B-v3.0-Q8_0_hb16",
+   "family": "qwen",
+   "hosted": false,
+   "note": "lineage: qwen tune"
+  },
+  "RL-darker": {
+   "provider": "studioforge",
+   "model_id": "ReadyArt/Darker-Scarlett-27B-v0.1-GGUF/Darker-Scarlett-27B-v0.1-Q4_K_M",
+   "family": "qwen",
+   "hosted": false,
+   "note": "arch qwen35, declared qwen (conservative)"
+  }
+ }
+}

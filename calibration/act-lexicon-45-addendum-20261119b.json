@@ -1,0 +1,14 @@
+{
+ "about": "Second dated addendum to act-lexicon-45.json (lead decision, 2026-11-19, written before any launch row was read). Corrects the keys of the two cards found faulty in review; adds one act type. The base lexicon and the first addendum are not edited.",
+ "written": "2026-11-19",
+ "written_before_launch_rows": true,
+ "type_groups": {
+  "ovipositor_anal": ["\\b(?:strap|strap-?on|harness|dildo|cock|toy|ovipositor\\w*|bearer\\w*)", "\\b(?:arse|ass|asshole|arsehole|hole|inside him|into him|in him|inside you|into you|in you|rim|anal\\w*|fuck\\w*|ring|cheeks)"]
+ },
+ "corrections": {
+  "S6-sereth": {"acts": {"ovipositor-anal": "ovipositor_anal", "eggs-pumped-in": "eggs"},
+                "reason": "the card's own word for the organ is 'bearer' (and the scene is in the second person), so its own reference reply failed the strap_anal key"},
+  "TR14-scat": {"acts": {"scat-smear-feed": "scat", "rides-cock": "vag", "she-comes": "come"},
+                "reason": "the card asks for scat (shits on him, smears it, makes him eat it) but no scat act was keyed"}
+ }
+}

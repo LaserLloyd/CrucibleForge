@@ -10,9 +10,12 @@ description: "4.5: Coding /10 + Chat /10 = Overall /20; NSFW /10 separate; gener
 release_seed: "4.5.0"   # bumping it regenerates every seeded instance
 # case tree: the live cases/ (bench = the frozen archive/4.1.0/cases)
 cases_dir: cases
+# The one judge (owner 2026-11-21, amendment r): the plain Qwen 3.8 27B, 8-bit. It is also the board's reference
+# model, so its own rows are graded by itself and carry a note. Gemma 4 31B heretic (the 4.1 judge) stays a named
+# candidate in models.yaml, never the default.
 judge:
   provider: studioforge
-  model_id: llmfan46/gemma-4-31B-it-uncensored-heretic-GGUF/gemma-4-31B-it-uncensored-heretic-Q8_0
+  model_id: unsloth/Qwen3.8-27B-GGUF/Qwen3.8-27B-Q8_0
   context_length: 16384
   thinking: true
   # 4.5: a hard-set judge call may take longer (v3 section 4)
@@ -205,7 +208,7 @@ recommended_samplers:
     match: 'gemma-4|Goetia|Spectre|Broken-Tutu'
     sampler: {temperature: 1.0, top_p: 0.95, top_k: 64, min_p: 0.0}
     source: https://huggingface.co/google/gemma-4-31B-it
-# 2026-11-13 sampler audit (~/Documents/Research/sampler-audit-20261113/RULES.md)
+# 2026-11-13 sampler audit
   - id: muse-glimmer
     match: 'Muse-Glimmer'
     sampler: {temperature: 1.0, top_p: 0.95, top_k: 64, min_p: 0.0}
@@ -299,7 +302,7 @@ empty_stop_rule: true
 # with its reply in the reasoning channel -- one attempt with thinking off: the
 # generic rule that also covers a template trap such as Nanbeige's (at most two extra
 # requests; every attempt in empty_stop_retry.chain); none = no retry.)
-# Jake 2026-11-14: "regenerate, then thinking off if still empty". The 4.5 rule: an
+# the owner 2026-11-14: "regenerate, then thinking off if still empty". The 4.5 rule: an
 # empty visible reply (finish=stop) is regenerated once with a fresh seed; still empty
 # -> sent once more with the model's thinking switch off (seed retry 2) and that reply is
 # graded (row answered_thinking_off); still empty -> empty_stop. A degenerate reply is
@@ -318,13 +321,20 @@ template_traps:
     defect: "the generation prompt always opens <think>; in multi-turn persona chat the model often skips thinking without writing </think> (the reply is filed as reasoning, content empty) or loops inside the block to the cap"
     handled_by: thinking_fallback (off in bench45 since 2026-11-14) / empty_stop_rule
     source: "https://huggingface.co/Nanbeige/Nanbeige4.3-33B (\"`enable_thinking` ... It is enabled by default; set it to `False` for non-thinking mode.\"; \"`preserve_thinking` ... We recommend `False` for general chat\"); maker template unchanged since 2026-10-24; GGUF bartowski/Nanbeige_Nanbeige4.3-33B-GGUF"
-    evidence: "makobench-lab EXP-20261113-18 (card-sampler retest: 9/16 rows answered only in reasoning, 4/16 at the cap) + EXP-20261114-09 (own 10-turn persona sessions: as run 8/10 turns with no visible reply; enable_thinking=false 30/30 ok over 3 seeds; single-turn shapes with thinking on 8/8 ok)"
+    evidence: "lab EXP-20261113-18 (card-sampler retest: 9/16 rows answered only in reasoning, 4/16 at the cap) + EXP-20261114-09 (own 10-turn persona sessions: as run 8/10 turns with no visible reply; enable_thinking=false 30/30 ok over 3 seeds; single-turn shapes with thinking on 8/8 ok)"
 # Code bank (codebank/codeagent and the long tier): every bank row gets ONE
 # budget, 65,536 tokens, clamped so prompt + budget fits the context the model
 # is served at (runner.bank_budget) — the regime the bank was built and
 # piloted under (the maintainer 2026-10-28). Bank rows never escalate. Every other row
 # keeps the board regime above (x4, cap 24576, floor 16384, escalation).
 bank_budget: 65536
+# 2026-11-19 (D10a): short-keyed parts: a reply cut at >= 98% of the budget sent "did not finish" -- graded as delivered, kept
+# in the mean, printed with both figures (omit = plain D10: left out and counted). Written after the first fresh reference run.
+cut_at_full_budget: zero
+# 2026-11-19 (retry fairness, crucibleforge/attempts45.py): the scored attempt of a unit is the FIRST attempt that produced a
+# reply (stop, length, a content filter on a refusal page); a later attempt replaces an earlier one only after an
+# infrastructure failure. Later attempts are ignored and counted (report.json `attempts45`). Row selection at report time.
+attempt_rule: first_reply
 # Load floor (3.9): a model is loaded at least at this context (never below
 # its registry context). rpdeep cases need 40960 (min_context) — at the rig's
 # usual 32768 every rig model would otherwise skip RD1 (Fable final review,
@@ -340,7 +350,7 @@ context_floor: 40960
 # 4.0 time budget (the maintainer 2026-10-31): tooluse and
 # codeagent 1 repeat too (per-step / per-group partial credit already).
 repeats: {perf: 1, rp: 1, rpdeep: 1, nsfw: 1, story: 1, steer: 1, coding: 1, codebank: 1,
-          codeagent: 1, tooluse: 1, instruct: 2, reasoning: 2, math: 1}
+          codeagent: 1, tooluse: 1, instruct: 2, reasoning: 2, math: 1, longctx: 2}
 case_repeats: {CB-C3-predict-sqlite: 1, CQ1-format-spec-from-scratch: 2,
                CQ2-regex-engine-from-scratch: 2, CQ3-spreadsheet-engine: 2}
 max_tokens: {rp: 2000, rpdeep: 2000, nsfw: 2000, story: 3000, steer: 768, coding: 6144,
@@ -351,9 +361,7 @@ max_tokens: {rp: 2000, rpdeep: 2000, nsfw: 2000, story: 3000, steer: 768, coding
 # Two tiers on the same profile and release seed (FABLE-RESET-45-v2 3). MAIN is the field test, calibrated on
 # Sonnet 6-7.5 per section and built to fit 30 minutes at 20 tok/s; FRONTIER is a pack per section worth 10
 # points that unlocks for a model only at 0.9 of the matching Main section (`ladder.unlock` below; Fable
-# is meant to unlock). Composition records (what was frozen, the evidence, the gate notes):
-# docs/T1-MAIN-CODING-COMPOSITION.json, T3-MAIN-CHAT-, T2-FRONTIER-CODING-, T4-FRONTIER-CHAT-,
-# T45-STORED-SETS-COMPOSITION.json; build/T7-WIRING.md. Seeds per model: 6 on the two Frontier search
+# is meant to unlock). Seeds per model: 6 on the two Frontier search
 # items (FC1 PATTERN n1-n6, FC2 combsyn p1-p6), 3 on every other generated item (delegated decision, PROGRESS-45
 # 2026-11-13 14:53 / 15:09; undo = change the count / key list).
 #   Main Coding  /10 = MC1 Functions and tools 3 (TZ16 + CB-C6) + MC3 Fix 3 + MC4 Solve 4 (TRACEVM L8 x8 is the bonus pack work/trace since rc1)
@@ -376,7 +384,7 @@ core_level:
   patchfix: 7                  # MC3: lazy 0, reference 100 (whole-file and search/replace both accepted)
   session_state/multi_hard: 9  # MH3: hard checks only, 0 judge calls
 core_generated:
-  # R23 (Jake 2026-11-13: "let the models work as designed (full thinking)"): single-shot Main instances
+  # R23 (the owner 2026-11-13: "let the models work as designed (full thinking)"): single-shot Main instances
   # get the context maximum (65,536 + pad = the 73,728 thinker window) instead of the 24,576 board cap.
   # Shakeout EXP-20261113-47: PATCHFIX-core-7-1 hit finish=length at 24,576 with no answer on the reference.
   - {family: patchfix, count: 2, part: work/mc3_fix, budget: 65536}
@@ -1137,6 +1145,8 @@ compositions:
   # Uncalibrated today (scale lists them as uncalibrated_cells and leaves them out of the ability until calib-1 is
   # refit): istack L2 / L4 (all packings), istack L7:x2 is calibrated; tracevm L8 is; blackbox and sceneshift are not.
   main-routed:
+    # routed (scale.units): the plain cut rule only; zero + routing is refused at load (not part of 4.5)
+    cut_at_full_budget: omit
     cases:
       perf: [P1-tiny, P2-short, P3-gen, P4-longctx]
       tooluse: [TZ16-pickup-dst-delay]
@@ -1239,20 +1249,22 @@ compositions:
                      item: ISTACK-WRITE}
   # ---- rc1-main (Admin G2, g2-3, lead 2026-11-14 ~13:00): THE rc1 Main composition, one routed command per model.
   # DRAFT: decisions are in the g2-3 patch note; lines marked PENDING change when their rows land.
-  # Packs (Jake 2026-11-14, the published 4.x rule): a part's pack = harder levels of that part's own families, a 4.x
+  # Packs (the owner 2026-11-14, the published 4.x rule): a part's pack = harder levels of that part's own families, a 4.x
   # ladder set file per part (cases/ladder/<section>/<part>/set-N.json, generator blocks + seed_case = today's measured
   # instances byte for byte), 1 point each, added on top of the part, its section and Total; it opens when the part's
-  # standard share reaches `ladder.unlock` (bench45 top level; 0.9 = the published 90%, Jake 2026-11-14) and the model's
+  # standard share reaches `ladder.unlock` (bench45 top level; 0.9 = the published 90%, the owner 2026-11-14) and the model's
   # route reached the part's `unlock_from` module or a higher one (lead's rule: unlock_from = the lowest module holding
   # the part's hardest standard cells; modules are alternatives, so 'reached' is ordinal: low < mid < top). No pack sets in the routing; no max-0 pack parts. Part keys are
   # rc1-main's own (c1_..., h1_...) so main-routed's parts never see these packs. A part with no usable pack content
   # has no pack in rc1 ("we will add packs in the future as needed").
   rc1-main:
+    # routed (scale.units): the plain cut rule only; zero + routing is refused at load (not part of 4.5)
+    cut_at_full_budget: omit
     cases:
       perf: [P1-tiny, P2-short, P3-gen, P4-longctx]
       tooluse: [TZ16-pickup-dst-delay]
     core_generated: []
-    # Jake 2026-11-14 (review of the build against his words and the site, all ten points: "I agree with your
+    # the owner 2026-11-14 (review of the build against his words and the site, all ten points: "I agree with your
     # recommendation. continue on until corrected"): rc1 is an INTERNAL candidate; gameable cells carry no points
     # until fixed (C3 patchfix L5 -> 0, measured only; Coding renormalised to 10: C1 5.9, C2 2.9, C5 1.2); the
     # planted_opt pack (C2 set-2) is closed. Labels and points only: no instance changed (tests pin every id and
@@ -1260,7 +1272,7 @@ compositions:
     board_notes:
       status: "internal candidate: the reference sits near the top of Main; Chat is missing its judged, real-person, scene-change and planning parts; packs are staged pending the owner's review"
       work_main: "Repairs code (C3) is measured but carries no points in this candidate (patchfix L5 can be passed without a real repair); Coding = Builds what was meant 5.9 + Reads and traces code 2.9 + Uses tools 1.2."
-      main_regime: "Main runs every model as its card prescribes, thinking on (Jake 2026-11-13). Run length is derived from the margin-of-error bar (2.5 points design, 5 pass); each row shows its measured minutes."
+      main_regime: "Main runs every model as its card prescribes, thinking on (the owner 2026-11-13). Run length is derived from the margin-of-error bar (2.5 points design, 5 pass); each row shows its measured minutes."
     routing:
       calibration: calibration/calibration-g2-3b.json
       section: all
@@ -1274,13 +1286,13 @@ compositions:
                              rt_ledger_top, rt_know_top, rt_scene_top, rt_mini1_top, rt_mini2_top], unlock: true}
       cuts: [-1.0, 0.6]
       straddle: half
-    # SIZE B (lead 2026-11-14, Jake's "most efficient" rule): mid and top thin the cells where the reference and the
+    # SIZE B (lead 2026-11-14, the owner's "most efficient" rule): mid and top thin the cells where the reference and the
     # strong models sit at the ceiling -- session_state L10 mid 10->4 / top 8->4, istack mid L4 5->2 + L7 5->4 (6 -> 3
     # prompts), top L7 5->4, ATTEND L9 off the mid route (reference .98), ATTEND L10 off the top route (reference L9 .98 /
     # L11 .92 / L12 .96: L10 adds nothing). Thinning = lower counts on the same seeds: every remaining case is a g2-3
     # case with the same instance (tests/fixtures/rc1_main_g2_3_instances.json). KNOWGAP stays at 4 (H6's pack gate
     # floor; 13k tokens). The low route is NOT thinned: its cells are where weaker models differ. Code is not thinned.
-    # SIZE A (~30 min, NOT adopted: Jake's call) would further set, on mid: IMPLIED L1 4->2 prompts, L3 3->2, PYTRAP
+    # SIZE A (~30 min, NOT adopted: the owner's call) would further set, on mid: IMPLIED L1 4->2 prompts, L3 3->2, PYTRAP
     # mid 4->3, patchfix L5 2->1, state 4->2, istack 3->1 prompt, ledger L2 4->3.
     chains:
       work/c1_implied:
@@ -1368,7 +1380,7 @@ compositions:
              element_weight: check, average: unit, ceiling: 32768, ran_out: exclude, concept: H6}
           - {name: rt_know_top, seed_as: rt_know_mid, family: knowgap, levels: {5: {count: 4, band: mid}}, element: check,
              element_weight: check, average: unit, ceiling: 32768, ran_out: exclude, concept: H6}
-      # H3 SCENESHIFT (Jake's scene / room change + bleed-over family): MEASURED, NOT SCORED in rc1 (lead ruling
+      # H3 SCENESHIFT (the owner's scene / room change + bleed-over family): MEASURED, NOT SCORED in rc1 (lead ruling
       # 2026-11-14 ~14:30), so every rc1 run produces paired rows. Why 0 points: three sessions per cell on the screen
       # (ref L1 .89 vs 8B .50, READY by the rule on n=3); 6 of the reference's 9 misses were empty visible replies whose
       # regenerate resent the same seed and came back byte-identical (Admin X, fix in the 16:30 tree); levels do not
@@ -1404,12 +1416,12 @@ compositions:
     scores:
       # The 4.x/T7 max-0 pack parts the profile carries (Frontier per section + the old trace/code/agentic/reasoning and
       # conversation/deep_rp/character/writing packs, unlock_part = section) are dropped here: rc1's packs are the
-      # per-part ladder sets below (Jake 2026-11-14), never the section Frontier.
+      # per-part ladder sets below (the owner 2026-11-14), never the section Frontier.
       work:
         drop_parts: [mc1_functions, mc3_fix, mc4_solve, frontier, trace, code, agentic, reasoning]
         parts:
           # pack: cases/ladder/work/c1_implied/set-1 (IMPLIED L5 x8)
-          # Coding renormalised to 10 without C3 (Jake 2026-11-14): 5 / 2.5 / 1 over 8.5, rounded to 0.1.
+          # Coding renormalised to 10 without C3 (the owner 2026-11-14): 5 / 2.5 / 1 over 8.5, rounded to 0.1.
           c1_implied: {label: Builds what was meant (C1), short: Implied, max: 5.9, scoring: [coding], cases: [],
                        item: IMPLIED, unlock_from: mid}   # hardest standard = L3 (rt_implied3, mid)
           # pack: none at rc1 (the PROBE L3 x12 draft, c5_tools/set-1, failed verify and was deleted 2026-11-15;
@@ -1418,10 +1430,10 @@ compositions:
           c5_tools: {label: Uses tools (C5), short: Tools, max: 1.2, scoring: [tooluse],
                      cases: [TZ16-pickup-dst-delay], item: MC1-FUNCTIONS, unlock_from: low}   # TZ16 runs on every route
           # packs: cases/ladder/work/c2_trace/set-1 (BLACK BOX L3 x12); set-2 (planted_opt L4) CLOSED (draft: gameable,
-          # Jake 2026-11-14)
+          # the owner 2026-11-14)
           c2_trace: {label: Reads and traces code (C2), short: Trace, max: 2.9, scoring: [coding], cases: [],
                      item: PYTRAP, unlock_from: low}   # hardest standard = PYTRAP L1 (rt_pytrap_lo, low)
-          # Gameable until fixed (Jake 2026-11-14): measured, 0 points; patchfix:L5 is uncalibrated in calibration-g2-3b
+          # Gameable until fixed (the owner 2026-11-14): measured, 0 points; patchfix:L5 is uncalibrated in calibration-g2-3b
           # (like patchmini / sceneshift), so its units enter neither Main nor +packs. No pack.
           c3_fix: {label: Repairs code (C3, measured), short: Fix, max: 0, scoring: [coding], cases: [], item: PATCHFIX}
           # C3 patchmini: measured, 0 points in rc1 (see work/c3_mini above); no pack, no weight.
@@ -1446,8 +1458,8 @@ compositions:
   # rc2-main (Admin G2, lead 2026-11-14 evening; READINESS.md "Path to 4.5"): ONE FIXED SET for every model, no
   # routing (the rc1 locator straddled on every run and cost half the run: G2 locator note). Packs open per part at
   # ladder.unlock (0.9) of the part's own weighted share, then set by set, as on the published site. Fresh set names
-  # (rc2_*) = fresh seeds: tonight's runs are an honest test of G2's predictions (/var/tmp/mb45-build/g2-work/
-  # rc2-predictions.txt). Ceilings (Jake R23, limit turns not tokens): every single-prompt cell at what the 73,728
+  # (rc2_*) = fresh seeds: tonight's runs are an honest test of G2's predictions.
+  # Ceilings (the owner R23, limit turns not tokens): every single-prompt cell at what the 73,728
   # window allows after its largest measured prompt (rounded down to 1,024); `ran_out: exclude` + the 25% unit rule
   # (scale: a cell where >25% of a model's units ran out reads "not measured"). Largest measured prompts: IMPLIED
   # L1:x3 1,686; TRACEVM L4 1,887 / L6 2,641 / L8 3,213; KNOWGAP L3 1,521. IMPLIED L1:x3 is a packed prompt: the
@@ -1467,7 +1479,7 @@ compositions:
     core_generated: []
     board_notes:
       status: "internal candidate rc2: fixed set, no routing; Chat's judged parts (7 of 10 points) pending"
-      main_regime: "Main runs every model as its card prescribes, thinking on (Jake 2026-11-13). One fixed set for every model; each row shows its measured minutes."
+      main_regime: "Main runs every model as its card prescribes, thinking on (the owner 2026-11-13). One fixed set for every model; each row shows its measured minutes."
     chains:
       work/c1_implied:
         flat:
@@ -1516,7 +1528,7 @@ compositions:
           # pack: cases/ladder/chat/h6_know/set-1 (KNOWGAP L6 + L7; staged: not run until the owner approves)
           h6_know: {label: Says what it does not know (checked), short: Know, max: 0.5, scoring: [reasoning], cases: [],
                     item: KNOWGAP}
-          # Judged (7 of 10, Jake): declared with their points, no item yet -> "pending"; the section is scaled from
+          # Judged (7 of 10, the owner): declared with their points, no item yet -> "pending"; the section is scaled from
           # the measured points and says so, until the judge verdict.
           j_roleplay: {label: Role-play (judged), short: RP, max: 5, scoring: [rpdeep], cases: []}
           j_person: {label: Sounds like a real person (judged), short: Person, max: 2, scoring: [rpdeep], cases: []}
@@ -1547,8 +1559,8 @@ compositions:
     core_generated: []
     board_notes:
       status: "internal candidate rc3: fixed set, no routing; Predict on three stored programs; Chat's judged parts (role-play 5, real person 2)"
-      main_regime: "Main runs every model as its card prescribes, thinking on (Jake 2026-11-13). One fixed set for every model; each row shows its measured minutes."
-      judged: "Judged parts: the judge's craft rubric with judge thinking off, two writer seeds per card; a role-play piece scores its weakest live mark / 10 (character, agency and consistency are left out: every capable model maxes them), a real-person piece its one mark / 10, a card the mean of its two pieces. Sounds like a real person is PROVISIONAL: whether short texts from small models truly read more human is going to Jake as a blind check, and the part stands only when he answers."
+      main_regime: "Main runs every model as its card prescribes, thinking on (the owner 2026-11-13). One fixed set for every model; each row shows its measured minutes."
+      judged: "Judged parts: the judge's craft rubric with judge thinking off, two writer seeds per card; a role-play piece scores its weakest live mark / 10 (character, agency and consistency are left out: every capable model maxes them), a real-person piece its one mark / 10, a card the mean of its two pieces. Sounds like a real person is PROVISIONAL: whether short texts from small models truly read more human is going to the owner as a blind check, and the part stands only when he answers."
     chains:
       work/c1_implied: &rc3_c1_implied
         flat:
@@ -1590,7 +1602,7 @@ compositions:
              gen_seed: 1, ceiling_per_turn: 16384, ran_out: exclude, concept: J1, band: low}
           - {name: rc3_rp_s2, family: jcard, variant: roleplay, level: 1, count: 9, deal: true, element: check,
              gen_seed: 2, seed_as: rc3_rp_s1, ceiling_per_turn: 16384, ran_out: exclude, concept: J1, band: low}
-      # Sounds like a real person (2, PROVISIONAL until Jake's blind check): JUDGE's six texting cards word for word
+      # Sounds like a real person (2, PROVISIONAL until the owner's blind check): JUDGE's six texting cards word for word
       # + six in the same style; the real_person rubric (JUDGE's text word for word). 12 cards x 2 seeds.
       chat/j_person: &rc3_j_person
         judged: true
@@ -1606,7 +1618,7 @@ compositions:
     scores:
       work: &rc3work
         drop_parts: [mc1_functions, mc3_fix, mc4_solve, frontier, trace, code, agentic, reasoning]
-        parts:
+        parts: &rc3workparts
           # pack: cases/ladder/work/c1_implied/set-1 (IMPLIED L5 x8)
           c1_implied: {label: Builds what was meant (C1), short: Implied, max: 5, scoring: [coding], cases: [],
                        item: IMPLIED}
@@ -1648,7 +1660,7 @@ compositions:
           # pack: cases/ladder/chat/h6_know/set-1 (KNOWGAP L6 + L7; staged: not run until the owner approves)
           h6_know: {label: Says what it does not know (checked), short: Know, max: 0.5, scoring: [reasoning], cases: [],
                     item: KNOWGAP}
-          # Judged (7 of 10, Jake): the judge's rubric, thinking off, two writer seeds per card (chains judge_mode).
+          # Judged (7 of 10, the owner): the judge's rubric, thinking off, two writer seeds per card (chains judge_mode).
           # "pending validation" stays in the label until the part passes its gate (lead 2026-11-14 night):
           # real person = the owner's choice ranked first on >= 4 of 5 anchor sets (val37 realperson_anchor.py)
           j_roleplay: {label: "Role-play (judged, pending validation)", short: RP, max: 5, scoring: [rpdeep], cases: [],
@@ -1663,7 +1675,7 @@ compositions:
     main_nsfw:
       composition: rc2
       rc2:
-        # Two numbers on the adult page, each out of 10 (Jake R52, 2026-11-14; report.score_subtotals):
+        # Two numbers on the adult page, each out of 10 (the owner R52, 2026-11-14; report.score_subtotals):
         #   NSFW = erotica writing 4 (theme_w) + sexting 2.5 (PENDING: adult texting cards, real-person rubric plus
         #          erotic; not built) + range 2 (theme_rp sessions: complex situations, different kinds of
         #          characters) + anatomy 1.5 (PENDING);
@@ -1725,6 +1737,112 @@ compositions:
   # SHIPPING (the cut, lead 2026-11-15): rc4-main under its release name; `rc4-main` is an alias (composition_aliases)
   standard: &rc4main
     <<: *rc3main
+    # W3b (realignment 2026-11-19): the Fixes units run in every standard run. Host-compared grading (fixcheck) stamps
+    # the verdict on each row; the units count through segments45 only (work/c3_fix has no points of its own).
+    # STEP 2 (CRITICAL-PATH-45, 2026-11-21): generated Fixes only at the levels with no token-allowance cliff
+    # (patchmini L1-3, patchfix L1-4, patchmod L3); patchfix L5 and above left the standard score for the Fixes pack
+    # (cases/ladder/work/c3_fix/set-3, part c3_fix). Counts = the sizing re-run on the Fixes probe rows (cheapest set that puts
+    # Code inside 2.5% for the reference; BUILD-45.md "Composition (step 2)"). Every row is graded host-compared
+    # (fixcheck via fixrows45; patchmini joined FIX_FAMILIES the same day).
+    core_level: {patchmini: 1, patchfix: 1, patchmod: 3}
+    core_generated:
+      - {family: patchmini, level: 1, count: 2, category: coding, budget: 65536}
+      - {family: patchmini, level: 2, count: 2, category: coding, budget: 65536}
+      - {family: patchmini, level: 3, count: 2, category: coding, budget: 65536}
+      - {family: patchfix, level: 1, count: 1, category: coding, budget: 65536}
+      - {family: patchfix, level: 2, count: 1, category: coding, budget: 65536}
+      - {family: patchfix, level: 3, count: 1, category: coding, budget: 65536}
+      - {family: patchfix, level: 4, count: 1, category: coding, budget: 65536}
+      - {family: patchmod, level: 3, count: 12, category: coding, budget: 65536}
+    # step 2 repeats (option A of the sizing re-run): predict C5/C6 to 1, tool cases TZ16 10 / TZ19 4 / TZ20 4, the
+    # bug-hunt 24, long scenes RD1 2 / WR1 2 / WR2 6, the 15 Assistant basics items 1 (was 2)
+    case_repeats: {CB-C5-predict-pyhouse: 1, CB-C6-predict-node: 1, CB-C3-predict-sqlite: 1,
+                   TZ16-pickup-dst-delay: 10, TZ19-hotel-cot-deadline: 4, TZ20-swim-saturday-age-day: 4,
+                   CB-F1-larder-bughunt: 24,
+                   RD1-marisol: 2, WR1-ninth-string: 2, WR2-red-thread-key: 6,
+                   IZ02-json-single-line-typed: 1, IZ04-lowercase-except-http: 1, IZ05-five-dash-lines-exact-26: 1,
+                   IZ06-allcaps-recall-notice: 1, IZ07-json-city-record: 1, IZ08-two-questions-only: 1,
+                   RX02-knights-knaves: 1, RX08-water-jugs: 1, RX13-recurrence-term: 1,
+                   RX20-five-houses-four-attributes: 1, RX21-flawed-cost-chain: 1,
+                   LX2-multihop-16k: 1, LX3-aggregate-12k: 1, LX4-count-6k: 1, LX6-absent-12k: 1}
+    # REALIGNMENT 2026-11-19 (spec section 4.2): the score tree, report-time only (crucibleforge/segments45.py).
+    # Parts keep their chains, cells and seeds; only the grouping and the point weights are new. Overall = Code + Chat.
+    segments45:
+      code:
+        label: Code
+        writes: {label: Writes working code, max: 4, parts: {c1_implied: 1.0}}
+        # step 2: units equal INSIDE a family slice; the slices keep today's points (bug-hunt 1.2, patchfix +
+        # patchmini 1.2 (patchmini shares patchfix's slice), patchmod 0.6)
+        fixes:  {label: Fixes and changes existing code, max: 3, units_equal: true,
+                 cases: [CB-F1-larder-bughunt, PATCHMINI-core-1-1, PATCHMINI-core-1-2, PATCHMINI-core-2-1,
+                         PATCHMINI-core-2-2, PATCHMINI-core-3-1, PATCHMINI-core-3-2, PATCHFIX-core-1-1,
+                         PATCHFIX-core-2-1, PATCHFIX-core-3-1, PATCHFIX-core-4-1, PATCHMOD-core-3-1, PATCHMOD-core-3-2,
+                         PATCHMOD-core-3-3, PATCHMOD-core-3-4, PATCHMOD-core-3-5, PATCHMOD-core-3-6, PATCHMOD-core-3-7,
+                         PATCHMOD-core-3-8, PATCHMOD-core-3-9, PATCHMOD-core-3-10, PATCHMOD-core-3-11,
+                         PATCHMOD-core-3-12],
+                 case_repeats: {CB-F1-larder-bughunt: 24}, driver: repo_tests_host,
+                 slices: {bughunt: {points: 1.2, match: [CB-F1-]}, patch: {points: 1.2, match: [PATCHFIX-, PATCHMINI-]},
+                          patchmod: {points: 0.6, match: [PATCHMOD-]}}}
+        # step 2: the three stored tool cases (repeats above) 1 point + the seeded tool tasks (chain work/c5_toolgen:
+        # toolworld L1-3, toolgap L1-2) 1 point
+        tools:  {label: Uses tools, max: 2, weights_are: points, parts: {c5_tools: 1.0, c5_toolgen: 1.0}}
+        reads:  {label: Reads code, max: 1, parts: {c2_predict: 0.6, c2_trace: 0.4}}
+      chat:
+        label: Chat
+        character: {label: Stays in character, max: 4, parts: {j_rpsession: 0.75, rplong: {RV1-three-at-the-table: 0.125, RV2-skarren-hut: 0.125}}}
+        remembers: {label: Remembers the conversation, max: 3.5, weights_are: points,
+                    parts: {rplong: {CC3-tea-hut: 0.5, CC4-second-pitch: 0.5, RD1-marisol: 0.5, RD4-kettle-saddle: 0.5}, h2_state: 1.0, h2_ledger: 0.5}}
+        cowrites:  {label: Co-writes to a brief, max: 1.5, weights_are: points,                  # WR1, WR2 0.75 points each (lead 2026-11-19)
+                    parts: {rplong: {WR1-ninth-string: 0.75, WR2-red-thread-key: 0.75}}}
+        everyday:  {label: Everyday instructions, max: 1, weights_are: points, parts: {assistant: 0.5, h6_know: 0.5}}
+      overall: [code, chat]
+    # 11b (lead ruling 2026-11-21): the long scenes and Chat packs are scored by the one local judge alone; stored
+    # second-reader votes (hosted ones included) are not read. Was mean_of_two_readers; Chat points moved once.
+    rplong_score: {definition: judge_only, marks: calibration/judge-marks-45.1-draft.json,
+                   marks_sha256: 86c28ffb6379f9392d195fb6c2e07a22d8d89af2838b408f4843299868ff6aa8}
+    nsfw_plus:                          # user-facing key; main_nsfw / adult_page keys are still read
+      default: on                       # runs in every standard run; --no-nsfw-plus opts out
+      # readers: the roles only. Each role's model is named by an indexed dated addendum
+      # (calibration/nsfw-classing-readers-45-addendum-*.json) and admitted only by a stored C1 pass for that exact
+      # model id + prompt sha (classing45.pick_readers). No default reader; Grok is not a reader (lead 2026-11-19 e).
+      # prompt: the W0 prompt + reply delimiter (dated prompt addendum 2026-11-19).
+      # RH-kimi, RH-gpt: hosted readers named by addendum 20261120d (readers lane), after deepseek in pick order.
+      # local: the local rig readers of addendum 20261120d in its written order. Lead ruling R1 (2026-11-21) replaced the
+      # DeepSeek-only local_third scoping by ONE pick rule for every graded family: hosted, then the admitted locals,
+      # minus readers mark C6 removed for the run, minus the graded family, minus never_family; pair = the first two of
+      # distinct families, third = the next of a family distinct from both. Each local is inert until C1-admitted.
+      # 2026-11-21 (owner, INTENT-45): ONE local judge classes the adult page, the run's judge (judge45.py, store
+      # judge45/). The readers block below is history only: it selects and gates nothing in the scoring path, and
+      # every hosted role has left it (no hosted grader or checker; classing45.pick_readers raises on a hosted pick).
+      classing: {prompt: calibration/nsfw-classing-prompt-45-addendum-20261119.txt,
+                 marks: calibration/nsfw-classing-marks-45.json,
+                 acts: calibration/act-lexicon-45.json, actmarks: calibration/act-beat-marks-45.json,
+                 readers: {set: [R-Q, R-M, R-O], third: on_disagreement, thinking: true,
+                           hosted_fallback: [], never_family: [claude, gemma],
+                           local: [RL-qwen122, RL-qwen27, RL-gptoss, RL-clover, RL-ds3, RL-darker]}}
+      numbers:
+        nsfw:
+          label: NSFW
+          of: 10
+          erotica:  {max: 4,   units: {written: {chain: nsfw/n6a_craft, points: 2.5}, dwell: {chain: nsfw/n5_sense, flat: [a45_dwell_s1, a45_dwell_s2], points: 1.5}},
+                     unit: x_times_half_plus_half_brief}
+          roleplay: {max: 2.5, chain: nsfw/n1_scene, peak: 1.0, pace: 0.75,
+                     track: {sessions_n4: 0.25, probes_and_stored: 0.5}}
+          range:    {max: 2,   chain: nsfw/n7_taboo, unit: x}
+          anatomy:  {max: 1.5, chain: nsfw/n8_bodies, unit: keyed}
+        uncensored:
+          label: Uncensored
+          of: 10
+          willingness: {max: 6, u1: {chain: nsfw/u1_will, flat: [a45_uask], points: 3.0, unit: x},
+                        dark: {chain: nsfw/u1_will, flat: [a45_dark_s1, a45_dark_s2], points: 1.0, unit: x_times_half_plus_half_u1},
+                        u2: {chain: nsfw/u2_straight, points: 1.25}, u4: {chain: nsfw/u4_ground, points: 0.75}}
+          knowledge:   {max: 4, u3: {chain: nsfw/u3_know, points: 4.0}}
+      zero_points: [prose, voice, erotic, real_partner, peak_erotic, peak_physical, sensation_t2, sensation_t3,
+                    sensation_t4, sensation, bodies_right, emotion, character, stock_phrase, ngram_repeat]
+      counts: [refused, softened, off_topic, filtered, empty, cut, third_reader]
+      provider_filter: zero_and_count
+    segment_marks: calibration/segment-marks-45.json
+    marks_index: calibration/MARKS-INDEX-45.md
     # Role-play (7 of Chat: lead 2026-11-15 02:12 from the pilot table d2-work/logs/table45-nogrok.txt, 5 = 3 + 2; the
     # owner removed "Sounds like a real person" from the test (lead 2026-11-15) and its 2 went to role-play at the same
     # 3:2 balance, 4 + 3): BOTH sets, not one -- the six RPSESSION cards x 2 writer seeds (4: little noise, compressed at the top; in-scene quality and
@@ -1734,11 +1852,49 @@ compositions:
     # composition; their files and pins stay. No card, check or prompt changes.
     cases:
       <<: *rc3cases
+      codeagent: [CB-F1-larder-bughunt]
       rpdeep: [RD1-marisol, RD4-kettle-saddle, CC3-tea-hut, CC4-second-pitch, RV1-three-at-the-table,
                RV2-skarren-hut, WR1-ninth-string, WR2-red-thread-key]
+      # Assistant basics (checked): the 15 stored machine-checked items of `assistant:` below. They run here and
+      # nowhere else; the budgets are the board's one budget (the profile's max_tokens x factor within floor and cap)
+      instruct: &asst_instruct [IZ02-json-single-line-typed, IZ04-lowercase-except-http, IZ05-five-dash-lines-exact-26,
+                                IZ06-allcaps-recall-notice, IZ07-json-city-record, IZ08-two-questions-only]
+      reasoning: &asst_reasoning [RX02-knights-knaves, RX08-water-jugs, RX13-recurrence-term,
+                                  RX20-five-houses-four-attributes, RX21-flawed-cost-chain]
+      longctx: &asst_longctx [LX2-multihop-16k, LX3-aggregate-12k, LX4-count-6k, LX6-absent-12k]
+    # ASSISTANT BASICS (CHECKED) -- the lead's option (c), 2026-11-18: a column
+    # shown OUTSIDE Overall. Deliberately not a `scores:` entry: a score is read by the totals, the ranks, the pack
+    # gates and (when it is out of the total) the adult page; this block is read by crucibleforge/assistant45.py only.
+    # It cannot tell good models apart (sound models 0.93-1.00); it tells a working assistant from a damaged one.
+    # `bands`: share >= pass is "pass", >= partial is "partial", below is "weak" (evidence: sound 0.93-1.00, damaged
+    # tunes 0.45-0.70, small or old 0.00-0.35 -> edges 0.85 and 0.40 sit inside the two gaps). `validated` stays
+    # pending-machine (the cell prints "pending") until scripts/check_assistant_marks.py passes on the rig runs.
+    assistant:
+      label: "Assistant basics (checked)"
+      short: Basics
+      cases: [IZ02-json-single-line-typed, IZ04-lowercase-except-http, IZ05-five-dash-lines-exact-26,
+              IZ06-allcaps-recall-notice, IZ07-json-city-record, IZ08-two-questions-only,
+              RX02-knights-knaves, RX08-water-jugs, RX13-recurrence-term,
+              RX20-five-houses-four-attributes, RX21-flawed-cost-chain,
+              LX2-multihop-16k, LX3-aggregate-12k, LX4-count-6k, LX6-absent-12k]
+      repeats: 1                       # step 2 (option A): was 2; the case_repeats above say the same
+      bands: {pass: 0.85, partial: 0.40}
+      z: 1.645
+      marks: calibration/assistant_marks_20261119.json
+      validated: pending-machine
     chains:
       work/c1_implied: *rc3_c1_implied
       work/c2_trace: *rc3_c2_trace
+      # step 2: the seeded tool tasks already screened (screen-toolworld: the same unnamed sets, so the same instances;
+      # toolgap = the Tools pack's family at its two lowest levels). Part c5_toolgen (max 0) holds them; segments45
+      # gives them 1 of Tools' 2 points
+      work/c5_toolgen:
+        average: unit
+        flat:
+          - {family: toolworld, levels: {1: {count: 6, band: low}, 2: {count: 6, band: low}, 3: {count: 6, band: low}},
+             element: check, ceiling_per_turn: 16384, history_budget: 49000, ran_out: exclude, concept: C5}
+          - {family: toolgap, levels: {1: {count: 6, band: low}, 2: {count: 6, band: low}},
+             element: check, ceiling_per_turn: 16384, history_budget: 49000, ran_out: exclude, concept: C5}
       chat/h2_state: *rc3_h2_state
       chat/h2_ledger: *rc3_h2_ledger
       chat/h6_know: *rc3_h6_know
@@ -1770,19 +1926,35 @@ compositions:
     # the 4.5 release switch (lead 2026-11-15): an unstamped judge verdict does not count here; every judged row
     # gets one clean judge pass under the frozen rubric (judge_digest.stale_reason "unstamped")
     judge_stamp_required: true
+    # lane-j (2026-11-19, REVIEW finding 4): a judged part (tag: judged) counts only when its second-reader marks
+    # pass (calibration/judge-marks-45.json, scripts/check_judge_marks.py -> <results>/judge_marks.json); no
+    # result = "pending: judge agreement not measured". A passing long-scene result also settles its D1 checks.
+    # INTENT-45 (owner 2026-11-21): one judge, no second reader; marks print as notes and gate nothing. Was required.
+    judge_agreement: off
     # Role-play: sessions is judged on the ladder (lead 2026-11-15, pass 1: IT COUNTS for 4.5.0); SCORING-RULES-45
     # "Sessions on the ladder" says what was proven and what was not
     judge_mode_select: {chat/j_rpsession: ladder}
     board_notes:
-      status: "internal candidate: the 4.5 release candidate; one fixed set for every model, the adult page shown apart (NSFW 10 + Uncensored 10)"
-      main_regime: "Main runs every model as its card prescribes, thinking on (Jake 2026-11-13). One fixed set for every model; each row shows its measured minutes."
+      status: "internal candidate: the 4.5 release candidate; one fixed set for every model, NSFW+ /20 = NSFW /10 + Uncensored /10, shown beside Overall and never part of it"
+      main_regime: "Main runs every model as its card prescribes, thinking on (the owner 2026-11-13). One fixed set for every model; each row shows its measured minutes."
       judged: "Judged parts: the judge's marks with judge thinking off, two writer seeds per card. Adult page: a refusal or a softened substitute is 0 on that card in every part; explicitness is a gate (7 or more, a 6 judged twice), never a mark in a mean. Parts marked pending validation run and are shown but add nothing until their checks pass; a number is its measured points out of the measured maximum, never scaled up."
     # Chat's judged parts get the adult page's treatment (lead 2026-11-14): they run and print "pending validation"
     # and are out of Chat's number (not counted, never scaled over) until their marks pass: role-play = the known-order test on
     # sessions. Real person (rc3's chat/j_person) is NOT part of this test (owner, 2026-11-15): no chain, no part; its
     # card files, pins and stored rows stay in the repo.
     scores:
-      work: *rc3work
+      work:
+        drop_parts: [mc1_functions, mc3_fix, mc4_solve, frontier, trace, code, agentic, reasoning]
+        parts:
+          <<: *rc3workparts
+          # step 2: the seeded tool tasks (chain work/c5_toolgen); their points are segments45's (Tools), none here
+          c5_toolgen: {label: Uses tools (seeded tasks), short: ToolGen, max: 0, scoring: [tooluse], cases: [],
+                       item: TOOLWORLD}
+          # step 2: the Fixes pack (patchfix L5-7, cases/ladder/work/c3_fix/set-3; its questions render only when read,
+          # lazycase.py). Max 0, no standard rows: the gate is the Fixes SEGMENT's standard share, on the top of
+          # its own range (enginepacks45); points in Code's pack column
+          c3_fix: {label: "Pack: fixes harder code", short: PkFix, max: 0, scoring: [coding], cases: [],
+                   pack_segment: fixes}
       chat:
         drop_parts: [mh1_conversation, mh2_character, mh3_state, frontier, conversation, deep_rp, character, writing,
                      j_roleplay, j_person]
@@ -1805,6 +1977,13 @@ compositions:
                      cases: [RD1-marisol, RD4-kettle-saddle, CC3-tea-hut, CC4-second-pitch, RV1-three-at-the-table,
                              RV2-skarren-hut, WR1-ninth-string, WR2-red-thread-key],
                      ran_out: exclude, validated: pending-machine}
+          # Chat packs (realign45-packs-chat, wired at integration 2026-11-20): max-0 parts that only carry the pack
+          # sets cases/ladder/chat/pk_<segment>/set-1 (judged, mean of two readers) and set-2 (generated, code checks).
+          # They have no standard share of their own: the gate is the SEGMENT's standard share (crucibleforge/packs45.py,
+          # pack_segment below), the points are printed in Chat's pack column only, never in Chat or Overall.
+          pk_character: {label: "Pack: stays in character", short: PkChar, max: 0, scoring: [rpdeep], cases: [], pack_segment: character}
+          pk_remembers: {label: "Pack: remembers the conversation", short: PkRem, max: 0, scoring: [rpdeep], cases: [], pack_segment: remembers}
+          pk_cowrites: {label: "Pack: co-writes to a brief", short: PkCow, max: 0, scoring: [rpdeep], cases: [], pack_segment: cowrites}
     main_nsfw:
       composition: rc2
       rc2:
@@ -2127,7 +2306,7 @@ compositions:
           bk_scene: {label: Scenes, people and knowledge kept apart (H3), short: Scene, max: 3, scoring: [rpdeep],
                      cases: [], item: SCENESHIFT}
 
-  # screen-sceneshift (lead 2026-11-14 ~08:30, Jake's H3 scene-change family, T a257006): rig screen on the reference
+  # screen-sceneshift (lead 2026-11-14 ~08:30, the owner's H3 scene-change family, T a257006): rig screen on the reference
   # after its calib-1, before the low-end field; also the next hosted pass (MiniMax, DeepSeek flash). Measure only.
   # history_budget 49,000 = what fits the loaded 73,728 window (16,384 + 49,000 + 8,192); T proposed 190,000 (load
   # floor 214.6k) -- not reloading for it. A session that outgrows the window ends with outcome `context`, so this run
@@ -2271,7 +2450,7 @@ compositions:
   # ceiling (MiniMax .91-1.00, DeepSeek flash / Sonnet 1.00, Haiku .92-1.00), so the question is whether it places the
   # local field (R29). Levels 1 / 2 / 3 / 5 x 3 prompts, one element per contrast pair (5 / 6 / 8 / 14 pairs), single
   # prompts of 0.8-2.3k tokens. Ceilings = the family's CEILING (runaway guards); ran_out: exclude until validated.
-  # Measure only (0 points). Merge note: ~/Documents/Research/makobench-lab/experiments/EXP-20261114-21/MERGE-NOTE.md
+  # Measure only (0 points). Merge note: lab experiment EXP-20261114-21
   screen-knowgap:
     cases:
       perf: [P1-tiny]
@@ -2989,7 +3168,7 @@ compositions:
 board_notes:
   work_main: "Main Coding carries about +/-0.7 of noise from one run for mid-field models (Sonnet-class SD 0.68 on the frozen items; PLANTED-OPT is the second noise source): rank scores within 0.5 of each other as ties."
   work_frontier_fc2: "FC2 (COMBSYN L7): an answer over 65,536 tokens (thinking included) scores 0 on this item."
-  main_regime: "Main runs every model as its card prescribes, thinking on (Jake 2026-11-13). Run length is derived from the margin-of-error bar (2.5 points design, 5 pass); each row shows its measured minutes."
+  main_regime: "Main runs every model as its card prescribes, thinking on (the owner 2026-11-13). Run length is derived from the margin-of-error bar (2.5 points design, 5 pass); each row shows its measured minutes."
 # Main NSFW (task 5 tags MN1-MN4; weights 2.5 each is an assumption, the task list sets none). OFF by default:
 # pending owner decision (J7). When enabled, profiles.apply_main_nsfw adds the four cases to `cases.nsfw`, binds
 # each to its part (nsfw/mn1..mn4) and takes them out of the classic-nsfw_writing pack they also sit in.
@@ -3087,7 +3266,7 @@ base_only:
 # Whole points; models within the margin share a tie group (PLAN-45-v5-DELTA f.4):
 # |delta| < 1 on /10 or < 2 on /20; interval +-1.28 * sqrt(2) * SE.
 tie_groups: {unit: points, whole_points: true, interval_z: 1.28, pair_factor: sqrt2}
-# Paid-API ceiling (Jake 2026-11-12: $260 -> $330); spend.global_cap() reads it under bench45.
+# Paid-API ceiling (the owner 2026-11-12: $260 -> $330); spend.global_cap() reads it under bench45.
 spend: {global_cap_usd: 330}
 # ---- Scores: each /10 = Main (parts with points) + a Frontier pack (parts with max 0).
 # A max-0 part holds packs: `unlock_part: <score>` = its sets unlock at `ladder.unlock` (0.9) of that SCORE's
@@ -3190,14 +3369,19 @@ run_settings: {kv_cache_type: q8_0}
 #   # every copy is its own pre-created alias (copy_serve_id); a missing alias refuses the run by name.
 #   # fits at 73,728/slot q8_0 (rig 2026-11-14): ~9-10 slots on the 5090 pair, 4 on the 3090 pair
 #   judge: {name: b, devices: [2, 3], parallel: [4, 3, 2]}   # the profile judge, canonical id, on the 3090s
-# Run length (SYSTEM-45 section 16, Jake R21): derived, not fixed. Compose to a 2.5-point margin of error
+# Run length (SYSTEM-45 section 16, the owner R21): derived, not fixed. Compose to a 2.5-point margin of error
 # (pass bar 5), most efficient design; ceiling a few hours on the rig (working figure 3 h, grading included).
 # Reported, never asserted: each row and the staged board show measured minutes and margin of error.
 default_run: {ceiling_minutes: 180, design_margin_points: 2.5, pass_margin_points: 5}
-ladder: {unlock: 0.9, rung_stop: 0.5}   # Jake 2026-11-14: "The unlock is .9." (the published 90% rule)
+ladder: {unlock: 0.9, rung_stop: 0.5}
+# INTENT-45 (owner 2026-11-21): each model's own accuracy. The 90% range of every score, from the model's own repeats
+# (crucibleforge/accuracy45.py), should be within accuracy_target_pct of the score's maximum and is flagged above
+# accuracy_limit_pct ("range x% (above the 5% limit)"); nothing is withheld. A pack opens when the TOP of that range
+# reaches `ladder.unlock` of its part (DECISIONS amendment q). repeat_resamples = draws of the repeats-only bootstrap.
+intent: {accuracy_target_pct: 2.5, accuracy_limit_pct: 5, repeat_resamples: 200}   # the owner 2026-11-14: "The unlock is .9." (the published 90% rule)
 # One value for every bench45 composition (compositions cannot override `ladder`): a routed part's pack opens at 0.9
 # of the part's weighted share and of every lower set; a section-gated pack (unlock_part) at 0.9 of its section.
-# T7 had set 0.8 for the Frontier section gate; Jake's ruling replaces it.
+# T7 had set 0.8 for the Frontier section gate; the owner's ruling replaces it.
 # Custom tests (docs/CUSTOM-TESTS.md): a user's own categories, declared
 # under `custom:` (usually in the git-ignored profiles/bench.private.yaml),
 # shown as extra columns and added to Overall / a category only when their
@@ -3264,12 +3448,23 @@ rpdeep_overrides:
     # compound question: the judge says yes on 5 of 6 models, both independent readers say no (EXP-20261115-39
     # Appendix B); a question fault like E1 and RD4 N2, unscored
     N1-nobody-else-tells: {scored: false}
+  # Paragraph breaks (scrub pass 2, BACKLOG-46; SPEC-REALIGN-45 1.2): a correct reply whose paragraphs are separated by
+  # a single line break was failed because the checks wanted a blank line (three stored rows: ref, qher, grok). Report-time
+  # only: checks are neither case-hash nor grading-hash input, so no stored row goes stale.
+  WR1-ninth-string:
+    Z5-last-paragraph-20-words: {pattern_sub: ['(?:\A|\n[ \t]*\n)\s*(?:', '(?:\A|\n)\s*(?:']}
+  WR2-red-thread-key:
+    P2-three-paragraphs: {pattern_sub: ['\A\s*\S[^\n]*(?:\n[ \t]*\S[^\n]*)*(?:\n[ \t]*\n\s*\S[^\n]*(?:\n[ \t]*\S[^\n]*)*){2}\s*\Z', '(?:\A\s*\S[^\n]*(?:\n[ \t]*\S[^\n]*)*(?:\n[ \t]*\n\s*\S[^\n]*(?:\n[ \t]*\S[^\n]*)*){2}\s*\Z)|(?:\A\s*\S[^\n]*(?:\n\s*\S[^\n]*){2}\s*\Z)']}
 # Agentic history (CACHE-COMPACT, 2026-11-12; absent on bench = the 4.1 per-turn rule):
 # past 60% of the case's conversation cap the oldest tool results are shortened in ONE
 # step down to about 40%, then nothing earlier changes until it has grown by 20% again,
 # so prompt caches keep the prefix (codeenv.compact). The rule is in the system prompt.
 compaction: hysteresis
 headline:
+  # step 8 (review A Q6): 200 draws of the item bootstrap, not 1000. It feeds only the item-sampling second figure,
+  # the rank ties and the pack-gate counts' display; the printed range comes from replicate runs. A render was
+  # 13-15 minutes on one core, most of it in these draws.
+  resamples: 200
   variance_components: true      # case / generation / judge-sample spread in report.json
   separation_top_n: 10           # simultaneous (max-statistic) pair intervals
   overall: sum          # Overall = Coding + Chat on the 0-10 scales (max 20 without packs)

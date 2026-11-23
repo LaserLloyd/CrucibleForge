@@ -98,8 +98,10 @@ def test_budget_block_and_judge_policy_accepted(prof):
     assert p["judge_policy"]["element_class"] == {"fact": 1, "craft": 3}
     assert p["judge_policy"]["sequential_majority"] is True
     from crucibleforge.judge import judge_policy_config
-    # WP-13a: the key exists for every profile; the default (4.1) profile leaves it unset
-    assert judge_policy_config(cfg).get("element_class") is None
+    # WP-13a: the key exists for every profile; the 4.1 profile (`bench`, the archive) leaves it unset. Since the
+    # release flip (lead 2026-11-15) the DEFAULT profile is bench45, whose block sets it
+    assert judge_policy_config(cfg, profile="bench").get("element_class") is None
+    assert judge_policy_config(cfg).get("element_class") == {"fact": 1, "craft": 3}
     assert profiles.profile_problems(p) == []
 
 

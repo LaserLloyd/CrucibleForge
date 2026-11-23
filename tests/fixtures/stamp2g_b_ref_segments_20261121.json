@@ -1,0 +1,204 @@
+{
+ "ref-r1": {
+  "label": "qwen3.8-27b-q8-ref",
+  "segments": {
+   "chat/character": {
+    "complete": true,
+    "margin": 0.49,
+    "max": 4.0,
+    "partial": 2.77,
+    "points": 2.77,
+    "reason": null
+   },
+   "chat/cowrites": {
+    "complete": true,
+    "margin": 0.54,
+    "max": 1.5,
+    "partial": 1.335,
+    "points": 1.335,
+    "reason": null
+   },
+   "chat/everyday": {
+    "complete": true,
+    "margin": 0.1,
+    "max": 1.0,
+    "partial": 1.0,
+    "points": 1.0,
+    "reason": null
+   },
+   "chat/remembers": {
+    "complete": true,
+    "margin": 0.65,
+    "max": 3.5,
+    "partial": 2.5893,
+    "points": 2.5893,
+    "reason": null
+   },
+   "code/fixes": {
+    "complete": true,
+    "margin": 0.66,
+    "max": 3.0,
+    "partial": 1.0,
+    "points": 1.0,
+    "reason": null
+   },
+   "code/reads": {
+    "complete": true,
+    "margin": 0.45,
+    "max": 1.0,
+    "partial": 0.6791,
+    "points": 0.6791,
+    "reason": null
+   },
+   "code/tools": {
+    "complete": true,
+    "margin": 0.3,
+    "max": 2.0,
+    "partial": 2.0,
+    "points": 2.0,
+    "reason": null
+   },
+   "code/writes": {
+    "complete": true,
+    "margin": 0.2,
+    "max": 4.0,
+    "partial": 3.5998,
+    "points": 3.5998,
+    "reason": null
+   },
+   "headline/nsfw": {
+    "complete": true,
+    "margin": 0.9422,
+    "max": 10.0,
+    "partial": 4.0625,
+    "points": 4.0625,
+    "reason": null
+   },
+   "headline/uncensored": {
+    "complete": true,
+    "margin": 0.5744,
+    "max": 10.0,
+    "partial": 6.118291,
+    "points": 6.118291,
+    "reason": null
+   },
+   "nsfw/anatomy": {
+    "complete": true,
+    "margin": 0.3778,
+    "max": 1.5,
+    "partial": 1.125,
+    "points": 1.125,
+    "reason": null
+   },
+   "nsfw/erotica": {
+    "complete": true,
+    "margin": 0.794,
+    "max": 4.0,
+    "partial": 2.270833,
+    "points": 2.270833,
+    "reason": null
+   },
+   "nsfw/range": {
+    "complete": true,
+    "margin": 0.3384,
+    "max": 2.0,
+    "partial": 0.666667,
+    "points": 0.666667,
+    "reason": null
+   },
+   "nsfw/roleplay": {
+    "complete": true,
+    "margin": 0.0,
+    "max": 2.5,
+    "partial": 0.0,
+    "points": 0.0,
+    "reason": null
+   },
+   "unc/knowledge": {
+    "complete": true,
+    "margin": 0.1735,
+    "max": 4.0,
+    "partial": 2.847458,
+    "points": 2.847458,
+    "reason": null
+   },
+   "unc/willingness": {
+    "complete": true,
+    "margin": 0.5476,
+    "max": 6.0,
+    "partial": 3.270833,
+    "points": 3.270833,
+    "reason": null
+   }
+  }
+ },
+ "ref-r2": {
+  "label": "qwen3.8-27b-q8-ref",
+  "segments": {
+   "chat/character": {
+    "complete": true,
+    "margin": 0.5,
+    "max": 4.0,
+    "partial": 2.7734,
+    "points": 2.7734,
+    "reason": null
+   },
+   "chat/cowrites": {
+    "complete": true,
+    "margin": 0.64,
+    "max": 1.5,
+    "partial": 1.2525,
+    "points": 1.2525,
+    "reason": null
+   },
+   "chat/everyday": {
+    "complete": true,
+    "margin": 0.1,
+    "max": 1.0,
+    "partial": 1.0,
+    "points": 1.0,
+    "reason": null
+   },
+   "chat/remembers": {
+    "complete": true,
+    "margin": 0.7,
+    "max": 3.5,
+    "partial": 2.9917,
+    "points": 2.9917,
+    "reason": null
+   },
+   "code/fixes": {
+    "complete": true,
+    "margin": 0.66,
+    "max": 3.0,
+    "partial": 2.2,
+    "points": 2.2,
+    "reason": null
+   },
+   "code/reads": {
+    "complete": true,
+    "margin": 0.36,
+    "max": 1.0,
+    "partial": 0.7815,
+    "points": 0.7815,
+    "reason": null
+   },
+   "code/tools": {
+    "complete": true,
+    "margin": 0.5,
+    "max": 2.0,
+    "partial": 1.6307,
+    "points": 1.6307,
+    "reason": null
+   },
+   "code/writes": {
+    "complete": true,
+    "margin": 0.7,
+    "max": 4.0,
+    "partial": 3.6951,
+    "points": 3.6951,
+    "reason": null
+   }
+  }
+ }
+}

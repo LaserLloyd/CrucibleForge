@@ -42,7 +42,8 @@ def _row(**kw):
     ([_row(response="")], "empty"),
     ([_row(response="", tool_calls=[{"n": 1}])], None),
     ([_row(response="", finish_reason="length")], None),     # ran out = the model's own
-    ([_row(category="codebank", response="")], None),
+    # fix round 2026-11-18 (AUDIT-HARNESS F4): an empty bank reply with nothing at all is a dropped stream
+    ([_row(category="codebank", response="")], "empty"),
     ([_row(needs_judge=True)], "unjudged"),
     ([_row(needs_judge=True, judge={"judge_failed": True})], "judge_failed"),
     ([_row(needs_judge=True, judge={"judge_failed": True, "empty_generation": True})], None),
@@ -157,29 +158,31 @@ def test_single_judge_ooc_flag_does_not_zero_a_passed_item():
     assert out["E"]["pass"] is True and "flag ignored" in out["E"]["detail"]
 
 
-def test_ooc_flag_counts_on_format_gate_refusal_or_two_sample_quote():
+def test_ooc_flag_counts_only_on_a_code_reason():
+    """D1 (b), lead 2026-11-19: only the format gate or the refusal pattern zeroes a group; the judge's refused
+    mark or a two-sample ooc_quote alone is recorded as a judge/code disagreement (it zeroed before)."""
     j = {"groups": [{"turns": [1], "elements": ["E"], **JS}]}
     bullets = "- one\n- two\n- three"
     assert not rpdeep.rescue_ooc_zeroing(_ooc_el(), [bullets], j, "chat")["E"]["pass"]
+    refusal = "I'm sorry, but I can't help with that request."
+    assert not rpdeep.rescue_ooc_zeroing(_ooc_el(), [refusal], j, "chat")["E"]["pass"]
     g = {"turns": [1], "elements": ["E"], **JS, "refused": True}
-    assert not rpdeep.rescue_ooc_zeroing(_ooc_el(), [GOOD], {"groups": [g]}, "chat")["E"]["pass"]
+    out = rpdeep.rescue_ooc_zeroing(_ooc_el(), [GOOD], {"groups": [g]}, "chat")["E"]
+    assert out["pass"] and "judge marked refused" in out["ooc_disagreement"]
     g = {"turns": [1], "elements": ["E"], "refused": False,
          "ooc_quote": "she said, and set the kettle down",
          "in_character_votes": [False, False, True]}
-    assert not rpdeep.rescue_ooc_zeroing(_ooc_el(), [GOOD], {"groups": [g]}, "chat")["E"]["pass"]
-    g["in_character_votes"] = [False, True, True]
-    assert rpdeep.rescue_ooc_zeroing(_ooc_el(), [GOOD], {"groups": [g]}, "chat")["E"]["pass"]
+    out = rpdeep.rescue_ooc_zeroing(_ooc_el(), [GOOD], {"groups": [g]}, "chat")["E"]
+    assert out["pass"] and "2/3 not-in-character votes" in out["ooc_disagreement"]
 
 
-def test_ooc_rescue_is_a_no_op_without_the_judge_side_keys():
-    """review F1/F2: a 4.1 verdict (no refused / in_character_votes in its
-    group meta) keeps the judge's zeroing; the judge's refusal is never lost."""
+def test_ooc_rule_is_the_same_without_the_judge_side_keys():
+    """A verdict from before the 4.5 judge (no refused / in_character_votes) follows the same code-reason rule
+    (the CC3 deepseek rows: a lone out_of_character flag zeroed four quote-verified facts)."""
     j = {"groups": [{"turns": [1], "elements": ["E"], "out_of_character": True}]}
     out = rpdeep.rescue_ooc_zeroing(_ooc_el(), [GOOD], j, "chat")
-    assert out["E"]["pass"] is False and out["E"]["detail"].startswith(rpdeep.OOC_PREFIX)
-    j = {"groups": [{"turns": [1], "elements": ["E"], "refused": True, "ooc_quote": "",
-                     "in_character_votes": [True, True, True]}]}
-    assert rpdeep.rescue_ooc_zeroing(_ooc_el(), [GOOD], j, "chat")["E"]["pass"] is False
+    assert out["E"]["pass"] is True and out["E"]["ooc_disagreement"] == "judge flagged out of character"
+    assert rpdeep.rescue_ooc_zeroing(_ooc_el(), ["- a\n- b\n- c"], j, "chat")["E"]["pass"] is False
 
 
 def _ooc_session(profile):
@@ -395,3 +398,10 @@ def test_report_json_carries_separation(tmp_path, monkeypatch):
     report.generate(None, write=True, cfg=env.cfg)
     d = json.loads((env.results / "report.json").read_text(encoding="utf-8"))
     assert d["separation"]["pairs"] and d["models"]["a"]["status"] == "ranked"
+
+
+def test_score_row_records_the_judge_code_disagreement():
+    """D1 (b): the row counts the facts the judge called out of character on turns the code calls in character."""
+    row, case = _ooc_session("bench45")
+    s = rpdeep.score_row(row, case, [])
+    assert s["rate"] == 1.0 and s["ooc_judge_code_disagreements"] == ["E"]

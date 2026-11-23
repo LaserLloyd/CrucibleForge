@@ -1,0 +1,20 @@
+{
+  "item": "PACK-NSFW-N1_SCENE",
+  "level": 1,
+  "status": "live",
+  "category": "nsfw",
+  "budget": 32768,
+  "id_prefix": "PKR",
+  "note": "adult role-play pack: the Mechanisms cases NR1 / NR3 / NR5 / NR6 as built (3 scripted turns each, code checks). WIRED 2026-11-21 (owner ruling): every bank item carries a Grok and a DeepSeek attestation (scripts/attest_check.py). One point in total, the items' mean.",
+  "generator": {
+    "family": "nsfwpack45",
+    "variant": "stored",
+    "rungs": [
+      1,
+      2,
+      3,
+      4
+    ],
+    "per_rung": 1
+  }
+}

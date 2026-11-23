@@ -200,7 +200,25 @@ def test_every_reuse_id_exists_with_the_4_1_generation_view(cid):
             if isinstance(c, dict):
                 live[c["id"]] = c
     assert cid in live, cid
+    if cid in CHANGED_IN_45:
+        # changed on purpose after 4.1: only the named keys moved, and the new view is pinned
+        keys, old_sha, new_sha = CHANGED_IN_45[cid]
+        a, b = version.generation_view(live[cid]), version.generation_view(ra[cid])
+        assert sorted(k for k in set(a) | set(b) if a.get(k) != b.get(k)) == keys, cid
+        assert (_view_sha(b), _view_sha(a)) == (old_sha, new_sha), cid
+        return
     assert version.generation_view(live[cid]) == version.generation_view(ra[cid]), cid
+
+
+#: reuse ids whose generation view changed on purpose after 4.1: {id: (changed keys, 4.1 view sha, 4.5 view sha)}.
+#: LAG2: the hidden test no longer asserts an approximate value after a null patch (fix round 2026-11-18, item 2:
+#: the old assertion failed a correct answer); only its environment (the hidden test file) differs from 4.1.
+CHANGED_IN_45 = {"LAG2-seedbank-units": (["env"], "9a4ecca9d88c41cd", "98d2e22ae708579b")}
+
+
+def _view_sha(view) -> str:
+    import hashlib
+    return hashlib.sha256(json.dumps(view, sort_keys=True).encode()).hexdigest()[:16]
 
 
 def test_pack_case_ids_all_resolve():

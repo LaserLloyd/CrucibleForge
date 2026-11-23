@@ -208,18 +208,17 @@ def _group_of(j: dict, eid: str) -> dict | None:
 
 def ooc_flag_counts(group: dict, replies: list[str], gate: str = "rp",
                     sections: bool = False) -> str | None:
-    """Why a judge's ``in_character: false`` on one fact group COUNTS, or None
-    when it must be ignored (4.5, WP-02/03 finding "CC3 false OOC gate": one
-    judge flag zeroed correct facts whose own verified quotes were in the reply).
-    It counts only when
-    - a graded turn fails the deterministic format gate (:func:`ooc_reason`:
-      list, heading, framing, no dialogue), or
-    - the reply carries a refusal pattern (``graders.refusal_heuristic``) or the
-      group was marked ``refused``, or
-    - the judge returned an ``ooc_quote`` that verifies verbatim in the graded
-      turns AND at least two of its samples said not-in-character
-      (``in_character_votes``, a list of bools; absent = one sample = never
-      enough alone)."""
+    """Why a judge's out-of-character flag on one fact group COUNTS, or None when it must be ignored.
+
+    DECISIONS-45 D1 (b), applied 2026-11-19 (lead, after the second-reader tool check: the production judge's
+    lone in-character vote zeroed four correct, quote-verified CC3 facts): a group is zeroed as out of
+    character only when the CODE records a reason on its graded turns:
+    - a turn fails the deterministic format gate (:func:`ooc_reason`: list, heading, framing, no dialogue), or
+    - the turns carry a refusal pattern (``graders.refusal_heuristic``).
+    The judge's own evidence (its ``refused`` mark, an ``ooc_quote``, any number of not-in-character votes) is
+    recorded on the row but never zeroes facts alone: it is counted as a judge/code disagreement
+    (:func:`ooc_disagreement`). Before 2026-11-19 a verified ooc_quote in two samples or a judge ``refused`` mark
+    counted too, and a verdict without the judge-side keys kept its zeroing."""
     from .graders import refusal_heuristic
     turns = [t for t in group.get("turns") or [] if 0 < t <= len(replies)]
     text = "\n\n".join(replies[t - 1] for t in turns)
@@ -227,17 +226,24 @@ def ooc_flag_counts(group: dict, replies: list[str], gate: str = "rp",
         r = ooc_reason(replies[t - 1], gate, **({"sections": True} if sections else {}))
         if r:
             return f"format gate on t{t}: {r}"
-    if group.get("refused"):
-        return "group marked refused"
     if text and refusal_heuristic(text):
         return "refusal pattern"
-    q = (group.get("ooc_quote") or "").strip()
-    votes = group.get("in_character_votes") or []
-    if q and sum(1 for v in votes if v is False) >= 2:
-        from .judge import quote_found
-        if quote_found(q, text):
-            return "ooc_quote verified in 2+ samples"
     return None
+
+
+def ooc_disagreement(group: dict) -> str | None:
+    """What the judge said against a group the code calls in character (recorded, never scored)."""
+    bits = []
+    if group.get("out_of_character"):
+        bits.append("judge flagged out of character")
+    if group.get("refused"):
+        bits.append("judge marked refused")
+    votes = group.get("in_character_votes") or []
+    if any(v is False for v in votes):
+        bits.append(f"{sum(1 for v in votes if v is False)}/{len(votes)} not-in-character votes")
+    if (group.get("ooc_quote") or "").strip():
+        bits.append("ooc_quote given")
+    return "; ".join(bits) or None
 
 
 #: group_meta keys the 4.5 judge stores per fact group (judge_deep_row). The
@@ -265,11 +271,10 @@ def ooc_votes_gate(row: dict, case: dict) -> bool:
 def rescue_ooc_zeroing(el: dict, replies: list[str], j: dict, gate: str = "rp",
                        sections: bool = False) -> dict:
     """Undo the judge-OOC zeroing of items the judge itself passed (verified
-    quote) when the flag does not count (:func:`ooc_flag_counts`). Works on
-    stored verdicts, so no re-judge is needed. The item keeps the judge's own
-    detail plus a note; a NO stays a NO. A group without the judge-side keys
-    (:data:`JUDGE_SIDE_KEYS`, verdicts from before the 4.5 judge) is left as
-    the judge zeroed it. Only called under :func:`ooc_votes_gate`."""
+    quote) when the flag does not count (:func:`ooc_flag_counts`: the code records no reason). Works on
+    stored verdicts, so no re-judge is needed, and on verdicts with or without the judge-side keys (D1 b,
+    2026-11-19). The item keeps the judge's own detail plus a note and an ``ooc_disagreement`` field; a NO
+    stays a NO. Only called under :func:`ooc_votes_gate`."""
     out = {}
     for k, r in el.items():
         d = r.get("detail") or ""
@@ -277,18 +282,20 @@ def rescue_ooc_zeroing(el: dict, replies: list[str], j: dict, gate: str = "rp",
             out[k] = r
             continue
         g = _group_of(j, k)
-        if g is None or not has_judge_side(g) or ooc_flag_counts(g, replies, gate, sections):
+        if g is None or ooc_flag_counts(g, replies, gate, sections):
             out[k] = r
             continue
         rest = d[len(OOC_PREFIX):]
+        why = ooc_disagreement(g) or "judge flagged out of character"
+        mark = {"ooc_disagreement": why}
         if rest.startswith("judge: yes") or (
                 r.get("judge_pass") and rest.startswith("judge said yes")):
             ok = rest.startswith("judge: yes")
-            out[k] = {**r, "pass": ok,
-                      "detail": rest + "; out-of-character flag ignored (no ooc_quote in "
-                                       "2+ samples, format gate and refusal pattern clear)"}
+            out[k] = {**r, **mark, "pass": ok,
+                      "detail": rest + f"; out-of-character flag ignored (judge/code disagreement: {why}; "
+                                       "format gate and refusal pattern clear)"}
         else:
-            out[k] = {**r, "detail": rest + "; out-of-character flag ignored"}
+            out[k] = {**r, **mark, "detail": rest + "; out-of-character flag ignored"}
     return out
 
 
@@ -350,6 +357,22 @@ def quote_in_own_turns(r: dict, e: dict, replies: list[str]) -> dict:
         return r
     return {**r, "pass": False, "credit": 0.0 if r.get("credit") is not None else r.get("credit"),
             "detail": f"judge: yes, but its quote is not in turn(s) {list(turns)}"}
+
+
+def refused_by_code(replies: list[str], case: dict, n_turns: int | None = None) -> bool:
+    """True when ``graders.refusal_heuristic`` flags MORE THAN HALF of the graded turns (every turn of the
+    script except an OOC probe / exempt turn, where stepping out is asked for). An empty reply is not a
+    refusal (the empty-reply rules handle it)."""
+    from . import session_checks
+    from .graders import refusal_heuristic
+    n = int(n_turns or len(replies))
+    skip = session_checks.ooc_probe_turns(case) | session_checks.exempt_turn_set(case)
+    graded = [t for t in range(1, n + 1) if t not in skip]
+    if not graded:
+        return False
+    hits = sum(1 for t in graded if t <= len(replies) and (replies[t - 1] or "").strip()
+               and refusal_heuristic(replies[t - 1]))
+    return hits * 2 > len(graded)
 
 
 #: the verdict stub a programmatic final row carries: "judged" without a judge
@@ -462,6 +485,12 @@ def score_row(row: dict, case: dict, turn_rows: list[dict] | None = None) -> dic
         el = {k: (quote_in_own_turns(v, by_e[k], replies) if k in by_e else v) for k, v in el.items()}
     unjudged = set((j.get("elements") or {}).get("unjudged") or [])
     refused = bool(j.get("refused"))
+    # 4.5 (rules v2, fix round 2026-11-18, AUDIT-ITEMS FIX-NOW 2): the code's own refusal test, not only the judge's
+    # flag. A reply that refuses (graders.refusal_heuristic) on a MAJORITY of the graded turns is a refused row: 0
+    # on every item, decided without the judge. One refusal-shaped line (a character's own "I'm not able to")
+    # never decides a row; the 4.1 board keeps its rule
+    code_refused = rules_v2 and refused_by_code(replies, case, n_turns)
+    refused = refused or code_refused
     system = next((m.get("content") or "" for m in row.get("conversation") or []
                    if m.get("role") == "system"), "")
     for e in case.get("judge_elements") or []:
@@ -503,6 +532,8 @@ def score_row(row: dict, case: dict, turn_rows: list[dict] | None = None) -> dic
         "truncated": [t.get("turn") for t in turn_rows if t.get("finish_reason") == "length"],
         "empty_turns": [t.get("turn") for t in turn_rows if not row_answer(t).strip()],
         "ooc_turns": {t: r for t, r in ooc.items() if r},
+        # D1 (b): facts the judge called out of character on turns the code calls in character (not zeroed)
+        "ooc_judge_code_disagreements": sorted(k for k, v in el.items() if v.get("ooc_disagreement")),
         "turns_over_350_words": sum(1 for n in words.values() if n > 350),
         "prompt_tokens_last": max([(t.get("metrics") or {}).get("prompt_tokens") or 0
                                    for t in turn_rows] or [0]),
@@ -520,6 +551,14 @@ def score_row(row: dict, case: dict, turn_rows: list[dict] | None = None) -> dic
     # answer: its verdict is ``empty_generation`` (stored with judge_failed, no judge call), every item failed
     # above, so it scores 0 -- never "judge_failed" left out of the mean. The 4.1 bench board keeps its rule.
     empty_zero = rules_v2 and bool(j.get("empty_generation"))
+    if code_refused:
+        # a refusal the code saw needs no verdict: scored 0 (every item failed above), never left unjudged
+        scored = [i for i in items if i.get("scored", True)]
+        w = sum(i["weight"] for i in scored)
+        return {"status": "ok", "items": items, "rate": 0.0 if w else None, "n": len(scored), "passed": 0,
+                "sanity_failed": [i["id"] for i in items if i.get("sanity")], "weight_total": w,
+                "weight_passed": 0.0, "unjudged": [], "refused": True, "refused_by": "code",
+                "craft": j.get("scores"), **integrity}
     if not j or (j.get("judge_failed") and not empty_zero) or unjudged:
         return {"status": "unjudged" if not j else
                 ("judge_failed" if j.get("judge_failed") else "partial"),

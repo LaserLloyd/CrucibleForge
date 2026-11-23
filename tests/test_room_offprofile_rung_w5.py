@@ -28,6 +28,7 @@ def _rows():
     return [base, esc]
 
 
+@pytest.mark.archive_default
 @pytest.mark.usefixtures("cases_41")
 def test_an_off_profile_rung_that_ran_counts_in_the_room_view(tmp_path, monkeypatch):
     ok = {"ts": "2026-10-25T02:00:00+00:00", "rung": 131072, "failed": False, "rows": 1}
@@ -37,6 +38,7 @@ def test_an_off_profile_rung_that_ran_counts_in_the_room_view(tmp_path, monkeypa
     assert [r["bench_run_id"] for r in room] == ["e1"]
 
 
+@pytest.mark.archive_default
 @pytest.mark.usefixtures("cases_41")
 def test_without_a_run_record_the_cap_still_drops_old_wide_rows(tmp_path, monkeypatch):
     _seed(tmp_path, monkeypatch, _rows(), [])

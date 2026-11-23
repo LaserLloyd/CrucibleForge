@@ -168,8 +168,10 @@ def queue_halted() -> dict | None:
 
 
 def _circuit(new: dict) -> dict | None:
-    """Three consecutive model quarantines at one stage and class halt the queue."""
-    model_recs = [r for r in records() if r.get("scope", "model") == "model"]
+    """Three consecutive OPEN model quarantines at one stage and class halt the
+    queue. A closed record (fixed, escalated, rejected) never re-arms the halt."""
+    model_recs = [r for r in records()
+                  if r.get("scope", "model") == "model" and r.get("status") == "open"]
     if len(model_recs) < 3:
         return None
     last = model_recs[-3:]
@@ -192,7 +194,7 @@ def _circuit(new: dict) -> dict | None:
 
 
 def digest_lines(today: str | None = None) -> list[str]:
-    """At most ten lines: published, open by class, escalated, halts, auth, Jake."""
+    """At most ten lines: published, open by class, escalated, halts, auth, the owner."""
     day = today or datetime.now(timezone.utc).strftime("%Y-%m-%d")
     rows = records()
     open_rows = [r for r in rows if r.get("status") == "open"]
@@ -218,6 +220,6 @@ def digest_lines(today: str | None = None) -> list[str]:
         "escalated: " + (", ".join(escalated) or "none"),
         "halts: " + (", ".join(halts) or "none"),
         "auth: " + (", ".join(auths) or "none"),
-        "jake: auth, unrecovered halt, publish",
+        "owner: auth, unrecovered halt, publish",
     ]
     return lines[:10]

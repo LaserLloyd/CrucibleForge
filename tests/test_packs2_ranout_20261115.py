@@ -66,10 +66,11 @@ def test_tool_use_pack_counts_each_sample_as_a_call(monkeypatch, cut_reps, measu
 
 
 @pytest.mark.live_ladder
-@pytest.mark.parametrize("cut_n,measured", [(0, True), (1, False)])
+@pytest.mark.parametrize("cut_n,measured", [(0, True), (1, True), (2, False)])
 def test_predict_pack_one_cut_reply_of_three_is_not_measured(monkeypatch, cut_n, measured):
-    """c2_predict set-1: three items, one sample each. One cut reply is 1/3, over a quarter: the
-    pack reads "not measured" (scores nothing) rather than counting the cut reply as a fail."""
+    """c2_predict set-1: three items, one sample each. D10 as amended (fix round 2026-11-18): one cut reply of
+    three is left out and the other two score; two cut replies (over a quarter, and at least two) read "not
+    measured" (scores nothing) rather than counting the cut replies as fails."""
     prof = _rc4(monkeypatch)
     s = _set(prof, "work/c2_predict", 1)
     assert not s.get("repeats") and len(s["cases"]) == 3
@@ -78,4 +79,4 @@ def test_predict_pack_one_cut_reply_of_three_is_not_measured(monkeypatch, cut_n,
     ro = ls.get("ran_out_case")
     assert ro is not None and ro["rule"] == "exclude" and ro["calls"] == 3 and ro["ran_out"] == cut_n
     assert ls["not_measured"] is (not measured)
-    assert _scored_n(ls) == (3 if measured else 0)
+    assert _scored_n(ls) == (3 - cut_n if measured else 0)

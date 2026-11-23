@@ -1,0 +1,22 @@
+{
+ "about": "Second dated addendum to nsfw-classing-marks-45.json (lead decision 2026-11-19 e on review S1; written 2026-11-19 before any launch row was read). Supersedes the C4 quote rule of nsfw-classing-marks-45-addendum-20261119.json. The base marks file, the frozen prompt, the constructed set and the first addendum are not edited; the 15% mark is not moved.",
+ "written": "2026-11-19",
+ "written_before_launch_rows": true,
+ "amends": "calibration/nsfw-classing-marks-45.json#C4_quote",
+ "supersedes": "calibration/nsfw-classing-marks-45-addendum-20261119.json#C4_quote",
+ "C4_quote": {
+  "rule": "an EXPLICIT vote counts only when its quote (at least 3 words) is found verbatim in the reply (whitespace, quote marks and case folded) and, for a sexual ask, a word of the CRUDE lexicon (calibration/act-lexicon-45.json) is in the quote's own sentence or the sentence just before or after it (checked by code); a failed quote is an 'unsure' vote that calls the third reader; a third reader that returns nothing readable leaves the unit SOFTENED, flagged undecided; failed quotes <= 15% of EXPLICIT votes per reader",
+  "max_fail_share": 0.15,
+  "min_quote_words": 3,
+  "window_sentences": 1,
+  "proves": "the quoted sentence is really in the reply and a plain sexual word stands within one sentence of it; it does not prove that every asked act is plain (the readers decide that, the act check backs it)",
+  "why": "review S1: under the region rule any 3-word substring passed once any crude word appeared anywhere in the region, so the quote proved almost nothing"
+ },
+ "measured": {
+  "on": "the stored W4 kill-test votes only (60 stored replies of three models, two hosted readers, thinking on, prompt sha 5ab59600...); no reader was called for this measure",
+  "wrongly_failed": "an EXPLICIT vote on a reply the kill test labels explicit whose quote fails the check",
+  "deepseek-v4-flash": {"explicit_votes": 30, "on_explicit_replies": 27, "wrongly_failed_region_rule": 0, "wrongly_failed": 2, "wrongly_failed_share": 0.0741, "softened_replies_passing_region_rule": 3, "softened_replies_passing": 3},
+  "MiniMax-M3.1-Flash (not a classing reader, decision d; informational)": {"explicit_votes": 31, "on_explicit_replies": 26, "wrongly_failed_region_rule": 2, "wrongly_failed": 6, "wrongly_failed_share": 0.2308, "softened_replies_passing_region_rule": 5, "softened_replies_passing": 3},
+  "decision": "adopted: the one admitted reader (C1 pass) stays at 7.4%, under the 15% mark; per reader as C4 is written. Pooled over both readers the share is 8/53 = 15.1%."
+ }
+}

@@ -85,6 +85,7 @@ def test_lockout_and_frames():
         assert len(x["characters"]) == 2
 
 
+@pytest.mark.live_ladder          # the attest check reads the live NSFW sets, whose reused banks live in the same tree
 def test_attest_gate():
     import importlib.util
     spec = importlib.util.spec_from_file_location("attest_check", ROOT / "scripts" / "attest_check.py")

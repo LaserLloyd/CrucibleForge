@@ -3,10 +3,11 @@ in the drafting call only; they never enter the bank. Key by NAME from the envir
 from __future__ import annotations
 
 import json
+import os
 import sys
 from pathlib import Path
 
-sys.path.insert(0, "/var/tmp/mb45-build/auth-rp-work")
+sys.path.insert(0, os.environ.get("RP_AUTH_WORK", "."))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 import ds  # noqa: E402
 from tools.adult45_rp.cards import CARDS  # noqa: E402

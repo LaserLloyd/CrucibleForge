@@ -49,6 +49,9 @@ from .stepgrade import grade_answer_step
 from . import config as _config
 from . import subject_copies as _subject_copies
 from . import adult_guard as _adult_guard
+from . import disclosure as _disclosure
+from . import grader_stamp as _grader_stamp
+from . import fixrows45 as _fixrows45
 
 log = logging.getLogger(__name__)
 
@@ -413,7 +416,15 @@ def _cache_split(results: list[ChatResult]) -> dict:
     wr = [r.cache_write_tokens for r in results if getattr(r, "cache_write_tokens", None) is not None]
     if not rd and not wr:
         return {}
-    return {"cache_read_tokens": sum(rd), "cache_write_tokens": sum(wr)}
+    out = {"cache_read_tokens": sum(rd)} if rd else {}
+    if wr:
+        # only a provider that REPORTS writes (native Anthropic) gets the key: the row
+        # pricer reads its presence as "native cache" and applies Claude's 0.1x read
+        # rate. A 0 made up from an empty list priced every OpenAI-shape cache read
+        # (xAI, OpenAI, DeepSeek) at 0.1x input instead of the declared / list rate
+        # (grok-4.7 rows 2026-11-22: $0.20/M where xAI bills $0.50/M).
+        out["cache_write_tokens"] = sum(wr)
+    return out
 
 
 def _metrics(result: ChatResult) -> dict:
@@ -775,7 +786,7 @@ class _Ctx:
         sid = held.serve_id if held is not None else self.model_id
         try:
             r = self.provider.chat(sid, messages, **kw)
-        except WrongModelError:
+        except WrongModelError as e:
             if self.placement is not None:
                 raise    # declared copies never reload through the provider (run_case_repeat)
             log.warning("%s — reloading and retrying once", e)
@@ -849,7 +860,7 @@ class _Ctx:
         cur = self._chat(messages, max_tokens=budget, **rkw)
         attempts.append(cur)
         chain.append(entry(cur, "regenerate", seed=rkw.get("seed")))
-        # Jake 2026-11-14: "regenerate, then thinking off if still empty" -- any empty stop
+        # the owner 2026-11-14: "regenerate, then thinking off if still empty" -- any empty stop
         # (reply left in the reasoning channel, or nothing at all); never a degenerate one
         if (mode == "regenerate_then_thinking_off" and not visible(cur) and _empty_stop(cur)
                 and not _degenerate_result(cur)):
@@ -1105,6 +1116,13 @@ class _Ctx:
         final.total_s = sum(a.total_s or 0.0 for a in attempts)
 
 
+def _made_tool_calls(row: dict) -> bool:
+    """A scripted tool episode (tool_conversation) whose model turns called tools: a completion, even when
+    the stored row ends on a tool result with no closing text (finish tool_calls, response empty)."""
+    return any(m.get("role") == "assistant" and m.get("tool_calls")
+               for m in row.get("tool_conversation") or [] if isinstance(m, dict))
+
+
 def _sanity_check(state: dict, rows: list[dict], label: str) -> None:
     """If the first N completions are all empty the model is misconfigured:
     stop burning hours on it. Skipped / errored rows are not completions, and
@@ -1128,7 +1146,8 @@ def _sanity_check(state: dict, rows: list[dict], label: str) -> None:
             continue
         if row.get("turn") in (None, 1):
             state["sanity_total"] += 1
-            if not (row.get("response") or row.get("reasoning") or row.get("tool_calls")):
+            if not (row.get("response") or row.get("reasoning") or row.get("tool_calls")
+                    or _made_tool_calls(row)):
                 state["sanity_empty"] += 1
     if (state["sanity_total"] >= SANITY_CHECK_AFTER
             and state["sanity_empty"] == state["sanity_total"]):
@@ -1192,7 +1211,9 @@ def run_models(cfg: dict, model_entries: list[dict], cases: list[dict],
                         f"round {r['name']} at ctx {r['ctx']}" for r in rounds))
                 cont = (bench_run_ids or {}).get(label)
                 rid = cont or str(uuid.uuid4())[:8]
-                carry: dict = {"early_stop_cases": [c["id"] for c in m_cases]}
+                carry: dict = {"early_stop_cases": [c["id"] for c in m_cases],
+                               "early_stop_planned_out": [c["id"] for c in cases
+                                                          if c["id"] not in {m["id"] for m in m_cases}]}
                 if stage:
                     carry["stage"] = stage      # 4.5 routed run: "locator" | "module" on every row
                 parts = []
@@ -1628,6 +1649,22 @@ def _run_one_model(*args, **kw) -> dict:
             pl.tear_down()
 
 
+def _early_stop_dnf_exempt(cfg):
+    """earlystop.dnf_exempt_from for the active profile (None when it cannot be read: every cut counts)."""
+    try:
+        from .profiles import active_name, load_profile
+        from . import chains as _chains, report as _report
+        prof = load_profile(active_name(cfg), cfg)
+        if _chains.cut_at_full_budget(prof) != "zero":
+            return None
+        ids = {c for k, v in _report.declared_case_sets(prof, cfg).items()
+               if k in _chains.SHORT_KEYED_PARTS for c in v}
+        return earlystop.dnf_exempt_from(prof, ids, int(prof.get("bank_budget") or 0) or None)
+    except Exception as e:  # noqa: BLE001 - the plain rule (every cut counts) is the safe side
+        log.warning("early stop: the did-not-finish rule could not be read (%s): every cut counts", e)
+        return None
+
+
 def _run_one_model_body(cfg, entry, cases, csvw: _Csv, smoke,
                    only_jobs: set | None = None, rung: int | None = None,
                    min_ctx: int | None = None, record_key: str | None = None,
@@ -1641,6 +1678,8 @@ def _run_one_model_body(cfg, entry, cases, csvw: _Csv, smoke,
     round marks the run finished; ``bench_run_id``: shared by every round of
     one run; ``carry``: what an earlier round learnt (thinking)."""
     t_round = datetime.now(timezone.utc)
+    from . import timing as _timing
+    wait0 = _timing.waited_total()
     label = entry["name"]
     model_id = entry["model_id"]
     # the bank load floor applies only when this round really runs bank rows
@@ -1662,7 +1701,9 @@ def _run_one_model_body(cfg, entry, cases, csvw: _Csv, smoke,
             # a round sees only its own subset)
             es = carry["early_stop"] = earlystop.EarlyStop(
                 cfg, label=label, skip=earlystop.targeted_reason(
-                    cfg, carry.get("early_stop_cases") or [c["id"] for c in cases]))
+                    cfg, carry.get("early_stop_cases") or [c["id"] for c in cases],
+                    carry.get("early_stop_planned_out") or ()),
+                dnf_exempt=_early_stop_dnf_exempt(cfg))
     ctx = _Ctx(cfg, entry, provider, ctx_len)
     if ctx.thinking is None and carry.get("thinking") is not None:
         ctx.thinking = carry["thinking"]
@@ -1780,7 +1821,8 @@ def _run_one_model_body(cfg, entry, cases, csvw: _Csv, smoke,
                                            "protocol": protocol}})
 
     def base_row_for(case, repeat, seed, temperature, top_p, max_tokens, rid=None):
-        extra = {}
+        # P3 (fix round 2026-11-18): the hash of the code and data that grade this row (grader_stamp.py)
+        extra = _grader_stamp.fields_for(case)
         if case["category"] in _config.PRIVATE_CATEGORIES:
             # a private case is outside bench_revision (version.cases_hash);
             # this is the stamp that says which private content it answered
@@ -1854,6 +1896,12 @@ def _run_one_model_body(cfg, entry, cases, csvw: _Csv, smoke,
             for row in rows:
                 if held is not None:
                     row["subject_copy"] = held.audit()     # audit only: model_id stays canonical
+                # P2 (fix round 2026-11-18, D11): what the measurement ran under, on every row
+                row.update(_disclosure.row_fields(row, settled_thinking=ctx.thinking,
+                                                  extra_body=ctx.extra_body, cc_effort=ctx.cc_effort))
+                _note = _disclosure.settings_note(entry, provider.type, ctx.extra_body)
+                if _note:
+                    row["settings_note"] = _note
                 m = row.get("metrics") or {}
                 c = cost_usd(entry,
                              (m.get("prompt_tokens") or 0) + (m.get("billed_extra_prompt_tokens") or 0)
@@ -2216,6 +2264,14 @@ def _run_one_model_body(cfg, entry, cases, csvw: _Csv, smoke,
         from . import chains as _chains
         # resume: a stored, still-current graded attempt is not presented again
         driver = _chains.Driver(chain_cases, prior_rows=load_transcripts(label))
+        if es is not None and es.n == 0 and driver.reused:
+            # a resumed run (lead 2026-11-19 b): the stored answers it keeps are judged with the new ones
+            with ctx.lock:
+                trip = es.seed(driver.reused)
+            if trip:
+                trip = {**trip, "bench_run_id": bench_run_id}
+                log.error("[%s] %s — stopping this model", label, earlystop.describe(trip))
+                raise EarlyStopError(trip)
         chain_starts = [(i, 1, None) for i in driver.start()]
         # 4.5 bank: a routed module unit's route rides from its placeholder onto every row
         routes = {c["id"]: c["route"] for c in chain_cases if c.get("route")}
@@ -2285,6 +2341,9 @@ def _run_one_model_body(cfg, entry, cases, csvw: _Csv, smoke,
                  "one board budget for every row" if tr["one_budget"]
                  else ("thinking budget" if tr["thinking"] else "raw case budgets"))
     secs = round((datetime.now(timezone.utc) - t_round).total_seconds(), 1)
+    # a refused lease's wait is not generation: it goes to its own "waiting" entry; secs stays the wall clock
+    # in the round record (rounds), and the timing list books generation without the wait
+    waited_s = min(secs, round(_timing.waited_total() - wait0, 1))
     if ctx.placement is not None:
         plan = {**(plan or {}), "placement": _placement_record(cfg, ctx.placement)}
     round_rec = {"round": round_name or "all", "ctx": ctx_len, "jobs": len(jobs),
@@ -2302,7 +2361,8 @@ def _run_one_model_body(cfg, entry, cases, csvw: _Csv, smoke,
                  else [round_rec],
                  "timing": list(prev.get("timing") or []) + [
                      {"phase": f"generation round {round_name}" if round_name else "generation",
-                      "s": secs, "ctx": ctx_len, "jobs": len(jobs), "workers": workers}],
+                      "s": round(secs - waited_s, 1), "ctx": ctx_len, "jobs": len(jobs), "workers": workers}]
+                 + ([{"phase": "waiting for the rig", "s": waited_s}] if waited_s > 0 else []),
                  "thinking_detect": tr}
         if es is not None and last:
             # what the check saw (misrouted counted, reported only); an
@@ -2448,7 +2508,7 @@ def _degenerate_result(r) -> dict | None:
 
 def _blank_view(result: ChatResult) -> ChatResult:
     """4.5 (``empty_stop_rule``): what the graders read for an empty stop or a degenerate reply
-    -- nothing (Jake: grade only the response given; a loop is a failure, like a blank)."""
+    -- nothing (the owner: grade only the response given; a loop is a failure, like a blank)."""
     return _dc_replace(result, response_text="", reasoning_text="")
 
 
@@ -2968,6 +3028,13 @@ def grade_single_row(row: dict, result: ChatResult, case: dict, blank: bool, sen
             row["needs_judge"] = True
             row["rubric"] = "reference"
             row["reference"] = verdict.get("reference")
+    if _fixrows45.is_fix_case(case):
+        # W3b: the Fixes segment counts only this stamped, host-compared verdict (fixrows45); the code-bank score above
+        # stays on the row for the old board code and is never read by the segment
+        fc = _fixrows45.reply_verdict(case, _answer_view(result).response_text, finish_reason=result.finish_reason,
+                                      completion_tokens=result.completion_tokens, sent=sent, blank=blank)
+        if fc is not None:
+            row["fixcheck"] = fc
     if case.get("rubric"):
         row["needs_judge"] = True
         row["rubric"] = case["rubric"]
@@ -3465,6 +3532,10 @@ def _run_env_loop(case, base_row, ctx: _Ctx, max_tokens, temperature, seed, top_
            "metrics": _metrics_sum(every)}
     if mode:
         row["compaction"] = mode     # which history rule measured it (bench45 only)
+    if _fixrows45.is_fix_case(case):
+        fc = _fixrows45.agent_verdict(env, any_cut=any_cut)      # W3b: the stamped host-compared verdict
+        if fc is not None:
+            row["fixcheck"] = fc
     if last is not None:
         _annotate_recovery(row, last)
     return row
@@ -3473,7 +3544,7 @@ def _run_env_loop(case, base_row, ctx: _Ctx, max_tokens, temperature, seed, top_
 def _run_console_loop(case, base_row, ctx: _Ctx, max_tokens, temperature, seed, top_p=None) -> dict:
     """Interactive console family (COMPACTOR, FC3): one command per reply, the simulator answers.
 
-    The loop is the ported jx-c probe loop (probe-c/p1c2.py) on the engine's call path: the system line and
+    The loop is the ported jx-c probe loop on the engine's call path: the system line and
     the intro open the conversation, every reply is one cycle of ``Session.step_reply`` and its output is the
     next user turn, until the session ends (halted, crushed, locked out, out of turns) or the model stops
     answering. The row is graded /100 by the simulator (``compactor2.score``): ``score`` is that share,

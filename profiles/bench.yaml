@@ -140,7 +140,7 @@ recommended_samplers:
     match: 'gemma-4|Goetia|Spectre|Broken-Tutu'
     sampler: {temperature: 1.0, top_p: 0.95, top_k: 64, min_p: 0.0}
     source: https://huggingface.co/google/gemma-4-31B-it
-# 2026-11-13 sampler audit (~/Documents/Research/sampler-audit-20261113/RULES.md)
+# 2026-11-13 sampler audit
   - id: muse-glimmer
     match: 'Muse-Glimmer'
     sampler: {temperature: 1.0, top_p: 0.95, top_k: 64, min_p: 0.0}

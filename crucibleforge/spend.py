@@ -60,6 +60,9 @@ from .api import RequestRejected, WindowClosed
 log = logging.getLogger(__name__)
 
 CAP_ENV = "CF_SPEND_CAP_USD"
+#: the cap of THIS invocation only (``--spend-cap-usd``): counts this process's own hosted spend and never reads the
+#: shared ledger; the env cap with a ledger is the cumulative budget across invocations; both may apply
+RUN_CAP_ENV = "CF_SPEND_RUN_CAP_USD"
 LEDGER_ENV = "CF_SPEND_LEDGER"
 #: a per-model cap: only this model's ledger lines count toward CF_SPEND_CAP_USD
 #: (the one bench45 ledger is shared by every model; each has its own cap)
@@ -78,7 +81,7 @@ DEFAULT_RERUN_DIR = _MASTER_PLAN / "build" / "spend-journals"
 #: THE bench45 ledger: a fixed path, so every process and every model books to one file
 BENCH45_LEDGER = Path("~/.local/share/crucibleforge/bench45-spend-ledger.jsonl")
 BENCH45_PROFILE = "bench45"
-DEFAULT_GLOBAL_CAP_USD = 330.0                  # Jake 2026-11-12 (was 260)
+DEFAULT_GLOBAL_CAP_USD = 330.0                  # the owner 2026-11-12 (was 260)
 #: the earlier global ledger (11-09), the baseline under bench45 unless $CF_SPEND_BASELINE_USD
 DEFAULT_BASELINE_USD = 231.07
 #: provider types that run on hardware we own (no bill)
@@ -137,6 +140,13 @@ def episode_key(model: str) -> str | None:
         return None
     raw = f"{c.get('label')}|{model}|{c.get('case_id')}|{c.get('repeat')}"
     return "cf-" + hashlib.sha256(raw.encode()).hexdigest()[:32]
+
+
+def call_key() -> str:
+    """A routing key for ONE request (providers.cache_route_scope_for "call"): never reused, so the
+    provider holds no server-side state that the next request could pick up."""
+    import uuid
+    return "cf-" + uuid.uuid4().hex
 
 
 def _now() -> str:
@@ -208,6 +218,51 @@ def cap() -> float | None:
     return max(0.0, v)
 
 
+def run_cap() -> float | None:
+    """The cap of this invocation (``--spend-cap-usd``), or None."""
+    raw = os.environ.get(RUN_CAP_ENV, "").strip()
+    if not raw:
+        return None
+    try:
+        return max(0.0, float(raw))
+    except ValueError:
+        log.error("%s=%r is not a number - every hosted call is refused until it is fixed", RUN_CAP_ENV, raw)
+        return 0.0
+
+
+def any_cap() -> bool:
+    return cap() is not None or run_cap() is not None or global_cap() is not None
+
+
+def budget_line() -> str | None:
+    """One plan line with both figures, or None when neither cap is set:
+    ``this run: up to $X; budget: $Y spent of $Z`` (the budget is the env cap, summed over a ledger)."""
+    rc, bc = run_cap(), cap()
+    if rc is None and bc is None:
+        return None
+    parts = []
+    if rc is not None:
+        parts.append(f"this run: up to ${rc:.2f}")
+    if bc is not None:
+        parts.append(f"budget: ${spent():.2f} spent of ${bc:.2f}"
+                     + ("" if ledger_path() is not None else " (this process only: no ledger)"))
+    return "  spend caps - " + "; ".join(parts)
+
+
+def _run_over(model_id: str, s: float, est: float = 0.0) -> None:
+    """Refuse a hosted call that would take THIS process's own spend (``s``: spent plus its other calls on the
+    wire) over the invocation cap. Never reads the ledger."""
+    rc = run_cap()
+    if rc is None or not (s >= rc or s + est > rc):
+        return
+    msg = (f"crucibleforge spend cap reached: ${s:.4f} spent or reserved by this run"
+           + (f" + ${est:.4f} for this call" if est else "")
+           + f" of the ${rc:.2f} run cap (--spend-cap-usd) - spending limit, {model_id} call not sent")
+    _journal({"ts": _now(), "model": model_id, **_context(), "refused": True,
+              "total_usd": round(s, 6), "run_cap_usd": rc})
+    raise SpendCapExceeded(msg, spent=s, cap=rc, cap_name="run cap")
+
+
 def ledger_path() -> Path | None:
     """The shared ledger: ``$CF_SPEND_LEDGER`` when the variable is set (an empty
     value = no ledger), else the FIXED bench45 ledger while the active profile is
@@ -246,6 +301,7 @@ class Reservation(float):
     """A reservation (USD, the conservative estimate of one call). ``rid``
     names it in the shared ledger so another process sees it."""
     rid: str | None = None
+    run: float = 0.0       # the part counted against this invocation's own cap (kept apart from the ledger)
 
 
 def estimate_call_cost(price: dict | None, messages=None, max_tokens=None) -> float:
@@ -395,6 +451,15 @@ def global_cap() -> float | None:
         return DEFAULT_GLOBAL_CAP_USD
 
 
+def explicit_cap_set(model_id: str) -> bool:
+    """A cap somebody set on purpose for this call: ``$CF_SPEND_CAP_USD`` / ``--spend-cap-usd`` (scoped by
+    ``$CF_SPEND_CAP_MODEL``) or ``$CF_SPEND_GLOBAL_CAP_USD``. bench45's standing global cap (the profile
+    default) is NOT one (fix round 2026-11-18, P4): it still bounds every priced call, but it never makes
+    an unpriced hosted call fail in tests, dry plans or conformance probes. A real run of an unpriced
+    hosted model is refused at the run entry (``cli.cmd_run``) with the missing price named."""
+    return bool(os.environ.get(GLOBAL_CAP_ENV, "").strip()) or _model_cap(model_id) is not None
+
+
 def _model_cap(model_id: str) -> float | None:
     """The per-run cap that applies to ``model_id``: ``$CF_SPEND_CAP_USD``, but when
     ``$CF_SPEND_CAP_MODEL`` names a model, only for that model's own calls (S10 review: a
@@ -440,7 +505,11 @@ def guard(provider_type: str | None, model_id: str, own: float = 0.0) -> None:
     Spent plus the other calls' reservations (all processes, with a ledger)
     counts; ``own`` = this call's reservation, so a retry does not count itself."""
     c = _model_cap(model_id)
-    if (c is None and global_cap() is None) or not is_hosted(provider_type):
+    if not is_hosted(provider_type) or (c is None and run_cap() is None and global_cap() is None):
+        return
+    with _lock:
+        _run_over(model_id, _spent[0] + max(0.0, _inflight[0] - float(getattr(own, "run", 0.0) or 0.0)))
+    if c is None and global_cap() is None:
         return
     c = float("inf") if c is None else c
     p = ledger_path()
@@ -468,12 +537,14 @@ def reserve(provider_type: str | None, model_id: str, estimate: float = 0.0) -> 
     call seen so far, never less than FALLBACK_ESTIMATE_USD: the first call of
     a run is not free. -> a :class:`Reservation` for :func:`release`."""
     c = _model_cap(model_id)
-    if (c is None and global_cap() is None) or not is_hosted(provider_type):
+    if not is_hosted(provider_type) or (c is None and run_cap() is None and global_cap() is None):
         return Reservation(0.0)
     c = float("inf") if c is None else c
     est = max(float(estimate or 0.0), _max_call[0]) or FALLBACK_ESTIMATE_USD
     p = ledger_path()
     with _lock:
+        _run_over(model_id, _spent[0] + _inflight[0], est)
+        run_held = est if run_cap() is not None else 0.0
         if p is not None:
             with _Ledger(p) as lg:
                 sp, held = lg.state(cap_model())
@@ -485,13 +556,17 @@ def reserve(provider_type: str | None, model_id: str, estimate: float = 0.0) -> 
                 tok.rid = f"{os.getpid()}-{time.time_ns()}"
                 lg.append({"kind": "reserve", "id": tok.rid, "pid": os.getpid(),
                            "usd": round(est, 6), "model": model_id})
+            tok.run = run_held
+            _inflight[0] += run_held
             return tok
         _global_gate(None, model_id, est)
         s = _spent[0] + _inflight[0]
         if s + est > c:
             raise _over(c, model_id, s, est)
         _inflight[0] += est
-        return Reservation(est)
+        tok = Reservation(est)
+        tok.run = est if run_held else 0.0
+        return tok
 
 
 def release(token: float) -> None:
@@ -503,6 +578,7 @@ def release(token: float) -> None:
         if p is not None and rid:
             with _Ledger(p) as lg:
                 lg.append({"kind": "release", "id": rid})
+            _inflight[0] = max(0.0, _inflight[0] - float(getattr(token, "run", 0.0) or 0.0))
             return
         _inflight[0] = max(0.0, _inflight[0] - float(token))
 
@@ -511,7 +587,7 @@ def record_error(provider_type: str | None, model_id: str, price: dict | None,
                  exc: BaseException, token: float = 0.0) -> float | None:
     """Charge a billed attempt that raised: the usage the exception carries,
     else the reservation estimate (conservative, never 0 while a cap is set)."""
-    if not is_hosted(provider_type) or (cap() is None and global_cap() is None):
+    if not is_hosted(provider_type) or not any_cap():
         return None
     cost = call_cost(price, exc)
     if cost is None:
@@ -525,6 +601,13 @@ def call_cost(price: dict | None, result) -> float | None:
     included). None when the model is unpriced or no usage came back."""
     if not price:
         return None
+    billed = getattr(result, "provider_cost_usd", None)
+    if isinstance(billed, (int, float)) and not isinstance(billed, bool) and not (
+            getattr(result, "billed_extra_prompt_tokens", 0)
+            or getattr(result, "billed_extra_completion_tokens", 0)):
+        # the provider's own figure for this one call (xAI cost_in_usd_ticks): its
+        # cache discount and long-prompt tier included, which list x tokens is not
+        return float(billed)
     if hasattr(result, "cache_read_tokens"):
         # a ChatResult: priced with the prompt-cache split (4.5)
         from .providers import call_cost_usd
@@ -549,7 +632,7 @@ def record(provider_type: str | None, model_id: str, price: dict | None, result,
     if not is_hosted(provider_type):
         return None
     cost = call_cost(price, result)
-    if cost is None and (cap() is not None or global_cap() is not None):
+    if cost is None and any_cap():
         # a hosted success the cap cannot price (no price block, or no usage in
         # the reply) is charged at its reservation estimate: never free (GPT 7)
         if not price and model_id not in _warned:
@@ -558,7 +641,7 @@ def record(provider_type: str | None, model_id: str, price: dict | None, result,
                         "estimate (%s)", model_id, float(estimate) or FALLBACK_ESTIMATE_USD)
         cost = float(estimate) or FALLBACK_ESTIMATE_USD
     if cost is None:
-        if (cap() is not None or global_cap() is not None) and model_id not in _warned:
+        if any_cap() and model_id not in _warned:
             _warned.add(model_id)
             log.warning("spend cap: %s has no price (or reported no usage) — its calls are "
                         "not counted toward the cap", model_id)

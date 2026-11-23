@@ -1,6 +1,6 @@
 """Subject copies: one model under test served by SEVERAL copies at once.
 
-MakoBench 4.5 (Jake, R6: "assume it uses the entire rig, and can also split the
+MakoBench 4.5 (the owner, R6: "assume it uses the entire rig, and can also split the
 model and run two copies (one on the 5090s and one on the 3090s)"). Admin R's
 placement design: EXP-20261113-25/design.md; numbers: anchors/rig_throughput.yaml.
 

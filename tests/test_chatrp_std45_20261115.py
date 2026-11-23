@@ -31,7 +31,9 @@ DEEP = ["RD1-marisol", "RD4-kettle-saddle", "CC3-tea-hut", "CC4-second-pitch", "
 #: Audit of f509cec (bank 26eb25bc1caafcd3): seed 1 ferry canon2@8 (the drowning rebutted) now passes -> .9059
 #: Long-scene fix 2026-11-15 (scrub items 10-12 + RV2 N1, bench45 quote_own_turns + rpdeep_overrides): mean case
 #: rate .6915 -> .6686 (RD1 N-late-callback, RV1 C1 and L1 quote another turn -> no; CC3 W2, RD4 N2, RV2 N1 unscored)
-HAND = {"j_rpsession": 4 * 0.9059, "j_rplong": 3 * 0.6686}
+#: Long-scene D1 (b) 2026-11-19 (lane-j): a fact group is zeroed out of character only on a code reason, so CC3's
+#: judge-flagged groups keep their verdict: mean case rate .6686 -> .6984
+HAND = {"j_rpsession": 4 * 0.9059, "j_rplong": 3 * 0.6984}
 
 
 def _load(comp):
@@ -66,6 +68,12 @@ def rc4(monkeypatch):
     profiles.set_active("bench45")
     p = profiles.load_profile("bench45")
     profiles.activate_cases_root(p)
+    # lane-j: a judged part also waits for its second-reader marks; here the sessions' marks pass, long scenes have none
+    from crucibleforge.agree_marks import marks_sha256
+    monkeypatch.setattr(report, "judge_marks_result", lambda: {"marks_sha256": marks_sha256(),
+                                                               "parts": {"chat/j_rpsession": {"pass": True}}})
+    # these tests check the points, not coverage: every model here counts as covered (test_judge_marks_per_model)
+    monkeypatch.setattr(report, "agreement_covers", lambda *a, **k: True)
     return p
 
 
@@ -94,8 +102,10 @@ def _stats(p, rows):
 
 def test_chat_sums_to_ten_with_both_role_play_sets(rc4):
     parts = rc4["scores"]["chat"]["parts"]
+    # integration 2026-11-20: three max-0 pack parts (chat/pk_*, packs45) carry the Chat packs; they add no points
     assert {k: v["max"] for k, v in parts.items()} == {"h2_state": 1.5, "h2_ledger": 1, "h6_know": 0.5,
-                                                        "j_rpsession": 4, "j_rplong": 3}
+                                                        "j_rpsession": 4, "j_rplong": 3, "pk_character": 0,
+                                                        "pk_remembers": 0, "pk_cowrites": 0}
     assert sum(v["max"] for v in parts.values()) == 10
     assert parts["j_rpsession"]["label"] == "Role-play: sessions"
     assert parts["j_rplong"]["label"] == "Role-play: long scenes"
@@ -127,7 +137,17 @@ def test_both_sets_are_exactly_the_pilot_and_nothing_else_moves(rc4):
     for k, v in rc3["chains"].items():
         if k not in ("chat/j_roleplay", "chat/j_person") and k.startswith(("work/", "chat/")):   # the adult page is rc4's own
             assert rc4["chains"][k] == v, k
-    assert {k: v for k, v in rc4["cases"].items() if k != "rpdeep"} == {k: v for k, v in rc3["cases"].items()}
+    # (the three Assistant basics categories are the standard composition's own addition, 2026-11-19; they are in no score)
+    assistant = ("instruct", "reasoning", "longctx")
+    # (the four fix units are the standard composition's own addition too, 2026-11-19: "Fixes and changes existing code")
+    # (step 2, 2026-11-21: the generated units are patchmini L1-3, patchfix L1-4, patchmod L3)
+    from crucibleforge import profiles as _pr
+    fixes = {"codeagent": ["CB-F1-larder-bughunt"],
+             "coding": [c["id"] for c in _pr.core_generated_cases(rc4)]}
+    got = {k: v for k, v in rc4["cases"].items() if k != "rpdeep" and k not in assistant}
+    assert {k: got.pop(k) for k in list(fixes)} == fixes
+    assert got == {k: v for k, v in rc3["cases"].items()}
+    assert [i for c in assistant for i in rc4["cases"][c]] == rc4["assistant"]["cases"]
     for k in ("h2_state", "h2_ledger", "h6_know"):
         assert rc4["scores"]["chat"]["parts"][k]["max"] == rc3["scores"]["chat"]["parts"][k]["max"]
 
@@ -138,7 +158,7 @@ def test_deepseek_flash_pilot_rows_give_the_hand_computed_points(rc4):
     got = {"j_rpsession": s["scorecard"]["parts"]["chat"]["j_rpsession"], "j_rplong": uv["j_rplong"]["points"]}
     for k, want in HAND.items():
         assert got[k] == pytest.approx(want, abs=0.002), (k, got[k])
-    assert sum(got.values()) == pytest.approx(4 * 0.9059 + 3 * 0.6686, abs=0.005)    # 5.63
+    assert sum(got.values()) == pytest.approx(4 * 0.9059 + 3 * 0.6984, abs=0.005)    # 5.72
     # long scenes: shown with its points, never counted while pending validation
     assert s["scorecard"]["parts"]["chat"]["j_rplong"] is None and "j_rpsession" not in uv
     cs = s["chain_stats"]["chat/j_rpsession"]
@@ -257,7 +277,7 @@ def test_the_shipping_composition_has_no_real_person_part(tmp_path, monkeypatch,
                    "    api_key_env: CF_TOY_KEY_UNSET\n    concurrency: 1\n"
                    "models:\n- name: toy\n  provider: toy\n  model_id: toy-1\n  context_length: 131072\n"
                    "judge:\n  candidates:\n  - provider: toy\n    model_id: toy-1\n    context_length: 16384\n"
-                   "defaults:\n  context_length: 131072\n")
+                   "defaults:\n  context_length: 131072\n", encoding="utf-8")
     monkeypatch.setenv("CRUCIBLEFORGE_RESULTS", str(tmp_path / "results"))
     from crucibleforge import cli
     try:

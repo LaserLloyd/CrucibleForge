@@ -1,0 +1,58 @@
+{
+ "about": "Third dated addendum to act-lexicon-45.json (packs lane, 2026-11-20, written before any launch row was read and before any model ran a pack item). Adds one act type and keys the sexual cards of the staged NSFW+ packs. Re-keys no existing card, redefines no type.",
+ "written": "2026-11-20",
+ "written_before_launch_rows": true,
+ "type_groups": {
+  "pack_sex": [
+   "\\b(?:cock\\w*|dick\\w*|prick|shaft|cunt\\w*|pussy|clit\\w*|cum|come|comes|came|coming|arse|ass|asshole|hemipenis|hemipenes|knot|ovipositor\\w*|cloaca\\w*|slit|tits|nipples?|balls)\\b",
+   "\\b(?:fuck\\w*|thrust\\w*|suck\\w*|lick\\w*|ride|rides|rode|riding|ground|grind\\w*|pound\\w*|slid\\w*|slick|enter\\w*|fill\\w*|push\\w*|sink\\w*|sank|driv\\w*|drove|bury|buried|stretch\\w*|spill\\w*|swell\\w*|ache\\w*|clench\\w*|squeez\\w*|plung\\w*)"
+  ]
+ },
+ "cards": {
+  "NR1-edge-count": {
+   "explicit-sex": "pack_sex"
+  },
+  "NR3-two-forms": {
+   "explicit-sex": "pack_sex"
+  },
+  "NR5-protocol": {
+   "explicit-sex": "pack_sex"
+  },
+  "NR6-two-clocks": {
+   "explicit-sex": "pack_sex"
+  },
+  "PK-R-01-hemipenes": {
+   "explicit-sex": "pack_sex"
+  },
+  "PK-R-02-knot": {
+   "explicit-sex": "pack_sex"
+  },
+  "PK-R-03-ovipositor": {
+   "explicit-sex": "pack_sex"
+  },
+  "PK-R-04-naga-hemipenes": {
+   "explicit-sex": "pack_sex"
+  },
+  "PK-R-05-lupine-knot-size": {
+   "explicit-sex": "pack_sex"
+  },
+  "PK-W-01-taur-front-mount": {
+   "explicit-sex": "pack_sex"
+  },
+  "PK-W-02-hemipenes-ovipositor": {
+   "explicit-sex": "pack_sex"
+  },
+  "PK-W-03-knot-size-mismatch": {
+   "explicit-sex": "pack_sex"
+  },
+  "PK-W-04-naga-cloaca-vent": {
+   "explicit-sex": "pack_sex"
+  },
+  "PK-W-05-press-milled-hands": {
+   "explicit-sex": "pack_sex"
+  },
+  "PK-W-06-naga-cistern-knot": {
+   "explicit-sex": "pack_sex"
+  }
+ }
+}

@@ -3,10 +3,11 @@ from __future__ import annotations
 
 import json
 import re
+import os
 import sys
 from pathlib import Path
 
-sys.path.insert(0, "/var/tmp/mb45-build/auth-rp-work")
+sys.path.insert(0, os.environ.get("RP_AUTH_WORK", "."))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 import ds  # noqa: E402
 from tools.adult45_rp.probes_spec import DWELL, DWELL_SYS, PROBES  # noqa: E402

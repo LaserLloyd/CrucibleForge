@@ -1,5 +1,5 @@
 {
- "source": "Admin N2 rc2 proxy screen (EXP-20261114-01), /var/tmp/mb45-build/n2-work/screen/foil-j1/raw: DS-flash judge verdicts on two floor foils of theme_w (the highest-credit foil of each kind). Quotes dropped; verdict YES/PARTIAL/NO per judge element. Proxy credit (YES 1, PARTIAL 0.5, NO 0): sfw 0.312, other 0.375.",
+ "source": "Admin N2 rc2 proxy screen (EXP-20261114-01): DS-flash judge verdicts on two floor foils of theme_w (the highest-credit foil of each kind). Quotes dropped; verdict YES/PARTIAL/NO per judge element. Proxy credit (YES 1, PARTIAL 0.5, NO 0): sfw 0.312, other 0.375.",
  "foils": {
   "sfw": {
    "case_id": "FLAT-theme_w_L1-001-r1-a1",

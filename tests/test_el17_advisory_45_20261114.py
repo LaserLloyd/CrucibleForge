@@ -1,4 +1,4 @@
-"""EL-17 wording list is advisory under the 4.5 standard (lead, 2026-11-14; Jake's rulings).
+"""EL-17 wording list is advisory under the 4.5 standard (lead, 2026-11-14; the owner's rulings).
 
 The only content limits are docs/CONTENT-RULES.md as written; rule 1 is judged on what is depicted,
 not on words. Under ``element_standard: 45`` a wording hit (petite, student, dorm, ...) is a warning

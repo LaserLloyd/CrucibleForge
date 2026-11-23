@@ -1,0 +1,12 @@
+{
+ "about": "Chat / Everyday instructions marks (W0, 2026-11-19, before any launch row was read). Segment = Assistant basics (15 checked items, x2 repeats) 0.5 + KNOWGAP 0.5. The frozen assistant marks (calibration/assistant_marks_20261119.json a/b/c/d) stay in force for the basics half; these add the segment-level marks.",
+ "written": "2026-11-19",
+ "written_before_launch_rows": true,
+ "marks": {
+  "EV1_reference": "the reference's Everyday share >= 0.85 on each of its two runs",
+  "EV2_damaged_gap": "the damaged stand-in (split-untied-31b) scores >= 0.20 of the segment below the reference",
+  "EV3_basics_marks": "calibration/assistant_marks_20261119.json passes (a: reference >= 0.90, replicate difference <= 0.10; b: sound > damaged > small; d: cut share <= 0.05)",
+  "EV4_know_contrast": "KNOWGAP: every contrast pair's answerable member is answered by the reference on both runs (key check); a model that says 'not stated' to everything scores <= 0.5 of Know",
+  "EV5_floor_disclosure": "the segment is a floor (sound models 0.93-1.00); its ceiling mark passes only through damaged or small models; the tests page says so"
+ }
+}

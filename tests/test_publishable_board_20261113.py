@@ -19,6 +19,8 @@ def board(tmp_path, monkeypatch):
     monkeypatch.setattr(report, "_cards", lambda *a, **k: None)
     monkeypatch.setattr(report, "_headline", lambda *a, **k: None)
     monkeypatch.setattr(report, "assert_no_claude_code", lambda *a, **k: None)
+    # the stub rows carry no grader stamps; the stale/undisclosed hold has its own tests (lane-t hooks file)
+    monkeypatch.setattr(report, "held45", lambda *a, **k: [])
     for label, meta in {"good": {}, "stopped": {"publishable": False,
                                                  "early_stop": {"reason": "token-limit"}}}.items():
         (tmp_path / f"meta_{label}.json").write_text(json.dumps({"model_label": label, **meta}), encoding="utf-8")

@@ -1,4 +1,4 @@
-"""A cut reply is not counted on an ``ran_out: exclude`` cell (Jake's ruling, lead 2026-11-14 after D's
+"""A cut reply is not counted on an ``ran_out: exclude`` cell (the owner's ruling, lead 2026-11-14 after D's
 DeepSeek-R1-0528-8B rc2 run): two engine paths scored the cut reply as a 0.
 
 1. Element-less chain units (TRACEVM, SESSION_STATE: one score per reply or per session) took the
@@ -29,9 +29,16 @@ def _rows():
     return json.loads(FIX.read_text(encoding="utf-8"))
 
 
+def _omit(monkeypatch):
+    """These tests pin the plain D10 rule (a cut reply is left out); the shipped profile says
+    ``cut_at_full_budget: zero`` for the short-keyed parts since 2026-11-19 (tests/test_firstrun_f5_20261119.py)."""
+    real = profiles.load_profile
+    monkeypatch.setattr(profiles, "load_profile", lambda *a, **k: {**real(*a, **k), "cut_at_full_budget": "omit"})
+
+
 def _prof(monkeypatch):
     monkeypatch.setenv(profiles.COMPOSITION_ENV, "rc2-main")
-    return profiles.load_profile("bench45")
+    return {**profiles.load_profile("bench45"), "cut_at_full_budget": "omit"}
 
 
 # ------------------------------------------------------------------ 1. element-less chain units
@@ -118,13 +125,29 @@ def test_bank_zero_rule_and_no_rule_change_nothing():
 
 # ------------------------------------------------------------------ the 8B's board (D's hand calculation)
 
+def _current_rows(monkeypatch):
+    """The fixture rows with the Implied attempts regraded under today's grader (replies untouched): the Implied
+    key fix of the 4.5 item audit moved its chain revision, so the stored attempts are no longer current and the
+    board would read Implied as pending. One unit moves (0.7391 -> 0.6957)."""
+    from crucibleforge import regrade
+    from crucibleforge.gen import _det
+    p = _prof(monkeypatch)
+    profiles.activate_cases_root(p)
+    rows = _rows()
+    specs = {c["id"]: c for c in chains.chain_cases(p)}
+    recs = regrade.plan(rows, specs, "test: today's grader", None, {}, "work/c1_implied",
+                        now="2026-11-18T00:00:00+00:00", commit="test", pin=_det.pinned_python(p))
+    return rows + [r for rec in recs if rec["status"] == "regrade" for r in rec["rows"]]
+
+
 @pytest.mark.live_ladder
 def test_the_8b_board_line(tmp_path, monkeypatch):
     """Trace 0.26 of 3 on 8 units; Predict not measured (3 of 5 CB-C5 repeats cut at 65,536 = 60%);
     Coding 2.54 on 8 of 10 points, shown scaled to 3.2 with the scaling stated (post-T rows)."""
+    _omit(monkeypatch)
     res = tmp_path / "results"
     res.mkdir()
-    (res / f"transcripts_{LABEL}.jsonl").write_text("".join(json.dumps(r) + "\n" for r in _rows()),
+    (res / f"transcripts_{LABEL}.jsonl").write_text("".join(json.dumps(r) + "\n" for r in _current_rows(monkeypatch)),
                                                     encoding="utf-8")
     cfgf = tmp_path / "models.yaml"
     cfgf.write_text(
@@ -145,8 +168,10 @@ def test_the_8b_board_line(tmp_path, monkeypatch):
     md = (res / "report.md").read_text(encoding="utf-8")
     # Implied 2.2 -> 2.3 (and 3.1 / 2.5 -> 3.2 / 2.6): the fixture's IMPLIED rows are T's regraded copies
     # (a47174a scrub + halves-up, regrade 060085f); the rule this pins is unchanged
-    assert re.search(rf"\| {LABEL} \| 3\.2 \(scaled from 2\.6 of 8 measured\) = Implied 2\.3±\d\.\d "
-                     r"\+ Trace 0\.3±\d\.\d \+ Predict not measured \(60% of calls ran out\) \|", md), md
+    # fix round 2026-11-18: the 4.5.0 labels (R5: Implied = "Functions", Trace = "Steps", Predict = "Traps") and the
+    # one truncation rule's wording (R1: "3 of 5 replies cut"); the numbers are unchanged
+    assert re.search(rf"\| {LABEL} \| 3\.2 \(scaled from 2\.6 of 8 measured\) = Functions 2\.3±\d\.\d "
+                     r"\+ Steps 0\.3±\d\.\d \+ Traps not measured \(3 of 5 replies cut\) \|", md), md
     assert re.search(rf"\| {LABEL} \| work/c2_trace \| 0\.26 / 3 \| 9/9 \| 8 \|", md), md
 
     cfg = config.load_config()
@@ -157,6 +182,7 @@ def test_the_8b_board_line(tmp_path, monkeypatch):
     card = report.tier_scorecard(st, report.scoring_config(cfg), prof)
     parts = card["parts"]["work"]
     assert parts["c2_predict"] is None
-    assert parts["c1_implied"] + parts["c2_trace"] == pytest.approx(2.54, abs=0.005)   # 2.46 before T's regrade
+    # 2.46 before T's regrade, 2.54 before the item-audit Implied key fix (one unit 0.7391 -> 0.6957)
+    assert parts["c1_implied"] + parts["c2_trace"] == pytest.approx(2.52, abs=0.005)
     assert card["ladder"]["work"]["c2_predict"]["not_measured"]
     assert card["labels"]["work"].startswith("3.2") and "[2 pts not measured]" in card["labels"]["work"]

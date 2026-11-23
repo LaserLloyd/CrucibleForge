@@ -1,0 +1,19 @@
+{
+  "item": "PACK-NSFW-N8_BODIES",
+  "level": 1,
+  "status": "live",
+  "category": "nsfw",
+  "budget": 32768,
+  "id_prefix": "PKB",
+  "note": "anatomy pack: eight-sentence passages with physical errors decided by the card and earlier sentences. WIRED 2026-11-21 (owner ruling): every bank item carries a Grok and a DeepSeek attestation (scripts/attest_check.py). One point in total, the items' mean.",
+  "generator": {
+    "family": "nsfwpack45",
+    "variant": "bodies",
+    "rungs": [
+      1,
+      2,
+      3
+    ],
+    "per_rung": 1
+  }
+}

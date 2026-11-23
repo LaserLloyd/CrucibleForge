@@ -1,0 +1,19 @@
+{
+  "about": "Validation marks for the Assistant basics (checked) column, written before any run (2026-11-19). The column prints 'pending' until scripts/check_assistant_marks.py exits 0 on the rig runs and the profile's assistant.validated is set to true. Source: handover/ASSISTANT-PART-PROPOSAL-20261118.md.",
+  "written": "2026-11-19",
+  "written_before_any_run": true,
+  "set": {
+    "reference": ["qwen3.8-27b-unsloth*", "reference*"],
+    "sound": ["deepseek-flash*", "darker-scarlett-27b*"],
+    "damaged": ["split-untied-31b*", "*split*untied*"],
+    "small": ["deepseek-r1-0528-8b*", "r1-8b*"]
+  },
+  "marks": {
+    "a_reference_min": 0.90,
+    "a_replicate_max_difference": 0.10,
+    "a_min_runs": 2,
+    "b_order": "every sound model (the reference included) scores above every damaged model, and every damaged model above every small one",
+    "c_item_passed_at": 0.5,
+    "d_max_cut_share": 0.05
+  }
+}

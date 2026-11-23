@@ -88,7 +88,10 @@ def test_leftover_packs_share_the_hard_packs_level():
 
 @pytest.mark.live_ladder   # reads the committed packs (conftest empty-ladder guard, 4e1cfeb)
 def test_every_committed_pack_verifies():
+    import _staged45     # the staged sets are gated when wired (tests/_staged45.py; test_staged_verify_list)
     for f in sorted((ROOT / "cases" / "ladder").rglob("set-*.json")):
+        if _staged45.listed(f):
+            continue
         problems, _ = ladder.verify_pack(f)
         assert not problems, (f, problems)
 

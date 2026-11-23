@@ -797,6 +797,8 @@ def load_exact(model_id: str, base_url: str, api_key: str, headers: dict | None,
         body["kv_cache_type"] = kv
         body["kv_cache_type_v"] = kv
     last = None
+    refused_507 = False
+    usable = None
     for n in ladder:
         try:
             if live:
@@ -810,6 +812,10 @@ def load_exact(model_id: str, base_url: str, api_key: str, headers: dict | None,
             continue
         if code >= 400:
             last = f"HTTP {code}: {str(data)[:200]}"
+            if code == 507:
+                refused_507 = True
+                m = re.search(r"([\d.]+\s*GiB)\s+usable", str(data))
+                usable = m.group(1) if m else usable
             log.warning("%s: %d slots at ctx %d refused (%s) — trying fewer",
                         model_id, n, ctx, last)
             live = {}
@@ -824,6 +830,11 @@ def load_exact(model_id: str, base_url: str, api_key: str, headers: dict | None,
         live = loaded_plan(model_id, base_url, api_key, headers) or {}
         log.info("%s serving at exactly %s slots x ctx %s on %s", model_id,
                  live.get("parallel"), live.get("ctx_size"), live.get("devices"))
+        got = int(live.get("parallel") or n)
+        if refused_507 and got * 2 < ladder[0]:
+            log.warning("%s: asked for %d slots at ctx %d, got %d after HTTP 507 refusals "
+                        "(the rig reported %s usable); throughput is lower, scores are unchanged",
+                        model_id, ladder[0], ctx, got, usable or "an unknown amount of memory")
         return live
     raise StudioForgeError(f"{model_id}: no slot count of {ladder} at ctx {ctx} was "
                            f"accepted ({last})", status=507)
@@ -1530,7 +1541,10 @@ def acquire_lease(base_url: str, api_key: str, headers: dict | None, devices: li
                 busy_since = None
             log.warning("lease refused (HTTP %d, %s) — retrying in %.0fs: %s",
                         code, reason_txt, wait, detail)
+            _t_wait = time.monotonic()
             _sleep(wait)
+            from . import timing as _timing
+            _timing.add_wait(time.monotonic() - _t_wait)
             waited += wait
             continue
         raise StudioForgeError(f"lease refused (HTTP {code}): {detail}", status=code,

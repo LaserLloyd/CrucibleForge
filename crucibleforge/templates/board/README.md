@@ -129,7 +129,7 @@ state feeds both layouts.
 - The per-column minimum-score row is behind **Filters** (closed by default);
   headline scores (points) get point-sized steps (Overall ≥ 8…18, the others
   ≥ 4…9), components stay on 0-100. It moved into the per-header menus on
-  2026-11-03 (Jake: "for each header, add a on click filter option, and move
+  2026-11-03 (the owner: "for each header, add a on click filter option, and move
   the filters in there"): the ▾ in a head opens that column's menu (sort up /
   down, the operators for its type, the presets, a free number, a clear and
   the active filter). The row under the toolbar is now the launcher that

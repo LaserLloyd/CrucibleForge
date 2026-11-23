@@ -5,6 +5,7 @@ The one interesting thing here is the sandbox opt-in below.
 from __future__ import annotations
 
 import os
+import re
 import sys
 import tempfile
 from pathlib import Path
@@ -156,6 +157,9 @@ def bench_38(monkeypatch):
     from crucibleforge import profiles, report
     monkeypatch.setattr(profiles, "_dirs", lambda cfg=None: [_PROFILES_38])
     monkeypatch.setattr(report, "_PROFILE_LABELS", None)
+    # the 4.5 release flip made bench45 the default profile; this directory holds only the frozen `bench`, so the
+    # default is pinned back to it, as the archive_default marker does
+    monkeypatch.setattr(profiles, "DEFAULT_PROFILE", profiles.ARCHIVE_PROFILE)
     return _PROFILES_38
 
 
@@ -199,7 +203,7 @@ def _process_switch_env_restored(monkeypatch):
     ``setenv(CF_SPEND_CAP_USD, "3")`` wrote back the "15.0" the CLI had put in
     os.environ — arming the spend gate for every later test on that worker.)"""
     import os
-    keys = ("CRUCIBLEFORGE_INCLUDE_STAGED", "CF_SPEND_CAP_USD", "CF_SPEND_LEDGER",
+    keys = ("CRUCIBLEFORGE_INCLUDE_STAGED", "CF_SPEND_CAP_USD", "CF_SPEND_RUN_CAP_USD", "CF_SPEND_LEDGER",
             "CF_SPEND_CAP_MODEL", "CF_SPEND_GLOBAL_CAP_USD")
     for k in keys:
         v = os.environ.get(k)
@@ -224,6 +228,8 @@ def pytest_configure(config):
     config.addinivalue_line(
         "markers", "shipping_default: the test runs with CF_COMPOSITION unset (bench45's default_composition, "
                    "`standard`); unmarked tests run with CF_COMPOSITION=default unless they set it")
+    config.addinivalue_line(
+        "markers", "timing: a wall-clock assertion with a generous bound; `pytest -m timing -n 0` runs them alone")
 
 
 @pytest.fixture(autouse=True)
@@ -280,6 +286,16 @@ def _base_composition(request, monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def _quarantine_store_isolated(monkeypatch, tmp_path_factory):
+    """Every test gets its own empty quarantine store. Test runs once left model
+    records (``bad``, ``m``) in the operator's store; with one real early stop they
+    made three in a row and opened a queue halt that stopped every later run
+    (2026-11-21). A test that points the variable elsewhere itself still may."""
+    monkeypatch.setenv("CRUCIBLEFORGE_QUARANTINE", str(tmp_path_factory.mktemp("quarantine")))
+    yield
+
+
+@pytest.fixture(autouse=True)
 def _ladder_dir_isolated(request, monkeypatch, tmp_path_factory):
     """Point ladder.LADDER_DIR at an empty directory unless the test is marked
     ``live_ladder``. A test that set a test release seed while the live ladder was
@@ -317,7 +333,8 @@ def case_set_check():
     from crucibleforge import config, verify_cases
     from crucibleforge.codebank import Unsupported
 
-    cases = config.load_cases()
+    import _staged45     # wired cases only: the staged sets are gated when wired (tests/_staged45.py)
+    cases = [c for c in config.load_cases() if not (c.get("ladder_pack") and _staged45.listed(c["ladder_pack"]))]
 
     def one(c):
         try:
@@ -332,7 +349,16 @@ def case_set_check():
     else:
         with ThreadPoolExecutor(max_workers=workers) as ex:
             results = list(ex.map(one, cases))
+    # A reference solution's own speed checks ("too slow", a group that timed out) are wall-clock bounds: under a
+    # parallel suite on a loaded host they can trip for a correct solution. Such a case is checked once more, alone,
+    # after the pool; a wrong answer fails both times, and every other kind of error is kept as found.
+    for i, (c, r) in enumerate(zip(cases, results)):
+        if r and all(_TIMING_ERR.search(str(e)) for e in r):
+            results[i] = one(c)
     return cases, {id(c): r for c, r in zip(cases, results)}
+
+
+_TIMING_ERR = re.compile(r"too slow|did not run \(timeout|timed out|TimeoutExpired")
 
 
 @pytest.fixture(autouse=True)

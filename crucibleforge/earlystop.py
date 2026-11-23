@@ -35,7 +35,8 @@ stored false positives at 0.25 were exactly such reruns).
 Signals:
 
 * ``blank``       — no effective answer: :func:`effective_answer` is empty and the
-  row made no tool call. An answer a FINISHED reply left in the reasoning
+  row made no tool call (:func:`did_tool_work`: row-level, or in its agent/tool
+  conversation). An answer a FINISHED reply left in the reasoning
   channel counts as an answer (the post-30cd052 rule), a cut-off one never;
   under the 4.5 ``empty_stop_rule`` a row stamped ``empty_stop`` counts as blank.
 * ``token_limit`` — a run-health signal for looping, never a scoring budget
@@ -90,6 +91,20 @@ def effective_answer(row: dict) -> str:
     reasoning channel is read from the reasoning channel; a cut-off, dropped or filtered reply never is."""
     from .api import row_answer
     return row_answer(row)
+
+
+def did_tool_work(row: dict) -> bool:
+    """The row carried out tool calls: a row-level tool call, or a multi-turn
+    agent/tool conversation (``tool_conversation``) in which the model called a
+    tool. Code-agent rows keep ``tool_calls`` empty at row level and may end on
+    a turn with no text; their work is graded by the task's tests."""
+    if row.get("tool_calls"):
+        return True
+    conv = row.get("tool_conversation")
+    if not isinstance(conv, list):
+        return False
+    return any(isinstance(m, dict) and (m.get("role") == "tool" or m.get("tool_calls"))
+               for m in conv)
 
 
 def misrouted(row: dict) -> bool:
@@ -151,11 +166,12 @@ def classify(row: dict) -> dict:
     (the caller turns that into a fail-closed error)."""
     if not isinstance(row, dict):
         raise TypeError(f"row is {type(row).__name__}, not a dict")
-    tools = row.get("tool_calls")
+    tools = did_tool_work(row)
     return {
         # an unsent turn (finish=context) is the token-limit signal, not a blank answer
         # a row stamped empty_stop (4.5 empty_stop_rule) is a blank: a finished reply with
-        # no visible content is not read from its reasoning here
+        # no visible content is not read from its reasoning here; a row that did tool
+        # work (row-level or in its tool conversation) is not blank for an empty last turn
         "blank": ((not tools) and not effective_answer(row).strip()
                   and row.get("finish_reason") != "context") or bool(row.get("empty_stop")),
         "misrouted": misrouted(row),
@@ -170,13 +186,20 @@ class EarlyStop:
     None. Thread-safe on its own as well."""
 
     def __init__(self, cfg: dict | None = None, *, label: str | None = None,
-                 skip: str | None = None):
+                 skip: str | None = None, dnf_exempt=None):
         self.s = settings(cfg)
+        #: lead 2026-11-19 (b): under cut_at_full_budget: zero a did-not-finish reply on a short-answer part
+        #: (:func:`dnf_exempt_from`) is graded as delivered, so it is not a length-limit cut here
+        self.dnf_exempt = dnf_exempt
+        #: answers already on disk when a resumed run started (:meth:`seed`)
+        self.resumed_from = 0
         self.label = label
         #: why this run is not judged (a targeted rerun); recorded, never a trip
         self.skip = skip
         self.n = 0
         self.counts = {"blank": 0, "misrouted": 0, "token_limit": 0, "degenerate": 0}
+        if dnf_exempt is not None:
+            self.counts["did_not_finish"] = 0
         #: the hard limits (max_tokens_sent) in force on the rows cut at the limit
         self.limits: set[int] = set()
         self.error: str | None = None
@@ -190,7 +213,7 @@ class EarlyStop:
 
     def _rates(self) -> dict:
         n = self.n
-        return {k: (v / n if n else None) for k, v in self.counts.items()}
+        return {k: (v / n if n else None) for k, v in self.counts.items() if k != "did_not_finish"}
 
     def observe(self, rows: list[dict]) -> dict | None:
         """Count ``rows`` (in persist order) and judge after each answer inside
@@ -212,9 +235,11 @@ class EarlyStop:
                     self.error = (f"early stop could not classify answer {self.n + 1}: "
                                   f"{type(e).__name__}: {e}")[:500]
                     return None
+                if c["token_limit"] and self.dnf_exempt is not None and self.dnf_exempt(row):
+                    c = {**c, "token_limit": False, "did_not_finish": True}
                 self.n += 1
                 for k in self.counts:
-                    self.counts[k] += int(bool(c[k]))
+                    self.counts[k] += int(bool(c.get(k)))
                 if c["token_limit"] and row.get("max_tokens_sent"):
                     self.limits.add(int(row["max_tokens_sent"]))
                 dlo = int(self.s.get("degenerate_after_answers") or lo)
@@ -237,6 +262,7 @@ class EarlyStop:
                                     "counts": dict(self.counts),
                                     "misrouted_rate": round(rates["misrouted"], 4),
                                     "cut_at_max_tokens_sent": sorted(self.limits),
+                                    **({"resumed_from": self.resumed_from} if self.resumed_from else {}),
                                     "thresholds": self._thresholds()}
                     return self.tripped
             return None
@@ -253,6 +279,8 @@ class EarlyStop:
         out = {"checked": self.enabled, "tripped": False, "answers_seen": self.n,
                **({"skipped": self.skip} if self.skip else {}),
                "counts": dict(self.counts), "thresholds": self._thresholds()}
+        if self.resumed_from:
+            out["resumed_from"] = self.resumed_from
         if self.last_eval:
             out["last_eval"] = self.last_eval
         if self.error:
@@ -262,12 +290,48 @@ class EarlyStop:
         return out
 
 
-def targeted_reason(cfg: dict | None, case_ids) -> str | None:
+    def seed(self, rows: list[dict]) -> dict | None:
+        """A resumed run (lead 2026-11-19 b): the answers already on disk for this run, in their stored
+        order, go through the same window first, so the rate is the whole run's (stored + new) with the
+        same minimum sample. Returns the trip record when the stored answers alone trip it."""
+        trip = self.observe(rows)
+        with self._lock:
+            self.resumed_from = self.n
+            if trip is not None and self.resumed_from:
+                trip["resumed_from"] = self.resumed_from
+        return trip
+
+
+def dnf_exempt_from(prof: dict | None, short_case_ids=(), bank_budget=None):
+    """The did-not-finish test early stop applies under ``cut_at_full_budget: zero`` (chains.py D10a), or None
+    (the plain rule: every cut counts). A reply is exempt when it belongs to one of the five short-answer parts
+    (a chain row's ``chain.part``, or a case row of ``short_case_ids``) and ended on the length limit having
+    produced at least 98% of the budget sent (``max_tokens_sent``, else the chain's ceiling / ``bank_budget``)."""
+    from . import chains as _chains
+    if not (prof or {}).get("chains") or _chains.cut_at_full_budget(prof) != "zero":
+        return None
+    ids = frozenset(short_case_ids or ())
+
+    def exempt(row: dict) -> bool:
+        ch = row.get("chain") or {}
+        if ch:
+            if ch.get("part") not in _chains.SHORT_KEYED_PARTS:
+                return False
+        elif row.get("case_id") not in ids:
+            return False
+        ceiling = row.get("max_tokens_sent") or ch.get("ceiling") or bank_budget
+        return _chains.full_budget_cut(row, ceiling)
+    return exempt
+
+
+def targeted_reason(cfg: dict | None, case_ids, planned_out=()) -> str | None:
     """Why a run over ``case_ids`` is a targeted rerun (not judged), or None
     for a run start. A run start covers the profile's whole selection
     (``cfg["_profile_case_ids"]``, set by profiles.apply_profile); with no
     profile selection known, the run is judged."""
-    full = set((cfg or {}).get("_profile_case_ids") or [])
+    # ``planned_out``: profile cases this model was never going to run (the adult page when it was not asked for):
+    # a plain run without them is still a whole run
+    full = set((cfg or {}).get("_profile_case_ids") or []) - set(planned_out)
     have = set(case_ids)
     if not full or full <= have:
         return None

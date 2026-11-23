@@ -15,8 +15,11 @@ not benchmarked unless its settings were checked:
         source: https://huggingface.co/<repo>   # where the card was read
         template: "<what the chat template does: thinking switch, forced <think>, ...>"
 
-Hosted API models are exempt (the vendor fixes the sampler; rule
-``api-vendor-fixed`` or nothing to send). The fixed regime (each case's own
+Hosted API models are never refused here (the vendor fixes the sampler; rule
+``api-vendor-fixed`` or nothing to send), but since 2026-11-18 (P2, D11) they are
+checked where the registry can say it: basis ``api-checked`` when the entry
+declares its thinking mode and a reasoning effort, else ``api`` with the reason
+naming what is not verifiable (every row then carries it as ``settings_note``). The fixed regime (each case's own
 sampler) is exempt too.
 
 Template facts (:func:`template_facts`) come from the chat template the rig
@@ -115,7 +118,11 @@ def check(cfg_p: dict, entry: dict, provider_type: str | None,
     facts = template_facts(template, acknowledged=bool(str(sc.get("template") or "").strip())) \
         if template else []
     if provider_type not in RIG_TYPES:
-        return Verdict(True, label, "api", facts=facts)
+        # P2 (fix round 2026-11-18, D11): a hosted model is checked where the registry can say it (thinking
+        # mode, reasoning effort); what it cannot verify is named, and every row carries it (settings_note)
+        from .disclosure import hosted_settings_verdict
+        basis, note = hosted_settings_verdict(e, provider_type)
+        return Verdict(True, label, basis, reason=note, facts=facts)
     if ((cfg_p or {}).get("defaults") or {}).get("regime") != REGIME_DEPLOYED:
         return Verdict(True, label, "fixed-regime", facts=facts)
     _, source = resolve_sampler(cfg_p, e)

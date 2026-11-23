@@ -1,4 +1,4 @@
-"""The adult page's two numbers on the non-routed bench45 board (Jake R52, lead 2026-11-14 rc3): NSFW and
+"""The adult page's two numbers on the non-routed bench45 board (the owner R52, lead 2026-11-14 rc3): NSFW and
 Uncensored, each out of 10 (report.score_subtotals, filled by N2 in points_scorecard), print as two separate
 columns with their margins, and the parts line beneath (pending parts say so; the number says it is scaled
 from the measured points). A model whose adult page did not run reads "not run", never 0. Nothing of the

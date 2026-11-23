@@ -39,7 +39,7 @@ def _bench45_active(prof):
 
 @pytest.fixture(scope="module")
 def s8b():
-    d = json.loads(FX.read_text())
+    d = json.loads(FX.read_text(encoding="utf-8"))
     return d["stats"], d["scoring"]
 
 
@@ -74,7 +74,9 @@ def test_8b_coding_is_its_measured_points_never_a_dash(card):
     assert card["measured_max"]["work"] == pytest.approx(5 + 1.25)
     assert lab.startswith(f"{want:.1f} of 6.25"), lab
     pend = {x["part"]: x for x in card["pending_points"]["work"]}
-    assert set(pend) == {"c5_tools", "c2_predict"}
+    # step 2 (2026-11-21): the seeded tool tasks' part (max 0, chain work/c5_toolgen; this fixture predates it) is
+    # pending too and carries no points
+    assert set(pend) == {"c5_tools", "c2_predict", "c5_toolgen"}
     assert "errored" in pend["c5_tools"]["why"] and pend["c2_predict"]["why"] == "not measured"
     assert "2.5 pts pending a re-run of 2 errored jobs" in lab and "1.25 pts not measured" in lab
 
@@ -103,7 +105,8 @@ def test_the_scorecard_cell_reads_the_same(card, prof):
     hl = headline.summarize(card, None, prof)
     cod = report.points_cell(hl, _defs(card, "work"))
     assert cod.startswith(f"{card['work']:.1f} of 6.25 ("), cod
-    assert "Tools pending" in cod and "Predict not measured" in cod and "scaled" not in cod
+    # fix round 2026-11-18 (R5): Tools and Predict print as "Tool rules" and "Traps"
+    assert "Tool rules pending" in cod and "Traps not measured" in cod and "scaled" not in cod
     chat = report.points_cell(hl, _defs(card, "chat"))
     assert chat.startswith(f"{card['chat']:.1f} of 3 ("), chat
     assert "scaled" not in chat
@@ -148,9 +151,13 @@ def test_the_margin_draw_never_scales_on_rc4_main(prof):
 def test_a_model_with_rows_missing_is_not_ranked_and_says_why(card, prof, s8b):
     assert card["total"] is None
     why = card["unranked_why"]
-    assert why.startswith("not ranked: ") and "2 jobs to re-run (Tools)" in why, why
+    # (step 2: the max-0 seeded-tool part reads its category's rows in the old tree, so the two errored Tools jobs
+    # are named under it as well; its points are segments45's)
+    assert why.startswith("not ranked: ") and "jobs to re-run (Tool rules, ToolGen)" in why, why
     # real person left the test (owner 2026-11-15): never named, never waited for
-    assert "not run (RPL)" in why and "units still running (RPS)" in why and "Person" not in why, why
+    # fix round 2026-11-18 (lane-t, hook e): no RPS unit of this fixture was ever attempted (12 units, 0 attempts), so
+    # the part reads "not run" like RPL; "units still running" is for a part some of whose units ran
+    assert "not run (RPS, RPL)" in why and "units still running" not in why and "Person" not in why, why
     # Predict (not measured) and the validation-only gaps never stop the ranking, so they are not named here
     assert "Predict" not in why
     hl = headline.summarize(card, None, prof)
@@ -159,18 +166,28 @@ def test_a_model_with_rows_missing_is_not_ranked_and_says_why(card, prof, s8b):
     assert report.headline_cell(hl, "work") != "-" and report.headline_cell(hl, "chat") != "-"
 
 
-def test_a_model_whose_only_gaps_are_validation_stays_ranked(prof, s8b):
+def test_a_model_whose_only_gaps_are_validation_stays_ranked(prof, s8b, monkeypatch):
+    # lane-j: a judged part counts once its second-reader marks pass (the sessions' do here; long scenes stay pending)
+    from crucibleforge.agree_marks import marks_sha256
+    monkeypatch.setattr(report, "judge_marks_result", lambda: {"marks_sha256": marks_sha256(),
+                                                               "parts": {"chat/j_rpsession": {"pass": True}}})
     s = json.loads(json.dumps(s8b[0]))
     s["missing_jobs"], s["missing_cases"] = [], []
     for pk in ("chat/j_rpsession",):
         s["chain_stats"][pk].update(complete=True, share=0.5, mean=0.5)
     c = report.points_scorecard(s, s8b[1], prof)
-    assert "unranked_why" not in c and not ({"work", "chat"} & set(c["partial"])), c["partial"]
-    assert c["total"] == pytest.approx(c["work"] + c["chat"])
-    # the validation-pending parts add nothing: Chat is still State + Tally + Know
+    assert not ({"work", "chat"} & set(c["partial"])), c["partial"]
+    # F4 (2026-11-19): this fixture's Predict is "not measured" (a counted standard part), so Overall is "x of y" and
+    # the row is not ranked, and that is the ONLY reason named: the validation-only gap (RPL) never is
+    assert c["total"] is None and c["unranked_why"] == "not ranked: not measured (Traps)", c.get("unranked_why")
+    assert c["overall_measured"]["points"] == pytest.approx(c["work"] + c["chat"])
+    # the validation-pending part (RPL) adds nothing. Role-play sessions counts since the ladder judge was validated
+    # for 4.5.0 (lead 2026-11-15, test_rpladder_board_20261115): Chat = State + Tally + Know + RPS
     parts = c["parts"]["chat"]
-    assert c["chat"] == pytest.approx(parts["h2_state"] + parts["h2_ledger"] + parts["h6_know"])
-    assert headline.summarize(c, None, prof).get("not_ranked") is None
+    assert parts["j_rplong"] is None
+    assert c["chat"] == pytest.approx(parts["h2_state"] + parts["h2_ledger"] + parts["h6_know"] + parts["j_rpsession"])
+    assert [x["part"] for x in c["pending_points"]["chat"]] == ["j_rplong"]
+    assert headline.summarize(c, None, prof).get("not_ranked") == "not ranked: not measured (Traps)"
 
 
 def test_merging_twice_keeps_each_reason_and_its_words():

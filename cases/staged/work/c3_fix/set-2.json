@@ -1,0 +1,17 @@
+{
+  "category": "coding",
+  "level": 1,
+  "points": 1.0,
+  "item": "PATCHTOUGH",
+  "budget": 65536,
+  "status": "staged",
+  "note": "Fixes pack 2 (written 2026-11-20, STAGED): two levels: family level 2 = patchmod L5 feature request (quota+extend+queue) with mutant-targeted hidden tests; family level 3 = a 6-bug repair with two WRONG visible regression tests. (Family level 1 = queue alone is built and tested but screened at 1.00, so not in the set), graded by fixcheck. work/c3_fix is not a ladder part (no part key), so discover ignores this file; see handover/PACKS-FIXES-45.md.",
+  "generator": {
+    "family": "patchtough",
+    "rungs": [
+      2,
+      3
+    ],
+    "per_rung": 2
+  }
+}

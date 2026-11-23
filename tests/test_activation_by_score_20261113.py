@@ -37,7 +37,7 @@ def test_no_activation_path_reads_a_model_identity():
 
 def test_every_pack_unlocks_off_its_own_section_score():
     prof = profiles.load_profile("bench45", CFG)
-    assert ladder.unlock_share(prof) == 0.9   # Jake 2026-11-14: "The unlock is .9."
+    assert ladder.unlock_share(prof) == 0.9   # the owner 2026-11-14: "The unlock is .9."
     for sec, spec in prof["scores"].items():
         for key, part in (spec.get("parts") or {}).items():
             if part.get("unlock_part"):

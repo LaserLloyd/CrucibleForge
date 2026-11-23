@@ -94,15 +94,17 @@ def test_stored_rows_take_it_by_regrade_switch_answer_sheet(monkeypatch):
     inst = chains.instance(specs["FLAT-unc_know-001"], 1, 1)
     case = chains.materialize(inst)
 
-    def row(run, text):
-        return {"bench_run_id": run, "case_id": inst["id"], "repeat": 1, "turn": None, "category": case["category"],
+    def row(run, text, repeat=1):
+        return {"bench_run_id": run, "case_id": inst["id"], "repeat": repeat, "turn": None, "category": case["category"],
                 "system": case.get("system"), "prompt": case["prompt"], "response": text, "reasoning": "",
                 "finish_reason": "stop", "tool_calls": [], "metrics": {"completion_tokens": 900},
                 "chain": {**inst["chain"], "score": 0.0, "passed": False, "outcome": "fail"},
                 "chain_revision": chains.revision(inst["chain"])}
 
     good = _numbered(FIX["response"])
-    rows = [row("grok", FIX["response"]), row("other", good)]
+    # two separate jobs (repeats 1 and 2): since regrade's superseding rule (lead 2026-11-15) two runs of ONE job
+    # leave the older attempt superseded, which is not what this test is about
+    rows = [row("grok", FIX["response"]), row("other", good, repeat=2)]
     assert [r["status"] for r in regrade.plan(rows, specs, "t")] == ["current", "current"]
     first = regrade.plan(rows, specs, "t", switch="answer_sheet")
     assert first[0]["status"] == "regrade"

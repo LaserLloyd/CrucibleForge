@@ -1,4 +1,4 @@
-"""Bonus packs on the routed 4.5 board (Jake's ruling, relayed by the lead 2026-11-14): the 4.x
+"""Bonus packs on the routed 4.5 board (the owner's ruling, relayed by the lead 2026-11-14): the 4.x
 convention. A part's ladder packs open in the 4.x chain (standard share and every set of every
 lower level at or above ``ladder.unlock_share(prof)``), each pack adds share x its points (1) to
 its part, section and Overall; NSFW keeps its own packs, never in Overall. Max = standard + one

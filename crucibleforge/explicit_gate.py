@@ -46,8 +46,23 @@ def passes(text: str) -> bool:
 LISTS = ("g1", "g1b", "g1c", "g1c1")
 
 
+_LV_CACHE: dict = {}
+
+
 def list_verdict(name: str, text: str) -> dict:
-    """{passed, words} of one list."""
+    """{passed, words} of one list. A list's gate is a pure function of the text, and a board render asks for the same
+    reply tens of thousands of times (profile of a 12-minute report, 2026-11-20: 22.9k calls x 3 lists = 70 s), so the
+    result is kept per (list, text) for the life of the process; every caller gets a fresh dict."""
+    if name == "g1":                    # a word count: cheap, and its threshold is a module constant
+        return _list_verdict(name, text)
+    key = (name, text)
+    hit = _LV_CACHE.get(key)
+    if hit is None:
+        hit = _LV_CACHE[key] = _list_verdict(name, text)
+    return dict(hit)
+
+
+def _list_verdict(name: str, text: str) -> dict:
     if name == "g1":
         n = count(text)
         return {"passed": n >= MIN_WORDS, "words": n}

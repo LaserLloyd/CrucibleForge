@@ -355,11 +355,13 @@ def unit_from_row(row: dict, cards: dict) -> dict | None:
 
 
 def rung_text(lad: dict, k: int, unit: dict, own_other: dict | None) -> tuple[list[str], str] | None:
-    """Rung k's replies of ladder ``lad`` for this unit. A model that IS the rung meets it as its OTHER writer
-    seed's session (``own_other`` = that unit; None -> the cell waits)."""
+    """Rung k's replies of ladder ``lad`` for this unit: the FROZEN rung text for every model, the rung's own
+    writer included (fix round 2026-11-18, REVIEW finding 3: keyed on ``model_id`` the rung models met their own
+    other seed and their two seeds mirrored). Only the one unit whose replies ARE the rung (identical sha) meets
+    its OTHER writer seed's session instead, since a text compared with itself measures nothing (``own_other`` =
+    that unit; None -> the cell waits)."""
     r = lad["rungs"][str(k)]
-    src = r.get("source") or {}
-    if k != 4 and src.get("model_id") and src.get("model_id") == unit.get("model"):
+    if k != 4 and anchor_sha(unit.get("replies") or []) == r["sha"]:
         if own_other is None:
             return None
         return own_other["replies"], anchor_sha(own_other["replies"])
@@ -583,10 +585,12 @@ def instrument(lad: dict, judge_model: str, wording: str = "standard") -> dict:
 
 
 def stale_reason(rec: dict, cards: dict, check: dict | None, judge_model: str | None = None,
-                 wording: str = "standard") -> str | None:
+                 wording: str = "standard", unit_sha: str | None = None) -> str | None:
     """Why a stored placement must not count: "card" (its card left the ladder file), "mode", "ladder" (its card's
     chosen ladder changed: that card only), "pair_prompt" (template, axis line, judge system, schema or call
-    settings), "judge" (another judge model), "thinking". None = current."""
+    settings), "judge" (another judge model), "thinking", "substitute" (fix round 2026-11-18: a pair met a rung
+    other than its frozen text while the unit's own replies, ``unit_sha`` = anchor_sha of them, are not that rung:
+    the old own-other-seed rule; checked only when the caller passes ``unit_sha``). None = current."""
     ins = (rec or {}).get("instrument") or {}
     cid = (rec or {}).get("card")
     if cid not in cards:
@@ -610,4 +614,11 @@ def stale_reason(rec: dict, cards: dict, check: dict | None, judge_model: str | 
         return "judge"
     if ins.get("thinking") is not False:
         return "thinking"
+    if unit_sha is not None:
+        frozen = ins.get("anchor_shas") or {}
+        for pr in rec.get("pairs") or []:
+            k = pr.get("rung")
+            want = frozen.get(f"R{k}")
+            if k != 4 and want and pr.get("anchor_sha") != want and unit_sha != want:
+                return "substitute"
     return None

@@ -1,0 +1,52 @@
+{
+  "about": "MakoBench 4.5 Chat pack marks (staged packs: Stays in character, Remembers the conversation, Co-writes to a brief). Written 2026-11-20 before any launch row was read and before any pack row existed. New file; no existing threshold, margin rule, weight or pair order changes.",
+  "written": "2026-11-20",
+  "written_before_launch_rows": true,
+  "written_before_any_pack_row": true,
+  "applies_to": {
+    "packs": [
+      "chat/pk_character",
+      "chat/pk_remembers",
+      "chat/pk_cowrites"
+    ],
+    "judged_scenes": [
+      "LRV1-pilots-mess",
+      "LRV3-hollis-van",
+      "LCC1-quiet-hours",
+      "LCC2-last-boxes",
+      "LCC3-left-luggage",
+      "LWR1-skerrow-bible",
+      "LWR2-neap-seam",
+      "LWR3-twelve-days"
+    ],
+    "code_levels": "level 2 of each pack (generated: sceneladder r6-7, session_ledger r4-5, istack write r7-8), code checks only, no judge"
+  },
+  "scoring_rule": "A judged pack scene scores like a standard long scene: the mean of the local judge's fact rate and the pinned second reader's fact rate (crucibleforge/packs45.py over rplong_mean's reader store and fit rules). No single judge prices a pack. A scene read by only one reader is pending and the pack prints no number.",
+  "marks": {
+    "P1_reader_agreement": {
+      "what": "Over the pack scenes of every model that was read by both readers (min 8 scene units per model): the judge term, 1.645 x the measured SD of (judge - reader) / sqrt(2) (rplong_mean.judge_term), as a share of the scene score.",
+      "pass": "largest judge term over the models measured <= 0.05",
+      "not_evaluable": "fewer than 8 read scene units for every model: the pack prints 'pending: reader agreement not measured'"
+    },
+    "P2_known_order": {
+      "what": "The pack's judged level must separate a known-order pair, as the long-scene mark does: sonnet-class above haiku-class on the pack mean.",
+      "pass": "the stronger scores above the weaker by more than the combined margin of the two (segments45 margin rule, resampling scenes)",
+      "not_evaluable": "either role has no run: prints 'order not tested', the pack prints no number until a run supplies it"
+    },
+    "P3_not_maxed": {
+      "what": "A pack must leave room above the best reference run on file.",
+      "pass": "the best model's judged-level share is < 0.97 (and its code level, when reached, < 0.97)",
+      "otherwise": "the level is printed 'MAXED' with no points and a new pack is due; it is never counted as headroom"
+    },
+    "P4_key_audit_code_levels": {
+      "what": "Generated levels: gen.verify_case returns no problem for every case and the engine's reference answer scores 1.0 while the draft-wrong answer scores < 1.0.",
+      "pass": "all cases"
+    },
+    "P5_unlock": {
+      "what": "The standard rule, unchanged: the segment's standard points / segment max >= ladder.unlock (0.9), and level 2 only after level 1 >= 0.9.",
+      "pass": "as written"
+    }
+  },
+  "print_rule": "A pack's points print only in the Pack points column, only when P1, P2 and P3 hold for the run (P4 for code levels), and never enter Code, Chat or Overall.",
+  "readers": "The readers and their fit rules are those of calibration/chat-readers-45-addendum-20261120.yaml; nothing here names a reader."
+}

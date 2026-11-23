@@ -1,0 +1,26 @@
+{
+ "about": "How the 4.5 marks are evaluated from stored data (fix pass C, 2026-11-20). Identity and evaluation clarifications only: no threshold, no pair, no weight and no model list of segment-marks-45.json, everyday-marks-45.json or act-beat-marks-45.json changes. Written 2026-11-20 before any launch row was read. The mark checker (scripts/check_marks45.py) refuses to run unless this file is a row of calibration/MARKS-INDEX-45.md.",
+ "written": "2026-11-20",
+ "written_before_launch_rows": true,
+ "clarifies": ["segment-marks-45.json", "everyday-marks-45.json", "act-beat-marks-45.json", "assistant_marks_20261119.json"],
+ "margins": {
+  "method": "The board's 90% part margin named in segment-marks-45.json 'margin' (z 1.645) is computed by the report for every segment of Code, Chat, NSFW and Uncensored and stored in report.json (marks_input45.segments.<key>.margin).",
+  "combining": "A segment's margin is the root sum of squares of its weighted part margins. Two numbers of a pair combine as sqrt(m_a^2 + m_b^2) (unchanged). A model with several runs uses the root mean square of its runs' margins (unchanged, no gain from replication claimed).",
+  "part_margin_with_spread": "A headline part uses its stored headline margin. An NSFW+ part uses 1.645 x its points x the standard error of its mean over units, sqrt(population variance of the unit scores / number of units); the Knowledge hands take the spread of each hand's own element mean (a hand's elements are not independent).",
+  "fallback_without_spread": "Where no per-unit spread is stored (long scenes, fix tasks, Everyday parts), the binomial bound 1.645 x points x sqrt(p(1-p)/n) over the part's items, as the board already does. For 0 or 1 unit scores the two formulas are the same number.",
+  "no_margin_zero": "A pair whose predicted order holds passes without a margin. A reversal or tie is judged only against the real combined margin; when a model has no stored margin for the segment the pair is not evaluable (never evaluated with margin 0). The ceiling mark is not evaluable unless every measured model has a stored margin."
+ },
+ "AB2_backstop": {
+  "evaluation": "Evaluated over every reply whose reader majority is SOFTENED on a card that has an act key. The stored votes carry no finer reason than the class, so the fade or absent-act subset cannot be formed; counting every SOFTENED reply adds replies that do name the act, which only lowers the share the act check zeroes. The 60% threshold is unchanged, so this can only make the mark harder to pass.",
+  "not_evaluable": "when no reply on a keyed card is classed SOFTENED"
+ },
+ "EV3_identity": {
+  "reference": "The reference model of the Assistant-basics marks is the model segment-marks-45.json pair_rule.models.reference names (qwen3.8-27b-q8-ref), or the label given with check_marks45.py --reference. The damaged stand-in is pair_rule.models.damaged. Identity only: the marks and their thresholds in assistant_marks_20261119.json are unchanged."
+ },
+ "anchors": {
+  "EV1_EV2_EV3b_EV5": "These marks need the damaged stand-in (split-untied-31b*) and a small model (assistant_marks set 'small'). They are run as validation anchors (scripts/release45.py --anchors): their rows are read by the marks, never ranked and never shown as launch rows; the board lists them under 'validation anchors' with their Everyday share only. Without them the checker names the missing model and its pattern and the mark is not evaluable."
+ },
+ "still_not_evaluable_without_more_rows": {
+  "nsfw/erotica primary (grok > ds_flash)": "needs a run of a model matching grok*. No clarification can stand in for it without changing the pair, so it stays not evaluable until such a run is given (it may be given as a validation anchor)."
+ }
+}

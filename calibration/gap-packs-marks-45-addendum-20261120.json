@@ -1,0 +1,25 @@
+{
+  "about": "MakoBench 4.5 GAP packs (Tools: toolgap, Fixes: patchgap, Everyday: everygap). Marks written 2026-11-20 before any launch row was read and before any model row of these packs existed. No existing threshold, margin, weight or file changes; these packs are STAGED and enter no composition.",
+  "written": "2026-11-20",
+  "written_before_launch_rows": true,
+  "packs": {
+    "toolgap": {
+      "part": "work/c5_tools (set-3, level 2)",
+      "checker": "world-state checks in crucibleforge/gen/toolgap.py (shipments, location split, address, confirmation, dangling reservations, duplicates, budget, one reported line per order); no judge",
+      "build_floors": "reference policy 1.0 on every tested seed; each wrong policy (trust ok reserve, no confirm, retry with a new idempotency key, ship hazmat to a PO box, ship partial, first page only, stale cache only, keep reservations) below 1.0; doing nothing below 1.0",
+      "reading_marks": "a pack row is read as the mean check share per instance; the pack does not lock a standard cell and no threshold is set here"
+    },
+    "patchgap": {
+      "part": "work/c3_fix (set-1; no ladder part key exists, so staged and undiscovered)",
+      "checker": "crucibleforge/fixcheck.grade_answer (host-compared, unchanged); stamp files untouched",
+      "build_floors": "reference 1.0; no edit 0; the given program 0; an over-eager edit of any decoy at most 0.5"
+    },
+    "everygap": {
+      "part": "chat/h6_know (set-3; the only ladder-capable Everyday part)",
+      "checker": "declarative regex checks (graders.grade_checks), one element per rule",
+      "build_floors": "reference passes every check on 25 seeds per level; every mutant (one rule broken; stale amendment; unamended length; unmoved keyword line; a prose reply) fails at least one check"
+    }
+  },
+  "frontier_headroom": "not established by this lane: no frontier-model call was made. The pack is worth reading only after the priced frontier screen in docs/PACKS-GAPS-45.md has been run and the lead has decided.",
+  "decision_rule_for_release": "a pack goes live only if the lead's PACKS-LANE-45.md verdict is 'safe' AND a frontier screen shows it is not at 1.00 for the strongest hosted models. Both conditions are the lead's to check; neither is a threshold on a standard score."
+}

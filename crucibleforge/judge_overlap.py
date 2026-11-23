@@ -102,6 +102,15 @@ class OverlapJudge:
         finally:
             self._tear_down()
 
+    def _self_grades(self) -> bool:
+        """A 4.5 profile's judge grades its own rows (amendment r), as the after-phase judge does."""
+        from . import judge45, profiles
+        try:
+            return judge45.self_grades(profiles.load_profile(self.cfg.get("_profile") or profiles.DEFAULT_PROFILE,
+                                                             self.cfg))
+        except Exception:  # noqa: BLE001 -- no readable profile: the refusal stands
+            return False
+
     def _halted(self) -> bool:
         return self.stop.is_set() or stopflag.ABORT.is_set()
 
@@ -111,7 +120,7 @@ class OverlapJudge:
         # declared, and JudgeClient.load must not reload it (it would drop the KV type)
         inst = {k: v for k, v in self.inst.items() if k != "instance_parallel"}
         r = run_judge(self.cfg, self.labels, retry_failed=False, stop=self.stop,
-                      deadline=self.deadline, instance=inst)
+                      deadline=self.deadline, instance=inst, allow_self_judge=self._self_grades())
         self.result["passes"] += 1
         self.result["judged"] += int(r.get("judged") or 0)
 

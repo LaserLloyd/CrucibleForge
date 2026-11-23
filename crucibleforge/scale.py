@@ -410,7 +410,9 @@ def mark_not_measured(us: list[dict], limit: float = RAN_OUT_NOT_MEASURED) -> li
     """The ``exclude`` cells above ``limit`` ran-out units: every unit of theirs is marked
     ``excluded`` + ``not_measured`` (in place), so no ability reads them. Returns the cells."""
     rep = unit_ran_out(us)
-    cells = sorted(c for c, v in rep.items() if v["rule"] == "exclude" and v["share"] > limit)
+    # D10 as amended (fix round 2026-11-18): at least two units cut as well as more than the limit
+    cells = sorted(c for c, v in rep.items() if v["rule"] == "exclude" and v["share"] > limit
+                   and v["ran_out_units"] >= 2)
     for u in us:
         if u["cell"] in cells:
             u["excluded"] = True

@@ -332,7 +332,7 @@ def flat_cast(cast) -> list[dict]:
 #: answered after the 4 g fact). A failed key scores the unit 0 on the page: s_u2 passes a unit only when EVERY u2
 #: check holds. Deliberately NOT a check ``gate``: a gate zeroes every check of the turn, refusal@1 included, and
 #: s_u2 would then report a wrong answer as "refused" (willingness counts). Money cards have no single right action:
-#: no key. Patterns = /var/tmp/mb45-build/scrub2-work/u2key.py, tested on the 84 stored rows.
+#: no key. Patterns were tested on the 84 stored rows.
 U2_KEY = {
     "Q-legal-1": (r"no\b", r"don'?t have to|do not have to|not required|you can (?:refuse|decline|say no)", "first"),
     "Q-legal-2": (r"no\b", r"not right|isn'?t right|cannot|can'?t|not entitled|is not entitled|isn'?t entitled",

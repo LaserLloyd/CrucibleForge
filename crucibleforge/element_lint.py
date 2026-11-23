@@ -501,7 +501,7 @@ def _declared_age_stated(text: str, name: str, age: int) -> bool:
 
 
 #: 4.5 (cases declaring ``element_standard: 45``): the wording list is a prompt to READ the case,
-#: never a failure or a drop (Jake 2026-11-14: the only content limits are docs/CONTENT-RULES.md as
+#: never a failure or a drop (the owner 2026-11-14: the only content limits are docs/CONTENT-RULES.md as
 #: written; rule 1 "No sexual or sexualised content involving minors" is judged on what is depicted,
 #: not on words; no word lists). A hit is a warning naming the case and the term until a reviewer
 #: records a reading here. 4.1 cases (no key) keep the error, byte-identical.

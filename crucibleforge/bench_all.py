@@ -47,6 +47,7 @@ none of these flags bench-all behaves exactly as before.
 """
 from __future__ import annotations
 
+from . import adult_guard as _AG
 import argparse
 import logging
 import re
@@ -257,7 +258,8 @@ def plan(cfg: dict, rig_ids: set[str], *, include_api: bool = False,
          pending_for=None, attempts_for=None, first: list[str] | None = None,
          rig_arch: dict[str, str] | None = None, room_for=None,
          rungs: list[int] | None = None, ladder_for=None, rejudge_for=None,
-         only: list[str] | None = None, register_new: bool = False) -> dict:
+         only: list[str] | None = None, register_new: bool = False,
+         adult: bool = False, adult_ids: set[str] | None = None) -> dict:
     """What bench-all would do — computed, nothing touched. Pure given its
     inputs (the tests drive it with fakes). ``ladder_for(label)`` = the
     model's DUE ladder sets {"names": ["<cat>/<part>#n", ...], "jobs": n}
@@ -286,6 +288,9 @@ def plan(cfg: dict, rig_ids: set[str], *, include_api: bool = False,
     if case_ids is None:
         cfg_p, cases = apply_profile(load_profile(active_name(cfg), cfg), cfg)
         case_ids = [c["id"] for c in cases]
+        if adult_ids is None:
+            from .adult_guard import is_adult
+            adult_ids = {c["id"] for c in cases if is_adult(c)}
         repeats = {c["id"]: repeats_for(cfg_p, c["category"], case=c) for c in cases}
     if judge_id is None:
         j = profile_judge(load_profile(active_name(cfg), cfg))
@@ -387,12 +392,28 @@ def plan(cfg: dict, rig_ids: set[str], *, include_api: bool = False,
         elif prov_type.get(m.get("provider")) == "studioforge" and m["model_id"] not in rig_ids:
             prune.append((label, "no longer on the rig"))
 
+    from .adult_guard import RUN_KEY as _ADULT_RUN, adult_page_planned, run_wants_adult
+    adult = run_wants_adult(active_name(cfg), adult)
+    add_by = {a["name"]: a for a in add}
+
+    def owed_ids(label):
+        """P1 (fix round 2026-11-18): the adult page is opt-in (--adult, or adult_page: true on the entry);
+        a label owes only its standard units otherwise, so a complete standard run is complete."""
+        if not adult_ids:
+            return case_ids
+        ent = by_name.get(label) or add_by.get(label) or {"name": label}
+        try:
+            wants = adult_page_planned({**cfg, _ADULT_RUN: adult}, ent)
+        except Exception:  # noqa: BLE001 — a bad key is refused by the run itself
+            wants = False
+        return case_ids if wants else [c for c in case_ids if c not in adult_ids]
+
     groups: dict[tuple, list[str]] = {}
     for label in candidates:
-        new = label in {a["name"] for a in add}
+        new = label in add_by
         miss = tuple(missing_cases([] if new else current_rows(cfg, label, by_name.get(label),
                                                                rows_for(label)),
-                                   case_ids,
+                                   owed_ids(label),
                                    {} if new else attempts_for(label), repeats))
         if miss:
             groups.setdefault(miss, []).append(label)
@@ -480,7 +501,7 @@ def plan(cfg: dict, rig_ids: set[str], *, include_api: bool = False,
                 or not is_api(m)):
             continue
         try:
-            miss = missing_cases(rows_for(label), case_ids, attempts_for(label), repeats)
+            miss = missing_cases(rows_for(label), owed_ids(label), attempts_for(label), repeats)
         except Exception as e:  # noqa: BLE001 — the plan never fails on one model
             log.warning("hosted coverage for %s unavailable: %s", label, e)
             continue
@@ -614,6 +635,10 @@ def board_completeness(cfg: dict | None, labels: list[str]) -> dict[str, dict | 
             return {l: None for l in labels}
         case_ids = sorted(i for i in reps if i in ids)
         repeats = {i: reps[i] for i in case_ids}
+        # P1 (fix round 2026-11-18): the adult page is opt-in, so "complete" counts the standard units; a
+        # model whose entry asks for the page (adult_page: true) owes its adult units too
+        from .adult_guard import adult_page_planned, is_adult, run_wants_adult
+        adult_ids = {c["id"] for c in apply_profile(prof, cfg)[1] if is_adult(c)}
         prof_view = report._audience_profile(prof, cfg)
         rungs = []
         try:
@@ -636,8 +661,12 @@ def board_completeness(cfg: dict | None, labels: list[str]) -> dict[str, dict | 
             if rungs:
                 from .runner import escalation_todo
                 esc = len(escalation_todo(room, label, rungs))
+            ent = by_name.get(label) or {"name": label}
+            owed = (case_ids if adult_page_planned({**cfg, "adult_run": run_wants_adult(active_name(cfg), True)},
+                                                  ent)
+                    else [c for c in case_ids if c not in adult_ids])
             out[label] = completeness(
-                replay_rows(by_name.get(label), rows), case_ids, repeats=repeats,
+                replay_rows(by_name.get(label), rows), owed, repeats=repeats,
                 attempts=att, judge_rows=room,
                 ladder=ladder_due(cfg, label, att, prof=prof_view), escalation_jobs=esc)
         except Exception as e:  # noqa: BLE001
@@ -1335,7 +1364,7 @@ def execute(args, cfg: dict) -> int:
     # day mode never judges (the judge needs cards a day run may not take)
     no_judge = bool(getattr(args, "no_judge", False)) or lease_mode == "day"
     p = plan(cfg, rig_ids, include_api=args.include_api, board_labels=board, first=first,
-             rig_arch=rig_arches(prov), only=only,
+             rig_arch=rig_arches(prov), only=only, adult=_AG.args_wants(args),
              register_new=bool(getattr(args, "register_new", False))
              and not getattr(args, "no_sync", False))
     p["_provider"] = sf[0]
@@ -1568,7 +1597,8 @@ def execute(args, cfg: dict) -> int:
                 categories=None, difficulty=None, fresh=False, force=False, smoke=False,
                 yes=True, no_link_check=False, judge=None, force_evict=False, profile=None,
                 skip_conformance=bool(getattr(args, "skip_conformance", False)),
-                allow_unpriced=bool(getattr(args, "allow_unpriced", False)))
+                allow_unpriced=bool(getattr(args, "allow_unpriced", False)),
+                adult=_AG.args_wants(args))
             log.info("bench-all: generating %d case(s) for %s", len(g["cases"]), run_args.models)
             try:
                 r = cli.cmd_run(run_args, cfg)

@@ -96,14 +96,21 @@ def _write_cfg(tmp_path: Path, port: int, thinking) -> Path:
     return p
 
 
-def _launch(tmp_path, cfg_path, grace_s):
+def _child_env(tmp_path, grace_s):
     env = {k: v for k, v in os.environ.items()
            if not k.startswith("CRUCIBLEFORGE_")}
     env.update(CRUCIBLEFORGE_RESULTS=str(tmp_path / "results"),
                CRUCIBLEFORGE_STOP_GRACE_S=str(grace_s), PYTHONPATH=str(ROOT),
                # clean-clone mode: never the operator's crucibleforge.local.env
                # (it once pointed this child's run report at a live runs dir)
-               CRUCIBLEFORGE_NO_PRIVATE="1")
+               CRUCIBLEFORGE_NO_PRIVATE="1",
+               # the test's own quarantine store (conftest), never the operator's
+               CRUCIBLEFORGE_QUARANTINE=os.environ["CRUCIBLEFORGE_QUARANTINE"])
+    return env
+
+
+def _launch(tmp_path, cfg_path, grace_s):
+    env = _child_env(tmp_path, grace_s)
     argv = [sys.executable, "-m", "crucibleforge.cli", "--allow-unsandboxed",
             "--config", str(cfg_path), "--results", str(tmp_path / "results"), "run",
             # the release flip made bench45 the bare default; these are 4.1 cases (archive_default)

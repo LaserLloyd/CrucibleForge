@@ -1,6 +1,6 @@
 """CIPHERCHAT generator (gen2 chat, 4.5; lab card EXP-20261114-26): work out a hidden word machine over a chat.
 
-The conversational form of BLACK BOX (the one task shape that has split Haiku from Sonnet) and of Jake's R-ideas
+The conversational form of BLACK BOX (the one task shape that has split Haiku from Sonnet) and of the owner's R-ideas
 ("a system the model must characterise from measurements", "like cryptography"). A user has a gadget that turns a
 word into another word by a FIXED sequence of up to three steps taken from a list the system prompt states in full.
 Every turn the user reports new readings (`WORD -> OUTPUT`) and asks what the gadget will show for three new words.

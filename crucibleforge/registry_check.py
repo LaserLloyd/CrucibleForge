@@ -16,7 +16,7 @@ without them prints as "unmeasured", never as 0. :func:`table` prints, per secti
 minutes and each item's minutes share against its points share.
 
 CLI: ``crucibleforge registry-check [--lab DIR] [--profile bench45]``; the lab dir defaults to
-``$CF_LAB_DIR``, then ``~/Documents/Research/makobench-lab``.
+``$CF_LAB_DIR``, then ``~/.local/share/crucibleforge/lab``.
 """
 from __future__ import annotations
 
@@ -25,7 +25,7 @@ import os
 from pathlib import Path
 
 LAB_ENV = "CF_LAB_DIR"
-DEFAULT_LAB = Path.home() / "Documents" / "Research" / "makobench-lab"
+DEFAULT_LAB = Path.home() / ".local" / "share" / "crucibleforge" / "lab"
 #: SYSTEM-45 3.2 (start): an item may take at most this multiple of its points share of the section's minutes
 MAX_SHARE_RATIO = 2.0
 SECTIONS = ("work", "chat", "nsfw")

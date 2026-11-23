@@ -50,8 +50,7 @@ LEVELS:
     1    high   2-3        1
     2    max    2-3        1
 
-Trivial floor (code share, mean of 40 seeds, final bank): see :func:`trivial_floor`, ``tests/test_gen_theme_w.py``
-and HANDOFF.md.
+Trivial floor (code share, mean of 40 seeds, final bank): see :func:`trivial_floor`, ``tests/test_gen_theme_w.py``.
 
 Answer shape for grade()/reference()/mutants(): the reply text (one turn).
 """

@@ -1,0 +1,21 @@
+{
+ "about": "Dated readers addendum 2026-11-20 (c, runs-lane pilot): the first pair failed C1 on the rig (R-Q Qwen3.8-27B Ultra Heretic NVFP4: EXPLICIT 0.90; R-M Nanbeige4.3-33B Q8: SOFTENED 0.871, 2 of 3 hits; thresholds untouched). Next candidates in the pilot's written order: R-O = NousResearch Arete-27B Q8 (declared family qwen: its rig architecture is qwen35 and its id names no base, so it is treated as Qwen-family, the conservative choice); R-M re-named to Celeste-12B-V1.6 Q8 (a Mistral-Nemo fine-tune, family mistral declared; Swish-31B is google and barred). R-Q stays as named in addendum b and stays unadmitted unless a stored C1 pass admits it. Written 2026-11-20 before any launch row was read.",
+ "written": "2026-11-20",
+ "written_before_launch_rows": true,
+ "readers": {
+  "R-M": {
+   "provider": "studioforge",
+   "model_id": "bartowski/Celeste-12B-V1.6-GGUF/Celeste-12B-V1.6-Q8_0",
+   "family": "mistral",
+   "hosted": false,
+   "note": "engine label celeste-12b-v1.6-q8-0"
+  },
+  "R-O": {
+   "provider": "studioforge",
+   "model_id": "bartowski/NousResearch_Arete-27B-GGUF/NousResearch_Arete-27B-Q8_0",
+   "family": "qwen",
+   "hosted": false,
+   "note": "engine label nousresearch-arete-27b-q8-0"
+  }
+ }
+}

@@ -1,4 +1,4 @@
-"""Routed part packs on the ladder path (Jake's pack rule, 2026-11-14): a part's bonus pack opens
+"""Routed part packs on the ladder path (the owner's pack rule, 2026-11-14): a part's bonus pack opens
 when the model has maxed that part's own segment of Main, by score, behind the route's
 ``unlock_from`` module; each pack row records what its gate compared. One mechanism: the 4.x
 ladder (set files, ladder phase, ladder.unlock, ladder points)."""

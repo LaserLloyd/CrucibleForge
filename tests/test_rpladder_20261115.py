@@ -206,9 +206,12 @@ def test_a_card_waits_while_its_rung_check_is_missing():
     assert p["complete"] is False and p["waiting"] == "rung check"
 
 
-def test_a_rung_model_meets_its_own_rung_as_its_other_seed():
+def test_the_session_that_is_the_rung_meets_its_other_seed():
+    # fix round 2026-11-18 (REVIEW finding 3): keyed on the identical reply sha, no longer on the model id; a rung
+    # model's other sessions meet the frozen rung text (tests/test_s3_ladder_frozen_rung_20261118.py)
     cards = _cards()
     me = _unit(cards, "C1", 25, model="rung-model-2", seed=1)
+    me["replies"] = list(cards["C1"]["candidates"]["standard"]["rungs"]["2"]["replies"])
     other = _unit(cards, "C1", 25, model="rung-model-2", seed=2)
     other["replies"] = [r + "yy" for r in other["replies"]]
     got = RL.place_units([me], cards, LengthJudge(), RL.VerdictCache(None), judge_model="j",

@@ -242,6 +242,7 @@ def test_bench45_declares_notes():
     assert "notes" not in b
 
 
+@pytest.mark.archive_default
 def test_bench_profile_notes_unchanged_on_fixture_board():
     """Rows of the 4.1 fixture board: _model_notes under `bench` is identical
     to what it returned before notes45 existed (no notes45 lines, empty list)."""

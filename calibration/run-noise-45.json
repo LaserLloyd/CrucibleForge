@@ -1,0 +1,10 @@
+{
+  "what": "Stored cross-run figure: the 90% half-width of ONE model's score from run-to-run noise, % of the score's maximum (R1 'part 1' of SUITE-EFFICIENCY-45, Table 1, current suite). Used by crucibleforge/accuracy45.py only as a labelled estimate for a segment whose units have a single repeat in the model's own run.",
+  "source": "handover SUITE-EFFICIENCY-45.md Table 1 (2026-11-21): 2 models x 3 replicate runs pooled with within-run repeats; Chat long scenes were graded judge + one reader then (one judge expected slightly noisier, not measured). No NSFW+ figure exists (one run per model).",
+  "added": "2026-11-21",
+  "r1_pct": {
+    "code/writes": 2.2, "code/fixes": 24.3, "code/tools": 14.3, "code/reads": 8.4, "code": 7.9,
+    "chat/character": 2.1, "chat/remembers": 6.6, "chat/cowrites": 20.4, "chat/everyday": 2.0, "chat": 3.9,
+    "overall": 4.4
+  }
+}

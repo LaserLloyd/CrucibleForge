@@ -96,6 +96,7 @@ def test_done_jobs_does_not_count_a_billing_row():
 
 # 3. the board and the ladder ----------------------------------------------
 
+@pytest.mark.archive_default
 def test_an_episode_billing_pack_is_pending_and_due(tmp_path, monkeypatch):
     env = _setup(tmp_path, monkeypatch, _work_only)
     _set_file(env, "work/code", 1, PACK)
@@ -109,6 +110,7 @@ def test_an_episode_billing_pack_is_pending_and_due(tmp_path, monkeypatch):
     assert due and due["jobs"] >= len(PACK)
 
 
+@pytest.mark.archive_default
 def test_a_real_episode_fail_still_scores_zero(tmp_path, monkeypatch):
     env = _setup(tmp_path, monkeypatch, _work_only)
     _set_file(env, "work/code", 1, PACK)

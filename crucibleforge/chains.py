@@ -94,6 +94,37 @@ RAN_OUT_RULES = ("zero", "exclude")
 #: a set whose ran-out share is above this is flagged "ceiling too low"
 RAN_OUT_FLAG = 0.20
 
+#: F5 (2026-11-19) profile key ``cut_at_full_budget``: ``omit`` (default, D10: a reply cut at its ceiling leaves the
+#: mean and is counted) or ``zero`` (short-keyed-answer parts only: a reply cut at >= 98% of its full ceiling "did not
+#: finish": scored 0, kept in the mean, counted apart; a cut below the full ceiling, a provider cap, stays ``omit``)
+CUT_AT_FULL_BUDGET = ("omit", "zero")
+#: the parts whose answer is a short key (Trace, Predict, State, Tally, Know)
+SHORT_KEYED_PARTS = frozenset({"work/c2_trace", "work/c2_predict", "chat/h2_state", "chat/h2_ledger",
+                               "chat/h6_know"})
+FULL_BUDGET_SHARE = 0.98
+
+
+def cut_at_full_budget(prof: dict | None) -> str:
+    v = str((prof or {}).get("cut_at_full_budget") or "omit").strip().lower()
+    if v not in CUT_AT_FULL_BUDGET:
+        raise ConfigError(f"cut_at_full_budget is one of {list(CUT_AT_FULL_BUDGET)} (got {v!r})")
+    return v
+
+
+def full_budget_cut(row: dict, ceiling) -> bool:
+    """A reply that ended on the length limit having produced at least 98% of the profile's full ceiling."""
+    try:
+        full = int(ceiling)
+        out = (row.get("metrics") or {}).get("completion_tokens")
+        if out is None:
+            out = row.get("completion_tokens")
+        return bool(full) and out is not None and (
+            row.get("finish_reason") == "length" or bool(row.get("truncated")) or bool(row.get("cut"))
+        ) and float(out) >= FULL_BUDGET_SHARE * full
+    except (TypeError, ValueError):
+        return False
+
+
 #: difficulty bands of the 4.5 bank (BANK-DESIGN §3a; Top = the bonus packs)
 BANDS = ("low", "mid", "high", "top")
 _CONCEPT_RE = re.compile(r"^[A-Z][0-9]+$")
@@ -1587,6 +1618,8 @@ class Driver:
         # so a spec change that keeps the chain id (ceiling 2,500 -> 16,384, 2026-11-14) would
         # let the old rows stand in for the new instances and the chain would never re-run.
         usable = [r for r in prior_rows or [] if usable_row(r) and self._current(r)]
+        #: the stored rows this run keeps (early stop judges them with the new ones on a resume)
+        self.reused = usable
         for cid, res in results_from_rows(usable).items():
             if cid in self.results:
                 self.results[cid].update(res)
@@ -1817,12 +1850,19 @@ def _newest_ladder(rows: list[dict], prof: dict | None) -> dict[tuple, dict]:
         rec = r.get("judge_ladder")
         if not ch or ch.get("passed") is None or not isinstance(rec, dict) or not rec.get("complete"):
             continue
-        if _rl.stale_reason(rec, cards, None, jmodel) is not None:
+        reps = [m.get("content") or "" for m in r.get("conversation") or [] if m.get("role") == "assistant"]
+        why = _rl.stale_reason(rec, cards, None, jmodel, unit_sha=_rl.anchor_sha(reps))
+        other = None
+        if why == "judge" and _rl.stale_reason(rec, cards, None, None, unit_sha=_rl.anchor_sha(reps)) is None:
+            # D13 (lead 2026-11-19 b): current in every way but its judge: read, marked with that judge's id
+            other = str((rec.get("instrument") or {}).get("judge_model"))
+        elif why is not None:
             continue
         k = (ch["id"], int(ch["rung"]), int(ch["attempt"]))
-        stamp = (str(r.get("ts") or ""), i)
+        # the board judge's own placement always wins over another judge's, whatever their dates
+        stamp = (other is None, str(r.get("ts") or ""), i)
         if k not in out or stamp >= out[k][0]:
-            out[k] = (stamp, rec)
+            out[k] = (stamp, rec if other is None else {**rec, "other_judge": other})
     return {k: v[1] for k, v in out.items()}
 
 
@@ -1888,7 +1928,7 @@ def unit_classes_text(uc: dict | None) -> str:
 
 
 def rubric_decided(blk: dict, rows: list[dict]) -> dict | None:
-    """rc3 judged parts (lead 2026-11-14, Jake: "regenerate, then thinking off if still empty", only replies
+    """rc3 judged parts (lead 2026-11-14, the owner: "regenerate, then thinking off if still empty", only replies
     given are graded): a rubric-mode unit that needs no judge. ``rows`` = the unit's rows of its final attempt
     (one per turn). A degenerate reply = a 0 piece; a reply cut at its ceiling = a "ran out" piece (the
     part's ``ran_out`` rule then excludes it or scores it 0); a reply still empty after the run's empty-reply
@@ -1923,6 +1963,24 @@ def empty_piece(dec: dict, blk: dict, jm: dict | None) -> dict:
     code = 0.0 if not isinstance(code, (int, float)) or isinstance(code, bool) else max(0.0, min(1.0, code))
     return {**dec, "score": round(cw * code, 6), "judge_share": 0.0, "code_share": round(float(code), 6),
             "code_weight": cw}
+
+
+def refusal_piece(blk: dict, rows: list[dict], jm: dict | None) -> dict | None:
+    """A judged unit whose piece mixes the judge with its code checks (``code_weight``, the RPSESSION cards) and
+    whose model refused out of character on ANY turn: the adult page's per-turn ``refusal@N`` rule
+    (session_checks.ooc_refusal_turns, quoted speech not read) run on the unit's replies. The piece is 0, code half
+    and judged half alike, decided without the judge (a refusal must never collect the voice / rule / no-puppeting
+    checks it passes for free). None = no such refusal, or a part without code_weight (its judge verdict's
+    ``refused`` already zeroes the whole piece)."""
+    if not float((jm or {}).get("code_weight") or 0):
+        return None
+    from .session_checks import ooc_refusal_turns
+    turns = ooc_refusal_turns(_replies([r for r in rows if r] or [{}]))
+    if not turns:
+        return None
+    return {"id": f"{blk.get('id', '?')}-jrubric", "score": 0.0, "source": "judge", "outcome": "refused",
+            "reason": "out-of-character refusal on " + ", ".join(f"t{t}" for t in turns),
+            "judge_share": 0.0, "code_share": 0.0, "code_weight": float(jm["code_weight"])}
 
 
 def _judge_results(judge: dict | None) -> list[dict]:
@@ -2074,14 +2132,25 @@ def mean_se(clusters: list[list[float]], unit: str) -> float | None:
     return math.sqrt(C / (C - 1) * sum(sum(x - m for x in c) ** 2 for c in clusters)) / N
 
 
-def _decided_without_judge(row: dict) -> bool:
-    """A judged unit whose row needs no judge to be scored: the provider's content filter
-    blocked it (a scored refusal, engagement 0)."""
+def _filtered(row: dict) -> bool:
     try:
         from . import report as _r
         return bool(row) and bool(_r.filtered_row(row))
     except Exception:  # noqa: BLE001
         return False
+
+
+def _decided_without_judge(row: dict, adult: bool = False) -> bool:
+    """A judged unit whose row needs no judge to be scored: on an ADULT part, the provider's content filter
+    blocked it (a scored refusal, engagement 0). Elsewhere a filter stop is infrastructure (scoring45._row_empty):
+    never decided, the unit stays pending (fix round 2026-11-18, AUDIT-HARNESS F5)."""
+    return bool(adult) and _filtered(row)
+
+
+def adult_section(sec: dict) -> bool:
+    """The adult page's parts (``nsfw/...``, a page scorer, or the NSFW engagement multiplier)."""
+    return (str(sec.get("part") or "").startswith("nsfw/") or bool(sec.get("scorer"))
+            or sec.get("engagement") == "nsfw")
 
 
 def _weight_of(e: dict) -> float:
@@ -2228,6 +2297,13 @@ def section_stats(rows: list[dict], prof: dict | None, mult: dict | None = None)
             estop_unit[r["chain"]["id"]] = estop_unit.get(r["chain"]["id"], 0) + 1
         if _dg.is_degenerate(r):
             dgen_unit[r["chain"]["id"]] = dgen_unit.get(r["chain"]["id"], 0) + 1
+    # F5: units with a reply cut at the full ceiling (counted only where the profile says ``zero``)
+    dnf_unit: dict[str, int] = {}
+    if cut_at_full_budget(prof) == "zero":
+        for r in chain_rows:
+            sent = r.get("max_tokens_sent") or (r["chain"] or {}).get("ceiling")   # the budget actually sent
+            if full_budget_cut(r, sent):
+                dnf_unit[r["chain"]["id"]] = int(sent)
     cases = chain_cases(prof)
     from . import routing as _routing
     # a routed (bank) profile: only the units on this model's route count (locator, unrouted
@@ -2255,6 +2331,7 @@ def section_stats(rows: list[dict], prof: dict | None, mult: dict | None = None)
         jmode = sec.get("judge_mode") or ({"kind": "rubric", "axes": []} if scorer else None)
         is_ladder = bool(jmode) and jmode.get("kind") == "ladder"
         no_ladder_cards: dict[str, int] = {}
+        other_judges: dict[str, int] = {}     # D13: units placed by a judge other than the profile's
         n_noel = 0
         by_card = sec.get("se_cluster") == "card"
         #: rubric mode: every unit in one class (lead 2026-11-14), so the page says why units are missing
@@ -2272,6 +2349,8 @@ def section_stats(rows: list[dict], prof: dict | None, mult: dict | None = None)
         set_ro: dict[str, dict] = {}
         estop_set: dict[str, int] = {}
         dgen_set: dict[str, int] = {}
+        n_dnf, dnf_ceiling, dnf_ids, fin_vals, dnf_vals = 0, None, set(), [], []
+        zero_dnf = bool(dnf_unit) and sec["part"] in SHORT_KEYED_PARTS
         n_units = 0
         occ: dict[str, int] = {}
         for c in (x for x in cases if in_section(x, sec)):
@@ -2306,7 +2385,14 @@ def section_stats(rows: list[dict], prof: dict | None, mult: dict | None = None)
                         (c["id"], 1, 1))
                     gate = sec.get("judge_gate")
                     dec = None
-                    if jmode and (blk.get("judged") or scorer):
+                    _adult_sec = adult_section(sec)
+                    _fts0 = fin.get("ts")
+                    # fix round 2026-11-18 (AUDIT-HARNESS F5): off the adult page a provider filter stop is
+                    # infrastructure, never the model's 0: the judged unit waits (pending), verdict or not
+                    filt_hold = bool(blk.get("judged")) and not _adult_sec and any(
+                        _filtered(r) for r in ([r for r in by_chain.get(c["id"], [])
+                                                if _fts0 is None or r.get("ts") == _fts0] or [fin]))
+                    if jmode and (blk.get("judged") or scorer) and not filt_hold:
                         # degenerate / cut at the ceiling / still empty: decided without the judge, never pending.
                         # A code-only adult part (N8 bodies, U4 ground: a scorer, no judge) too: a sheet cut at its
                         # ceiling is "ran out" (the set's ran_out rule excludes it and counts it toward "not
@@ -2316,8 +2402,18 @@ def section_stats(rows: list[dict], prof: dict | None, mult: dict | None = None)
                                                    if fts is None or r.get("ts") == fts] or [fin])
                         if dec is not None and not scorer:
                             dec = empty_piece(dec, blk, jmode)
+                        if dec is None and not scorer and blk.get("judged"):
+                            dec = refusal_piece(blk, [r for r in by_chain.get(c["id"], [])
+                                                      if fts is None or r.get("ts") == fts] or [fin], jmode)
                     if dec is not None:
                         continue_unit = True
+                    elif filt_hold:
+                        per[c["id"]]["pending_filter"] = True
+                        per[c["id"]]["ended"] = False
+                        pending += 1
+                        continue_unit = False
+                        if ucls is not None:
+                            ucls["pending"] += 1
                     elif blk.get("judged") and jdg is not None and judge_gate_missing(jdg, gate):
                         # the gate element is missing from the judge results: a judge failure,
                         # not a fade -- nothing is gated and the unit has not ended
@@ -2326,7 +2422,7 @@ def section_stats(rows: list[dict], prof: dict | None, mult: dict | None = None)
                         pending += 1
                         gate_missing += 1
                         continue_unit = False
-                    elif blk.get("judged") and jdg is None and not _decided_without_judge(fin):
+                    elif blk.get("judged") and jdg is None and not _decided_without_judge(fin, _adult_sec):
                         # judge results pending: the unit has not ended (never scored on code alone)
                         per[c["id"]]["pending_judge"] = True
                         if scorer:
@@ -2394,6 +2490,8 @@ def section_stats(rows: list[dict], prof: dict | None, mult: dict | None = None)
                             continue_unit = False
                     if dec is None and continue_unit and is_ladder and blk.get("judged") and jdg is not None:
                         rub_el = ladder_element(blk, jdg, jmode)
+                        if jdg.get("other_judge"):
+                            other_judges[jdg["other_judge"]] = other_judges.get(jdg["other_judge"], 0) + 1
                         if rub_el.get("no_ladder"):
                             # the card has no valid ladder: scored on its code checks alone, named on the board
                             per[c["id"]]["no_ladder"] = True
@@ -2432,7 +2530,13 @@ def section_stats(rows: list[dict], prof: dict | None, mult: dict | None = None)
                                                                   "excluded_units": 0})
                             ss["elements"] += len(els)
                             ss["ran_out"] += ro
-                            if rule == "exclude" and ro and not _dg.is_degenerate(fin):
+                            dnf = bool(zero_dnf and ro and dnf_unit.get(c["id"]) and not _dg.is_degenerate(fin))
+                            if dnf:
+                                # F5 ``zero``: the reply hit the full ceiling: did not finish, scored 0, in the mean
+                                n_dnf += 1                   # graded as delivered: the scores stand
+                                dnf_ceiling = dnf_unit[c["id"]]
+                                dnf_ids.add(c["id"])
+                            elif rule == "exclude" and ro and not _dg.is_degenerate(fin):
                                 # the ceiling is unvalidated / known to cut real work: a "ran out"
                                 # element is reported, not scored as a failed answer
                                 els = [e for e in els if e.get("outcome") != "ran out"]
@@ -2452,7 +2556,12 @@ def section_stats(rows: list[dict], prof: dict | None, mult: dict | None = None)
                                                                   "excluded_units": 0})
                             ss["elements"] += 1
                             ss["ran_out"] += ro
-                            if (rule == "exclude" and ro and not _dg.is_degenerate(fin)
+                            if zero_dnf and ro and dnf_unit.get(c["id"]) and not _dg.is_degenerate(fin) \
+                                    and not dgen_unit.get(c["id"]):
+                                n_dnf += 1                      # F5 ``zero``: graded as delivered, in the mean
+                                dnf_ceiling = dnf_unit[c["id"]]
+                                dnf_ids.add(c["id"])
+                            elif (rule == "exclude" and ro and not _dg.is_degenerate(fin)
                                     and not dgen_unit.get(c["id"])):
                                 ss["excluded_units"] += 1
                                 continue_unit = False
@@ -2483,6 +2592,10 @@ def section_stats(rows: list[dict], prof: dict | None, mult: dict | None = None)
                             if oc:
                                 outcomes[oc] = outcomes.get(oc, 0) + 1
                 if kind == "chain" or continue_unit:
+                    if c["id"] not in dnf_ids:
+                        fin_vals.extend(vals)          # F5: the finished-only mean (display only)
+                    else:
+                        dnf_vals.extend(vals)          # what the did-not-finish units earned (dnf_text wording)
                     n_ended += 1
                     ck = (sp.get("seed_ladder") or sp["ladder"], sp["c"], occ[c["id"]]) if by_card else None
                     if ck is not None and ck in card_ix:
@@ -2560,8 +2673,13 @@ def section_stats(rows: list[dict], prof: dict | None, mult: dict | None = None)
             # more than RAN_OUT_FLAG of a set's elements ran out: the ceiling, not the model,
             # may be deciding the score -- flagged, never silently averaged
             v["ceiling_too_low"] = v["share"] > RAN_OUT_FLAG
+        share = None if pts is None or not mx else pts / mx
+        if share is None and not mx and not comps and pts is not None:
+            # a max-0 part whose points another layer gives (segments45): its share is the same average,
+            # taken against one point
+            share = _points_and_se(cl_for_se, [{"name": "all", "points": 1.0}])[0]
         out[sec["part"]] = {
-            "share": None if pts is None or not mx else pts / mx, "points": pts, "max": mx,
+            "share": share, "points": pts, "max": mx,
             # the plain element mean: what a max-0 (pack-only) part scored, shown apart
             "mean": mean,
             "components": comp_out if comps else None, "pending_judge": pending,
@@ -2569,8 +2687,12 @@ def section_stats(rows: list[dict], prof: dict | None, mult: dict | None = None)
             "chains": sec["chains"], "flat": n_units - sec["chains"], "units": n_units,
             "ended": n_ended + n_excl, "elements": n, "complete": complete,
             "ran_out_excluded_units": n_excl, "sets": sets_ro, "unit_classes": ucls,
+            **({"did_not_finish": {"n": n_dnf, "of": n_units, "ceiling": dnf_ceiling,
+                                   "finished_share": (sum(fin_vals) / len(fin_vals)) if fin_vals else None,
+                                   "all_zero": all(float(v) == 0.0 for v in dnf_vals)}} if n_dnf else {}),
             **({"ladder": {"no_ladder_cards": sorted(no_ladder_cards), "windows": list(jmode.get("windows") or []),
-                           "text": LADDER_BOARD_TEXT}}
+                           "text": LADDER_BOARD_TEXT, **({"other_judges": dict(sorted(other_judges.items()))}
+                                                         if other_judges else {})}}
                if is_ladder else {}),
             "empty_stop": sum(estop_set.values()),
             "degenerate": sum(dgen_set.values()),
@@ -2644,6 +2766,21 @@ _COLS = ("Points", "Units ended", "Elements", "Mean level held", "SE (pts)", "SE
          "Margin +/- 90% (pts)", "Turns", "Tokens (prompt/think/out)", "Tokens/element", "Cost")
 
 
+#: the share view (4.5 realignment board): the old per-part weights are not printed; a part shows the share of its
+#: items passed, and the two columns in old-weight points (SE, margin) are left out
+_COLS_SHARE = ("Share", "Units ended", "Elements", "Mean level held", "SE unit (ICC)",
+               "Turns", "Tokens (prompt/think/out)", "Tokens/element", "Cost")
+
+
+def _share_cells(s: dict) -> list[str]:
+    c = _cells(s, None, True)
+    share = s.get("share")
+    if share is None and s.get("points") is not None and s.get("max"):
+        share = s["points"] / s["max"]
+    c[0] = "-" if share is None else f"{100 * share:.0f}%"
+    return [x for i, x in enumerate(c) if i not in (4, 6)]
+
+
 def _cells(s: dict, margin: float | None = None, own_margin: bool = True) -> list[str]:
     def f(v):
         return "-" if v is None else f"{v:.2f}"
@@ -2671,7 +2808,7 @@ def render_lines(stats: dict[str, dict]) -> list[str]:
 
 
 def render_board(labels: list[str], per_model: dict[str, dict], prof: dict | None = None,
-                 margins: dict[str, dict] | None = None) -> list[str]:
+                 margins: dict[str, dict] | None = None, shares: bool = False) -> list[str]:
     """The board's "Generated items" block: one row per (model, generated part) and one per
     (model, score) combining them, each carrying its measured resolution (SE and margin of
     error from the between-unit variance).
@@ -2684,6 +2821,18 @@ def render_board(labels: list[str], per_model: dict[str, dict], prof: dict | Non
     rows = [(l, key, s) for l in labels for key, s in (per_model.get(l) or {}).items()]
     if not rows:
         return []
+    if shares:
+        L = ["", "### Generated items (chains and flat sets)", "",
+             "| Model | Part | " + " | ".join(_COLS_SHARE) + " |", "|---" * (len(_COLS_SHARE) + 2) + "|"]
+        L += ["| " + " | ".join([l, key] + _share_cells(s)) + " |" for l, key, s in rows]
+        L += ["", "*A chain climbs its rungs (one seeded, code-graded instance each) until it fails (a profile may "
+                  "allow a retry); chain score = highest rung held / rungs, rungs below a later start are credited. "
+                  "A flat instance scores its own partial credit. Share = the part's mean element score (an "
+                  "element = a chain, a flat item, a sub-item of a multi-item prompt, or a graded turn of a "
+                  "per-turn item); the points each part carries are in the Points table above. Turns = attempts; "
+                  "\"ran out\" = the attempt hit its ceiling and failed; \"context\" = a multi-turn session's "
+                  "context was exhausted and it failed there. Tokens and cost are recorded, never capped.*"]
+        return L
     one = margins is not None
     L = ["", "### Generated items (chains and flat sets)", "",
          "| Model | Part | " + " | ".join(_COLS) + " |", "|---" * (len(_COLS) + 2) + "|"]

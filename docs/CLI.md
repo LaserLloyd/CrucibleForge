@@ -2,7 +2,7 @@
 
 [README](../README.md) · [Install](INSTALL.md) · [Running](RUNNING.md) · [Config](CONFIG.md) · [Scoring](SCORING.md) · [CLI](CLI.md) · [Design notes](DESIGN.md) · [Cases](CASES.md) · [Developing](DEVELOPING.md)
 
-Every command below exists in 4.1.0. `uv run crucibleforge <command> --help` is the full, current list of
+Every command below exists in 4.5.0; the default profile is `bench45` (the 4.1 archive: `--profile bench`). `uv run crucibleforge <command> --help` is the full, current list of
 flags. From a native install put `uv run` in front; with Docker use
 `docker compose -f deploy/compose/compose.yml run --rm app <command>`.
 
@@ -41,19 +41,24 @@ flowchart TD
 | `models discover <provider>` | List the model ids a provider serves. |
 | `models add <name> <provider> <model_id>` | Add a model to the registry. Optional `--context-length`, `--price-in`, `--price-out` (USD per 1M tokens), `--tags`. |
 | `import-openclaw [--write]` | Copy providers, models and prices from an OpenClaw `openclaw.json`. `--openclaw-json PATH`, `--include-local`. See [OPENCLAW.md](OPENCLAW.md). |
+| `card-check <label or HF repo>` | Read the model's card(s) and chat template; propose its recommended sampler or `settings_checked` entry. Writes nothing. |
 
 ## Benchmark
 
 | Command | What it does |
 | --- | --- |
 | `conform --models <label>` | Prove the request protocol works for a model: seven checks. `--json`, `--allow-load`, `--profile`. |
-| `all --models <label> --judge <provider>:<id> --yes` | The normal path: generate, judge, ladder packs, report. |
+| `all --models <label> --judge <provider>:<id> --yes` | The normal path: generate, judge (long scenes), place the role-play sessions (the `ladder-judge` pass), ladder packs, report. |
 | `all ... --plan` | Print what would run per model. Calls no model, no provider and no judge. |
+| `all ... --no-nsfw-plus` | Leave NSFW+ out (it runs in every standard run by default). |
+| `all ... --spend-cap-usd USD` | Refuse hosted calls once this invocation has spent this much; it never reads the shared spend ledger. `CF_SPEND_CAP_USD` is a different cap: with a ledger (`CF_SPEND_LEDGER`) it is a budget across invocations. Both may apply; the first one reached stops the call (see [RUNNING.md](RUNNING.md#spend-cap-and-the-plan-price)). |
+| `all ... --no-judge` | Score what code grades; judged parts (including the session placement) stay pending, Overall blank. |
 | `all ... --smoke` | A small subset end to end. Proves the setup; it is not a score. |
 | `run` | Generate answers only (no judge, no report). |
 | `judge --models <label>` | Judge rows that are waiting for a verdict. `--force` re-judges everything, `--retry-failed` only failed verdicts, `--cases` limits it to some case ids. |
+| `ladder-judge --models <label> [--plan]` | Place stored role-play sessions on their ladders (the pair judge; no model is re-run). `all` already runs it; use it to redo or to place sessions from an earlier run. |
 | `recover --models a,b --yes` | Re-run reasoning-overflow rows (empty answers) through the recovery path. |
-| `escalate --models a,b --yes` | Re-run rows that ran out of budget at the profile's escalation rungs (64k for the bench profile). Feeds the Room column only. |
+| `escalate --models a,b --yes` | Re-run rows that ran out of budget at the profile's escalation rungs (65,536 for bench45). Feeds the Room column only. |
 | `pairwise --models a,b --categories rp,nsfw --yes` | Position-swapped head-to-head A/B Elo on creative categories. |
 
 Flags shared by `run` and `all`:
@@ -70,7 +75,7 @@ Flags shared by `run` and `all`:
 | `--no-link-check` | Skip the pre-flight data-channel probe. |
 | `--allow-unpriced` | Run a hosted model that has no `price:` (its Run cost stays blank). |
 | `--force-evict` | StudioForge only: send `force=true` on the first lease attempt. Use it only with the rig owner's go-ahead. |
-| `--yes` | Proceed even if LM Studio is serving another model. |
+| `--yes` | Proceed even if LM Studio is serving another model (it does not skip any check). |
 | `--detach`, `--run-id`, `--deliver-to`, `--requester`, `--task-run-id` | Run as a transient `systemd --user` unit and write a run report for an agent framework. See [OPENCLAW.md](OPENCLAW.md). |
 
 Extra flags on `all`: `--plan`, `--escalate`, `--no-escalate`, `--no-ladder` (or `--no-tiers`), `--timing`, `--force`.
@@ -95,6 +100,9 @@ leak, 4 the server is busy, 5 the server is unreachable.
 | Command | What it does |
 | --- | --- |
 | `report` | Rebuild the board from stored rows and print the scorecard. |
+| `report --check-stale` | List, per model, the rows whose grader stamp is missing or different; exit 1 when any scored row is stale. |
+| `budget [--profile P] [--case ID]` | The author's home time-budget check (see [BUDGET.md](BUDGET.md)); exit 1 over the limit. |
+| `spend status` | The spend ledger against the cap. |
 | `report --public [--out DIR]` | Build the public board: private categories left out, every file leak-checked. |
 | `compare <a> <b>` | Paired bootstrap difference of two models' headline scores. Calls no model. |
 | `calibrate [--reference <label>]` | Flag sub-scores the reference model aces (too easy) and sub-scores a model maxed (needs a new pack). Reads the board only. |
@@ -108,6 +116,7 @@ leak, 4 the server is busy, 5 the server is unreachable.
 | --- | --- |
 | `cases list [--categories list] [--difficulty tiers] [-v]` | List cases; the last line is the count. |
 | `cases verify` | Re-derive every gold answer offline: run each reference solution in the sandbox, check every mutant fails, recompute math and reasoning answers. |
+| `registry-check [--lab DIR] [--profile bench45]` | Maintainers: check the profile against the lab item registry (`--lab`, else `$CF_LAB_DIR`, else `~/.local/share/crucibleforge/lab`). Fails closed; see [RUNNING.md](RUNNING.md#operator-notes). |
 | `pack new <category/part> [--count N] [--level N] [--grading exact\|python_exec\|judged]` | Scaffold the next pack for a part, for example `work/code`. |
 | `pack verify <file>` | Check one pack file. |
 

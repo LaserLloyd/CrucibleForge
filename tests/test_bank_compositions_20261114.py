@@ -257,7 +257,7 @@ def test_screen_headroom_ref_nod_is_the_full_screen_without_hr_d(monkeypatch):
 
 
 def test_rc1_main_routing_and_packs(monkeypatch):
-    """rc1-main (Admin G2, g2-3): one routed command; packs are 4.x ladder sets per part (Jake 2026-11-14, the published
+    """rc1-main (Admin G2, g2-3): one routed command; packs are 4.x ladder sets per part (the owner 2026-11-14, the published
     rule), never routing sets or max-0 chain parts; no effort line; every part has standard points."""
     prof = _load(monkeypatch, "rc1-main")
     sp = routing.spec(prof)
@@ -301,10 +301,18 @@ def test_rc1_main_ladder_packs_reproduce_measured_instances(monkeypatch):
     from crucibleforge import gen as _gen
     prof = _load(monkeypatch, "rc1-main")
     sets = ladder.discover(prof, staged=True)
+    # c2 set-2 closed (draft); c5 set-1 (PROBE) deleted; c5 set-2 = LAG1-2 (PACKS2, 2026-11-15). Integration 2026-11-20:
+    # c1 set-2 = CQ1-3, c5 set-3 = TOOLGAP, h6 set-3 = EVERYGAP (live); c3 set-2 = PATCHTOUGH (staged, moved to cases/staged/work/c3_fix
+    # in stamp-2 item D so it is outside discovery; rc1-main is the one composition with a c3_fix part). c3 set-1 (PATCHGAP, staged) left cases/ladder in the integration fix pass, as the
+    # PROBE draft did: its render cost >145 s in every process that loads cases
     assert {k: [s["level"] for s in v] for k, v in sets.items() if k.split("/")[1][:1] in "ch" and "_" in k} == {
-        "work/c1_implied": [1], "work/c2_trace": [1], "chat/h6_know": [1],
-        "work/c5_tools": [1]}   # c2 set-2 closed (draft); c5 set-1 (PROBE) deleted; c5 set-2 = LAG1-2 (PACKS2, 2026-11-15)
-    assert "chat/h6_know" not in ladder.discover(prof, staged=False)
+        "work/c1_implied": [1, 1], "work/c2_trace": [1], "chat/h6_know": [1, 1],
+        "work/c5_tools": [1, 2], "work/c3_fix": [1]}
+    # PATCHTOUGH lives in cases/staged, outside discovery (stamp-2 D); the c3_fix set here is step 2's live Fixes
+    # pack (set-3, patchfix L5-7; pack questions render lazily since 2026-11-21)
+    assert [s["n"] for s in sets["work/c3_fix"]] == [3]
+    live = ladder.discover(prof, staged=False)
+    assert [s["n"] for s in live["chat/h6_know"]] == [3] and [s["n"] for s in live["work/c3_fix"]] == [3]
     routed = _load(monkeypatch, "main-routed")
     assert not set(ladder.discover(routed, staged=True)) & {"work/c1_implied", "work/c2_trace", "work/c5_tools",
                                                              "chat/h6_know"}
@@ -360,7 +368,7 @@ def test_rc1_main_size_b_thins_on_the_same_seeds(monkeypatch):
     assert line("FLAT-patchmini_c3lo_") == line("FLAT-rt_mini1_mid_") == line("FLAT-rt_mini1_top_")
     assert line("FLAT-patchmini_c3mid_") == line("FLAT-rt_mini2_mid_") == line("FLAT-rt_mini2_top_")
     assert float(prof["scores"]["work"]["parts"]["c3_mini"]["max"]) == 0
-    assert float(prof["scores"]["work"]["parts"]["c3_fix"]["max"]) == 0   # gameable until fixed (Jake 2026-11-14)
+    assert float(prof["scores"]["work"]["parts"]["c3_fix"]["max"]) == 0   # gameable until fixed (the owner 2026-11-14)
     scr = _load(monkeypatch, "screen-c3-ref")
     sc = {c["id"]: key(c) for c in chains.chain_cases(scr)}
     for i in ("FLAT-patchmini_c3lo_L1-001", "FLAT-patchmini_c3lo_L1-002", "FLAT-patchmini_c3mid_L2-001",
@@ -411,7 +419,7 @@ def test_rc1_main_calibration_covers_every_scored_cell(monkeypatch):
 
 @pytest.mark.live_ladder      # reads the live cases/ladder packs (conftest guard)
 def test_rc1_main_is_an_internal_candidate_labels_and_points_only(monkeypatch):
-    """Jake 2026-11-14 review rulings (lead): rc1 is an internal candidate (board note); C3 = 0 points, measured only,
+    """the owner 2026-11-14 review rulings (lead): rc1 is an internal candidate (board note); C3 = 0 points, measured only,
     Coding renormalised to 10 (C1 5.9 / C2 2.9 / C5 1.2) and patchfix:L5 uncalibrated; the planted_opt pack is closed.
     Labels and points only: every rc1-main case id and instance equals the tree tonight's rc1 rows are made on."""
     import hashlib, json, pathlib

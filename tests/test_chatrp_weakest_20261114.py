@@ -42,7 +42,7 @@ def test_rc3_main_roleplay_is_weakest_live_mark_with_a_profile_dead_list(monkeyp
 @pytest.mark.parametrize("model", list(WANT))
 def test_weakest_live_mark_reproduces_the_stretch_note(monkeypatch, model):
     p = _prof(monkeypatch)
-    rows = json.loads(FIX.read_text())[model]
+    rows = json.loads(FIX.read_text(encoding="utf-8"))[model]
     st = chains.section_stats(rows, p)["chat/j_roleplay"]
     assert st["complete"] and st["max"] == 5.0
     assert st["unit_classes"]["judged"] == 18 and st["unit_classes"]["pending"] == 0
@@ -51,7 +51,7 @@ def test_weakest_live_mark_reproduces_the_stretch_note(monkeypatch, model):
 
 def test_order_matches_the_stretch_note(monkeypatch):
     p = _prof(monkeypatch)
-    d = json.loads(FIX.read_text())
+    d = json.loads(FIX.read_text(encoding="utf-8"))
     pts = {m: chains.section_stats(d[m], p)["chat/j_roleplay"]["points"] for m in WANT}
     assert sorted(pts, key=lambda m: -pts[m]) == list(WANT)
 
@@ -75,7 +75,7 @@ def _boot_margin(rows, p, it=600, seed=11):
 def test_margins_come_from_the_card_bootstrap(monkeypatch):
     """Stretch note: about +-.24-.29 for every model under (d) (+-.13-.25 under today's mean)."""
     p = _prof(monkeypatch)
-    d = json.loads(FIX.read_text())
+    d = json.loads(FIX.read_text(encoding="utf-8"))
     for m in ("ref", "ds8b"):
         mg = _boot_margin(d[m], p)
         assert 0.15 < mg < 0.40, (m, mg)

@@ -102,6 +102,7 @@ def test_overlay_merges_into_the_public_profile(private_env):
     assert {c["id"] for c in cases if c["category"] == CAT} == set(IDS)
 
 
+@pytest.mark.archive_default
 def test_private_scope_is_the_single_source(private_env):
     s = profiles.private_scope(private_env["cfg"])
     assert s["categories"] == {CAT}
@@ -169,6 +170,7 @@ def test_public_board_excludes_every_private_term(private_env):
     assert LABEL in (private_env["results"] / "report.md").read_text(encoding="utf-8")
 
 
+@pytest.mark.archive_default
 def test_public_coverage_does_not_count_private_cases(private_env):
     _write_rows(private_env)
     local = report._expected_case_count(private_env["cfg"], None)

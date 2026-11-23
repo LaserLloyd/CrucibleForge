@@ -475,9 +475,13 @@ def _probes_since(n):
 
 
 @pytest.mark.parametrize("status", [401, 402, 403, 429])
-def test_a_stored_auth_or_billing_fail_is_re_probed(status, caplog):
+def test_a_stored_auth_or_billing_fail_is_re_probed(status, caplog, monkeypatch):
     """A FAIL from HTTP 401/402/403/429 says nothing about the protocol: the
     next gate probes again, and a fixed key lets the model run."""
+    if status == 429:
+        # a 429 is waited out (api.rate_limit_wait: 5 s steps up to a 900 s budget) before it fails; with the
+        # budget spent the first 429 fails at once, which is the case under test (no real sleeping in a test)
+        monkeypatch.setattr(api, "RATE_LIMIT_BUDGET_S", 0.0)
     _FakeClient.script = _status_script(status)
     cfg = _cfg()
     ok, bad = _gate(cfg)

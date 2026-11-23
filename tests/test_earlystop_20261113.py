@@ -269,3 +269,49 @@ def test_a_tripped_model_stops_keeps_its_rows_and_the_batch_goes_on(tmp_path, mo
     assert good["early_stop"]["tripped"] is False and good["early_stop"]["answers_seen"] == 30
     assert "publishable" not in good
     assert len(config.load_transcripts("good")) == 40              # the next model ran in full
+
+
+# ------------------------------------------- agent rows (tool work in the conversation)
+# Code-agent rows keep tool_calls [] at row level; the work lives in
+# tool_conversation and the last turn may carry no text (finish=tool_calls).
+
+def _agent_conv(turns=3):
+    conv = [{"role": "system", "content": "s"}, {"role": "user", "content": "fix it"}]
+    for i in range(turns):
+        conv.append({"role": "assistant", "content": "",
+                     "tool_calls": [{"id": f"c{i}", "type": "function",
+                                     "function": {"name": "run", "arguments": "{}"}}]})
+        conv.append({"role": "tool", "tool_call_id": f"c{i}", "content": "ok"})
+    return conv
+
+
+def test_an_agent_row_with_tool_work_and_no_closing_text_is_not_blank():
+    c = earlystop.classify(_row(resp="", finish="tool_calls", tool_conversation=_agent_conv()))
+    assert c == {"blank": False, "misrouted": False, "token_limit": False, "degenerate": False}
+
+
+def test_an_agent_row_with_tool_work_and_an_empty_stop_is_not_blank():
+    c = earlystop.classify(_row(resp="", finish="stop", tool_conversation=_agent_conv()))
+    assert c["blank"] is False
+
+
+def test_an_empty_finished_reply_with_no_tool_work_is_still_blank():
+    assert earlystop.classify(_row(resp=""))["blank"] is True
+    # a conversation with no tool call in it is not tool work
+    conv = [{"role": "user", "content": "hi"}, {"role": "assistant", "content": ""}]
+    assert earlystop.classify(_row(resp="", tool_conversation=conv))["blank"] is True
+    assert earlystop.classify(_row(resp="", tool_conversation=[]))["blank"] is True
+
+
+def test_an_empty_stop_stamp_still_counts_as_blank():
+    assert earlystop.classify(_row(resp="", empty_stop=True))["blank"] is True
+    assert earlystop.classify(_row(resp="", finish="tool_calls", tool_conversation=_agent_conv(),
+                                   empty_stop=True))["blank"] is True
+
+
+def test_twenty_agent_rows_without_closing_text_do_not_trip_the_blank_rate():
+    es = earlystop.EarlyStop(_cfg_es(), label="m")
+    rows = [_row(resp="", finish="tool_calls", tool_conversation=_agent_conv(), case_id=f"CB-{i}")
+            for i in range(15)] + [_row(case_id=f"x{i}") for i in range(5)]
+    assert es.observe(rows) is None
+    assert es.counts["blank"] == 0

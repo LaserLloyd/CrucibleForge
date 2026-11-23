@@ -1,4 +1,4 @@
-"""A claude_code-provider model never reaches a board or report (Jake 2026-11-12)."""
+"""A claude_code-provider model never reaches a board or report (the owner 2026-11-12)."""
 import pytest
 
 from crucibleforge import report

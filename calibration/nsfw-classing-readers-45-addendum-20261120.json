@@ -1,0 +1,21 @@
+{
+ "about": "Dated readers addendum 2026-11-20 (runs-lane pilot): names the two local classing readers for the launch. R-Q is a Qwen-family model, R-M a model of another allowed family (Nanbeige; lineage.family() has no entry for it, so the family is declared here and equals what lineage returns when it is added). With the hosted deepseek-flash named by the 2026-11-19 addendum this gives every launch family two readers of other families: MiniMax rows are read by R-Q and R-M; DeepSeek rows by R-Q and R-M (local only); Qwen-family rows (the reference, the heretic tune, Dark Scarlett v3, a Qwen tune by lineage) by R-M and deepseek-flash. Each is admitted only by a stored C1 pass for its exact model id under the current classing prompt sha. Written 2026-11-20 before any launch row was read.",
+ "written": "2026-11-20",
+ "written_before_launch_rows": true,
+ "readers": {
+  "R-Q": {
+   "provider": "studioforge",
+   "model_id": "qwen3.8-27b-ultra-heretic-nvfp4",
+   "family": "qwen",
+   "hosted": false,
+   "note": "Qwen3.8-27B Ultra Uncensored Heretic NVFP4 on the rig (engine label); lineage.family resolves it to qwen"
+  },
+  "R-M": {
+   "provider": "studioforge",
+   "model_id": "nanbeige-nanbeige4.3-33b-q8-0",
+   "family": "nanbeige",
+   "hosted": false,
+   "note": "Nanbeige4.3-33B Q8_0 on the rig (engine label); a family of its own, not google, anthropic, qwen, minimax or deepseek"
+  }
+ }
+}

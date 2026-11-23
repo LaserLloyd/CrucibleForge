@@ -195,6 +195,9 @@ class Provider:
     # "body:<field>" / "header:<name>" / "off" / None (= by host, see
     # cache_route_for): the per-(model, case, repeat) prompt-cache routing key
     cache_route: str | None = None
+    # "episode" (one key per (model, case, repeat)) / "call" (a fresh key per request) /
+    # None = by host (cache_route_scope_for): xAI is "call", every other host "episode"
+    cache_route_scope: str | None = None
     # KV cache type for every rig load (2026-11-13, lead): a recorded run setting, the same for
     # every model. None = the profile's run_settings.kv_cache_type, else the rig's choice.
     kv_cache_type: str | None = None
@@ -718,7 +721,9 @@ class Provider:
         card back (the run is only re-leasing, not ending)."""
         lease, self._lease = self._lease, None
         if lease is not None:
-            studioforge.release_lease(self.base_url, self.api_key, self.mgmt_headers(),
+            studioforge.release_lease(self.base_url, self.api_key,
+                                      # the identity that took it (the rig refuses another holder)
+                                      self.mgmt_headers(client_name=lease.get("_holder")),
                                       lease["_lease_id"])
 
     def _start_keepalive(self) -> None:
@@ -735,7 +740,8 @@ class Provider:
                 lease = self._lease
                 if lease is None:
                     return
-                studioforge.touch_lease(self.base_url, self.api_key, self.mgmt_headers(),
+                studioforge.touch_lease(self.base_url, self.api_key,
+                                        self.mgmt_headers(client_name=lease.get("_holder")),
                                         lease["_lease_id"])
 
         self._keepalive = threading.Thread(target=_loop, name="crucibleforge-lease-keepalive",
@@ -796,7 +802,9 @@ class Provider:
         lease = self._lease
         if lease is not None:
             self._lease = None
-            studioforge.release_lease(self.base_url, self.api_key, self.mgmt_headers(),
+            studioforge.release_lease(self.base_url, self.api_key,
+                                      # the identity that took it (the rig refuses another holder)
+                                      self.mgmt_headers(client_name=lease.get("_holder")),
                                       lease["_lease_id"])
         if self._vacated_render:
             self._vacated_render = False
@@ -1097,7 +1105,10 @@ class Provider:
         if self.type == "anthropic":
             kw["wire"] = "anthropic"
         route = cache_route_for(self.base_url, self.cache_route)
-        key = spend.episode_key(model_id) if route else None
+        key = None
+        if route:
+            key = (spend.call_key() if cache_route_scope_for(self.base_url, self.cache_route_scope) == "call"
+                   else spend.episode_key(model_id))
         if key:
             where, field_name = route
             if where == "header":
@@ -1107,8 +1118,10 @@ class Provider:
         price = self.prices.get(model_id)
         if not price:
             if (spend.is_hosted(self.type) and not ALLOW_UNPRICED
-                    and (spend.global_cap() is not None or spend._model_cap(model_id) is not None)):
-                # fail closed: an unpriced hosted call cannot be capped or counted
+                    and spend.explicit_cap_set(model_id)):
+                # fail closed: an unpriced hosted call cannot be bounded by a cap somebody set.
+                # bench45's standing default cap alone does not arm this (fix round 2026-11-18,
+                # P4); a real run of an unpriced hosted model is refused at cli.cmd_run instead
                 raise spend.SpendCapExceeded(
                     f"crucibleforge spend gate: hosted model {model_id!r} (provider {self.name!r}) has "
                     "no price entry, so no spend cap can bound it - call not sent. Add "
@@ -1161,6 +1174,29 @@ def cache_route_for(base_url: str, configured: str | None) -> tuple[str, str] | 
     if host.endswith("openrouter.ai"):
         return "body", "session_id"
     return None
+
+
+def cache_route_scope_for(base_url: str, configured: str | None) -> str:
+    """How long one routing key lives: "episode" (every turn of a (model, case, repeat) shares it)
+    or "call" (a fresh key per request). ``configured`` (provider ``cache_route_scope``) wins; else
+    xAI is "call" and every other host "episode".
+
+    Why xAI is "call" (measured on grok-4.7, 2026-11-22): when a request continues a conversation
+    that the SAME backend just served, xAI puts that turn's hidden reasoning back into the prompt
+    (prompt_tokens grow by the previous turn's reasoning_tokens; the harness never sends it, and
+    Chat Completions returns none of it). A sticky ``x-grok-conv-id`` makes every turn of an
+    episode land there, so every continuation is replayed. Replayed turns ran 3-10x longer, used
+    up to 8x the reasoning, often ended with reasoning and no visible answer (finish=stop, empty
+    content: 11 of 13 tool chains scored 0 on 2026-11-22) and are where the 503s and the
+    keep-alive-only hangs clustered. The same request on a fresh key: no replay, the answer in
+    20-30 s. A fresh key per call keeps the conversation the harness sends as the whole input,
+    the same protocol every other provider gets (reasoning_replay false)."""
+    if configured:
+        c = configured.strip().lower()
+        if c in ("episode", "call"):
+            return c
+    host = (urlparse(base_url).hostname or "").lower()
+    return "call" if host == "api.x.ai" else "episode"
 
 
 # ------------------------------------------------------------- registry
@@ -1244,6 +1280,7 @@ def get_provider(cfg: dict, name: str) -> Provider:
                                  if p.get("lease_devices_preferred") else None),
         render_vacate_mcp=(str(p["render_vacate_mcp"]).strip() or None) if p.get("render_vacate_mcp") else None,
         cache_route=(str(p["cache_route"]) if p.get("cache_route") else None),
+        cache_route_scope=(str(p["cache_route_scope"]) if p.get("cache_route_scope") else None),
         kv_cache_type=(str(p["kv_cache_type"]).strip().lower() or None) if p.get("kv_cache_type") else None,
         request_priority=int(p.get("request_priority", 2)),
         exact_on_lease=bool(p.get("exact_on_lease", False)) and ptype == "studioforge",

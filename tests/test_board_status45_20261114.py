@@ -1,7 +1,7 @@
-"""The routed board's status banner (lead 2026-11-14, Jake: rc1 is an internal candidate only):
+"""The routed board's status banner (lead 2026-11-14, the owner: rc1 is an internal candidate only):
 the profile's ``board_notes.status`` prints at the top of the text and html boards; under it, when
 any pack added points AND the profile marks its packs provisional (``board_notes.packs_provisional``,
-default off; Jake approved the packs 2026-11-14, so rc3-main sets nothing), "Bonus is provisional:
+default off; the owner approved the packs 2026-11-14, so rc3-main sets nothing), "Bonus is provisional:
 packs await the owner's review."; a board whose
 status marks it an internal candidate hides the Class column (Lean stays). K's toy routed run
 (test_routed_ladder_e2e_20261114): no model, no rig."""
@@ -75,7 +75,7 @@ def test_no_pack_points_no_provisional_line(tmp_path, monkeypatch):
 
 
 def test_approved_packs_score_without_the_provisional_line(tmp_path, monkeypatch):
-    # Jake approved the packs (2026-11-14): no profile key, so a scoring pack prints no provisional line;
+    # the owner approved the packs (2026-11-14): no profile key, so a scoring pack prints no provisional line;
     # the internal-candidate banner and the hidden Class column stay exactly as they were
     md, stats, html = _board(tmp_path, monkeypatch, BONUS, {"status": CAND})
     assert stats["m"]["headline"]["bonus45"]["work"] == 1.0

@@ -27,7 +27,7 @@ TZ = ("TZ16-pickup-dst-delay", "TZ19-hotel-cot-deadline", "TZ20-swim-saturday-ag
 
 
 def _tool_cases():
-    cs = json.loads((Path(__file__).parents[1] / "cases" / "tooluse.json").read_text())
+    cs = json.loads((Path(__file__).parents[1] / "cases" / "tooluse.json").read_text(encoding="utf-8"))
     cs = cs if isinstance(cs, list) else cs["cases"]
     return {c["id"]: c for c in cs}
 
@@ -47,7 +47,7 @@ def test_every_tool_of_the_c5_cases_declares_read_or_write():
 
 def test_the_effect_markers_move_no_stamp():
     # the stamps the stored 4.1 and 4.5 rows carry for these cases (D2's rows, 2026-11-15)
-    rows = json.loads(FIX.read_text())
+    rows = json.loads(FIX.read_text(encoding="utf-8"))
     stored = {r["case_id"]: r["case_revision"] for r in rows}
     for cid in TZ:
         assert version.case_hash(cid) == stored[cid], cid
@@ -138,7 +138,7 @@ def test_the_4_5_profile_declares_the_revision_and_4_1_does_not():
 
 
 def test_an_old_4_5_tool_row_reads_stale_and_a_4_1_row_does_not():
-    rows = json.loads(FIX.read_text())
+    rows = json.loads(FIX.read_text(encoding="utf-8"))
     r45 = next(r for r in rows if r["case_id"] == TZ[0])
     assert r45["profile"] == "bench45"
     # the revision's own rule, read directly (row_current's other inputs, the case stamp and regime, are
@@ -233,7 +233,7 @@ EXPECTED = {
 def test_the_18_stored_rows_under_the_new_rule():
     cs = _tool_cases()
     got = {}
-    for r in json.loads(FIX.read_text()):
+    for r in json.loads(FIX.read_text(encoding="utf-8")):
         k = (r["model_label"], r["case_id"][:4], r["repeat"])
         got[k] = (r["grade"], tooltask.task_done(r, cs[r["case_id"]]))
     assert got == EXPECTED
@@ -254,6 +254,6 @@ def test_half_task_is_a_tool_use_unit_score_and_c5_uses_it():
 
 def test_half_task_scores_the_task_half_from_task_done():
     cs = _tool_cases()
-    rows = [copy.deepcopy(r) for r in json.loads(FIX.read_text()) if r["model_label"] == "minimax-m3-1-flash"]
+    rows = [copy.deepcopy(r) for r in json.loads(FIX.read_text(encoding="utf-8")) if r["model_label"] == "minimax-m3-1-flash"]
     tr = report.task_rate(rows, cs)
     assert tr == pytest.approx(2 / 6)

@@ -115,7 +115,9 @@ def test_rc2_main_seeds_are_fresh(monkeypatch):
     assert len(set(rc2.values())) == len(rc2)
     seen = {_key(c) for c in chains.chain_cases(base)}
     for comp in sorted(base["compositions"]):
-        if comp not in ("rc2-main", "rc3-main", "standard"):   # rc3-main and standard (was rc4-main) reuse rc2 instances by design
+        # rc3-main, standard (was rc4-main) and rc4-main-ladder (equal to standard since the ladder switch, lead
+        # 2026-11-15) reuse rc2 instances by design
+        if comp not in ("rc2-main", "rc3-main", "standard", "rc4-main-ladder"):
             seen |= {_key(c) for c in chains.chain_cases(_load(monkeypatch, comp))}
     fx = json.loads((Path(__file__).parent / "fixtures" / "rc1_main_rc1_tree_instances.json").read_text(encoding="utf-8"))
     seen |= set(fx["cases"].values())
@@ -137,8 +139,10 @@ def test_rc2_main_packs_sit_under_its_scored_parts(monkeypatch):
     prof = _load(monkeypatch, "rc2-main")
     run = ladder.discover(prof, staged=False)
     assert {k: [s["level"] for s in v] for k, v in run.items() if k.startswith(("work/c", "chat/h"))} == {
-        "work/c1_implied": [1], "work/c2_trace": [1],
-        "work/c2_predict": [1]}   # Chat's KNOWGAP pack stays staged; c2_predict = the hard Predict trio (PACKS2 2026-11-14)
+        "work/c1_implied": [1, 1], "work/c2_trace": [1],
+        "work/c2_predict": [1], "chat/h6_know": [1]}   # c2_predict = the hard Predict trio (PACKS2 2026-11-14)
+    # integration 2026-11-20: c1 set-2 = CQ1-3 and h6_know set-3 = EVERYGAP are live; Chat's KNOWGAP (set-1) stays staged
+    assert [s["n"] for s in run["chat/h6_know"]] == [3]
     assert "chat/h6_know" in ladder.discover(prof, staged=True)
     assert report._ladder_sets(prof).keys() >= {"work/c1_implied", "work/c2_trace"}
 

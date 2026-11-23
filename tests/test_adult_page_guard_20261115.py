@@ -79,13 +79,14 @@ def test_plan_for_a_claude_code_model_has_no_adult_unit(std_cases):
     kept = G.plan_cases(_cfg(CC), CC, std_cases, say=said.append)
     assert not [c for c in kept if G.is_adult(c)]
     assert len(kept) == len([c for c in std_cases if not G.is_adult(c)])
-    assert said == ["adult page: not run for cc-sonnet (adult_page off for this model)"]
+    assert said == ["NSFW+: not run for cc-sonnet (nsfw_plus off for this model)"]
 
 
 @pytest.mark.parametrize("entry", [HOSTED, RIG], ids=["hosted", "rig"])
 def test_plan_for_a_hosted_or_rig_model_is_unchanged(std_cases, entry):
+    # fix round 2026-11-18 (P1): the adult page is opt-in; with --adult (G.RUN_KEY) the plan is unchanged
     said = []
-    kept = G.plan_cases(_cfg(entry), entry, std_cases, say=said.append)
+    kept = G.plan_cases({**_cfg(entry), G.RUN_KEY: True}, entry, std_cases, say=said.append)
     assert kept is std_cases and said == []
     assert [c["id"] for c in kept] == [c["id"] for c in std_cases]
 
@@ -102,7 +103,7 @@ def test_run_models_plans_through_the_guard(std_cases, monkeypatch):
     monkeypatch.setattr(runner, "provider_for", lambda cfg, e: types.SimpleNamespace(
         name=e["provider"], base_url="x", alive=lambda: True))
     monkeypatch.setattr(runner, "_merge_round_summaries", lambda parts: {})
-    cfg = _cfg(CC, HOSTED, RIG)
+    cfg = {**_cfg(CC, HOSTED, RIG), G.RUN_KEY: True}     # --adult (P1: opt-in since 2026-11-18)
     runner.run_models(cfg, [CC, HOSTED, RIG], std_cases)
     assert not [i for i in seen["cc-sonnet"] if i in {c["id"] for c in std_cases if G.is_adult(c)}]
     assert seen["deepseek-flash"] == [c["id"] for c in std_cases]
@@ -186,7 +187,9 @@ def test_a_claude_code_rows_adult_page_reads_not_run_and_is_never_ranked():
     sub = off["scorecard"]["subtotals"]
     assert sub["nsfw"]["points"] is None and sub["uncensored"]["points"] is None and sub["total"]["points"] is None
     for k in ("nsfw", "uncensored", "total"):
-        assert report.subtotal_cell(off, k) == "not run", k        # in words, never a 0
+        # in words, never a 0; 4.5.0 (fix round 2026-11-18, R4) withholds the NSFW number and the total either way
+        want = "not run" if k == "uncensored" else report.ADULT_WITHHELD45
+        assert report.subtotal_cell(off, k) == want, k
         assert report.subtotal_cell(on, k) != "not run", k
     assert off["scorecard"].get("nsfw") is None                    # no adult headline: never ranked there
     assert on["scorecard"].get("nsfw") is not None

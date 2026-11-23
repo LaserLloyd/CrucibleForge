@@ -126,7 +126,7 @@ python3 scripts/private_layer.py restore latest --go  # backs up the current lay
 ```
 
 Backups go to `$CRUCIBLEFORGE_PRIVATE_BACKUP_DIR` (default
-`~/Documents/Backups/crucibleforge-private`). Results (`results/`) are not part of the layer.
+`$CF_PRIVATE_DIR`, a directory outside the repo). Results (`results/`) are not part of the layer.
 To back up automatically, enable it for your clone (local git config, never shipped):
 
 ```bash

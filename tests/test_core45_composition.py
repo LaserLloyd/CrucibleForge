@@ -108,7 +108,7 @@ def test_no_core_entry_is_pending_once_its_family_is_registered(prof):
 
 
 def test_nominal_tokens_are_reported(rep):
-    # Jake R21: the run length is derived and reported, never a hard limit
+    # the owner R21: the run length is derived and reported, never a hard limit
     assert rep["core"]["tokens"] > 0, rep["core"]["tokens"]
 
 
@@ -130,7 +130,7 @@ def test_every_core_item_has_a_budget_source(rep):
 
 
 def test_budget_gate_passes_home_and_rig(rep):
-    # Jake R21: minutes are reported, not gated (the budget command still prints its verdict)
+    # the owner R21: minutes are reported, not gated (the budget command still prints its verdict)
     assert rep["core_home_min"] > 0 and rep["core_rig_min"] > 0
 
 
@@ -356,7 +356,7 @@ def _card(prof, share):
 
 
 @pytest.mark.live_ladder
-def test_core_ratio_090_unlocks_the_frontier_packs_and_089_does_not(prof):   # unlock 0.9, Jake 2026-11-14
+def test_core_ratio_090_unlocks_the_frontier_packs_and_089_does_not(prof):   # unlock 0.9, the owner 2026-11-14
     from crucibleforge import ladder
     attached = ladder.discover(prof)
     frontier = [k for k in FRONTIER_OWNER if k in attached]

@@ -127,7 +127,8 @@ def test_generated_items_summary_uses_the_scorecard_convention_not_generated_max
     out = "\n".join(report.render_board45(["m"], stats, prof))
     assert "/ 19" not in out and "/ 9 |" not in out.split("| Model | Section")[-1]
     assert "| m | Overall | 16.4 / 20 | 2.6 |" in out
-    assert "| m | Coding | 7.9 / 10 | 2.5 |" in out
+    # fix round 2026-11-18 (R5): the 4.5.0 board names the Coding section "Coding (small tasks)"
+    assert "| m | Coding (small tasks) | 7.9 / 10 | 2.5 |" in out
     assert "| m | NSFW (separate, not in Overall) | - / 10 | - |" in out
 
 

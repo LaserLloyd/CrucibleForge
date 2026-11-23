@@ -284,7 +284,12 @@ def test_forced_judge_retries_transient_load_then_succeeds(monkeypatch):
 
     monkeypatch.setattr(judge.JudgeClient, "load", load)
     monkeypatch.setattr(judge, "_eligible_judge_candidates", lambda cfg, b: [])
-    monkeypatch.setattr(judge.time, "sleep", lambda s: sleeps.append(s))
+    # time.sleep is global: a leftover vacate_instance drain thread from an earlier test also calls
+    # it, so count only this thread's sleeps
+    import threading
+    me = threading.get_ident()
+    monkeypatch.setattr(judge.time, "sleep",
+                        lambda s: sleeps.append(s) if threading.get_ident() == me else None)
     jc = judge._load_judge(_judge_cfg(), set(), rows=1, samples=1, override="sf:big")
     assert jc.model_id == "big"
     assert attempts == ["big", "big", "big"]

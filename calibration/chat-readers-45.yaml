@@ -1,0 +1,15 @@
+# Second readers for the eight long chat scenes (SPEC-REALIGN-45 section 3). Configured, not hard-coded:
+# crucibleforge/rplong_mean.load_readers reads this file. Rule enforced in code: reader family != judge family
+# != graded model family; readers think. Open-weight local readers first; the hosted reader is the stamped
+# fallback. Local ids are named by the readers' constructed-set addendum (lane W4): an entry without an id never fits.
+chat_readers:
+  judge_family: google
+  # pins: {<graded family>: <reader id>}  one reader per graded family; empty = the first fitting reader in file order
+  pins: {}
+  local:
+    - {role: R-Q, family: qwen, id: null}
+    - {role: R-M, family: mistral, id: null}
+    - {role: R-O, family: openai, id: null}
+  hosted:
+    - {role: H-1, id: deepseek-v4-flash, family: deepseek, provider: deepseek, thinking: true}
+    - {role: H-2, id: grok, family: xai, provider: xai, thinking: true}

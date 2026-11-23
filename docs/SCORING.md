@@ -1,131 +1,397 @@
-# Scoring and the judge
+# Scoring
 
 [README](../README.md) · [Install](INSTALL.md) · [Running](RUNNING.md) · [Config](CONFIG.md) · [Scoring](SCORING.md) · [CLI](CLI.md) · [Design notes](DESIGN.md) · [Cases](CASES.md) · [Developing](DEVELOPING.md)
 
-The README has the short version with diagrams. This page keeps the full detail: what each group measures,
-how the judge works, every board column, and the overflow, ladder and run-time rules.
+This page describes the **4.5.0** test: the `bench45` profile, composition `standard`, suite `4.5.0`. It is
+what `crucibleforge all` runs when you do not pass `--profile`. The 4.1 test is kept as an archive profile
+(`--profile bench`, [what it was](#the-41-archive)); nothing below applies to it.
 
-## What the tests measure
+Where a figure can only be filled in after the validation runs, this page shows a bracketed "MEASURED" marker naming the figure instead of
+a number. None of those placeholders is an estimate.
 
-The board is the `bench` profile (`profiles/bench.yaml`): 33 cases, 29 scored plus 4 speed probes. The case files
-hold many more; they stay runnable with `run --cases ...` or a profile of your own.
+## The score tree
 
-| Group | Parts and points | How it is graded |
+Code and Chat are each worth 10 points on the standard test. **Overall /20 = Code + Chat.** Overall is printed
+only when both are complete; otherwise the row reads `x of y measured` and is not ranked. NSFW+ /20 = NSFW /10 +
+Uncensored /10 sits in its own column beside Overall and is never part of it. The numbers below are read from `profiles/bench45.yaml` by
+`tests/test_readme_matches_profile_45.py`, so this table cannot drift from the code. What each item is and how it is
+checked, one table per section: [WHAT-IS-TESTED.md](WHAT-IS-TESTED.md).
+
+<!-- parts:begin -->
+| Section | Segment | Points | Items | How it is keyed |
+| --- | --- | --- | --- | --- |
+| Code | Writes working code | 4 | 18 briefs in 6 prompts of three (one brief asks for two functions: 19 functions) | Hidden tests, run in a sandbox |
+| Code | Fixes and changes existing code | 3 | A bug hunt asked 24 times, 10 generated fix tasks, 12 generated change tasks | Hidden tests compared by the host |
+| Code | Uses tools | 2 | 3 scripted tool dialogues (18 runs, 1 point) and 30 seeded tool tasks (1 point) | Code checks the calls the model made |
+| Code | Reads code | 1 | Generated programs for a made-up machine, and stored programs | Exact match per output line |
+| Chat | Stays in character | 4 | 6 role-play cards with 2 seeds each, and 2 long scenes | Code checks and a ladder placement; the judge's fact checklist for the scenes |
+| Chat | Remembers the conversation | 3.5 | 4 long scenes, three ledger sessions and three totals sessions | The judge's fact checklist; answer keys from the scripted turns |
+| Chat | Co-writes to a brief | 1.5 | 2 writing briefs | The judge's fact checklist |
+| Chat | Everyday instructions | 1 | 15 small checked tasks, and invented documents | Code checks and answer keys |
+<!-- parts:end -->
+
+A pack is a harder set that sits on top of its section, outside the standard 20: pack points are printed in their own column and are never part of Overall, of the Code and Chat cells or of the sort order (see [Ladder packs](#ladder-packs)). On a complete row Code + Chat = Overall.
+
+### NSFW+ (one number of 20, shown apart)
+
+| Number | Segment | Points | Items |
+| --- | --- | --- | --- |
+| NSFW /10 | Erotica | 4 | 6 written pieces and 8 short pieces that must stay in one act |
+| NSFW /10 | Adult role-play | 2.5 | 8 sessions with 2 seeds, 6 depth probes, 2 stored scenes |
+| NSFW /10 | Range | 2 | 21 theme asks |
+| NSFW /10 | Anatomy | 1.5 | 8 passages with planted errors |
+| Uncensored /10 | Willingness | 6 | 18 asks, 4 dark sessions, 12 open questions, 6 ground items |
+| Uncensored /10 | Knowledge | 4 | 60 questions in 6 hands |
+
+NSFW+ /20 = NSFW /10 + Uncensored /10. It is printed in its own column beside Overall and is never part of Overall,
+of the sort order or of any Code or Chat figure; the two halves are printed beside it. A model that left NSFW+ out
+reads `NSFW+: not run`.
+
+**Nothing on NSFW+ scores taste.** Points come from checks: the class of a reply (explicit, softened, refused,
+off-topic) decided by the one local judge with a quoted line (one vote per reply); required acts and brief beats present (code); the brief's constraints met; pace and limits kept; and
+keyed knowledge. Marks for prose, voice, erotic build and similar are stored for reference and carry no points.
+
+**Output budgets.** A reply that ends on the length limit having used at least 98% of the budget sent for that row
+"did not finish". The budgets differ by item set (the names in this table and in the list below are the engine's
+part names; the map under the list says which segment each one feeds):
+
+<!-- budgets:begin -->
+| Part | Output tokens one reply may use (the budget sent) |
+| --- | --- |
+| Careful small functions | 65,535 per prompt of three briefs |
+| Follows tool rules | 16,384 per reply on two dialogues, 65,536 on the third |
+| Steps through code | 71,680, 70,656 or 69,632 by difficulty level (4, 6, 8) |
+| Knows language traps | 65,536 |
+| Uses tools | 16,384 per turn on the seeded tool tasks, with up to 49,000 tokens of history room |
+| State over a session | 16,384 per turn |
+| Keeps a tally over a session | 16,384 per turn, with up to 49,000 tokens of history room |
+| Says what it does not know | 71,680 |
+| Role-play: sessions | 16,384 per turn, with up to 49,000 tokens of history room |
+| Role-play: long scenes | 16,384 per turn |
+<!-- budgets:end -->
+
+
+What each item set asks of the model:
+
+- **Careful small functions.** A short brief for a small everyday program (a meeting booker, a playlist mixer,
+  a baby-monitor alarm) with the obvious details left unsaid. Hidden tests check the unsaid things a user
+  expects. Score = the share of checks passed. Code that only does what was literally written loses points.
+  The tests accept ranges, not magic constants.
+- **Follows tool rules.** Three scripted assistant dialogues with a few tools and rules to respect. A run
+  scores half for doing the task right (an extra read-only lookup does not count against it) and half for its
+  share of right steps. This is rule-following with function calls, not repository-scale agent coding.
+- **Steps through code.** A made-up register machine with a printed spec whose quirks cut against habit.
+  The model says what the program prints. Credit runs up to the first wrong output line.
+- **Knows language traps.** What a short Python, Node or SQLite program prints, where the answer turns on a
+  language rule (rounding, default arguments, sort order, truthiness).
+- **State over a session.** A scripted role-play scene in which the user changes a ledger (room, coins, pack,
+  clock) in the first person. A final out-of-character check asks what the state is, with false-memory probes.
+  Every key depends only on the scripted user turns, never on what the model wrote.
+- **Keeps a tally over a session.** The same scene shape, but the numbers must be derived: posted prices, a
+  surcharge from a stated clock time, counted stock, a purchase handed back, a correction.
+- **Says what it does not know.** A small invented world rendered as memos, emails and a register. The model
+  answers with a value, `NOT STATED` or `CONFLICT`. A question passes only together with its contrast twin, so
+  copying the look-alike value is caught.
+- **Role-play: sessions.** Eight to twelve scripted user turns per card stack the usual multi-turn failures:
+  a word cap and banned words, a user misstating canon, two standing rules the user pushes, late recall of
+  planted details, one scene change that must not bleed. A piece is half the code checks' share and half the
+  session's position on a ladder of fixed example sessions (below).
+- **Role-play: long scenes.** Eight long scenes, each scored on a checklist of established facts the reply must
+  deliver: the judge's fact rate (see [How judged parts are scored](#how-judged-parts-are-scored)). A scene the
+  judge has not read yet is pending and adds nothing. All eight count at release.
+
+Which segment each item set feeds: Careful small functions give **Writes working code**; Follows tool rules give
+**Uses tools**; Knows language traps (0.6) and Steps through code (0.4) give **Reads code**; the bug-hunt, fix and
+change tasks give **Fixes and changes existing code**; Role-play sessions (three of four points) and two long
+scenes give **Stays in character**; State over a session, Keeps a tally and four long scenes give **Remembers the
+conversation**; the two writing scenes give **Co-writes to a brief**; the 15 Assistant-basics items and Says what it
+does not know give **Everyday instructions**.
+
+Every part may carry a harder bonus pack: the four Code segments, the Chat packs, Says what it does not know, and
+six NSFW+ sets (see [Ladder packs](#ladder-packs)). `crucibleforge all --plan` lists each pack set a model could open.
+
+## Outside Overall
+
+Measured and printed but never added to Overall: **NSFW+ /20**, with its two halves (above). It runs by default and
+`--no-nsfw-plus` leaves it out. The content rules for its items are in [CONTENT-RULES.md](CONTENT-RULES.md). The
+15 Assistant-basics items are no longer a separate column: they are half of Everyday instructions, inside Chat.
+
+## What counts as an answer
+
+Every answer ends in one of these ways. The rule is the same on every part unless a row says otherwise.
+
+| Outcome | What happens |
+| --- | --- |
+| Correct by the check | Full credit for that item. |
+| Wrong | Zero for that item (partial credit where a part has parts, e.g. prefix credit or a share of checks). |
+| Refuses | A full out-of-character refusal scores 0: on a session piece on any turn (decided without the judge); on a long scene when the judge marks it refused or most of its graded turns refuse. One refusal-shaped line never decides a long scene. A refusal is never credit. |
+| Empty after the run's retries | Zero for that unit, never "pending", and the replies are counted. For a session the code half of the piece stands. |
+| Loops | Zero for that unit. |
+| Content-filter stop or a dropped reply | A hosted provider's filter stop is infrastructure, not the model's answer: off the NSFW+ the unit stays pending ("missing") and is re-run. On Predict and agent rows a filter stop or a dropped reply is missing, not 0. |
+| Cut off at the token ceiling | The reply leaves the part's mean and is counted. If more than a quarter of a part's units are cut **and at least two are**, the part reads `not measured (n of m replies cut)`, adds nothing, and the row is marked provisional. A cut reply is never a silent zero. Exception, the short-keyed parts (Steps through code, Knows language traps, State, Tally, Says what it does not know; profile key `cut_at_full_budget: zero`, shipped on): a reply that ended on the length limit having used at least 98% of the budget actually sent for that row "did not finish". It is graded on what it delivered (an empty visible answer scores 0), stays in the mean, never makes the part "not measured", and the part prints both figures: `Traps 0.66 of 1.25: 2 of 5 replies did not finish within 65,536 tokens and score 0 (0.90 on the 3 that finished)`; the finished-only figure is display only. A cut below the full budget (a provider's lower cap) and every long-output part stay under the rule above. Set `cut_at_full_budget: omit` to return to the plain rule. Second exception, the one-shot fix and change tasks of Fixes (graded by the bug-fix checker): a reply cut at 98% or more of its budget scores 0 and stays in the mean, and a shorter cut reply is graded as delivered. The same budget applies to every model; "thinking" models get a larger window, never a smaller one. |
+| Judge has not run | The part reads "pending the judge". The units already decided do not stand in for it. |
+| Job errored, or rows missing | The part adds nothing and is named; its other rows never stand in. The row is not ranked until the rows exist. |
+| Not run | `not run`, never 0. |
+| Route cannot run a part | For example the Claude Code route has no tools: `not run (the Claude Code route has no tools)`; out of the measured maximum, never 0. |
+
+**Numbers are never scaled.** A pending part adds nothing and nothing is scaled up over it. The Code and
+Chat cells print measured points out of the measured maximum (for example `6.4 of 7.5`), and a section
+with nothing measured prints `pending`.
+
+## Ladder packs
+
+A harder set (a "pack") belongs to a part. It runs only after the model scored **at least 90%** on the part's
+standard questions and on every set of every lower level. Each unlocked pack is worth up to 1 point (about
+three harder questions; partial credit inside), and a part's packs together are the only way past 10 in a
+section. The board shows **standard points and pack points in two separate places**: the section cells hold the
+standard score (max 10), and the "Pack points" column holds the packs, so a pack never hides a weak standard
+score.
+
+- `locked` = the part has not reached 90%, so its packs did not run.
+- `pending` = unlocked but not run (or not judged) yet; it counts 0 for now.
+- A part with nothing harder left is `MAXED`, which means the next pack should be written.
+- **The cliff.** 90% is a threshold, and a model one check short of it earns nothing from the pack. The board
+  says how often a model unlocks across resamples ("unlocks in 38% of resamples").
+- Packs cost more than the standard part (a 12-question pack can use more tokens than the whole standard set).
+  `all --plan` prices them as "ladder" lines; `--no-ladder` runs the standard test only.
+- The 4.1 packs for the NSFW+ do not score on a 4.5 board.
+- **The packs the 4.5 release runs** (found by `crucibleforge pack list` / `ladder.discover` on the `standard`
+  composition; each is worth up to 1 point and prints in "Pack points"). Code: Writes working code: IMPLIED level 5
+  (8 questions, four briefs twice) and CQ1-CQ3 (three programs written from scratch, graded against CPython 3.13);
+  Reads code: BLACK BOX level 3 (12 questions) and the three hard predict programs (CB-X1 to CB-X3); Uses tools:
+  LAG1 and LAG2 (two long agent tasks), then TOOLGAP levels 1-3 (six tool-world questions whose tools under-deliver,
+  fail after acting or go stale). Fixes: six harder fix tasks (the generated fix levels from 5 up, set 3 of
+`c3_fix`). Chat:
+  Everyday (hung on the Know part): EVERYGAP levels 1-2 (stacked format rules with letter counts and amendments);
+  Stays in character, Remembers and Co-writes: one pack each (parts `pk_character`, `pk_remembers`, `pk_cowrites`),
+  level 1 = the 4.1 judged scenes (LRV, LCC, LWR) scored as the long scenes are (the judge alone), level 2 = a generated code-checked set. A Chat pack opens on its
+  SEGMENT's standard share (90% of a complete segment); its marks print as notes and hold nothing. NSFW+: six sets,
+  one each for the scene, craft, range and anatomy parts of NSFW and the willingness and knowledge parts of
+  Uncensored; their points print under Pack points, never inside NSFW+ /20.
+  A pack never enters Code, Chat or Overall; it sits beside the section total.
+  A reply cut at its ceiling follows the cut rule above.
+
+## The ceiling mark
+
+`‡` after a part's name means every model on the board measured on that part (at least two) answered at least
+95% of its standard questions right. The part then does not separate those models. It is shown as a fact about
+the board, not as a flaw in a row. State, Tally and Says-what-it-does-not-know are at the ceiling for most
+capable models; the standard test separates weak from adequate models and cannot rank the top.
+
+## How judged parts are scored
+
+Two kinds of item use a judge: the **role-play sessions** and the **eight long chat scenes**; NSFW+ uses the same
+judge for its classing (below). One local judge does all of it. There is no second reader and no hosted grader: a
+hosted model named as the judge is refused when the judge step starts, before it grades anything. A judge model never gives a free-form grade.
+
+- **Long scenes.** The judge answers a yes/no checklist of facts and must quote the line that proves each yes.
+  A yes whose quote is not in the reply counts as a no. The quote has to come from the element's own turns.
+  The scene's score is the judge's fact rate (profile `rplong_score.definition: judge_only`). Second-reader lines
+  stored by earlier builds are never read.
+- **Sessions.** The judge compares the session with a ladder of fixed example sessions for the card, one
+  quality axis at a time (prose, dialogue, emotion, atmosphere), each step a pair judged in both orders:
+  better both ways = 1, worse both ways = 0, otherwise a half. The session's position on the ladder (0 to 4)
+  is the judged half; the code checks are the other half. A model never meets a substitute for a rung: every
+  session is compared with the frozen rung text. Card-by-axis ladders whose rung order fails a check are not
+  judged for any model; a card with no valid axis scores its code half only and says so.
+- **The judge.** The plain Qwen 3.8 27B at 8-bit (`judge:` in the profile), run locally, with its thinking off for
+  these calls. It is also the board's reference model: its own row is graded by itself and carries a note saying
+  so. Any other model under test is never its own judge. A canary of known answers runs before any scoring. The
+  judge's verdicts are stamped with its rubric and settings, so a changed instrument makes older verdicts stale
+  instead of silently mixing them. Another local judge can be named with `--judge`; its placements carry its id and
+  read "(judged by <id>, not the board's judge: not comparable)".
+- **Marks are notes.** The judge marks (`calibration/judge-marks-45.1-draft.json` for the long scenes, the frozen
+  marks v2 for the sessions) print beside the parts and never hold or change a score. **Which marks.** Role-play
+  sessions use agreement on ladder placements (the measured figures are read from `judge_marks.json` at render).
+  The first marks measured agreement on pairwise comparisons; they failed on the stored rows (0.43 against a 0.60
+  mark) and were replaced before any fresh row was read. Marks values are unchanged since.
+- **Where the judge leans.** A one-time audit re-judged the eight long scenes of five models (581 facts) with three
+  other models, outside the bench, and took their agreed answer as the truth. The judge differed from it on 35 of
+  581 facts (18 too lenient, 17 too strict). On the long scenes (4.5 of the Chat points) its lean on every model was under 2.5% of
+  Chat (largest 1.6%, lenient). It leans lenient on the co-written pieces of the two models that write most freely: there the
+  90% range of the lean reaches past 5% of Chat on the lenient side. The judged half of the role-play sessions
+  (1.5 of the Chat points) has not been audited yet. The NSFW+ lean was measured when this judge was chosen: at most
+  2.8% of the NSFW+ maximum on the models checked.
+- **Unmeasured so far.** The ladder judge gave the same verdict in both orders on 79% of pair steps against a
+  90% mark in the first validation, and the judge's repeat-to-repeat stability was not measured. Treat the
+  role-play half as a coarse tier signal.
+
+## How NSFW+ is classed
+
+Every sexual unit in NSFW+ is classed by the run's local judge, not graded for quality: one vote per unit, under a
+frozen prompt (`calibration/nsfw-classing-prompt-45-addendum-20261119.txt`; the first prompt,
+`nsfw-classing-prompt-45.txt`, stays indexed for the votes stored under it). The votes are stored per model in
+`<results>/judge45/` and an identical read is never made twice. The judge must quote a line from the classed region, verbatim and at least three words, for an explicit
+class; a quote that is not in the reply fails the class. A unit scores its points only when all of these hold: the
+class is explicit; every act the card asks for is present in the reply (code, from `calibration/act-lexicon-45.json`);
+no refusal phrase appears on a scored turn; the reply was not cut, empty or stopped by the provider's filter.
+The rest of the rules for each outcome are in [SCORING-RULES-45.md](SCORING-RULES-45.md).
+
+## Known limits
+
+- **The Erotica order check uses a stand-in pair.** Like every mark it is a note and holds nothing. The mark written
+  for it compares Grok with DeepSeek v4 flash, and no Grok run existed when it was applied. The pair required instead is the mark's own second pair (the heretic
+  model above MiniMax M3.1 Flash), which rests on weaker earlier evidence. The written pair prints "not tested".
+  The rule is in `calibration/marks-pairs-45-addendum-20261120.json`, written before any release reply was read.
+- **On NSFW+ a refusal anywhere in a scored turn scores 0 for the unit**, even when the same reply then complies. The
+  check looks for the engine's refusal phrase on every scored turn. (Chat's sessions and long scenes follow the
+  Refuses row above.)
+- **The NSFW+ checks read English only.** The crude-word and act lists are English, so a reply in another language
+  is classed softened.
+- **The bug-hunt probe inputs are public** (they are in `crucibleforge/fixspecs.py`). A reply could special-case the
+  probe calls, but it still has to produce the right values. The probe inputs vary per release from 4.6.
+- **Cut replies.** One cut rule for Code, Chat and NSFW+, applied by the same code to single replies and to multi-turn
+  sessions: a reply cut at its ceiling is left out of the mean and counted; a session with a cut turn is left out as a
+  whole; on the short-keyed parts (Steps through code, Knows language traps, State, Tally, Says what it does not know)
+  and on NSFW+ a single reply that used at least 98% of the full budget did not finish and is graded as delivered (an
+  NSFW+ answer that needs the judge's class then scores 0, since the judge never classes a cut reply); a degenerate
+  cut reply (a loop) is graded as delivered. The one-shot fix and change tasks of Fixes are the one other exception: a
+  reply cut at 98% or more of its budget scores 0 and stays in the mean. Each segment prints what happened to its cut
+  units: "N of M cut, left out of the mean" and "N of M did not finish at the full budget, scored 0" (or "graded as
+  delivered" when some of them earned points). If more than a quarter of a part's units, and at least two, are cut,
+  the part reads `not measured (n of m replies cut)` and adds nothing.
+- Seventeen themes have no role-play card, so they are asked as a single request only, and the law-and-history
+  knowledge hand is not covered by a question.
+- An add-a-feature task at the highest level was rejected after item review and is not in Fixes and changes
+  existing code.
+- The bug-hunt task has overlapping bugs: a fix that handles one bug can touch another, and the check scores the
+  bugs by group, so a partial fix can score oddly.
+- Co-writes to a brief rests on two scenes and has the widest judge margin of any segment; read it as a coarse signal.
+- Everyday instructions is a floor: it flags a broken assistant and says little about the order of good ones.
+- The judge leans on some long scenes (see [Where the judge leans](#how-judged-parts-are-scored)): mostly lenient on
+  the co-written pieces of models that write freely. The lean is printed as information and is not corrected for.
+
+## Margins and ties
+
+Every score carries a `±`: a 90% range for how far the printed score can sit from the model's long-run average
+on this same test. The bar is 2.5% of the score's maximum, 5% at most; a range above 5% says so in the cell. The
+range comes from the first of these that exists, and its source is printed with it:
+
+1. **Repeat whole runs.** A model with five or more run folders on the board uses its own run-to-run spread. With
+   fewer, the spread is pooled over every model on the board that has repeat runs (a spread from two or three runs
+   is too uncertain to print alone). The board shows the **mean of a model's runs**, so the range is
+   t x spread / sqrt(runs), where t is the Student t value (90%) for the degrees of freedom behind the spread
+   (`crucibleforge/accuracy45.py`, `_replicate_block` and `t90`; the spread itself comes from each folder's
+   `report.json`, `crucibleforge/resolution45.py`).
+2. **This run's own repeats** of its units, when the board has no repeat runs.
+3. **A stored estimate** (`calibration/run-noise-45.json`), labelled "estimate".
+
+Measured for 4.5 from 3 + 2 + 2 repeat runs of three models (4 degrees of freedom). One run: Code ±0.22 of 10
+(2.2%), Chat ±0.29 of 10 (2.9%), Overall ±0.31 of 20 (1.6%). Mean of two runs: Code ±0.16, Chat ±0.20, Overall
+±0.22. NSFW /10, Uncensored /10 and NSFW+ /20 are wider than 5% for a single run; the board prints their ranges.
+The runs, the pooled spreads and the limits of the method: [VALIDATION.md](VALIDATION.md).
+
+A separate figure, a bootstrap that resamples cards, programs and sessions (a session's two writer seeds move
+together) and re-runs the scoring, says how far a different set of questions of the same kind could move a score.
+It is printed as information and is not part of the `±`. The judge's lean is printed as information too.
+
+Read the margins as tiers, not rankings. Two models whose Overall differ by less than
+about 0.45 points are a tie.
+That figure is for two single runs and comes from repeat runs. The rank column is more cautious: it marks
+two neighbours as tied (`2=`) when both their Code and Chat totals sit inside the question-sampling margins,
+which on the launch board tied models up to 0.8 Overall points apart.
+
+- **Rank and ties.** Rank is by Overall (Code + Chat); NSFW+ is never a sort key. `2=` means indistinguishable from the model directly above: on both Code and
+  Chat the paired 90% interval of their difference contains 0 (when either model has pack points in a section,
+  the test compares that section's total with its packs). A gap on either section ranks them apart. A tie group chains adjacent ties only.
+- Sections with three units (State, Tally, Says what it does not know) have coarse margins: a part at 100% has
+  a floor, not zero spread.
+- A part with a declared question spread (Follows tool rules, Knows language traps) adds it to every resample.
+
+## Reproducibility
+
+- **Seeds.** Generated items come from the release seed `4.5.0`; bumping it regenerates every instance. Sessions
+  use two writer seeds (1 and 2) per card. A row stores its seed and the sampler it was run with.
+- **As the maker prescribes.** Each model runs with its chat template's default thinking and the maker's
+  recommended sampler (`recommended_samplers` in the profile; a rig model with none declared must record that
+  its card was read, or it is not run). Hosted models get what the provider fixes. Every model gets the same
+  output budget; nothing is sent that a card does not state.
+- **Stamps.** Every row carries the suite and test-set stamp (`4.5.0+<hash of the cases>`), a **grader stamp**
+  (a hash of the checker code and data that graded it) and, for judged rows, the judge's instrument stamp. The
+  board marks a row **stale** when its stamp no longer matches, and `crucibleforge report --check-stale` lists
+  such rows (exit 1). Stale rows stay on disk and are re-graded or re-run, never silently mixed with new ones.
+- **Re-runs: the first reply counts.** The scored attempt of a unit is the first attempt that produced a model
+  reply (a finished reply, a reply cut at the full budget, or one the provider's filter stopped). A later attempt
+  replaces it only when the earlier one was an infrastructure failure (transport error, HTTP 429 or 5xx, a timeout
+  with no reply, a lost lease, an empty reply). Later attempts at a unit that has a reply are ignored and the row
+  says how many ("N later attempts ignored"). A multi-turn session is one unit. Its rows, in time order, split into
+  attempts where the turn numbering restarts (a turn number not greater than the one before starts a new attempt). A
+  row that only continues an attempt after an infrastructure failure at that same turn is joined to it. The scored
+  attempt is the first one with no infrastructure failure; turns of two conversations are never mixed. The same
+  selection applies to Chat sessions, NSFW+ sessions and the Knowledge hands, and the number of session units with
+  more than one attempt is counted and printed. Rules for the same model on one board are one rule: rambling to the
+  ceiling is not rewarded and a lucky second draw is not kept.
+- **Marks are notes.** Each segment names the pre-registered marks that concern it (the table is `SEGMENT_MARKS` in
+  `crucibleforge/segments45.py`: the Everyday marks, the long-scene judge-term mark, the act-and-beat marks, the
+  classing marks). The report reads the results folder's mark results (`marks45.json`, `assistant_marks.json`) and
+  prints the state of each one ("met", "not met", "cannot be tested yet" with the reason) in the board's notes. A
+  mark never holds, lowers or withholds a score. The opinion questions' flags are read by the judge; when the board
+  says "opinion flags not validated; scored on code checks", those questions are scored on their code checks only.
+- **Scorer stamp.** `report.json` carries per model a `scorer_stamp`: a sha over the report-time scorers
+  (`nsfwplus45`, `classing45`, `actkeys45`, `segments45`, `rplong_mean`, `attempts45`, `fixrows45`, `chains`,
+  `packs45`, `headline` (holds the variance draws), and the modules that compute points, margins, separation or a
+  mark result: `scoring45`, `tiers`, `scale`, `agree`, `lineage`, `assistant45`, `agree_marks`, `rplong_marks`,
+  `marksinput45`, `resolution45`), `profiles/bench45.yaml`, `calibration/MARKS-INDEX-45.md` and the `scripts/check_*marks*.py`
+  / `scripts/resolution45.py` mark scripts. `report.py` (rendering and rank calls) and `display45.py` (wording only,
+  kept apart on purpose) are not inputs. These files change published numbers without touching a stored row or a grader
+  stamp; two reports of the same rows that differ in this stamp were scored by different code.
+- **The run-settings column** prints, for each row: thinking on or off, the reasoning effort as sent (or
+  "provider default"), the median reasoning tokens per answer, and the counts of replies cut or empty. "not
+  recorded" marks a run from before these fields.
+
+## Time, cost and minutes
+
+The board prints minutes (from the run's own timing record) and dollars (from the rows' recorded cost at the
+price in `models.yaml`; a dash for a local model). `crucibleforge all --plan` estimates both before anything is
+sent and calls nothing: for a hosted model it prints an expected price and a worst-case price if every row ran
+to its budget. The estimate is not a measurement; the measured figures are
+about $0.35 and 20 minutes of generation for one flash-class model, about $1.50 and 50 to 60 minutes for another; the local judge and pack pass then took 40 to 90 minutes on the judge's GPUs and three full runs of a local 27B thinking model, judge and packs included, took 269, 314 and 432 minutes with 8 parallel slots on two GPUs; a single-GPU run was not measured.
+`crucibleforge budget` is the author's check of the home time budget.
+
+## What 4.5.0 does not measure
+
+- **General assistant ranking.** There is no general question-answering or instruction-following track in the
+  score. Assistant basics (checked) is a small unranked check, not a ranking.
+- **Repository-scale coding.** Nothing in the standard set edits a repository or runs an agent loop for hours.
+  "Follows tool rules" is three scripted dialogues.
+- **Long documents** beyond the small checks in Assistant basics and "Says what it does not know".
+- **Summarising and rewriting, translation, vision**, voice, and anything multilingual.
+- **The top of the frontier.** A flash-class hosted model reaches most of the standard Code points; at the top
+  the order is packs plus noise. Two frontier models can be a tie.
+- **Safety.** It grades what a model will do, never a refusal as a virtue.
+- **Taste.** Nothing scores how well a scene is written, in Chat or in NSFW+, and nothing scores whether a model
+  sounds like a real person.
+
+## Who it is for
+
+| If you are | A high score tells you | It does not tell you |
 | --- | --- | --- |
-| **Coding /10** | Functions 5, Predict and bug hunt 2.5, Tool use 2.5 | Python functions run against hidden unit tests (partial credit by test group); program output compared exactly; a bug fix checked by running tests; scripted tool-call conversations with traps. No opinions involved. |
-| **Chat /10** | Deep role-play 3, Conversation 3, Character 2, Creative writing 2 | Multi-turn sessions. A judge model answers a yes/no checklist per case, and plain text rules (counts, forbidden phrases) run beside it. |
-| **NSFW /10** | Uncensored 2, NSFW role-play 4, NSFW writing 4 | The same judge method. Shown beside the board and **never added to Overall**. Content rules: [`docs/CONTENT-RULES.md`](CONTENT-RULES.md). |
+| Choosing a local model for role-play or companion chat | The model keeps state, follows scene rules and holds a scene over many turns. Best served. | Anything about knowledge or reasoning outside the scene. |
+| Choosing between local fine-tunes or quantisations | Whether a tune is weak or adequate on small Python tasks and scene-keeping, reproducibly, cheaply. | The order among good tunes; it costs hours per local model. |
+| Choosing a coding agent | A model writes small careful functions and follows scripted tool rules. | Anything about editing a repository. Do not use it for that. |
+| Comparing hosted frontier models | A coarse tier, and what a run costs. | Which of two top models is better. Overall /20 is a tier signal. |
+| Looking for adult-content ability | NSFW+ /20 and its two halves, NSFW and Uncensored: whether the model writes what was asked, plainly, and answers straight. | How well it writes it, or which of two willing models writes better. |
 
-**Overall /20 = Coding + Chat.** A model that scores 90% or more on a part unlocks a harder bonus pack for it, the only way
-past 10 (see *Ladder packs* below). Chat measures role-play and companion conversation, not plain question answering.
+## The 4.1 archive
 
-`crucibleforge cases verify` re-derives every gold answer offline, so the test set tests itself.
+The 4.1 test (suite 4.1.0: 33 cases, the old weights and labels) is frozen under `archive/4.1.0/` and runs with
+`--profile bench`; its board and its stored rows are unchanged and do not mix with 4.5 rows. On the public board it is the archive, selected from a dropdown. Its profile is
+`profiles/bench.yaml`.
 
-## What it measures
-
-The board is `profiles/bench.yaml` (33 cases: 29 scored plus the 4 speed probes P1–P4): Coding (CL3–CL8 functions,
-CB-C5/C6 predict-the-output, CB-F1 bug hunt, TZ16/TZ19/TZ20 tool use), Chat
-(RD1, RD4, CC3, CC4, RV1, RV2, WR1, WR2 sessions) and NSFW (WL2, UX1, UX3,
-NC1, NC2, NC3, NX2, XP3, NW1). The case files hold many more (math, reasoning,
-long-context, instruct, harder coding); they stay runnable with
-`run --cases …` or a profile of your own, and some of them are ladder packs.
-Content rules: what new tests never include → [`docs/CONTENT-RULES.md`](CONTENT-RULES.md).
-
-### Agentic history under bench45
-
-The bug-hunt and other code-agent cases keep a whole tool conversation. When it grows past 60% of the
-case's conversation cap, old tool results (never the last few turns') are shortened to one line. `bench`
-(4.1) shortens "just enough" on every turn past that line. `bench45` (`compaction: hysteresis`) shortens
-in ONE step down to about 40%, then changes nothing earlier until the conversation has grown by 20% of
-the cap again, so a provider's prompt cache keeps the prefix between steps (about 1 rewrite in 10 turns
-instead of one every turn on a long fake episode). The model is told the rule in the system prompt:
-
-> How shortening works: once the conversation passes about 60% of its limit, the oldest tool results (never those of your last few turns) are shortened together in one step until it is back to about 40%; after that nothing earlier changes until it has grown by that much again.
-
-Rows measured this way carry `compaction: hysteresis`.
-
-## The judge
-
-Chat and NSFW answers cannot be run, so a **judge model** reads them. It never gives a free-form grade: each case has a list
-of yes/no questions, the judge answers each one and quotes the line that proves it, and a yes whose quote is not in the reply
-counts as a no. Rules that keep it honest:
-
-- The judge must not be the model under test.
-- A checklist question must ask exactly one thing (`cases verify` rejects compound ones on score-gating items).
-- Before a judge scores anything, a calibration check (a good and a bad scene, an obvious refusal, an explicit scene it must
-  score) runs. A judge that softens or refuses the task is caught and the batch aborts.
-- Verdicts use fixed settings. `models.yaml` sets the default number of passes (3 in the example file); the bench profile lowers it to 1 for rows scored on craft dimensions alone and keeps 3 for rows where an element decides a binary result, with the majority winning.
-
-The judge can be any capable instruct model, local or hosted: pass it with `--judge <provider>:<model_id>`, or list candidates
-under `judge:` in `models.yaml`. Most hosted judges refuse or soften adult text. Chat is still scored; the NSFW rows then
-stay "unjudged" until you judge them with a model that will do it (`crucibleforge judge --models <label> --judge ...`).
-Your Chat numbers only line up with the MakoBench board if you use the same judge; Code compares either way.
-
-
-### Elements
-
-A case is not one big pass or fail. It is graded as several independent elements, and the report shows how many
-passed. Details on writing elements are in [CASES.md](CASES.md#adding-cases).
-
-```mermaid
-flowchart LR
-    Q["One case<br/>(a task or a multi-turn session)"] --> E1["Element 1<br/>pass or fail"]
-    Q --> E2["Element 2"]
-    Q --> E3["Element ...<br/>aim for 5 or more"]
-    E1 --> R["Case passes only if<br/>every element passes"]
-    E2 --> R
-    E3 --> R
-    E1 --> S["Element rate<br/>(the share that passed)<br/>shown in the report"]
-    E2 --> S
-    E3 --> S
-```
-
-## The board
-
-The public board is [MakoBench](https://www.laserlloyd.com/makobench/). Your own board is the report CrucibleForge writes after a run. Both are built the same way. <!-- scrub-ok: public project/site URL, deliberate -->
-
-
-`results/report.md` / `report.html` / `report.json` rank every model you ran:
+## Board columns
 
 | Column | What it is |
-|---|---|
-| **Overall /20** | Coding /10 + Chat /10. The sort key; `2=` marks a tie with the model above (paired bootstrap). |
-| **Class** | a coarse capability band from Overall (`headline.classes` in `profiles/bench.yaml`: S ≥ 16, A ≥ 13, B ≥ 10, C below). |
-| **Lean** | (Chat − board median) − (Coding − board median): `chat-leaning` / `code-leaning` at ≥ 1.5 points, else `balanced`. Complete models only. |
-| **Room** | Overall with the end-of-run retry swapped in (see *Overflow*). `=` nothing ran out, `…` a retry is pending. |
-| **Coding /10** | Functions 5 (six single-function Python tasks, partial credit = share of unit-test groups passed) + Predict & bug hunt 2.5 (predict a program's output; find and fix a bug in a small repo) + Tool use 2.5 (scripted tool-call conversations with traps). |
-| **Chat /10** | Deep RP 3 + Conversation 3 + Character 2 + Creative writing 2 — multi-turn sessions with recall, retcons, card habits and stacked writing constraints. |
-| **NSFW /10** | Uncensored 2 + NSFW RP 4 + NSFW writing 4. Shown beside the board, **never added to Overall**. |
-
-± after a score is half the 90 % bootstrap interval. A model missing cases is
-**partial**: its numbers are shown, but it has no Overall, Class or rank until
-it is complete.
-
-**Overflow.** Every row gets the same output budget (thinking models: up to
-24,576 tokens). A row that runs out of it counts as failed on the board. With
-`--escalate`, rows that ran out are retried **once**, at 65,536 tokens, in one
-pass at the end of the run; the retry only feeds the Room column.
-
-**Ladder packs (bonus points).** A sub-score at ≥ 90 % unlocks its harder
-packs under `cases/ladder/<category>/<part>/set-<n>.json`: about three
-questions worth 1 bonus point together, the only way past 10. `crucibleforge
-pack new <category/part>` scaffolds one and `pack verify <file>` checks it;
-a pack should add **at most ~5 minutes** of wall time on a local model
-(`pack verify` warns when its estimate is over).
-
-**Optional packs.** What each pack tests, the unlock rule, the MAXED marker and how to write
-the next pack are in [`docs/PACKS.md`](PACKS.md). `uv run crucibleforge pack list`
-prints every pack per part and which models have maxed it (`--json` for scripts).
-
-**Run time.** Every job runs at once up to the server's parallel slots,
-longest expected job first; a multi-turn session's turns are sequential, so
-the longest session sets the floor. `crucibleforge all --plan` and `bench-all`
-print an estimate per model (from the model's own earlier rows when it has
-some). Every board case runs once (1 repeat).
-
-**Board hygiene.** Only rows of the `bench` profile that answer the current
-content of their own case count, latest run per (case, repeat), never more
-repeats than the profile asks for. Editing one case re-runs only that case.
-
-
----
+| --- | --- |
+| **Overall /20** | Code + Chat in measured points, printed only when both are complete; `x of y measured, not ranked: <reason>` otherwise. |
+| **Lean** | Chat minus board median, minus Code minus board median; `chat-leaning` or `code-leaning` at 1.5 points or more. |
+| **Room** | Overall with the optional end-of-run retry swapped in (`--escalate`); `=` when nothing ran out. |
+| Mean of runs | A model with several run folders on one board shows the mean of its runs in every cell; the note gives the number of runs and the lowest and highest run per score. |
+| **Code /10**, **Chat /10** | Section cells, measured points of the measured maximum, `±` 90% range with its source ([Margins and ties](#margins-and-ties)). The Points table under the board lists each segment, and names the reason when one is pending. |
+| **NSFW+ /20** | NSFW /10 + Uncensored /10, in its own column beside Overall, never part of it. `NSFW+: not run` when left out. |
+| **NSFW /10**, **Uncensored /10** | The two halves of NSFW+, section `#nsfw-plus`. The counts of refused, softened, off-topic and filtered answers print under them. |
+| **Pack points** | Points from ladder packs, shown apart from the standard points. |
+| **Efficiency** | The share of rows that finished inside the standard output budget. |
+| **tok/s**, **Run cost**, **Minutes** | Throughput, dollars at the model's price, wall-clock minutes of the run. |
+| **Run settings** | Thinking, effort, median reasoning tokens, cut and empty counts. |
+| **Suite**, **Run date** | The suite version and the date of the run. |
+| **Notes** | Everything that makes a row not comparable: partial, stale, a different judge, re-runs, near-unlock warnings. |

@@ -1,3 +1,5 @@
+> **4.1 text.** This guide describes the 4.1 packs (`archive/4.1.0`). The packs a 4.5 board runs are listed in [SCORING.md](SCORING.md#ladder-packs) and [WHAT-IS-TESTED.md](WHAT-IS-TESTED.md#packs-shown-apart-from-the-20).
+
 # Optional packs
 
 An **optional pack** (the code calls it a ladder *set*) is a small group of harder questions

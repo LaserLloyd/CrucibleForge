@@ -308,12 +308,12 @@ def _captured_chat(monkeypatch, base_url, ptype="openai", repeat=1, turns=2):
     return seen
 
 
-def test_xai_requests_carry_a_stable_conv_id_header_per_case_and_repeat(monkeypatch):
+def test_xai_requests_carry_a_fresh_conv_id_header_per_request(monkeypatch):
+    # 2026-11-22: a sticky key makes xAI replay the earlier turns' hidden reasoning into each later prompt
+    # (test_grok_api_20261122); every request gets its own key (cache_route_scope "call")
     a = _captured_chat(monkeypatch, "https://api.x.ai/v1", repeat=1)
-    b = _captured_chat(monkeypatch, "https://api.x.ai/v1", repeat=2)
     ka = [s["headers"].get("x-grok-conv-id") for s in a]
-    assert ka[0] and ka[0].startswith("cf-") and len(set(ka)) == 1          # every turn, same key
-    assert b[0]["headers"]["x-grok-conv-id"] != ka[0]                        # another repeat, another key
+    assert all(k and k.startswith("cf-") for k in ka) and len(set(ka)) == len(ka)
     assert all("prompt_cache_key" not in s["body"] for s in a)
 
 

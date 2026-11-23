@@ -1,0 +1,18 @@
+{
+  "category": "coding",
+  "level": 1,
+  "points": 1.0,
+  "item": "PATCHFIX",
+  "budget": 65536,
+  "status": "live",
+  "note": "Fixes pack (step 2 of CRITICAL-PATH-45, 2026-11-21): patchfix L5-L7, two instances per level, the levels that left the standard Fixes score (their token allowance has a cliff). Graded host-compared by fixcheck (fixrows45). Gate: the Fixes segment's standard share on the top of the model's own range (enginepacks45). Its questions render only when a command reads them (lazycase.py; 6-20 s each). Set-1 (PATCHGAP) was removed and set-2 (PATCHTOUGH) is staged in cases/staged.",
+  "generator": {
+    "family": "patchfix",
+    "rungs": [
+      5,
+      6,
+      7
+    ],
+    "per_rung": 2
+  }
+}

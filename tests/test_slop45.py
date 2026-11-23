@@ -82,8 +82,10 @@ def test_report_carries_slop_but_scores_ignore_it():
     src = inspect.getsource(report)
     assert '"slop": _slop' in src
     # no scoring / points / tier code reads the block
+    import re
     for line in src.splitlines():
-        if "slop" in line and "def " not in line:
+        # "slop" the metric, not "slope" (a regression slope in the scale code)
+        if re.search(r"slop(?!e)", line) and "def " not in line:
             assert not any(k in line for k in ("points", "tier", "weight")) or "report-only" in line or "_slop" in line
     rows = [{**_row(PLAIN, case="NC1-tideglass"), "category": "nsfw", "rubric": "erp_session",
              "needs_judge": True, "judge": {"refused": False, "scores": {"erotic": 6, "explicitness": 6}}}]

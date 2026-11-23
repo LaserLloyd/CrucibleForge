@@ -13,6 +13,7 @@
 """
 from __future__ import annotations
 
+import json
 import re
 
 from .api import ChatResult
@@ -66,7 +67,75 @@ def _check_step_args(step: dict) -> list[str]:
     return errs
 
 
+def is_pack_family(case: dict) -> bool:
+    """A case of the nsfwpack45 family (the NSFW+ packs): verified by the pack's own rules, not the 4.1 lint."""
+    gen = case.get("generator") or {}
+    return (case.get("meta") or {}).get("family") == "nsfwpack45" or gen.get("type") == "nsfwpack45"
+
+
+def _pack_item(case: dict) -> dict:
+    """The bank item a materialized pack case was built from (stored cards: the case of ``nsfw_rp/set-1.json``)."""
+    from .gen import nsfwpack45 as G
+    meta = case.get("meta") or {}
+    for it in G.items(meta.get("variant")):
+        if it.get("id") == meta.get("card"):
+            return it
+    return {}
+
+
+def _pack_reference(case: dict) -> str:
+    """The reference reply of a pack case: stored cards read ``nsfw_rp/refs/<card>.json`` good replies (the case
+    file is a pinned standard bank and stays untouched); every other variant uses the bank's own reference."""
+    from .gen import adult45 as A, nsfwpack45 as G
+    meta = case.get("meta") or {}
+    if meta.get("variant") == "stored":
+        from . import ladder
+        p = ladder.LADDER_DIR / "nsfw" / "nsfw_rp" / "refs" / f"{meta.get('card')}.json"
+        try:
+            return A.join_turns(list(json.loads(p.read_text(encoding="utf-8"))["good"]["replies"]))
+        except (OSError, ValueError, KeyError, TypeError):
+            return ""
+    return G.reference(case.get("generator") or {}, release_seed=str(case.get("_gen_release_seed") or ""),
+                       case_id=str(case.get("id")))
+
+
+def _attest_module():
+    import importlib.util
+    from pathlib import Path
+    p = Path(__file__).resolve().parents[1] / "scripts" / "attest_check.py"
+    spec = importlib.util.spec_from_file_location("_attest_check_vc", p)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def _check_pack_case(case: dict) -> list[str]:
+    """One rule set for a pack-family case (owner ruling 2026-11-21): the item's ``adult45.item_problems``, the
+    reference graded against the case's own checks scores 1.0, and the item carries both attestations."""
+    from . import gen as _gen
+    from .gen import nsfwpack45 as G
+    if not case.get("checks") and case.get("generator"):
+        case = _gen.materialize_case(dict(case))
+    errs: list[str] = []
+    meta = case.get("meta") or {}
+    it = _pack_item(case)
+    if not it:
+        return [f"pack item {meta.get('card')!r} not in the {meta.get('variant')} bank"]
+    errs += G.item_problems(meta.get("variant"), it)
+    try:
+        g = G.grade(_pack_reference(case), case)
+    except Exception as e:  # noqa: BLE001 -- a grading error is a problem, said so
+        errs.append(f"reference grading raised {type(e).__name__}: {e}")
+    else:
+        if g < 1.0:
+            errs.append(f"pack reference grades {g:.3f}, not 1.0")
+    errs += [f"attestation: {p}" for p in _attest_module()._entry_problems(it)]
+    return errs
+
+
 def _check(case: dict) -> list[str]:
+    if is_pack_family(case):
+        return _check_pack_case(case)
     errs: list[str] = []
     if case.get("difficulty", "medium") not in ("easy", "medium", "hard"):
         errs.append("bad difficulty")

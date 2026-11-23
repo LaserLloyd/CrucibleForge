@@ -78,6 +78,7 @@ def scores(prof: dict | None) -> list[dict]:
             if hp:
                 d["parts"] = list(d["parts"]) + [hp]
     out += custom_scores(prof)
+    _relabel45(prof, out)
     if (prof or {}).get("_public"):
         out = [d for d in out if d.get("public", True)]
         # 4.5 PUBOUT: a public board names its parts in plain words; the profile's working label
@@ -87,6 +88,37 @@ def scores(prof: dict | None) -> list[dict]:
         for d in out if prof.get("chains") or prof.get("public_labels") else []:
             d["parts"] = [_public_part(p) for p in d.get("parts") or []]
     return out
+
+
+#: R5 (fix round 2026-11-18, REVIEW finding 10, D7): what the 4.5.0 board calls a section or part, by key. Display
+#: only: keys, weights and numbers are the profile's; the profile's own label stays in ``label_profile``. Parts: (label,
+#: short name for the points line).
+LABELS_45 = {
+    "work": "Coding (small tasks)",
+    "chat": "Role-play and memory",
+    "work/c1_implied": ("Careful small functions", "Functions"),
+    "work/c5_tools": ("Follows tool rules", "Tool rules"),
+    "work/c2_trace": ("Steps through code", "Steps"),
+    "work/c2_predict": ("Knows language traps", "Traps"),
+}
+
+
+def _relabel45(prof: dict | None, defs: list[dict]) -> None:
+    """Apply LABELS_45 in place on a 4.5.x board's defs (a ``chains`` profile whose release seed is 4.5.*); every
+    other profile (4.1 is frozen) keeps the labels it declares."""
+    if not ((prof or {}).get("chains") and str((prof or {}).get("release_seed") or "").startswith("4.5")):
+        return
+    for d in defs:
+        lab = LABELS_45.get(d["key"])
+        if isinstance(lab, str) and d.get("label") != lab:
+            d["label_profile"], d["label"] = d["label"], lab
+        parts = []
+        for p in d.get("parts") or []:
+            new = LABELS_45.get(f"{d['key']}/{p['key']}")
+            if new:
+                p = {**p, "label_profile": p["label"], "label": new[0], "short": new[1]}
+            parts.append(p)
+        d["parts"] = parts
 
 
 _PAREN_TAIL = re.compile(r"\s*\([^()]*\)\s*$")

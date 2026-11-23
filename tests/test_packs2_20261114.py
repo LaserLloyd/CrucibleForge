@@ -65,7 +65,8 @@ def test_rc3_main_discovers_no_draft_pack(monkeypatch):
         assert key not in sets
     assert all(s["n"] != 2 for s in sets.get("chat/h6_know", []))
     # not vacuous: the live packs are there
-    assert [s["n"] for s in sets["work/c2_predict"]] == [1] and [s["n"] for s in sets["work/c5_tools"]] == [2]
+    # (integration 2026-11-20: c5 set-3 = TOOLGAP, wired by the gap-packs lane)
+    assert [s["n"] for s in sets["work/c2_predict"]] == [1] and [s["n"] for s in sets["work/c5_tools"]] == [2, 3]
 
 
 def _answers(golds, swap=None, wrong="WRONG"):
@@ -112,8 +113,10 @@ def test_tool_use_pack_is_the_three_agent_tasks_without_standard_cases():
     assert not lag.get("draft") and lag["points"] == 1.0
     assert not any(c.startswith("TZ") for c in lag["cases"])        # TZ16/19/20 are the standard part now
     # the PROBE draft (set-1) is deleted, not kept closed: a committed pack that cannot pass verify does
-    # not stay in cases/ladder (lead 2026-11-15); the tool-use pack is set-2 alone
-    assert not (root / "set-1.json").exists() and sorted(f.name for f in root.glob("set-*.json")) == ["set-2.json"]
+    # not stay in cases/ladder (lead 2026-11-15); the tool-use packs are set-2 (LAG) and set-3 (TOOLGAP, gap-packs lane,
+    # integration 2026-11-20)
+    assert not (root / "set-1.json").exists()
+    assert sorted(f.name for f in root.glob("set-*.json")) == ["set-2.json", "set-3.json"]
     bank = json.loads((ROOT / "cases/codeagent_long.json").read_text(encoding="utf-8"))
     ids = {c["id"] for c in (bank["cases"] if isinstance(bank, dict) else bank)}
     assert set(lag["cases"]) <= ids

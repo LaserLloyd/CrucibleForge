@@ -1,4 +1,4 @@
-"""patgen (JX lane P, family P1 ABSTRACT->GENERAL, Jake 2026-11-12): two-turn next-digit predictor. v2.
+"""patgen (JX lane P, family P1 ABSTRACT->GENERAL, the owner 2026-11-12): two-turn next-digit predictor. v2.
 
 Turn 1 (variant ``t1``): a few clean repeating ternary strings; the model writes ``Predictor``
 (predict() -> 0/1/2, update(digit)). Graded on clean repeating streams.

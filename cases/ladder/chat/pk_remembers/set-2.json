@@ -1,0 +1,17 @@
+{
+ "level": 2,
+ "points": 1.0,
+ "item": "SESSION-LEDGER-L4L5",
+ "category": "rpdeep",
+ "budget": 16384,
+ "context": 73728,
+ "note": "LIVE (realign45-packs-chat, wired at integration 2026-11-20): part chat/pk_<segment> in the standard composition, gate = the segment standard share (crucibleforge/packs45.py). session_ledger rungs 4 and 5 x2 (engine gen/session_ledger.py, 40 code checks per case, no judge): a quantity kept over 15 turns. The standard Tally cell is L1/L2. Hosted evidence for L4-5 is not on file: the screen decides whether it is maxed.",
+ "generator": {
+  "family": "session_ledger",
+  "rungs": [
+   4,
+   5
+  ],
+  "per_rung": 2
+ }
+}

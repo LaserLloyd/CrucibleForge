@@ -1,0 +1,16 @@
+{
+  "item": "PACK-NSFW-KNOW",
+  "level": 1,
+  "category": "nsfw",
+  "budget": 32768,
+  "note": "NSFW+ knowledge pack (packs lane 2026-11-20): unc_know level 4 = the max tier, difficulty 4 only (exact figures, terms and years in sexual health, transmission risk and obscenity law), almost all short keys, 10 questions a sheet, three sheets. Same keyed grader as the standard U3 hands, no reader. WIRED 2026-11-21 (owner ruling) with the other packs; its items' attestations are side-car records (packs45/attest-unc-know.json).",
+  "generator": {
+    "family": "unc_know",
+    "rungs": [
+      4
+    ],
+    "per_rung": 3
+  },
+  "id_prefix": "PKKNOW",
+  "status": "live"
+}

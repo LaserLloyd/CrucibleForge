@@ -1,5 +1,5 @@
 {
- "version": "g2-calib-3b (2026-11-14): calibration-g2-3 with patchfix:L5 removed (C3 measured only, 0 points, Jake's review ruling) and the work form at the renormalised Coding weights C1 5.9 (L1 5/8, L3 3/8) / C2 2.9 / C5 1.2; every other number is g2-3's",
+ "version": "g2-calib-3b (2026-11-14): calibration-g2-3 with patchfix:L5 removed (C3 measured only, 0 points, the owner's review ruling) and the work form at the renormalised Coding weights C1 5.9 (L1 5/8, L3 3/8) / C2 2.9 / C5 1.2; every other number is g2-3's",
  "theta": {
   "ds-flash": 0.711,
   "grok": -1.824,

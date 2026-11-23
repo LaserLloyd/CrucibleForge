@@ -107,3 +107,39 @@ def test_provider_config_reads_priority_and_kv():
     if p is None:
         pytest.skip("no single-provider builder in this tree")
     assert p.request_priority == 3 and p.kv_cache_type == "q8_0"
+
+
+def _step_down_rig(monkeypatch, refuse_code, settle):
+    """A rig that refuses every width above ``settle`` with ``refuse_code``."""
+    live = {}
+
+    def mgmt(method, base, key, hdrs, path, **k):
+        if path.endswith("/load"):
+            n = k["json"]["parallel"]
+            if n > settle:
+                return refuse_code, {"error": "does not fit: 44.41 GiB usable"}
+            live.update(state="ready", ctx_size=73728, parallel=n, devices=[0, 1])
+        return 200, {}
+    monkeypatch.setattr(sf, "loaded_plan", lambda *a, **k: dict(live))
+    monkeypatch.setattr(sf, "_mgmt", mgmt)
+    monkeypatch.setattr(sf, "wait_ready", lambda *a, **k: None)
+
+
+def test_load_exact_warns_when_507_leaves_less_than_half_the_slots(monkeypatch, caplog):
+    _step_down_rig(monkeypatch, 507, settle=4)
+    with caplog.at_level("WARNING", logger=sf.log.name):
+        got = sf.load_exact(M, "http://rig/v1", "k", None, 73728, [9, 8, 7, 6, 5, 4])
+    assert got["parallel"] == 4
+    lines = [r.getMessage() for r in caplog.records if "asked for" in r.getMessage()]
+    assert len(lines) == 1
+    assert "asked for 9 slots" in lines[0] and "got 4" in lines[0] and "44.41 GiB" in lines[0]
+
+
+def test_load_exact_no_low_slot_warning_above_half_or_without_507(monkeypatch, caplog):
+    _step_down_rig(monkeypatch, 507, settle=6)       # 6 of 9 is not below half
+    with caplog.at_level("WARNING", logger=sf.log.name):
+        sf.load_exact(M, "http://rig/v1", "k", None, 73728, [9, 8, 7, 6])
+    _step_down_rig(monkeypatch, 409, settle=4)       # refused for another reason
+    with caplog.at_level("WARNING", logger=sf.log.name):
+        sf.load_exact(M, "http://rig/v1", "k", None, 73728, [9, 8, 7, 6, 5, 4])
+    assert not [r for r in caplog.records if "asked for" in r.getMessage()]

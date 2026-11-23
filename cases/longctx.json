@@ -558,9 +558,7 @@
   "grader": "contains",
   "grader_config": {
    "needles": [
-    "4402",
-    "1187",
-    "7730"
+    "re:4402\\D+1187\\D+7730"
    ],
    "answer_line": true,
    "match": "all"
@@ -625,10 +623,10 @@
    "needles": [
     "not stated",
     "not mentioned",
-    "does not",
-    "doesn't",
     "no information",
-    "not specified"
+    "not specified",
+    "not provided",
+    "not given"
    ],
    "answer_line": true,
    "forbid": [

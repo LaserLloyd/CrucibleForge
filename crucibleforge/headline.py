@@ -42,6 +42,7 @@ the one ranked directly above it when that difference's interval contains
 from __future__ import annotations
 
 import math
+import hashlib
 import random
 
 #: bootstrap resamples per model (>= 1000) and the fixed seed
@@ -251,22 +252,54 @@ def strata(prof: dict, sc: dict, allowed: set[str] | None) -> dict[tuple[int, st
 
 
 def draws(st: dict[tuple[int, str], list[str]], n: int = RESAMPLES,
-          seed: int = SEED) -> list[dict[str, list[int]]]:
+          seed: int = SEED, per_stratum: bool = False) -> list[dict[str, list[int]]]:
     """``n`` resamples: each is {case id: [one repeat-draw seed per copy]}
     over every stratum (a stratum of k cases draws k ids with replacement;
-    each drawn copy carries a seed that picks its repeats)."""
-    rnd = random.Random(seed)
+    each drawn copy carries a seed that picks its repeats). ``per_stratum=False`` (the default) is the legacy
+    single shared stream, bit for bit (the 4.1 board); a 4.5 render passes :func:`per_stratum` of its profile."""
+    if not per_stratum:
+        rnd = random.Random(seed)
+        out = []
+        ks = sorted(st)
+        for _ in range(n):
+            draw: dict[str, list[int]] = {}
+            for k in ks:
+                ids = st[k]
+                for _ in ids:
+                    cid = ids[rnd.randrange(len(ids))]
+                    draw.setdefault(cid, []).append(rnd.getrandbits(32))
+            out.append(draw)
+        return out
+    # one seeded stream per stratum (tier, name): a pack stratum, or an id added to another stratum, never
+    # shifts the numbers any other stratum draws. Each stratum draws all n resamples, then they are
+    # assembled per index in sorted-key order. Prefix-stable in n.
+    per: list[list[list[tuple[str, int]]]] = []
+    for k in sorted(st):
+        ids = st[k]
+        if not ids:
+            continue
+        rnd = random.Random(stratum_seed(seed, k))
+        per.append([[(ids[rnd.randrange(len(ids))], rnd.getrandbits(32)) for _ in ids] for _ in range(n)])
     out = []
-    ks = sorted(st)
-    for _ in range(n):
+    for i in range(n):
         draw: dict[str, list[int]] = {}
-        for k in ks:
-            ids = st[k]
-            for _ in ids:
-                cid = ids[rnd.randrange(len(ids))]
-                draw.setdefault(cid, []).append(rnd.getrandbits(32))
+        for s_ in per:
+            for cid, sd in s_[i]:
+                draw.setdefault(cid, []).append(sd)
         out.append(draw)
     return out
+
+
+def per_stratum(prof) -> bool:
+    """The stream mode of a render: per-stratum streams for a profile with the 4.5 score tree (``segments45``),
+    the legacy shared stream for everything else (the 4.1 ``bench`` board stays byte-identical)."""
+    return bool((prof or {}).get("segments45"))
+
+
+def stratum_seed(seed: int, key) -> int:
+    """The stream seed of one stratum (or one named unit): sha256 of ``seed|tier|name``."""
+    tier, name = key if isinstance(key, tuple) else ("", key)
+    return int(hashlib.sha256(f"{seed}|{tier}|{name}".encode()).hexdigest()[:16], 16)
 
 
 def identity_draw(st: dict[tuple[int, str], list[str]]) -> dict[str, list[None]]:
@@ -361,17 +394,22 @@ def display(p: dict, prof: dict | None) -> dict:
 
 def boot_model(rows_by_tier: dict[int, list[dict]], label: str, cfg: dict | None,
                meta: dict | None, era: dict | None, prof: dict, sc: dict,
-               st: dict, mults: list[dict], two_level: bool = True) -> dict:
+               st: dict, mults: list[dict], two_level: bool = True,
+               precision: dict | None = None) -> dict:
     """Headline samples per key (headline.display) and the pack-gate pass
-    counts for one model."""
+    counts for one model. ``precision`` (lane-j, :func:`model_precision`) adds the measured judge term to judged
+    parts and the run-to-run excess to every key it names; without it the samples are exactly as before."""
     from . import report as _r
     stratified = {i for ids in st.values() for i in ids}
     samples = {a: [] for a in keys(prof) + ("overall",)}
+    base = {a: [] for a in samples} if precision else None
     gate_pass: dict[str, int] = {}
     qsd = question_sds(prof)
     # independent per model (a label-keyed stream): the question x model part of a shared question
     # does not cancel in a paired difference, so it is never drawn the same for two models
     qrnd = random.Random(f"{SEED}:{label}") if qsd else None
+    jsd = {k: v for k, v in ((precision or {}).get("judge_sd") or {}).items() if v}
+    jrnd = random.Random(f"{SEED}:judge:{label}") if jsd else None
     with _r.boot_mode():
         for draw in mults:
             _r.boot_set_mult({cid: (c if isinstance(c, int) else len(c)) for cid, c in draw.items()})
@@ -382,6 +420,11 @@ def boot_model(rows_by_tier: dict[int, list[dict]], label: str, cfg: dict | None
             v = display(point(card, prof), prof)
             if qsd:
                 _add_question_noise(v, card, prof, qsd, qrnd)
+            if base is not None:
+                for a in base:
+                    base[a].append(v.get(a))
+            if jsd:
+                _add_question_noise(v, card, prof, jsd, jrnd)
             for a in samples:
                 samples[a].append(v.get(a))
             for area, e in (card.get("tiers") or {}).items():
@@ -393,7 +436,116 @@ def boot_model(rows_by_tier: dict[int, list[dict]], label: str, cfg: dict | None
                     if det.get("sets") and det["sets"][0]["state"] != "locked":
                         k = f"{cat}/{pk}"
                         gate_pass[k] = gate_pass.get(k, 0) + 1
-    return {"samples": samples, "gate_pass": gate_pass, "n": len(mults)}
+    out = {"samples": samples, "gate_pass": gate_pass, "n": len(mults)}
+    if precision:
+        out["samples_items"] = base
+        out["precision"] = _add_run_excess(samples, base, precision, label)
+    return out
+
+
+# ----------------------------------------------------------- lane-j: judge and run-to-run terms
+#: z of the two-sided 90% interval (the margins' level)
+Z90 = 1.6448536269514722
+
+
+def _sd(xs):
+    xs = [x for x in xs if x is not None]
+    if len(xs) < 2:
+        return None
+    m = sum(xs) / len(xs)
+    return (sum((x - m) ** 2 for x in xs) / (len(xs) - 1)) ** 0.5
+
+
+def _add_run_excess(samples: dict, base: dict, precision: dict, label: str) -> dict:
+    """Run-to-run term: a replicate whole run varies what one run's bootstrap cannot (the same items, a new
+    draw of every generation and judge call). Each key's run-to-run SD (points) is compared with its own
+    within-run spread (items + repeats); only the EXCESS variance is drawn into the samples, so the margin is
+    the larger of the two, never their double count (REVIEW-HOLISTIC finding 5). Returns the components."""
+    rsd = (precision or {}).get("run_sd") or {}
+    rnd = random.Random(f"{SEED}:run:{label}")
+    comp = {}
+    for k in samples:
+        b = _sd(base.get(k) or [])
+        r = rsd.get(k)
+        comp[k] = {"items_repeats_sd": b, "run_sd": r, "run_source": (precision.get("run_source") or {}).get(k),
+                   "judge_sd": (precision.get("judge_pts") or {}).get(k),
+                   "judge_source": (precision.get("judge_source") or {}).get(k)}
+        if r is None or b is None or r <= b:
+            continue
+        ex = (r * r - b * b) ** 0.5
+        samples[k] = [None if v is None else v + rnd.gauss(0.0, ex) for v in samples[k]]
+    return comp
+
+
+def model_precision(label: str, prof: dict | None, marks: dict | None, runs: dict | None) -> dict | None:
+    """The measured precision inputs of one model (None = nothing measured):
+    ``judge_sd`` {part: share sd} for _add_question_noise (judged parts; the model's own measurement, else the
+    part's pooled one), ``judge_pts`` {key: points} (parts, their score and Overall, independent parts in
+    quadrature), ``run_sd`` {key: points} (the model's own replicate SD with at least two runs, else the pooled
+    SD of the models that have them) and the source of each term."""
+    from . import tiers as _tiers
+    mx = part_max(prof)
+    jsd, jsrc = {}, {}
+    for part, e in ((marks or {}).get("parts") or {}).items():
+        if part not in mx:
+            continue
+        own = (e.get("judge_sd") or {}).get(label)
+        v = own if own is not None else e.get("judge_sd_pooled")
+        if v:
+            jsd[part] = float(v)
+            jsrc[part] = f"measured ({e.get('reader') or 'second reader'})" + ("" if own is not None else ", pooled")
+    jpts = {k: v * mx[k] for k, v in jsd.items()}
+    tot = set(_tiers.total_keys(prof)) if prof else set()
+    sec2: dict[str, float] = {}
+    for k, v in jpts.items():
+        sec2[k.split("/", 1)[0]] = sec2.get(k.split("/", 1)[0], 0.0) + v * v
+    for sec, v2 in sec2.items():
+        jpts[sec] = v2 ** 0.5
+        jsrc[sec] = "measured (its judged parts)"
+    ov2 = sum(v2 for sec, v2 in sec2.items() if sec in tot)
+    if ov2:
+        jpts["overall"], jsrc["overall"] = ov2 ** 0.5, "measured (its judged parts)"
+    rsd, rsrc = {}, {}
+    r = runs or {}
+    own = (r.get("by_model") or {}).get(label) or {}
+    n_own = int((r.get("runs") or {}).get(label) or 0)
+    for k, v in (r.get("pooled") or {}).items():
+        if v is not None:
+            rsd[k], rsrc[k] = float(v), f"pooled ({r.get('pooled_models', '?')} models)"
+    if n_own >= 2:
+        for k, v in own.items():
+            if v is not None:
+                rsd[k], rsrc[k] = float(v), f"own ({n_own} runs)"
+    if not jsd and not rsd:
+        return None
+    return {"judge_sd": jsd, "judge_pts": jpts, "judge_source": jsrc, "run_sd": rsd, "run_source": rsrc}
+
+
+def precision_block(boot: dict, key: str, level: float = LEVEL) -> dict | None:
+    """report.json's margin components for one key (points, half-widths at ``level``): items and repeats (the
+    bootstrap), judge, run-to-run, and the printed total = sqrt(max(items, run)^2 + judge^2)."""
+    comp = ((boot or {}).get("precision") or {}).get(key)
+    if comp is None:
+        return None
+    lo, hi = interval((boot.get("samples_items") or {}).get(key) or [], level)
+    ir = None if lo is None else (hi - lo) / 2.0
+    z = Z90 if abs(level - 0.90) < 1e-9 else _z(level)
+    j = None if comp.get("judge_sd") is None else z * comp["judge_sd"]
+    rr = None if comp.get("run_sd") is None else z * comp["run_sd"]
+    gen = max(x for x in (ir, rr, 0.0) if x is not None)
+    tot = (gen * gen + (j or 0.0) ** 2) ** 0.5
+    return {"items_repeats": _r3(ir), "judge": _r3(j), "judge_source": comp.get("judge_source"),
+            "run_to_run": _r3(rr), "run_source": comp.get("run_source"), "combined": _r3(tot),
+            "rule": "sqrt(max(items_repeats, run_to_run)^2 + judge^2)"}
+
+
+def _r3(x):
+    return None if x is None else round(x, 3)
+
+
+def _z(level: float) -> float:
+    from statistics import NormalDist
+    return NormalDist().inv_cdf(0.5 + level / 2.0)
 
 
 def question_sds(prof: dict | None) -> dict[str, float]:
@@ -454,6 +606,8 @@ def summarize(card: dict, boot: dict | None, prof: dict | None,
     from . import tiers as _tiers
     p = point(card, prof)
     v = display(p, prof)
+    # step 8 (review A F3/F4): the old tree's replicate means are gone; a replicated 4.5 model is shown at the mean
+    # of its runs on the board's own scale (report._replicate_means45)
     out = {"P": p, "S": {}, "pts": {}, "max": part_max(prof), "m": {}, "interval": {},
            "near_gate": [], "overall_mode": overall_mode(prof),
            # unrounded overall: the board's sort key
@@ -468,6 +622,15 @@ def summarize(card: dict, boot: dict | None, prof: dict | None,
             out["m"][a] = margin(sm, level)
             lo, hi = interval(sm, level)
             out["interval"][a] = (round(lo, 2), round(hi, 2)) if lo is not None else None
+            pb = precision_block(boot, a, level)
+            if pb is not None:
+                # lane-j: the printed margin never falls below its analytic combination (a judged part never
+                # prints a margin smaller than its judge term, whatever the draws did)
+                floor = round(pb["combined"], 1)
+                if out["m"][a] is not None and floor > out["m"][a]:
+                    out["m"][a] = floor
+                pb["printed"] = out["m"][a]
+                out.setdefault("precision", {})[a] = pb
         else:
             out["m"][a] = None
     out["maxed"] = card.get("maxed") or {}
@@ -477,9 +640,15 @@ def summarize(card: dict, boot: dict | None, prof: dict | None,
                            for k, v in card["measured_max"].items()}
         out["unvalidated"] = card.get("unvalidated") or {}
         out["provisional"] = list(card.get("provisional") or [])
+    if card.get("overall_of") is not None:
+        out["overall_of"] = card["overall_of"]          # report.rank_parts45: the board is short of its maximum
+    if card.get("other_judge"):
+        out["other_judge"] = dict(card["other_judge"])  # D13: parts placed by a judge other than the profile's
     if card.get("unranked_why"):
         # rc4: a model with rows missing is not ranked; its Overall says why (report.unranked_why)
         out["not_ranked"] = card["unranked_why"]
+        if card.get("overall_measured"):
+            out["overall_measured"] = card["overall_measured"]
     # 3.10 D3: rows a sub-score dropped (unparsable verdicts) — "partial"
     out["excluded"] = dict(card.get("excluded") or {})
     # categories with standard rows still missing (report.points_scorecard, S3)
@@ -497,6 +666,15 @@ def summarize(card: dict, boot: dict | None, prof: dict | None,
                                            or (det.get("ran_out") or {}).get("share"))
                            for cat, parts in (card.get("ladder") or {}).items()
                            for pk, det in parts.items() if det.get("not_measured")}
+    # R1 (fix round 2026-11-18): per part {cut, of, empty} (report.points_scorecard): "not measured (n of m replies cut)"
+    cuts = {f"{cat}/{pk}": det["cut"] for cat, parts in (card.get("ladder") or {}).items()
+            for pk, det in parts.items() if (det.get("cut") or {}).get("cut") or (det.get("cut") or {}).get("empty")}
+    dnf = {f"{cat}/{pk}": det["did_not_finish"] for cat, parts in (card.get("ladder") or {}).items()
+           for pk, det in parts.items() if det.get("did_not_finish")}
+    if dnf:                      # absent unless the profile says cut_at_full_budget: zero and a reply did not finish
+        out["did_not_finish"] = dnf
+    if cuts:                     # absent when nothing was cut or empty (a 4.1 board's data stays byte-identical)
+        out["cut"] = cuts
     if boot and prof and card.get("units") == "points":
         for cat, parts in (card.get("ladder") or {}).items():
             for pk, det in parts.items():
@@ -565,3 +743,18 @@ def readout(p: dict) -> str:
     rng = ("" if p.get("lo") is None
            else f" (paired {pct}% interval {p['lo']:+.1f} to {p['hi']:+.1f})")
     return f"{p['a']} {sym} {p['b']}{rng}"
+
+
+def gen_draws(st: dict, n: int, seed: int, per_stratum: bool = False) -> list[dict]:
+    """Draws that keep every case once and resample only its repeats (moved here from report.py so the stamped
+    module holds every variance-component draw). ``per_stratum=False`` = the legacy 41e3172 stream."""
+    if not per_stratum:
+        rnd = random.Random(seed + 7)
+        ids = sorted({i for v in st.values() for i in v})
+        return [{cid: [rnd.getrandbits(32)] for cid in ids} for _ in range(n)]
+    ids = sorted({i for v in st.values() for i in v})
+    per = {}
+    for cid in ids:
+        rnd = random.Random(stratum_seed(seed + 7, ("case", cid)))
+        per[cid] = [rnd.getrandbits(32) for _ in range(n)]
+    return [{cid: [per[cid][i]] for cid in ids} for i in range(n)]

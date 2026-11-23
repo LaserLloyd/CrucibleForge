@@ -1,0 +1,15 @@
+{
+  "about": "MakoBench 4.5 Fixes pack 2 (patchtough). Marks written 2026-11-20 before any launch row was read and before any result of this pack was read. No existing threshold, margin, weight or file changes; the pack is STAGED and enters no composition.",
+  "written": "2026-11-20",
+  "written_before_launch_rows": true,
+  "pack": {
+    "family": "patchtough",
+    "part": "work/c3_fix (set-2; no ladder part key exists, so staged and undiscovered)",
+    "levels": {"1": "wait queue (patchmod L4 text and reference)", "2": "quota + extend + wait queue (patchmod L5 text and reference)"},
+    "checker": "crucibleforge/fixcheck.grade_answer (host-compared, unchanged); the five stamp files and fixrows45.py untouched",
+    "build_floors": "reference 1.0; the given program 0; empty reply 0; every listed wrong implementation (overtaking, no aging, wrong aging direction, queue lost at RESTART, no reclaim before a grant, queue not offered on WAIT, STATUS not in priority order, grant not deleted from the store, wait edge, quota and extend slips) scores below 1.0 on every tested seed, and at least three of them below 0.95",
+    "keep_in_pack_rule": "an item is kept only if one of the two cheap screen models (deepseek-flash, minimax-m3-1-flash) scores clearly below 1.00 on it for a reason that is fixing (a wrong or missing behaviour), not format or a cut at the token budget",
+    "reading_marks": "a pack row is the mean score per instance; the pack unlocks at 90% of the standard fix units (the lead's wiring); no threshold is set here"
+  },
+  "frontier_headroom": "not established: no frontier-model call was made. Read only after the priced frontier screen in PACKS-FIXES-45.md has been run and the lead has decided."
+}

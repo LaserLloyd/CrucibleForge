@@ -1,0 +1,14 @@
+{
+ "level": 1,
+ "points": 1.0,
+ "item": "CQ-FROMSCRATCH",
+ "budget": 65536,
+ "context": 73728,
+ "frontier": true,
+ "note": "C1 pack 2 (realignment 2026-11-20, packs lane): the three 4.1 from-scratch builds CQ1-CQ3 (format spec, regex engine, spreadsheet engine), the 4.1 text byte for byte (definitions stay in work/code/classic-code.json, which no composition of the release discovers; this file lists their ids, as work/c5_tools/set-2 lists LAG1/LAG2). Frontier-class headroom: on the 4.1 board the CQ pack split the leading models (GPT-6.2 Astra .94, GPT-6.1 Sol .78, Fable 5.2 .50, Kimi K3.1 Pro .44, DeepSeek flash .42, Opus 5 .22, Grok 4.7 .19; B9 of BONUS-PACKS-REVIEW: 16 of 42 rows hit 65,536 tokens with 0 passes). Graded differentially against CPython 3.13 itself (profile grader_pins: python_minor 3.13, the source rule as one test group). Same unlock as IMPLIED L5: the part c1_implied at >= ladder.unlock (0.9). A reply that reaches 98% of the 65,536-token budget follows the existing cut rule (profile cut_at_full_budget: zero): graded as delivered, kept in the mean, printed as 'did not finish'; no new rule. No release row exists for this set yet (4.1 rows are not reused: the 4.5 harness differs).",
+ "cases": [
+  "CQ1-format-spec-from-scratch",
+  "CQ2-regex-engine-from-scratch",
+  "CQ3-spreadsheet-engine"
+ ]
+}

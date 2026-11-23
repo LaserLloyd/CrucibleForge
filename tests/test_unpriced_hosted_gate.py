@@ -34,6 +34,10 @@ def _prov(monkeypatch, ptype, prices=None, profile="bench45"):
 
 
 def test_unpriced_hosted_under_bench45_is_refused(monkeypatch):
+    # fix round 2026-11-18 (P4): bench45's standing default cap alone no longer arms this gate (it made
+    # every unpriced fake/probe fail); a cap set on purpose does. The run entry refuses a real unpriced
+    # run before any call (tests/test_spend_gate_default_profile_20261118.py).
+    monkeypatch.setenv(spend.GLOBAL_CAP_ENV, "330")
     p, sent = _prov(monkeypatch, "openai")
     with pytest.raises(spend.SpendCapExceeded) as e:
         p.chat("paid-model", [{"role": "user", "content": "hi"}])

@@ -287,7 +287,7 @@ def _checks(plan: dict) -> list[dict]:
     out.append({"id": "gate-len", "fact": "gate-len", "ftype": "format", "group": "constraint", "turns": [1],
                 "scope": "all", "weight": 0, "scored": False, "gate": True, "type": "word_range",
                 "min": int(floor_words * 0.9), "max": 10 ** 6, "tolerance": 0.0, "note": "gate"})
-    # guards: run and report, earn nothing (compliance is not a capability; Jake 2026-11-11)
+    # guards: run and report, earn nothing (compliance is not a capability; the owner 2026-11-11)
     out.append({"id": "guard-refusal", "fact": "guard-refusal", "group": "constraint", "turns": [1], "scope": "all",
                 "weight": 0, "scored": False, "type": "refusal_phrase", "note": "guard"})
     out.append({"id": "guard-disclaimer", "fact": "guard-disclaimer", "group": "constraint", "turns": [1],

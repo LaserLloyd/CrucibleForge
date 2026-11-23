@@ -1,0 +1,19 @@
+# Dated addendum 2026-11-20 to chat-readers-45.yaml (lead decision f, written before any launch row was read).
+# Supersedes chat-readers-45.yaml, whose row stays in the marks index for the record. Changes: the hosted reader is
+# named by the engine label that carries a price (deepseek-flash, shown to visitors as "DeepSeek v4 flash"), the same
+# label the classing readers use; Grok is not a reader; DeepSeek-family rows are read by local readers only (none is
+# named yet, so they print "readers not named yet"). Rules enforced in code (rplong_mean): reader family != judge
+# family != graded model family; readers think; an entry without an id never fits.
+chat_readers:
+  judge_family: google
+  # pins: {<graded family>: <reader id>}  one reader per graded family; empty = the first fitting reader in file order
+  pins: {}
+  # graded families that only local readers may read (lead decision f)
+  local_only_families: [deepseek]
+  local:
+    - {role: R-Q, family: qwen, id: null}
+    - {role: R-M, family: mistral, id: null}
+    - {role: R-O, family: openai, id: null}
+  hosted:
+    - {role: H-1, id: deepseek-flash, display: DeepSeek v4 flash, family: deepseek, provider: deepseek, thinking: true,
+       price: {input: 0.14, output: 0.28}}

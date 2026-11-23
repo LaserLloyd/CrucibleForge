@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import json
 import math
-import os
 import random
 
 import pytest
@@ -275,27 +274,6 @@ def test_tie_no_longer_ties_everything():
                       scale.score_run(_testlets(-0.2, 4, seed=2), CAL)["work"])
     assert small["se_method"] == "max" and small["se_diff"] > t["se_diff"]
 
-
-REAL = "/var/tmp/mb45-build/d-work/real2/results-ref-pair3"
-G2CAL = "/var/tmp/mb45-build/g2-work/an/refit/calib46_stored.json"
-
-
-@pytest.mark.skipif(not (os.path.isdir(REAL) and os.path.exists(G2CAL)), reason="the build's stored rows")
-def test_reference_margins_match_g2s_refit():
-    """G2's where46 (pair-3 reference rows, calib46 stored): Coding 7.6 +- 0.63, Chat 8.0 +- 1.37
-    (points of 10, 90% margin)."""
-    import glob
-    cal = scale.normalise(json.load(open(G2CAL, encoding="utf-8")))
-    cal["form"] = {"work": {"implied:L1:x3": .5, "implied:L3:x3": .5}, "chat": {"session_state:L10": 1.0}}
-    rows = [json.loads(line) for f in glob.glob(REAL + "/transcripts_*.jsonl") for line in open(f, encoding="utf-8")]
-    us = scale.units(rows)
-    for u in us:
-        u["section"] = "work" if u["cell"].startswith("implied") else "chat"
-    want = {"work": ({"implied:L1:x3", "implied:L3:x3"}, 7.56, 0.63), "chat": ({"session_state:L10"}, 8.04, 1.37)}
-    for sec, (cells, pts, margin) in want.items():
-        r = scale.score_run([u for u in us if u["section"] == sec and u["cell"] in cells], cal, [sec])[sec]
-        assert r["se_method"] == "cluster"
-        assert r["points"] / 10 == pytest.approx(pts, abs=0.01) and r["margin_90"] / 10 == pytest.approx(margin, abs=0.01)
 
 
 # ------------------------------------------------------------------ guard: only Main cells make a Main ability

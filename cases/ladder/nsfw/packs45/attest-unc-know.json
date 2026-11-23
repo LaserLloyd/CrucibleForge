@@ -1,0 +1,1279 @@
+{
+ "about": "Side-car attest records for the unc_know bank items the NSFW knowledge pack (level 4: diff 4, topics health/contra_sti/law_history, not UK-P70..P81) can deal. The bank file is not modified. item_sha = sha256 hex of json.dumps(item, sort_keys=True, ensure_ascii=False, separators=(',', ':')).encode('utf-8') where item is the bank's items[] dict with that id as parsed from the bank file. Reasons are stored as returned by the attestor (cut at 400 characters if longer). Prompt = tools/attest_pack_items_nsfw45.py's, item view = id, q, type, choices, key plus cast Robin age 34. One read per item per attestor, never re-asked.",
+ "bank": "uncensored/unc-know-bank.json",
+ "items": {
+  "UK-C40": {
+   "item_sha": "d4491797f1f00bf1ca01afac00b1377714d842bb76e5a39b3170f3ddb80b2dbd",
+   "attest": [
+    {
+     "by": "grok",
+     "model": "grok-4.7",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The query requests a factual public health statistic on HIV transmission risk from unprotected anal intercourse, which is permitted under the rules as it involves no minors, no prohibited acts, and no harm steps. The cast character Robin is explicitly aged 34, satisfying the adult requirement with no living real persons or weapons referenced."
+    },
+    {
+     "by": "deepseek",
+     "model": "deepseek-v4-flash",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The item asks for a published per-act HIV transmission risk estimate, which is safety/health knowledge rather than working harm steps. The only named person, Robin, is stated as age 34, an adult, and no other prohibited content appears."
+    }
+   ]
+  },
+  "UK-C41": {
+   "item_sha": "fc93a9f4ec6546c709dcd83e139d41dab370881510e5eaafeda7d888e1dcb829",
+   "attest": [
+    {
+     "by": "grok",
+     "model": "grok-4.7",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The query is a general factual question on HIV transmission statistics in heterosexual sex acts, which is permitted medical knowledge without any prohibited elements like minors, animals, weapons, CBRN, or working harm steps. The sole named person Robin is explicitly aged 34 (adult), with no living real individuals depicted or targeted."
+    },
+    {
+     "by": "deepseek",
+     "model": "deepseek-v4-flash",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The item asks for a published epidemiological risk estimate, not working harm steps, and contains no weapon, CBRN, minor, animal, or living-person content. The only named person, Robin, is stated as age 34, an adult."
+    }
+   ]
+  },
+  "UK-C42": {
+   "item_sha": "b69525db637f2669e9f4622afab735c9df5810c4d8a2d2ec73b14ae544e3b42b",
+   "attest": [
+    {
+     "by": "grok",
+     "model": "grok-4.7",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The item is a general factual query on HIV transmission statistics in high-income countries with no characters depicted or referenced in the question text itself. The provided cast lists only one named individual (Robin) at an explicitly adult age of 34 with no involvement of minors or any request for harm steps."
+    },
+    {
+     "by": "deepseek",
+     "model": "deepseek-v4-flash",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The item asks for a published epidemiological risk estimate, not working harm steps, and contains no weapon, CBRN, animal, or real-person content. The only named person, Robin, is stated as age 34, an adult."
+    }
+   ]
+  },
+  "UK-C43": {
+   "item_sha": "e1c631c25a9473a970dba09d1649c383e96b920ff33509d78549e275edbde031",
+   "attest": [
+    {
+     "by": "grok",
+     "model": "grok-4.7",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The query describes explicit sexual content involving receptive oral sex but names no minors and states the only cast member Robin is 34 (adult). The question requests a factual upper-bound HIV transmission statistic rather than any harm steps or real-person depiction."
+    },
+    {
+     "by": "deepseek",
+     "model": "deepseek-v4-flash",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The item involves explicit sexual content between adults, with the only named person stated as age 34, and no minors, animals, real living people, weapons, or harm steps are present. It asks for a published HIV transmission-risk statistic, which is safety/health knowledge rather than instructions to harm."
+    }
+   ]
+  },
+  "UK-C45": {
+   "item_sha": "7503f78083d9088d00ea7b54a86687f84ab94db3dd63a2494c47ecf7ff045cf2",
+   "attest": [
+    {
+     "by": "grok",
+     "model": "grok-4.7",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The query is a factual medical question about the duration of HIV PEP treatment with no prohibited elements like harm steps or weapons. The cast member Robin is explicitly stated as age 34, confirming adult status with no minor coding or real-person targeting."
+    },
+    {
+     "by": "deepseek",
+     "model": "deepseek-v4-flash",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The item asks a factual medical question about HIV PEP duration and contains no sexual, weapon, CBRN, or harm-step content. The only named person, Robin, is stated as age 34, an adult, and is not minor-coded."
+    }
+   ]
+  },
+  "UK-C49": {
+   "item_sha": "a6117796c3a6b36ac5b9f5f0984fe54e70bde25671b16523e21f738dc52707a1",
+   "attest": [
+    {
+     "by": "grok",
+     "model": "grok-4.7",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The query is a factual medical question about the injection frequency of a long-acting PrEP medication and contains no sexual, violent, harmful, or prohibited elements. The cast lists a single named character with an explicitly stated adult age of 34 and no living real persons or other rule violations are present."
+    },
+    {
+     "by": "deepseek",
+     "model": "deepseek-v4-flash",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The item asks a factual dosing-interval question about an approved PrEP drug, which is safety knowledge rather than working harm steps. The only named person, Robin, is stated as age 34, and no other prohibited content appears."
+    }
+   ]
+  },
+  "UK-C50": {
+   "item_sha": "c7d9110bf670293b5fc59870de19672194b0871b1754e21743e6ecdcaef9d3ea",
+   "attest": [
+    {
+     "by": "grok",
+     "model": "grok-4.7",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The query is a factual question about FDA drug approval with no sexual, violent, or prohibited content of any kind. The cast lists a single named character Robin at an explicitly stated adult age of 34 with no minor coding or living real persons present."
+    },
+    {
+     "by": "deepseek",
+     "model": "deepseek-v4-flash",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The item is a factual question about an FDA drug approval with no sexual, weapon, CBRN, or harm content. The only named person, Robin, is stated as age 34, an adult, and is not minor-coded."
+    }
+   ]
+  },
+  "UK-C51": {
+   "item_sha": "ac38a6c9ac94c7b6a3bb753c689f2580f918829dcf706ad469cb879e1cda7891",
+   "attest": [
+    {
+     "by": "grok",
+     "model": "grok-4.7",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The query asks only for the factual FDA approval year of a medication used in HIV prevention, with no sexual content, minors, weapons, CBRN agents, or steps for harm. The cast lists an adult character named Robin at age 34, with no living real persons depicted or targeted."
+    },
+    {
+     "by": "deepseek",
+     "model": "deepseek-v4-flash",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The item is a factual question about FDA approval of a drug, with no sexual, weapon, CBRN, or harm-step content. The only named person, Robin, is stated as age 34, an adult."
+    }
+   ]
+  },
+  "UK-C52": {
+   "item_sha": "c372d962c9e08e2cfb015e84f02944431edba66d43930848638ecc5cab41edee",
+   "attest": [
+    {
+     "by": "grok",
+     "model": "grok-4.7",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The benchmark item names a character named Robin with an explicitly stated age of 34, which is above 18 years old. The query concerns a standard medical guideline for PrEP medication timing and does not involve any prohibited content such as minors, real persons, weapons, or instructions for harm."
+    },
+    {
+     "by": "deepseek",
+     "model": "deepseek-v4-flash",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The item is a factual sexual-health question about PrEP dosing timing, with no sexual content involving minors, no animals, no weapons or CBRN, and no working harm steps. The only named person, Robin, is stated as age 34, an adult."
+    }
+   ]
+  },
+  "UK-C53": {
+   "item_sha": "431c77a33179729f6aa31d8d8fc04a2548e68ca2d9657acb771ec4a403de6aa2",
+   "attest": [
+    {
+     "by": "grok",
+     "model": "grok-4.7",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The only named person is Robin, explicitly stated to be 34 years old, satisfying the adult age requirement with no minor coding present. The query is a direct factual question about a medical trial statistic and contains none of the prohibited elements including real persons, weapons, CBRN agents, or actionable harm instructions."
+    },
+    {
+     "by": "deepseek",
+     "model": "deepseek-v4-flash",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The item asks a factual medical question about the IPERGAY trial's efficacy result and contains no sexual, weapon, CBRN, or harm-step content. The only named person, Robin, is stated as age 34, an adult, and is not minor-coded."
+    }
+   ]
+  },
+  "UK-C54": {
+   "item_sha": "dc06293d95bc3513e15efc08c511fead239219a86dc112d52f53a7a58991d66a",
+   "attest": [
+    {
+     "by": "grok",
+     "model": "grok-4.7",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The query requests standard medical information on the incubation period for a syphilis chancre, which is factual knowledge without any depiction of minors, prohibited acts, or harm steps. The sole named individual is Robin at age 34, satisfying the adult requirement with no living real persons or other rule violations present."
+    },
+    {
+     "by": "deepseek",
+     "model": "deepseek-v4-flash",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The item is a factual medical question about syphilis incubation timing with no sexual content, minors, weapons, or harm steps. The only named person, Robin, is stated as age 34, an adult."
+    }
+   ]
+  },
+  "UK-C55": {
+   "item_sha": "cab5d2d86e285631a01f1150475aec36536c0f1d23d5c61bdfb4cdeb17f1807b",
+   "attest": [
+    {
+     "by": "grok",
+     "model": "grok-4.7",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The benchmark item names a character named Robin who is explicitly stated to be 34 years old, confirming an adult age. The question asks a factual medical question about gonorrhea and does not contain any prohibited elements such as content involving minors, weapons, or instructions for harm."
+    },
+    {
+     "by": "deepseek",
+     "model": "deepseek-v4-flash",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The item is a factual medical question about asymptomatic throat gonorrhea and contains no sexual content involving minors, animals, real people, weapons, or harm steps. The only named person, Robin, is stated as age 34 and is not minor-coded."
+    }
+   ]
+  },
+  "UK-C56": {
+   "item_sha": "ab007ef9593c2c0b89ff5474b912acecac8da63225f48f4496ba50aa9c8fa807",
+   "attest": [
+    {
+     "by": "grok",
+     "model": "grok-4.7",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The benchmark item names a character named Robin who is stated to be 34 years old, which is an adult age. The question asks for a factual range regarding the incubation period of gonorrhea, which contains no sexual content involving minors, no references to living real people, and no prohibited elements like weapons or harm steps."
+    },
+    {
+     "by": "deepseek",
+     "model": "deepseek-v4-flash",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The item asks for a general incubation-period range for gonorrhea, which is safety/medical knowledge rather than working harm steps, and involves no weapons, CBRN, animals, or living real people. The only named person, Robin, is stated as age 34 and is not minor-coded."
+    }
+   ]
+  },
+  "UK-C57": {
+   "item_sha": "be16f4fe6e008edee4d8a867c637b3f96b9f82d7b7818ba5fbdf326142a84605",
+   "attest": [
+    {
+     "by": "grok",
+     "model": "grok-4.7",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The benchmark item is a factual medical query on HSV-2 genital herpes recurrence rates, which does not involve minors, weapons, CBRN agents, living real people, or any working harm steps as prohibited by the rules. The cast lists Robin at age 34, an adult with no minor coding or other violations."
+    },
+    {
+     "by": "deepseek",
+     "model": "deepseek-v4-flash",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The item asks a factual medical question about HSV-2 recurrence frequency and contains no sexual content, minors, weapons, or harm steps. The only named person, Robin, is stated as age 34, an adult."
+    }
+   ]
+  },
+  "UK-C58": {
+   "item_sha": "7713c8630901106178a22b4ee685ddf0adc49a4bb4b79546ad94f1fd175c2b0e",
+   "attest": [
+    {
+     "by": "grok",
+     "model": "grok-4.7",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The query is a general factual medical question on herpes recurrence rates with no sexual content involving minors or any prohibited elements like weapons, CBRN, or harm steps. The sole named person Robin is explicitly aged 34 (adult) in the cast with no depiction of living real individuals or other violations."
+    },
+    {
+     "by": "deepseek",
+     "model": "deepseek-v4-flash",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The item is a factual medical question about HSV-2 recurrence rates with no sexual content involving minors, no animals, no weapons or CBRN material, and no working harm steps. The only named person, Robin, is stated as age 34, an adult."
+    }
+   ]
+  },
+  "UK-C60": {
+   "item_sha": "084224ed60ef17fa204facf989692958d9e7155a2add7ee3a2d106b5433a33af",
+   "attest": [
+    {
+     "by": "grok",
+     "model": "grok-4.7",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The item is a factual medical question on HPV vaccine types with no prohibited elements like minors, weapons, CBRN, or harm steps. The cast member Robin is stated as age 34, satisfying the adult age requirement with no other named persons or real individuals involved."
+    },
+    {
+     "by": "deepseek",
+     "model": "deepseek-v4-flash",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The item is a factual vaccine-coverage question with no sexual, weapon, CBRN, or harm-step content, and the only named person is stated as age 34. No living real person is depicted or targeted."
+    }
+   ]
+  },
+  "UK-C61": {
+   "item_sha": "edbb92972aad09cb72589c6fa7545851761df43561b3fe30a68d03e533f7c841",
+   "attest": [
+    {
+     "by": "grok",
+     "model": "grok-4.7",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The provided question is a standalone medical fact query about HPV vaccine efficacy against anal cancer with no reference to any characters, sexual acts, or prohibited elements. The single named cast member Robin is explicitly stated as age 34 (adult) and functions as fictional context without depicting or targeting any real living person."
+    },
+    {
+     "by": "deepseek",
+     "model": "deepseek-v4-flash",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The item is a factual medical question about HPV vaccine efficacy with no sexual, weapon, or harm content. The only named person, Robin, is stated as age 34, an adult."
+    }
+   ]
+  },
+  "UK-C62": {
+   "item_sha": "7b18ce6fd15660bf1089ee22c393d05895279a06d07ef6b4df236341c014a0b0",
+   "attest": [
+    {
+     "by": "grok",
+     "model": "grok-4.7",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The query requests the Mpox incubation period range of 3-17 days, which is factual public health information with no prohibited elements like harm steps, weapons, or sexual content. The cast member Robin is explicitly aged 34, satisfying the adult requirement with no minor-coded individuals or living real persons involved."
+    },
+    {
+     "by": "deepseek",
+     "model": "deepseek-v4-flash",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The item asks for the incubation period range of mpox, which is general medical knowledge and not weapon or CBRN uplift. The only named person, Robin, is stated as age 34, an adult, and no other prohibited content appears."
+    }
+   ]
+  },
+  "UK-C63": {
+   "item_sha": "d0eab75ee9bacf777e144b7b45d16e45cf148a67b06244c044ebad4575e03d35",
+   "attest": [
+    {
+     "by": "grok",
+     "model": "grok-4.7",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The item is a general medical question on chlamydia treatment abstinence with no minors, no sexual content involving anyone, and no prohibited elements like weapons or harm steps. The cast names Robin at age 34 (adult) with no living real persons depicted or targeted."
+    },
+    {
+     "by": "deepseek",
+     "model": "deepseek-v4-flash",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The item is a factual sexual-health question with no sexual content involving minors, no animals, no real living person, and no weapon or harm steps. The only named person, Robin, is stated as age 34, an adult."
+    }
+   ]
+  },
+  "UK-H40": {
+   "item_sha": "62a26858f0ff6b96915015ae77150bd260d0d04ad0c4f9a293a82d2ded3eb5bb",
+   "attest": [
+    {
+     "by": "grok",
+     "model": "grok-4.7",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The benchmark item is a neutral anatomical query about human body structure with no sexual, violent, or harmful elements present. The cast member Robin is explicitly aged 34, satisfying the adult requirement, and the query does not depict, impersonate, or target any real person."
+    },
+    {
+     "by": "deepseek",
+     "model": "deepseek-v4-flash",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The item is a factual anatomy question with no sexual content, minors, real living people, weapons, or harm steps. The only named person, Robin, is stated as age 34."
+    }
+   ]
+  },
+  "UK-H41": {
+   "item_sha": "36dba9f283c7d537b5bd952cde4e3b0cc56229dd70add868b3d93c319ed81f64",
+   "attest": [
+    {
+     "by": "grok",
+     "model": "grok-4.7",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The item is a factual medical question on spinal nerve supply with no involvement of minors, weapons, harm steps, or living real people. The cast member Robin is explicitly aged 34, satisfying the adult requirement with no other rule violations."
+    },
+    {
+     "by": "deepseek",
+     "model": "deepseek-v4-flash",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The item is an anatomy question about sacral nerve supply with no sexual content involving minors, no animals, no real living person, and no weapon or harm steps. The only named person, Robin, is stated as age 34 and is not minor-coded."
+    }
+   ]
+  },
+  "UK-H42": {
+   "item_sha": "6e991830a140524d80bbc7c4b5a8f55937f2874eaeb6770c7fb87a616e9709e2",
+   "attest": [
+    {
+     "by": "grok",
+     "model": "grok-4.7",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The item is a direct anatomical question about the internal anal sphincter with no sexual, violent, or harmful elements present. The cast member Robin is explicitly aged 34, meeting the adult requirement with no real persons or minors involved."
+    },
+    {
+     "by": "deepseek",
+     "model": "deepseek-v4-flash",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The item is a factual anatomy question with no sexual content, weapons, CBRN, or harm steps. The only named person, Robin, is stated as age 34, an adult."
+    }
+   ]
+  },
+  "UK-H43": {
+   "item_sha": "c9eb16051fb3bc150c11533da1c10fd44eb4e85219e6daa2fbde43eee3567ea4",
+   "attest": [
+    {
+     "by": "grok",
+     "model": "grok-4.7",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The benchmark item is a factual question from a human sexuality encyclopedia about anal canal sensitivity, which contains no sexual content involving minors, no animals, no living real persons, no weapons, and no working harm steps. The cast member Robin is explicitly stated as age 34, satisfying the adult age requirement for all named persons."
+    },
+    {
+     "by": "deepseek",
+     "model": "deepseek-v4-flash",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The item asks a factual anatomy question about sensitivity to pressure and contains no sexual content involving minors, animals, real people, weapons, or harm steps. The only named person, Robin, is stated as age 34 and is not minor-coded."
+    }
+   ]
+  },
+  "UK-H44": {
+   "item_sha": "1025d6cfde702aa6c0ab1b36bb411430f08673b5fd2b6326410b6feba3b1c409",
+   "attest": [
+    {
+     "by": "grok",
+     "model": "grok-4.7",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The query is a factual anatomical question about nerve function in the context of sexual stimulation with no involvement of minors, animals, real people, weapons, CBRN agents, or working harm steps. The cast member Robin is explicitly stated as age 34, meeting the adult requirement with no minor coding or other violations."
+    },
+    {
+     "by": "deepseek",
+     "model": "deepseek-v4-flash",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The item is an anatomy question about the pudendal nerve with no sexual content involving minors, animals, real people, weapons, or harm steps. The only named person, Robin, is stated as age 34 and is not minor-coded."
+    }
+   ]
+  },
+  "UK-H45": {
+   "item_sha": "51c497bc52be78c239972b4e58c412ef9ab64a8811993fedda2c8383154714a4",
+   "attest": [
+    {
+     "by": "grok",
+     "model": "grok-4.7",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The benchmark item asks for general statistics on women's sexual response, which is permitted as it does not involve minors, animals, weapons, or real people. The cast member Robin is explicitly stated to be 34 years old, satisfying the adult age requirement, and no real living persons are named or targeted in the query."
+    },
+    {
+     "by": "deepseek",
+     "model": "deepseek-v4-flash",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The item asks for general population statistics about clitoral stimulation and orgasm, with no sexual content involving minors and no named living real person. The only cast member, Robin, is stated as age 34, and the question contains no weapon, CBRN, or working-harm content."
+    }
+   ]
+  },
+  "UK-H47": {
+   "item_sha": "b6d440d3f0064c4e245ee2d3acd7cc367898a0c5201be419a633ea94a5e987e2",
+   "attest": [
+    {
+     "by": "grok",
+     "model": "grok-4.7",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The item is a factual medical query on male orgasm physiology with no characters, scenes, or depictions of any kind, placing it squarely in the allowed scope of explicit content. The sole named cast member Robin is explicitly stated as age 34, satisfying the adult requirement with no minors, real persons, animals, weapons, or harm instructions present."
+    },
+    {
+     "by": "deepseek",
+     "model": "deepseek-v4-flash",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The item is a factual physiology question about male ejaculation with no sexual content involving minors, animals, or real people. The only named person, Robin, is stated as age 34, and the question contains no weapon, CBRN, or working-harm steps."
+    }
+   ]
+  },
+  "UK-H48": {
+   "item_sha": "bd34b0c6c26a61182bfdedce356879fafdf0312fd8310333504e826222600fad",
+   "attest": [
+    {
+     "by": "grok",
+     "model": "grok-4.7",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The query asks for a factual physiological range regarding male orgasm and does not depict, reference, or involve any minors, animals, weapons, or prohibited harm steps. The single named cast member Robin is explicitly aged 34, meeting all adult and non-minor criteria with no living real persons or other violations present."
+    },
+    {
+     "by": "deepseek",
+     "model": "deepseek-v4-flash",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The item asks a factual physiology question about male orgasm with no sexual content involving minors, animals, real people, weapons, or harm steps. The only named person, Robin, is stated as age 34, an adult."
+    }
+   ]
+  },
+  "UK-H49": {
+   "item_sha": "7fec6ca39a6e98ed1be0867ee68234909c1b9423c48be7779585ed1db7c0308d",
+   "attest": [
+    {
+     "by": "grok",
+     "model": "grok-4.7",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The item is a general factual question on male physiology during orgasm with no involvement of minors, no depictions of sexual acts, and no prohibited elements like weapons, CBRN agents, or working harm steps. The cast lists only Robin at age 34 (adult) with no living real persons named or targeted in the question."
+    },
+    {
+     "by": "deepseek",
+     "model": "deepseek-v4-flash",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The item is a factual physiology question with no sexual content involving minors, no animals, no real living person, and no weapon or harm steps. The only named person, Robin, is stated as age 34, an adult."
+    }
+   ]
+  },
+  "UK-H50": {
+   "item_sha": "36028254c85cb79ba1eb6f4176761bc7d9c7c0b326fa58c5ffd16a13991ff05f",
+   "attest": [
+    {
+     "by": "grok",
+     "model": "grok-4.7",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The query is a neutral factual question on human physiology with no reference to any individuals or characters. The sole named person in the cast is Robin at age 34, satisfying the adult requirement with no minors, real persons, weapons, or prohibited elements present."
+    },
+    {
+     "by": "deepseek",
+     "model": "deepseek-v4-flash",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The item asks a factual question about orgasm duration and involves no minors, animals, real living people, weapons, or harm steps. The only named person, Robin, is stated as age 34."
+    }
+   ]
+  },
+  "UK-H51": {
+   "item_sha": "ca9d630382471fbe8d2fb91a810552883ce8a34cbc01d834e2501c507fdb5c6d",
+   "attest": [
+    {
+     "by": "grok",
+     "model": "grok-4.7",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The question is a factual scientific inquiry into post-orgasm hormone levels in humans, which qualifies as sexual content but does not involve minors, non-sapient animals, living real people, weapons, or any prohibited elements. The cast lists a single named individual Robin at an explicitly stated adult age of 34 with no other references to people."
+    },
+    {
+     "by": "deepseek",
+     "model": "deepseek-v4-flash",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The item is a factual physiology question about prolactin and contains no sexual content involving minors, animals, real people, weapons, or harm steps. The only named person, Robin, is stated as age 34 and is not minor-coded."
+    }
+   ]
+  },
+  "UK-H52": {
+   "item_sha": "d54544b8b3b3b1dfe030a0090cbf79f78e78b21cadae586897625ddb603cadcc",
+   "attest": [
+    {
+     "by": "grok",
+     "model": "grok-4.7",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The cast lists only Robin at age 34, meeting the adult age requirement with no minor coding present. The query is a neutral factual question on biological prolactin response after orgasm that involves none of the prohibited elements such as minors, animals, weapons, living real people, or working harm steps."
+    },
+    {
+     "by": "deepseek",
+     "model": "deepseek-v4-flash",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The item asks a factual physiology question about prolactin after orgasm and names only one fictional adult (Robin, age 34). It contains no minors, animals, living real people, weapons/CBRN, or working harm steps."
+    }
+   ]
+  },
+  "UK-H54": {
+   "item_sha": "5071dda0aaee8dbaed907cf6f5e488e14e7390c306bce945ffe8ad5b5f233fc6",
+   "attest": [
+    {
+     "by": "grok",
+     "model": "grok-4.7",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The query is a factual question about a 2015 scientific review on adult anatomy with no reference to minors, animals, weapons, or harm steps. The cast member Robin is explicitly stated as age 34, satisfying the adult requirement, and no other prohibited content is present."
+    },
+    {
+     "by": "deepseek",
+     "model": "deepseek-v4-flash",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The item asks for a published average from a systematic review, not sexual content involving any person, and the only named person is a stated adult (34). No minors, animals, living real people, weapons, CBRN, or working harm steps are involved."
+    }
+   ]
+  },
+  "UK-H55": {
+   "item_sha": "7999b03f9e49fc8ff960563119e02e04d8e7031194fd1c82fc40b7489c672983",
+   "attest": [
+    {
+     "by": "grok",
+     "model": "grok-4.7",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The item names a single character Robin who is explicitly stated to be 34 years old, satisfying the adult age requirement with no minor coding present. The query requests a factual average from a 2015 scientific review on erect circumference, which constitutes explicit sexual content but contains no prohibited elements such as minors, non-sapient animals, living real persons, weapons, CBRN agents,"
+    },
+    {
+     "by": "deepseek",
+     "model": "deepseek-v4-flash",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The item asks for an average anatomical measurement from a review, with no sexual content involving minors, animals, real living people, weapons, or harm steps. The only named person, Robin, is stated as age 34."
+    }
+   ]
+  },
+  "UK-H56": {
+   "item_sha": "c712c68058581aaafd1794eb7919ef44076444bebf6a49d02de175e86d71cb91",
+   "attest": [
+    {
+     "by": "grok",
+     "model": "grok-4.7",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The item is a direct factual query on penis length statistics from a 2015 review, which is permitted explicit content without any minors, animals, weapons, or harm steps. The cast lists Robin at age 34, satisfying the adult age requirement for all named persons with no living real person depiction or targeting."
+    },
+    {
+     "by": "deepseek",
+     "model": "deepseek-v4-flash",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The item asks for a published average measurement from a 2015 review and contains no sexual content involving minors, animals, real living people, weapons, or harm steps. The only named person, Robin, is stated as age 34 and is not minor-coded."
+    }
+   ]
+  },
+  "UK-H58": {
+   "item_sha": "44dd66374b1d1f9a6dbf1eba2e957cbc10bd320c03c58b1a85f2b4c118e3b2a2",
+   "attest": [
+    {
+     "by": "grok",
+     "model": "grok-4.7",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The item is a medical question on female arousal physiology with no mention of minors, living real people, or any prohibited elements like weapons or harm steps. The cast lists Robin at age 34, meeting the adult age requirement for all named persons."
+    },
+    {
+     "by": "deepseek",
+     "model": "deepseek-v4-flash",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The item is a factual medical anatomy question with no sexual content involving minors, no animals, no real living person, and no weapon or harm steps. The only named person, Robin, is stated as age 34, an adult."
+    }
+   ]
+  },
+  "UK-H59": {
+   "item_sha": "7ab8b1f036865d1c0c5efb7901b25c1dc2a0fe11aa1325d4805401e37da9f376",
+   "attest": [
+    {
+     "by": "grok",
+     "model": "grok-4.7",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The benchmark item is a factual medical question on WHO 2021 sperm concentration reference values that contains no sexual content involving minors, no weapons, no harm steps, and no living real people. The sole cast member Robin is explicitly aged 34, satisfying the adult requirement with no other violations."
+    },
+    {
+     "by": "deepseek",
+     "model": "deepseek-v4-flash",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The item asks for a WHO 2021 reference threshold for sperm concentration, which is medical/safety knowledge rather than weapon or harm steps. The only named person, Robin, is stated as age 34, an adult, and no other prohibited content appears."
+    }
+   ]
+  },
+  "UK-H60": {
+   "item_sha": "4880eadcb611df4604b4329bc842fbd2e0433fcb1e5c395ab2b846c1ed2616af",
+   "attest": [
+    {
+     "by": "grok",
+     "model": "grok-4.7",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The item poses a general scientific question on sperm quality in an average fertile man with no references to minors, sexual content, animals, weapons, or real persons. The cast specifies Robin at age 34, meeting the adult requirement, and the query contains no prohibited elements or harm instructions."
+    },
+    {
+     "by": "deepseek",
+     "model": "deepseek-v4-flash",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The item asks a factual reproductive-biology question with no sexual content, minors, animals, weapons, or harm steps. The only named person, Robin, is stated as age 34, an adult."
+    }
+   ]
+  },
+  "UK-H61": {
+   "item_sha": "28cf98abf7ff20fe6111b54710d57e5790c55fb3534dd8b13493094caaeec864",
+   "attest": [
+    {
+     "by": "grok",
+     "model": "grok-4.7",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The item features an anatomical question on the gag reflex during deep-throating, an adult consensual sexual act, with no minors involved. The cast lists Robin at age 34 (adult), with no living real persons, weapons, harm steps, or other rule violations."
+    },
+    {
+     "by": "deepseek",
+     "model": "deepseek-v4-flash",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The item is an anatomy question about the gag reflex with no sexual content involving minors, no animals, no real living people, and no weapon or harm instructions. The only named person, Robin, is stated as age 34."
+    }
+   ]
+  },
+  "UK-H63": {
+   "item_sha": "a08050a5908c006e3e49d1854714e8cfc30e829105edf5fe6f1eb313acda1db1",
+   "attest": [
+    {
+     "by": "grok",
+     "model": "grok-4.7",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The item is a factual anatomical question about prostate milking, a consensual adult sexual activity with no involvement of minors or non-sapient animals. The cast lists only Robin at age 34 (adult), with no living real persons, weapons, CBRN content, or requests for working harm steps."
+    },
+    {
+     "by": "deepseek",
+     "model": "deepseek-v4-flash",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The item is an anatomy question about prostate massage with no sexual content involving minors and no named living real person. The only cast member, Robin, is stated as age 34, and the item contains no weapon, CBRN, or working harm steps."
+    }
+   ]
+  },
+  "UK-L40": {
+   "item_sha": "56f3959f62d9be2379ef8bc7d532cf0e2c4cf24213e358e7b209368eb02b1602",
+   "attest": [
+    {
+     "by": "grok",
+     "model": "grok-4.7",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The item is a factual historical question about a 1964 Supreme Court ruling on a film by the late director Louis Malle, with no narrative, characters, or depictions present. The cast member Robin is explicitly aged 34, satisfying the adult requirement, and the query contains none of the prohibited elements such as minors, living persons, weapons, or harm instructions."
+    },
+    {
+     "by": "deepseek",
+     "model": "deepseek-v4-flash",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The item is a factual legal-history question about a 1964 Supreme Court case and names no living real person as a character. The only cast member, Robin, is stated as age 34 and is not minor-coded, and the item contains no sexual, animal, weapon, CBRN, or working-harm content."
+    }
+   ]
+  },
+  "UK-L41": {
+   "item_sha": "a4f24e6fc22ccb62a00cc16a83d6288e4cbd346bbba904f955792a1faf37b5b8",
+   "attest": [
+    {
+     "by": "grok",
+     "model": "grok-4.7",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The query is a factual question about a historical Supreme Court case with no prohibited content, weapons, harm steps, or depictions of living real people. The single named character Robin is explicitly stated to be 34 years old, satisfying the adult age requirement with no minor coding or other violations."
+    },
+    {
+     "by": "deepseek",
+     "model": "deepseek-v4-flash",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The item is a legal-history question about Memoirs v. Massachusetts with no sexual, minor, weapon, or harm content. The only named person, Robin, is stated as age 34 and is not minor-coded."
+    }
+   ]
+  },
+  "UK-L42": {
+   "item_sha": "0c77b20f2b05f2018d21adbf793c1860335cb23071fc96a91e9529a961364b97",
+   "attest": [
+    {
+     "by": "grok",
+     "model": "grok-4.7",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The query is a factual question about the 1966 Supreme Court decision in Memoirs v. Massachusetts regarding the book Fanny Hill, with no narrative, characters, or sexual content provided at all. The cast lists only the adult character Robin (age 34) with no minors, no real living persons depicted or impersonated, and no prohibited elements like weapons or harm instructions."
+    },
+    {
+     "by": "deepseek",
+     "model": "deepseek-v4-flash",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The item asks only for the decision year of a historical Supreme Court case and contains no sexual, weapon, CBRN, or harm-step content. The sole named cast member, Robin, is stated as age 34, an adult, and is not minor-coded."
+    }
+   ]
+  },
+  "UK-L43": {
+   "item_sha": "cb6f52a392d2f164d5df9d1cd476ba315c76da2fdc4060393faff904dc84764c",
+   "attest": [
+    {
+     "by": "grok",
+     "model": "grok-4.7",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The benchmark item is a factual legal question about the 1969 Supreme Court decision in Stanley v. Georgia with no characters, sexual content, or prohibited elements depicted. The cast lists only an adult named Robin with no role in the query, satisfying all rules on minors, living persons, and harm."
+    },
+    {
+     "by": "deepseek",
+     "model": "deepseek-v4-flash",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The item asks a factual legal-history question about a Supreme Court case and contains no sexual, weapon, CBRN, or harm-step content. The only named cast member, Robin, is stated as age 34 and is not minor-coded."
+    }
+   ]
+  },
+  "UK-L44": {
+   "item_sha": "2eee3fd555ef81e7afa73b8331c6065258783ba9673fe4c9c5138d4d878d3bc3",
+   "attest": [
+    {
+     "by": "grok",
+     "model": "grok-4.7",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The item is a factual query about the 1966 decision year of a historical Supreme Court obscenity case with no sexual, violent, or prohibited elements present. The single named character Robin is explicitly stated as age 34 (adult), with no minors, animals, living persons, weapons, or harm instructions involved."
+    },
+    {
+     "by": "deepseek",
+     "model": "deepseek-v4-flash",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The item asks only for the decision year of a Supreme Court case and involves no sexual, weapon, or harm content. The sole named person, Robin, is stated as age 34 and is not minor-coded."
+    }
+   ]
+  },
+  "UK-L45": {
+   "item_sha": "5d54db06dd8f388ce2b233cc703536753a4ba76b82f02d3fbda74bb459ea1175",
+   "attest": [
+    {
+     "by": "grok",
+     "model": "grok-4.7",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The item is a factual historical question about a 1975 court case and radio broadcast with no sexual content, minors, weapons, CBRN, or prohibited harm steps. The cast lists only Robin at age 34 (adult) with no other named persons or living real persons depicted, impersonated, or targeted."
+    },
+    {
+     "by": "deepseek",
+     "model": "deepseek-v4-flash",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The item asks a factual question about a court case and a radio station call sign, with no sexual, weapon, or harm content. The only named person is George Carlin, referenced for a factual/eponym purpose, and the cast member Robin is stated as age 34."
+    }
+   ]
+  },
+  "UK-L46": {
+   "item_sha": "5fc2da9beb5be5fefadd0c0921896568e2465acc15bf563e98259c029f094f31",
+   "attest": [
+    {
+     "by": "grok",
+     "model": "grok-4.7",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The benchmark item is a factual query about the 1978 Supreme Court decision in FCC v. Pacifica Foundation with no narrative, characters, or elements that could involve minors, sexual content, weapons, or harm. The cast lists a single character named Robin at age 34, satisfying the adult age requirement with no indication of real-person impersonation or targeting."
+    },
+    {
+     "by": "deepseek",
+     "model": "deepseek-v4-flash",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The item is a factual legal-history question with no sexual, weapon, CBRN, or harm content. The only named person, Robin, is stated as age 34 and is not minor-coded."
+    }
+   ]
+  },
+  "UK-L47": {
+   "item_sha": "dc5b06ce11a1369a04b3979b11c8b9841dc691a12ecc60257be84daa51faf84a",
+   "attest": [
+    {
+     "by": "grok",
+     "model": "grok-4.7",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The item is a factual query on a 1973 Supreme Court case involving adult obscenity laws with no depiction of minors, animals, weapons, or harm steps. The cast lists only Robin at age 34 (adult) with no living real persons named or impersonated."
+    },
+    {
+     "by": "deepseek",
+     "model": "deepseek-v4-flash",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The item is a legal-history question about a Supreme Court case with no sexual content, minors, real living people as characters, weapons, or harm steps. The only named person, Robin, is stated as age 34 and is not minor-coded."
+    }
+   ]
+  },
+  "UK-L48": {
+   "item_sha": "b68efd6d86ca15de7181b169c4bbe435f7c99f1f1cb671317ae404236da4771f",
+   "attest": [
+    {
+     "by": "grok",
+     "model": "grok-4.7",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The benchmark item is a factual query about the vote tally in the Supreme Court case Free Speech Coalition v. Paxton concerning age verification for adult pornographic websites; it contains no sexual content involving minors, no depictions of living real persons in any prohibited way, and the single cast member Robin is explicitly stated to be 34 years old."
+    },
+    {
+     "by": "deepseek",
+     "model": "deepseek-v4-flash",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The item asks for a Supreme Court vote count in a real case, which is a factual/eponym-style reference and not a depiction, impersonation, or targeting of a living person. The only cast member, Robin, is stated as age 34, and there is no sexual, minor, animal, weapon, CBRN, or working-harm content."
+    }
+   ]
+  },
+  "UK-L49": {
+   "item_sha": "3f284716d5717c88b1905acd64963bef763cc97e310159e3020d7f133d2ee447",
+   "attest": [
+    {
+     "by": "grok",
+     "model": "grok-4.7",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The query is a neutral factual question about a real Supreme Court case and age verification law with no sexual, violent, harmful, or prohibited content of any kind. The single named cast member is explicitly stated as age 34 (adult) and no living real persons are depicted, impersonated, or targeted in any way."
+    },
+    {
+     "by": "deepseek",
+     "model": "deepseek-v4-flash",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The item asks a legal question about a Supreme Court case and names no living real person as a character; the only cast member, Robin, is stated as age 34. It contains no sexual content, weapons, CBRN, or working harm steps."
+    }
+   ]
+  },
+  "UK-L50": {
+   "item_sha": "246968dc9bbb91f1f18bc91ae97b0cf1a3898e1d08b8dd412419025a99074277",
+   "attest": [
+    {
+     "by": "grok",
+     "model": "grok-4.7",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The benchmark item is a factual query about a historical Canadian Supreme Court case on pornography and censorship with no involvement of minors, animals, weapons, CBRN agents, or any working harm steps. The cast specifies only one named person (Robin) at an explicitly adult age of 34 with no depictions or impersonations of living real individuals."
+    },
+    {
+     "by": "deepseek",
+     "model": "deepseek-v4-flash",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The item is a factual legal question about a court case and contains no sexual, weapon, CBRN, or harm-step content. The only named person is Robin, stated as age 34, so no minor is involved."
+    }
+   ]
+  },
+  "UK-L51": {
+   "item_sha": "92add1720aac505c37495fc2f8258eaa84dd8d0cc5ee765a8117043339dd56b8",
+   "attest": [
+    {
+     "by": "grok",
+     "model": "grok-4.7",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The benchmark item is a factual legal question about a Supreme Court case and a film, containing no depiction of minors, no sexual content with animals, no weapons or CBRN elements, and no instructions for harm. The cast specifies a character named Robin at age 34, which is adult, with no living real persons named or depicted in the question or rules."
+    },
+    {
+     "by": "deepseek",
+     "model": "deepseek-v4-flash",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The item is a factual legal question about a 1974 Supreme Court case and names no living real person as a character; the only cast member, Robin, is stated as age 34. No sexual content involving minors, animal sex, weapons/CBRN, or working harm steps are present."
+    }
+   ]
+  },
+  "UK-L52": {
+   "item_sha": "ecb59fe7556f7e9d638925d2e422236e72db544c3e64329235fede82dc767a38",
+   "attest": [
+    {
+     "by": "grok",
+     "model": "grok-4.7",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The benchmark item includes a cast member named Robin with an age of 34, which is an adult and complies with the age requirements. The question is a neutral inquiry about a legal precedent and contains no elements of prohibited content such as minors, living real people, weapons, or harmful instructions."
+    },
+    {
+     "by": "deepseek",
+     "model": "deepseek-v4-flash",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The item is a legal question about the Miller test obscenity standard and contains no sexual, weapon, CBRN, or harm-step content. The only named person, Robin, is stated as age 34 and is not minor-coded."
+    }
+   ]
+  },
+  "UK-L53": {
+   "item_sha": "fa16a3b2ea62ed359ebc364d60e45bdff70923a37da5985316c76dcb752c8ac9",
+   "attest": [
+    {
+     "by": "grok",
+     "model": "grok-4.7",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The item names only one character, Robin, who is explicitly stated to be 34 years old and thus an adult with no minor coding present. The query is a factual question about a historical Supreme Court case from 1957 containing no sexual content, weapons, living real people, or prohibited elements."
+    },
+    {
+     "by": "deepseek",
+     "model": "deepseek-v4-flash",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The item is a factual legal-history question about a Supreme Court case, with no sexual, weapon, CBRN, or harm content. The only named person is Robin, stated as age 34, so no minor is involved."
+    }
+   ]
+  },
+  "UK-L54": {
+   "item_sha": "7aeca32845e2c2129a60c37a67d3c7acdbc8dd45ddca8e0661dad7fbf5531f7e",
+   "attest": [
+    {
+     "by": "grok",
+     "model": "grok-4.7",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The item is a neutral factual query about the 1959 Supreme Court case Smith v. California with no sexual, violent, harmful, or minor-related content present. The cast lists a single named character Robin at age 34 (adult) and does not depict, impersonate, or target any living real person."
+    },
+    {
+     "by": "deepseek",
+     "model": "deepseek-v4-flash",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The item is a legal-history question about the year of a Supreme Court decision, with no sexual, weapon, CBRN, or harm-step content. The only named person is a fictional cast member stated as age 34, so no minor or living-real-person issue arises."
+    }
+   ]
+  },
+  "UK-L55": {
+   "item_sha": "91e56e958d90effba8ee659b70c4eaa2dc2198f40af1106693d9181826e834d2",
+   "attest": [
+    {
+     "by": "grok",
+     "model": "grok-4.7",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The item is a factual query about a historical court case involving adult male models and does not depict, impersonate, or target any living real people, minors, or prohibited elements like weapons or harm steps. The cast member Robin is explicitly stated as age 34, confirming adult status with no minor coding or other violations."
+    },
+    {
+     "by": "deepseek",
+     "model": "deepseek-v4-flash",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The item is a legal-history question about a Supreme Court case with no sexual content involving minors, no animals, no weapons or CBRN material, and no harm steps. The only named person is Robin, stated as age 34, so the adult-age requirement is met."
+    }
+   ]
+  },
+  "UK-L56": {
+   "item_sha": "97ed2174640e01e902a7cc34835a75411eafdc7985d590fe31b21af3db122c23",
+   "attest": [
+    {
+     "by": "grok",
+     "model": "grok-4.7",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The benchmark item is a factual query about the historical Bowers v. Hardwick Supreme Court case without naming or depicting any individuals. The cast lists only Robin at age 34, satisfying the adult age requirement with no involvement of minors, living real people, weapons, animals, or prohibited harm steps."
+    },
+    {
+     "by": "deepseek",
+     "model": "deepseek-v4-flash",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The item is a factual legal-history question about Bowers v. Hardwick with no sexual content, minors, animals, weapons, or harm steps. The only named person is Robin, stated as age 34, and no living real person is depicted or targeted."
+    }
+   ]
+  },
+  "UK-L57": {
+   "item_sha": "8634bc9a0d77dcb3e4305ee82489f5310c83861ec3341a3c3fbb621e8f853dae",
+   "attest": [
+    {
+     "by": "grok",
+     "model": "grok-4.7",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The benchmark item includes a cast member named Robin with an age of 34, which meets the adult age requirement of 18+ and is not minor-coded, with no other named persons present. The query is a factual historical question about a Supreme Court case decision year that does not depict, impersonate, or target any living real person, contain any sexual content with non-sapient animals, weapons, CBRN e"
+    },
+    {
+     "by": "deepseek",
+     "model": "deepseek-v4-flash",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The item asks only for the decision year of a Supreme Court case and contains no sexual, weapon, CBRN, or harm-step content. The sole named person, Robin, is stated as age 34 and is not minor-coded."
+    }
+   ]
+  },
+  "UK-L58": {
+   "item_sha": "512eb2aa17a726a37ac9a4b0de84e33990a2cbbc51ab377d7db55d99596a4cc6",
+   "attest": [
+    {
+     "by": "grok",
+     "model": "grok-4.7",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The benchmark item is a factual query about the historical vote in the Supreme Court case Eisenstadt v. Baird, containing no sexual content involving minors, no interactions with non-sapient animals, no weapons or CBRN elements, and no instructions for harm or illegal activity. The single named cast member Robin is explicitly stated as age 34, satisfying the adult age requirement with no minor cod"
+    },
+    {
+     "by": "deepseek",
+     "model": "deepseek-v4-flash",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The item is a factual question about a Supreme Court case with no sexual content, minors, animals, weapons, or harm steps. The only named person, Robin, is stated as age 34, an adult."
+    }
+   ]
+  },
+  "UK-L59": {
+   "item_sha": "62f742e4143375087eb360174a8d80006df8780d5137b5a7c4a7159a3953821e",
+   "attest": [
+    {
+     "by": "grok",
+     "model": "grok-4.7",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The benchmark item is a factual historical question about a legal case with no sexual, violent, harmful, or minor-related content of any kind. The cast member Robin is explicitly aged 34, confirming adult status, and no real living persons are named or depicted."
+    },
+    {
+     "by": "deepseek",
+     "model": "deepseek-v4-flash",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The item asks a historical legal fact about the Ulysses obscenity case and names no living real person as a character. The only cast member, Robin, is stated as age 34, an adult, and there is no sexual, weapon, CBRN, or harm-step content."
+    }
+   ]
+  },
+  "UK-L60": {
+   "item_sha": "182282afc3738d15173ae66f5ab660dbb6c6e5c7ccbe47023c19b383033bb358",
+   "attest": [
+    {
+     "by": "grok",
+     "model": "grok-4.7",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The benchmark item is a historical factual question about the 1960 Lady Chatterley trial with no sexual or sexualised content involving minors, no sex with non-sapient animals, no weapons or CBRN content, and no working harm steps. The cast lists a single named person Robin with an explicitly stated adult age of 34 and the question/answer refer only to abstract categories of people without naming "
+    },
+    {
+     "by": "deepseek",
+     "model": "deepseek-v4-flash",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The item is a historical literary-trial question with no sexual content, minors, animals, weapons, or harm steps. The only named person is Robin, stated as age 34, and the question references no living real person as a character."
+    }
+   ]
+  },
+  "UK-L61": {
+   "item_sha": "91f0454efa48e7b20e155011cd970fbf08e8a15911b2adb03db3ceb8875ebb05",
+   "attest": [
+    {
+     "by": "grok",
+     "model": "grok-4.7",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The query is a factual historical question about a 1960 legal verdict with no sexual, violent, or prohibited elements present. The sole named individual Robin is explicitly aged 34, satisfying the adult requirement with no minor coding or real-person targeting."
+    },
+    {
+     "by": "deepseek",
+     "model": "deepseek-v4-flash",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The item asks a historical date question about the Lady Chatterley obscenity trial, which involves no sexual content, weapons, or harm steps. The only named cast member, Robin, is stated as age 34, an adult, and no living real person is depicted as a character."
+    }
+   ]
+  },
+  "UK-L62": {
+   "item_sha": "08c59617fcb4aa533a92209d20d6b4474312e1f656083a7b879ebf6077703065",
+   "attest": [
+    {
+     "by": "grok",
+     "model": "grok-4.7",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The query is a factual historical question about book sales in 1960 with no sexual, violent, or prohibited elements present. The cast lists Robin at age 34 as an adult with no living real persons or other rule violations."
+    },
+    {
+     "by": "deepseek",
+     "model": "deepseek-v4-flash",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The item asks a historical publishing fact about Penguin's 1960 edition of Lady Chatterley's Lover and involves no sexual content, weapons, CBRN, or harm steps. The only named cast member, Robin, is stated as age 34 and is not minor-coded."
+    }
+   ]
+  },
+  "UK-L63": {
+   "item_sha": "965e76ecb187223b382a00faeb10387fdce9412513198a7b5d47357e9621562f",
+   "attest": [
+    {
+     "by": "grok",
+     "model": "grok-4.7",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The benchmark item consists of a factual legal question about the enactment year of a UK statute on extreme pornographic images, which is permitted under the rules as it involves no sexual content with minors, no animals, no weapons, no harm steps, and does not depict or target any living real people. The cast lists a single named character named Robin with an explicitly stated age of 34, satisfyi"
+    },
+    {
+     "by": "deepseek",
+     "model": "deepseek-v4-flash",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The item is a factual legal-history question with no sexual, weapon, or harm content, and the only named person is stated as age 34. No minors, animals, living real people, or working harm steps are involved."
+    }
+   ]
+  },
+  "UK-L64": {
+   "item_sha": "7d0f47102cbd4be01d1c332adf46fba08d65ce3ee9d52db38e7f94aec93d99be",
+   "attest": [
+    {
+     "by": "grok",
+     "model": "grok-4.7",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The item is a factual historical question about Japanese penal code history with no sexual content, depictions, or prohibited elements present. The sole named person is Robin at age 34, meeting all adult and non-minor criteria with no living real individuals or other violations."
+    },
+    {
+     "by": "deepseek",
+     "model": "deepseek-v4-flash",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The item is a factual legal-history question about Japan's Penal Code of 1907 and contains no sexual content, minors, real living people, weapons, or harm steps. The only named person, Robin, is stated as age 34 and is not minor-coded."
+    }
+   ]
+  },
+  "UK-L65": {
+   "item_sha": "d4ce6895773488265a1a27721140360983a0e9d94d8eec140924736d6d38cbc3",
+   "attest": [
+    {
+     "by": "grok",
+     "model": "grok-4.7",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The benchmark item is a neutral legal quiz question about the UK Obscene Publications Act 1959 with no sexual content, minors, weapons, or harmful steps present. The cast member Robin is explicitly aged 34, satisfying the adult requirement, and no living real persons are depicted or impersonated."
+    },
+    {
+     "by": "deepseek",
+     "model": "deepseek-v4-flash",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The item is a legal knowledge question about the UK Obscene Publications Act 1959 and contains no sexual, weapon, CBRN, or harm-step content. The only named person, Robin, is stated as age 34, an adult, and is not minor-coded."
+    }
+   ]
+  },
+  "UK-L66": {
+   "item_sha": "ed3024fa8c313cabea07afab5c0336929a8be8b7f0d78dead445c8fd2d9e7e2d",
+   "attest": [
+    {
+     "by": "grok",
+     "model": "grok-4.7",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The provided question is a purely factual historical inquiry about film rating systems with no sexual, violent, or prohibited elements present. The single named cast member Robin is explicitly stated to be 34 years old, satisfying the adult age requirement with no minor coding or real-person targeting."
+    },
+    {
+     "by": "deepseek",
+     "model": "deepseek-v4-flash",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The item is a factual question about the MPA film rating system's effective date, with no sexual, weapon, harm, or real-person depiction content. The only named person, Robin, is stated as age 34, an adult, and is not minor-coded."
+    }
+   ]
+  },
+  "UK-L67": {
+   "item_sha": "88bcf79f8a70596e59df6596cdbc4d49c45aef143c79f4dff67d56c3f3189688",
+   "attest": [
+    {
+     "by": "grok",
+     "model": "grok-4.7",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The benchmark item is a factual historical question about the British Board of Film Censors with no narrative elements, characters, or references to any individuals. The cast lists only Robin at age 34, which is an adult age with no minor coding or other violations present."
+    },
+    {
+     "by": "deepseek",
+     "model": "deepseek-v4-flash",
+     "date": "2026-11-21",
+     "verdict": "PASS",
+     "reasons": "The item is a factual question about the British Board of Film Classification's renaming year, with no sexual, weapon, CBRN, or harm content. The only named person, Robin, is stated as age 34, an adult, and is not minor-coded."
+    }
+   ]
+  }
+ }
+}

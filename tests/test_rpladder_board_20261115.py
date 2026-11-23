@@ -140,6 +140,13 @@ def _part(s):
 
 def test_ladder_mode_scores_half_position_over_four_half_code(monkeypatch):
     p = _load("standard", monkeypatch)
+    # lane-j: the judged part counts once its second-reader marks pass (here: a passing result)
+    # lead 2026-11-19 (b): the result covers this model ("toy") and the runs its rows are from, against the frozen marks
+    from crucibleforge.agree_marks import marks_sha256
+    rids = sorted({str(r["bench_run_id"]) for r in ROWS["deepseek-flash"] if r.get("bench_run_id")})
+    monkeypatch.setattr(report, "judge_marks_result", lambda: {
+        "marks_sha256": marks_sha256(), "covered": {"toy": {"run_ids": rids}},
+        "parts": {"chat/j_rpsession": {"pass": True, "n_units_by_model": {"toy": 12}}}})
     s = _stats(p, _with_ladder(ROWS["deepseek-flash"], p, pos=2.0))
     cs = _part(s)
     assert cs["complete"] and cs["units"] == 12 and cs["pending_judge"] == 0
@@ -193,8 +200,10 @@ def test_missing_or_stale_placements_read_judge_pending(monkeypatch):
     assert cs["pending_judge"] == 12 and not cs["complete"]
     stale = _with_ladder(ROWS["deepseek-flash"], p, tamper=lambda r: r["instrument"].update(ladder_sha="0" * 16))
     assert _part(_stats(p, stale))["pending_judge"] == 12
+    # D13 (lead 2026-11-19 b): another judge's placement is read, and the part names that judge (not comparable)
     other = _with_ladder(ROWS["deepseek-flash"], p, tamper=lambda r: r["instrument"].update(judge_model="x"))
-    assert _part(_stats(p, other))["pending_judge"] == 12
+    oc = _part(_stats(p, other))
+    assert oc["pending_judge"] == 0 and oc["ladder"]["other_judges"] == {"x": 12}
     think = _with_ladder(ROWS["deepseek-flash"], p, tamper=lambda r: r["instrument"].update(thinking=True))
     assert _part(_stats(p, think))["pending_judge"] == 12
     partial = _with_ladder(ROWS["deepseek-flash"], p, tamper=lambda r: r.update(complete=False))

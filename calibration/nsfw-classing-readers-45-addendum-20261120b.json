@@ -1,0 +1,21 @@
+{
+ "about": "Dated readers addendum 2026-11-20 (b, runs-lane pilot): re-names R-Q and R-M by the model id the rig serves (the first 2026-11-20 addendum named them by engine label; the rig answers 404 to a label, so every constructed-set call errored and no C1 was measured for either reader). Same two models, same families, same roles; the 2026-11-19 DeepSeek entry is untouched. Admitted only by a stored C1 pass for the exact model id under the current classing prompt sha. Written 2026-11-20 before any launch row was read.",
+ "written": "2026-11-20",
+ "written_before_launch_rows": true,
+ "readers": {
+  "R-Q": {
+   "provider": "studioforge",
+   "model_id": "llmfan46/Qwen3.8-27B-Ultra-Uncensored-Heretic-Native-MTP-Preserved-NVFP4-GGUF/Qwen3.8-27B-Ultra-Uncensored-Heretic-NVFP4-BF16",
+   "family": "qwen",
+   "hosted": false,
+   "note": "engine label qwen3.8-27b-ultra-heretic-nvfp4"
+  },
+  "R-M": {
+   "provider": "studioforge",
+   "model_id": "bartowski/Nanbeige_Nanbeige4.3-33B-GGUF/Nanbeige_Nanbeige4.3-33B-Q8_0",
+   "family": "nanbeige",
+   "hosted": false,
+   "note": "engine label nanbeige-nanbeige4.3-33b-q8-0"
+  }
+ }
+}

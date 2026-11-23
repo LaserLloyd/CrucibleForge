@@ -1222,6 +1222,7 @@ def acquire_judge_lease(cfg: dict, force_evict: bool = False,
     lease["_model_id"] = serve_id
     lease["_devices"] = list(devices)
     lease["_provider"] = provider
+    lease["_holder"] = holder   # released under the identity that took it
     provider._lease = lease
     # with force_evict the lease itself can evict residents: the guard must
     # restore them even when the phase fails before the judge loads (S5)
@@ -3753,6 +3754,8 @@ def judge_deep_row(jc: JudgeClient, row: dict, samples: int = 1) -> dict:
         if j[0] == "craft":
             return {"sequential": True} if classed and base.get("sequential") and craft_n >= 3 else None
         if not classed:
+            if fact_pol is not None and base.get("ooc_evidence"):
+                return {**fact_pol, "ooc_evidence": True}
             return fact_pol
         g = gsamples.get(j[0], 1)
         out = {**(fact_pol or {"kind": "flag-only"}), "classed": True}
@@ -6006,6 +6009,8 @@ def judge_policy(row: dict, pcfg: dict | None = None, cli_samples: int | None = 
                 out["group_facts"] = pcfg["group_facts"]
                 if pcfg.get("group_window"):
                     out["group_window"] = int(pcfg["group_window"])
+            if pcfg.get("ooc_evidence") and row.get("rubric") == "rp_deep":
+                out["ooc_evidence"] = True    # element mode returns early: same flag as the path below
             return out
     per_row = _row_samples(row, pcfg)
     classed = bool(pcfg.get("element_class"))

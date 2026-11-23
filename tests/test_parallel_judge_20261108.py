@@ -29,6 +29,27 @@ CANON = "llmfan46/gemma-4-31B-it-uncensored-heretic-GGUF/gemma-4-31B-it-uncensor
 ALIAS = CANON + "@b"
 
 
+@pytest.fixture(scope="module", autouse=True)
+def _warm_digest_cache(tmp_path_factory):
+    """The child judges stamp rows from the live case table, which renders every generated case unless its identity
+    digest is cached (digestcache): one shared cache dir for this module's children, warmed once by a child built
+    like theirs, so the 60/120 s child timeouts measure judging, not the cold case table."""
+    from crucibleforge import digestcache
+    d = tmp_path_factory.getbasetemp().parent / "digest-cache-parallel-judge"
+    old = os.environ.get(digestcache.ENV)
+    os.environ[digestcache.ENV] = str(d)
+    code = ("import sys\nsys.path.insert(0, %r)\nfrom crucibleforge import profiles, version\n"
+            "profiles.DEFAULT_PROFILE = profiles.ARCHIVE_PROFILE\nversion.current_case_table()\n" % str(ROOT))
+    r = subprocess.run([sys.executable, "-c", code], cwd=str(ROOT), capture_output=True, text=True,
+                       env={**os.environ, "PYTHONPATH": str(ROOT)})
+    assert r.returncode == 0, r.stderr[-800:]
+    yield
+    if old is None:
+        os.environ.pop(digestcache.ENV, None)
+    else:
+        os.environ[digestcache.ENV] = old
+
+
 # ------------------------------------------------------------------ helpers
 def _rows(label: str, n: int) -> list[dict]:
     return [{"bench_run_id": "r1", "case_id": f"C{i}", "repeat": 1, "turn": None,

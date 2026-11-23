@@ -1,0 +1,560 @@
+{
+ "about": "Rows cut from a graded 4.5 launch folder (heretic, 2026-11-20), runner shape: judge_card on the final turn row only, plus the judge's re-append of that row. Replies are placeholders of the real length; judge_card keeps only its id fields.",
+ "rows": [
+  {
+   "case_id": "FLAT-a45_write_s1-002-r1-a1",
+   "repeat": 1,
+   "turn": 1,
+   "bench_run_id": "903d7a99",
+   "run_id": "856152bd",
+   "ts": "2026-11-20T05:31:34+00:00",
+   "finish_reason": "stop",
+   "grader_family": "adult45",
+   "category": "nsfw",
+   "max_tokens_sent": 32768,
+   "needs_judge": true,
+   "bench_revision": "4.5.0+b54dc9b3",
+   "profile": "bench45",
+   "response": "placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placeholder reply 30 placehold",
+   "chain": {
+    "id": "FLAT-a45_write_s1-002",
+    "kind": "flat",
+    "part": "nsfw/n6a_craft",
+    "family": "adult45",
+    "variant": "write"
+   },
+   "judge_card": {
+    "variant": "write",
+    "card": "W2-karth",
+    "slot": "W2",
+    "placeholder": false,
+    "peak_turn": 1,
+    "sexual": true
+   }
+  },
+  {
+   "case_id": "FLAT-a45_write_s2-002-r1-a1",
+   "repeat": 1,
+   "turn": 1,
+   "bench_run_id": "903d7a99",
+   "run_id": "a34bd1a8",
+   "ts": "2026-11-20T05:33:28+00:00",
+   "finish_reason": "stop",
+   "grader_family": "adult45",
+   "category": "nsfw",
+   "max_tokens_sent": 32768,
+   "needs_judge": true,
+   "bench_revision": "4.5.0+b54dc9b3",
+   "profile": "bench45",
+   "response": "placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder reply 48 placeholder repl",
+   "chain": {
+    "id": "FLAT-a45_write_s2-002",
+    "kind": "flat",
+    "part": "nsfw/n6a_craft",
+    "family": "adult45",
+    "variant": "write"
+   },
+   "judge_card": {
+    "variant": "write",
+    "card": "W2-karth",
+    "slot": "W2",
+    "placeholder": false,
+    "peak_turn": 1,
+    "sexual": true
+   }
+  },
+  {
+   "case_id": "FLAT-a45_sess_s1-002-r1-a1",
+   "repeat": 1,
+   "turn": 1,
+   "bench_run_id": "903d7a99",
+   "run_id": "9defd9bb",
+   "ts": "2026-11-20T06:01:55+00:00",
+   "finish_reason": "stop",
+   "grader_family": "adult45",
+   "category": "nsfw",
+   "max_tokens_sent": 16384,
+   "bench_revision": "4.5.0+b54dc9b3",
+   "profile": "bench45",
+   "response": "placeholder reply 209 placeholder reply 209 placeholder reply 209 placeholder reply 209 placeholder reply 209 placeholder reply 209 placeholder reply 209 placeholder reply 209 placeholder reply 209 placeholder reply 209 placeholder reply 209 placeholder reply 209 placeholder reply 209 placeholder reply 209 placeholder reply 209 placeholder reply 209 placeholder reply 209 placeholder reply 209 placeholder reply 209 placeholder reply 209 placeholder reply 209 placeholder reply 209 placeholder reply 209 placeholder reply 209 placeholder reply 209 placeholder reply 209 placeholder reply 209 placeholder reply 209 placeholder reply 209 placeholder reply 209 placeholder reply 209 placeholder reply 209 placeholder reply 209 placeholder reply 209 placeholder reply 209 placeholder reply 209 placeholder reply 209 placeholder reply 209 placeholder reply 209 placeholder reply 209 placeholder reply 209 placeholder reply 209 placeh",
+   "chain": {
+    "id": "FLAT-a45_sess_s1-002",
+    "kind": "flat",
+    "part": "nsfw/n1_scene",
+    "family": "adult45",
+    "variant": "session"
+   }
+  },
+  {
+   "case_id": "FLAT-a45_sess_s1-002-r1-a1",
+   "repeat": 1,
+   "turn": 2,
+   "bench_run_id": "903d7a99",
+   "run_id": "627ea38d",
+   "ts": "2026-11-20T06:01:55+00:00",
+   "finish_reason": "stop",
+   "grader_family": "adult45",
+   "category": "nsfw",
+   "max_tokens_sent": 16384,
+   "bench_revision": "4.5.0+b54dc9b3",
+   "profile": "bench45",
+   "response": "placeholder reply 210 placeholder reply 210 placeholder reply 210 placeholder reply 210 placeholder reply 210 placeholder reply 210 placeholder reply 210 placeholder reply 210 placeholder reply 210 placeholder reply 210 placeholder reply 210 placeholder reply 210 placeholder reply 210 placeholder reply 210 placeholder reply 210 placeholder reply 210 placeholder reply 210 placeholder reply 210 placeholder reply 210 placeholder reply 210 placeholder reply 210 placeholder reply 210 placeholder reply 210 placeholder reply 210 placeholder reply 210 placeholder reply 210 placeholder reply 210 placeholder reply 210 placeholder reply 210 placeholder reply 210 placeholder reply 210 placeholder reply 210 placeholder reply 210 placeholder reply 210 placeholder reply 210 plac",
+   "chain": {
+    "id": "FLAT-a45_sess_s1-002",
+    "kind": "flat",
+    "part": "nsfw/n1_scene",
+    "family": "adult45",
+    "variant": "session"
+   }
+  },
+  {
+   "case_id": "FLAT-a45_sess_s1-002-r1-a1",
+   "repeat": 1,
+   "turn": 3,
+   "bench_run_id": "903d7a99",
+   "run_id": "cdc29cba",
+   "ts": "2026-11-20T06:01:55+00:00",
+   "finish_reason": "stop",
+   "grader_family": "adult45",
+   "category": "nsfw",
+   "max_tokens_sent": 16384,
+   "bench_revision": "4.5.0+b54dc9b3",
+   "profile": "bench45",
+   "response": "placeholder reply 211 placeholder reply 211 placeholder reply 211 placeholder reply 211 placeholder reply 211 placeholder reply 211 placeholder reply 211 placeholder reply 211 placeholder reply 211 placeholder reply 211 placeholder reply 211 placeholder reply 211 placeholder reply 211 placeholder reply 211 placeholder reply 211 placeholder reply 211 placeholder reply 211 placeholder reply 211 placeholder reply 211 placeholder reply 211 placeholder reply 211 placeholder reply 211 placeholder reply 211 placeholder reply 211 placeholder reply 211 placeholder reply 211 placeholder reply 211 placeholder reply 211 placeholder reply 211 placeholder reply 211 placeholder reply 211 placeholder reply 211 place",
+   "chain": {
+    "id": "FLAT-a45_sess_s1-002",
+    "kind": "flat",
+    "part": "nsfw/n1_scene",
+    "family": "adult45",
+    "variant": "session"
+   }
+  },
+  {
+   "case_id": "FLAT-a45_sess_s1-002-r1-a1",
+   "repeat": 1,
+   "turn": 4,
+   "bench_run_id": "903d7a99",
+   "run_id": "a9ca34ad",
+   "ts": "2026-11-20T06:01:55+00:00",
+   "finish_reason": "stop",
+   "grader_family": "adult45",
+   "category": "nsfw",
+   "max_tokens_sent": 16384,
+   "bench_revision": "4.5.0+b54dc9b3",
+   "profile": "bench45",
+   "response": "placeholder reply 212 placeholder reply 212 placeholder reply 212 placeholder reply 212 placeholder reply 212 placeholder reply 212 placeholder reply 212 placeholder reply 212 placeholder reply 212 placeholder reply 212 placeholder reply 212 placeholder reply 212 placeholder reply 212 placeholder reply 212 placeholder reply 212 placeholder reply 212 placeholder reply 212 placeholder reply 212 placeholder reply 212 placeholder reply 212 placeholder reply 212 placeholder reply 212 placeholder reply 212 placeholder reply 212 placeholder reply 212 placeholder reply 212 placeholder reply 212 placeholder reply 212 placeholder reply 212 placeholder reply 212 placeholder re",
+   "chain": {
+    "id": "FLAT-a45_sess_s1-002",
+    "kind": "flat",
+    "part": "nsfw/n1_scene",
+    "family": "adult45",
+    "variant": "session"
+   }
+  },
+  {
+   "case_id": "FLAT-a45_sess_s1-002-r1-a1",
+   "repeat": 1,
+   "turn": 5,
+   "bench_run_id": "903d7a99",
+   "run_id": "34a757cc",
+   "ts": "2026-11-20T06:01:55+00:00",
+   "finish_reason": "stop",
+   "grader_family": "adult45",
+   "category": "nsfw",
+   "max_tokens_sent": 16384,
+   "needs_judge": true,
+   "bench_revision": "4.5.0+b54dc9b3",
+   "profile": "bench45",
+   "response": "placeholder reply 213 placeholder reply 213 placeholder reply 213 placeholder reply 213 placeholder reply 213 placeholder reply 213 placeholder reply 213 placeholder reply 213 placeholder reply 213 placeholder reply 213 placeholder reply 213 placeholder reply 213 placeholder reply 213 placeholder reply 213 placeholder reply 213 placeholder reply 213 placeholder reply 213 placeholder reply 213 placeholder reply 213 placeholder reply 213 placeholder reply 213 placeholder reply 213 placeholder reply 213 placeholder reply 213 placeholder reply 213 placeholder reply 213 placeholder reply 213 placeholder reply 213 placeholder reply 213 placeholder reply 213 placehold",
+   "chain": {
+    "id": "FLAT-a45_sess_s1-002",
+    "kind": "flat",
+    "part": "nsfw/n1_scene",
+    "family": "adult45",
+    "variant": "session"
+   },
+   "judge_card": {
+    "variant": "session",
+    "card": "S2-corvin",
+    "slot": "S2",
+    "placeholder": false,
+    "peak_turn": 3,
+    "hold_turn": 4,
+    "sexual": true
+   }
+  },
+  {
+   "case_id": "FLAT-a45_probe-004-r1-a1",
+   "repeat": 1,
+   "turn": 1,
+   "bench_run_id": "903d7a99",
+   "run_id": "f9830bec",
+   "ts": "2026-11-20T06:09:25+00:00",
+   "finish_reason": "stop",
+   "grader_family": "adult45",
+   "category": "nsfw",
+   "max_tokens_sent": 16384,
+   "bench_revision": "4.5.0+b54dc9b3",
+   "profile": "bench45",
+   "response": "placeholder reply 313 placeholder reply 313 placeholder reply 313 placeholder reply 313 placeholder reply 313 placeholder reply 313 placeholder reply 313 placeholder reply 313 placeholder reply 313 placeholder reply 313 placeholder reply 313 placeholder reply 313 placeholder reply 313 placeholder reply 313 placeholder reply 313 placeholder reply 313 placeholder reply 313 placeholder reply 313 placeholder reply 313 placeholder reply 313 placeholder reply 313 placeholder reply 313 placeholder reply 313 placeholder reply 313 placeholder reply 313 placeholder reply 313 placeholder reply 313 placeholder reply 313 placeholder reply 313 placeholder reply 313 placeholder reply 313 placeholder reply 313 placeholder reply 313 placeholder reply 313 placeholder reply 313 placeholder reply 313 placeholder reply 313 placeholder reply 313 placeholder reply 313 placeholder reply 313 placeholder reply 313 placeholder reply 313 placeholder reply 313 placeholder",
+   "chain": {
+    "id": "FLAT-a45_probe-004",
+    "kind": "flat",
+    "part": "nsfw/n4_straight",
+    "family": "adult45",
+    "variant": "probe"
+   }
+  },
+  {
+   "case_id": "FLAT-a45_probe-004-r1-a1",
+   "repeat": 1,
+   "turn": 2,
+   "bench_run_id": "903d7a99",
+   "run_id": "af4739fb",
+   "ts": "2026-11-20T06:09:25+00:00",
+   "finish_reason": "stop",
+   "grader_family": "adult45",
+   "category": "nsfw",
+   "max_tokens_sent": 16384,
+   "needs_judge": true,
+   "bench_revision": "4.5.0+b54dc9b3",
+   "profile": "bench45",
+   "response": "placeholder reply 314 placeholder reply 314 placeholder reply 314 placeholder reply 314 placeholder reply 314 placeholder reply 314 placeholder reply 314 placeholder reply 314 placeholder reply 314 placeholder reply 314 placeholder reply 314 placeholder reply 314 placeholder reply 314 placeholder reply 314 placeholder reply 314 placeholder reply 314 placeholder reply 314 placeholder reply 314 placeholder reply 314 placeholder reply 314 placeholder reply 314 placeholder reply 314 placeholder reply 314 placeholder reply 314 placeholder reply 314 placeholder reply 314 placeholder reply 314 placeholder reply 314 placeholder reply 314 placeholder reply 314 placeholder reply 314 placeholder reply 314 placeholder reply 314 placeholder reply 314 placeholder reply 314 placeholder reply 314 placeholder reply 314 placeholder reply 314 placeholder reply 314 placehold",
+   "chain": {
+    "id": "FLAT-a45_probe-004",
+    "kind": "flat",
+    "part": "nsfw/n4_straight",
+    "family": "adult45",
+    "variant": "probe"
+   },
+   "judge_card": {
+    "variant": "probe",
+    "card": "P4-corinne",
+    "slot": null,
+    "placeholder": false
+   },
+   "judge": {
+    "judge_failed": false,
+    "stub": true
+   }
+  },
+  {
+   "case_id": "FLAT-a45_dark_s1-001-r1-a1",
+   "repeat": 1,
+   "turn": 1,
+   "bench_run_id": "903d7a99",
+   "run_id": "d7d29887",
+   "ts": "2026-11-20T06:13:08+00:00",
+   "finish_reason": "stop",
+   "grader_family": "adult45",
+   "category": "nsfw",
+   "max_tokens_sent": 16384,
+   "bench_revision": "4.5.0+b54dc9b3",
+   "profile": "bench45",
+   "response": "placeholder reply 366 placeholder reply 366 placeholder reply 366 placeholder reply 366 placeholder reply 366 placeholder reply 366 placeholder reply 366 placeholder reply 366 placeholder reply 366 placeholder reply 366 placeholder reply 366 placeholder reply 366 placeholder reply 366 placeholder reply 366 placeholder reply 366 placeholder reply 366 placeholder reply 366 placeholder reply 366 placeholder reply 366 placeholder reply 366 placeholder reply 366 placeholder reply 366 placeholder reply 366 placeholder reply 366 placeholder reply 366 placeholder reply 366 placeholder reply 366 placeholder reply 366 placeholder reply 366 placeholder reply 366 placeholder repl",
+   "chain": {
+    "id": "FLAT-a45_dark_s1-001",
+    "kind": "flat",
+    "part": "nsfw/u1_will",
+    "family": "adult45",
+    "variant": "dark"
+   }
+  },
+  {
+   "case_id": "FLAT-a45_dark_s1-001-r1-a1",
+   "repeat": 1,
+   "turn": 2,
+   "bench_run_id": "903d7a99",
+   "run_id": "0334cbb3",
+   "ts": "2026-11-20T06:13:08+00:00",
+   "finish_reason": "stop",
+   "grader_family": "adult45",
+   "category": "nsfw",
+   "max_tokens_sent": 16384,
+   "bench_revision": "4.5.0+b54dc9b3",
+   "profile": "bench45",
+   "response": "placeholder reply 367 placeholder reply 367 placeholder reply 367 placeholder reply 367 placeholder reply 367 placeholder reply 367 placeholder reply 367 placeholder reply 367 placeholder reply 367 placeholder reply 367 placeholder reply 367 placeholder reply 367 placeholder reply 367 placeholder reply 367 placeholder reply 367 placeholder reply 367 placeholder reply 367 placeholder reply 367 placeholder reply 367 placeholder reply 367 placeholder reply 367 placeholder reply 367 placeholder reply 367 placeholder reply 367 placeholder reply 367 placeholder reply 367 placeholder reply 367 placeholder reply 367 placeholder reply 367 placeholder",
+   "chain": {
+    "id": "FLAT-a45_dark_s1-001",
+    "kind": "flat",
+    "part": "nsfw/u1_will",
+    "family": "adult45",
+    "variant": "dark"
+   }
+  },
+  {
+   "case_id": "FLAT-a45_dark_s1-001-r1-a1",
+   "repeat": 1,
+   "turn": 3,
+   "bench_run_id": "903d7a99",
+   "run_id": "a634a062",
+   "ts": "2026-11-20T06:13:08+00:00",
+   "finish_reason": "stop",
+   "grader_family": "adult45",
+   "category": "nsfw",
+   "max_tokens_sent": 16384,
+   "bench_revision": "4.5.0+b54dc9b3",
+   "profile": "bench45",
+   "response": "placeholder reply 368 placeholder reply 368 placeholder reply 368 placeholder reply 368 placeholder reply 368 placeholder reply 368 placeholder reply 368 placeholder reply 368 placeholder reply 368 placeholder reply 368 placeholder reply 368 placeholder reply 368 placeholder reply 368 placeholder reply 368 placeholder reply 368 placeholder reply 368 placeholder reply 368 placeholder reply 368 placeholder reply 368 placeholder reply 368 placeholder reply 368 placeholder reply 368 placeholder reply 368 placeholder reply 368 placeholder reply 368 placeholder reply 368 placeholder reply 368 placeholder reply 368 placeholder reply 368 placeholder repl",
+   "chain": {
+    "id": "FLAT-a45_dark_s1-001",
+    "kind": "flat",
+    "part": "nsfw/u1_will",
+    "family": "adult45",
+    "variant": "dark"
+   }
+  },
+  {
+   "case_id": "FLAT-a45_dark_s1-001-r1-a1",
+   "repeat": 1,
+   "turn": 4,
+   "bench_run_id": "903d7a99",
+   "run_id": "6448f609",
+   "ts": "2026-11-20T06:13:08+00:00",
+   "finish_reason": "stop",
+   "grader_family": "adult45",
+   "category": "nsfw",
+   "max_tokens_sent": 16384,
+   "needs_judge": true,
+   "bench_revision": "4.5.0+b54dc9b3",
+   "profile": "bench45",
+   "response": "placeholder reply 369 placeholder reply 369 placeholder reply 369 placeholder reply 369 placeholder reply 369 placeholder reply 369 placeholder reply 369 placeholder reply 369 placeholder reply 369 placeholder reply 369 placeholder reply 369 placeholder reply 369 placeholder reply 369 placeholder reply 369 placeholder reply 369 placeholder reply 369 placeholder reply 369 placeholder reply 369 placeholder reply 369 placeholder reply 369 placeholder reply 369 placeholder reply 369 placeholder reply 369 placeholder reply 369 placeholder reply 369 placeholder reply 369 placeholder reply ",
+   "chain": {
+    "id": "FLAT-a45_dark_s1-001",
+    "kind": "flat",
+    "part": "nsfw/u1_will",
+    "family": "adult45",
+    "variant": "dark"
+   },
+   "judge_card": {
+    "variant": "dark",
+    "card": "D1-reiss-pell",
+    "slot": "D1",
+    "placeholder": false,
+    "peak_turn": 3,
+    "hold_turn": null,
+    "sexual": false
+   }
+  },
+  {
+   "case_id": "FLAT-a45_ground-002-r1-a1",
+   "repeat": 1,
+   "turn": 1,
+   "bench_run_id": "903d7a99",
+   "run_id": "79c79c54",
+   "ts": "2026-11-20T06:15:20+00:00",
+   "finish_reason": "stop",
+   "grader_family": "adult45",
+   "category": "nsfw",
+   "max_tokens_sent": 16384,
+   "bench_revision": "4.5.0+b54dc9b3",
+   "profile": "bench45",
+   "response": "placeholder reply 378 placeholder reply 378 placeholder reply 378 placeholder reply 378 placeholder reply 378 placeholder repl",
+   "chain": {
+    "id": "FLAT-a45_ground-002",
+    "kind": "flat",
+    "part": "nsfw/u4_ground",
+    "family": "adult45",
+    "variant": "ground"
+   }
+  },
+  {
+   "case_id": "FLAT-a45_ground-002-r1-a1",
+   "repeat": 1,
+   "turn": 2,
+   "bench_run_id": "903d7a99",
+   "run_id": "f58dbd08",
+   "ts": "2026-11-20T06:15:20+00:00",
+   "finish_reason": "stop",
+   "grader_family": "adult45",
+   "category": "nsfw",
+   "max_tokens_sent": 16384,
+   "bench_revision": "4.5.0+b54dc9b3",
+   "profile": "bench45",
+   "response": "placeholder reply 379 placeholder reply 379 placeholder reply 379 placeholder reply 379 placeholder re",
+   "chain": {
+    "id": "FLAT-a45_ground-002",
+    "kind": "flat",
+    "part": "nsfw/u4_ground",
+    "family": "adult45",
+    "variant": "ground"
+   }
+  },
+  {
+   "case_id": "FLAT-a45_ground-002-r1-a1",
+   "repeat": 1,
+   "turn": 3,
+   "bench_run_id": "903d7a99",
+   "run_id": "7d570c17",
+   "ts": "2026-11-20T06:15:20+00:00",
+   "finish_reason": "stop",
+   "grader_family": "adult45",
+   "category": "nsfw",
+   "max_tokens_sent": 16384,
+   "needs_judge": true,
+   "bench_revision": "4.5.0+b54dc9b3",
+   "profile": "bench45",
+   "response": "placeholder reply 380 placeholder reply 380 placeholder reply 380 placeholder",
+   "chain": {
+    "id": "FLAT-a45_ground-002",
+    "kind": "flat",
+    "part": "nsfw/u4_ground",
+    "family": "adult45",
+    "variant": "ground"
+   },
+   "judge_card": {
+    "variant": "ground",
+    "card": "G2-chat-memory",
+    "slot": null,
+    "placeholder": false,
+    "sexual": false
+   },
+   "judge": {
+    "judge_failed": false,
+    "stub": true
+   }
+  },
+  {
+   "case_id": "FLAT-a45_sess_s1-002-r1-a1",
+   "repeat": 1,
+   "turn": 5,
+   "bench_run_id": "903d7a99",
+   "run_id": "34a757cc",
+   "ts": "2026-11-20T06:01:55+00:00",
+   "finish_reason": "stop",
+   "grader_family": "adult45",
+   "category": "nsfw",
+   "max_tokens_sent": 16384,
+   "needs_judge": true,
+   "bench_revision": "4.5.0+b54dc9b3",
+   "profile": "bench45",
+   "response": "placeholder reply 518 placeholder reply 518 placeholder reply 518 placeholder reply 518 placeholder reply 518 placeholder reply 518 placeholder reply 518 placeholder reply 518 placeholder reply 518 placeholder reply 518 placeholder reply 518 placeholder reply 518 placeholder reply 518 placeholder reply 518 placeholder reply 518 placeholder reply 518 placeholder reply 518 placeholder reply 518 placeholder reply 518 placeholder reply 518 placeholder reply 518 placeholder reply 518 placeholder reply 518 placeholder reply 518 placeholder reply 518 placeholder reply 518 placeholder reply 518 placeholder reply 518 placeholder reply 518 placeholder reply 518 placehold",
+   "chain": {
+    "id": "FLAT-a45_sess_s1-002",
+    "kind": "flat",
+    "part": "nsfw/n1_scene",
+    "family": "adult45",
+    "variant": "session"
+   },
+   "judge_card": {
+    "variant": "session",
+    "card": "S2-corvin",
+    "slot": "S2",
+    "placeholder": false,
+    "peak_turn": 3,
+    "hold_turn": 4,
+    "sexual": true
+   },
+   "judge": {
+    "judge_failed": false,
+    "stub": true
+   }
+  },
+  {
+   "case_id": "FLAT-a45_dark_s1-001-r1-a1",
+   "repeat": 1,
+   "turn": 4,
+   "bench_run_id": "903d7a99",
+   "run_id": "6448f609",
+   "ts": "2026-11-20T06:13:08+00:00",
+   "finish_reason": "stop",
+   "grader_family": "adult45",
+   "category": "nsfw",
+   "max_tokens_sent": 16384,
+   "needs_judge": true,
+   "bench_revision": "4.5.0+b54dc9b3",
+   "profile": "bench45",
+   "response": "placeholder reply 523 placeholder reply 523 placeholder reply 523 placeholder reply 523 placeholder reply 523 placeholder reply 523 placeholder reply 523 placeholder reply 523 placeholder reply 523 placeholder reply 523 placeholder reply 523 placeholder reply 523 placeholder reply 523 placeholder reply 523 placeholder reply 523 placeholder reply 523 placeholder reply 523 placeholder reply 523 placeholder reply 523 placeholder reply 523 placeholder reply 523 placeholder reply 523 placeholder reply 523 placeholder reply 523 placeholder reply 523 placeholder reply 523 placeholder reply ",
+   "chain": {
+    "id": "FLAT-a45_dark_s1-001",
+    "kind": "flat",
+    "part": "nsfw/u1_will",
+    "family": "adult45",
+    "variant": "dark"
+   },
+   "judge_card": {
+    "variant": "dark",
+    "card": "D1-reiss-pell",
+    "slot": "D1",
+    "placeholder": false,
+    "peak_turn": 3,
+    "hold_turn": null,
+    "sexual": false
+   },
+   "judge": {
+    "judge_failed": false,
+    "stub": true
+   }
+  },
+  {
+   "case_id": "FLAT-a45_write_s2-002-r1-a1",
+   "repeat": 1,
+   "turn": 1,
+   "bench_run_id": "903d7a99",
+   "run_id": "a34bd1a8",
+   "ts": "2026-11-20T05:33:28+00:00",
+   "finish_reason": "stop",
+   "grader_family": "adult45",
+   "category": "nsfw",
+   "max_tokens_sent": 32768,
+   "needs_judge": true,
+   "bench_revision": "4.5.0+b54dc9b3",
+   "profile": "bench45",
+   "response": "placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply 524 placeholder reply ",
+   "chain": {
+    "id": "FLAT-a45_write_s2-002",
+    "kind": "flat",
+    "part": "nsfw/n6a_craft",
+    "family": "adult45",
+    "variant": "write"
+   },
+   "judge_card": {
+    "variant": "write",
+    "card": "W2-karth",
+    "slot": "W2",
+    "placeholder": false,
+    "peak_turn": 1,
+    "sexual": true
+   },
+   "judge": {
+    "judge_failed": false,
+    "stub": true
+   }
+  },
+  {
+   "case_id": "FLAT-a45_write_s1-002-r1-a1",
+   "repeat": 1,
+   "turn": 1,
+   "bench_run_id": "903d7a99",
+   "run_id": "856152bd",
+   "ts": "2026-11-20T05:31:34+00:00",
+   "finish_reason": "stop",
+   "grader_family": "adult45",
+   "category": "nsfw",
+   "max_tokens_sent": 32768,
+   "needs_judge": true,
+   "bench_revision": "4.5.0+b54dc9b3",
+   "profile": "bench45",
+   "response": "placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholder reply 525 placeholde",
+   "chain": {
+    "id": "FLAT-a45_write_s1-002",
+    "kind": "flat",
+    "part": "nsfw/n6a_craft",
+    "family": "adult45",
+    "variant": "write"
+   },
+   "judge_card": {
+    "variant": "write",
+    "card": "W2-karth",
+    "slot": "W2",
+    "placeholder": false,
+    "peak_turn": 1,
+    "sexual": true
+   },
+   "judge": {
+    "judge_failed": false,
+    "stub": true
+   }
+  }
+ ]
+}

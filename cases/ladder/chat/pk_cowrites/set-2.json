@@ -1,0 +1,18 @@
+{
+ "level": 2,
+ "points": 1.0,
+ "item": "ISTACK-WRITE-L7L8",
+ "category": "rpdeep",
+ "budget": 32768,
+ "context": 73728,
+ "note": "LIVE (realign45-packs-chat, wired at integration 2026-11-20): part chat/pk_<segment> in the standard composition, gate = the segment standard share (crucibleforge/packs45.py). istack write rungs 7 and 8 x2 (engine gen/istack.py variant write, 20 code checks, no judge): constraint-stacked writing. Write L7 completion tokens H 9.9k, S 3.6k, F 1.9k (G1 row 13); no score table on file, so the screen decides.",
+ "generator": {
+  "family": "istack",
+  "variant": "write",
+  "rungs": [
+   7,
+   8
+  ],
+  "per_rung": 2
+ }
+}

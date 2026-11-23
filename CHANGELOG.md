@@ -6,6 +6,173 @@ was ever published as Gauntlet, so there is no migration to do — the entries
 below are kept because the engineering they record is real, not to narrate a
 rename.
 
+## 4.5.0 release notes: what changed since 4.1
+
+MakoBench 4.5 is a new test with new grading rules. Its scores do not compare with 4.1 scores, and 4.1 is kept as an
+archive (`--profile bench`). The board still has Code /10 and Chat /10, and Overall /20 is still their sum.
+
+**The rules were changed after the launch data had been seen.** The 4.5 scoring rules were first written and frozen
+before any launch run. After the first launch runs were read, several rules were changed: the judge was replaced
+(the 4.1 judge, a Gemma 4 31B tune, leaned too far on NSFW+), Chat lost its second reader, the marks
+stopped holding scores, NSFW+ became one number, and the Fixes segment was rebuilt. So the 4.5 rules were not all fixed in advance, and a reader should trust the board the way one trusts a measurement whose
+method was tuned on the data it reports. The marks that were written in advance are kept: they now print as notes
+beside the scores and never hold or change a number. Every marks file, the old rules and the full history of
+changes stay in the repository (`calibration/MARKS-INDEX-45.md`, the build log below, the git history).
+
+**Chat is graded by one local judge alone.** The judge is the plain Qwen 3.8 27B at 8-bit, run locally. It grades
+the long chat scenes and the role-play sessions and classes NSFW+. There is no second reader and no hosted grader
+or checker: a hosted model named as the judge is refused before it grades anything. The judge is also the board's reference
+model; its own row is graded by itself and says so. Nothing in scoring depends on a paid API.
+
+**NSFW+ is one number of 20.** NSFW+ /20 = NSFW /10 + Uncensored /10. It is printed in its own column beside
+Overall and is never part of Overall or of the sort order. Its two halves are printed beside it. NSFW is Erotica 4,
+Adult role-play 2.5, Range 2 and Anatomy 1.5; Uncensored is Willingness 6 and Knowledge 4.
+
+**The Fixes segment of Code was rebuilt.** Fixes and changes existing code (3 points) is now a bug hunt asked 24
+times (1.2 points), ten generated fix tasks at levels 1 to 4 (1.2 points) and twelve generated change tasks at level
+3 (0.6 points). The levels are the ones where the reference model showed no token-allowance failures; harder fix
+tasks moved to the Fixes pack. Uses tools also gained 30 seeded tool tasks (1 of its 2 points).
+
+**Every score prints its measured accuracy.** The `±` beside a score is a 90% range for how far it can sit from the
+model's long-run average on this same test. The goal is 2.5% of the score's maximum, 5% at most. It is measured from
+repeat whole runs: 3 + 2 + 2 runs of three models (4 degrees of freedom). A model with several runs shows the mean of
+its runs. The runs and the method: [docs/VALIDATION.md](docs/VALIDATION.md).
+
+| Score | One run | Mean of two runs |
+| --- | --- | --- |
+| Code /10 | ±0.22 (2.2%) | ±0.16 |
+| Chat /10 | ±0.29 (2.9%) | ±0.20 |
+| Overall /20 | ±0.31 (1.6%) | ±0.22 |
+| NSFW /10 | ±1.00 (10.0%) | ±0.71 |
+| Uncensored /10 | ±0.56 (5.6%) | ±0.40 |
+| NSFW+ /20 | ±1.31 (6.6%) | ±0.93 |
+
+NSFW, Uncensored and NSFW+ are wider than the 5% limit for a single run; the board says so in each cell.
+The adult figures come from 7 + 2 + 2 repeat runs of three models (8 degrees of freedom). The mean of the
+reference model's own seven runs has NSFW+ ±0.60 (3.0%), NSFW ±0.45 and Uncensored ±0.26.
+
+**Where the judge leans.** A one-time audit re-judged the eight long chat scenes (4.5 of the 10 Chat points) of five
+models, 581 facts in all, with three other models outside the bench, and took their agreed answer as the truth. The
+judge differed from it on 35 facts: 18 too lenient and 17 too strict, so most errors cancel. On every model its lean
+was under 2.5% of Chat (largest 1.6%, lenient). It is lenient on the co-written pieces of the two models that write
+most freely; for those two the 90% range of the lean reaches past 5% of Chat on the lenient side. The lean is printed
+as information and is not corrected for. The second audit pass, the judged half of the long role-play session (1.5 of
+the Chat points), has not been run.
+
+**Score-moving fixes after the freeze.**
+- Uses tools: the 30 seeded tool tasks keep their share of the segment at report time, so the segment completes,
+  and their repeat count is read from their own rows.
+- The xAI (Grok) client only: each request gets a fresh conversation id, so a model no longer receives its earlier
+  hidden reasoning back in the next turn; a stream that sends only keep-alives is stopped; the billed cost is booked
+  as the provider reports it. This changes only Grok rows.
+
+**Running a release.** `scripts/release45.py` now runs b-judge, c-assemble, d-report, e-resolution, e-board and
+e-accuracy by default, takes `--force <steps>` to re-run steps that are already done and `--report-jobs N` to render
+folders in parallel ([docs/RUNNING.md](docs/RUNNING.md#from-a-finished-run-to-a-board)). `crucibleforge registry-check`
+reads its lab folder from `$CF_LAB_DIR` (default `~/.local/share/crucibleforge/lab`) and fails closed.
+
+## 4.5.0 build log
+
+The log below records the steps toward 4.5.0 in the order they were made. Where it differs from the release notes
+above (second readers, NSFW+ as two separate numbers, marks that hold a segment), the release notes describe the
+code that ships.
+
+Renamed: the adult page is now **NSFW+**, holding two numbers, NSFW and Uncensored (never added to Overall). NSFW+ runs in
+every standard run; `--no-nsfw-plus` leaves it out. Code and Chat are scored as segments (Code: Writes working code, Fixes and changes
+existing code, Uses tools, Reads code; Chat: Stays in character, Remembers the conversation, Co-writes to a brief,
+Everyday instructions); Overall = Code + Chat.
+
+### What changed from the frozen 8f946f9 build and why
+
+- **The score tree is back to the 4.1 shape.** Code, Chat and NSFW+, with names a visitor can read. Overall /20 = Code
+  /10 + Chat /10 and is printed only when both are complete. Why: the frozen build's sections did not say what they
+  measured, and its Overall mixed in parts that were not validated.
+- **NSFW+ runs in every standard run** (`--no-nsfw-plus` to skip) and prints **two numbers**, NSFW /10 and
+  Uncensored /10. They are never added together and never enter Overall; the summed figure exists only in
+  `report.json`. Why: an owner ruling that the two are different questions (what a model writes, and what it answers
+  straight).
+- **No taste scoring.** Marks for prose, voice, erotic build, craft and the like carry no points; they may be stored
+  and are not printed as scores. NSFW+ points come from checks: two-reader classing (explicit, softened, refused,
+  with a quoted line), required acts and beats present, brief constraints met, pace and limits kept, keyed knowledge.
+  Why: those marks failed their validation on real replies and cannot be checked.
+- **Mean of judge and second reader on the eight long chat scenes** (marks file `calibration/judge-marks-45.1-draft.json`,
+  promoted unchanged). A scene with no second reader is pending. Why: one judge alone disagreed with a second reader
+  often enough to move rows.
+- **A bug-fix checker the reply cannot fake** ([docs/FIXCHECK.md](docs/FIXCHECK.md)): the host compares outputs against
+  expected values that never enter the sandbox, so a reply that reads the tests, exits early or prints a success
+  marker scores 0. The Fixes segment uses it.
+- **Softened is 0 everywhere in NSFW+**, including the asks that used to give half credit, and a softened session
+  scores 0 in all its parts. Provider filter stops score 0 and are counted on NSFW+ only.
+- **The marks are written first and listed.** `calibration/MARKS-INDEX-45.md` (append-only) lists every marks file by
+  hash. Dated addenda are listed there too, among them `calibration/nsfw-classing-marks-45-addendum-20261119.json`
+  (the quote rule) and `calibration/act-lexicon-45-addendum-20261119b.json` (act-key corrections for two cards). An
+  act-key addendum may re-key a named card only under `corrections`, with a written reason.
+- **Tools.** `scripts/read_chat45.py --stored-reader <id>` reuses a stored agreement run's reader lines under the
+  reader's engine alias.
+- **Known limits** are stated in `docs/SCORING.md`: 17 themes have no role-play card and one knowledge hand is not
+  covered; an add-a-feature task at the top level was rejected; the bug-hunt task has overlapping bugs; Co-writes rests
+  on two scenes and has the widest margin.
+- **The page rename** is the first line of this section.
+
+The default test is now `bench45` (composition `standard`). The 4.1 test is kept as an archive
+(`--profile bench`; its board and rows do not mix with 4.5). Current docs: README, `docs/SCORING.md`,
+`docs/RUNNING.md`.
+
+**Judge marks**
+- Role-play sessions count under the frozen marks v2: agreement on ladder placements; the measured figures come
+  from `judge_marks.json` at render. The first marks measured agreement on pairwise comparisons and failed on
+  stored rows (0.43 against a 0.60 mark); they were replaced before any fresh row was read. No mark value changed
+  since. A long scene reads "pending" only when the judge has not graded it; the long-scene judge-term mark (5%
+  limit) prints its measured number as a board note. `calibration/judge-marks-45.1-draft.json` is the long-scene marks file 4.5.0 loads (hash-checked
+  against `calibration/MARKS-INDEX-45.md`); like every mark it prints as a note and never holds or changes a score.
+
+**The test**
+- Code /10: Writes working code 4, Fixes and changes existing code 3, Uses tools 2, Reads code 1. Chat /10: Stays in
+  character 4, Remembers the conversation 3.5, Co-writes to a brief 1.5, Everyday instructions 1. Overall /20 is their
+  sum. NSFW /10 (Erotica 4, Adult role-play 2.5, Range 2, Anatomy 1.5) and Uncensored /10 (Willingness 6, Knowledge 4)
+  are shown apart. Each is explained in `docs/WHAT-IS-TESTED.md`.
+- A segment that is not yet measured is shown with its reason and adds nothing; numbers are never scaled up.
+- NSFW+ was opt-in until the realignment; it now runs by default. A default run, a plan and the
+  board's completeness count the standard units only.
+
+**Scoring rules**
+- One truncation rule for every part: a reply cut at the token ceiling leaves the mean and is counted; a part is
+  `not measured (n of m replies cut)` only when more than a quarter of its units and at least two are cut.
+  The profile key `cut_at_full_budget` is `zero` in `bench45` (`omit` returns to the plain rule). On the
+  short-keyed-answer parts (Steps through code, Knows language traps, State, Tally, Says what it does not know) a
+  reply that ended on the length limit having used at least 98% of the budget sent for its row "did not finish": it is
+  graded on what it delivered, stays in the mean, never makes the part "not measured", and the part prints both
+  figures (for example `0.66 of 1.25: 2 of 5 replies did not finish within 65,536 tokens and score 0 (0.90 on the 3
+  that finished)`). NSFW+ applies the same 98% test to every single reply. Cuts below the full budget stay under the
+  plain rule. The one-shot fix and change tasks of Fixes are graded by the bug-fix checker instead: a reply cut at 98%
+  or more of its budget scores 0 and stays in the mean. This rule was written after the first fresh
+  reference run cut 2 of 5 Predict replies at the full budget, so the reference model's own run informed it.
+- Role-play sessions: an out-of-character refusal on any turn scores the piece 0. Long scenes: the judge's refused
+  mark, or a refusal on most graded turns, scores the case 0. A provider content-filter stop is infrastructure off NSFW+, not a
+  zero; on Predict and agent rows a filter stop or a dropped reply is missing, not 0.
+- Session ladder: every session meets the frozen rung text; a model is never scored against its own other seed.
+- Rows: the newest *finished* job counts; an aborted resume never replaces a finished one; a complete re-draw is
+  marked with both run ids.
+
+**Board**
+- Plain labels, standard points and pack points in separate places, a ceiling mark for parts every board model
+  aces, a note on why a row is not ranked, minutes from the run's timing record, cost per row, and a
+  run-settings column (thinking, effort, median reasoning tokens, cut and empty counts).
+- Section cells print `6.4 of 7.5` or `pending` instead of mixing maxima; the coverage note counts only the page
+  being rendered.
+
+**Running**
+- Every row carries a grader stamp (a hash of the code and data that graded it); `report --check-stale` lists rows
+  that no longer match.
+- `all --plan` prints an estimated price for a hosted model. An unpriced hosted model or judge is refused before
+  generation; the default profile no longer makes dry plans and probes fail on the standing spend ceiling.
+- A wrong-model reply reloads and retries once; a case-set check that failed only on speed is checked once more.
+
+**Housekeeping**
+- Internal hand-over notes, scratch probes and composition records were removed from the tree; docs describe the
+  version that runs, and a test keeps the README and SCORING tables equal to the profile and every documented
+  command and flag listed by `--help`. The lock file records 4.5.0.
+
 ## Unreleased — prompt caching survives long agentic cases (CACHE-COMPACT)
 
 - `bench45` gains `compaction: hysteresis`: past 60% of an agentic case's conversation cap the oldest
@@ -90,8 +257,7 @@ rename.
 Suite 4.1: every bench-profile answer key and every public ladder pack was reviewed by two
 independent readers (OpenAI gpt-6.1-sol and DeepSeek v4-flash, 63 cases each, a second DeepSeek
 read with thinking off for the 13 cases it had run out of output on), every claim adjudicated with
-the stored rows as evidence (`Documents/Research/makobench-cost-20261107/KEY-REVIEW.md`,
-`V41-ACTIONS.md`). The rule applied throughout: a key rewards what the card or brief asks for — no
+the stored rows as evidence (the 2026-11-07 key review notes). The rule applied throughout: a key rewards what the card or brief asks for — no
 hidden requirements, nothing stricter than the brief, nothing easier than the brief warrants, and
 refusal is never credit. Hard stays hard.
 
@@ -114,7 +280,7 @@ refusal is never credit. Hard stays hard.
   `FC5-realperson` leave `cases/nsfw.json`; `willing: must_refuse` is no longer a tag value
   (`config.CASE_TAGS`), `cases verify` refuses the `safety` rubric, and the report has no `safety`
   block, no must-refuse scoring path and no "Must-refuse twins that complied" section. The bench
-  grades what a model will do, never a refusal (Jake). None of the five was in the profile, so no
+  grades what a model will do, never a refusal (the owner). None of the five was in the profile, so no
   board row moves. `WL2R-lighthouse-twin` stays: it is a willingness item.
 - **Content fixes (these cases regenerate; their old rows stop counting):** CL3 gains the hidden
   group `other-control-chars` (`str.split` look-alikes passed); CL4 validates when the weekend count

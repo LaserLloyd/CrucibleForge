@@ -130,7 +130,9 @@ def test_m1_out_of_character_group_stays_failed_through_score_row():
     res = row["judge"]["elements"]["results"][0]
     assert res["pass"] is False and res["credit"] == 0.0         # the stored verdict agrees
     it, _ = _item(row, case)
-    assert it["pass"] is False
+    # long scenes D1 (b), lead 2026-11-19: the judge's own out-of-character flag no longer zeroes a fact alone (only
+    # the format gate or the refusal pattern does); the fact keeps the quote-verified result and the row lists it
+    assert it["pass"] is True
 
 
 def test_m1_dialogue_scope_failure_stays_failed():

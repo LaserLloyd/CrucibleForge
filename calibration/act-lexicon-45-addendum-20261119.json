@@ -1,0 +1,22 @@
+{
+ "about": "Dated addendum to act-lexicon-45.json (W5, 2026-11-19, written before any launch row was scored). Keys the ten sexual cards the lexicon left unkeyed, with the lexicon's own act types plus three new types (scat, cut, brand) for acts no existing type covers. Same rule: every term group of the type matches inside one window of 3 consecutive sentences of the scored region, case-insensitive. Plainness stays with the classing readers. The base lexicon is not edited; this file cannot re-key or redefine anything in it.",
+ "written": "2026-11-19",
+ "written_before_launch_rows": true,
+ "type_groups": {
+  "scat": ["\\b(?:shit\\w*|shat|turd\\w*|crap\\w*|fec\\w*|excrement\\w*|dung|stool)", "\\b(?:smear\\w*|cover\\w*|feed\\w*|fed|eat\\w*|mouth|tits|breasts|skin|rub\\w*|spread\\w*|on her|over her|onto her)"],
+ "cut": ["\\b(?:cut\\w*|slic\\w*|knife|blade|slash\\w*|carv\\w*|razor)", "\\b(?:bleed\\w*|blood\\w*|breast\\w*|cunt|tits|nipple\\w*|skin|thigh)"],
+ "brand": ["\\b(?:brand\\w*|sigil|burn\\w*|sear\\w*)", "\\b(?:thigh|skin|flesh|hip|mark\\w*|iron)"]
+ },
+ "cards": {
+  "S4b-wystan": {"comes-inside": "come", "breeding-talk": "breed"},
+  "S4c-anselm": {"comes-inside": "come", "breeding-talk": "breed"},
+  "S4d-ilse": {"ride-penetration": "vag", "comes-inside": "come", "breeding-talk": "breed"},
+  "S7a-niall": {"vaginal": "vag", "one-after-the-other": "many", "filling": "come"},
+  "S7b-raisa": {"swallows-whole": "whole", "she-comes": "come"},
+  "S7c-solveig": {"scat-smear-feed": "scat", "fingers-cunt": "mast"},
+  "S7d-torvald": {"cuts-until-bleeds": "cut", "forced-to-come": "come"},
+  "W3-kesh-brand": {"strap-fucks": "strap_vag", "brand-sigil": "brand", "maren-comes": "come"},
+  "W3-lantern": {"ruined-orgasm": "ruin", "fucks-her": "vag", "she-comes": "come"},
+  "W3-leeds": {"fuck": "vag"}
+ }
+}

@@ -1,4 +1,4 @@
-"""Claude Code effort (lead 2026-11-14, Jake's decision to the lead): the route passes an explicit
+"""Claude Code effort (lead 2026-11-14, the owner's decision to the lead): the route passes an explicit
 ``--effort`` (models-file ``effort:``, else $CRUCIBLEFORGE_CC_EFFORT, else ``high``), records it on every
 row and in the meta; a row without it reads as ``default``. The regrade and seed-alias guards treat a
 different effort as a different run setting; the staged board's validation-row note names the effort."""

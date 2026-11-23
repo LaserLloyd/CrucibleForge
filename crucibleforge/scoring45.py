@@ -26,9 +26,11 @@ from datetime import datetime, timezone
 MISSING_POLICY_KEY = "missing_rows"
 PENDING = "pending"
 
-#: categories whose rows carry no free-text ``response`` to be "empty" (bank
-#: rows are scored from a score field, agent loops from tool calls)
-_NO_EMPTY_CHECK = {"perf", "codebank", "codeagent", "codebank_long", "codeagent_long"}
+#: categories whose rows carry no free-text ``response`` to be "empty". Bank rows (Predict sheets, agent loops) are
+#: checked like every other row since the 2026-11-18 fix round (AUDIT-HARNESS F4): they carry ``response``, and a
+#: provider filter or a dropped stream there is run health (missing), never the model's 0; an agent loop that made
+#: tool calls is never "empty" (``agent.tool_calls``)
+_NO_EMPTY_CHECK = {"perf"}
 
 
 def pending_policy(prof: dict | None) -> bool:
@@ -78,7 +80,7 @@ def _row_empty(r: dict, refusal_ids=frozenset()) -> str | None:
         return None
     if "response" not in r:
         return None
-    if (r.get("response") or "").strip() or r.get("tool_calls"):
+    if (r.get("response") or "").strip() or r.get("tool_calls") or (r.get("agent") or {}).get("tool_calls"):
         return None
     if r.get("finish_reason") == "length" or r.get("truncated"):
         return None

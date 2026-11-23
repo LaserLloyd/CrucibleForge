@@ -19,6 +19,18 @@ from .config import results_dir
 log = logging.getLogger(__name__)
 
 
+_WAITED = [0.0]
+
+
+def add_wait(seconds: float) -> None:
+    """Seconds this process spent waiting for a refused GPU lease (booked as "waiting", never as generation)."""
+    _WAITED[0] += max(0.0, float(seconds))
+
+
+def waited_total() -> float:
+    return _WAITED[0]
+
+
 def record(labels, phase: str, seconds: float, **extra) -> None:
     """Append {phase, s, at, ...} to ``meta.timing`` of every label."""
     at = datetime.now(timezone.utc).isoformat(timespec="seconds")
@@ -51,6 +63,16 @@ class Clock:
                 record(labels, name, seconds)
             except Exception as e:  # noqa: BLE001 — timing never breaks a run
                 log.warning("timing record for %s failed: %s", name, e)
+
+    def add_split(self, name: str, seconds: float, labels=None, waited_s: float = 0.0,
+                  record_meta: bool = True) -> None:
+        """Book a phase whose wall time held lease waits: the wait is its own "waiting" phase and the named phase
+        gets the rest, so no waiting minute is shown as generation and the sum stays the wall clock."""
+        w = min(max(0.0, float(waited_s)), max(0.0, float(seconds)))
+        self.add(name, seconds - w, labels, record_meta)
+        if w > 0:
+            wname = name.replace(" generation", " waiting") if name != "generation" else "waiting for the rig"
+            self.add(wname, w, labels, record_meta)
 
     def total_s(self) -> float:
         return time.monotonic() - self.t0

@@ -87,7 +87,7 @@ def test_main_items_sit_in_exactly_one_place(prof):
 
 @pytest.mark.live_ladder   # reads the committed packs (conftest empty-ladder guard, 4e1cfeb)
 def test_unlock_is_point_nine_of_the_section(prof):
-    assert prof["ladder"]["unlock"] == 0.9   # Jake 2026-11-14: "The unlock is .9."
+    assert prof["ladder"]["unlock"] == 0.9   # the owner 2026-11-14: "The unlock is .9."
 
     def card(share):
         def fake(src, w, partial=frozenset()):
@@ -239,7 +239,7 @@ def _j10(reason):
     return pytest.mark.xfail(reason=f"J10: {reason}", strict=True)
 
 
-# Jake R21 (SYSTEM-45 section 16): the run length is derived from the margin-of-error bar and reported,
+# the owner R21 (SYSTEM-45 section 16): the run length is derived from the margin-of-error bar and reported,
 # never asserted. These tests keep the measured figures honest (present, numeric) without a time gate.
 @pytest.mark.parametrize("cls", ["Haiku", "Sonnet", "Fable", "DSoff"])
 def test_measured_main_minutes_are_reported_not_gated(cls):

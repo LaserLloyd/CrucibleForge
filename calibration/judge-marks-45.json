@@ -1,0 +1,44 @@
+{
+ "_doc": "Marks a judged part must pass before the 4.5 board counts it. A second reader of another model family than BOTH the production judge and the graded model re-reads the stored units (crucibleforge agree; a unit no configured reader fits is 'agreement not measured'). scripts/check_judge_marks.py tests these marks and writes <results>/judge_marks.json, which the board reads; a part that fails, or has no result, prints pending.",
+ "revised": "2026-11-19, after the tool check on stored rows (two models, one reader). The first marks (written before any reader run) tested single decisions: raw agreement and AC1 per fact or per pairwise comparison. The unit that carries points is what a mark must test: a long scene's fact rate and a session's placement on its ladder. The ladder search deliberately asks close comparisons, so per-comparison agreement is low by design while placements agree; per-decision raw/AC1 stay in the output as informational diagnostics. Primary mark: the judge term a part adds to its 90% margin, and the reader keeping every clearly separated order.",
+ "statistic": "ac1",
+ "primary": {
+  "_why": "The judge term = 1.645 x the measured judge SD of the part (its share of the part's points; the largest over the models measured). At most 5% of the part's maximum (0.20 of the 4-point sessions, 0.15 of the 3-point long scenes): the reader's disagreement may widen the margin, never swamp it. The order test binds every pair of models further apart (judge scores) than their combined margin, sqrt(margin_a^2 + margin_b^2) (the board's part margins when a report is given, else the default share below with the judge term in quadrature).",
+  "max_judge_term_share": 0.05,
+  "order_beyond_combined_margin": true
+ },
+ "parts": {
+  "chat/j_rplong": {
+   "kind": "class",
+   "_why": "Unit of credit = one fact's yes/no with a verbatim quote; a case's score = its fact rate (about ten facts). Eight cases per model is the part (D1 e). D1 (a), (b), (d), (e), (f) stay hard checks; (c) is the agreement test.",
+   "min_units_per_model": 8,
+   "default_margin_share": 0.08,
+   "informational": {"min_raw": 0.90, "min_ac1": 0.75, "max_mad": 0.10},
+   "d1": {
+    "a_judged_stamped": true,
+    "b_no_unexplained_ooc_zero": true,
+    "d_known_order": [["sonnet", "haiku"], ["27b"], ["grok"]],
+    "e_all_cases": true,
+    "f_constructed": true
+   },
+   "validates_pending_machine": true
+  },
+  "chat/j_rpsession": {
+   "kind": "graded",
+   "_why": "Agreement is computed on PLACEMENTS (the rung a session lands on, 0-4, weighted by distance), because placements carry the points. The comparison-level figures (three outcomes per comparison: subject better / split / rung better) are reported as informational: the production judge agreed with itself across the two orders on 79% of comparisons, and the search lands on close calls by design.",
+   "min_units_per_model": 12,
+   "default_margin_share": 0.05,
+   "informational": {"min_raw": 0.80, "min_ac1": 0.60, "max_mad": 0.0625,
+                     "min_placement_weighted": 0.90, "min_within_half_rung": 0.70},
+   "validates_pending_machine": false
+  },
+  "nsfw/*": {
+   "kind": "graded",
+   "_why": "Adult marks read in three bands (0-3 / 4-6 / 7-10; the gate sits at 7).",
+   "min_units_per_model": 1,
+   "default_margin_share": 0.05,
+   "informational": {"min_raw": 0.80, "min_ac1": 0.60, "max_mad": 0.10},
+   "validates_pending_machine": false
+  }
+ }
+}

@@ -60,7 +60,7 @@ def test_patgen_fc1_frozen_seeds_reproduce_stored_baselines():
     under 40 and the reference far above (2a exit: baseline <= 40; measured ngram 25.5-26.4, period-finder 33.4-35.2,
     k<=13 reference 82.8-86.6)."""
     import pathlib
-    base = pathlib.Path(__file__).resolve().parent.parent / "probe-p" / "baselines"
+    base = pathlib.Path(__file__).resolve().parent / "fixtures" / "jxp_baselines"
     ng, pf, ref = [], [], []
     for key in ("n1", "n2", "n3"):
         inst = patgen.instance(2, patgen.instance_key({"level": 2, "key": key}, "4.5.0"))

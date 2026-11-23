@@ -17,7 +17,7 @@ pytestmark = pytest.mark.live_ladder
 
 LEVELS = sorted(T.LEVELS)
 SEEDS = [f"S{i}" for i in range(20)]
-# The Grok-drafted bank (cases/ladder/nsfw/nsfw_rp/theme-rp-bank.json) is not built yet (HANDOFF.md). Until it exists
+# The Grok-drafted bank (cases/ladder/nsfw/nsfw_rp/theme-rp-bank.json) is not built yet. Until it exists
 # the mechanics tests run on a SYNTHETIC fixture (filler words + cue terms, 2 cards per cell, no prose) and the tests
 # that judge the real bank's content and size are skipped.
 REAL = T.bank_path({}).exists()
@@ -25,7 +25,7 @@ FIXTURE = Path(__file__).parent / "fixtures" / "theme_rp_synthetic_bank.json"
 if not REAL:
     T.BANK_DEFAULT = str(FIXTURE)
 BANK = T.load_bank()
-needs_real = pytest.mark.skipif(not REAL, reason="real theme_rp bank not built yet (see HANDOFF.md)")
+needs_real = pytest.mark.skipif(not REAL, reason="real theme_rp bank not built yet")
 
 
 def g(level, **kw):
@@ -52,7 +52,7 @@ def test_deterministic_and_seeds_differ(level):
 @needs_real
 def test_every_theme_and_rung_renders():
     """Every (theme, rung) cell has a card and renders, with its turns at the level's rungs (cells below the target of
-    4 are listed in KNOWN_SHORT_CELLS and recorded in HANDOFF.md)."""
+    4 are listed in KNOWN_SHORT_CELLS)."""
     cnt = Counter((c["theme"], c["rung"]) for c in BANK["cards"])
     for tid in BANK["themes"]:
         for level, row in T.LEVELS.items():
@@ -63,7 +63,7 @@ def test_every_theme_and_rung_renders():
             assert len(m["history"]) == 4 and [x["role"] for x in m["history"]] == ["user", "assistant"] * 2
 
 
-#: cells of the Grok-drafted bank below the target of 4 kept cards (HANDOFF.md; rp-thin top-up 2026-11-14 took $7 of Grok)
+#: cells of the Grok-drafted bank below the target of 4 kept cards (rp-thin top-up 2026-11-14 took $7 of Grok)
 KNOWN_SHORT_CELLS = {'R15:3': 3, 'R16:4': 2, 'R10:4': 3, 'R24:4': 3, 'R27:3': 2}
 
 
@@ -77,7 +77,7 @@ def test_short_cells_are_exactly_the_recorded_ones():
 @needs_real
 def test_bank_size_two_x_pool():
     """The composition draws ~67 RP pieces per run: the bank must hold >= 2x distinct pieces reachable by seed."""
-    assert len(BANK["cards"]) >= 130        # the 4.5 target was 170; 131 kept (HANDOFF.md)
+    assert len(BANK["cards"]) >= 130        # the 4.5 target was 170; 131 kept
     assert T.distinct_pieces(n=3000) >= 125
 
 

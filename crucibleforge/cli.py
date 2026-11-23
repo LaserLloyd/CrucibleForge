@@ -843,6 +843,10 @@ def _apply_profile_arg(args, cfg):
     name = getattr(args, "profile", None) or DEFAULT_PROFILE
     prof = load_profile(name, cfg)
     cfg2, cases = apply_profile(prof, cfg, smoke=getattr(args, "smoke", False))
+    # P1 (fix round 2026-11-18): the adult page is opt-in; --adult asks for it for every model of the run
+    from .adult_guard import RUN_KEY as _ADULT_RUN, run_wants_adult
+    from . import adult_guard as AG0
+    cfg2 = {**cfg2, _ADULT_RUN: run_wants_adult(name, AG0.args_wants(args))}
     if not getattr(args, "judge", None):
         args.judge = profile_judge(prof)
     log.info("profile %s: %d cases, thinking cap %s, judge %s", name, len(cases),
@@ -990,8 +994,10 @@ def cmd_run(args, cfg):
         if missing:
             raise SystemExit(f"unknown case id(s): {sorted(missing)}")
         # an explicit adult id for a model with adult_page off is refused before any call (adult_guard)
-        from .adult_guard import refuse_explicit
+        from .adult_guard import RUN_KEY as _ADULT_RUN, explicit_opt_in, refuse_explicit
         refuse_explicit(cfg, entries, cases, only)
+        if explicit_opt_in(cases, only):
+            cfg = {**cfg, _ADULT_RUN: True}     # naming adult units is asking for them (P1)
     from . import ladder as _ladder
     if not _ladder.include_staged():
         staged = sorted(c["id"] for c in cases if c.get("ladder_staged"))
@@ -1011,6 +1017,15 @@ def cmd_run(args, cfg):
                "`input: 0, output: 0` for a free endpoint).")
         if not getattr(args, "allow_unpriced", False):
             raise SystemExit(msg + " Pass --allow-unpriced to run anyway.")
+        from . import spend as _spend
+        capped = [e["name"] for e in entries if e["name"] in unpriced
+                  and _spend.explicit_cap_set(str(e.get("model_id") or ""))]
+        if capped:
+            # the provider would refuse the first call (fail closed, an HTTP-402-shaped stop): say so now
+            raise SystemExit(f"hosted model(s) {', '.join(capped)} have no price, so the spend cap that is "
+                             "set cannot bound them: add `price: {input: X, output: Y}` per million tokens "
+                             "to models.yaml, or drop the cap (--spend-cap-usd / $CF_SPEND_CAP_USD / "
+                             "$CF_SPEND_GLOBAL_CAP_USD) for this run.")
         log.warning("%s (--allow-unpriced)", msg)
     if getattr(args, "allow_unpriced", False):
         from . import providers
@@ -1059,9 +1074,7 @@ def cmd_run(args, cfg):
         if _routing.spec(prof) is not None:
             summary = _run_routed(cfg, entries, cases, prof, args)
         else:
-            summary = run_models(cfg, entries, cases, smoke=args.smoke,
-                                 skip_conformance=getattr(args, "skip_conformance",
-                                                          False))
+            summary, entries = _run_selected(cfg, entries, cases, prof, args, only, run_models)
     finally:
         guard.restore()
     args.ran_labels = [e["name"] for e in entries if e["name"] in summary]
@@ -1072,6 +1085,24 @@ def cmd_run(args, cfg):
     print("\nrun summary:")
     _print_run_summary(summary)
     return _run_rc(summary, [e["name"] for e in entries] + list(unrunnable))
+
+
+def _first_reply_rule(prof) -> bool:
+    from . import attempts45 as _at45
+    return str((prof or {}).get(_at45.RULE_KEY) or "").strip().lower() == _at45.RULE
+
+
+def _first_reply_jobs(label: str, cfg: dict, cases: list[dict], smoke: bool = False) -> set:
+    """``{(None, case id, repeat)}`` the label still owes under the first-reply rule: every (case, repeat) of
+    ``cases`` that has no stored row that produced a model reply (attempts45.is_infra rows are owed again)."""
+    from . import attempts45 as _at45
+    from . import report
+    from .config import repeats_for
+    have = {(r.get("case_id"), r.get("repeat") or 1)
+            for r in report.board_filter(label, cfg, sampler_view="current") if not _at45.is_infra(r)}
+    return {(None, c["id"], n) for c in cases
+            for n in range(1, repeats_for(cfg, c["category"], smoke, c) + 1)
+            if (c["id"], n) not in have}
 
 
 def _run_routed(cfg, entries, cases, prof, args) -> dict:
@@ -1129,6 +1160,59 @@ def _run_rc(summary: dict, wanted: list[str]) -> int:
     return 1 if (missing or failed) else 0
 
 
+def _run_selected(cfg, entries, cases, prof, args, only, run_models) -> tuple[dict, list[dict]]:
+    """The plain (non-routed) generation of ``run``: (summary, the entries that ran)."""
+    jobs_by = None
+    chain_sel: list[dict] = []
+    all_entries = list(entries)
+    if only and _first_reply_rule(prof):
+        # retry fairness: a unit whose first attempt produced a reply is never presented again by a
+        # resume (only an infrastructure failure is); to re-draw on purpose, archive the rows first.
+        # A named chain (FLAT-<set>-<i>) is not a job of the recover path, which skips chains: it
+        # runs in its own board pass below, where the chain driver resumes from the stored rows
+        # (a graded attempt is never presented again), so only its owed attempts are drawn.
+        chain_sel = [c for c in cases if c.get("chain_spec")]
+        cases = [c for c in cases if not c.get("chain_spec")]
+        jobs_by = {e["name"]: _first_reply_jobs(e["name"], cfg, cases, args.smoke) for e in entries}
+        for label, js in jobs_by.items():
+            print(f"{label}: {len(js)} job(s) to run (units that already have a reply are not re-drawn)"
+                  + (f"; {len(chain_sel)} named chain(s) resume from their stored attempts"
+                     if chain_sel else ""))
+        entries = [e for e in entries if jobs_by[e["name"]]]
+    summary = {}
+    if entries:
+        summary = run_models(cfg, entries, cases, smoke=args.smoke, jobs_by_label=jobs_by,
+                             skip_conformance=getattr(args, "skip_conformance", False))
+    if chain_sel and not halted():
+        more = run_models(cfg, all_entries, chain_sel, smoke=args.smoke,
+                          skip_conformance=getattr(args, "skip_conformance", False))
+        summary = _merge_summaries(summary, more)
+        entries = all_entries
+    return summary, entries
+
+
+def _merge_summaries(a: dict, b: dict) -> dict:
+    """Two run_models summaries of the same command (the standard jobs, then the named chains) as one:
+    rows, costs and error counts add up; a failure in either pass is the label's failure."""
+    out = {k: dict(v) for k, v in a.items()}
+    for label, s in b.items():
+        if label not in out:
+            out[label] = dict(s)
+            continue
+        m = out[label]
+        if s.get("failed") and not m.get("failed"):
+            m["failed"], m["error"] = True, s.get("error")
+        for k in ("rows", "skipped", "case_errors"):
+            if s.get(k) is not None:
+                m[k] = (m.get(k) or 0) + s[k]
+        if s.get("cost_usd") is not None:
+            m["cost_usd"] = round((m.get("cost_usd") or 0.0) + s["cost_usd"], 4)
+        m["warnings"] = list(m.get("warnings") or []) + list(s.get("warnings") or [])
+        for k in ("load_s", "device"):
+            m.setdefault(k, s.get(k))
+    return out
+
+
 def _print_run_summary(summary: dict) -> None:
     for label, s in summary.items():
         if s.get("failed"):
@@ -1153,7 +1237,13 @@ def cmd_recover(args, cfg):
     bench_run_id so they supersede the empty ones; nothing is deleted."""
     from .runner import recover_models, overflow_jobs
     from .config import load_transcripts
-    cfg, _prof_cases, _ = _apply_profile_arg(args, cfg)
+    cfg, _prof_cases, _prof = _apply_profile_arg(args, cfg)
+    from . import attempts45 as _at45
+    if str((_prof or {}).get(_at45.RULE_KEY) or "").strip().lower() == _at45.RULE:
+        # retry fairness: a reply cut at its budget is the unit's score; a re-draw would be ignored at report time
+        print("recover: refused under this profile's first-reply rule (attempt_rule: first_reply): a cut reply is the "
+              "unit's score and a later attempt is ignored. Only infrastructure failures are retried (a plain resume).")
+        return 2
     entries = resolve_models(cfg, args.models)
     # every overflow row is a candidate whatever profile/categories the run
     # used — the job list is filtered to the rows that overflowed anyway
@@ -1353,28 +1443,37 @@ def _apply_process_switches(args) -> None:
     cap = getattr(args, "spend_cap_usd", None)
     if cap is None and ladder.staged_requested():
         from . import spend
-        if not os.environ.get(spend.CAP_ENV, "").strip():
+        if not os.environ.get(spend.CAP_ENV, "").strip() and not os.environ.get(spend.RUN_CAP_ENV, "").strip():
             # a staged (unapproved-pack) run always has a ceiling: the default
             # applies to staged runs ONLY, the live board's runs keep theirs
-            os.environ[spend.CAP_ENV] = repr(spend.DEFAULT_STAGED_CAP_USD)
+            os.environ[spend.RUN_CAP_ENV] = repr(spend.DEFAULT_STAGED_CAP_USD)
             spend.reset()
     if cap is not None:
         from . import spend
-        os.environ[spend.CAP_ENV] = repr(float(cap))
+        # the flag caps THIS invocation's own spend and never reads the shared ledger; the env cap
+        # ($CF_SPEND_CAP_USD) stays the cumulative budget across invocations (docs/RUNNING.md)
+        os.environ[spend.RUN_CAP_ENV] = repr(float(cap))
         spend.reset()
+
+
+def maintenance_marker_present() -> bool:
+    """An operator's maintenance marker: the file $CF_MAINTENANCE_MARKER names exists (unset = no check)."""
+    import os as _os
+    p = _os.environ.get("CF_MAINTENANCE_MARKER", "").strip()
+    return bool(p) and _os.path.exists(_os.path.expanduser(p))
 
 
 def cmd_ladder_judge(args, cfg):
     """`ladder-judge`: crucibleforge/rpladder_run."""
     import datetime
-    import os as _os
     from . import rpladder_run as LR
     if not getattr(args, "profile", None):
         args.profile = "bench45"
-    if _os.path.exists(_os.path.expanduser("~/.local/state/openclaw/maintenance")) and not args.plan:
+    if maintenance_marker_present() and not args.plan:
         print("maintenance marker present: nothing done", file=sys.stderr)
         return 3
     cfg, _cases, prof = _apply_profile_arg(args, cfg)
+    cfg = _guard_45_judge(args, cfg, prof)
     labels = [e["name"] for e in resolve_models(cfg, args.models)]
     windows = [int(x) for x in args.windows.split(",")] if args.windows else None
     windows = LR.part_windows(prof, windows)
@@ -1394,16 +1493,308 @@ def cmd_ladder_judge(args, cfg):
             t += datetime.timedelta(days=1)
         deadline = t.timestamp()
     override = args.judge if isinstance(args.judge, (str, dict)) and args.judge else None
-    out = LR.run(cfg, prof, labels, windows=windows, judge_override=override, deadline=deadline,
-                 rung_check_only=args.rung_check, force=args.force, attach=args.attach,
-                 client=args.client)
+    # the pair judge takes its own GPU lease inside LR.run (a loaded judge); inside `all` the process lives on, so
+    # the lease must go back here (a hosted or attached judge holds none: restore is then a no-op)
+    guard = _ProviderGuard(cfg, [], judge=override)
+    try:
+        out = LR.run(cfg, prof, labels, windows=windows, judge_override=override, deadline=deadline,
+                     rung_check_only=args.rung_check, force=args.force, attach=args.attach,
+                     client=args.client)
+    finally:
+        guard.restore()
     for line in LR.summary_lines(out):
         print(line)
     return 0 if out.get("rung_check_complete") else 1
 
 
+def cmd_agree(args, cfg):
+    """`agree`: a second reader of another model family re-grades the stored judged units (crucibleforge/agree).
+    Each folder goes to the first ``--reader`` whose family differs from both its production judge and the model
+    it grades; a folder no reader fits is recorded as "agreement not measured" (no call made)."""
+    from pathlib import Path as _P
+    from . import agree as AG
+    from .judge import JudgeClient, _load_judge, acquire_judge_lease, resolve_judge_spec, JudgeLeaseUnavailable
+    folders = [_P(f) for f in args.folders]
+    from . import packs45 as PK
+    parts = tuple(p for p in (args.parts or f"{AG.LONG_PART},{AG.SESSION_PART}").split(",") if p)
+    # the Chat pack scenes (crucibleforge/packs45.py) are read by their own routine and stored in the reader store
+    do_packs = PK.PACKS_PART in parts
+    parts = tuple(p for p in parts if p != PK.PACKS_PART)
+    thinking = args.reader_thinking == "on"
+
+    def cand_of(name):
+        cand = dict(resolve_judge_spec(cfg, name))
+        for k, v in (("instance_name", args.judge_instance_name or "agree"),
+                     ("instance_devices", [int(x) for x in args.judge_devices.split(",")] if args.judge_devices
+                      else None),
+                     ("instance_parallel", [int(x) for x in args.judge_parallel.split(",")] if args.judge_parallel
+                      else None),
+                     ("instance_allow_devices", [int(x) for x in args.judge_allow_devices.split(",")]
+                      if args.judge_allow_devices else None)):
+            if v is not None:
+                cand[k] = v
+        cand.setdefault("context_length", 16384)
+        ptype = ((cfg.get("providers") or {}).get(cand["provider"]) or {}).get("type")
+        return cand, ptype not in ("studioforge", "lmstudio")
+
+    readers = [cand_of(n) for n in args.reader]
+    from . import judge45 as _J
+    for cand, hosted in readers:
+        if hosted:
+            # owner 2026-11-21: no hosted model grades or checks anything (the agree step left the default pipeline)
+            print(str(_J.HostedGrader(f"agree: reader {cand['model_id']} is served by a hosted API; MakoBench 4.5 "
+                                      "grades and checks with one local judge only. Nothing was called.")),
+                  file=sys.stderr)
+            return 2
+    info = {}
+    for f in folders:
+        label, rows = AG.read_folder(f)
+        n = (len(AG.long_units(rows)) * (AG.LONG_PART in parts)
+             + len(AG.session_units(rows)) * (AG.SESSION_PART in parts)
+             + (len(AG.adult_units(rows)) if args.adult else 0)
+             + (len(PK.pack_units(rows)) if do_packs else 0))
+        info[f] = (label, AG.production_judge(rows), AG.graded_family(label, rows[0] if rows else None), n)
+    plan: dict[int, list] = {}
+    unread = []
+    for f, (label, jid, gf, n) in info.items():
+        pick = None
+        for i, (cand, hosted) in enumerate(readers):
+            try:
+                AG.check_reader(cand["model_id"], jid, hosted=hosted, cap_usd=args.cap_usd)
+            except AG.ReaderRefused as e:
+                print(str(e), file=sys.stderr)
+                return 2
+            if gf and AG.family(cand["model_id"]) != gf:
+                pick = i
+                break
+        if pick is None:
+            unread.append(f)
+        else:
+            plan.setdefault(pick, []).append(f)
+    total = 0.0
+    for i, fs in sorted(plan.items()):
+        cand, hosted = readers[i]
+        n_units = sum(info[f][3] for f in fs)
+        price = (next((m for m in cfg.get("models") or [] if m.get("model_id") == cand["model_id"]), {})
+                 or {}).get("price") or {}
+        calls = n_units * 30
+        est = calls * (4000 * float(price.get("input") or 0) + 300 * float(price.get("output") or 0)) / 1e6
+        total += est if hosted else 0.0
+        print(f"agree: reader {cand['model_id']} ({AG.family(cand['model_id'])}, thinking "
+              f"{'on' if thinking else 'off'}) on {', '.join(info[f][0] for f in fs)} vs judge "
+              f"{', '.join(sorted({str(info[f][1]) for f in fs}))}; {n_units} judged units, about {calls} calls"
+              + (f"; plan price about ${est:.2f} (this run: up to ${args.cap_usd:.2f})" if hosted else "; rig (free)"))
+        from . import spend as _spend_mod
+        if hosted and _spend_mod.budget_line():
+            print("agree:" + _spend_mod.budget_line().strip())
+    for f in unread:
+        print(f"agree: {info[f][0]}: no reader of another family than its graded model ({info[f][2]}) and its "
+              "judge: agreement not measured")
+    if args.plan:
+        return 0
+    if total and args.cap_usd is not None and total > args.cap_usd:
+        print(f"agree: the plan price ${total:.2f} is over the cap ${args.cap_usd:.2f}: nothing done", file=sys.stderr)
+        return 2
+    if do_packs:
+        # the records are stamped with the PINNED reader's id: refuse a --reader that is not that model (no call made)
+        from . import rplong_mean as _RM
+        for i, fs in sorted(plan.items()):
+            for f in fs:
+                try:
+                    pin = _RM.pinned_reader(info[f][2], _RM.load_readers(), True)
+                except _RM.NoFittingReader:
+                    continue                       # the packs loop below reports it and leaves the scenes pending
+                if _RM.canonical_id(readers[i][0]["model_id"]) != pin.id:
+                    print(f"agree: {info[f][0]}: --reader {readers[i][0]['model_id']} is not the pinned reader "
+                          f"{pin.id} for a {info[f][2]} row; pack records are stored under the pinned reader's id: "
+                          "nothing done", file=sys.stderr)
+                    return 2
+    if maintenance_marker_present():
+        print("maintenance marker present: nothing done", file=sys.stderr)
+        return 3
+    recs = []
+    for i, fs in sorted(plan.items()):
+        cand, hosted = readers[i]
+        reader = cand["model_id"]
+        n_units = sum(info[f][3] for f in fs)
+        guard = None
+        if not hosted:
+            guard = _ProviderGuard(cfg, [], judge=cand)
+            for p in guard.provs.values():
+                p.own_unload_only = True
+            try:
+                acquire_judge_lease(cfg, override=cand, instance={k: v for k, v in cand.items()
+                                                                  if k.startswith("instance") or k == "serve_model_id"})
+            except JudgeLeaseUnavailable as e:
+                print(f"agree: reader lease: {e}", file=sys.stderr)
+                guard.restore()
+                return 4
+        try:
+            jc = _load_judge(cfg, set(), rows=n_units, samples=1, override=cand) if not hosted \
+                else JudgeClient(cfg, cand)
+            if hosted:
+                price = (next((m for m in cfg.get("models") or [] if m.get("model_id") == reader), {})
+                         or {}).get("price") or {}
+                jc = AG.CappedClient(jc, price, args.cap_usd)
+            if parts or args.adult:
+                recs += AG.run(fs, jc, reader, adult=args.adult, parts=parts, thinking=thinking)
+            if do_packs:
+                from . import rplong_mean as RM
+                for f in fs:
+                    label, rows = AG.read_folder(f)
+                    gf = info[f][2]
+                    try:
+                        pin = RM.pinned_reader(gf, RM.load_readers(), True)
+                    except RM.NoFittingReader as e:
+                        print(f"agree: {label}: no pinned reader for packs ({e}): pack scenes stay pending",
+                              file=sys.stderr)
+                        continue
+                    got = PK.run_second_reader(rows, pin, jc=jc, results=f, label=label, graded_family=gf)
+                    print(f"agree: {label}: {len(got)} pack scene record(s) in the reader store ({pin.id})")
+        finally:
+            if guard is not None:
+                guard.restore()
+    if not parts and not args.adult:
+        return 0                                   # packs only: the records are in each folder's reader store
+    if unread:
+        # every unit clashes: run() records them as not measured and makes no call
+        recs += AG.run(unread, None, readers[0][0]["model_id"], adult=args.adult, parts=parts, thinking=thinking)
+    summary = AG.summarize(recs)
+    judges = {info[f][1] for f in folders}
+    jname = next(iter(judges)) if len(judges) == 1 else None
+    rnames = ", ".join(readers[i][0]["model_id"] for i in sorted(plan)) or readers[0][0]["model_id"]
+    out = _P(args.out) if args.out else folders[0] / "agree" / f"agreement-{AG.slug(readers[0][0]['model_id'])}.json"
+    AG.write_summary(out, summary, rnames, jname, folders)
+    print(AG.render_table(summary, rnames, jname))
+    print(f"agreement table: {out}")
+    return 0
+
+
+def _guard_45_judge(args, cfg, prof):
+    """4.5 profiles grade with one LOCAL judge (owner 2026-11-21): a hosted --judge / profile judge is refused with a
+    plain message, and hosted judge candidates leave the config this command uses (no fallback can pick one)."""
+    from . import judge45 as _J
+    try:
+        _J.guard_judge(cfg, getattr(args, "judge", None), prof)
+    except _J.HostedGrader as e:
+        raise SystemExit(str(e))
+    cfg = _J.local_only_cfg(cfg, prof)
+    if _J.is_45(prof) and isinstance(getattr(args, "judge", None), dict):
+        # the profile names the judge by model; the config's judge candidate for that model says WHICH copy (devices,
+        # parallel slots, instance name): keep them, as a `--judge <candidate name>` would (rig test 2026-11-21: the
+        # profile dict alone loaded the judge on the default cards)
+        args.judge = _J.with_candidate_copy(cfg, args.judge)
+    return cfg
+
+
+def _allow_self_judge(args) -> bool:
+    """``--allow-self-judge``, or a 4.5 profile, whose judge grades its own rows (amendment r; the board notes it)."""
+    from . import judge45 as _J
+    return bool(getattr(args, "allow_self_judge", False)) or _J.self_grades(getattr(args, "_judge_prof", None))
+
+
+def _adult_plan_of(args, cfg, prof, labels) -> dict:
+    """{label: judge45.plan} of the NSFW+ units the run's judge still has to read (4.5 profiles with NSFW+ on;
+    a `judge --cases/--part` re-judge leaves the adult page alone)."""
+    from . import judge45 as _J
+    from . import adult_guard as _AG
+    if (not _J.is_45(prof) or not _AG.args_wants(args)
+            or (getattr(args, "cmd", None) == "judge" and (getattr(args, "cases", None) or getattr(args, "part", None)))):
+        return {}
+    jid = _judge_model_id(args, cfg) or _J.judge_id(prof)
+    out = {}
+    for label in labels:
+        if not (results_dir() / f"transcripts_{label}.jsonl").is_file():
+            continue
+        try:
+            out[label] = _J.plan(results_dir(), label, prof, jid)
+        except Exception as e:  # noqa: BLE001 -- a broken adult page never blocks the standard judge
+            log.error("NSFW+ judge plan for %s failed: %s", label, e)
+    return out
+
+
+def _adult_judge_phase(args, cfg, prof, labels, inst=None) -> dict:
+    """Class every unread NSFW+ unit and opinion-flag unit of ``labels`` with the run's judge (loaded here under the
+    judge lease the caller holds; the same judge that graded the rows), one vote each, into ``judge45/``."""
+    from . import judge45 as _J
+    from .judge import _load_judge
+    todo = {l: p for l, p in _adult_plan_of(args, cfg, prof, labels).items() if p["calls_needed"]}
+    if not todo:
+        return {}
+    by_name = {m["name"]: m for m in cfg.get("models") or []}
+    # 4.5: a judge under test grades its own adult page (amendment r); the report notes it
+    benched = set() if _J.self_grades(prof) else {by_name[l]["model_id"] for l in labels if l in by_name}
+    jc = _load_judge(cfg, benched, rows=sum(p["calls_needed"] for p in todo.values()), samples=1,
+                     override=getattr(args, "judge", None), **({"instance": inst} if inst else {}))
+    reader = _J.judge_reader(jc.model_id, provider=jc.provider.name, provider_type=jc.provider.type)
+    chat = _J.client_chat(jc)
+    out = {}
+    for label in todo:
+        if stopflag.ABORT.is_set():
+            break
+        try:
+            out[label] = _J.judge_model(results_dir(), label, prof, reader, chat,
+                                        width=max(1, int(getattr(jc, "concurrency", 1) or 1)))
+        except _J.HostedGrader:
+            raise
+        except Exception as e:  # noqa: BLE001 -- one model's adult page never strands the others
+            log.error("NSFW+ judge for %s failed: %s (its units stay not judged yet)", label, e)
+            continue
+        st = out[label]
+        print(f"NSFW+ judge {jc.model_id} on {label}: {st['classed']} unit(s) classed, {st['flagged']} opinion-flag "
+              f"unit(s) read, {st['pending_class'] + st['pending_flags']} not judged yet (unparsable), "
+              f"{st['calls']} call(s)")
+    return out
+
+
+def cmd_judge_check(args, cfg):
+    """`judge-check`: the run's judge on the constructed NSFW+ classing set (61 items) and the constructed opinion-flag
+    set, one vote each, scored under the same rules as the adult page. The result is stored in
+    ``<results>/judge45/check.json`` and printed; it never gates a score (INTENT-45: "the result is printed").
+    ``--show`` prints the stored result only (no call)."""
+    from . import judge45 as _J
+    from .judge import JudgeLeaseUnavailable, _load_judge, acquire_judge_lease
+    cfg, _cases, prof = _apply_profile_arg(args, cfg)
+    cfg = _guard_45_judge(args, cfg, prof)
+    jid = _judge_model_id(args, cfg) or _J.judge_id(prof)
+
+    def show(chk):
+        n = _J.check_numbers(chk)
+        if not n:
+            print(f"judge check: no stored result for {jid} (run `crucibleforge judge-check`)")
+            return 1
+        br = ", ".join(f"{b} {r} of {k}" for b, (r, k) in sorted((n["branches"] or {}).items()))
+        fl = ", ".join(f"{f} {r} of {k}" for f, (r, k) in sorted((n["flags"] or {}).items()))
+        h = n["hard"] or [0, 0]
+        print(f"judge {n['judge']} classed {n['classing_right']} of {n['classing_n']} test items; {h[0]} of {h[1]} "
+              f"hard items ({br}). Opinion flags: {fl}. Printed only; it never withholds a score.")
+        return 0
+    if getattr(args, "show", False):
+        return show(_J.load_check(results_dir(), jid))
+    force_evict = getattr(args, "force_evict", False) or _judge_policy_force(cfg)
+    guard = _ProviderGuard(cfg, [], force_evict=force_evict, judge=getattr(args, "judge", None))
+    try:
+        try:
+            acquire_judge_lease(cfg, force_evict=force_evict, override=getattr(args, "judge", None))
+        except JudgeLeaseUnavailable as e:
+            print(f"judge lease: {e}", file=sys.stderr)
+            return 4
+        jc = _load_judge(cfg, set(), rows=110, samples=1, override=getattr(args, "judge", None))
+        reader = _J.judge_reader(jc.model_id, provider=jc.provider.name, provider_type=jc.provider.type)
+        _J.run_check(results_dir(), reader, _J.client_chat(jc), prof,
+                     width=max(1, int(getattr(jc, "concurrency", 1) or 1)))
+        jid = jc.model_id
+    except _J.HostedGrader as e:
+        raise SystemExit(str(e))
+    finally:
+        guard.restore()
+    return show(_J.load_check(results_dir(), jid))
+
+
 def cmd_judge(args, cfg):
-    cfg, prof_cases, _ = _apply_profile_arg(args, cfg)
+    cfg, prof_cases, prof = _apply_profile_arg(args, cfg)
+    cfg = _guard_45_judge(args, cfg, prof)
+    args._judge_prof = prof
     entries = resolve_models(cfg, args.models)
     labels = [e["name"] for e in entries]
     shard = _shard_of(args)
@@ -1472,7 +1863,12 @@ def cmd_judge(args, cfg):
                                     retry_failed=retry_failed, cases=only)
     if restamp:
         print(restamp)     # 2026-11-15: verdicts this judge would only stamp the same way again
-    if n_pending == 0:
+    adult = _adult_plan_of(args, cfg, prof, list(labels) + list(args.steal_labels or []))
+    n_adult = sum(p["calls_needed"] for p in adult.values())
+    if n_adult:
+        print(f"NSFW+ judge: {n_adult} unit(s) to read on {len([p for p in adult.values() if p['calls_needed']])} "
+              "model(s)")
+    if n_pending == 0 and n_adult == 0:
         # Judge-free profile (e.g. `coding`) or already judged: do not touch
         # the rig at all — a lease here would evict residents and vacate
         # ComfyUI for a phase that has nothing to do.
@@ -1676,7 +2072,7 @@ def _cmd_judge_locked(args, cfg, labels, samples, retry_failed, cases=None, inst
         result = run_judge(cfg, labels, force=args.force, samples=samples,
                            judge_override=getattr(args, "judge", None),
                            allow_fallback=getattr(args, "judge_fallback", None),
-                           allow_self_judge=bool(getattr(args, "allow_self_judge", False)),
+                           allow_self_judge=_allow_self_judge(args),
                            retry_failed=retry_failed,
                            stop=getattr(args, "judge_stop", None),
                            deadline=getattr(args, "judge_deadline", None),
@@ -1684,6 +2080,11 @@ def _cmd_judge_locked(args, cfg, labels, samples, retry_failed, cases=None, inst
                            **{k: v for k, v in (("instance", inst),
                                                 ("steal", getattr(args, "steal_labels", None)))
                               if v is not None})
+        # one local judge classes the adult page (owner 2026-11-21): the same judge, under the same lease
+        if not (vac is not None and vac.event.is_set()) and not result.get("stopped"):
+            prof = getattr(args, "_judge_prof", None)
+            if prof is not None:
+                _adult_judge_phase(args, cfg, prof, list(labels) + list(result.get("stolen_labels") or []), inst)
     except Exception as e:
         # the board names the reason next to the unjudged rows
         _stamp_judge_error(labels, str(e))
@@ -1769,6 +2170,46 @@ def _stamp_judge_error(labels: list[str], error: str) -> None:
         _write_meta_atomic(p, meta)
 
 
+def disclosure_problems(cfg: dict | None, labels: list[str]) -> dict[str, list[str]]:
+    """{label: [case ids]} of the board rows of HOSTED models that do not record the reasoning effort they ran
+    at (P2, D11: such a row is never published). Rig models are checked by settings_gate instead."""
+    from . import disclosure, report
+    from .providers import provider_for
+    out: dict[str, list[str]] = {}
+    by = {m["name"]: m for m in (cfg or {}).get("models") or []}
+    for label in labels:
+        e = by.get(label)
+        if e is None:
+            continue
+        try:
+            ptype = provider_for(cfg, e).type
+        except Exception:  # noqa: BLE001 — an unresolvable provider: treat as hosted (fail closed)
+            ptype = None
+        bad = [str(r.get("case_id")) for r in report.board_filter(label, cfg) or []
+               if disclosure.publish_refusal(r, ptype)]
+        if bad:
+            out[label] = sorted(set(bad))
+    return out
+
+
+def check_stale(args, cfg) -> int:
+    """``report --check-stale`` (P3): per model, the board rows whose grader stamp is missing or no longer matches
+    the code and data that grade them (grader_stamp.row_is_stale). Exit 1 when any scored row is stale."""
+    from . import grader_stamp, report
+    labels = ([x for x in str(args.models).split(",") if x] if getattr(args, "models", None)
+              else [m["name"] for m in (cfg or {}).get("models") or []])
+    any_stale = False
+    for label in labels:
+        stale = grader_stamp.stale_rows(report.board_filter(label, cfg) or [])
+        any_stale = any_stale or bool(stale)
+        print(f"{label}: {len(stale)} stale row(s)")
+        for r, why in stale[:50]:
+            print(f"  {r.get('case_id')} r{r.get('repeat') or 1}: {why}")
+        if len(stale) > 50:
+            print(f"  ... {len(stale) - 50} more")
+    return 1 if any_stale else 0
+
+
 def cmd_report(args, cfg, full_board: bool = False):
     """Rebuild the board. Prints only the scorecard and where the files are
     (the full report is in report.md / failures.md / report.html).
@@ -1776,8 +2217,22 @@ def cmd_report(args, cfg, full_board: bool = False):
     ``full_board`` (used at the end of ``all``): the shared board always lists
     EVERY benchmarked model, not just the one this run benched — otherwise each
     run overwrote results/report.md with a one-row board (2026-09-24)."""
+    from . import gen as _gen
+    was = bool(_gen._MAT_CACHE_ON[0])
+    _gen.enable_materialize_cache()      # a board render asks for each generated case ~5 times (see gen._MAT_CACHE)
+    try:
+        return _cmd_report(args, cfg, full_board)
+    finally:
+        # the cache is for this render only: left on, a later materialise in the same process (the run that follows
+        # a board, or the next test on the same worker) read a cached view of an older case
+        _gen.enable_materialize_cache(was)
+
+
+def _cmd_report(args, cfg, full_board: bool = False):
     from .report import (STAGED_CC_KEY, PrivateLeak, failures_md_path, generate, public_dir,
                          report_html_path, report_md_path, scorecard_section)
+    if getattr(args, "check_stale", False):
+        return check_stale(args, cfg)
     if getattr(args, "staged_claude_code", False):
         if getattr(args, "public", False):
             # claude_code rows never leave the box: the staged opt-in and a public board exclude each other
@@ -1786,6 +2241,26 @@ def cmd_report(args, cfg, full_board: bool = False):
             return 2
         cfg = {**(cfg or {}), STAGED_CC_KEY: True}
     if getattr(args, "public", False):
+        from .report import doc_placeholders
+        left = [] if getattr(args, "allow_placeholders", False) else doc_placeholders()
+        if left:
+            print("refused: the docs still carry placeholders that a launch render must not ship "
+                  "(--allow-placeholders to render anyway):", file=sys.stderr)
+            for f, t in left:
+                print(f"  {f}: {t}", file=sys.stderr)
+            return 5
+        from .adult_guard import ARCHIVE_PROFILES
+        if (getattr(args, "profile", None) or "bench45") not in ARCHIVE_PROFILES:
+            # P2 (D11): a hosted row that does not record its reasoning effort is never published
+            labels = ([x for x in str(args.models).split(",") if x] if args.models and not full_board
+                      else [m["name"] for m in (cfg or {}).get("models") or []])
+            bad = disclosure_problems(cfg, labels)
+            if bad:
+                for label, ids in bad.items():
+                    print(f"refused: {label}: {len(ids)} hosted row(s) without a recorded reasoning effort "
+                          f"({', '.join(ids[:8])}{' ...' if len(ids) > 8 else ''}); re-run them",
+                          file=sys.stderr)
+                return 4
         try:
             md = generate(None if full_board else args.models, write=True, public=True,
                           out_dir=getattr(args, "out", None), cfg=cfg or None)
@@ -1945,6 +2420,19 @@ def _check_ladder_sections(args, cfg) -> str | None:
     return None
 
 
+def _stored_labels(args, cfg) -> list[str]:
+    """``all --no-run``: the selected labels that have stored rows (the others get an error line)."""
+    from .config import load_transcripts
+    cfg2, _cases, _prof = _apply_profile_arg(args, cfg)
+    out = []
+    for e in resolve_models(cfg2, args.models):
+        if load_transcripts(e["name"]):
+            out.append(e["name"])
+        else:
+            print(f"{e['name']}: no stored rows in this results folder; left out", file=sys.stderr)
+    return out
+
+
 def cmd_all(args, cfg):
     """run -> judge -> ladder sets -> report. A model-level generation failure
     (not served, OOM, lease refused, transport abort) is that MODEL's
@@ -1973,10 +2461,27 @@ def cmd_all(args, cfg):
     clock = timing.Clock()
     args._clock = clock
     t0 = time.monotonic()
-    rc = cmd_run(args, cfg)
-    ran = getattr(args, "ran_labels", None)
-    # the runner records each model's generation rounds in its own meta
-    clock.add("generation", time.monotonic() - t0, ran or [], record_meta=False)
+    w0 = timing.waited_total()
+    if getattr(args, "no_run", False):
+        if getattr(args, "fresh", False):
+            print("refusing --no-run with --fresh: --fresh archives rows and --no-run generates none",
+                  file=sys.stderr)
+            return 2
+        ran = args.ran_labels = _stored_labels(args, cfg)
+        if not ran:
+            print("--no-run: none of the selected models has stored rows in this results folder; "
+                  "nothing to judge or report", file=sys.stderr)
+            return 2
+        rc = 0
+        if len(ran) < len(resolve_models(cfg, args.models)):
+            args = copy.copy(args)
+            args.models = ",".join(ran)       # the judge and the report cover the labels that have rows
+    else:
+        rc = cmd_run(args, cfg)
+        ran = getattr(args, "ran_labels", None)
+    # the runner records each model's generation rounds in its own meta; a refused lease's wait is "waiting"
+    clock.add_split("generation", time.monotonic() - t0, ran or [], timing.waited_total() - w0,
+                    record_meta=False)
     if stopping():
         return TERM_EXIT      # SIGTERM: no escalation / judge / report after a stop
     if draining():
@@ -2030,6 +2535,30 @@ def cmd_all(args, cfg):
         return TERM_EXIT
     if draining():
         return DRAIN_EXIT     # a drain during escalation or the judge: no ladder, no board
+    # F1 (first fresh reference run, 2026-11-19): the role-play sessions are judged on the ladder
+    # (``ladder-judge``); `all` places the sessions of the models it ran, as the standard judge scored the long
+    # scenes above. ``--no-judge`` skips it (it is the one opt-out of every judge step).
+    rc_s = 0
+    if not getattr(args, "no_judge", False) and _session_judge_due(args, cfg):
+        j_args = copy.copy(args)
+        j_args.models = ",".join(ran or [])
+        for k, v in (("windows", None), ("plan", False), ("rung_check", False), ("force", False),
+                     ("until", None), ("attach", False), ("client", None)):
+            if not hasattr(j_args, k):
+                setattr(j_args, k, v)
+        try:
+            with clock.phase("role-play session judge", ran or []):
+                rc_s = cmd_ladder_judge(j_args, cfg)
+        except Exception as e:  # noqa: BLE001 — the board is still worth rendering
+            log.error("role-play session judge failed: %s — the sessions stay pending", e)
+            rc_s = 1
+        else:
+            if rc_s:
+                log.error("role-play session judge exited %d — rendering the report without every placement", rc_s)
+        if stopping():
+            return TERM_EXIT
+        if draining():
+            return DRAIN_EXIT
     if uses_ladder(args, cfg):
         rc_t = _ladder_phases(args, cfg, ran or [])
         if not (stopping() or draining()):
@@ -2047,7 +2576,22 @@ def cmd_all(args, cfg):
     print(clock.summary_line())
     if getattr(args, "timing", False):
         print(clock.table(ran or []))
-    return rc_r or rc or rc_j or rc_t
+    return rc_r or rc or rc_j or rc_s or rc_t
+
+
+def _session_judge_due(args, cfg) -> bool:
+    """The profile judges its role-play session part on the ladder (chains ``chat/j_rpsession`` with
+    ``judge_mode.kind: ladder``) and this is not a smoke run: `all` then runs the ladder judge pass for its models."""
+    from . import rpladder_run as LR
+    from .profiles import DEFAULT_PROFILE, load_profile
+    if getattr(args, "smoke", False):
+        return False
+    try:
+        prof = load_profile(getattr(args, "profile", None) or DEFAULT_PROFILE, cfg)
+        jm = ((prof.get("chains") or {}).get(LR.PART) or {}).get("judge_mode") or {}
+        return jm.get("kind") == "ladder"
+    except Exception:  # noqa: BLE001 — an unreadable profile: the other phases decide
+        return False
 
 
 def uses_ladder(args, cfg) -> bool:
@@ -2214,7 +2758,7 @@ def ladder_todo(label: str, cfg: dict, prof: dict, sets: dict, unlock: float,
     have = done_jobs(report.board_filter(label, cfg, sampler_view="current"))
     jobs = {(None, c["id"], r) for c in cases
             for r in range(1, repeats_for(cfg, c["category"], smoke, c) + 1)
-            if (c["id"], r) not in have and (c["id"], r) not in (tried or set())}
+            if (c["id"], r) not in have and (None, c["id"], r) not in (tried or set())}
     return cases, jobs, names
 
 
@@ -2272,6 +2816,7 @@ def _ladder_phases(args, cfg, labels: list[str]) -> int:
     the next level is due only when every level below scored >= the unlock
     share — until nothing is due. A failure here never blocks the report;
     the board shows an unrun set as pending."""
+    from . import timing as _timing_mod
     from . import ladder
     from . import report
     from .profiles import DEFAULT_PROFILE, load_profile
@@ -2310,6 +2855,7 @@ def _ladder_phases(args, cfg, labels: list[str]) -> int:
     for level in range(1, MAX_LADDER_ROUNDS + 1):
         ran = []
         t0 = time.monotonic()
+        w0 = _timing_mod.waited_total()
         for label, entry in entries.items():
             if stopping():
                 return TERM_EXIT
@@ -2348,7 +2894,8 @@ def _ladder_phases(args, cfg, labels: list[str]) -> int:
             rc = rc or _run_rc(summary, [label])
             ran.append(label)
         if clock and ran:
-            clock.add(f"ladder round {level} generation", time.monotonic() - t0, ran)
+            clock.add_split(f"ladder round {level} generation", time.monotonic() - t0, ran,
+                            _timing_mod.waited_total() - w0)
         if stopping():
             return TERM_EXIT
         if draining():
@@ -2405,6 +2952,18 @@ def plan_budget(cfg_p: dict, entry: dict, case: dict, ctx_len: int | None) -> st
     return f"{think} if thinking, else {mt}"
 
 
+def plan_reader_line(n_units: int, graded_family: str | None, prof: dict | None) -> str:
+    """The `plan` line for the NSFW+ classing: the run's judge reads each classed unit and each opinion-flag unit
+    once (one local judge, owner 2026-11-21); no reader, no hosted call, nothing priced."""
+    from . import judge45 as _J
+    if not n_units:
+        return "  NSFW+ judge: no units to read"
+    jid = _J.judge_id(prof) or "the run's judge"
+    note = " (same family as the graded model: the board notes it)" if _J.same_family(jid, graded_family) else ""
+    return (f"  NSFW+ judge: at most {n_units} calls by {jid}, one vote per classed or opinion-flag unit "
+            f"(local, free){note}")
+
+
 def cmd_plan(args, cfg) -> int:
     """`crucibleforge all --plan`: what `all` would run per model — every
     standard row (case, repeats, budget) in its load round(s) (a rig model:
@@ -2414,6 +2973,8 @@ def cmd_plan(args, cfg) -> int:
     called. The ladder lists show what WOULD run once unlocked; the unlock
     rule decides at run time from the model's scores."""
     from . import estimate as est
+    from . import plan_price as _plan_price
+    from . import spend as _spend
     from .config import repeats_for
     from .runner import _LOADING_TYPES, plan_rounds
     from .providers import provider_for
@@ -2454,19 +3015,33 @@ def cmd_plan(args, cfg) -> int:
                 judged += r * n / 3.0
         return secs, judged
 
+    from .adult_guard import is_adult as _is_adult, plan_cases as _adult_plan
+    all_cases = cases
     for e in entries:
         prov = provider_for(cfg_p, e)
         rig = prov.type in _LOADING_TYPES
+        said: list[str] = []
+        cases = _adult_plan(cfg_p, e, all_cases, say=said.append)
         perf = [c for c in cases if c["category"] == "perf"]
         t1 = [c for c in cases if c["category"] != "perf"]
         n_all = sum(repeats_for(cfg_p, c["category"], smoke, c) for c in t1)
         out.append(f"== {e['name']} ({e.get('provider')}:{e['model_id']})")
         out.append(f"  T1 — every model: {n_all} rows ({len(t1)} cases) + {len(perf)} perf probes")
+        n_adult = sum(1 for c in t1 if _is_adult(c))
+        out.append(f"  {said[0]}; 0 NSFW+ units" if said else f"  NSFW+: included, {n_adult} NSFW+ units")
+        if not said:
+            out.append(plan_reader_line(
+                sum(repeats_for(cfg_p, c["category"], smoke, c) for c in t1 if _is_adult(c)),
+                __import__("crucibleforge.lineage", fromlist=["family"]).family(e["name"]), prof))
         rounds = plan_rounds(cfg_p, e, cases)
         gen_total, judged_total, parts = 0.0, 0, []
+        priced_rows = []
         for i, rd in enumerate(rounds):
             rcs = [c for c in rd["cases"] if c["category"] != "perf"]
             lines, n = rows_of(rcs, rd["ctx"], e)
+            for c in rcs:
+                priced_rows.append((c, repeats_for(cfg_p, c["category"], smoke, c),
+                                    _plan_price.budget_int(plan_budget(cfg_p, e, c, rd["ctx"]))))
             slots = est.rig_slots(rd["ctx"]) if rig else max(1, int(prov.concurrency or 1))
             if rig:
                 what = {"A": "standard rows", "B": "wide rows (bank / ladder budget)",
@@ -2488,6 +3063,13 @@ def cmd_plan(args, cfg) -> int:
                    f", x{est.CALIBRATION} calibration, crucibleforge/estimate.py): "
                    + ", ".join(parts) + f"; judge {jm:.1f} min ({judged_total:.1f} judged-row "
                    f"equivalents at 3 samples, per-row sample policy) -> ~{gen_total + jm:.0f} min")
+        # D15 (fix round 2026-11-18): the plan price per model, printed before any hosted go
+        price = e.get("price") or prov.prices.get(str(e.get("model_id")))
+        out.append(_plan_price.plan_line(
+            _plan_price.estimate(priced_rows, price, thinks=e.get("thinking", "auto") is not False),
+            hosted=not rig and _spend.is_hosted(prov.type), priced=bool(price)))
+        if not rig and _spend.is_hosted(prov.type) and _spend.budget_line():
+            out.append(_spend.budget_line())
         out += _plan_ladder(args, cfg_p, prof, e, rig, prov, rows_of, jobs_of, samples) \
             if uses_ladder(args, cfg) else _plan_tiers(args, cfg_p, prof, e, rows_of)
     print("\n".join(out))
@@ -2511,10 +3093,14 @@ def _plan_ladder(args, cfg_p, prof, e, rig, prov, rows_of, jobs_of, samples) -> 
     out.append(f"  ladder — a set runs when every level below it scored >= {unlock:.0%} "
                f"(all sets of one level together):")
     gen_all, judged_all = 0.0, 0
+    from .adult_guard import plan_cases as _adult_plan
     for key, seq in sets.items():
         for spec in seq:
             cs = ladder.set_cases(prof, key, spec["n"], smoke=getattr(args, "smoke", False),
                                   sets=sets)
+            cs = _adult_plan(cfg_p, e, cs, say=lambda _s: None)   # an adult pack only with --adult (P1)
+            if not cs:
+                continue
             ctx = load_context(cfg_p, e, cases=cs)
             lines, n = rows_of(cs, ctx, e)
             below = "standard" if spec.get("level", spec["n"]) == 1 else "standard + every lower level"
@@ -3158,7 +3744,7 @@ ENV_FILE: Path | None = Path(_ENV_FILE_ENV).expanduser() if _ENV_FILE_ENV else N
 # log line. A parent that already holds it (a queue script's `flock
 # results/.rig.lock …`) is detected by walking the process ancestry for an
 # open fd on the lock file, so the child does not deadlock on its own parent.
-RIG_LOCK_CMDS = ("run", "all", "judge", "recover", "escalate", "bench-all", "ladder-judge")
+RIG_LOCK_CMDS = ("run", "all", "judge", "recover", "escalate", "bench-all", "ladder-judge", "judge-check")
 
 
 # ------------------------------------------------------------- stop path
@@ -3520,7 +4106,7 @@ DETACH_STOP_TIMEOUT_S = 45
 
 
 #: spend-cap variables a detached re-launch carries into its unit (spend.py)
-SPEND_ENV = ("CF_SPEND_CAP_USD", "CF_SPEND_JOURNAL", "CF_SPEND_ALLOW_CASES", "CF_SPEND_LEDGER",
+SPEND_ENV = ("CF_SPEND_CAP_USD", "CF_SPEND_RUN_CAP_USD", "CF_SPEND_JOURNAL", "CF_SPEND_ALLOW_CASES", "CF_SPEND_LEDGER",
              "CF_SPEND_CAP_MODEL", "CF_SPEND_GLOBAL_CAP_USD", "CF_SPEND_BASELINE_USD",
              "CF_SPEND_HELPER_JOURNAL", "CF_SPEND_RERUN_DIR", "CF_SPEND_COUNT_PLAN")
 
@@ -3652,8 +4238,17 @@ def main(argv=None):
                             "stream still running after N minutes (default: no ceiling, nothing "
                             "is cut; also $CRUCIBLEFORGE_DRAIN_MAX_MINUTES)")
 
+    def add_adult_arg(p):
+        p.add_argument("--no-nsfw-plus", dest="no_nsfw_plus", action="store_true",
+                       help="leave NSFW+ out of this run (it runs in every standard run by default). "
+                            "A model entry's `nsfw_plus: false` leaves it out for that model alone; the Claude "
+                            "Code route never runs it")
+        p.add_argument("--adult", action="store_true", help=argparse.SUPPRESS)
+        p.add_argument("--no-adult", dest="no_adult", action="store_true", help=argparse.SUPPRESS)
+
     def add_run_args(p):
         add_force_evict_arg(p)
+        add_adult_arg(p)
         add_drain_arg(p)
         p.add_argument("--models", default="all",
                        help="comma-separated labels, or 'all' (= enabled)")
@@ -3662,7 +4257,7 @@ def main(argv=None):
         p.add_argument("--smoke", action="store_true",
                        help="fast subset, 1 repeat per case")
         p.add_argument("--yes", action="store_true",
-                       help="proceed even if LM Studio is serving a model")
+                       help="proceed even if LM Studio is serving another model (skips nothing else)")
         p.add_argument("--fresh", action="store_true",
                        help="archive prior transcripts for these models first "
                             "(default: accumulate across runs)")
@@ -3719,7 +4314,33 @@ def main(argv=None):
                       "operator's load): no lease, no load, no unload; refuses unless it is ready")
     p_lj.add_argument("--client", default=None, help="with --attach: the X-SF-Client name every judge call "
                       "declares (the operator's lease holder)")
-    p_judge = sub.add_parser("judge", help="judge pending quality rows")
+    p_ag = sub.add_parser("agree", help="second reader of another model family re-grades the stored judged "
+                                        "units; prints the agreement table per part (production verdicts untouched)")
+    p_ag.add_argument("folders", nargs="+", help="result folders (one transcripts_<label>.jsonl each)")
+    p_ag.add_argument("--reader", required=True, action="append",
+                      help="the reader: judge candidate name, registry label or provider:model_id; never of the "
+                           "production judge's family. Repeat it: each folder is read by the first reader of "
+                           "another family than both its judge and its graded model (none = not measured)")
+    p_ag.add_argument("--parts", default=None, help="comma list (default chat/j_rplong,chat/j_rpsession; chat/packs45 = the Chat pack scenes)")
+    p_ag.add_argument("--nsfw-plus", "--adult", dest="adult", action="store_true", help="also re-grade the NSFW+ judged rows")
+    p_ag.add_argument("--cap-usd", type=float, default=None, help="spend cap; required for a hosted reader")
+    p_ag.add_argument("--reader-thinking", choices=("on", "off"), default="on",
+                      help="the reader thinks (default on; 'off' reads exactly as the production judge's policy)")
+    p_ag.add_argument("--plan", action="store_true", help="count units and calls; no model is loaded or called")
+    p_ag.add_argument("--out", default=None, help="agreement table json (default <first folder>/agree/)")
+    p_ag.add_argument("--judge-devices", default=None, help="rig reader: exactly these cards (e.g. 2,3)")
+    p_ag.add_argument("--judge-parallel", default=None, help="rig reader: slot ladder, e.g. 4,2")
+    p_ag.add_argument("--judge-allow-devices", default=None, help="cards the judge never takes by default (3), "
+                      "named on purpose")
+    p_ag.add_argument("--judge-instance-name", default=None, help="lease holder suffix (default agree)")
+    p_jc = sub.add_parser("judge-check", help="the judge's own accuracy on the constructed NSFW+ classing set "
+                          "(61 items) and opinion-flag set: stored in judge45/check.json and printed, never a gate")
+    add_force_evict_arg(p_jc)
+    p_jc.add_argument("--judge", default=None, help="judge to check (default: the profile's judge)")
+    p_jc.add_argument("--profile", default=None, help="default: bench45")
+    p_jc.add_argument("--show", action="store_true", help="print the stored result only (no model call)")
+    p_judge = sub.add_parser("judge", help="judge pending quality rows (4.5: also classes the NSFW+ units and reads "
+                             "the opinion flags with the same local judge, one vote each)")
     add_force_evict_arg(p_judge)
     p_judge.add_argument("--models", default="all")
     p_judge.add_argument("--force", action="store_true",
@@ -3812,6 +4433,7 @@ def main(argv=None):
     p_recover = sub.add_parser(
         "recover", help="re-run reasoning-overflow rows (empty answers) through recovery")
     add_force_evict_arg(p_recover)
+    add_adult_arg(p_recover)
     p_recover.add_argument("--models", default="all")
     p_recover.add_argument("--yes", action="store_true")
     p_recover.add_argument("--profile", default=None)
@@ -3821,6 +4443,7 @@ def main(argv=None):
         "escalate", help="re-run the answers that ran out of budget on bigger budgets "
                          "(64k, then 128k) for the board's Room column")
     add_force_evict_arg(p_esc)
+    add_adult_arg(p_esc)
     p_esc.add_argument("--models", default="all")
     p_esc.add_argument("--rungs", default=None,
                        help="comma list of output budgets (default: the profile's "
@@ -3839,6 +4462,12 @@ def main(argv=None):
                                "left out and every file is leak-checked before writing; "
                                "writes results/public/ (or --out), never the local board")
     p_report.add_argument("--out", default=None, help="with --public: output directory")
+    p_report.add_argument("--allow-placeholders", action="store_true",
+                          help="with --public: render although README.md, docs/SCORING.md or docs/RUNNING.md "
+                               "still hold a {{MEASURED: ...}} placeholder (refused by default)")
+    p_report.add_argument("--check-stale", action="store_true",
+                          help="list, per model, the board rows graded by code or data that has changed since "
+                               "(grader stamp missing or different); exit 1 when any scored row is stale")
     p_report.add_argument("--staged-claude-code", action="store_true",
                           help="STAGED board only (never --public, never the site / HF paths): show "
                                "claude_code (subscription CLI) rows as unranked validation rows marked "
@@ -3880,7 +4509,7 @@ def main(argv=None):
     p_pw.add_argument("--categories", default="rp,nsfw,story")
     p_pw.add_argument("--judge", default=None)
     p_pw.add_argument("--yes", action="store_true")
-    p_all = sub.add_parser("all", help="run + escalate + judge + report")
+    p_all = sub.add_parser("all", help="run, judge, ladder packs and report (escalate only with --escalate)")
     add_run_args(p_all)
     p_all.add_argument("--plan", action="store_true",
                        help="print what would run per model (tier-1 rows, repeats, budgets, "
@@ -3901,7 +4530,10 @@ def main(argv=None):
                        help="run only the ladder sets of these score sections (comma-separated, "
                             "e.g. work); an unknown section is refused before anything runs")
     p_all.add_argument("--no-lockout", action="store_true",
-                       help="skip the NSFW Lockout phase (the column reads 'not run')")
+                       help="4.1 archive only: skip the NSFW Lockout phase (the 4.5 board has no Lockout column)")
+    p_all.add_argument("--no-run", dest="no_run", action="store_true",
+                       help="skip the generation phase: judge what is stored, run the due ladder packs, report "
+                            "(refused with --fresh)")
     p_all.add_argument("--timing", action="store_true",
                        help="print the per-phase wall-clock table at the end (always recorded "
                             "in each model's meta under `timing`)")
@@ -3915,6 +4547,7 @@ def main(argv=None):
                           "(plan only unless --go)")
     p_ba.add_argument("--go", action="store_true", help="execute (default: print the plan)")
     add_drain_arg(p_ba)
+    add_adult_arg(p_ba)
     p_ba.add_argument("--include-api", action="store_true",
                       help="also complete hosted-API models (metered — costs money)")
     p_ba.add_argument("--no-sync", action="store_true",
@@ -4009,7 +4642,7 @@ def main(argv=None):
                                 "(SYSTEM-45 section 3; fails closed)")
     p_reg.add_argument("--profile", default="bench45")
     p_reg.add_argument("--lab", default=None, help="lab dir (default $CF_LAB_DIR, then "
-                                                   "~/Documents/Research/makobench-lab)")
+                                                   "~/.local/share/crucibleforge/lab)")
 
     p_scr = sub.add_parser("scratch-init",
                            help="create a scratch results dir (a .cf-scratch marker) for staged packs")
@@ -4240,6 +4873,7 @@ def main(argv=None):
         _exit_after_stop(TERM_EXIT)
     _apply_process_switches(args)
     handler = {"status": cmd_status, "run": cmd_run, "judge": cmd_judge, "ladder-judge": cmd_ladder_judge,
+               "agree": cmd_agree, "judge-check": cmd_judge_check,
                "recover": cmd_recover, "escalate": cmd_escalate, "report": cmd_report, "compare": cmd_compare, "calibrate": cmd_calibrate,
                "pack": cmd_pack, "pairwise": cmd_pairwise, "all": cmd_all,
                "gui": cmd_gui, "import-openclaw": cmd_import_openclaw,

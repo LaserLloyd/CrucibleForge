@@ -72,6 +72,10 @@ providers:
     type: lmstudio
     base_url: http://localhost:1234/v1
     api_key: lm-studio
+  studioforge:                    # a StudioForge rig (leases, load priorities): where the 4.5 judge runs
+    type: studioforge
+    base_url: http://127.0.0.1:1234/v1
+    api_key_env: STUDIOFORGE_API_KEY
   ollama:
     type: openai
     base_url: http://localhost:11434/v1
@@ -137,6 +141,8 @@ providers:
   # Routing key per (model, case, repeat) so one episode hits one cache: automatic on
   # api.openai.com (prompt_cache_key), api.x.ai (header x-grok-conv-id) and openrouter.ai
   # (session_id); `cache_route: body:<field>` | `header:<name>` | off overrides it per provider.
+  # api.x.ai gets a fresh key per REQUEST (`cache_route_scope: call`): on a sticky key xAI puts the
+  # earlier turns' hidden reasoning back into each later prompt; `cache_route_scope: episode` restores it.
   # Spend cap, journal and CF_SPEND_ALLOW_CASES apply to every provider whose models carry a price.
   xai:                            # Grok (xAI's OpenAI-compatible API)
     type: openai
@@ -227,11 +233,15 @@ judge:
   # runs out is recorded as unscored instead of holding the judge phase
   row_timeout_s: 600
   candidates:
+    # the 4.5 judge (profiles/bench45.yaml): the plain Qwen 3.8 27B, 8-bit, on the rig
+    - {provider: studioforge, model_id: "unsloth/Qwen3.8-27B-GGUF/Qwen3.8-27B-Q8_0", context_length: 16384, thinking: true}
     - {provider: lmstudio, model_id: "your-local-uncensored-judge", context_length: 16384}
     - {provider: deepseek, model_id: "deepseek-v4-flash"}
     - {provider: openrouter, model_id: "deepseek/deepseek-v4-flash"}
     # a named candidate is selectable with `--judge <name>`
     - {name: local-judge-q8, provider: lmstudio, model_id: "your-other-judge", context_length: 16384, thinking: true}
+    # the 4.1 judge, kept by name only (`--judge gemma4-31b-heretic`)
+    - {name: gemma4-31b-heretic, provider: studioforge, model_id: "llmfan46/gemma-4-31B-it-uncensored-heretic-GGUF/gemma-4-31B-it-uncensored-heretic-Q8_0", context_length: 16384, thinking: true}
 
 # models under test.  price = USD per 1M tokens (the report's Run cost column).
 # A flat-plan provider (billed per plan, not per token) adds `basis: list`:

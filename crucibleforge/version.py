@@ -356,7 +356,8 @@ def _content_view(c: dict) -> dict:
     from . import gen as _gen
     if _gen.is_generated(c):
         out["_release_seed"] = _gen.release_seed()
-        out["_generated"] = _gen.content_digest(c)
+        from . import digestcache
+        out["_generated"] = digestcache.digest(c)     # gen.content_digest, cached on disk (digestcache)
     for k in _NESTED_LISTS:
         v = out.get(k)
         if isinstance(v, list) and any(isinstance(x, dict) for x in v):
@@ -471,6 +472,7 @@ def _core_generated() -> list[dict]:
 
 
 _CASE_TABLE: dict = {}
+_CASE_TABLE_LOCK = __import__("threading").RLock()
 
 
 # ---- stored-row reuse across profiles (A0b, FABLE-GATE-FIXD 4b / FABLE-REUSE 3)
@@ -576,10 +578,15 @@ def _current() -> tuple[dict, dict, str]:
     key = _files_key()
     hit = _CASE_TABLE.get(key)
     if hit is None:
-        table, kinds = _case_table_kinds()
-        hit = (table, kinds, cases_hash())
-        _CASE_TABLE.clear()
-        _CASE_TABLE[key] = hit
+        with _CASE_TABLE_LOCK:                 # threads asking at once (judge workers) build it once
+            hit = _CASE_TABLE.get(key)
+            if hit is None:
+                from . import digestcache
+                with digestcache.pinned():
+                    table, kinds = _case_table_kinds()
+                hit = (table, kinds, cases_hash())
+                _CASE_TABLE.clear()
+                _CASE_TABLE[key] = hit
     return hit
 
 

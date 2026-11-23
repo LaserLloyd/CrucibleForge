@@ -1,4 +1,4 @@
-"""C1 v2 WASTE-COMPACTOR (prototype; Jake's ruling 2026-11-12: turns, old interface, layout, many devices).
+"""C1 v2 WASTE-COMPACTOR (prototype; the owner's ruling 2026-11-12: turns, old interface, layout, many devices).
 
 An invented deep-storage facility ("<Name> Undercroft") is run from an invented 12-bit minicomputer
 monitor, the Orrin FM-7: octal addresses, 4-digit octal words, terse mnemonics and a manual with gaps.

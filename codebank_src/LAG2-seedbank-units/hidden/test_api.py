@@ -73,8 +73,9 @@ def test_patch():
     call(app, "PATCH", path, {"quantity": "~5 g"})
     st, b = call(app, "PATCH", path, {"amount": None})
     assert st == 200 and b["amount"] is None
-    row = conn.execute("SELECT amount_milli, unit, approx FROM seeds WHERE id = ?", (s["id"],)).fetchone()
-    assert tuple(row) == (None, None, 0)
+    row = conn.execute("SELECT amount_milli, unit FROM seeds WHERE id = ?", (s["id"],)).fetchone()
+    # AMOUNTS section 5 says only "null to clear the amount": approx after a null patch is not stated (FIXNOW 2)
+    assert tuple(row) == (None, None)
 
 
 def test_filter_and_totals():

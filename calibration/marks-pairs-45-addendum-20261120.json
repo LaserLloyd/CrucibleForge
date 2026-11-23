@@ -1,0 +1,28 @@
+{
+  "about": "MakoBench 4.5 known-order pairs: which pair is tested when a role named by a segment's primary pair has no run on the release board. Written 2026-11-20 before any launch row was read. No threshold, margin rule, weight or pair order changes.",
+  "written": "2026-11-20",
+  "written_before_launch_rows": true,
+  "clarifies": [
+    "segment-marks-45.json"
+  ],
+  "unavailable_roles": {
+    "grok": "no Grok run exists or can be made for this release: the provider account had no balance when the launch runs were made, so the model was dropped from the launch list on 2026-11-19"
+  },
+  "rule": "For a segment whose primary pair names an unavailable role, the pair as written prints 'not tested' with the reason, and the first secondary pair of that segment whose two roles are both available becomes the required pair. If the segment has no such secondary pair it stays not evaluable. If a run of the unavailable role is later supplied (as an anchor folder), the pair as written is evaluated and is required again.",
+  "affects": {
+    "nsfw/erotica": {
+      "as_written": [
+        "grok",
+        ">",
+        "ds_flash"
+      ],
+      "required_instead": [
+        "heretic",
+        ">",
+        "minimax"
+      ]
+    }
+  },
+  "note": "This lowers the strength of one segment's order check (the stand-in pair has a weaker prior than the written one) and is disclosed on the tests page.",
+  "label_identity": "A run label matches a role pattern of segment-marks-45.json 'pair_rule.models' with '.' and '_' read as '-' on both sides (the engine's label for MiniMax M3.1 Flash is 'minimax-m3-1-flash', the marks say 'minimax-m3.1-flash*'). Identity only: the same model the marks name."
+}

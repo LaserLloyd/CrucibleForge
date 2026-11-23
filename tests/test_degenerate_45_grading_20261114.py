@@ -7,7 +7,7 @@
   ``_Ctx.call`` is degenerate first, then the empty-stop retry. A row can therefore carry
   ``empty_stop_retry`` together with ``degenerate`` only when the FIRST attempt was a plain
   empty stop and the RETRY looped (the retry is what was graded).
-- Jake's "grade only the response given": a row stamped ``empty_stop`` is graded on an empty
+- the owner's "grade only the response given": a row stamped ``empty_stop`` is graded on an empty
   answer in the live verdict and on the chains board (``api.row_answer`` already reads it so).
 4.1 (no ``empty_stop_rule``) reads exactly as before.
 """

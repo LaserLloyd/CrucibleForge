@@ -394,6 +394,7 @@ def test_remote_provider_can_raise_the_thinking_budget():
 
 # -------------------------------- checks are grading: re-applied at report time
 
+@pytest.mark.archive_default
 def test_report_reapplies_fixed_checks_to_stored_rows(tmp_path, monkeypatch):
     text = "She looked small, surrounded by the ghosts of our old life. " * 3
     stale = {"results": [{"id": "no-supernatural", "group": "constraint", "pass": False,
@@ -430,6 +431,7 @@ def test_the_first_3_4_0_runs_stay_current():
     assert "3.4.0+7c3f7296" not in version.current_revisions()
 
 
+@pytest.mark.archive_default
 def test_stored_template_parser_fails_are_errored_on_the_board(tmp_path, monkeypatch):
     from crucibleforge.version import revision
     row = {"bench_run_id": "r1", "bench_revision": revision(), "profile": "bench",

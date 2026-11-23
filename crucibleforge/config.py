@@ -503,7 +503,14 @@ def load_cases(categories: list[str] | None = None, smoke: bool = False,
             if difficulties and case.get("difficulty", "medium") not in difficulties:
                 continue
             if case.get("generator"):
-                _materialize_generated(case)
+                from . import gen as _gen
+                if _gen.is_generated(case):
+                    # a generated pack question renders when a command first reads it (lazycase.py): loading the
+                    # case set renders no pack (a patchfix L5-7 instance takes 6-20 s)
+                    from .lazycase import LazyCase
+                    case = LazyCase(case, _materialize_generated)
+                else:
+                    _materialize_generated(case)
             cases.append(case)
     return cases
 

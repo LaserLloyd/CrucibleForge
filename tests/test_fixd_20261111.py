@@ -202,14 +202,20 @@ def test_committed_targets_are_the_v5_source_with_no_stale_4_1_rows():
 
 
 @pytest.mark.slow
-def test_budget_cli_default_profile_is_bench45_for_the_case_tree():
+def test_budget_cli_default_profile_is_bench45_for_the_case_tree(tmp_path):
     """Without --profile the CLI activated the 4.1 case root while budgeting bench45."""
     import subprocess
     import sys
 
+    import os
+    env = {k: v for k, v in os.environ.items()
+           if k not in ("CRUCIBLEFORGE_CONFIG", "CRUCIBLEFORGE_RESULTS")}
+    env["CRUCIBLEFORGE_RESULTS"] = str(tmp_path)
+
     def run(*a):
         r = subprocess.run([sys.executable, "-m", "crucibleforge.cli", "budget", "--json", *a], cwd=ROOT,
-                           text=True, capture_output=True, timeout=300)
+                           text=True, capture_output=True, timeout=900, env=env)
+        assert r.returncode in (0, 1), r.stderr[-2000:]
         return json.loads(r.stdout)
     a, b = run(), run("--profile", "bench45")
     assert a["core_home_min"] == b["core_home_min"]

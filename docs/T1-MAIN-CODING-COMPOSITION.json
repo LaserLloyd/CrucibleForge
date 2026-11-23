@@ -1,9 +1,0 @@
-{"section": "Main Coding", "decided": "2026-11-13", "round": "1e knob round (the one allowed) + F1 (Fable gate fix, parameters only, no new probe)",
- "items": {
-  "MC1": {"pts": 2, "cases": ["TZ16-pickup-dst-delay", "CB-C6-predict-node"], "tag": "set/MC1-v3", "note": "F1: two anchors, scored as the mean of the two case shares (both reuse-gated in 1a, 62 / 60 models). Replaces the 1-pt TZ16-only set/MC1-v2 (kept as a tag). CB-F1 stays out (3.5k tokens, one unrepeatable row)"},
-  "MC2": {"pts": 4, "family": "tracevm", "core_level": 8, "count": 8, "tag": "set/MC2-v3", "note": "F1: TRACEVM L8 x8 (was L8 x4, 5 pts in set/MC2-v2). Sonnet's TRACEVM mean rests on few instances; eight answers cut the chance noise on the item"},
-  "MC3": {"pts": 2, "family": "patchfix", "core_level": 7, "count": 2, "tag": "set/MC3-v1", "note": "unchanged; patchfix has no L8"},
-  "MC4": {"pts": 2, "family": "planted_opt", "core_level": 4, "count": 3, "tag": "set/MC4-v2", "note": "unchanged"}},
- "nominal_answer_tokens": {"MC1": 1800, "MC2": 160, "MC3": 4400, "MC4": 4500, "total": 10860},
- "gate": {"verdict": "PASS-WITH-NOTE", "source": "build/T1-FABLE-GATE.md (2026-11-13 08:57 JST)", "notes_open": ["N1 TRACEVM rows for DS Flash thinking-off and one rig model before task 7", "N2 task 7 must state the run regime (thinking on/off)", "N3 no seed shopping", "N4 board note: about +/-0.7 from one run", "N5 PLANTED-OPT noise, do not raise its weight"]},
- "profile_wiring": "task 7 (profiles/bench45.yaml core_generated + core_level are NOT edited here)"}

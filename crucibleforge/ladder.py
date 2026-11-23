@@ -678,6 +678,8 @@ def verify_pack(path: Path, prof: dict | None = None,
     if spec.get("_generated"):
         from . import gen as _gen
         for c in entries:
+            if verify_cases.is_pack_family(c):
+                continue            # NSFW+ pack family: the pack's own rules, below (owner ruling 2026-11-21)
             try:
                 problems += [f"{c['id']}: {e}" for e in _gen.verify_case(dict(c))]
             except Exception as e:  # noqa: BLE001
@@ -711,6 +713,10 @@ def verify_pack(path: Path, prof: dict | None = None,
             if _gen.is_generated(c):
                 _gen.materialize_case(c)
         errs = verify_cases._check(c)
+        if verify_cases.is_pack_family(c):
+            # one rule set for an NSFW+ pack case (verify_cases._check_pack_case); the 4.1 lint does not apply
+            problems += [f"{c['id']}: {e}" for e in errs]
+            continue
         if c.get("grader") == "python_exec":
             errs += _mutant_errors(c)
         if v2:
@@ -763,6 +769,15 @@ def _time_warnings(spec, entries, own, others, prof) -> list[str]:
         mins = est.pack_minutes(prof, cases, spec.get("budget"), spec.get("context"))
     except Exception as e:  # noqa: BLE001 — an estimate never fails a verify
         return [f"no time estimate ({e})"]
+    # step 2 (2026-11-21): a pack may state its own limit (``minutes_limit``, minutes) when its content cannot be cut;
+    # the default 5 min stays for every other pack, and the stated limit is checked like the default
+    own_lim = spec.get("minutes_limit")
+    if isinstance(own_lim, (int, float)) and not isinstance(own_lim, bool) and own_lim > 0:
+        if mins > float(own_lim):
+            return [f"WARNING: planner estimate ~{mins:.1f} min on the reference rig model, over this pack's own "
+                    f"{float(own_lim):g}-min limit"]
+        return [f"time: planner estimate ~{mins:.1f} min (this pack's own limit {float(own_lim):g}; "
+                f"default {est.PACK_LIMIT_MIN:g})"]
     long_ok = str(spec.get("allow_long") or "").strip() if isinstance(spec.get("allow_long"), str) else ""
     if mins > est.PACK_LIMIT_MIN and long_ok:
         return [f"time: planner estimate ~{mins:.1f} min, over the {est.PACK_LIMIT_MIN:g}-min "

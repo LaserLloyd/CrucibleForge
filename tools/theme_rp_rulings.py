@@ -10,7 +10,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 BANK = Path(sys.argv[1]) if len(sys.argv) > 1 else ROOT / "cases/ladder/nsfw/nsfw_rp/theme-rp-bank.json"
-SRC = Path(sys.argv[2]) if len(sys.argv) > 2 else Path("/var/tmp/mb45-build/n2-work/rp-bank/bank-test.json")
+SRC = Path(sys.argv[2]) if len(sys.argv) > 2 else Path("bank-test.json")
 
 #: read-and-restored exceptions to the repo age lint (element_lint EL-17 _AMBIGUOUS, added 2026-11-11 in b2af635): the
 #: lint fires on a word; rule 1 ("No sexual or sexualised content involving minors"; edge example "a character written as

@@ -1,5 +1,5 @@
 """Claude Code rows on a STAGED board only (lead 2026-11-14): the ClaudeCodeOnBoard guard
-(c7de3c7, Jake 2026-11-12: subscription CLI rows run under Claude Code's own sampling, not
+(c7de3c7, the owner 2026-11-12: subscription CLI rows run under Claude Code's own sampling, not
 comparable to API rows) stays on every path; an explicit staged-only opt-in renders them as
 unranked validation rows, and a publish-shaped render refuses even with the opt-in set."""
 from __future__ import annotations

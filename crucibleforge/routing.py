@@ -132,6 +132,12 @@ def spec(prof: dict | None) -> dict | None:
     if not r:
         return None
     where = f"profile {(prof or {}).get('name')}: routing"
+    # The routed path scores through scale.units, which knows only the plain cut rule (D10): it has no
+    # did-not-finish reading, so cut_at_full_budget: zero would be silently ignored there. 4.5 ships no routed
+    # composition; refuse the pair at load instead of scoring it under a rule the profile did not ask for.
+    if chains.cut_at_full_budget(prof) == "zero":
+        raise ConfigError(f"{where}: cut_at_full_budget: zero with a routing block: "
+                          "routed compositions are not part of 4.5")
     if not isinstance(r, dict):
         raise ConfigError(f"{where}: a mapping")
     unknown = set(r) - {"calibration", "section", "locator", "modules", "cuts", "straddle", "effort_cells"}

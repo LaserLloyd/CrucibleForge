@@ -1,0 +1,21 @@
+{
+  "item": "PACK-NSFW-N7_TABOO",
+  "level": 1,
+  "status": "live",
+  "category": "nsfw",
+  "budget": 32768,
+  "id_prefix": "PKT",
+  "note": "range pack: harder adult asks, body logistics named in the ask and keyed. WIRED 2026-11-21 (owner ruling): every bank item carries a Grok and a DeepSeek attestation (scripts/attest_check.py). One point in total, the items' mean.",
+  "generator": {
+    "family": "nsfwpack45",
+    "variant": "taboo",
+    "rungs": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "per_rung": 1
+  }
+}

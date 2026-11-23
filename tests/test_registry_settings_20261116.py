@@ -3,6 +3,7 @@ import ipaddress
 from pathlib import Path
 from urllib.parse import urlparse
 
+import pytest
 import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -52,13 +53,20 @@ def test_registry_has_no_secrets_or_machine_urls():
 def test_registry_matches_the_live_file_when_present():
     live_path = Path.home() / "Projects" / "crucibleforge" / "models.yaml"
     if not live_path.is_file():
-        return
+        pytest.skip("no live models.yaml on this machine (the maintainer's own checkout)")
     live = yaml.safe_load(live_path.read_text(encoding="utf-8"))
     reg = yaml.safe_load(REG.read_text(encoding="utf-8"))
-    def sc(cfg):
-        return {m["name"]: m.get("settings_checked") for m in cfg["models"] if m.get("settings_checked")}
-    assert sc(live) == sc(reg)
-    def rest(models):
-        return [{k: v for k, v in m.items() if k != "tags"} for m in models]
-    assert rest(live["models"]) == rest(reg["models"])
+    # The registry is the tree's snapshot of the live file; the live file may have gained models since (it is the
+    # production checkout's, edited between releases). Every model the registry names must equal its live entry
+    # (settings_checked included); a model added to the live file later is not the snapshot's error.
+    names = [m["name"] for m in reg["models"]]
+    live_by = {m["name"]: m for m in live["models"]}
+    def sc(models):
+        return {m["name"]: m.get("settings_checked") for m in models if m.get("settings_checked")}
+    assert sc(reg["models"]) == sc([live_by[n] for n in names if n in live_by])
+    def rest(m):
+        return {k: v for k, v in m.items() if k != "tags"}
+    missing = [n for n in names if n not in live_by]
+    assert not missing, missing
+    assert [rest(live_by[n]) for n in names] == [rest(m) for m in reg["models"]]
     assert all("tags" not in m for m in reg["models"])

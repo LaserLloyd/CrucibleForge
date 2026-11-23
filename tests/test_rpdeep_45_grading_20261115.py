@@ -21,7 +21,7 @@ def _runs():
 
 
 def _case(cid):
-    return next(c for c in json.loads((ROOT / "cases" / "rpdeep.json").read_text()) if c["id"] == cid)
+    return next(c for c in json.loads((ROOT / "cases" / "rpdeep.json").read_text(encoding="utf-8")) if c["id"] == cid)
 
 
 def _items(model, cid, profile):

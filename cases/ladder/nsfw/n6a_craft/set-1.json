@@ -1,0 +1,23 @@
+{
+  "item": "PACK-NSFW-N6A_CRAFT",
+  "level": 1,
+  "status": "live",
+  "category": "nsfw",
+  "budget": 65536,
+  "id_prefix": "PKW",
+  "note": "erotica pack: single explicit pieces on non-default sapient bodies; elements catch a human-default template. WIRED 2026-11-21 (owner ruling): every bank item carries a Grok and a DeepSeek attestation (scripts/attest_check.py). One point in total, the items' mean.",
+  "generator": {
+    "family": "nsfwpack45",
+    "variant": "write",
+    "rungs": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6
+    ],
+    "per_rung": 1
+  },
+  "minutes_limit": 15
+}

@@ -18,7 +18,7 @@ lose it for good. This script is the safety net (docs/CUSTOM-TESTS.md,
     python3 scripts/private_layer.py check             # warn if files went missing
 
 Backups go to $CRUCIBLEFORGE_PRIVATE_BACKUP_DIR, default
-~/Documents/Backups/crucibleforge-private (directory 0700, archives 0600). The
+the private-layer backup directory outside the repo (directory 0700, archives 0600). The
 newest --keep (default 20) archives are kept. `restore --go` first backs up the
 current layer (label "pre-restore"), then writes the archive's files back,
 overwriting the ones that differ. Results (results/) are NOT part of the layer:

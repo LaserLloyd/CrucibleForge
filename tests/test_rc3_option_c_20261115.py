@@ -93,11 +93,25 @@ def test_claude_code_row_reads_tools_not_run_and_coding_is_not_scaled(tmp_path, 
         for k in range(1, n + 1):
             rows.append({**src, "case_id": cid, "repeat": k, "case_revision": version.case_hash(cid),
                          "bank_revision": version.case_hash(cid)})
+    # the 8B's Implied attempts were graded before the 4.5 item-audit Implied key fix moved that family's chain
+    # revision: regrade the copies under today's grader (replies untouched) so they are current again
+    from crucibleforge import chains, regrade
+    from crucibleforge.gen import _det
+    monkeypatch.setenv(profiles.COMPOSITION_ENV, "rc3-main")
+    # this test pins the plain D10 rule; the shipped profile says ``cut_at_full_budget: zero`` since 2026-11-19
+    _real_load = profiles.load_profile
+    monkeypatch.setattr(profiles, "load_profile", lambda *a, **k: {**_real_load(*a, **k), "cut_at_full_budget": "omit"})
+    p45 = profiles.load_profile("bench45")
+    profiles.activate_cases_root(p45)
+    specs = {c["id"]: c for c in chains.chain_cases(p45)}
+    recs = regrade.plan(rows, specs, "test: today's grader", None, {}, "work/c1_implied",
+                        now="2026-11-18T00:00:00+00:00", commit="test", pin=_det.pinned_python(p45))
+    rows = rows + [r for rec in recs if rec["status"] == "regrade" for r in rec["rows"]]
     res = tmp_path / "results"
     res.mkdir()
     (res / f"transcripts_{label}.jsonl").write_text("".join(json.dumps(r) + "\n" for r in rows), encoding="utf-8")
     (res / f"meta_{label}.json").write_text(json.dumps({"model_label": label, "provider": "claudecode",
-                                                        "provider_type": "claude_code", "profile": "bench45"}))
+                                                        "provider_type": "claude_code", "profile": "bench45"}), encoding="utf-8")
     cfgf = tmp_path / "models.yaml"
     cfgf.write_text(
         "providers:\n  claudecode:\n    type: claude_code\n"
@@ -114,20 +128,21 @@ def test_claude_code_row_reads_tools_not_run_and_coding_is_not_scaled(tmp_path, 
         rc = e.code
     assert rc in (0, None)
     md = (res / "report.md").read_text(encoding="utf-8")
-    line = next(l for l in md.splitlines() if l.startswith(f"| {label} | ") and "Implied" in l)
-    assert re.search(r"Tools not run \(the Claude Code route has no tools\)", line), line
+    # 4.5.0 labels (fix round 2026-11-18, R5): Implied = "Functions", Trace = "Steps", Predict = "Traps"
+    line = next(l for l in md.splitlines() if l.startswith(f"| {label} | ") and "Functions" in l)
+    assert re.search(r"Tool rules not run \(the Claude Code route has no tools\)", line), line   # R5 label
     # nothing is scaled up over a part that was not run (lead 2026-11-14 night): measured points of the
     # measured maximum, "x of 7.5 measured, 2.5 not run"
     head = line.split(" | ")[1]
     if not predict_cut:
-        pts = sum(float(x) for x in re.findall(r"(?:Implied|Trace|Predict) (\d+\.\d)", line))
+        pts = sum(float(x) for x in re.findall(r"(?:Functions|Steps|Traps) (\d+\.\d)", line))
         assert re.match(r"\d+\.\d of 7\.5 measured, 2\.5 not run =", head + " ="), head
         assert "scaled" not in head, head
         assert abs(float(head.split()[0]) - pts) <= 0.16, (head, pts)
     else:
         # Predict also ran out (the 8B's cut CB-C5 replies): the 4.5 ran-out rule scales over that part
         # only; the not-run part stays out of the maximum
-        pts = sum(float(x) for x in re.findall(r"(?:Implied|Trace) (\d+\.\d)", line))
+        pts = sum(float(x) for x in re.findall(r"(?:Functions|Steps) (\d+\.\d)", line))
         m = re.match(r"(\d+\.\d) of 7\.5, 2\.5 not run \(scaled from (\d+\.\d) of 6\.25 measured\)", head)
         assert m, head
         assert abs(float(m.group(2)) - pts) <= 0.11, (head, pts)

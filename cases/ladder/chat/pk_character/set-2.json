@@ -1,0 +1,17 @@
+{
+ "level": 2,
+ "points": 1.0,
+ "item": "SCENELADDER-R6R7",
+ "category": "rpdeep",
+ "budget": 16384,
+ "context": 73728,
+ "note": "LIVE (realign45-packs-chat, wired at integration 2026-11-20): part chat/pk_<segment> in the standard composition, gate = the segment standard share (crucibleforge/packs45.py). SCENELADDER rungs 6 and 7 x2 (engine gen/sceneladder.py, 25 code checks per rung, no judge). Hosted mid-size screen (EXP-20261114-32): R6 MM .917, DS .875; R7 MM .958, DS 1.000; no frontier row found, so this level may be maxed: the lead's frontier screen decides.",
+ "generator": {
+  "family": "sceneladder",
+  "rungs": [
+   6,
+   7
+  ],
+  "per_rung": 2
+ }
+}

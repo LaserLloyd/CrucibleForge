@@ -217,6 +217,8 @@ def _cfg(prof, **extra):
                          "early_stop": dict(earlystop.DEFAULTS, enabled=False)},
             "providers": {"p": {"type": "studioforge", "base_url": "http://p.invalid/v1"}},
             "judge": {"candidates": []}, "models": [],
+            # the toy runs include adult parts: they run as `--adult` does (opt-in since 2026-11-18)
+            "adult_run": True,
             "_profile_case_ids": [c["id"] for c in chains.chain_cases(prof)], **extra}
 
 

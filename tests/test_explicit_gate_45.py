@@ -303,3 +303,13 @@ def test_g1c1_dev_numbers_on_the_val37_twins():
     got["sources_passed"] = (sum(G1C1.gate(s["region"])[0] for s in _FX["sources"]), len(_FX["sources"]))
     if got != G1C1_DEV:
         pytest.xfail(f"G1c.1 dev drift: {got} (pinned {G1C1_DEV})")
+
+
+def test_list_verdict_is_kept_per_text_and_returns_fresh_dicts():
+    """Report-render speed (2026-11-20): the same reply is gated tens of thousands of times; the answer must not change."""
+    t = "She kissed him and then they went on talking about the weather for a while."
+    for nm in G.LISTS:
+        a = G.list_verdict(nm, t)
+        assert a == G._list_verdict(nm, t)
+        a["passed"] = not a["passed"]                    # a caller mutating its copy must not poison the store
+        assert G.list_verdict(nm, t) == G._list_verdict(nm, t)
