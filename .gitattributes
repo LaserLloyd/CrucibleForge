@@ -1,3 +1,8 @@
+# The benchmark hashes its own files: case banks, calibration and marks files, profiles, grader and generator
+# source. A checkout that converts line endings (Windows, core.autocrlf) changes those hashes and the engine then
+# refuses the files. So no file is ever converted; the rules below only add LF where a shell needs it.
+* -text
+
 # Files that run under a POSIX shell or inside Linux containers must stay LF on
 # every checkout: a CRLF shebang or hook makes bash fail with "not found" / "\r".
 *.sh text eol=lf
