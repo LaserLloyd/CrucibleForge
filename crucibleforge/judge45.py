@@ -182,8 +182,15 @@ class JudgeStore:
             self._d[(kind, judge, prompt_sha, content)] = rec
             self.lines.append(rec)
             self.path.parent.mkdir(parents=True, exist_ok=True)
+            line = json.dumps(rec, ensure_ascii=False)
+            try:
+                line.encode("utf-8")
+            except UnicodeEncodeError:
+                # a reply cut in the middle of an emoji holds a lone surrogate, which UTF-8 cannot carry;
+                # ASCII escapes are lossless and load back to the identical record (2026-11-24)
+                line = json.dumps(rec)
             with self.path.open("a", encoding="utf-8") as fh:
-                fh.write(json.dumps(rec, ensure_ascii=False) + "\n")
+                fh.write(line + "\n")
 
 
 # ------------------------------------------------------------------ one vote -> one verdict
