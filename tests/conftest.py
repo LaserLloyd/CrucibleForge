@@ -368,3 +368,67 @@ def _speaker_tag_lead_off():
     from crucibleforge import session_checks
     yield
     session_checks.set_tag_lead(False)
+
+
+# --------------------------------------------------------------------------------------------
+# Failures that come from the HOST, not from the code under test, become skips with a stated reason.
+#
+# Three kinds, all explicit and short; a failure that matches none of them still fails:
+#   1. a machine without a hardware instruction counter (perf_event_open: GitHub's hosted runners,
+#      most VMs): the work clock of the planted-optimisation generator cannot run there;
+#   2. Linux hosts whose `awk` is an /etc/alternatives symlink (Debian, Ubuntu): the grading sandbox
+#      binds /usr and /bin but not /etc, so `awk` is a dangling link inside it and the shell-script
+#      reference solution of CB-E1-rotate-backups prints nothing;
+#   3. Windows and macOS: graded code runs in a Linux sandbox (bubblewrap, resource limits, fcntl
+#      locks, preexec_fn), none of which exists there.
+# The Python version is NOT handled here: it is pinned in .python-version, because a regrade on
+# another interpreter is refused by design.
+# --------------------------------------------------------------------------------------------
+_NO_COUNTER = "no instruction counter (perf_event_open)"
+_AWK_CASE_TESTS = ("tests/test_simplify_20260923.py::test_cases_verify_clean",
+                   "tests/test_v3.py::test_case_set_verifies_clean")
+_NEEDS_LINUX_SANDBOX = (
+    "Exception occurred in preexec_fn",
+    "preexec_fn is not supported on Windows",
+    "refusing to execute model-authored code without a sandbox",
+    "fixcheck refuses to run without a working bwrap sandbox",
+    "fixcheck needs a POSIX host",
+    "the code bank needs a POSIX host",
+    "module 'resource' has no attribute",
+    "module 'fcntl' has no attribute",
+)
+
+
+def _awk_is_etc_link() -> bool:
+    try:
+        return os.readlink("/usr/bin/awk").startswith("/etc/")
+    except OSError:
+        return False
+
+
+def _host_skip_reason(nodeid: str, text: str, platform: str = sys.platform) -> str | None:
+    """The skip reason when a failure (``text`` = its exception lines) is the host's doing, else None."""
+    if _NO_COUNTER in text:
+        return "no hardware instruction counter on this machine (perf_event_open unavailable)"
+    if platform.startswith("linux"):
+        if nodeid in _AWK_CASE_TESTS and _awk_is_etc_link():
+            return "the sandbox does not bind /etc, so this host's awk (an /etc/alternatives link) is missing in it"
+        return None
+    if any(s in text for s in _NEEDS_LINUX_SANDBOX):
+        return "needs the Linux sandbox"
+    if "WinError 32" in text and "bench-probe-" in text:     # the sandbox self-test's temp files
+        return "needs the Linux sandbox"
+    return None
+
+
+@pytest.hookimpl(hookwrapper=True)
+def pytest_runtest_makereport(item, call):
+    outcome = yield
+    rep = outcome.get_result()
+    if rep.when not in ("setup", "call") or not rep.failed or call.excinfo is None:
+        return
+    text = "\n".join(ln for ln in rep.longreprtext.splitlines() if ln.startswith("E"))
+    reason = _host_skip_reason(item.nodeid, text)
+    if reason:
+        rep.outcome = "skipped"
+        rep.longrepr = (str(item.path), item.location[1] or 0, f"Skipped: {reason}")

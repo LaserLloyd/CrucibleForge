@@ -83,7 +83,12 @@ jobs:
       # the escape hatch when a two-second install gives real isolation.
       - name: Install bubblewrap (the sandbox the graders require)
         if: runner.os == 'Linux'
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq bubblewrap
+        # The grading sandbox mounts /usr and /bin but not /etc. On Debian and Ubuntu `awk` is a link into
+        # /etc/alternatives, so it is missing inside the sandbox and one shell case of the 4.1 set cannot be
+        # verified. Point the link at the real binary on the runner (the engine fix is listed for 4.5.1).
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq bubblewrap
+          sudo ln -sf "$(readlink -f /usr/bin/awk)" /usr/bin/awk
       # bubblewrap on PATH is not a sandbox. GitHub's ubuntu images restrict
       # unprivileged user namespaces (AppArmor), so bwrap installs fine and then
       # cannot create one -- and a suite that only checked `which bwrap` ran
