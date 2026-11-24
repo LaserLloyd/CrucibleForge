@@ -20,3 +20,13 @@ def test_ordinary_text_is_still_written_unescaped(tmp_path):
     path = tmp_path / "store.jsonl"
     judge45.JudgeStore(path).put("rp", "judge-x", "sha", "café 🙂", {"class": "ok"})
     assert "café 🙂" in path.read_text(encoding="utf-8")
+
+
+def test_session_rows_reach_the_judge_without_lone_surrogates():
+    from crucibleforge import rpladder, rpladder_run
+    row = {"conversation": [{"role": "assistant", "content": "ok \ud83d then"}], "n": 3, "keep": "café 🙂"}
+    out = rpladder_run._whole_text(row)
+    assert out["conversation"][0]["content"] == "ok \ufffd then" and out["keep"] is row["keep"] and out["n"] == 3
+    # the request key that failed on the raw text
+    rpladder.request_key(out["conversation"], "judge-x")
+    assert row["conversation"][0]["content"] == "ok \ud83d then"          # the caller's row is not changed

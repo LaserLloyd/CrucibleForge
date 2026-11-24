@@ -57,7 +57,25 @@ def current_session_rows(label: str, cfg: dict) -> dict[str, dict]:
             continue
         if ch["id"] not in best or str(r.get("ts")) >= str(best[ch["id"]].get("ts")):
             best[ch["id"]] = r
-    return best
+    return {k: _whole_text(r) for k, r in best.items()}
+
+
+def _whole_text(x):
+    """``x`` with every lone surrogate in its strings replaced by U+FFFD (strings without one are returned as they
+    are). A reply cut in the middle of an emoji holds a lone surrogate, which UTF-8 cannot carry: the request key
+    and the verdict store of the session judge both failed on it and the sessions stayed pending (2026-11-24).
+    Only this in-memory copy changes; the stored row keeps the reply as the model sent it."""
+    if isinstance(x, str):
+        try:
+            x.encode("utf-8")
+            return x
+        except UnicodeEncodeError:
+            return x.encode("utf-16", "surrogatepass").decode("utf-16", "replace")
+    if isinstance(x, list):
+        return [_whole_text(v) for v in x]
+    if isinstance(x, dict):
+        return {k: _whole_text(v) for k, v in x.items()}
+    return x
 
 
 def _units(rows: dict[str, dict], cards: dict) -> tuple[list[dict], dict]:
