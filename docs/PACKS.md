@@ -2,6 +2,8 @@
 
 # Optional packs
 
+<p align="center"><img src="images/packs.svg" alt="Bonus packs: a part at 90 percent or more opens its pack of harder questions; each pack is worth up to one bonus point; bonus points are drawn as hashed bars after the solid standard score and never count in Overall" width="560"></p>
+
 An **optional pack** (the code calls it a ladder *set*) is a small group of harder questions
 that a sub-score earns the right to run. You never turn packs on. A model that does well on a
 part's standard questions gets that part's next pack run automatically, and the pack adds

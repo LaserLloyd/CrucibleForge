@@ -84,6 +84,14 @@ Every segment with its rows and grader: [docs/WHAT-IS-TESTED.md](docs/WHAT-IS-TE
 each: [docs/TESTS-BY-COMPONENT.md](docs/TESTS-BY-COMPONENT.md). The rules for refusals, empty and cut replies:
 [docs/SCORING.md](docs/SCORING.md) and [docs/SCORING-RULES-45.md](docs/SCORING-RULES-45.md).
 
+## Bonus packs
+
+A part scored at 90% or more opens a harder bonus pack. Each pack is worth up to 1 bonus point. Bonus points are
+shown apart, as hashed bars after the solid score, and never count in Overall /20. How packs work and how to write
+one: [docs/PACKS.md](docs/PACKS.md).
+
+<p align="center"><img src="docs/images/packs.svg" alt="Bonus packs: a part at 90 percent or more opens its pack of harder questions; each pack is worth up to one bonus point; bonus points are drawn as hashed bars after the solid standard score and never count in Overall" width="560"></p>
+
 ## Methodology
 
 - **Fixed questions.** Every model gets the same question sets. Generated items come from the release seed `4.5.0`
