@@ -1,0 +1,24 @@
+FAIL element standard: CB-C3-predict-sqlite: element_standard: 45 is required on a scored 4.5 case
+FAIL element standard: CB-C6-predict-node: element_standard: 45 is required on a scored 4.5 case
+FAIL element standard: RV2-skarren-hut: element_standard: 45 is required on a scored 4.5 case
+FAIL element standard: TZ19-hotel-cot-deadline: element_standard: 45 is required on a scored 4.5 case
+FAIL element standard: WR1-ninth-string: element_standard: 45 is required on a scored 4.5 case
+FAIL element standard: WR2-red-thread-key: element_standard: 45 is required on a scored 4.5 case
+FAIL ladder: cases/ladder/chat/character: no sub-score chat/character in the profile
+FAIL ladder: cases/ladder/chat/conversation: no sub-score chat/conversation in the profile
+FAIL ladder: cases/ladder/chat/deep_rp: no sub-score chat/deep_rp in the profile
+FAIL ladder: cases/ladder/chat/frontier: no sub-score chat/frontier in the profile
+FAIL ladder: cases/ladder/chat/writing: no sub-score chat/writing in the profile
+FAIL ladder: cases/ladder/nsfw/adult45: no sub-score nsfw/adult45 in the profile
+FAIL ladder: cases/ladder/nsfw/nsfw_rp: no sub-score nsfw/nsfw_rp in the profile
+FAIL ladder: cases/ladder/nsfw/nsfw_writing: no sub-score nsfw/nsfw_writing in the profile
+FAIL ladder: cases/ladder/nsfw/packs45: no sub-score nsfw/packs45 in the profile
+FAIL ladder: cases/ladder/nsfw/uncensored: no sub-score nsfw/uncensored in the profile
+FAIL ladder: cases/ladder/work/agentic: no sub-score work/agentic in the profile
+FAIL ladder: cases/ladder/work/code: no sub-score work/code in the profile
+FAIL ladder: cases/ladder/work/frontier: no sub-score work/frontier in the profile
+FAIL ladder: cases/ladder/work/reasoning: no sub-score work/reasoning in the profile
+FAIL ladder: cases/ladder/work/trace: no sub-score work/trace in the profile
+FAIL PKW-r1-1/- EL-17: no character age is stated in the card/prompt text
+FAIL PKW-r2-1/- EL-17: no character age is stated in the card/prompt text
+FAIL PKW-r3-1/- EL-17: no character age is stated in the card/prompt text
