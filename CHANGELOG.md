@@ -51,6 +51,14 @@ NSFW, Uncensored and NSFW+ are wider than the 5% limit for a single run; the boa
 The adult figures come from 7 + 2 + 2 repeat runs of three models (8 degrees of freedom). The mean of the
 reference model's own seven runs has NSFW+ ±0.60 (3.0%), NSFW ±0.45 and Uncensored ±0.26.
 
+**Fixed after the first models outside the launch set were run (2026-11-24).** No stored score of a launch model
+changed.
+- A reply cut in the middle of an emoji left a character that could not be saved; the judge's verdict was lost and
+  the model's role-play sessions stayed pending. Such replies are now judged and stored.
+- A turn that ended in a tool call with no text, from a model that reports no reasoning tokens, was read as a dropped
+  reply. A model that passed a tool dialogue four times had its Tools score left pending and was not ranked. A turn
+  that ends in a tool call is now always counted as the model's answer.
+
 **Where the judge leans.** A one-time audit re-judged the eight long chat scenes (4.5 of the 10 Chat points) of five
 models, 581 facts in all, with three other models outside the bench, and took their agreed answer as the truth. The
 judge differed from it on 35 facts: 18 too lenient and 17 too strict, so most errors cancel. On every model its lean

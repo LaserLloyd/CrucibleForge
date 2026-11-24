@@ -82,6 +82,11 @@ def _row_empty(r: dict, refusal_ids=frozenset()) -> str | None:
         return None
     if (r.get("response") or "").strip() or r.get("tool_calls") or (r.get("agent") or {}).get("tool_calls"):
         return None
+    if r.get("finish_reason") == "tool_calls":
+        # the turn ended in a tool call: that is the model's answer, graded as it stands. A scripted tool dialogue
+        # stores no text for such a turn, and a model that reports no reasoning tokens was read as a dropped stream:
+        # four passed runs of one dialogue became "missing" and the model lost its rank (2026-11-24).
+        return None
     if r.get("finish_reason") == "length" or r.get("truncated"):
         return None
     if (r.get("judge") or {}).get("refused") or r.get("refused"):
