@@ -425,6 +425,7 @@ _HOST_DEPENDENT = {
         # another order. They pass on Linux and Windows and passed on macOS in other runs: timing, not logic.
         "timing-sensitive under the macOS runner's few cores": (
             _T + "test_earlystop_20261113.py::test_a_tripped_model_stops_keeps_its_rows_and_the_batch_goes_on",
+            _T + "test_chains_20261113.py::test_early_stop_counts_chain_answers",
             _T + "test_review_opus_39.py::test_bench_all_finishes_everything_by_the_window_end"),
     },
     "win32": {
