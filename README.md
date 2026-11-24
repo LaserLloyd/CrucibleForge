@@ -12,10 +12,7 @@ It is the engine behind the public [MakoBench board](https://www.laserlloyd.com/
 Current suite: **4.5.0** (`SUITE_VERSION` in `crucibleforge/version.py`), profile `bench45`.
 Licence: [MIT-0](LICENSE). Author: Laser Lloyd.
 
-```mermaid
-flowchart LR
-    Q["Fixed questions"] --> M["Your model"] --> G["Code checks and one local judge"] --> S["Scores with ranges"] --> B["Board"]
-```
+<p align="center"><img src="docs/images/how-it-works.svg" alt="How MakoBench works: the same questions for every model, your model answers, the answers are checked by code and one local judge, scores with a range, the board" width="560"></p>
 
 ## Quick start
 
@@ -76,6 +73,8 @@ Code and Chat are each worth 10 points; **Overall /20 is their sum**. The weight
 | Chat | Co-writes to a brief | 1.5 | Write to a brief with stated constraints and required elements |
 | Chat | Everyday instructions | 1 | Small checked tasks (format, word problems, a document) and saying NOT STATED when the document does not say |
 <!-- parts:end -->
+
+<p align="center"><img src="docs/images/score.svg" alt="Code is 10 points (Writes 4, Fixes 3, Tools 2, Reads 1), Chat is 10 points (Character 4, Memory 3.5, Co-write 1.5, Everyday 1); together they are Overall out of 20" width="560"></p>
 
 **NSFW+ /20, shown apart.** NSFW /10 (Erotica 4, Adult role-play 2.5, Range 2, Anatomy 1.5) plus Uncensored /10
 (Willingness 6, Knowledge 4), printed in its own column beside Overall and never part of it; both halves are
