@@ -2,6 +2,7 @@
 import json
 import subprocess
 import sys
+from pathlib import Path
 
 import pytest
 
@@ -109,13 +110,13 @@ def test_status_adds_every_source_against_the_cap(tmp_path):
     put(helper, {"model": "deepseek", "cost": 1.0}, {"model": "grok-4.7", "cost": 3.92})
     put(rr / "a.jsonl", {"model": "opus", "call_usd": 5.71})
     put(rr / "b.jsonl", {"model": "fable", "call_usd": 1.95}, {"model": "x", "refused": True})
-    st = spend.status(ledger=led, helper=helper, rerun_dir=rr, baseline=231.07, cap_usd=330)
-    assert st["total_usd"] == round(231.07 + 3 + 1 + 5.71 + 1.95, 4)
+    st = spend.status(ledger=led, helper=helper, rerun_dir=rr, baseline=100.07, cap_usd=400)
+    assert st["total_usd"] == round(100.07 + 3 + 1 + 5.71 + 1.95, 4)
     assert st["plan_usd_not_counted"] == 3.92 and not st["over"]
-    assert st["headroom_usd"] == round(330 - st["total_usd"], 4)
-    st2 = spend.status(ledger=led, helper=helper, rerun_dir=rr, baseline=231.07, cap_usd=330, count_plan=True)
+    assert st["headroom_usd"] == round(400 - st["total_usd"], 4)
+    st2 = spend.status(ledger=led, helper=helper, rerun_dir=rr, baseline=100.07, cap_usd=400, count_plan=True)
     assert st2["total_usd"] == round(st["total_usd"] + 3.92, 4)
-    assert spend.status(ledger=led, baseline=331, cap_usd=330)["over"] is True
+    assert spend.status(ledger=led, baseline=401, cap_usd=400)["over"] is True
     assert "HEADROOM" in spend.render_status(st)
 
 
@@ -126,55 +127,48 @@ def test_cli_spend_status_exit_code(tmp_path):
     # `spend status` also adds the live helper journal and rerun ledgers, which this test must not read
     base = [sys.executable, "-m", "crucibleforge.cli", "spend", "status", "--ledger", str(led),
             "--helper-journal", str(tmp_path / "none.jsonl"), "--rerun-dir", str(tmp_path / "none")]
-    r = subprocess.run([*base, "--baseline", "10", "--cap", "330", "--json"], capture_output=True, text=True)
+    r = subprocess.run([*base, "--baseline", "10", "--cap", "400", "--json"], capture_output=True, text=True)
     assert r.returncode == 0, r.stderr
     assert json.loads(r.stdout)["total_usd"] == 13.0
-    r = subprocess.run([*base, "--baseline", "330", "--cap", "330"], capture_output=True, text=True)
+    r = subprocess.run([*base, "--baseline", "400", "--cap", "400"], capture_output=True, text=True)
     assert r.returncode == 1 and "OVER THE CAP" in r.stdout
 
 
-def test_global_cap_is_the_default_under_bench45(monkeypatch, tmp_path):
-    """No env var: bench45 alone enforces the $330 global cap (and not 4.1)."""
+def test_no_global_cap_or_baseline_ships(monkeypatch, tmp_path):
+    """Docker user path 2026-11-25: a fresh user's baseline is 0 and no lifetime ceiling tuned to one account ships;
+    the operator's own figures come only from the environment, which still gates."""
     led = tmp_path / "l.jsonl"
-    put(led, {"model": "fable", "cost_usd": 98.9})           # 231.07 baseline + 98.9 = 329.97
+    put(led, {"model": "fable", "cost_usd": 98.9})
     monkeypatch.setenv(spend.LEDGER_ENV, str(led))
-    monkeypatch.setattr(profiles, "active_name", lambda cfg=None: "bench45")
-    assert spend.global_cap() == 330.0
-    spend.guard("anthropic", "fable")                         # 329.97 < 330
+    for name in ("bench45", "bench"):
+        monkeypatch.setattr(profiles, "active_name", lambda cfg=None, n=name: n)
+        assert spend.global_cap() is None
+        assert spend.status(ledger=led)["total_usd"] == 98.9           # no baseline added
+        spend.guard("anthropic", "fable")                                # nothing gates by default
+    monkeypatch.setenv(spend.GLOBAL_CAP_ENV, "199")
+    monkeypatch.setenv(spend.BASELINE_ENV, "100.07")                     # an operator sets figures of their own
+    assert spend.global_cap() == 199.0
+    spend.guard("anthropic", "fable")                                    # 198.97 < 199
     with pytest.raises(spend.SpendCapExceeded, match="global"):
-        spend.reserve("anthropic", "fable", 0.05)             # the incoming call crosses 330
-    put(led, {"model": "fable", "cost_usd": 0.05})
-    with pytest.raises(spend.SpendCapExceeded):
-        spend.guard("anthropic", "fable")
-    monkeypatch.setenv(spend.GLOBAL_CAP_ENV, "400")           # env is an override only
-    spend.guard("anthropic", "fable")
-    monkeypatch.delenv(spend.GLOBAL_CAP_ENV)
-    monkeypatch.setattr(profiles, "active_name", lambda cfg=None: "bench")
-    assert spend.global_cap() is None
-    spend.guard("anthropic", "fable")                         # 4.1: never gated
+        spend.reserve("anthropic", "fable", 0.05)
 
 
-def test_helper_and_rerun_journals_default_under_bench45(monkeypatch, tmp_path):
+def test_helper_and_rerun_journals_come_only_from_the_environment(monkeypatch, tmp_path):
     h, rr = tmp_path / "spend.jsonl", tmp_path / "rr"
     put(h, {"model": "deepseek", "cost": 1.0})
     put(rr / "a.jsonl", {"model": "opus", "call_usd": 5.0})
-    monkeypatch.setattr(spend, "DEFAULT_HELPER_JOURNAL", h)
-    monkeypatch.setattr(spend, "DEFAULT_RERUN_DIR", rr)
     monkeypatch.setattr(profiles, "active_name", lambda cfg=None: "bench45")
     st = spend.status(ledger=tmp_path / "none.jsonl")
-    assert st["total_usd"] == 231.07 + 1.0 + 5.0               # baseline default + both journals
-    monkeypatch.setenv(spend.HELPER_JOURNAL_ENV, str(tmp_path / "other.jsonl"))
-    assert spend.status(ledger=tmp_path / "none.jsonl")["total_usd"] == 231.07 + 5.0   # env overrides
-    monkeypatch.setattr(profiles, "active_name", lambda cfg=None: "bench")
-    assert spend.status(ledger=tmp_path / "none.jsonl")["total_usd"] == 0.0           # 4.1: no defaults
+    assert st["total_usd"] == 0.0 and set(st["parts"]) == {"baseline", "bench_ledger"}
+    assert "no global cap set" in spend.render_status(st) and "HEADROOM" not in spend.render_status(st)
+    monkeypatch.setenv(spend.HELPER_JOURNAL_ENV, str(h))
+    monkeypatch.setenv(spend.RERUN_DIR_ENV, str(rr))
+    assert spend.status(ledger=tmp_path / "none.jsonl")["total_usd"] == 6.0
 
 
-def test_missing_default_paths_are_a_noop(monkeypatch, tmp_path):
-    monkeypatch.setattr(spend, "DEFAULT_HELPER_JOURNAL", tmp_path / "nope.jsonl")
-    monkeypatch.setattr(spend, "DEFAULT_RERUN_DIR", tmp_path / "nodir")
-    monkeypatch.setattr(profiles, "active_name", lambda cfg=None: "bench45")
-    st = spend.status(ledger=tmp_path / "none.jsonl")
-    assert st["total_usd"] == 231.07 and set(st["parts"]) == {"baseline", "bench_ledger"}
+def test_no_shipped_spend_default_names_a_home_path():
+    src = (Path(spend.__file__)).read_text(encoding="utf-8")
+    assert "DEFAULT_HELPER_JOURNAL: Path | None = None" in src and "DEFAULT_RERUN_DIR: Path | None = None" in src
 
 
 # ------------------------------------------------------------------ S10 review fixes
@@ -204,7 +198,7 @@ def test_unpriced_call_is_charged_when_only_the_global_cap_is_on(monkeypatch, tm
     at its estimate (never booked as free)."""
     led = tmp_path / "l.jsonl"
     monkeypatch.setenv(spend.LEDGER_ENV, str(led))
-    monkeypatch.setenv(spend.GLOBAL_CAP_ENV, "330")
+    monkeypatch.setenv(spend.GLOBAL_CAP_ENV, "199")
     assert spend.cap() is None
 
     class R:
@@ -235,7 +229,7 @@ def test_per_model_cap_applies_to_that_model_only(monkeypatch, tmp_path):
 
 def test_a_bad_baseline_fails_closed(monkeypatch, tmp_path):
     monkeypatch.setenv(spend.LEDGER_ENV, str(tmp_path / "l.jsonl"))
-    monkeypatch.setenv(spend.GLOBAL_CAP_ENV, "330")
+    monkeypatch.setenv(spend.GLOBAL_CAP_ENV, "199")
     monkeypatch.setenv(spend.BASELINE_ENV, "231,07")         # a typo, not a number
     with pytest.raises(spend.SpendCapExceeded, match="global"):
         spend.guard("anthropic", "fable")

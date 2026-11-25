@@ -28,7 +28,7 @@ def _prov(monkeypatch, ptype, prices=None, profile="bench45"):
         return type("R", (), {"content": "ok", "usage": {"prompt_tokens": 1, "completion_tokens": 1}})()
     import crucibleforge.api as api
     monkeypatch.setattr(api, "stream_chat_retried", fake)
-    p = providers.Provider(name="p", type=ptype, base_url="http://x/v1", api_key="k")
+    p = providers.Provider(name="p", type=ptype, base_url="https://api.example.com/v1", api_key="k")
     p.prices = dict(prices or {})
     return p, sent
 

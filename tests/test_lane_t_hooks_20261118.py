@@ -130,7 +130,7 @@ def test_a_row_graded_by_older_code_reads_stale(tmp_path, monkeypatch):
 
 
 def test_a_hosted_row_without_an_effort_is_held(tmp_path, monkeypatch):
-    board(tmp_path, monkeypatch, {"m": PASS}, metas={"m": {"provider_type": "openai"}})
+    board(tmp_path, monkeypatch, {"m": PASS}, metas={"m": {"provider_type": "openai", "hosted": True}})
     _rewrite("m", lambda rows: [{k: v for k, v in r.items() if k != "effort"} for r in rows])
     _, stats, _ = report.board_stats("m", _cfg(["m"]))
     assert any("without a recorded reasoning effort" in x for x in stats["m"]["held45"])

@@ -8,10 +8,10 @@ inside a segment are report-time weights: stored rows are never re-run to change
 ## Numbers are never scaled
 
 A pending segment or unit adds nothing and nothing is scaled up over it. Every cell prints measured points out of
-the measured maximum (`5.8 of 7.0`), and the pending points are named with the reason in plain words. Overall /20 =
-Code + Chat is printed only when both are complete; until then the row reads `x of y measured` and is not ranked.
-NSFW+ /20 = NSFW /10 + Uncensored /10, printed in its own column beside Overall and never part of it; the two
-halves are printed too. Overall also never contains pack points: it is Code + Chat standard points only, and pack points are printed apart.
+the measured maximum (`5.8 of 7.0`), and the pending points are named with the reason in plain words. Overall =
+Code total + Chat total (each the standard score plus its pack points, printed with the split) is printed only when
+both are complete; until then the row reads `x of y measured` and is not ranked. NSFW+ = NSFW + Uncensored (each with
+its own packs), printed in its own column beside Overall and never part of it; the two halves are printed too.
 
 ## What counts as explicit
 

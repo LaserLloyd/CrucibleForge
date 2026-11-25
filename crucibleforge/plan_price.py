@@ -48,18 +48,21 @@ def row_tokens(case: dict, budget: int, thinks: bool, targets: dict) -> tuple[fl
     return inp, exp, ceiling
 
 
-#: Token profiles MEASURED on 4.5 runs (2026-11-24, measured on 5 runs: GPT-6.1 Terra, GPT-6 Luna, gpt-oss-120b,
-#: GLM-5.3 Flash and the light thinkers of batch 1), per model for ONE standard run of ``ref_rows`` rows (the
-#: 4.5 T1 set with NSFW+). Millions of tokens, (input, output). The standard run is input-heavy (chat history is
-#: sent again every turn): Terra 2.25 / 0.34, light thinkers 2.3-2.8 / 0.3-0.8. "long_thinker" is a model that
-#: thinks at length, set so that long_thinker x the high pack factor is not under the measured full run of the
-#: heaviest thinker (GLM-5.3 Flash: 7.99 / 3.76 WITH many packs; tests/test_any_judge_451.py checks it at that
-#: model's price and at a dearer one). ``packs_factor``: a full run WITH packs over the standard run, the range of
-#: the measured models (Luna 4.34 / 0.72, gpt-oss-120b 2.82 / 0.79; from about x1.2 to x3 per model). 64-80% of the
-#: input was served from the provider's prompt cache on OpenAI models, billed at about a tenth of list: the figures
-#: below price every input token at list, so a real bill is usually lower.
-MEASURED = {"date": "2026-11-24", "runs": 5, "ref_rows": 279,
-            "typical": (2.4, 0.45), "long_thinker": (3.3, 1.6),
+#: Token profiles MEASURED on 4.5 runs, per model for ONE standard run (Code, Chat and NSFW+ rows; pack rows left
+#: out), millions of tokens (input, output), from the rows' own token counts. Re-measured 2026-11-25 on the 12 hosted
+#: production runs and the Docker user-path run: the 2026-11-24 table (typical 2.4 / 0.45, long thinker 3.3 / 1.6)
+#: was low on INPUT for every model (the Docker run of GPT-6 Luna planned $0.47 and booked $0.74 = 4.39M in / 0.58M
+#: out at list; its 4.5.0 run had 4.11 / 0.60, so the 4.5.1 budget change is not the cause) and about three times
+#: low on input for thinkers (thinking is replayed into the chat history). "typical" = the mean of the six runs of
+#: models with thinking off or light (Terra 3.72 / 0.43, Astra 1.75 / 0.18, Sol 2.03 / 0.24, Luna 4.11 / 0.60 and
+#: 4.39 / 0.58, gpt-oss-120b 2.96 / 0.80); "long_thinker" = the median of the seven thinker runs (DeepSeek Flash
+#: 10.93 / 2.00 and 10.53 / 1.86, GLM-5.3 Flash 7.77 / 2.68, Grok 4.7 4.72 / 5.40, Inkling 2 Mini 4.48 / 2.11, MiniMax
+#: M3.1 Flash 15.32 / 3.35 and 12.31 / 2.35). A single model can sit about 40% above its group's figure (Luna: in
+#: 4.4 against 3.2). ``packs_factor``: a full run WITH packs over the standard run (about x1.1 for light models, up
+#: to x2 on output for thinkers; kept as the 2026-11-24 range). Every input token is priced at list; cached input
+#: (64-80% on OpenAI models) usually bills lower.
+MEASURED = {"date": "2026-11-25", "runs": 13, "ref_rows": 279,
+            "typical": (3.2, 0.47), "long_thinker": (10.5, 2.4),
             "packs_factor": (1.6, 2.5)}
 
 

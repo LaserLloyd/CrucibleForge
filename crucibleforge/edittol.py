@@ -165,13 +165,22 @@ def main(argv: list[str] | None = None) -> int:
     """``python -m crucibleforge.edittol MODEL [--go]``: chain and pack rows via the regrade tool (switch
     ``bare_closer``), then single code-bank and fix rows."""
     import argparse
-    import sys
     from . import config, profiles, regrade
     ap = argparse.ArgumentParser(prog="python -m crucibleforge.edittol", description=main.__doc__)
     ap.add_argument("model")
     ap.add_argument("--go", action="store_true", help="append the superseding rows (default: dry run)")
     a = ap.parse_args(argv)
     install()
+    from . import writelock as _wl
+    wl = _wl.acquire(config.results_dir(), f"edittol {a.model} --go") if a.go else None
+    try:
+        return _main_locked(a, config, profiles, regrade)
+    finally:
+        _wl.release(wl)
+
+
+def _main_locked(a, config, profiles, regrade) -> int:
+    import sys
     rc = regrade.main([a.model, "--switch", "bare_closer", "--reason", "bare >>>>>>> closer accepted (4.5.1)"]
                       + (["--go"] if a.go else []))
     rows = config.load_transcripts(a.model)

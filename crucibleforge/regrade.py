@@ -785,10 +785,15 @@ def main(argv: list[str] | None = None) -> int:
         print(render(recs))
     todo = [r for r in recs if r["status"] == "regrade"]
     if a.go and todo:
-        with config._APPEND_LOCK:
-            for r in todo:
-                for row in r["rows"]:
-                    config._append_transcript(a.model, row)
+        from . import writelock as _wl          # one writer per results folder (exits at once when another writes)
+        wl = _wl.acquire(config.results_dir(), "regrade " + " ".join(argv if argv is not None else sys.argv[1:]))
+        try:
+            with config._APPEND_LOCK:
+                for r in todo:
+                    for row in r["rows"]:
+                        config._append_transcript(a.model, row)
+        finally:
+            _wl.release(wl)
         print(f"\nappended {sum(len(r['rows']) for r in todo)} superseding row(s) for {len(todo)} attempt(s) "
               f"to {config.transcript_path(a.model)}", file=sys.stderr)
     elif todo:

@@ -584,28 +584,17 @@ def test_rig_lock_sees_a_parent_holding_it(tmp_path, monkeypatch):
     assert res.stdout.strip() == "False"
 
 
-@pytest.mark.skipif(sys.platform == "win32",
-                    reason="the rig lock is flock()-based: POSIX only (see the Windows test below)")
 def test_rig_lock_serialises_two_benchmarks(tmp_path, monkeypatch):
+    # every platform since filelock.py (msvcrt on Windows); it used to be POSIX-only and unenforced on Windows
     monkeypatch.setattr(config, "RESULTS_DIR", tmp_path)
     f = cli.acquire_rig_lock()
     assert f is not None and "pid" in (tmp_path / ".rig.lock").read_text(encoding="utf-8")
-    code = ("import sys,fcntl; f=open(%r,'a+'); "
-            "\ntry:\n fcntl.flock(f.fileno(), fcntl.LOCK_EX|fcntl.LOCK_NB); print('got')"
+    code = ("from crucibleforge.filelock import lock; f=open(%r,'a+'); "
+            "\ntry:\n lock(f, blocking=False); print('got')"
             "\nexcept BlockingIOError: print('busy')" % str(tmp_path / ".rig.lock"))
     res = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, encoding="utf-8")
     assert res.stdout.strip() == "busy"
     f.close()
-
-
-@pytest.mark.skipif(sys.platform != "win32", reason="Windows-only contract")
-def test_rig_lock_is_not_enforced_on_windows(tmp_path, monkeypatch):
-    """There is no flock() on Windows: acquire_rig_lock() returns None (one
-    benchmark at a time is then the operator's job, as documented in cli.py)
-    and must not create a lock file that nothing enforces."""
-    monkeypatch.setattr(config, "RESULTS_DIR", tmp_path)
-    assert cli.acquire_rig_lock() is None
-    assert not (tmp_path / ".rig.lock").exists()
 
 
 # ------------------------------------------------------------ V2 run-report

@@ -2,8 +2,9 @@
 # =============================================================================
 #  CrucibleForge - multi-stage container image
 # =============================================================================
-#  Quick start (beginner path, docs/DOCKER.md):
-#           cp .env.example .env && docker compose run --rm crucibleforge status
+#  One command (docs/FIRST-RUN-DOCKER.md):
+#           docker run --rm -it -e OPENROUTER_API_KEY=... -v "$PWD/makobench:/data" \
+#               ghcr.io/laserlloyd/crucibleforge:4.5.1 test <openrouter-model-id>
 #  Build:   docker build -t crucibleforge:dev .
 #  GUI service (hardened, long-running): docker compose -f deploy/compose/compose.yml up -d
 #
@@ -21,15 +22,28 @@
 #     project is installed editable (uv's default) and the source tree is
 #     copied to the SAME path (/app) in the runtime stage.
 #
-#   * uv is NOT in the runtime image; nothing wraps the process. tini is added
-#     by compose (`init: true`).
+#   * uv is NOT in the runtime image. tini is PID 1 (signals reach the app; a
+#     `docker stop` ends it at once). The container starts as root only long
+#     enough for the entrypoint to run the benchmark as the data folder's owner.
+#
+#   * Model-written code runs through cf-jail (deploy/cf-jail.c, setuid root):
+#     as uid 65534, no IPv4/IPv6 sockets, resource limits, its own scratch only.
+#     Bases are pinned by digest; bump them on purpose.
 # =============================================================================
 
 
 # ---------------------------------------------------------------------------
 #  Stage 1: builder
 # ---------------------------------------------------------------------------
-FROM ghcr.io/astral-sh/uv:python3.13-trixie-slim AS builder
+FROM python:3.13-slim-trixie@sha256:7249d5587b78209a006dc4a3b5340678f84ea729239193aa559962cd8c1fce50 AS jail
+RUN apt-get update && apt-get install -y --no-install-recommends gcc libc6-dev linux-libc-dev \
+ && rm -rf /var/lib/apt/lists/*
+COPY deploy/cf-jail.c /src/cf-jail.c
+RUN gcc -O2 -Wall -Wextra -Werror -D_FORTIFY_SOURCE=2 -fstack-protector-strong -fPIE -pie \
+        -o /src/cf-jail /src/cf-jail.c
+
+
+FROM ghcr.io/astral-sh/uv:python3.13-trixie-slim@sha256:00e2b362982a5ce19eb3a51453ed76af92ccaaedccc0236fae83b27d994ae0f3 AS builder
 
 ENV UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy \
@@ -54,6 +68,8 @@ COPY profiles/ ./profiles/
 # archive/ is the frozen 4.1 test (`--profile bench`) whose cases the judge's element index also reads.
 COPY calibration/ ./calibration/
 COPY archive/ ./archive/
+# budget/ holds the measured token targets the plan's price and time estimates read
+COPY budget/ ./budget/
 # the short Docker starter registry (compose.yaml seeds /data/models.yaml from it)
 COPY deploy/models.docker.yaml ./deploy/models.docker.yaml
 RUN --mount=type=cache,target=/root/.cache/uv \
@@ -66,7 +82,7 @@ RUN find /app -name '__pycache__' -type d -prune -exec rm -rf {} + \
 # ---------------------------------------------------------------------------
 #  Stage 2: runtime
 # ---------------------------------------------------------------------------
-FROM python:3.13-slim-trixie AS runtime
+FROM python:3.13-slim-trixie@sha256:7249d5587b78209a006dc4a3b5340678f84ea729239193aa559962cd8c1fce50 AS runtime
 
 ARG VERSION=dev
 ARG REVISION=unknown
@@ -75,26 +91,16 @@ ARG CREATED
 LABEL org.opencontainers.image.title="CrucibleForge" \
       org.opencontainers.image.description="LLM capability benchmark with deterministic graders, an LLM judge and a web GUI" \
       org.opencontainers.image.source="https://github.com/LaserLloyd/CrucibleForge" \
-      org.opencontainers.image.documentation="https://github.com/LaserLloyd/CrucibleForge/blob/main/docs/deploy/docker.md" \
+      org.opencontainers.image.documentation="https://github.com/LaserLloyd/CrucibleForge/blob/main/docs/FIRST-RUN-DOCKER.md" \
       org.opencontainers.image.licenses="MIT-0" \
       org.opencontainers.image.version="${VERSION}" \
       org.opencontainers.image.revision="${REVISION}" \
       org.opencontainers.image.created="${CREATED}"
 
-# tzdata so TZ= resolves; ca-certificates for HTTPS to hosted providers.
-#
-# bubblewrap (bwrap) is the sandbox the coding graders use when it is on PATH,
-# and graders.py prefers it over --allow-unsandboxed whenever it finds it. It
-# needs unprivileged user namespaces, which Docker's default seccomp profile
-# blocks: with bwrap installed but unusable every coding case FAILS ("No
-# permissions to create a new namespace"). So it is NOT installed by default and
-# the container itself is the sandbox (CRUCIBLEFORGE_ALLOW_UNSANDBOXED=1 in the
-# compose file). Build with --build-arg WITH_BWRAP=1 only if you also run the
-# container with a seccomp profile that permits user namespaces.
-ARG WITH_BWRAP=0
+# No bubblewrap: it needs user namespaces, which Docker's default seccomp profile blocks. Graded code runs through
+# cf-jail instead (see the jail stage above and docs/deploy/docker.md).
 RUN apt-get update \
- && apt-get install -y --no-install-recommends tzdata ca-certificates \
- && if [ "$WITH_BWRAP" = "1" ]; then apt-get install -y --no-install-recommends bubblewrap; fi \
+ && apt-get install -y --no-install-recommends tzdata ca-certificates tini \
  && rm -rf /var/lib/apt/lists/*
 
 # UID/GID 1000: a bind-mounted host directory owned by the person running
@@ -105,6 +111,9 @@ RUN groupadd --gid 1000 app \
 COPY --from=builder --chown=app:app /app /app
 COPY --chmod=0755 deploy/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 COPY --chmod=0755 deploy/healthcheck.py /usr/local/bin/healthcheck.py
+COPY --from=jail /src/cf-jail /usr/local/libexec/cf-jail
+# setuid root in its own layer: COPY --chmod drops the setuid bit under some builders
+RUN chown root:root /usr/local/libexec/cf-jail && chmod 4755 /usr/local/libexec/cf-jail
 
 ENV PATH="/app/.venv/bin:$PATH" \
     PYTHONUNBUFFERED=1 \
@@ -114,21 +123,18 @@ ENV PATH="/app/.venv/bin:$PATH" \
     HOME=/data \
     IMAGE_VERSION=${VERSION} \
     XDG_CONFIG_HOME=/data/.config \
-    TMPDIR=/data/tmp
+    CRUCIBLEFORGE_IN_CONTAINER=1
 
 # No `VOLUME /data` on purpose: an anonymous volume would hide data loss.
 # Compose mounts a named volume explicitly.
-RUN install -d -o app -g app -m 0750 /data /data/results /data/tmp
+RUN install -d -o app -g app -m 0750 /data /data/results
 
 WORKDIR /app
-USER app
+# No USER: the entrypoint starts as root, then runs the benchmark as the owner of /data (never as root on the
+# host) and model code as uid 65534. No HEALTHCHECK: `test` runs to completion; the GUI service in
+# deploy/compose declares its own (python /usr/local/bin/healthcheck.py).
 EXPOSE 8777
 
-# The GUI answers 401 (token required) on a non-loopback bind; any HTTP answer
-# proves the server is up, so only a connection failure is unhealthy.
-HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
-  CMD ["python", "/usr/local/bin/healthcheck.py"]
-
 STOPSIGNAL SIGTERM
-ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
+ENTRYPOINT ["/usr/bin/tini", "--", "/usr/local/bin/docker-entrypoint.sh"]
 CMD ["gui", "--host", "0.0.0.0", "--port", "8777", "--no-open"]

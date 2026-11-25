@@ -11,8 +11,12 @@ a number. None of those placeholders is an estimate.
 
 ## The score tree
 
-Code and Chat are each worth 10 points on the standard test. **Overall /20 = Code + Chat.** Overall is printed
-only when both are complete; otherwise the row reads `x of y measured` and is not ranked. NSFW+ /20 = NSFW /10 +
+Code and Chat are each worth 10 points on the standard test, plus the points of the harder packs a model opens
+(see [Ladder packs](#ladder-packs)). **Code total = Code standard (10) + Code pack points; Chat total likewise;
+Overall = Code total + Chat total.** Each total is printed with its split, for example `20.7 of 34 = 16.9 standard +
+3.8 bonus`, and the rank is on the total. With today's packs the maximums are 17 (Code), 17 (Chat) and 34
+(Overall); the figure grows as packs are added (it is the sum of the packs that exist, never hard-coded). Overall is
+printed only when both sections are complete; otherwise the row reads `x of y measured` and is not ranked. NSFW+ /20 = NSFW /10 +
 Uncensored /10 sits in its own column beside Overall and is never part of it. The numbers below are read from `profiles/bench45.yaml` by
 `tests/test_readme_matches_profile_45.py`, so this table cannot drift from the code. What each item is and how it is
 checked, one table per section: [WHAT-IS-TESTED.md](WHAT-IS-TESTED.md).
@@ -30,9 +34,11 @@ checked, one table per section: [WHAT-IS-TESTED.md](WHAT-IS-TESTED.md).
 | Chat | Everyday instructions | 1 | 15 small checked tasks, and invented documents | Code checks and answer keys |
 <!-- parts:end -->
 
-A pack is a harder set that sits on top of its section, outside the standard 20: pack points are printed in their own column and are never part of Overall, of the Code and Chat cells or of the sort order (see [Ladder packs](#ladder-packs)). On a complete row Code + Chat = Overall.
+A pack is a harder set that sits on top of its section: its points add to that section's total and so to Overall
+and the rank (see [Ladder packs](#ladder-packs)). On a complete row Code total + Chat total = Overall, and the
+standard parts add up to the standard 20.
 
-### NSFW+ (one number of 20, shown apart)
+### NSFW+ (shown beside Overall)
 
 | Number | Segment | Points | Items |
 | --- | --- | --- | --- |
@@ -43,8 +49,9 @@ A pack is a harder set that sits on top of its section, outside the standard 20:
 | Uncensored /10 | Willingness | 6 | 18 asks, 4 dark sessions, 12 open questions, 6 ground items |
 | Uncensored /10 | Knowledge | 4 | 60 questions in 6 hands |
 
-NSFW+ /20 = NSFW /10 + Uncensored /10. It is printed in its own column beside Overall and is never part of Overall,
-of the sort order or of any Code or Chat figure; the two halves are printed beside it. A model that left NSFW+ out
+NSFW+ /20 = NSFW /10 + Uncensored /10 on the standard items. Its own packs add inside NSFW and Uncensored the same
+way (today up to 14 and 12, so NSFW+ up to 26), printed with the split. NSFW+ is never part of Overall, of the rank or
+of any Code or Chat figure; the two halves are printed beside it. A model that left NSFW+ out
 reads `NSFW+: not run`.
 
 **Nothing on NSFW+ scores taste.** Points come from checks: the class of a reply (explicit, softened, refused,
@@ -137,7 +144,7 @@ six NSFW+ sets (see [Ladder packs](#ladder-packs)). `crucibleforge all --plan` l
 
 ## Outside Overall
 
-Measured and printed but never added to Overall: **NSFW+ /20**, with its two halves (above). It runs by default and
+Measured and printed but never added to Overall: **NSFW+**, with its two halves and their packs (above). It runs by default and
 `--no-nsfw-plus` leaves it out. The content rules for its items are in [CONTENT-RULES.md](CONTENT-RULES.md). The
 15 Assistant-basics items are no longer a separate column: they are half of Everyday instructions, inside Chat.
 
@@ -168,9 +175,11 @@ with nothing measured prints `pending`.
 A harder set (a "pack") belongs to a part. It runs only after the model scored **at least 90%** on the part's
 standard questions and on every set of every lower level. Each unlocked pack is worth up to 1 point (about
 three harder questions; partial credit inside), and a part's packs together are the only way past 10 in a
-section. The board shows **standard points and pack points in two separate places**: the section cells hold the
-standard score (max 10), and the "Pack points" column holds the packs, so a pack never hides a weak standard
-score.
+section. Pack points **add on top**: the section total is the standard score plus its packs, Overall adds the two
+totals, and the rank is on Overall. The split is always printed (`12.1 of 17 = 9.1 standard + 3.0 bonus`), and the
+bars draw the bonus hashed on top of the solid standard part, so a pack never hides a weak standard score. A pack
+that opened but was not run (or lost its rows) counts 0 for now and is named as owed in the notes and in
+`all --plan`; the row is still ranked on what was measured.
 
 - `locked` = the part has not reached 90%, so its packs did not run.
 - `pending` = unlocked but not run (or not judged) yet; it counts 0 for now.
@@ -192,8 +201,8 @@ score.
   level 1 = the 4.1 judged scenes (LRV, LCC, LWR) scored as the long scenes are (the judge alone), level 2 = a generated code-checked set. A Chat pack opens on its
   SEGMENT's standard share (90% of a complete segment); its marks print as notes and hold nothing. NSFW+: six sets,
   one each for the scene, craft, range and anatomy parts of NSFW and the willingness and knowledge parts of
-  Uncensored; their points print under Pack points, never inside NSFW+ /20.
-  A pack never enters Code, Chat or Overall; it sits beside the section total.
+  Uncensored; their points add inside NSFW and Uncensored (with the split), never to Overall.
+  A Code or Chat pack adds to its section total and so to Overall and the rank.
   A reply cut at its ceiling follows the cut rule above.
 
 ## The ceiling mark
@@ -314,15 +323,19 @@ A separate figure, a bootstrap that resamples cards, programs and sessions (a se
 together) and re-runs the scoring, says how far a different set of questions of the same kind could move a score.
 It is printed as information and is not part of the `±`. The judge's lean is printed as information too.
 
-Read the margins as tiers, not rankings. Two models whose Overall differ by less than
-about 0.45 points are a tie.
-That figure is for two single runs and comes from repeat runs. The rank column is more cautious: it marks
-two neighbours as tied (`2=`) when both their Code and Chat totals sit inside the question-sampling margins,
-which on the launch board tied models up to 0.8 Overall points apart.
+Read the margins as tiers, not rankings. Two models whose standard Overall differ by less than about 0.45 points
+are a tie; that figure is for two single runs and comes from repeat runs.
 
-- **Rank and ties.** Rank is by Overall (Code + Chat); NSFW+ is never a sort key. `2=` means indistinguishable from the model directly above: on both Code and
-  Chat the paired 90% interval of their difference contains 0 (when either model has pack points in a section,
-  the test compares that section's total with its packs). A gap on either section ranks them apart. A tie group chains adjacent ties only.
+**Two ranges per total.** A total prints its own range and the standard score's range. They differ because a pack
+can open in one run and not in another, which moves the total more than the standard score; the 2.5% accuracy bar
+was set for the standard score. The total's range comes from repeat runs when the board has them, else the standard
+range and each pack's range added in quadrature (a pack with no measured range is named in the note).
+
+- **Rank.** Rank = 1 + the number of models clearly better on the total, where "clearly better" means the paired
+  90% interval of the difference is above zero (a paired bootstrap re-centred on the totals, with each model's pack
+  noise added, else the two totals' ranges combined). NSFW+ is never a sort key. A shared place (`1=`) means that
+  pair cannot be told apart, so a list can read 1=, 1=, 1=, 2, 4=. That looks odd at first: the fourth model is
+  clearly behind one of the top three but not the other two, and the fifth is clearly behind three models.
 - Sections with three units (State, Tally, Says what it does not know) have coarse margins: a part at 100% has
   a floor, not zero spread.
 - A part with a declared question spread (Follows tool rules, Knows language traps) adds it to every resample.
@@ -388,7 +401,8 @@ about $0.35 and 20 minutes of generation for one flash-class model, about $1.50 
 - **Long documents** beyond the small checks in Assistant basics and "Says what it does not know".
 - **Summarising and rewriting, translation, vision**, voice, and anything multilingual.
 - **The top of the frontier.** A flash-class hosted model reaches most of the standard Code points; at the top
-  the order is packs plus noise. Two frontier models can be a tie.
+  the bonus packs, which add to the total, are what separates models, and two frontier models can still share a
+  place.
 - **Safety.** It grades what a model will do, never a refusal as a virtue.
 - **Taste.** Nothing scores how well a scene is written, in Chat or in NSFW+, and nothing scores whether a model
   sounds like a real person.
@@ -413,14 +427,14 @@ The 4.1 test (suite 4.1.0: 33 cases, the old weights and labels) is frozen under
 
 | Column | What it is |
 | --- | --- |
-| **Overall /20** | Code + Chat in measured points, printed only when both are complete; `x of y measured, not ranked: <reason>` otherwise. |
+| **Overall** | Code total + Chat total with the split (`20.7 of 34 = 16.9 standard + 3.8 bonus`), printed only when both are complete; `x of y measured, not ranked: <reason>` otherwise. |
 | **Lean** | Chat minus board median, minus Code minus board median; `chat-leaning` or `code-leaning` at 1.5 points or more. |
 | **Room** | Overall with the optional end-of-run retry swapped in (`--escalate`); `=` when nothing ran out. |
 | Mean of runs | A model with several run folders on one board shows the mean of its runs in every cell; the note gives the number of runs and the lowest and highest run per score. |
-| **Code /10**, **Chat /10** | Section cells, measured points of the measured maximum, `±` 90% range with its source ([Margins and ties](#margins-and-ties)). The Points table under the board lists each segment, and names the reason when one is pending. |
-| **NSFW+ /20** | NSFW /10 + Uncensored /10, in its own column beside Overall, never part of it. `NSFW+: not run` when left out. |
+| **Code**, **Chat** | Section totals (standard /10 plus packs) with the split, measured points of the measured maximum, `±` 90% range with its source ([Margins and ties](#margins-and-ties)). The Points table under the board lists each segment, and names the reason when one is pending. |
+| **NSFW+** | NSFW + Uncensored, each with its own packs, in its own column beside Overall, never part of it. `NSFW+: not run` when left out. |
 | **NSFW /10**, **Uncensored /10** | The two halves of NSFW+, section `#nsfw-plus`. The counts of refused, softened, off-topic and filtered answers print under them. |
-| **Pack points** | Points from ladder packs, shown apart from the standard points. |
+| **Pack points** | The bonus inside each total, per pack (earned, locked, or unlocked and not run). |
 | **Efficiency** | The share of rows that finished inside the standard output budget. |
 | **tok/s**, **Run cost**, **Minutes** | Throughput, dollars at the model's price, wall-clock minutes of the run. |
 | **Run settings** | Thinking, effort, median reasoning tokens, cut and empty counts. |

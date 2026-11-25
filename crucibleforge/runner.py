@@ -1576,6 +1576,8 @@ def _write_meta(label: str, entry: dict, provider: Provider, *, load_s: float | 
         "model_label": label, "model_id": entry["model_id"],
         "device": provider.name, "provider": provider.name,
         "provider_type": provider.type,
+        # hosted API or a server we own, by type AND address AND the entry's hosted: word (spend.is_hosted_at)
+        "hosted": bool(getattr(provider, "is_hosted", True)),
         "updated": _now(), "failed": failed,
     })
     # Stamp the vendor version + date on every write so back-to-back profiles
@@ -2146,7 +2148,8 @@ def _run_one_model_body(cfg, entry, cases, csvw: _Csv, smoke,
                 _ob = _disclosure.over_budget(row)
                 if _ob:
                     row["over_budget"] = _ob      # 4.5.1 step 2: thought past the budget sent (not enforced)
-                _note = _disclosure.settings_note(entry, provider.type, ctx.extra_body)
+                _note = _disclosure.settings_note(entry, provider.type if getattr(provider, "is_hosted", True) else "local",
+                                                 ctx.extra_body)
                 if _note:
                     row["settings_note"] = _note
                 m = row.get("metrics") or {}

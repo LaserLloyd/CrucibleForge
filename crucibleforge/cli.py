@@ -960,14 +960,13 @@ def _unpriced_hosted(cfg: dict, entries: list[dict]) -> list[str]:
     """Labels of hosted (non-rig) models whose entry has no ``price`` block: a
     run would record no cost, and the board's Run cost would be blank."""
     from .providers import provider_for
-    from .report import LOCAL_PROVIDER_TYPES
     out = []
     for e in entries:
         try:
-            ptype = provider_for(cfg, e).type
+            hosted = provider_for(cfg, e).is_hosted   # type AND address AND the entry's hosted: word
         except Exception:  # noqa: BLE001 — resolved (and reported) later
             continue
-        if ptype not in LOCAL_PROVIDER_TYPES and not e.get("price"):
+        if hosted and not e.get("price"):
             out.append(e["name"])
     return out
 
@@ -1576,6 +1575,22 @@ def _shard_of(args):
     from .shard import parse_shard
     s = getattr(args, "shard", None)
     return parse_shard(s) if s else None
+
+
+def writes_results(args) -> bool:
+    """A command that appends rows to the results folder and so takes its write lock (writelock.py): run, all,
+    judge (an unsharded one: shards share a label lock instead), recover, escalate, bench-all --go and
+    rejudge-reasoning --apply. ``all --plan`` and every read-only command do not."""
+    cmd = getattr(args, "cmd", None)
+    if getattr(args, "plan", False):
+        return False
+    if cmd == "bench-all":
+        return bool(getattr(args, "go", False))
+    if cmd == "rejudge-reasoning":
+        return bool(getattr(args, "apply", False))
+    if cmd == "judge" and sharded_judge(args):
+        return False
+    return cmd in ("run", "all", "judge", "recover", "escalate")
 
 
 def sharded_judge(args) -> bool:
@@ -2606,7 +2621,8 @@ def disclosure_problems(cfg: dict | None, labels: list[str]) -> dict[str, list[s
         if e is None:
             continue
         try:
-            ptype = provider_for(cfg, e).type
+            _p = provider_for(cfg, e)
+            ptype = _p.type if _p.is_hosted else "local"
         except Exception:  # noqa: BLE001 — an unresolvable provider: treat as hosted (fail closed)
             ptype = None
         bad = [str(r.get("case_id")) for r in report.board_filter(label, cfg) or []
@@ -2713,11 +2729,51 @@ def _cmd_report(args, cfg, full_board: bool = False):
               f"{getattr(args, 'out', None) or public_dir()}")
         return 0
     md = generate(None if full_board else args.models, write=True, cfg=cfg or None)
-    print(scorecard_section(md))
+    if full_board and not getattr(args, "print_report", False):
+        # Docker user path 2026-11-25: `all` printed the whole board; it prints this run's rows (the split is in
+        # the cells) and where the full report is. --print-report prints the whole Scorecard as before
+        print(run_summary(scorecard_section(md), _summary_labels(cfg, getattr(args, "models", None))))
+    else:
+        print(scorecard_section(md))
     print(f"wrote {report_md_path()}")
     print(f"      {failures_md_path()}")
     print(f"      {report_html_path()}")
     return 0
+
+
+def _summary_labels(cfg: dict | None, models: str | None) -> list[str]:
+    """The run's own rows for the short summary; none (the summary then gives only the board's size and where the
+    report is) when the config names no models or the selection does not resolve: it never fails a finished run."""
+    if not models or not (cfg or {}).get("models"):
+        return []
+    try:
+        return [e["name"] for e in resolve_models(cfg, models)]
+    except ConfigError:
+        return []
+
+
+def _md_cells(line: str) -> list[str]:
+    return [c.strip() for c in line.strip().strip("|").split(" | ")]
+
+
+def run_summary(scorecard_md: str, labels: list[str]) -> str:
+    """The end-of-`all` result: each of ``labels``' Scorecard rows as one "column: value" line per filled column
+    (the totals carry their "= standard + bonus" split), the board's size, and a pointer to the full report."""
+    lines = scorecard_md.splitlines()
+    table = [ln for ln in lines if ln.startswith("|")]
+    if len(table) < 3:
+        return scorecard_md
+    head = _md_cells(table[0])
+    rows = [_md_cells(ln) for ln in table[2:]]
+    out = ["## Result"]
+    picked = [r for r in rows if len(r) > 1 and r[1] in set(labels)] if labels else []
+    for r in picked:
+        out.append(f"{r[1]} (rank {r[0]} of {len(rows)} on the board)")
+        out += [f"  {h}: {v}" for h, v in zip(head[2:], r[2:]) if v and v not in ("-", "")]
+    if not picked:
+        out.append(f"{len(rows)} model(s) on the board" + (f"; {', '.join(labels)} not on it" if labels else ""))
+    out.append("(the whole Scorecard and every section are in the files below; --print-report prints it here)")
+    return "\n".join(out)
 
 
 def cmd_compare(args, cfg):
@@ -3256,6 +3312,62 @@ def _lockout_phase(args, cfg, labels: list[str]) -> int:
     return rc
 
 
+#: the per-results-folder record of models whose pack rounds had nothing due, with the state it was read from
+NOTHING_OWED_FILE = ".ladder-nothing-owed.json"
+
+
+def ladder_fingerprint(label: str, prof: dict, sets: dict) -> str | None:
+    """What decides a model's due pack rounds: its rows and meta (size and mtime), the marks and judge45 stores of
+    the results folder, the discovered sets and the scorer stamp. None when it cannot be read (never skip then)."""
+    import hashlib
+    from . import segments45 as _s45
+    from .config import results_dir, transcript_path
+    try:
+        rd = results_dir()
+        files = [transcript_path(label), rd / f"meta_{label}.json", rd / "marks45.json"]
+        j45 = rd / "judge45"
+        if j45.is_dir():
+            files += sorted(p for p in j45.rglob("*") if p.is_file())
+        st = [(str(p.name), p.stat().st_size, p.stat().st_mtime_ns) if p.exists() else (str(p.name), None, None)
+              for p in files]
+        sets_key = sorted((k, [x.get("n") for x in v]) for k, v in sets.items())
+        stamp = _s45.scorer_stamp() if _s45.tree(prof) else None
+        return hashlib.sha256(json.dumps([st, sets_key, stamp, prof.get("release_seed")],
+                                         default=str).encode()).hexdigest()[:24]
+    except Exception:  # noqa: BLE001 -- an unreadable state never skips the pack rounds
+        return None
+
+
+def _nothing_owed_path():
+    from .config import results_dir
+    return results_dir() / NOTHING_OWED_FILE
+
+
+def ladder_nothing_owed(label: str) -> str | None:
+    try:
+        return (json.loads(_nothing_owed_path().read_text(encoding="utf-8")) or {}).get(label)
+    except (OSError, ValueError, AttributeError):
+        return None
+
+
+def record_nothing_owed(label: str, fp: str | None) -> None:
+    if fp is None:
+        return
+    p = _nothing_owed_path()
+    try:
+        d = json.loads(p.read_text(encoding="utf-8")) if p.exists() else {}
+        d = d if isinstance(d, dict) else {}
+    except (OSError, ValueError):
+        d = {}
+    d[label] = fp
+    try:
+        tmp = p.with_suffix(".tmp")
+        tmp.write_text(json.dumps(d, indent=1, sort_keys=True), encoding="utf-8")
+        os.replace(tmp, p)
+    except OSError as e:
+        log.warning("ladder: could not record the nothing-owed state (%s)", e)
+
+
 def _ladder_phases(args, cfg, labels: list[str]) -> int:
     """Suite 3.9 ladders: after the standard judge, run every model's due
     ladder sets (all sets of the lowest open level of each sub-score
@@ -3313,6 +3425,13 @@ def _ladder_phases(args, cfg, labels: list[str]) -> int:
                 return DRAIN_EXIT
             if window_over is not None and window_over.is_set():
                 break
+            fp = ladder_fingerprint(label, prof, sets) if level == 1 else None
+            if fp is not None and ladder_nothing_owed(label) == fp:
+                # Docker user path 2026-11-25: a resume with nothing owed re-planned every pack round (~10 min)
+                log.info("ladder: %s — nothing was owed at the last check and no row, mark, set or scorer changed "
+                         "since: pack rounds skipped (straight to the report)", label)
+                print(f"ladder: {label}: pack rounds skipped: nothing owed and the stored state is current")
+                continue
             try:
                 cases, jobs, names = ladder_todo(label, cfg_p, prof, sets, unlock,
                                                  tried=tried[label])
@@ -3323,6 +3442,9 @@ def _ladder_phases(args, cfg, labels: list[str]) -> int:
             log.info("ladder round %d: %s — due %s, %d job(s) to run", level, label,
                      names or "nothing", len(jobs))
             if not jobs:
+                if not names:
+                    # nothing due on the current rows: remember it, so the next resume skips the re-plan
+                    record_nothing_owed(label, ladder_fingerprint(label, prof, sets))
                 continue
             if admit is not None and not admit(label, entry, cases, jobs):
                 log.info("ladder round %d: %s — does not fit the time window, next run",
@@ -3401,18 +3523,39 @@ def plan_budget(cfg_p: dict, entry: dict, case: dict, ctx_len: int | None) -> st
     return f"{think} if thinking, else {mt}"
 
 
-def plan_reader_line(n_units: int, graded_family: str | None, prof: dict | None, hosted: str | None = None) -> str:
+def plan_reader_line(n_units: int, graded_family: str | None, prof: dict | None, hosted: str | None = None,
+                     judge: str | None = None) -> str:
     """The `plan` line for the NSFW+ classing: the run's judge reads each classed unit and each opinion-flag unit
-    once (one local judge, owner 2026-11-21); no reader, nothing priced. ``hosted``: the user's hosted judge id (owner
-    2026-11-24, any judge): it reads them instead, priced in the judge cost line."""
+    once; no reader, nothing priced. ``hosted``: the user's hosted judge id (owner 2026-11-24, any judge): it reads
+    them instead, priced in the judge cost line. ``judge``: the run's judge when the user named a local one
+    (Docker assessment item 4: the line named the profile's judge although another one was given). The expected
+    calls follow the judge-cost call model (review D: judge45.NSFW_PLUS_UNITS_READ of the units are read; at most
+    every unit)."""
     from . import judge45 as _J
     if not n_units:
         return "  NSFW+ judge: no units to read"
-    jid = hosted or _J.judge_id(prof) or "the run's judge"
+    jid = hosted or judge or _J.judge_id(prof) or "the run's judge"
     note = " (same family as the graded model: the board notes it)" if _J.same_family(jid, graded_family) else ""
     where = "hosted, priced in the judge cost line below" if hosted else "local, free"
-    return (f"  NSFW+ judge: at most {n_units} calls by {jid}, one vote per classed or opinion-flag unit "
-            f"({where}){note}")
+    exp = max(1, round(n_units * _J.NSFW_PLUS_UNITS_READ))
+    return (f"  NSFW+ judge: about {exp}, at most {n_units} calls by {jid}, one vote per classed or opinion-flag "
+            f"unit ({where}){note}")
+
+
+def run_judge_id(args, cfg: dict | None, prof: dict | None) -> str | None:
+    """The model id of the judge this command would use: the one the user named (``--judge`` as a model entry or
+    judge candidate name, ``provider:model``, or the resolved dict), else the profile's."""
+    from . import judge45 as _J
+    j = getattr(args, "judge", None)
+    if isinstance(j, dict) and j.get("model_id"):
+        return str(j["model_id"])
+    if isinstance(j, str) and j.strip():
+        name = j.strip()
+        for c in (((cfg or {}).get("judge") or {}).get("candidates") or []) + list((cfg or {}).get("models") or []):
+            if isinstance(c, dict) and c.get("name") == name and c.get("model_id"):
+                return str(c["model_id"])
+        return name.split(":", 1)[1] if ":" in name and "/" not in name.split(":", 1)[0] else name
+    return _J.judge_id(prof)
 
 
 #: the order the plan prints owed reasons in (PLAN-451-LIMITS: the lead checks them against the plan's table)
@@ -3523,7 +3666,56 @@ def owed_price_line(priced: list, price: dict | None, entry: dict) -> str:
                    f"${(tin * pin + tce * pout) / 1e6:.2f} at most")
 
 
+class PlanTicker:
+    """Docker assessment item 2: `all --plan` printed nothing for minutes. A first line at once, then a progress line
+    at least every :data:`PLAN_TICK_S` seconds while it works, all on stderr: the plan itself (stdout) is unchanged."""
+
+    def __init__(self, every: float | None = None, stream=None):
+        import threading
+        self.every = float(PLAN_TICK_S if every is None else every)
+        self.stream = stream
+        self.what = "loading the profile and the case set"
+        self.t0 = time.monotonic()
+        self._stop = threading.Event()
+        self._th = threading.Thread(target=self._run, name="plan-ticker", daemon=True)
+
+    def _say(self, msg: str) -> None:
+        print(msg, file=self.stream or sys.stderr, flush=True)
+
+    def start(self, n_models: int | None = None) -> "PlanTicker":
+        self._say("plan: computing what `all` would run (no model, provider or judge is called)"
+                  + (f" for {n_models} model(s)" if n_models else "") + " ...")
+        self._th.start()
+        return self
+
+    def phase(self, what: str) -> None:
+        self.what = what
+
+    def _run(self) -> None:
+        while not self._stop.wait(self.every):
+            self._say(f"plan: still working ({time.monotonic() - self.t0:.0f}s): {self.what}")
+
+    def stop(self) -> None:
+        self._stop.set()
+        if self._th.is_alive():
+            self._th.join(timeout=2)
+
+
+#: seconds between `all --plan` progress lines (the assessment asked for at most 10)
+PLAN_TICK_S = 8.0
+
+
 def cmd_plan(args, cfg) -> int:
+    """See :func:`_cmd_plan` (progress lines on stderr while it works)."""
+    m = getattr(args, "models", None) or []
+    tick = PlanTicker().start(len([x for x in (m.split(",") if isinstance(m, str) else m) if x]) or None)
+    try:
+        return _cmd_plan(args, cfg, tick)
+    finally:
+        tick.stop()
+
+
+def _cmd_plan(args, cfg, tick: PlanTicker) -> int:
     """`crucibleforge all --plan`: what `all` would run per model — every
     standard row (case, repeats, budget) in its load round(s) (a rig model:
     round A at the context floor, round B for the wide rows; a hosted API:
@@ -3583,7 +3775,11 @@ def cmd_plan(args, cfg) -> int:
 
     from .adult_guard import is_adult as _is_adult, plan_cases as _adult_plan
     all_cases = cases
+    # the standard rows' budgets read every generated case's rendered max_tokens: render them side by side first
+    from .lazycase import prefetch as _prefetch
+    _prefetch(all_cases)
     for e in entries:
+        tick.phase(f"{e['name']}: standard rows and budgets")
         prov = provider_for(cfg_p, e)
         rig = prov.type in _LOADING_TYPES
         said: list[str] = []
@@ -3600,7 +3796,7 @@ def cmd_plan(args, cfg) -> int:
             out.append(plan_reader_line(
                 sum(repeats_for(cfg_p, c["category"], smoke, c) for c in t1 if _is_adult(c)),
                 __import__("crucibleforge.lineage", fromlist=["family"]).family(e["name"]), prof,
-                hosted=str(hj["model_id"]) if hj else None))
+                hosted=str(hj["model_id"]) if hj else None, judge=run_judge_id(hj_args, cfg_p, prof)))
         out += owed_lines(e, cfg_p, t1, smoke, price=e.get("price") or provider_for(cfg_p, e).prices.get(
             str(e.get("model_id"))))
         rounds = plan_rounds(cfg_p, e, cases)
@@ -3642,6 +3838,7 @@ def cmd_plan(args, cfg) -> int:
         if not rig and prov.is_hosted and _spend.budget_line():
             out.append(_spend.budget_line())
         tally: dict = {}
+        tick.phase(f"{e['name']}: ladder sets and pack questions")
         more = _plan_ladder(args, cfg_p, prof, e, rig, prov, rows_of, jobs_of, samples, tally=tally) \
             if uses_ladder(args, cfg) else _plan_tiers(args, cfg_p, prof, e, rows_of)
         if hj:
@@ -3654,6 +3851,7 @@ def cmd_plan(args, cfg) -> int:
                                          judge_id=str(hj["model_id"]), pack_samples=tally.get("judged", 0) * 3),
                 route=f"{hj['model_id']} on {hj['provider']}")
         out += more
+    tick.stop()
     print("\n".join(out))
     print("\n(plan only — no model, provider or judge was called; times are estimates)")
     return 0
@@ -3711,9 +3909,36 @@ def judge_call_model(prof: dict, t1_samples: float, *, adult_on: bool, n_adult: 
                       "calls": check + first * _J.SESSION_WAVE_FACTOR, "high": check + first * 3,
                       "tokens": _J.LADDER_CALL_TOKENS})
     if pack_samples:
-        parts.append({"what": "pack rounds, if every set unlocks", "calls": 0,
+        parts.append({"what": "pack rounds, if every set unlocks", "calls": 0, "pack": True,
                       "high": float(pack_samples) * HOSTED_JUDGE_CALLS_PER_SAMPLE, "tokens": _J.JUDGE_CALL_TOKENS})
     return parts
+
+
+def owed_packs(label: str, cfg: dict, sets: dict, unlock: float, progress: dict | None = None) -> list[str]:
+    """Owner 2026-11-25 (R37/R38): the bonus packs this model has UNLOCKED on its stored rows but not run yet
+    ("<part> set <n>"): they count 0 on the board until they run, so the plan lists them as owed."""
+    from . import ladder
+    from . import report
+    if progress is None:
+        progress = report.ladder_progress(label, cfg)
+    out = []
+    for key, seq in sets.items():
+        pr = progress.get(key) or {}
+        st = ladder.states(pr.get("std"), pr.get("sets") or {}, seq, unlock, opened=pr.get("opened"))
+        out += [f"{key} set {n}" for n, v in sorted(st.items()) if v == "pending"]
+    return out
+
+
+def owed_packs_lines(label: str, cfg: dict, sets: dict, unlock: float) -> list[str]:
+    """The plan line for :func:`owed_packs`; a model without stored rows owes none (nothing is unlocked yet)."""
+    try:
+        owed = owed_packs(label, cfg, sets, unlock)
+    except Exception as ex:  # noqa: BLE001 -- the plan never fails on the owed-packs readout
+        return [f"  bonus packs owed: not read ({type(ex).__name__})"]
+    if not owed:
+        return ["  bonus packs owed: none (no unlocked pack waits to run)"]
+    return [f"  bonus packs owed (unlocked on the stored rows, not run; each counts 0 until it runs): "
+            f"{len(owed)}: " + ", ".join(owed)]
 
 
 def _plan_ladder(args, cfg_p, prof, e, rig, prov, rows_of, jobs_of, samples, tally: dict | None = None) -> list[str]:
@@ -3731,27 +3956,35 @@ def _plan_ladder(args, cfg_p, prof, e, rig, prov, rows_of, jobs_of, samples, tal
                 f"a set runs when every level below scored >= {unlock:.0%})"]
     out.append(f"  ladder — a set runs when every level below it scored >= {unlock:.0%} "
                f"(all sets of one level together):")
+    out += owed_packs_lines(e["name"], cfg_p, sets, unlock)
     gen_all, judged_all = 0.0, 0
     from .adult_guard import plan_cases as _adult_plan
+    planned = []
     for key, seq in sets.items():
         for spec in seq:
             cs = ladder.set_cases(prof, key, spec["n"], smoke=getattr(args, "smoke", False),
                                   sets=sets)
             cs = _adult_plan(cfg_p, e, cs, say=lambda _s: None)   # an adult pack only with --adult (P1)
-            if not cs:
-                continue
-            ctx = load_context(cfg_p, e, cases=cs)
-            lines, n = rows_of(cs, ctx, e)
-            below = "standard" if spec.get("level", spec["n"]) == 1 else "standard + every lower level"
-            budget = f", budget {spec['budget']}" if spec.get("budget") else ""
-            out.append(f"  {key} set {spec['n']} (level {spec.get('level', spec['n'])}): "
-                       f"{len(cs)} cases, {n} rows{budget}, loaded at ctx {ctx} — runs if "
-                       f">= {unlock:.0%} on {below}")
-            out += lines
-            secs, judged = jobs_of(cs, rig)
-            slots = est.rig_slots(ctx) if rig else max(1, int(prov.concurrency or 1))
-            gen_all += est.generation_min(secs, slots) + (est.RELOAD_S / 60 if rig else 0)
-            judged_all += judged
+            planned.append((key, spec, cs))
+    # every pack question's budget needs its rendered max_tokens: render them side by side (Docker assessment
+    # 2026-11-25: one at a time this took most of the plan's minutes)
+    from .lazycase import prefetch as _prefetch
+    _prefetch([c for _k, _s, cs in planned for c in cs])
+    for key, spec, cs in planned:
+        if not cs:
+            continue
+        ctx = load_context(cfg_p, e, cases=cs)
+        lines, n = rows_of(cs, ctx, e)
+        below = "standard" if spec.get("level", spec["n"]) == 1 else "standard + every lower level"
+        budget = f", budget {spec['budget']}" if spec.get("budget") else ""
+        out.append(f"  {key} set {spec['n']} (level {spec.get('level', spec['n'])}): "
+                   f"{len(cs)} cases, {n} rows{budget}, loaded at ctx {ctx} — runs if "
+                   f">= {unlock:.0%} on {below}")
+        out += lines
+        secs, judged = jobs_of(cs, rig)
+        slots = est.rig_slots(ctx) if rig else max(1, int(prov.concurrency or 1))
+        gen_all += est.generation_min(secs, slots) + (est.RELOAD_S / 60 if rig else 0)
+        judged_all += judged
     jm = est.judge_min(judged_all, 3) if judged_all else 0.0
     if tally is not None:
         tally["judged"] = judged_all
@@ -4140,20 +4373,17 @@ def cmd_rejudge_reasoning(args, cfg) -> int:
     cases_by_id = {c["id"]: c for c in load_cases()}
     if args.apply:
         # never append beside a benchmark that is still writing the file
-        try:
-            import fcntl
-            path = _rig_lock_path()
-            if path.exists():
-                with open(path, "a+", encoding="utf-8") as f:
-                    try:
-                        fcntl.flock(f.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
-                        fcntl.flock(f.fileno(), fcntl.LOCK_UN)
-                    except BlockingIOError:
-                        print(f"a benchmark holds {path} — run --apply after it ends",
-                              file=sys.stderr)
-                        return 4
-        except ImportError:
-            pass
+        from .filelock import lock, unlock
+        path = _rig_lock_path()
+        if path.exists():
+            with open(path, "a+", encoding="utf-8") as f:
+                try:
+                    lock(f, blocking=False)
+                    unlock(f)
+                except BlockingIOError:
+                    print(f"a benchmark holds {path} — run --apply after it ends",
+                          file=sys.stderr)
+                    return 4
     rep = rr.run(labels, apply=bool(args.apply), cases_by_id=cases_by_id)
     try:  # the ids `judge --cases` accepts (the profile's standard cases; ladder-pack cases are not among them)
         known = {c["id"] for c in _apply_profile_arg(copy.copy(args), cfg)[1]}
@@ -4656,9 +4886,10 @@ class rig_phase:
         if self.mine:
             f, _RIG_LOCK["f"] = _RIG_LOCK["f"], None
             try:
-                import fcntl
-                fcntl.flock(f.fileno(), fcntl.LOCK_UN)
-            except (ImportError, OSError):
+                from .filelock import unlock, unmark_held
+                unmark_held(f.name)
+                unlock(f)
+            except OSError:
                 pass
             f.close()
             log.info("rig lock released after the %s", self.what)
@@ -4671,7 +4902,11 @@ def _rig_lock_path() -> Path:
 
 def _ancestor_holds(path: Path) -> bool:
     """True when this process (an inherited fd) or one of its ancestors has
-    ``path`` open (Linux /proc)."""
+    ``path`` open (Linux /proc), or a parent marked it held in the
+    environment (filelock.mark_held: every platform)."""
+    from .filelock import held_by_parent
+    if held_by_parent(path):
+        return True
     try:
         target = os.path.realpath(path)
         pid = os.getpid()
@@ -4705,19 +4940,15 @@ def acquire_rig_lock(shared: bool = False):
     EXCLUSIVE and so waits for all shards to end, and a shard waits for
     them. Two shards are kept off each other's cards by the per-GPU locks
     (shard.DeviceLocks)."""
-    try:
-        import fcntl
-    except ImportError:  # Windows: no flock — one-at-a-time is on the operator
-        return None
+    from .filelock import lock
     path = _rig_lock_path()
     path.parent.mkdir(parents=True, exist_ok=True)
     if _ancestor_holds(path):
         log.info("rig lock %s is held by a parent process — running under it", path)
         return None
-    mode = fcntl.LOCK_SH if shared else fcntl.LOCK_EX
     f = open(path, "a+", encoding="utf-8")
     try:
-        fcntl.flock(f.fileno(), mode | fcntl.LOCK_NB)
+        lock(f, exclusive=not shared, blocking=False)       # Windows: an exclusive lock either way (filelock.py)
     except BlockingIOError:
         f.seek(0)
         holder = f.read().strip()[:200]
@@ -4726,7 +4957,7 @@ def acquire_rig_lock(shared: bool = False):
         # poll, not a blocking flock: a SIGTERM while waiting must end the wait
         while True:
             try:
-                fcntl.flock(f.fileno(), mode | fcntl.LOCK_NB)
+                lock(f, exclusive=not shared, blocking=False)
                 break
             except BlockingIOError:
                 if stopflag.sleep(2.0):
@@ -4739,6 +4970,8 @@ def acquire_rig_lock(shared: bool = False):
         f.truncate()
         f.write(f"pid {os.getpid()} since {_utcnow_iso()}: crucibleforge {' '.join(sys.argv[1:])[:160]}\n")
         f.flush()
+    from .filelock import mark_held
+    mark_held(path)          # a child (bench-all's per-model runs) runs under it on every platform
     return f
 
 
@@ -5172,6 +5405,8 @@ def main(argv=None):
                             "does the same on its own")
     p_all.add_argument("--no-escalate", action="store_true",
                        help="accepted for compatibility (escalation is off unless --escalate)")
+    p_all.add_argument("--print-report", action="store_true",
+                       help="print the whole Scorecard at the end (default: this run's rows and the file paths)")
     p_all.add_argument("--no-ladder", action="store_true",
                        help="standard cases only: no ladder sets (suite 3.9)")
     p_all.add_argument("--ladder-sections", default=None, metavar="LIST",
@@ -5448,6 +5683,10 @@ def main(argv=None):
     # 4.5.1 (PLAN-451-LIMITS step 4c): the edit parser reads a bare >>>>>>> closer of a well-formed block (edittol)
     from . import edittol
     edittol.install()
+    # 4.5.1 container image: this process is non-dumpable (its environment holds provider keys) and, where the image
+    # provides the helper ($CRUCIBLEFORGE_JAIL), graded programs run as another user with no network (jail.py)
+    from . import jail
+    jail.install()
 
     if args.cmd == "spend":
         sys.exit(cmd_spend(args))
@@ -5547,6 +5786,10 @@ def main(argv=None):
         args.cmd == "bench-all" and (getattr(args, "go", False) or getattr(args, "detach", False)))
     if v2_tracked and getattr(args, "detach", False):
         sys.exit(_detach(args, argv))
+    # Docker assessment item 3: one writer per results folder (exits at once, naming the holder)
+    from . import writelock as _writelock
+    write_lock = (_writelock.acquire(results_dir(), " ".join(sys.argv[1:] if argv is None else argv) or args.cmd)
+                  if writes_results(args) else None)
     v2_state = _v2_start(args) if v2_tracked else None
     rig_lock = None
     try:
@@ -5582,7 +5825,14 @@ def main(argv=None):
         # no-ops. A real run exits right after, which released it anyway.
         if rig_lock is not None:
             _RIG_LOCK["f"] = None
+            from .filelock import unlock, unmark_held
+            unmark_held(rig_lock.name)
+            try:
+                unlock(rig_lock)
+            except OSError:
+                pass
             rig_lock.close()
+        _writelock.release(write_lock)
     if stopflag.ABORT.is_set():
         rc = TERM_EXIT
     if v2_tracked:

@@ -5,8 +5,10 @@
 
 **MakoBench 4.5 is a low-cost benchmark anyone can run on a model they host or rent.** CrucibleForge is the engine.
 It scores Code (write, fix and change code, use tools, read code) and Chat (stay in character, remember the
-conversation, co-write to a brief, follow everyday instructions), each out of 10. It sorts models into broad tiers:
-two single runs closer than about 0.45 Overall points cannot be told apart, and the board marks ties itself. NSFW+ /20 is shown apart, beside Overall and never part of it.
+conversation, co-write to a brief, follow everyday instructions), each out of 10, plus bonus points from harder
+packs that a model opens by scoring 90% on a part; the bonus adds on top and counts in the rank. It sorts models into
+broad tiers: two single runs closer than about 0.45 Overall points cannot be told apart, and the board marks ties
+itself. NSFW+ /20 (adult fiction) is shown beside Overall and is never part of it.
 
 It is the engine behind the public [MakoBench board](https://www.laserlloyd.com/makobench/). <!-- scrub-ok: public project/site URL, deliberate -->
 Current suite: **4.5.1** (`SUITE_VERSION` in `crucibleforge/version.py`), profile `bench45`.
@@ -14,50 +16,25 @@ Licence: [MIT-0](LICENSE). Author: Laser Lloyd.
 
 <p align="center"><img src="docs/images/how-it-works.svg" alt="How MakoBench works: the same questions for every model, your model answers, the answers are checked by code and one local judge, scores with a range, the board" width="560"></p>
 
-## First run in five minutes
+## Test a model with one command
 
-The model under test and the judge are chosen separately, and each can be local or hosted: a laptop running a local
-8B model can be judged through OpenRouter, a GPU box can run both, a plain computer can use OpenRouter for both.
-The quick setup below needs only an [OpenRouter](https://openrouter.ai/) key and [uv](https://docs.astral.sh/uv/).
+You need Docker (or Podman) and an [OpenRouter key](https://openrouter.ai/keys) with a few dollars of credit:
 
 ```bash
-git clone https://github.com/LaserLloyd/CrucibleForge.git && cd CrucibleForge && uv sync --python 3.13   # scrub-ok: public repo URL
-uv run crucibleforge config --init      # writes models.yaml; its `openrouter` provider reads OPENROUTER_API_KEY
-export OPENROUTER_API_KEY=sk-or-...     # keys live in the environment, never in models.yaml
-uv run crucibleforge models add gpt-6-luna openrouter openai/gpt-6-luna --context-length 1050000 --price-in 0.1 --price-out 0.5
-uv run crucibleforge all --models gpt-6-luna --judge openrouter:qwen/qwen3.8-27b --plan   # calls nothing
-uv run crucibleforge all --models gpt-6-luna --judge openrouter:qwen/qwen3.8-27b --spend-cap-usd 6
+mkdir makobench
+docker run --rm -it -e OPENROUTER_API_KEY=sk-or-... -v "$PWD/makobench:/data" ghcr.io/laserlloyd/crucibleforge:4.5.1 test openai/gpt-6-luna
 ```
 
-- **Prices** are USD per million tokens from the model's OpenRouter page; a hosted model without one is refused.
-  `--plan` prints the rows, the minutes and three price figures (a typical run, a model that thinks at length,
-  every row to its budget), then the judge's estimated cost on its own line. Set the cap to about twice the figure
-  that fits the model.
-- **The judge** here is Qwen 3.8 27B through OpenRouter. Any judge works, local or hosted, any model:
-  `crucibleforge all --models <label> --judge <provider>:<judge-model-id>` (since 4.5.1). The scores published on
-  MakoBench are judged by the same model run locally at 8-bit (Q8). A hosted judge is billed by its provider, is
-  not part of the model's Run cost and is not limited by the run's spend cap. A hosted judge receives every reply it
-  judges, NSFW+ included; pass `--no-nsfw-plus` to leave NSFW+ out. `--no-judge` scores what code
-  checks and leaves the judged parts `pending`.
-- **Local instead.** A local model under test: `uv run crucibleforge models add my-8b lmstudio <model key>` (no key,
-  no price); a local judge: load it in LM Studio and pass `--judge lmstudio:<model key>`. Any OpenAI-compatible
-  server works ([docs/CONFIG.md](docs/CONFIG.md#providers)).
-- **NSFW+** (adult fiction, NSFW+ /20) runs by default in a standard run and never enters Overall.
+- It prints a plan with the expected cost, asks `Continue? [y/N]`, and stops spending at about twice the estimate.
+- Run the same command again to continue a stopped run; `--no-nsfw-plus` leaves out NSFW+ (adult fiction, never in Overall).
+- At the end it prints Overall, Code and Chat, each as the total with its split (`21.6 of 34 = 16.9 standard + 4.7 bonus`), and says which file to open: `makobench/results/report.html`.
+- Windows and macOS forms, local models, costs, safety and troubleshooting: [docs/FIRST-RUN-DOCKER.md](docs/FIRST-RUN-DOCKER.md).
 
-While it runs you see one `[gpt-6-luna] <case> r1 done (N rows)` line per answer, a run summary with the cost, the
-judge's lines, and finally `wrote results/report.md` and `results/report.html`. On the board, **Overall /20** is
-Code plus Chat and sets the rank; **Code /10** is code that hidden tests run (write, fix, use tools, read code);
-**Chat /10** is role-play, memory, co-writing and everyday instructions, checked by code and the judge; `±` is the
-90% range of one run. The same steps in Docker: [docs/FIRST-RUN-DOCKER.md](docs/FIRST-RUN-DOCKER.md).
-
-<p align="center"><img src="docs/images/board.png" alt="The generated 4.5 board: a table of 11 ranked models with columns rank, Model, Overall out of 20, Code out of 10 and Chat out of 10, each score with its plus-minus range, tied ranks such as 1= and 3=, and bonus pack points printed apart as not in Overall" width="720"></p>
-
-- `--smoke` runs a small subset to prove your setup; it is not a score. A point-and-click version: `uv run crucibleforge gui`.
-- On Windows and macOS add `--allow-unsandboxed` before the subcommand, or use Docker (coding answers run in a
-  sandbox those systems lack).
-- **Cost of other models.** A frontier model can cost much more than a flash-class one, and its bonus packs (run
-  only at 90% on a part) can cost more than the standard test. A local model is free but slow when it thinks at
-  length (a 27B thinking model took 269 to 432 minutes with judge and packs on two GPUs).
+**Without Docker** (Python 3.13 and [uv](https://docs.astral.sh/uv/)): `git clone https://github.com/LaserLloyd/CrucibleForge.git && cd CrucibleForge && uv sync`, <!-- scrub-ok: public repo URL -->
+then `uv run crucibleforge-test openai/gpt-6-luna` does the same. The full CLI is
+`crucibleforge all --models <label> --judge <provider>:<judge-model-id>` ([docs/RUNNING.md](docs/RUNNING.md)).
+On Overall /20 (Code plus Chat, sets the rank), Code /10, Chat /10 and `±` (the 90% range of one run), see
+[The scores](#the-scores). The judge: [docs/JUDGE.md](docs/JUDGE.md); MakoBench's own board uses it locally at 8-bit.
 
 ## The scores
 
@@ -77,7 +54,7 @@ Code and Chat are each worth 10 points; **Overall /20 is their sum**. The weight
 | Chat | Everyday instructions | 1 | Small checked tasks (format, word problems, a document) and saying NOT STATED when the document does not say |
 <!-- parts:end -->
 
-<p align="center"><img src="docs/images/score.svg" alt="Code is 10 points (Writes 4, Fixes 3, Tools 2, Reads 1), Chat is 10 points (Character 4, Memory 3.5, Co-write 1.5, Everyday 1); together they are Overall out of 20" width="560"></p>
+<p align="center"><img src="docs/images/score.svg" alt="Code is 10 standard points (Writes 4, Fixes 3, Tools 2, Reads 1) plus bonus packs, Chat is 10 standard points (Character 4, Memory 3.5, Co-write 1.5, Everyday 1) plus bonus packs; Code total plus Chat total is Overall, today up to 34" width="560"></p>
 
 **NSFW+ /20, shown apart.** NSFW /10 (Erotica 4, Adult role-play 2.5, Range 2, Anatomy 1.5) plus Uncensored /10
 (Willingness 6, Knowledge 4), printed in its own column beside Overall and never part of it; both halves are
@@ -89,11 +66,14 @@ each: [docs/TESTS-BY-COMPONENT.md](docs/TESTS-BY-COMPONENT.md). The rules for re
 
 ## Bonus packs
 
-A part scored at 90% or more opens a harder bonus pack. Each pack is worth up to 1 bonus point. Bonus points are
-shown apart, as hashed bars after the solid score, and never count in Overall /20. How packs work and how to write
-one: [docs/PACKS.md](docs/PACKS.md).
+A part scored at 90% or more opens a harder bonus pack. Each pack is worth up to 1 bonus point, and the points add
+on top: Code total = Code (10) + Code packs, Chat total likewise, Overall = Code total + Chat total, printed with its
+split (`20.7 of 34 = 16.9 standard + 3.8 bonus`). The rank is on that total. With today's packs the maximums are
+17, 17 and 34; they grow as packs are added. On the bars the bonus is drawn hashed on top of the solid standard part.
+NSFW+ packs add inside NSFW and Uncensored and never enter Overall. How packs work and how to write one:
+[docs/PACKS.md](docs/PACKS.md).
 
-<p align="center"><img src="docs/images/packs.svg" alt="Bonus packs: a part at 90 percent or more opens its pack of harder questions; each pack is worth up to one bonus point; bonus points are drawn as hashed bars after the solid standard score and never count in Overall" width="560"></p>
+<p align="center"><img src="docs/images/packs.svg" alt="Bonus packs: a part at 90 percent or more opens its pack of harder questions; each pack is worth up to one bonus point; bonus points are drawn hashed on top of the solid standard score and add to the total" width="560"></p>
 
 ## Methodology
 
@@ -107,11 +87,14 @@ one: [docs/PACKS.md](docs/PACKS.md).
 - **One judge.** On the published board the plain Qwen 3.8 27B, run locally at 8-bit (Q8), grades the role-play
   sessions, the long chat scenes and the NSFW+ classing, with a quoted line as evidence. There is no second reader.
 - **Ranges from repeat runs.** The `±` beside a score is a 90% range measured from whole runs repeated on the same
-  models. One run: Code ±0.22, Chat ±0.29, Overall ±0.31. NSFW+ needs two runs to get under 5%.
-- **Ties.** Rank is by Overall. A model is marked tied with the one above (`2=`) when neither its Code total nor
-  its Chat total differs from that model's by more than the 90% margin of the difference.
-- **Packs.** A part scored at 90% or more unlocks a harder bonus pack. Pack points are printed apart and never
-  enter Overall. List them with `crucibleforge pack list`; how they work: [docs/PACKS.md](docs/PACKS.md).
+  models. One run: Code ±0.22, Chat ±0.29, Overall ±0.31 on the standard score. The total's range is printed beside
+  it, because a pack can open in one run and not in another; the 2.5% accuracy bar was set for the standard score.
+  NSFW+ needs two runs to get under 5%.
+- **Rank.** Rank = 1 + the number of models clearly better on the total (90% interval of the difference above
+  zero). A shared place means that pair cannot be told apart, so a list can read 1=, 1=, 1=, 2, 4=: the fourth model
+  is clearly behind one of the top three but not the other two, and the fifth is clearly behind three models.
+- **Packs.** A part scored at 90% or more unlocks a harder bonus pack whose points add to the total. List them
+  with `crucibleforge pack list`; how they work: [docs/PACKS.md](docs/PACKS.md).
 - **Published per run.** Each score with its range and source, run settings, minutes and cost. Every row stores
   its grader and judge stamps, so a changed grader marks old rows stale (`report --check-stale`).
 
@@ -121,11 +104,11 @@ How the benchmark itself was checked (repeat runs, judge audit, kill tests, revi
 
 | You see | It means |
 | --- | --- |
-| **Overall /20** | Code plus Chat, printed only when both are complete; otherwise `x of y measured, not ranked`. |
+| **Overall** | Code total plus Chat total, with its split (`20.7 of 34 = 16.9 standard + 3.8 bonus`), printed only when both are complete; otherwise `x of y measured, not ranked`. |
 | `6.4 of 7.5` | Points measured out of the measured maximum; nothing is scaled up over a missing segment. |
 | `±` | The 90% range, with its source beside it. |
-| `2=` | Tied with the model above. |
-| **Pack points** | Bonus packs, apart from the 20. `locked` = the part is under 90%. |
+| `2=` | Shares its place: no model in that place is clearly better than it. |
+| **Pack points** | The bonus in each total, per pack. `locked` = the part is under 90%. |
 | `pending` / `not run` | Waiting for something / never run (never 0). |
 | `not measured (n of m replies cut)` | Too many replies hit the token ceiling; the part adds nothing. |
 

@@ -225,6 +225,7 @@ def test_run_judge_skips_a_label_another_process_holds(tmp_path, monkeypatch):
     assert all("judge" not in r for r in _final(tmp_path, "m2").values())
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="Windows has no shared lock: shards take turns (filelock.py)")
 def test_shared_rig_lock_admits_shards_and_excludes_everything_else(tmp_path, monkeypatch):
     from crucibleforge import cli
     monkeypatch.setattr(config, "RESULTS_DIR", tmp_path)

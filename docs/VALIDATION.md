@@ -74,7 +74,7 @@ The board prints the range and its source in every cell, and says so when a rang
 - Few degrees of freedom (4 for Code and Chat, 8 for NSFW+). The t values widen the ranges for that.
 - The pooled spread assumes every model is about as noisy as the models that were repeated.
 - A different set of questions of the same kind is a separate uncertainty. It is not in the `±`; it is printed as
-  information and it is what the tie rule uses ([Margins and ties](SCORING.md#margins-and-ties)).
+  information and it is what the rank rule uses (on the totals, with each model's pack noise added) ([Margins and ties](SCORING.md#margins-and-ties)).
 
 ## 3. Judge audit
 

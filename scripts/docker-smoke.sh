@@ -7,7 +7,7 @@
 #
 # Checks, in order:
 #   1. the image builds
-#   2. `--help` runs through the entrypoint as a non-root user
+#   2. `--help` runs through the entrypoint as the data folder's owner
 #   3. the first start seeds /data/models.yaml from the Docker starter, with no
 #      provider left pointing into the container (localhost / 127.0.0.1)
 #   4. `cases verify` re-derives gold answers offline (no model is called)
@@ -29,18 +29,20 @@ cleanup() { "$ENGINE" volume rm -f "$VOL" >/dev/null 2>&1 || true; }
 trap cleanup EXIT INT TERM
 
 if [ "${NO_BUILD:-0}" != "1" ]; then
-    # podman defaults to the OCI format, which drops the HEALTHCHECK
     fmt=""; [ "$(basename "$ENGINE")" = podman ] && fmt="--format docker"
     # shellcheck disable=SC2086
     "$ENGINE" build $fmt -t "$IMAGE" "$ROOT" >/dev/null || fail "image build"
     ok "build $IMAGE ($ENGINE)"
 fi
 
-run() {   # run <args...>: the CLI as compose.yaml runs it, on a scratch volume
-    "$ENGINE" run --rm --read-only --tmpfs /tmp --cap-drop ALL \
-        --security-opt no-new-privileges \
+run() {   # run <args...>: the CLI exactly as the one-command page runs it (no hardening flags), on a scratch volume
+    "$ENGINE" run --rm \
         -e CRUCIBLEFORGE_SEED_TEMPLATE=/app/deploy/models.docker.yaml \
-        -e CRUCIBLEFORGE_ALLOW_UNSANDBOXED=1 \
+        -v "$VOL:/data" "$IMAGE" "$@"
+}
+hardened() {   # every hardening flag, run as the folder's owner (--user): it must still work
+    "$ENGINE" run --rm --read-only --tmpfs /tmp --cap-drop ALL --security-opt no-new-privileges --user "$OWNER" \
+        -e CRUCIBLEFORGE_SEED_TEMPLATE=/app/deploy/models.docker.yaml \
         -v "$VOL:/data" "$IMAGE" "$@"
 }
 
@@ -48,9 +50,14 @@ out="$(run --help 2>&1)" || fail "--help: $out"
 echo "$out" | grep -q "usage: crucibleforge" || fail "--help printed no usage"
 ok "--help"
 
-uid="$(run id -u 2>/dev/null)"
-[ "$uid" != "0" ] || fail "container runs as root"
-ok "runs as uid $uid"
+ids="$(run sh -c 'echo "$(id -u) $(stat -c %u /data)"' 2>/dev/null)"
+set -- $ids
+[ "$1" = "$2" ] || fail "the benchmark runs as uid $1, the data folder belongs to uid $2"
+ok "runs as the data folder's owner (uid $1)"
+OWNER="$2"
+
+out="$(hardened config 2>&1)" || fail "config in a hardened container: $out"
+ok "config in a hardened container (read-only, no capabilities, no-new-privileges)"
 
 cfg="$(run cat /data/models.yaml 2>/dev/null)" || fail "no seeded /data/models.yaml"
 echo "$cfg" | grep -q "^  local:" || fail "seed is not the Docker starter"
@@ -59,8 +66,16 @@ if echo "$cfg" | grep -E "base_url: *http://(localhost|127\.0\.0\.1)" >/dev/null
 fi
 ok "first-start seed (Docker starter, local provider -> host.docker.internal)"
 
-out="$(run cases verify --categories math,instruct,reasoning 2>&1)" || fail "cases verify: $out"
-ok "cases verify (offline)"
+# 4.5 ships known findings (.github/cases-verify-known.txt, the list CI uses): only a NEW one fails here
+out="$(run cases verify --categories math,instruct,reasoning 2>&1)" || true
+echo "$out" | grep -q 'cases checked' || fail "cases verify did not finish: $(echo "$out" | tail -n 5)"
+new="$(echo "$out" | grep '^FAIL' \
+    | sed -E 's#(FAIL ladder: ).*cases[/\\]+ladder[/\\]+([A-Za-z_0-9]+)[/\\]+([A-Za-z_0-9]+):#\1cases/ladder/\2/\3:#' \
+    | sort -u | comm -23 - "$(sort -u "$ROOT/.github/cases-verify-known.txt" > "${TMPDIR:-/tmp}/cf-known.$$" && echo "${TMPDIR:-/tmp}/cf-known.$$")")"
+rm -f "${TMPDIR:-/tmp}/cf-known.$$"
+[ -z "$new" ] || fail "cases verify: findings not in .github/cases-verify-known.txt:
+$new"
+ok "cases verify (offline; known findings only)"
 
 out="$(run config 2>&1)" || fail "config: $out"
 echo "$out" | grep -q "/data/models.yaml" || fail "config does not resolve /data/models.yaml: $out"

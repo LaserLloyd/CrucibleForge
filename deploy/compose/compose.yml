@@ -20,7 +20,6 @@ services:
     container_name: crucibleforge
     hostname: crucibleforge
     restart: unless-stopped
-    init: true                      # tini as PID 1: signal forwarding + zombie reaping
     stop_grace_period: 60s          # a benchmark in flight gets time to release the rig lease
 
     ports:
@@ -37,30 +36,27 @@ services:
       LLM_BASE_URL: ${LLM_BASE_URL:-http://host.docker.internal:1234/v1}
       # Stable GUI token (otherwise a fresh one is printed on every start).
       CRUCIBLEFORGE_GUI_TOKEN: ${CRUCIBLEFORGE_GUI_TOKEN:-}
-      # Coding cases run model-written code. The app refuses to do that without
-      # bubblewrap, and bubblewrap needs user namespaces that Docker's default
-      # seccomp profile blocks - so inside the container the CONTAINER is the
-      # sandbox (non-root, no capabilities, no-new-privileges, resource limits).
-      # Set to 0 and see docs/deploy/docker.md if you supply your own seccomp
-      # profile that allows bwrap.
-      CRUCIBLEFORGE_ALLOW_UNSANDBOXED: ${CRUCIBLEFORGE_ALLOW_UNSANDBOXED:-1}
+      # Coding cases run model-written code through the image's jail helper
+      # (another user, no network, limits; docs/deploy/docker.md). Set 1 only
+      # to run it anyway when the helper cannot work (it then has network).
+      CRUCIBLEFORGE_ALLOW_UNSANDBOXED: ${CRUCIBLEFORGE_ALLOW_UNSANDBOXED:-}
       # Hosted-provider keys: name them in models.yaml (api_key_env) and pass
       # them through .env. Listed here only so compose forwards them.
       DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
 
-    # Non-root by default. For a bind-mounted DATA_PATH owned by another UID see
-    # compose.puid.yml (starts as root only to chown, then drops to PUID:PGID).
-    user: "${RUN_AS:-1000:1000}"
+    # Starts as root only to find the owner of /data (or PUID/PGID from .env)
+    # and runs the benchmark as that user; compose.puid.yml is no longer needed.
     # Everything stateful is on the /data volume; the image filesystem is
     # read-only so a stray write fails loudly instead of vanishing on update.
     read_only: true
     tmpfs:
       - /tmp
+    # starts as root only to run the benchmark as the /data owner and to start the jail helper that
+    # runs model code as uid 65534 with no network (a setuid helper: no-new-privileges would disable it)
     cap_drop: [ALL]
-    security_opt:
-      - no-new-privileges:true
+    cap_add: [CHOWN, DAC_OVERRIDE, FOWNER, SETUID, SETGID, KILL]
 
     # Resolve host.docker.internal on Linux engines too (Docker Desktop has it).
     extra_hosts:
@@ -68,10 +64,11 @@ services:
 
     volumes:
       # models.yaml + results/ live here. Set DATA_PATH to a host directory
-      # (owned by UID 1000) to keep them somewhere you can browse.
+      # (one you own) to keep them somewhere you can browse.
       - ${DATA_PATH:-crucibleforge-data}:/data
 
     healthcheck:
+      test: ["CMD", "python", "/usr/local/bin/healthcheck.py"]
       start_period: 20s
       interval: 30s
       timeout: 5s

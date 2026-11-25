@@ -190,13 +190,9 @@ key too (StudioForge does): add `api_key_env: LOCAL_API_KEY` to the `local`
 provider and `LOCAL_API_KEY=...` to `.env`.
 
 **`/data is not writable` / `Permission denied` on the volume.** The container
-runs as UID 1000. The named volume just works. If you set `DATA_PATH` to a host
-folder, that folder must be writable by UID 1000: `sudo chown 1000:1000 <dir>`,
-or set `RUN_AS=$(id -u):$(id -g)` in `.env` to run as yourself, or use
-`deploy/compose/compose.puid.yml`.
-On **rootless Podman** UID 1000 in the container is not you on the host; use
-the named volume, or `podman unshare chown 1000:1000 <dir>`. On an **SELinux**
-host (Fedora, RHEL) a bind mount also needs `:Z`, e.g.
+runs the benchmark as the owner of the data folder, so a folder you created
+yourself just works (set `PUID`/`PGID` in `.env` to choose another owner). On an
+**SELinux** host (Fedora, RHEL) a bind mount also needs `:Z`, e.g.
 `DATA_PATH=./cf-data` plus `- ${DATA_PATH}:/data:Z` in `compose.yaml`.
 
 **`canary FAILED` while judging.** The judge refused or under-rated the
@@ -208,18 +204,14 @@ nothing. Drop one of them.
 
 **Podman.** Every command works with `podman compose` instead of
 `docker compose` (it needs `podman-compose` or Docker's `docker-compose`
-installed as the provider). Build by hand with `podman build --format docker -t crucibleforge:dev .`
-(`--format docker` keeps the image's HEALTHCHECK).
+installed as the provider). Build by hand with `podman build -t crucibleforge:dev .`
 
 ## Security notes
 
-* Coding cases **execute code the model wrote**. In the container the
-  container is the sandbox: non-root, all capabilities dropped,
-  `no-new-privileges`, read-only image filesystem
-  (`CRUCIBLEFORGE_ALLOW_UNSANDBOXED=1`). That code can still reach the network
-  and read `/data` (including the GUI token), so benchmark models you are
-  willing to run code from. [`deploy/docker.md`](deploy/docker.md) explains
-  the bubblewrap alternative.
+* Coding cases **execute code the model wrote**. In the image that code runs as a separate user with no network,
+  no view of your key or your results folder, and process, memory, CPU-time and file-size limits; it can still
+  read the image's own files, and it is not a virtual machine. Details and what each claim is tested by:
+  [`deploy/docker.md`](deploy/docker.md#coding-cases-and-the-sandbox).
 * `.env` holds your keys: keep it private (`chmod 600 .env`). It is
   git-ignored and never copied into the image; neither are `models.yaml`,
   `results/`, `cases/private/` or any `*.local.*` file (`.dockerignore`).
@@ -227,7 +219,9 @@ installed as the provider). Build by hand with `podman build --format docker -t 
 ## Testing the image
 
 `scripts/docker-smoke.sh` builds the image and checks it with no model and no
-key: `--help`, non-root user, the first-start seed, offline `cases verify`,
+key: `--help`, that the benchmark runs as the data folder's owner, `config` with every hardening flag, the first-start seed, offline `cases verify`,
 `config`, that no private or operator-local file is in the image, and that
 `compose.yaml` is valid. `ENGINE=podman scripts/docker-smoke.sh` for Podman.
-CI builds the image on every pull request (`.github/workflows/containers.yml`).
+`deploy/e2e/offline_e2e.sh` runs the one `test` command end to end against a fake provider (no key, no
+spending), checks each plain failure message and runs the hostile-code selftest. CI runs both on every push and
+pull request (`.github/workflows/containers.yml`); the image is published to GHCR only from a `v*` tag.

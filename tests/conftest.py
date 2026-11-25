@@ -37,6 +37,15 @@ def _no_real_network_attempts():
 
 
 @pytest.fixture(autouse=True)
+def _no_lock_marks_between_tests():
+    """A lock a test takes marks itself held in the environment for child processes (filelock.mark_held); a test
+    that closes the file instead of releasing it must not leave the mark to the next test."""
+    import os
+    yield
+    os.environ.pop("CRUCIBLEFORGE_HELD_LOCKS", None)
+
+
+@pytest.fixture(autouse=True)
 def _no_lease_keepalive_threads(monkeypatch):
     """A provider that takes a lease starts a daemon keepalive thread that
     sleeps >= 30 s, then touches the lease on its (made-up) host.  Left
@@ -221,6 +230,9 @@ def _process_switch_env_restored(monkeypatch):
     yield
     _spend.forget_judges()
 
+_T_SERIAL = "tests/"
+
+
 def pytest_configure(config):
     config.addinivalue_line(
         "markers", "slow: minutes on its own (the whole-case-set sandbox verify, full-CLI subprocesses over "
@@ -237,6 +249,40 @@ def pytest_configure(config):
                    "`standard`); unmarked tests run with CF_COMPOSITION=default unless they set it")
     config.addinivalue_line(
         "markers", "timing: a wall-clock assertion with a generous bound; `pytest -m timing -n 0` runs them alone")
+    config.addinivalue_line(
+        "markers", "serial: the pass depends on wall-clock or CPU time; CI runs these alone (`-m serial -n 0`) "
+                   "after the parallel run (`-m 'not serial'`). Applied from SERIAL_TESTS below and to every "
+                   "`timing` test")
+
+
+#: Tests whose pass depends on wall-clock or CPU time, so a fully loaded parallel run can fail them with no
+#: fault in the code (2026-11-25: two failed on CI even with --reruns 2, since a rerun happens under the same
+#: load). CI runs them in a second step on their own. Their assertions are unchanged.
+SERIAL_TESTS = (
+    # a quality / CPU-time anchor ("q 0.096 (baseline 0.178) ... cpu 8.5s" on a loaded runner)
+    _T_SERIAL + "test_gen_solversyn.py::test_baseline_anchor",
+    # the whole case set's mutants run against their limits; CZ14-exact-calc's 'long-flat' mutant has 8 s
+    _T_SERIAL + "test_v3.py::test_case_set_verifies_clean",
+    _T_SERIAL + "test_simplify_20260923.py::test_cases_verify_clean",
+    # a deterministic work clock read against real elapsed time
+    _T_SERIAL + "test_gen_planted_opt.py::test_work_clock_is_deterministic_and_seeds_random",
+    # count how far a batch gets in a fixed time or before a stop trips (already skipped on macOS for that reason)
+    _T_SERIAL + "test_earlystop_20261113.py::test_a_tripped_model_stops_keeps_its_rows_and_the_batch_goes_on",
+    _T_SERIAL + "test_review_opus_39.py::test_bench_all_finishes_everything_by_the_window_end",
+    _T_SERIAL + "test_review_opus_39.py::test_window_reserve_follows_the_judge_estimate_with_the_flag_as_floor",
+    # assert on elapsed seconds
+    _T_SERIAL + "test_case_table_pure_20261114.py::test_a_one_case_dir_never_reads_the_live_ladder",
+    _T_SERIAL + "test_check_regex_performance.py::test_check_regexes_are_not_catastrophic_without_fork",
+    _T_SERIAL + "test_lane_r_r6_minutes_cost_20261118.py::test_printed_minutes_are_within_two_percent_of_the_wall_clock",
+    _T_SERIAL + "test_runner_stop_39.py::test_sigterm_with_workers_stuck_on_a_dead_host_exits_fast_and_marks_stopped",
+    _T_SERIAL + "test_runner_stop_39.py::test_sigterm_with_the_main_thread_blocked_ends_by_the_watchdog",
+)
+
+
+def pytest_collection_modifyitems(config, items):
+    for item in items:
+        if item.nodeid.startswith(SERIAL_TESTS) or item.get_closest_marker("timing"):
+            item.add_marker(pytest.mark.serial)
 
 
 @pytest.fixture(autouse=True)
@@ -402,7 +448,6 @@ _NEEDS_LINUX_SANDBOX = (
     "fixcheck needs a POSIX host",
     "the code bank needs a POSIX host",
     "module 'resource' has no attribute",
-    "module 'fcntl' has no attribute",
 )
 
 
@@ -428,7 +473,6 @@ _HOST_DEPENDENT = {
         # another order. They pass on Linux and Windows and passed on macOS in other runs: timing, not logic.
         "timing-sensitive under the macOS runner's few cores": (
             _T + "test_earlystop_20261113.py::test_a_tripped_model_stops_keeps_its_rows_and_the_batch_goes_on",
-            _T + "test_chains_20261113.py::test_early_stop_counts_chain_answers",
             _T + "test_review_opus_39.py::test_bench_all_finishes_everything_by_the_window_end"),
     },
     "win32": {

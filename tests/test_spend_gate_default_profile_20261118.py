@@ -35,13 +35,13 @@ def _prov(monkeypatch, prices=None):
                               "finish_reason": "stop"})()
     import crucibleforge.api as api
     monkeypatch.setattr(api, "stream_chat_retried", fake)
-    p = providers.Provider(name="p", type="openai", base_url="http://x/v1", api_key="k")
+    p = providers.Provider(name="p", type="openai", base_url="https://api.example.com/v1", api_key="k")
     p.prices = dict(prices or {})
     return p, sent
 
 
 def test_the_default_profile_alone_does_not_refuse_an_unpriced_hosted_call(monkeypatch):
-    assert spend.global_cap() is not None          # bench45 still has its standing global cap ...
+    assert spend.global_cap() is None              # no lifetime ceiling ships (2026-11-25) ...
     assert spend.explicit_cap_set("paid-model") is False   # ... but nobody set a cap explicitly
     p, sent = _prov(monkeypatch)
     p.chat("paid-model", [{"role": "user", "content": "hi"}])
@@ -85,7 +85,7 @@ def _run_args(**kw):
 
 
 def _cfg():
-    return {"providers": {"api": {"type": "openai", "base_url": "http://x/v1", "api_key": "k"}},
+    return {"providers": {"api": {"type": "openai", "base_url": "https://api.example.com/v1", "api_key": "k"}},
             "models": [{"name": "h1", "provider": "api", "model_id": "h1-id", "context_length": 32768}],
             "defaults": {}, "judge": {"candidates": []}}
 

@@ -135,7 +135,7 @@ def _fresh_spend(monkeypatch):
 
 def _cfg(url, price=PRICE):
     return {"providers": {"anthropic": {
-                "type": "anthropic", "base_url": url, "api_key_env": "CLAUDE_API_KEY",
+                "type": "anthropic", "base_url": url, "api_key_env": "CLAUDE_API_KEY", "hosted": True,
                 "concurrency": 4,
                 "headers": {"anthropic-workspace-id": "wrkspc_test", "anthropic-version": "2023-06-01"}}},
             "models": [{"name": MODEL, "provider": "anthropic", "model_id": MODEL,

@@ -1,54 +1,66 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 540" role="img" aria-labelledby="t d" font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 580" role="img" aria-labelledby="t d" font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif">
 <title id="t">How the MakoBench score is built</title>
-<desc id="d">Code is 10 points: Writes 4, Fixes 3, Tools 2, Reads 1. Chat is 10 points: Character 4, Memory 3.5, Co-write 1.5, Everyday 1. Code plus Chat is Overall out of 20.</desc>
+<desc id="d">Code is 10 standard points (Writes 4, Fixes 3, Tools 2, Reads 1) plus up to 7 bonus points from packs. Chat is 10 standard points (Character 4, Memory 3.5, Co-write 1.5, Everyday 1) plus up to 7 bonus points. Code total plus Chat total is Overall, printed with its split; with today's packs the maximum is 34. The rank is on the total. NSFW+ is shown beside Overall and is never part of it.</desc>
 <defs>
 <linearGradient id="beam" x1="0" x2="1" y1="0" y2="0"><stop offset="0" stop-color="#2ea8ff"/><stop offset="1" stop-color="#00e6cf"/></linearGradient>
 <pattern id="hash" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="3" height="7" fill="#00e6cf"/></pattern>
 </defs>
-<rect x="1" y="1" width="798" height="538" rx="28" fill="#0d1116" stroke="#242e3a" stroke-width="2"/>
+<rect x="1" y="1" width="798" height="578" rx="28" fill="#0d1116" stroke="#242e3a" stroke-width="2"/>
 <text x="40" y="76" font-size="30" font-weight="700" fill="#2ea8ff">Code</text>
-<text x="760" y="76" text-anchor="end" font-size="22" fill="#9aabbc">10 points</text>
+<text x="760" y="76" text-anchor="end" font-size="22" fill="#9aabbc">10 standard + up to 7 bonus</text>
 <clipPath id="c96"><rect x="40" y="96" width="720" height="64" rx="14"/></clipPath>
 <g clip-path="url(#c96)">
-<rect x="40" y="96" width="720" height="64" fill="#2ea8ff"/>
-<rect x="40.0" y="96" width="288.6" height="64" fill="#0d1116" fill-opacity="0"/>
-<text x="184.0" y="138" text-anchor="middle" font-size="26" font-weight="700" fill="#0d1116">4</text>
-<rect x="328.0" y="96" width="216.6" height="64" fill="#0d1116" fill-opacity="0.22"/>
-<path d="M328.0 96 V 160" stroke="#0d1116" stroke-width="2"/>
-<text x="436.0" y="138" text-anchor="middle" font-size="26" font-weight="700" fill="#0d1116">3</text>
-<rect x="544.0" y="96" width="144.6" height="64" fill="#0d1116" fill-opacity="0.44"/>
-<path d="M544.0 96 V 160" stroke="#0d1116" stroke-width="2"/>
-<text x="616.0" y="138" text-anchor="middle" font-size="26" font-weight="700" fill="#eaf1f8">2</text>
-<rect x="688.0" y="96" width="72.6" height="64" fill="#0d1116" fill-opacity="0.62"/>
-<path d="M688.0 96 V 160" stroke="#0d1116" stroke-width="2"/>
-<text x="724.0" y="138" text-anchor="middle" font-size="26" font-weight="700" fill="#eaf1f8">1</text>
+<rect x="40" y="96" width="423.5" height="64" fill="#2ea8ff"/>
+<rect x="463.5" y="96" width="296.5" height="64" fill="url(#hash)" fill-opacity="0.75"/>
+<rect x="40.0" y="96" width="169.4" height="64" fill="#0d1116" fill-opacity="0"/>
+<text x="124.7" y="138" text-anchor="middle" font-size="26" font-weight="700" fill="#0d1116">4</text>
+<rect x="209.4" y="96" width="127.1" height="64" fill="#0d1116" fill-opacity="0.22"/>
+<path d="M209.4 96 V 160" stroke="#0d1116" stroke-width="2"/>
+<text x="272.9" y="138" text-anchor="middle" font-size="26" font-weight="700" fill="#0d1116">3</text>
+<rect x="336.5" y="96" width="84.7" height="64" fill="#0d1116" fill-opacity="0.44"/>
+<path d="M336.5 96 V 160" stroke="#0d1116" stroke-width="2"/>
+<text x="378.8" y="138" text-anchor="middle" font-size="26" font-weight="700" fill="#eaf1f8">2</text>
+<rect x="421.2" y="96" width="42.4" height="64" fill="#0d1116" fill-opacity="0.62"/>
+<path d="M421.2 96 V 160" stroke="#0d1116" stroke-width="2"/>
+<text x="442.4" y="138" text-anchor="middle" font-size="22" font-weight="700" fill="#eaf1f8">1</text>
+<path d="M463.5 96 V 160" stroke="#eaf1f8" stroke-width="3"/>
+<text x="611.8" y="138" text-anchor="middle" font-size="24" font-weight="700" fill="#eaf1f8">+ packs</text>
 </g>
-<text x="184.0" y="190" text-anchor="middle" font-size="19" fill="#9aabbc">Writes</text>
-<text x="436.0" y="190" text-anchor="middle" font-size="19" fill="#9aabbc">Fixes</text>
-<text x="616.0" y="190" text-anchor="middle" font-size="19" fill="#9aabbc">Tools</text>
-<text x="760.0" y="190" text-anchor="end" font-size="19" fill="#9aabbc">Reads</text>
-<text x="40" y="262" font-size="30" font-weight="700" fill="#00e6cf">Chat</text>
-<text x="760" y="262" text-anchor="end" font-size="22" fill="#9aabbc">10 points</text>
-<clipPath id="c282"><rect x="40" y="282" width="720" height="64" rx="14"/></clipPath>
-<g clip-path="url(#c282)">
-<rect x="40" y="282" width="720" height="64" fill="#00e6cf"/>
-<rect x="40.0" y="282" width="288.6" height="64" fill="#0d1116" fill-opacity="0"/>
-<text x="184.0" y="324" text-anchor="middle" font-size="26" font-weight="700" fill="#0d1116">4</text>
-<rect x="328.0" y="282" width="252.6" height="64" fill="#0d1116" fill-opacity="0.22"/>
-<path d="M328.0 282 V 346" stroke="#0d1116" stroke-width="2"/>
-<text x="454.0" y="324" text-anchor="middle" font-size="26" font-weight="700" fill="#0d1116">3.5</text>
-<rect x="580.0" y="282" width="108.6" height="64" fill="#0d1116" fill-opacity="0.44"/>
-<path d="M580.0 282 V 346" stroke="#0d1116" stroke-width="2"/>
-<text x="634.0" y="324" text-anchor="middle" font-size="26" font-weight="700" fill="#eaf1f8">1.5</text>
-<rect x="688.0" y="282" width="72.6" height="64" fill="#0d1116" fill-opacity="0.62"/>
-<path d="M688.0 282 V 346" stroke="#0d1116" stroke-width="2"/>
-<text x="724.0" y="324" text-anchor="middle" font-size="26" font-weight="700" fill="#eaf1f8">1</text>
+<rect x="463.5" y="97" width="295.5" height="62" rx="0" fill="none" stroke="#00e6cf" stroke-width="2" stroke-dasharray="6 5"/>
+<text x="124.7" y="190" text-anchor="middle" font-size="17" fill="#9aabbc">Writes</text>
+<text x="272.9" y="190" text-anchor="middle" font-size="17" fill="#9aabbc">Fixes</text>
+<text x="378.8" y="190" text-anchor="middle" font-size="17" fill="#9aabbc">Tools</text>
+<text x="442.4" y="212" text-anchor="middle" font-size="17" fill="#9aabbc">Reads</text>
+<text x="611.8" y="190" text-anchor="middle" font-size="17" fill="#9aabbc">bonus, opened at 90%</text>
+<text x="40" y="266" font-size="30" font-weight="700" fill="#00e6cf">Chat</text>
+<text x="760" y="266" text-anchor="end" font-size="22" fill="#9aabbc">10 standard + up to 7 bonus</text>
+<clipPath id="c286"><rect x="40" y="286" width="720" height="64" rx="14"/></clipPath>
+<g clip-path="url(#c286)">
+<rect x="40" y="286" width="423.5" height="64" fill="#00e6cf"/>
+<rect x="463.5" y="286" width="296.5" height="64" fill="url(#hash)" fill-opacity="0.75"/>
+<rect x="40.0" y="286" width="169.4" height="64" fill="#0d1116" fill-opacity="0"/>
+<text x="124.7" y="328" text-anchor="middle" font-size="26" font-weight="700" fill="#0d1116">4</text>
+<rect x="209.4" y="286" width="148.2" height="64" fill="#0d1116" fill-opacity="0.22"/>
+<path d="M209.4 286 V 350" stroke="#0d1116" stroke-width="2"/>
+<text x="283.5" y="328" text-anchor="middle" font-size="26" font-weight="700" fill="#0d1116">3.5</text>
+<rect x="357.6" y="286" width="63.5" height="64" fill="#0d1116" fill-opacity="0.44"/>
+<path d="M357.6 286 V 350" stroke="#0d1116" stroke-width="2"/>
+<text x="389.4" y="328" text-anchor="middle" font-size="26" font-weight="700" fill="#eaf1f8">1.5</text>
+<rect x="421.2" y="286" width="42.4" height="64" fill="#0d1116" fill-opacity="0.62"/>
+<path d="M421.2 286 V 350" stroke="#0d1116" stroke-width="2"/>
+<text x="442.4" y="328" text-anchor="middle" font-size="22" font-weight="700" fill="#eaf1f8">1</text>
+<path d="M463.5 286 V 350" stroke="#eaf1f8" stroke-width="3"/>
+<text x="611.8" y="328" text-anchor="middle" font-size="24" font-weight="700" fill="#eaf1f8">+ packs</text>
 </g>
-<text x="184.0" y="376" text-anchor="middle" font-size="19" fill="#9aabbc">Character</text>
-<text x="454.0" y="376" text-anchor="middle" font-size="19" fill="#9aabbc">Memory</text>
-<text x="634.0" y="376" text-anchor="middle" font-size="19" fill="#9aabbc">Co-write   </text>
-<text x="760.0" y="376" text-anchor="end" font-size="19" fill="#9aabbc">Everyday</text>
-<path d="M40 412 H760" stroke="#242e3a" stroke-width="2"/>
-<text x="400" y="462" text-anchor="middle" font-size="30" font-weight="700" fill="#eaf1f8">Code /10 + Chat /10 = Overall /20</text>
-<text x="400" y="502" text-anchor="middle" font-size="20" fill="#9aabbc">NSFW+ /20 is scored apart and shown beside Overall.</text>
+<rect x="463.5" y="287" width="295.5" height="62" rx="0" fill="none" stroke="#00e6cf" stroke-width="2" stroke-dasharray="6 5"/>
+<text x="124.7" y="380" text-anchor="middle" font-size="17" fill="#9aabbc">Character</text>
+<text x="283.5" y="380" text-anchor="middle" font-size="17" fill="#9aabbc">Memory</text>
+<text x="389.4" y="380" text-anchor="middle" font-size="17" fill="#9aabbc">Co-write</text>
+<text x="442.4" y="402" text-anchor="middle" font-size="17" fill="#9aabbc">Everyday</text>
+<text x="611.8" y="380" text-anchor="middle" font-size="17" fill="#9aabbc">bonus, opened at 90%</text>
+<path d="M40 424 H760" stroke="#242e3a" stroke-width="2"/>
+<text x="400" y="458" text-anchor="middle" font-size="30" font-weight="700" fill="#eaf1f8">Code total + Chat total = Overall</text>
+<text x="400" y="494" text-anchor="middle" font-size="19" fill="#9aabbc">Printed with its split, e.g. 20.7 of 34 = 16.9 standard + 3.8 bonus.</text>
+<text x="400" y="522" text-anchor="middle" font-size="19" fill="#9aabbc">The rank is on the total. Today's maximum: 17 + 17 = 34.</text>
+<text x="400" y="550" text-anchor="middle" font-size="19" fill="#9aabbc">NSFW+ is shown beside Overall, never part of it.</text>
 </svg>

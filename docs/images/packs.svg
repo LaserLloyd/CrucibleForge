@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 846" role="img" aria-labelledby="t d" font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif">
 <title id="t">How MakoBench bonus packs work</title>
-<desc id="d">A part scored at 90 percent or more opens its bonus pack of harder questions. Each pack is worth up to one bonus point. Bonus points are drawn as hashed bars after the solid standard score and never count in Overall.</desc>
+<desc id="d">A part scored at 90 percent or more opens its bonus pack of harder questions. Each pack is worth up to one bonus point. Bonus points add on top of the standard score: they are drawn hashed on top of the solid bar and count in the total and the rank.</desc>
 <defs>
 <linearGradient id="beam" x1="0" x2="1" y1="0" y2="0"><stop offset="0" stop-color="#2ea8ff"/><stop offset="1" stop-color="#00e6cf"/></linearGradient>
 <pattern id="hash" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="3" height="7" fill="#00e6cf"/></pattern>
@@ -33,16 +33,16 @@
 <rect x="40" y="504" width="720" height="302" rx="18" fill="#12171e" stroke="#242e3a" stroke-width="2"/>
 <circle cx="104" cy="566" r="30" fill="url(#beam)"/>
 <text x="104" y="577" text-anchor="middle" font-size="30" font-weight="700" fill="#0d1116">3</text>
-<text x="158" y="564" font-size="30" font-weight="700" fill="#eaf1f8">Bonus points show as hashed bars</text>
+<text x="158" y="564" font-size="30" font-weight="700" fill="#eaf1f8">Bonus points add on top</text>
 <rect x="70" y="654" width="660" height="30" rx="15" fill="#242e3a"/>
 <clipPath id="cb"><rect x="70" y="654" width="660" height="30" rx="15"/></clipPath>
 <g clip-path="url(#cb)">
-<rect x="70" y="654" width="418" height="30" fill="url(#beam)"/>
-<rect x="488" y="654" width="150" height="30" fill="url(#hash)"/>
+<rect x="70" y="654" width="353" height="30" fill="url(#beam)"/>
+<rect x="423" y="654" width="116" height="30" fill="url(#hash)"/>
 </g>
-<rect x="488" y="655" width="150" height="28" fill="none" stroke="#00e6cf" stroke-width="2"/>
-<text x="70" y="642" font-size="22" font-weight="700" fill="#eaf1f8">Code 9.5</text>
-<text x="563" y="642" text-anchor="middle" font-size="22" font-weight="700" fill="#00e6cf">+3.4 bonus</text>
-<text x="70" y="722" font-size="21" fill="#9aabbc">Solid: the standard score, out of 10. It counts in Overall.</text>
-<text x="70" y="754" font-size="21" fill="#9aabbc">Hashed: bonus points. Shown apart, never part of Overall /20.</text>
+<rect x="423" y="655" width="116" height="28" fill="none" stroke="#00e6cf" stroke-width="2"/>
+<text x="70" y="642" font-size="22" font-weight="700" fill="#eaf1f8">Code 12.1 of 17 = 9.1 standard + 3.0 bonus</text>
+<text x="730" y="712" text-anchor="end" font-size="18" fill="#9aabbc">17 with today's packs</text>
+<text x="70" y="748" font-size="21" fill="#9aabbc">Solid: the standard score, out of 10.</text>
+<text x="70" y="780" font-size="21" fill="#9aabbc">Hashed: bonus points. They add to the total and count in the rank.</text>
 </svg>

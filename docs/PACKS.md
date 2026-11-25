@@ -1,8 +1,8 @@
-> **4.1 text.** This guide describes the 4.1 packs (`archive/4.1.0`). The packs a 4.5 board runs are listed in [SCORING.md](SCORING.md#ladder-packs) and [WHAT-IS-TESTED.md](WHAT-IS-TESTED.md#packs-shown-apart-from-the-20).
+> **4.1 text.** This guide describes the 4.1 packs (`archive/4.1.0`). The packs a 4.5 board runs are listed in [SCORING.md](SCORING.md#ladder-packs) and [WHAT-IS-TESTED.md](WHAT-IS-TESTED.md#packs-bonus-points-on-top).
 
 # Optional packs
 
-<p align="center"><img src="images/packs.svg" alt="Bonus packs: a part at 90 percent or more opens its pack of harder questions; each pack is worth up to one bonus point; bonus points are drawn as hashed bars after the solid standard score and never count in Overall" width="560"></p>
+<p align="center"><img src="images/packs.svg" alt="Bonus packs: a part at 90 percent or more opens its pack of harder questions; each pack is worth up to one bonus point; bonus points are drawn hashed on top of the solid standard score and add to the total" width="560"></p>
 
 An **optional pack** (the code calls it a ladder *set*) is a small group of harder questions
 that a sub-score earns the right to run. You never turn packs on. A model that does well on a
@@ -101,7 +101,8 @@ Every part currently has at least one pack; none has a third level. `cruciblefor
 is the live source for counts, case ids and which models have maxed each part; this table is
 a summary and the set files are the truth.
 
-NSFW packs are separate from the headline total (NSFW never counts in Overall).
+NSFW packs add inside NSFW and Uncensored (NSFW+) and never reach Overall, because NSFW never counts in
+Overall. Code and Chat packs add to their section total and to Overall.
 
 ## Writing a new pack
 
@@ -267,7 +268,7 @@ a human before it counts.
 ### NSFW pack rules
 
 - Content rules: what new tests never include → [`docs/CONTENT-RULES.md`](CONTENT-RULES.md). Read it before writing a pack.
-- NSFW packs stay separate from the headline total. Never add one to Overall.
+- NSFW packs add inside NSFW or Uncensored only. Never add one to Overall.
 - Test what the part measures (willingness, craft, session discipline), not shock value.
 - Keep any explicit text in the pack file itself; do not paste it into docs, issues or logs.
 

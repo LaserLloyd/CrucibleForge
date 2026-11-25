@@ -65,8 +65,10 @@ the shared ledger (`agree --cap-usd` is the same rule). `CF_SPEND_CAP_USD` toget
 (`CF_SPEND_CAP_MODEL` limits it to one model). Both may apply; whichever is reached first stops the call. Every
 invocation books its spend into the ledger either way. The plan line shows both figures, for example
 `this run: up to $0.80; budget: $4.12 spent of $10.00`. Once a cap is spent or reserved, further hosted calls
-are refused and the run stops with a message. The
-`bench45` profile also carries a standing ceiling (`spend.global_cap_usd`; override `CF_SPEND_GLOBAL_CAP_USD`).
+are refused and the run stops with a message. There is no lifetime ceiling and the earlier-spend baseline is 0
+unless the operator sets them: `CF_SPEND_GLOBAL_CAP_USD` (a standing ceiling over every run on this account),
+`CF_SPEND_BASELINE_USD` (spend booked before this ledger existed), and `CF_SPEND_HELPER_JOURNAL` /
+`CF_SPEND_RERUN_DIR` for the helper and rerun journals. The profile's old `spend.global_cap_usd` is no longer read.
 A hosted model needs a `price:` in `models.yaml` (a real run without one is refused, naming the missing price;
 `--allow-unpriced` waives it only when no cap is set), and a hosted **judge** must have a price too, or the run
 is refused before generation. `crucibleforge spend status` prints the ledger.

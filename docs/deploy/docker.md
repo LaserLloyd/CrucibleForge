@@ -41,7 +41,7 @@ value has a default).
 | `DEEPSEEK_API_KEY`, `OPENROUTER_API_KEY`, `OPENAI_API_KEY` | empty | Hosted-provider keys. The names must match `api_key_env` in `models.yaml`. Keys are never written to `models.yaml`. |
 | `CRUCIBLEFORGE_ALLOW_UNSANDBOXED` | `1` | See "Coding cases and the sandbox". |
 | `BIND_ADDR` / `HOST_PORT` | `127.0.0.1` / `8777` | Host side of the port mapping. |
-| `DATA_PATH` | named volume `crucibleforge-data` | Use a host directory (owned by UID 1000) to browse or back up results. |
+| `DATA_PATH` | named volume `crucibleforge-data` | Use a host directory you own to browse or back up results. |
 | `MEM_LIMIT` / `CPU_LIMIT` | `2g` / `2.0` | Resource limits. |
 
 Also honoured, unchanged from a native install: `CRUCIBLEFORGE_CONFIG`,
@@ -61,8 +61,9 @@ printf '%s\n' 'a-token-you-chose-123' | docker compose exec -T app crucibleforge
 docker compose restart app                                # a running GUI keeps the token it started with
 ```
 
-`exec` runs as the container's user (UID 1000 by default), so the files it
-writes are readable by the app. If `CRUCIBLEFORGE_GUI_TOKEN` is set in
+`exec` runs as root in the container unless you add `--user <uid>`; run it
+as the data folder's owner (`--user $(id -u)` on Linux) so the app can read
+what it writes. If `CRUCIBLEFORGE_GUI_TOKEN` is set in
 `deploy/compose/.env` it overrides the file: change it there and run
 `docker compose up -d`.
 
@@ -127,33 +128,34 @@ at a time.
 
 ## Coding cases and the sandbox
 
-Grading a coding case executes source a model wrote. CrucibleForge refuses to
-do that unless it can isolate it with `bubblewrap` (`bwrap`), or you opt in
-with `--allow-unsandboxed`. `bwrap` needs unprivileged user namespaces, which
-Docker's default seccomp profile blocks, and the grader prefers `bwrap`
-whenever it is on `PATH` even when the opt-in is set. So the image:
+Grading a coding case executes source a model wrote. Outside a container CrucibleForge isolates it with
+`bubblewrap` (`bwrap`); `bwrap` needs unprivileged user namespaces, which Docker's default seccomp profile blocks,
+so the image does not ship it. Instead the image carries a small setuid helper, `cf-jail`
+([`deploy/cf-jail.c`](../../deploy/cf-jail.c)), and the engine starts every graded program through it
+(`crucibleforge/jail.py`). The helper gives the program its own scratch folder, sets limits (512 processes,
+8 GiB data, 900 CPU seconds, 1 GiB per file, 1024 open files, no core files), switches to user 65534 with no
+groups, and installs a seccomp filter that refuses IPv4, IPv6, netlink and packet sockets, `ptrace`, cross-process
+memory reads and `io_uring`. The benchmark itself runs as the owner of `/data` (the container starts as root only
+to find that owner) and is non-dumpable, so its environment cannot be read through `/proc` by another user.
 
-* does **not** install `bubblewrap` (a present-but-unusable `bwrap` would fail
-  every coding case with "No permissions to create a new namespace"), and
-* sets `CRUCIBLEFORGE_ALLOW_UNSANDBOXED=1` in the compose file: the **container
-  is the sandbox**. It runs as UID 1000, with all capabilities dropped,
-  `no-new-privileges`, and memory/CPU limits. It can still reach the network
-  and read `/data`, so keep nothing in that volume you would not hand to a
-  model's code. Put API keys in `.env`, not as literal `api_key:` values in
-  `models.yaml`: graded code starts with a minimal environment that carries
-  no provider keys and no `CRUCIBLEFORGE_GUI_TOKEN`.
+What that gives, each point checked by `python -m crucibleforge.jail --selftest` in the offline end-to-end test
+(`deploy/e2e/offline_e2e.sh`, run by CI on every push):
 
-To use `bwrap` instead, build with `--build-arg WITH_BWRAP=1`, run the
-container under a seccomp profile that allows user namespaces, and set
-`CRUCIBLEFORGE_ALLOW_UNSANDBOXED=0`.
+* graded code cannot read the provider key: not in its environment, not in `/proc/<pid>/environ` of any process,
+  not in `models.yaml` (mode 600) or anything else in `/data` (the folder is closed to other users);
+* it cannot write to `/data`, `/data/results` or the image; it can write only its own scratch folder;
+* it cannot open a network connection: not to the internet, not to your machine, not to the container's loopback;
+* it runs under the limits above.
 
-**Token caveat.** Unsandboxed coding cases run model-written code as the same
-user that owns `/data`, so that code can read `/data/gui_token` and could write
-`/data/RESET_LOGIN` (taking effect at the next restart). The container is the
-boundary: the GUI token protects the GUI, not the data volume. If that matters,
-keep the GUI on loopback, run coding cases only on models you trust, or supply
-a seccomp profile that allows `bwrap` and set `CRUCIBLEFORGE_ALLOW_UNSANDBOXED=0`
-(the sandbox then hides `/data` from graded code).
+What it does not give: graded code still sees the image's own files (the engine source and the public test
+cases, read-only), and a kernel flaw could break any of this; the helper does not replace a virtual machine.
+
+**When the helper cannot work.** A setuid helper is switched off by `--security-opt no-new-privileges`, a
+`nosuid` mount, or a user that cannot switch users. The entrypoint tests it at start; when it fails, graded code is
+refused (the engine's normal "no sandbox" message) unless you set `CRUCIBLEFORGE_ALLOW_UNSANDBOXED=1`, in which
+case the entrypoint logs a warning and graded code runs as the benchmark user, with network. The shipped compose
+files therefore leave `no-new-privileges` off and keep `cap_drop: [ALL]` with only the capabilities the
+entrypoint and the helper need.
 
 ## Your data, upgrades, backups
 
@@ -230,8 +232,9 @@ drop to `PUID:PGID` (`setpriv`); the app process runs with no capabilities.
 
 Built `FROM ghcr.io/astral-sh/uv:python3.13-trixie-slim` and run on
 `python:3.13-slim-trixie` (same interpreter at the same path, uv not in the
-runtime image), non-root UID 1000, `/data` volume, tini via `init: true`,
-`HEALTHCHECK` on the GUI port. Tagged releases are published as
+runtime image), both pinned by digest; the benchmark runs as the owner of
+`/data`, graded code as uid 65534 through `cf-jail`; tini is PID 1; the GUI
+service in `deploy/compose/compose.yml` declares the healthcheck. Tagged releases are published as
 `ghcr.io/laserlloyd/crucibleforge:<version>` with a CycloneDX SBOM, SHA256SUMS, <!-- scrub-ok: public GHCR image path, the project's own handle -->
 a cosign keyless signature and build-provenance attestation (see
 `.github/workflows/containers.yml`).

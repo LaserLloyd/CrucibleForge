@@ -315,10 +315,29 @@ NSFW_PLUS_UNITS_READ = 0.46
 SESSION_WAVE_FACTOR = 1.2
 
 
+#: what the plan's upper judge figure assumes (Docker user path 2026-11-25: pricing every call at the judge's output
+#: ceiling printed $9.70 for a run whose judge cost $0.20): every call may be asked again under the retry rules (a cut
+#: reply once, then the judge's re-ask), each call at the MEASURED length; a reply that runs to the output ceiling is
+#: priced on its own line, never folded into the bound
+UPPER_ASSUMES = ("every call asked again under the retry rules, each at the measured reply length")
+GLOBAL_CAP_NOTE = "a lifetime ceiling applies only when CF_SPEND_GLOBAL_CAP_USD is set"
+
+
+def _usd(calls: float, in_tok: float, out_tok: float, pin: float, pout: float) -> float:
+    return float(calls) * (in_tok * pin + out_tok * pout) / 1e6
+
+
+def _cut_note(in_tok: int, out_tok: int, out_cap: int, pout: float) -> str:
+    extra = max(0, out_cap - out_tok) * pout / 1e6
+    return f"a reply that runs to the judge's {out_cap:,}-token output limit adds up to ${extra:.4f} each"
+
+
 def judge_cost_plan_line(price: dict | None, calls_low: float, calls_high: float, in_tok: int, out_tok: int,
                          out_cap: int, route: str = "") -> str:
     """The plan's judge line: a hosted judge is billed by its provider, apart from every model's Run cost and
-    outside the run's spend cap (owner 2026-11-24)."""
+    outside the run's spend cap (owner 2026-11-24). The upper figure is the call model's own: ``calls_high`` calls
+    (the retry rules) at the measured reply length (:data:`UPPER_ASSUMES`); a reply cut at the output limit is priced
+    apart."""
     where = f" ({route})" if route else ""
     pin = pout = None
     if price:
@@ -331,18 +350,18 @@ def judge_cost_plan_line(price: dict | None, calls_low: float, calls_high: float
         tok = calls_low * (in_tok + out_tok)
         return (f"  judge cost unknown: {route or 'the judge'} has no price in models.yaml; ~{calls_low:.0f}-"
                 f"{calls_high:.0f} calls, ~{tok / 1e6:.2f}M tokens; not limited by any cap")
-    lo = calls_low * (in_tok * pin + out_tok * pout) / 1e6
-    hi = calls_high * (in_tok * pin + out_cap * pout) / 1e6
+    lo = _usd(calls_low, in_tok, out_tok, pin, pout)
+    hi = _usd(calls_high, in_tok, out_tok, pin, pout)
     return (f"  judge cost (estimate){where}: ~${lo:.2f} expected for ~{calls_low:.0f} call(s), up to ${hi:.2f} "
-            f"(~{calls_high:.0f} calls: a reply cut at its length is asked again, then the judge may re-ask); "
+            f"(~{calls_high:.0f} calls: {UPPER_ASSUMES}; {_cut_note(in_tok, out_tok, out_cap, pout)}); "
             "billed by the judge's provider, not part of the model's Run cost and not capped by --spend-cap-usd "
-            "(the overall ceiling CF_SPEND_GLOBAL_CAP_USD still applies)")
+            f"({GLOBAL_CAP_NOTE})")
 
 
 def judge_cost_plan_parts(price: dict | None, parts: list[dict], route: str = "") -> list[str]:
-    """The plan's judge lines from a call model: ``parts`` = [{"what", "calls", "high", "tokens": (in, out, cap)}].
-    One total line (expected calls and dollars, the upper figure), then one line per part. Same wording as
-    :func:`judge_cost_plan_line` for the total."""
+    """The plan's judge lines from a call model: ``parts`` = [{"what", "calls", "high", "tokens": (in, out, cap),
+    "pack": bool}]. One total line (expected calls and dollars; the upper figure of the standard run, then what the
+    pack rounds add if every set unlocks), then one line per part. The upper figure assumes :data:`UPPER_ASSUMES`."""
     pin = pout = None
     if price:
         try:
@@ -357,12 +376,18 @@ def judge_cost_plan_parts(price: dict | None, parts: list[dict], route: str = ""
         head = (f"  judge cost unknown: {route or 'the judge'} has no price in models.yaml; ~{calls:.0f}-{high:.0f} "
                 f"calls, ~{tok / 1e6:.2f}M tokens; not limited by any cap")
     else:
-        lo = sum(float(p["calls"]) * (p["tokens"][0] * pin + p["tokens"][1] * pout) for p in parts) / 1e6
-        hi = sum(float(p["high"]) * (p["tokens"][0] * pin + p["tokens"][2] * pout) for p in parts) / 1e6
+        lo = sum(_usd(p["calls"], p["tokens"][0], p["tokens"][1], pin, pout) for p in parts)
+        std = [p for p in parts if not p.get("pack")]
+        pk = [p for p in parts if p.get("pack")]
+        hi = sum(_usd(p["high"], p["tokens"][0], p["tokens"][1], pin, pout) for p in std)
+        hi_pk = sum(_usd(p["high"], p["tokens"][0], p["tokens"][1], pin, pout) for p in pk)
+        n_std = sum(float(p["high"]) for p in std)
+        tk = JUDGE_CALL_TOKENS
         head = (f"  judge cost (estimate){where}: ~${lo:.2f} expected for ~{calls:.0f} call(s), up to ${hi:.2f} "
-                f"(~{high:.0f} calls: every pack round unlocked, a reply cut at its length asked again, the judge "
-                "re-asking); billed by the judge's provider, not part of the model's Run cost and not capped by "
-                "--spend-cap-usd (the overall ceiling CF_SPEND_GLOBAL_CAP_USD still applies)")
+                f"for the standard run (~{n_std:.0f} calls: {UPPER_ASSUMES})"
+                + (f", + up to ${hi_pk:.2f} more if every pack round unlocks" if pk else "")
+                + f"; {_cut_note(tk[0], tk[1], tk[2], pout)}; billed by the judge's provider, not part of the "
+                "model's Run cost and not capped by --spend-cap-usd (" + GLOBAL_CAP_NOTE + ")")
     return [head] + [f"    {p['what']}: ~{float(p['calls']):.0f} call(s), up to {float(p['high']):.0f}" for p in parts]
 
 

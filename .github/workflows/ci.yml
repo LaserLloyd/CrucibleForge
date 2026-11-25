@@ -116,13 +116,16 @@ jobs:
       - name: Lint
         if: runner.os == 'Linux'
         run: uvx ruff@0.16.5 check .
-      # A failed test is run again up to twice before the job fails. Shared
-      # runners are slow and noisy, and a few tests carry wall-clock limits
-      # (for example the case-set check runs a coding case's mutant against an
-      # 8-second limit while every core is busy with other tests). A test that
-      # fails three times in a row still fails the job.
+      # Two steps. Tests whose pass depends on wall-clock or CPU time are marked `serial` (the commented list
+      # SERIAL_TESTS in tests/conftest.py, plus every `timing` test): under the parallel run every core is busy
+      # and a rerun meets the same load, so they run in a second step on their own, with their assertions
+      # unchanged. Together the two selections cover every test exactly once. A failed test is run again up to
+      # twice; one that fails three times in a row fails the job.
       - name: Tests
-        run: uv run --with pytest-rerunfailures pytest -q -n auto --reruns 2 --reruns-delay 5
+        run: uv run --with pytest-rerunfailures pytest -q -n auto -m "not serial" --reruns 2 --reruns-delay 5
+      - name: Tests (wall-clock and CPU-time tests, one at a time)
+        if: ${{ !cancelled() }}
+        run: uv run --with pytest-rerunfailures pytest -q -p no:xdist -m serial --reruns 2 --reruns-delay 5
       # The gold answers are not taken on trust: every math/reasoning answer is
       # recomputed from its `verify` expression and every coding `reference`
       # solution is executed against its own tests. A case file edited by hand

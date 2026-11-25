@@ -80,3 +80,33 @@ def test_the_nsfw_plus_plan_line_names_a_hosted_judge():
     assert "(local, free)" in cli.plan_reader_line(5, None, p)
     line = cli.plan_reader_line(5, None, p, hosted="vendor/hosted-judge")
     assert "by vendor/hosted-judge" in line and "hosted, priced in the judge cost line below" in line
+
+
+def test_the_nsfw_plus_plan_line_names_the_judge_the_user_gave_and_the_call_model():
+    # Docker assessment item 4: after a run judged by another local judge the plan named the profile's judge
+    import types
+    p = {"judge": {"model_id": "local/judge"}}
+    cfg = {"judge": {"candidates": [{"name": "other-judge", "model_id": "vendor/other-27b"}]}, "models": []}
+    jid = cli.run_judge_id(types.SimpleNamespace(judge="fake:fake-judge"), cfg, p)
+    assert jid == "fake-judge"
+    assert cli.run_judge_id(types.SimpleNamespace(judge="other-judge"), cfg, p) == "vendor/other-27b"
+    assert cli.run_judge_id(types.SimpleNamespace(judge=None), cfg, p) == "local/judge"
+    line = cli.plan_reader_line(100, None, p, judge=jid)
+    assert "by fake-judge" in line and "local/judge" not in line
+    exp = round(100 * judge45.NSFW_PLUS_UNITS_READ)
+    assert f"about {exp}, at most 100 calls by fake-judge" in line                 # the judge-cost call model
+
+
+def test_the_upper_figure_is_the_call_model_at_the_measured_length_not_the_output_ceiling(prof):
+    """Docker user path 2026-11-25: the plan said "up to $9.70" for a judge that cost $0.20 (every call priced at the
+    8,192-token ceiling). The bound is the retry rules' calls at the measured length; the cut is priced apart."""
+    parts = cli.judge_call_model(prof, T1_SAMPLES, adult_on=True, n_adult=_n_adult(prof), judge_id="x/never-cached",
+                                 pack_samples=30)
+    head = judge45.judge_cost_plan_parts(PRICE, parts, route="J on r")[0]
+    m = re.search(r"up to \$([0-9.]+) for the standard run \(~([0-9]+) calls: every call asked again under the retry "
+                  r"rules, each at the measured reply length\), \+ up to \$([0-9.]+) more if every pack round", head)
+    assert m, head
+    hi, n_hi, pk = float(m.group(1)), int(m.group(2)), float(m.group(3))
+    assert MEASURED_USD <= hi <= 5 * MEASURED_USD and n_hi >= MEASURED_CALLS
+    assert 0 < pk < hi
+    assert "8,192-token output limit adds up to $0.0118 each" in head

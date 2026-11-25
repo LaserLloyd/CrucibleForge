@@ -14,10 +14,24 @@ re-graded, and no test question changed. Cases, calibration, weights and marks a
 move (the scorer stamp moves once). Scores made under 4.5.0 and 4.5.1 sit on one board.
 
 In short:
+- **Bonus pack points add to the score again and count in the rank (as in 4.1); 4.5.0 printed them beside the
+  score.** Code total = Code (10) + its packs, Chat likewise, Overall = Code total + Chat total, always printed with
+  the split (`20.7 of 34 = 16.9 standard + 3.8 bonus`); today's maximums are 17, 17 and 34. Each total prints its own
+  range beside the standard score's (a pack can open in one run and not another; the 2.5% bar is the standard
+  score's). NSFW+ packs add inside NSFW and Uncensored and never enter Overall. No stored answer changes;
+  ranks change for models that earned bonus points.
+- **Rank = 1 + the number of models clearly better on the total** (90% paired interval of the difference above
+  zero). A shared place means that pair cannot be told apart, so a list can read 1=, 1=, 1=, 2, 4=; ties no longer
+  chain down the list.
+- **No spend ceiling or earlier-spend baseline ships.** 4.5.0 counted one maintainer's earlier spend against every
+  user and read that account's ceiling from the profile. An operator now sets `CF_SPEND_GLOBAL_CAP_USD` (a lifetime
+  ceiling), `CF_SPEND_BASELINE_USD` (spend before the ledger) and the journal paths (`CF_SPEND_HELPER_JOURNAL`,
+  `CF_SPEND_RERUN_DIR`); per-run caps (`--spend-cap-usd`, `CF_SPEND_CAP_USD`) are unchanged.
 - **Any judge**, local or hosted, for a user's own runs. Its rows are scored, ranked on the user's board and marked
   ⚖; `report --public` refuses them unless `--allow-other-judge`. MakoBench's published scores use the local 8-bit
   (Q8) judge. A hosted copy of the judge can differ from it on the adult page (NSFW+): in a 2026-11-25 probe it
   needed thinking on to pass the explicit-text check.
+- **One command in Docker**: `docker run --rm -it -e OPENROUTER_API_KEY=... -v "$PWD/makobench:/data" ghcr.io/laserlloyd/crucibleforge:4.5.1 test <openrouter-model-id>` registers the model with its OpenRouter price, plans, asks, caps spending at about twice the estimate, runs, and continues when run again ([docs/FIRST-RUN-DOCKER.md](docs/FIRST-RUN-DOCKER.md)). In the image, code a model wrote runs as another user with no network, no view of the key or the results folder, and process, memory, CPU and file-size limits (`deploy/cf-jail.c`); the benchmark runs as the owner of the results folder. The image is published to GHCR from `v*` tags only (amd64 and arm64).
 - **Judge cost** is booked apart from every model's Run cost and spend cap, and estimated from real call counts.
 - **Resume** re-uses stored replies only when the model's settings match.
 - **Thinking allowance + answer allowance**: per-category budgets (instruct 33,536; role-play/NSFW 34,768; story
@@ -30,6 +44,15 @@ In short:
 - **`losses`** per model in the report (cut, empty, context, transport, clamped, over budget, tolerated, points at
   stake) and **bonus points per part**.
 - **`all --plan`** lists and prices owed rows by reason.
+- **Judge cost in the plan**: the upper figure is priced at the measured reply length (it said $9.70 for a judge
+  that cost $0.20), split into the standard run and what pack rounds add if every set unlocks; the Run cost
+  footnote names the run's judge and whether it is hosted. Plan prices use re-measured token profiles.
+- **Resume with nothing owed** skips pack re-planning, and `all` ends with the run's result (`--print-report` prints
+  the whole board as before).
+- **The one-command `test`** ends with each total and its split, and Ctrl-C no longer crashes it on a busy terminal.
+  The image was tested with Podman and with rootless Docker 29; rootless Docker reaches a model server on the host
+  only by the host's network address (documented).
+- **CI** runs the wall-clock and CPU-time tests in a step of their own after the parallel run.
 - **Fix rows** are graded without bubblewrap under the documented `CRUCIBLEFORGE_ALLOW_UNSANDBOXED=1` switch (the
   container is the isolation), and rows stored as unavailable are re-graded from their stored reply.
 

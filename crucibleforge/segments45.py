@@ -703,7 +703,9 @@ SCORER_FILES = ("nsfwplus45.py", "classing45.py", "actkeys45.py", "segments45.py
                 # NSFW+ packs (stamp-2 item nw): the pack scorer and the predicate that keeps pack rows out of standard
                 "nsfwpack45.py",
                 # one local judge classes the adult page (Part 1, 2026-11-21): the one-vote verdict rules
-                "judge45.py", "flags45.py")
+                "judge45.py", "flags45.py",
+                # bonus packs on top (owner 2026-11-25, R37/R38): totals, maxima and the ranges of the totals
+                "totals45.py")
 #: data files the published numbers depend on, relative to the repository root (the profile holds the tree and its
 #: weights)
 SCORER_DATA = ("profiles/bench45.yaml", "calibration/MARKS-INDEX-45.md",

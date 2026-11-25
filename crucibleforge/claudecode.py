@@ -61,7 +61,6 @@ BEFORE the CLI is started:
 from __future__ import annotations
 
 import datetime as _dt
-import fcntl
 import hashlib
 import json
 import logging
@@ -138,7 +137,8 @@ def _counter(update=None):
     path = _counter_path()
     path.parent.mkdir(parents=True, exist_ok=True)
     with open(path, "a+", encoding="utf-8") as fh:
-        fcntl.flock(fh, fcntl.LOCK_EX)
+        from .filelock import lock
+        lock(fh)
         fh.seek(0)
         try:
             d = json.loads(fh.read() or "{}")

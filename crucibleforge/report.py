@@ -2389,6 +2389,8 @@ def _is_api_model(meta: dict, cfg: dict | None) -> bool:
     rig anyway).
     """
     m = meta or {}
+    if m.get("hosted") is False:
+        return False                    # an API-shaped server we own (meta "hosted", runner._write_meta)
     ptype = m.get("provider_type")
     if not ptype and cfg:
         name = m.get("provider") or m.get("device")
@@ -5795,7 +5797,7 @@ def row_facts(label: str, meta: dict | None, cfg: dict | None) -> dict:
         tso = mods != "text->text"
     qr = entry.get("quant_reason")
     served = "rig" if local else (str(entry["served"]) if entry.get("served") else
-                                  ("hosted" if ptype else None))
+                                  (("local" if meta.get("hosted") is False else "hosted") if ptype else None))
     sp = entry.get("served_precision")
     return {"scope": {"modalities": mods, "text_suite_only": bool(tso)},
             "quant": quant, "quant_standard": std,
@@ -5806,7 +5808,7 @@ def row_facts(label: str, meta: dict | None, cfg: dict | None) -> dict:
             # `supersedes`); official defaults to "a hosted model is the vendor's own release"
             "base": _one_line(entry.get("base"), 2, 40),
             "official": entry["official"] if isinstance(entry.get("official"), bool) else (
-                False if ptype in LOCAL_PROVIDER_TYPES else bool(ptype)),
+                False if (ptype in LOCAL_PROVIDER_TYPES or meta.get("hosted") is False) else bool(ptype)),
             "supersedes": str(entry["supersedes"]) if entry.get("supersedes") else None,
             # the short name people read ("Claude Opus 5.5"); used in report.md's older-versions line
             "display": _one_line(entry.get("display"), 2, 60),
@@ -6040,6 +6042,18 @@ def _apply_segments45(labels: list[str], stats: dict, prof: dict | None, inputs:
             hl.setdefault("pack_of", {})[key] = pack_max45(
                 key, _ladder_card, _eng["parts"], _fix if sec == "code" else None,
                 tb[sec].get("packs45") if sec == "chat" else None, _unlock_of(prof))
+            # owner 2026-11-25 (R37/R38): the packs of the group, listed for the totals (totals45): each with its
+            # part, unlock threshold, the model's own figure, state and points of its maximum
+            from . import totals45 as _tot45
+            _skip = tuple(f"chat/{p_}" for p_ in ((_ladder_card.get("chat") or {}))
+                          if str(p_).startswith("pk_")) if sec == "chat" and _cp_ is not None else ()
+            _lp = _tot45.ladder_packs(key, _ladder_card,
+                                      {k: v for k, v in _eng["parts"].items() if k.startswith(key + "/")},
+                                      _fix if sec == "code" else None, _unlock_of(prof), skip_parts=_skip)
+            if sec == "chat":
+                _lp += _tot45.chat_packs(_cp_, _unlock_of(prof),
+                                         {k: g.get("label") for k, g in (tb["chat"].get("segments") or {}).items()})
+            stats[l].setdefault("packs45_list", {})[sec] = _lp
             v = None if std is None else std + pk
             hl.setdefault("S", {})[key] = None if v is None else round(v, 1)
             hl.setdefault("P", {})[key] = v
@@ -6078,7 +6092,8 @@ def _apply_segments45(labels: list[str], stats: dict, prof: dict | None, inputs:
         ov = tb["overall"]
         pk_all = sum(p[0] for p in packs.values())
         ov["pack_points"] = round(pk_all, 4)
-        # Overall = Code + Chat STANDARD points only: pack points are printed in their own column, never in Overall
+        # Overall = Code + Chat standard points here; _apply_totals45 then adds the bonus packs on top (owner
+        # 2026-11-25, R37/R38: the totals are what the board prints and ranks)
         tot = ov["points"]
         hl["S"]["overall"] = None if tot is None else round(tot, 1)
         hl["P"]["overall"] = tot
@@ -6090,6 +6105,115 @@ def _apply_segments45(labels: list[str], stats: dict, prof: dict | None, inputs:
             from . import display45 as _d45
             hl["not_ranked"] = _d45.overall_text(ov)
         _replicate_means45(l, stats[l], rtr45)
+        _apply_totals45(l, stats[l], prof, rtr45)
+
+
+def _apply_totals45(label: str, s: dict, prof: dict | None, rtr: dict | None) -> None:
+    """Owner 2026-11-25 (R37/R38, totals45.py): bonus pack points add on top and count in the rank. Per group: the
+    standard points, the bonus, the total, the standard maximum and the maximum with the packs that exist today;
+    Overall = Code total + Chat total, and the rank (``sort``) and the headline read the totals. The total's range is
+    the replicate runs' own (or pooled) spread of the totals, else the standard and pack ranges in quadrature; the
+    standard score's own range stays beside it (``accuracy_standard``). The adult page's two numbers take their own
+    packs the same way and never enter Overall. A pack that unlocked and has not run counts 0 for now: the row is
+    still ranked on what is measured and its notes name the owed packs."""
+    from . import accuracy45 as _A
+    from . import totals45 as _T
+    from .packs45 import unlock_of
+    tb = s.get("segments45") or {}
+    if not tb:
+        return
+    hl = s.setdefault("headline", {})
+    acc = s.get("accuracy45") or {}
+    st = acc.get("settings") or _A.settings(prof)
+    lists = s.get("packs45_list") or {}
+    tot: dict = {}
+    for key, sec in _T.GROUPS:
+        t = tb.get(sec)
+        if not t:
+            continue
+        g = _T.group_total(t.get("points"), float(t.get("max") or 10.0), lists.get(sec) or [], t.get("pack_points"))
+        g["accuracy"] = _T.total_range(sec, acc.get(sec), g["packs"], g["max_with_packs"], label, rtr, st,
+                                       bonus=g["bonus"])
+        g["standard_accuracy"] = acc.get(sec)
+        t.update({"standard_points": g["standard"], "bonus_points": g["bonus"], "total": g["total"],
+                  "max_with_packs": g["max_with_packs"], "total_accuracy": g["accuracy"]})
+        tot[sec] = g
+        if g["total"] is not None:
+            hl.setdefault("S", {})[key] = round(g["total"], 1)
+            hl.setdefault("P", {})[key] = g["total"]
+            hl.setdefault("T1", {})[key] = g["standard"]
+    ov = tb.get("overall")
+    if ov is not None and "code" in tot and "chat" in tot:
+        std = ov.get("points")
+        packs = tot["code"]["packs"] + tot["chat"]["packs"]
+        bonus = round(tot["code"]["bonus"] + tot["chat"]["bonus"], 4)
+        mxp = round(tot["code"]["max_with_packs"] + tot["chat"]["max_with_packs"], 4)
+        total = None if std is None or ov.get("pending") else round(float(std) + bonus, 4)
+        g = {"standard": std, "bonus": bonus, "total": total, "max": float(ov.get("max") or 20.0),
+             "max_with_packs": mxp, "packs": packs, "owed": tot["code"]["owed"] + tot["chat"]["owed"]}
+        g["accuracy"] = _T.total_range("overall", acc.get("overall"), packs, mxp, label, rtr, st, bonus=bonus,
+                                       pack_keys=[f"{k}_packs" for k in ("code", "chat") if tot[k]["bonus"] > 0.005])
+        g["standard_accuracy"] = acc.get("overall")
+        ov.update({"standard_points": std, "bonus_points": bonus, "total": total, "max_with_packs": mxp,
+                   "total_accuracy": g["accuracy"]})
+        tot["overall"] = g
+        if total is not None:
+            hl.setdefault("S", {})["overall"] = round(total, 1)
+            hl.setdefault("P", {})["overall"] = total
+            hl["sort"] = total
+            hl.setdefault("T1", {})["overall"] = std
+    # the cells' total text (display45.total_text): total, split, the total's range and the standard score's range
+    hl["total45"] = {k: {"total": g["total"], "standard_points": g["standard"], "bonus_points": g["bonus"],
+                         "max_with_packs": g["max_with_packs"], "total_accuracy": g.get("accuracy"),
+                         "accuracy": g.get("standard_accuracy")}
+                     for k, g in (("work", tot.get("code")), ("chat", tot.get("chat")), ("overall", tot.get("overall")))
+                     if g and g.get("total") is not None}
+    # the range printed beside each total; the standard score's own range is kept apart (the 2.5% bar is its own)
+    hl["accuracy_standard"] = {k: (hl.get("accuracy") or {}).get(k) for k in ("code", "chat", "overall")}
+    hl["accuracy"] = {**(hl.get("accuracy") or {}),
+                      **{sec: g["accuracy"] for sec, g in tot.items() if g.get("accuracy")}}
+    for key, sec in (("work", "code"), ("chat", "chat"), ("overall", "overall")):
+        a = (tot.get(sec) or {}).get("accuracy")
+        if a and a.get("half") is not None:
+            hl.setdefault("m", {})[key] = a["half"]
+    # the adult page: NSFW and Uncensored each = standard + their own packs; NSFW+ = the two totals; never in Overall
+    np_ = s.get("nsfw_plus") or {}
+    nums = np_.get("numbers") or {}
+    pb = (np_.get("packs45") or {}).get("board")
+    if nums:
+        ap = _T.adult_packs(pb, unlock_of(prof))
+        nacc = np_.get("accuracy") or {}
+        npt: dict = {}
+        for half in _T.ADULT:
+            n = nums.get(half)
+            if not n:
+                continue
+            g = _T.group_total(n.get("value"), float(n.get("of", 10) or 10), ap[half])
+            g["accuracy"] = _T.total_range(half, nacc.get(half), g["packs"], g["max_with_packs"], label, rtr, st,
+                                           bonus=g["bonus"])
+            g["standard_accuracy"] = nacc.get(half)
+            npt[half] = g
+        if all(h in npt for h in _T.ADULT):
+            a_, b_ = npt["nsfw"], npt["uncensored"]
+            both = a_["total"] is not None and b_["total"] is not None
+            g = {"standard": (a_["standard"] + b_["standard"]) if both else None,
+                 "bonus": round(a_["bonus"] + b_["bonus"], 4),
+                 "total": round(a_["total"] + b_["total"], 4) if both else None,
+                 "max": a_["max"] + b_["max"], "max_with_packs": round(a_["max_with_packs"] + b_["max_with_packs"], 4),
+                 "packs": a_["packs"] + b_["packs"], "owed": a_["owed"] + b_["owed"]}
+            g["accuracy"] = _T.total_range("nsfw_plus", nacc.get("nsfw_plus"), g["packs"], g["max_with_packs"],
+                                           label, rtr, st, bonus=g["bonus"],
+                                           pack_keys=(() if b_["bonus"] > 0.005 else ("nsfw_packs",)))
+            g["standard_accuracy"] = nacc.get("nsfw_plus")
+            npt["nsfw_plus"] = g
+        np_["totals45"] = npt
+    s["totals45"] = tot
+    owed = [o for sec in ("code", "chat") for o in (tot.get(sec) or {}).get("owed") or []]
+    if owed:
+        cov = s.setdefault("coverage", {})
+        cov["notes"] = list(cov.get("notes") or []) + [
+            "bonus packs unlocked but not run yet, counted 0 for now (owed; ranked on what is measured): "
+            + ", ".join(owed)]
 
 
 def _replicate_means45(label: str, s: dict, rtr: dict | None) -> None:
@@ -6375,7 +6499,7 @@ def np_cell(s: dict, key: str) -> str:
     if not num:
         return NSFW_PLUS_NOT_RUN
     if num.get("value") is not None:
-        return f"{num['value']:.1f}" + _np_range(s, key) + _np_judged_by(s)
+        return _np_total_text(s, key) or (f"{num['value']:.1f}" + _np_range(s, key) + _np_judged_by(s))
     pts, mx = _np_measured(num)
     return (f"{pts:.1f} of {mx:g} measured, not ranked" if mx else "pending") + _np_judged_by(s)
 
@@ -6422,6 +6546,18 @@ def np_counts(s: dict, key: str) -> str | None:
     return (((s.get("nsfw_plus") or {}).get("counts_line")) or {}).get(key)
 
 
+def _np_total_text(s: dict, key: str) -> str | None:
+    """Owner 2026-11-25 (R37/R38): an adult number whose own packs earned points prints its total (standard + its
+    packs, never part of Overall) with the split and both ranges; None when no pack point was earned."""
+    g = (((s.get("nsfw_plus") or {}).get("totals45")) or {}).get(key)
+    if not g or g.get("total") is None or float(g.get("bonus") or 0.0) <= 0.05:
+        return None
+    from . import display45 as _d45
+    return _d45.total_text({"total": g["total"], "standard_points": g["standard"], "bonus_points": g["bonus"],
+                            "max_with_packs": g["max_with_packs"], "total_accuracy": g.get("accuracy"),
+                            "accuracy": g.get("standard_accuracy")}) + _np_judged_by(s)
+
+
 def np_total_cell(s: dict) -> str:
     """NSFW+ /20 as a board cell: ``13.8`` when both halves are complete, ``9.0 of 20 measured, not ranked`` while one
     is pending (never a sum that pretends a pending half is 0), the plain not-run line otherwise."""
@@ -6432,7 +6568,7 @@ def np_total_cell(s: dict) -> str:
     if not t:
         return NSFW_PLUS_NOT_RUN
     if t.get("value") is not None:
-        return f"{t['value']:.1f}" + _np_range(s, "nsfw_plus") + _np_judged_by(s)
+        return _np_total_text(s, "nsfw_plus") or (f"{t['value']:.1f}" + _np_range(s, "nsfw_plus") + _np_judged_by(s))
     pts = mx = 0.0
     for k, _ in NSFW_PLUS_KEYS:
         num = _np_num(s, k) or {}
@@ -6507,7 +6643,8 @@ def np_packs_cell(s: dict) -> str:
 
 
 def np_packs_line(s: dict) -> str | None:
-    """Each pack's state: "Range pack 0.8 of 1; Erotica pack locked (reason); ..." (never part of the two numbers)."""
+    """Each pack's state: "Range pack 0.8 of 1; Erotica pack locked (reason); ..." (added on top of its own number,
+    NSFW or Uncensored, since the owner's 2026-11-25 ruling; never part of Overall)."""
     pb = _np_packs(s)
     if not pb or not pb.get("board"):
         return None
@@ -6530,7 +6667,8 @@ def nsfw_plus_md(ranked: list[str], stats: dict) -> list[str]:
     if jc:
         L += [_np_cap(jc) + ".", ""]
     packs = any(_np_packs(stats[l]) for l in ranked)
-    L += _table(["Model", "NSFW+ /20", "NSFW /10", "Uncensored /10"] + (["Packs"] if packs else []),
+    L += _table(["Model", head45("NSFW+", "nsfw_plus", stats, 20), head45("NSFW", "nsfw", stats, 10),
+                 head45("Uncensored", "uncensored", stats, 10)] + (["Packs"] if packs else []),
                 [[l, np_total_cell(stats[l])] + [np_cell(stats[l], k) for k, _ in NSFW_PLUS_KEYS]
                  + ([np_packs_cell(stats[l])] if packs else []) for l in ranked])
     for l in ranked:
@@ -6546,13 +6684,13 @@ def nsfw_plus_md(ranked: list[str], stats: dict) -> list[str]:
             L.append(f"- Judge: {jl}")
         pl = np_packs_line(s)
         if pl:
-            L.append(f"- Packs (apart from NSFW and Uncensored, 1 point each): {pl}")
+            L.append(f"- Packs (added inside NSFW and Uncensored, 1 point each): {pl}")
     return L
 
 
 #: the section's opening paragraph (owner 2026-11-21: one local judge; NSFW+ /20 = NSFW + Uncensored)
-NSFW_PLUS_INTRO = ("NSFW+ is one number out of 20: NSFW out of 10 plus Uncensored out of 10, both printed. It is shown "
-                   "apart and is never part of Overall. Points come from checks, not from taste: one local judge "
+NSFW_PLUS_INTRO = ("NSFW+ is one number: NSFW plus Uncensored, both printed, each out of 10 on the standard set plus "
+                   "its own bonus packs. It is shown apart and is never part of Overall. Points come from checks, not from taste: one local judge "
                    "classes each answer as explicit, softened, refused or off topic with a quoted line that must be "
                    "found word for word, and the rest is code checks and answer keys. Nothing scores how well the "
                    "scene is written.")
@@ -6577,7 +6715,10 @@ def nsfw_plus_html(labels: list[str], stats: dict) -> str:
            f'<section class="nsfw-plus" id="{NSFW_PLUS_ANCHOR}"><h2>NSFW+</h2>',
            f"<p>{esc(NSFW_PLUS_INTRO)}</p>"
            + (f"<p>{esc(_np_cap(np_judge_check_line(stats, labels)))}.</p>" if np_judge_check_line(stats, labels) else ""),
-           "<table><thead><tr><th>Model</th><th>NSFW+ /20</th><th>NSFW /10</th><th>Uncensored /10</th>"
+           "<table><thead><tr><th>Model</th>"
+           + "".join(f"<th>{esc(h)}</th>" for h in (head45("NSFW+", "nsfw_plus", stats, 20),
+                                                     head45("NSFW", "nsfw", stats, 10),
+                                                     head45("Uncensored", "uncensored", stats, 10)))
            + ("<th>Packs</th>" if any(_np_packs(stats.get(l) or {}) for l in labels) else "")
            + "</tr></thead><tbody>"]
     packs = any(_np_packs(stats.get(l) or {}) for l in labels)
@@ -6597,7 +6738,7 @@ def nsfw_plus_html(labels: list[str], stats: dict) -> str:
             out.append(f"<li>Judge: {esc(jl)}</li>")
         pl = np_packs_line(stats[l])
         if pl:
-            out.append(f"<li>Packs (apart from NSFW and Uncensored, 1 point each): {esc(pl)}</li>")
+            out.append(f"<li>Packs (added inside NSFW and Uncensored, 1 point each): {esc(pl)}</li>")
         out.append("</ul>")
     out.append("</section>")
     return "".join(out)
@@ -6640,13 +6781,19 @@ def _headline(labels: list[str], stats: dict, inputs: dict, cfg: dict | None) ->
     # tie groups among comparable rows only: current rows, then old rows
     # (rank_labels already puts old/failed rows last)
     out_rank: dict[str, str] = {}
+    # 4.5 totals: every bootstrap readout (ranks, rank intervals, separation) runs on the totals and their noise
+    tboots = _total_boots45(labels, boots, stats)
+    LAST_RANK_NOTE45.clear()
     for era_old in (False, True):
         part = [l for l in ranked if bool((stats[l].get("era") or {}).get("old")) == era_old
                 and not (stats[l].get("coverage") or {}).get("failed")
                 and not _provisional(stats[l])]
         # unrounded overall so 9.25 vs 9.34 keeps its order
         s_raw = {l: _h.display(stats[l]["headline"]["P"], prof).get("overall") for l in part}
-        if is_routed:
+        if any(_total45_of(stats[l]) is not None for l in part):
+            # suite 4.5 with totals (coordinator 2026-11-26): no chained ties; place = 1 + models clearly better
+            lab, pairs = _clear_rank45(part, tboots, stats, hs["level"])
+        elif is_routed:
             # the section scales' own tie test (scale.tie, 90%), never the 4.1 bootstrap
             lab, pairs = _rank45(part, stats, prof), []
         else:
@@ -6663,7 +6810,61 @@ def _headline(labels: list[str], stats: dict, inputs: dict, cfg: dict | None) ->
     for l in labels:
         stats[l]["headline"]["rank"] = out_rank.get(l, "-")
     class_lean(labels, stats, prof)
-    _extras45(labels, stats, inputs, cfg, prof, hs, boots)
+    _extras45(labels, stats, inputs, cfg, prof, hs, tboots)
+
+
+def _total45_of(s: dict) -> float | None:
+    return ((s.get("totals45") or {}).get("overall") or {}).get("total")
+
+
+def _total_boots45(part: list[str], boots: dict, stats: dict) -> dict:
+    """Owner 2026-11-25 (R37/R38) and coordinator 2026-11-26: the rank and its tests run on the TOTALS with the
+    totals' noise. Each model's Overall resamples keep their spread and pairing over the questions, are re-centred
+    on the model's total (standard + bonus packs) and get an independent pack draw (totals45.total_samples; pack
+    noise = what the total's range adds over the standard range, 0 with no pack point). Models without a total
+    (every older suite) keep their samples unchanged."""
+    from . import totals45 as _T
+    out = dict(boots)
+    for l in part:
+        b = boots.get(l)
+        g = (stats[l].get("totals45") or {}).get("overall") or {}
+        t = g.get("total")
+        xs = ((b or {}).get("samples") or {}).get("overall")
+        if b is None or t is None or not [x for x in xs or [] if x is not None]:
+            continue
+        sd = _T.pack_sd(g.get("accuracy"), g.get("standard_accuracy"))
+        out[l] = {**b, "samples": {**b["samples"], "overall": _T.total_samples(l, xs, float(t), sd)}}
+    return out
+
+
+#: the last 4.5 board's rank method (totals45.rank_note), printed under the board
+LAST_RANK_NOTE45: list[str] = []
+
+
+def _clear_rank45(part: list[str], tboots: dict, stats: dict, level: float) -> tuple[dict[str, str], list[dict]]:
+    """Ranks without chaining (totals45.clear_ranks) and the pair readout against the row above, on the totals.
+    Stores ``headline.clearly_better`` (the models clearly better than this one) for audit."""
+    from . import headline as _h
+    from . import totals45 as _T
+    samples = {l: ((tboots.get(l) or {}).get("samples") or {}).get("overall") for l in part}
+    samples = {l: v for l, v in samples.items() if v and _total45_of(stats[l]) is not None}
+    totals = {l: _total45_of(stats[l]) for l in part}
+    halves = {l: (((stats[l].get("totals45") or {}).get("overall") or {}).get("accuracy") or {}).get("half")
+              for l in part}
+    res = _T.clear_ranks(part, samples, totals, halves, level)
+    LAST_RANK_NOTE45[:] = [_T.rank_note(res["methods"])] if res["methods"] else []
+    pairs = []
+    scored = [l for l in part if totals.get(l) is not None]
+    for l in scored:
+        stats[l]["headline"]["clearly_better"] = res["better"].get(l, [])
+    for a, b in zip(scored, scored[1:]):
+        d = (_h.paired({"samples": {"overall": samples[a]}}, {"samples": {"overall": samples[b]}}, "overall", level)
+             if a in samples and b in samples else None)
+        tied = a not in res["better"].get(b, [])
+        pairs.append({"a": a, "b": b, "tied": tied, "level": level,
+                      "diff": round(float(totals[a]) - float(totals[b]), 2),
+                      "lo": None if not d else round(d["lo"], 2), "hi": None if not d else round(d["hi"], 2)})
+    return res["labels"], pairs
 
 
 def class_lean(labels: list[str], stats: dict, prof: dict | None) -> None:
@@ -6943,15 +7144,39 @@ def _tie45(t: dict | None, ha: dict, hb: dict, key: str) -> dict | None:
     from . import scale as _scale
     if t is None:
         return None
-    if key not in (ha.get("pack_se2_45") or {}) and key not in (hb.get("pack_se2_45") or {}):
-        return t
-    ba = (ha.get("bonus45") or {}).get(key) or 0.0
-    bb = (hb.get("bonus45") or {}).get(key) or 0.0
+    if key in (ha.get("pack_se2_45") or {}) or key in (hb.get("pack_se2_45") or {}):
+        ba = (ha.get("bonus45") or {}).get(key) or 0.0
+        bb = (hb.get("bonus45") or {}).get(key) or 0.0
+        pa = (ha.get("pack_se2_45") or {}).get(key, 0.0)
+        pb = (hb.get("pack_se2_45") or {}).get(key, 0.0)
+    else:
+        # R37/R38 (totals45): the rank sorts on standard + bonus packs, so the tie test reads the same totals; the
+        # packs' variance is what the total's range adds over the standard range (both 90% halves)
+        ga, gb = (ha.get("total45") or {}).get(key), (hb.get("total45") or {}).get(key)
+        if not ga and not gb:
+            return t
+        ba, bb = _total45_bonus(ga), _total45_bonus(gb)
+        pa, pb = _total45_pack_se2(ga), _total45_pack_se2(gb)
     gap = t["gap"] / SCALE45_PER_POINT + ba - bb
-    se = ((t["se_diff"] / SCALE45_PER_POINT) ** 2 + (ha.get("pack_se2_45") or {}).get(key, 0.0)
-          + (hb.get("pack_se2_45") or {}).get(key, 0.0)) ** 0.5
+    se = ((t["se_diff"] / SCALE45_PER_POINT) ** 2 + pa + pb) ** 0.5
     return {**t, "gap_total": gap, "se_total": se,
             "tied": abs(gap) < _scale.Z_TIE * se or abs(gap) < 1e-9}
+
+
+def _total45_bonus(g: dict | None) -> float:
+    return float((g or {}).get("bonus_points") or 0.0)
+
+
+def _total45_pack_se2(g: dict | None) -> float:
+    """A section total's pack variance (points^2): (total half^2 - standard half^2) / 1.645^2, 0 without packs."""
+    if not g or _total45_bonus(g) <= 0:
+        return 0.0
+    th = ((g.get("total_accuracy") or {}).get("half"))
+    sh = ((g.get("accuracy") or {}).get("half"))
+    if th is None:
+        return 0.0
+    from .accuracy45 import Z90
+    return max(float(th) ** 2 - float(sh or 0.0) ** 2, 0.0) / (Z90 * Z90)
 
 
 def _rank45(part: list[str], stats: dict, prof: dict) -> dict[str, str]:
@@ -8157,19 +8382,42 @@ def _tier_tables(ranked: list[str], stats: dict, sc: dict, cfg: dict | None) -> 
     return L
 
 
+#: score key -> where its total sits (totals45): the board's groups and the adult page's numbers
+_HEAD45 = {"work": ("main", "code"), "code": ("main", "code"), "chat": ("main", "chat"),
+           "overall": ("main", "overall"), "nsfw": ("adult", "nsfw"), "uncensored": ("adult", "uncensored"),
+           "nsfw_plus": ("adult", "nsfw_plus")}
+
+
+def head45(name: str, key: str, stats: dict, std_max: float) -> str:
+    """A 4.5 column head over a TOTAL (standard + bonus packs, R37/R38): "Overall /34" with the maximum with packs
+    from the data when every row has the same one, the bare name when they differ, the standard "/20" only when no
+    row has a total. A total above 20 is never printed under "/20"."""
+    where, sec = _HEAD45.get(key, ("main", key))
+    mx = set()
+    for s in stats.values():
+        g = ((s.get("totals45") or {}) if where == "main"
+             else ((s.get("nsfw_plus") or {}).get("totals45") or {})).get(sec) or {}
+        if g.get("total") is not None and g.get("max_with_packs") is not None:
+            mx.add(round(float(g["max_with_packs"]), 4))
+    if not mx:
+        return f"{name} /{std_max:g}"
+    return f"{name} /{mx.pop():g}" if len(mx) == 1 else name
+
+
 SEG45_LEGEND = (
-    "Overall /20 = Code /10 + Chat /10, printed only when both are complete; otherwise the row reads \"x of y measured\" "
-    "and is not ranked.",
-    "NSFW+ /20 = NSFW /10 + Uncensored /10, in its own column beside Overall and never part of it (its two halves "
-    "are printed too; breakdown in the section below the table).",
+    "Overall = Code total + Chat total; each total = the standard score (out of 10) + its bonus packs, so the column "
+    "head shows the maximum with every pack that exists today. Overall is printed only when both are complete; "
+    "otherwise the row reads \"x of y measured\" and is not ranked.",
+    "NSFW+ = NSFW + Uncensored (each out of 10 on the standard set, plus their own bonus packs), in its own column "
+    "beside Overall and never part of it (its two halves are printed too; breakdown in the section below the table).",
     "± beside a score = its 90% accuracy range (INTENT-45), with its source named after it: the model's own "
     "replicate runs when it has five or more, else the spread pooled over every model's replicate runs (a model "
     "with two or more runs shows the mean of its runs; range = t x SD / sqrt(runs), t = the 90% Student value for "
     "the number of runs behind the SD), else this run's own repeats, else a stored estimate.",
-    "{margin} A rank like \"3=\" means statistically tied with the model above.",
+    "{margin} {rank}",
     "Ladder packs are harder question sets worth up to 1 point per pack, unlocked by 90 % or more on the standard "
-    "questions; their points are printed in their own column and are never part of Overall or of the Code and Chat "
-    "cells.",
+    "questions; their points add on top of Code and Chat and so count in Overall and the rank (\"= standard + "
+    "bonus\").",
     "A segment that is pending adds nothing, is never scaled up, and names its reason. Room = the score with the "
     "end-of-run retry.",
 )
@@ -8183,6 +8431,8 @@ def seg45_legend(labels: list[str], stats: dict) -> list[str]:
     return [t.replace("{margin}", m + " A segment's margin combines its parts as independent. Where no per-unit "
                       "spread is stored the margin is 1.645 x points x sqrt(p(1-p)/n): the fix tasks are pooled into "
                       "one share for it, while each long scene stays per scene (n = its repeats).")
+            .replace("{rank}", LAST_RANK_NOTE45[0] if LAST_RANK_NOTE45
+                     else "A rank like \"3=\" means statistically tied with the model above.")
             for t in SEG45_LEGEND]
 
 
@@ -8197,7 +8447,7 @@ def segment_maxima_note(prof: dict) -> str:
     npt = "; ".join(f"{n.get('label', k)} = " + " + ".join(f"{_NP_SEG_LABEL.get(sk, sk)} {g['max']:g}"
                                                           for sk, g in n.items() if isinstance(g, dict) and "max" in g)
                     for k, n in np_.items())
-    return ("*Segment maxima: " + seg + (f"; NSFW+ shown apart: {npt}" if npt else "") + ". Points = the share of "
+    return ("*Segment maxima: " + seg + (f"; NSFW+ (never in Overall): {npt}" if npt else "") + ". Points = the share of "
             "each item passed times its points. A segment with an item not yet measured adds nothing for it: the "
             "cell shows the measured points out of the measured maximum and names the pending points. "
             "± in points.*")
@@ -8218,7 +8468,8 @@ def _points_tables(ranked: list[str], stats: dict, sc: dict, cfg: dict | None,
         defs = [{**d, "label": {"work": "Code", "chat": "Chat"}.get(d["key"], d["label"])} for d in defs]
     labels = [score_label(d, public) for d in defs]
     if seg45:
-        labels = [{"Code": "Code /10", "Chat": "Chat /10"}.get(x, x) for x in labels]
+        labels = [{"Code": head45("Code", "code", stats, 10), "Chat": head45("Chat", "chat", stats, 10)}.get(x, x)
+                  for x in labels]
     # 4.0: Room beside Overall when re-runs do not count on the board
     room_col = not prof.get("escalation_on_board", True)
     L, rows, prow = [], [], []
@@ -8281,7 +8532,8 @@ def _points_tables(ranked: list[str], stats: dict, sc: dict, cfg: dict | None,
                     + ([hl.get("class") or "-"] if show_class else []) + [hl.get("lean") or "-"]
                     + ([room_cell(stats[l]) or "-"] if room_col else [])
                     + sec_cells
-                    + ([packs_cell45(hl, [d for d in defs if d.get("in_total", True)])] if pack_col else [])
+                    + ([bonus_packs_cell45(stats[l]) if stats[l].get("totals45")
+                        else packs_cell45(hl, [d for d in defs if d.get("in_total", True)])] if pack_col else [])
                     + ([_a45.cell(stats[l].get("assistant45"), a45_valid, a45_ceil)] if a45 else [])
                     + [efficiency_cell(stats[l]), fmt(c["tok_per_s"])]
                     + ([cost_cell(stats[l])] if (pack_col or _has_cost(ranked, stats)) else [])
@@ -8302,17 +8554,18 @@ def _points_tables(ranked: list[str], stats: dict, sc: dict, cfg: dict | None,
                          if any(x["key"] == d["key"] for x in _scale_sections(prof))
                          else "") for lb, d in zip(labels, defs)]
     else:
-        ov_label, hlabels = ("Overall /20" if seg45 else "Overall"), labels
-    # NSFW+: its two numbers, each out of 10, in place of its score's one column
-    _sl = (lambda sl: f"{sl} /10") if seg45 else (lambda sl: f"{sl} (/10)")
-    hlabels = _subs_split(hlabels, defs, sub_key, lambda d: [_sl(x) for _, x in subs])
-    plabels = _subs_split(labels, defs, sub_key, lambda d: [_sl(x) for _, x in subs])
+        ov_label, hlabels = (head45("Overall", "overall", stats, 20) if seg45 else "Overall"), labels
+    # NSFW+: its two numbers, each out of 10 (plus its packs), in place of its score's one column
+    _sl = (lambda k, sl: head45(sl, k, stats, 10)) if seg45 else (lambda k, sl: f"{sl} (/10)")
+    hlabels = _subs_split(hlabels, defs, sub_key, lambda d: [_sl(k, x) for k, x in subs])
+    plabels = _subs_split(labels, defs, sub_key, lambda d: [_sl(k, x) for k, x in subs])
     if is_routed:
         L += _table(scorecard45_header(hlabels, ov_label, _has_cost(ranked, stats), show_class), rows)
     else:
-        L += _table(["#", "Model", ov_label] + (["NSFW+ /20"] if np_col else []) + (["Class"] if show_class else [])
+        L += _table(["#", "Model", ov_label] + ([head45("NSFW+", "nsfw_plus", stats, 20)] if np_col else []) + (["Class"] if show_class else [])
                     + ["Lean"]
-                    + (["Room"] if room_col else []) + hlabels + (["Pack points"] if pack_col else [])
+                    + (["Room"] if room_col else []) + hlabels
+                    + ([("Bonus packs" if seg45 else "Pack points")] if pack_col else [])
                     + ([a45["label"]] if a45 else [])
                     + ["Efficiency", "tok/s"] + (["Run cost"] if (pack_col or _has_cost(ranked, stats)) else [])
                     + (["Minutes", "Run settings"] if pack_col else [])
@@ -8326,7 +8579,7 @@ def _points_tables(ranked: list[str], stats: dict, sc: dict, cfg: dict | None,
     if any(stats[l].get("validation_cc") for l in ranked):
         L += ["", f"*{STAGED_CC_FOOTNOTE}*"]
     if _has_cost(ranked, stats):
-        L += ["", f"*{cost_footnote(prof)}*"
+        L += ["", f"*{cost_footnote(prof, ranked, stats, cfg)}*"
                   + (f" *{COST_CHAINS_NOTE}*" if prof.get("chains") else "")
                   + (f" *{COST45_NOTE}*" if is_routed else "")]
     reads = [stats[l]["headline"]["vs_above"]["text"] for l in ranked
@@ -8881,12 +9134,49 @@ def section_words45(prof: dict | None) -> tuple[str, str]:
     return "Coding", "Chat"
 
 
-def cost_footnote(prof: dict | None) -> str:
-    """COST_FOOTNOTE in the board's own section words."""
+def cost_footnote(prof: dict | None, ranked: list[str] | None = None, stats: dict | None = None,
+                  cfg: dict | None = None) -> str:
+    """COST_FOOTNOTE in the board's own section words, with the judge the board's rows were actually judged by and
+    whether it is hosted or local (Docker user path 2026-11-25: it always said "the judge runs locally")."""
     c, h = section_words45(prof)
+    txt = COST_FOOTNOTE.replace("the judge runs locally", judge_cost_words(prof, ranked, stats, cfg))
     if (c, h) == ("Coding", "Chat"):
-        return COST_FOOTNOTE
-    return COST_FOOTNOTE.replace("standard Code and Chat tests", f"standard {c} and {h} tests")
+        return txt
+    return txt.replace("standard Code and Chat tests", f"standard {c} and {h} tests")
+
+
+def judge_cost_words(prof: dict | None, ranked: list[str] | None = None, stats: dict | None = None,
+                     cfg: dict | None = None) -> str:
+    """The judge phrase of the Run cost footnote: "the judge runs locally" when every judge on the board is local,
+    else "the judge is billed apart and not counted: <id> on <provider> (hosted)" naming each hosted one. The
+    judges = the profile's own plus every other judge the board's rows carry (other_judge45); hosted or local is the
+    spend rule's decision on the provider that served it (judge45.provider_hosted)."""
+    from . import judge45 as _J
+    j = (prof or {}).get("judge") or {}
+    ids: dict[str, str | None] = {}
+    pj = j.get("model_id") if isinstance(j, dict) else (str(j) if j else None)
+    if pj:
+        ids[str(pj)] = j.get("provider") if isinstance(j, dict) else None
+    for l in ranked or []:
+        for i in (((stats or {}).get(l) or {}).get("other_judge45") or {}).get("ids") or ():
+            ids.setdefault(str(i), None)
+    try:
+        provs = _J.judge_providers()
+    except Exception:  # noqa: BLE001 -- a footnote never breaks the board
+        provs = {}
+    hosted = []
+    for i, pv in ids.items():
+        pv = provs.get(i) or pv
+        if not pv:
+            continue
+        try:
+            if _J.provider_hosted(cfg, pv):
+                hosted.append(f"{i} on {pv}")
+        except Exception:  # noqa: BLE001
+            continue
+    if not hosted:
+        return "the judge runs locally"
+    return "the judge is billed apart and not counted here: " + ", ".join(hosted) + " (hosted)"
 
 
 def class_footnote(prof: dict | None, show_class: bool = True) -> str:
@@ -8927,6 +9217,11 @@ def headline_cell(hl: dict, key: str) -> str:
         m = (hl.get("m") or {}).get(key)
         return (_h.fmt_s(hl["S"][key]) + f" of {float(hl['overall_of']):g}"
                 + (f" ± {m:.1f}" if m is not None else ""))
+    t45 = (hl.get("total45") or {}).get(key)
+    if t45 and float(t45.get("bonus_points") or 0.0) > 0.05:
+        # owner 2026-11-25 (R37/R38): the total (standard + bonus packs) with its split and both ranges
+        from . import display45 as _d45
+        return "**" + _d45.total_text(t45).replace(".", "**.", 1)
     acc = (hl.get("accuracy") or {}).get(key)
     if acc and acc.get("half") is not None and (hl.get("S") or {}).get(key) is not None:
         # INTENT-45: the model's own accuracy range beside the score (accuracy45); the item margin is in report.json
@@ -9015,6 +9310,25 @@ def pack_max45(key: str, ladder_card: dict | None, eng_parts: dict | None, fix: 
         if v.get("state") == "scored":
             tot += 1.0 + (1.0 if v.get("code") is not None else 0.0)
     return tot
+
+
+def bonus_packs_cell45(s: dict) -> str:
+    """Owner 2026-11-25 (R37/R38): the "Bonus packs" list of a row: per group the bonus of its maximum, then every
+    pack that earned points or is owed with its unlock figure (totals45.pack_line); locked packs are counted. "-" when
+    the row has no pack."""
+    from . import totals45 as _T
+    bits = []
+    for sec, name in (("code", "Code"), ("chat", "Chat")):
+        g = (s.get("totals45") or {}).get(sec)
+        if not g or not g.get("packs"):
+            continue
+        shown = [p for p in g["packs"] if p["state"] != _T.LOCKED and p.get("kind") != "other" or p["points"] > 0.005]
+        locked = sum(1 for p in g["packs"] if p["state"] == _T.LOCKED and p.get("kind") != "other")
+        mx = float(g["max_with_packs"]) - float(g["max"])
+        bits.append(f"{name} +{float(g['bonus']):.1f} of {mx:g}"
+                    + (": " + "; ".join(_T.pack_line(p) for p in shown) if shown else "")
+                    + (f" ({locked} locked)" if locked else ""))
+    return " · ".join(bits) or "-"
 
 
 def packs_cell45(hl: dict, defs: list[dict]) -> str:
@@ -10522,7 +10836,7 @@ def held45(rows: list[dict], meta: dict | None, cfg: dict | None) -> list[str]:
     scored = [r for r in rows if _gs.scored(r)]
     no_stamp = sum(1 for r in scored if not r.get("grader_stamp"))
     changed = sum(1 for r in scored if r.get("grader_stamp") and _gs.row_is_stale(r)[0])
-    ptype = (meta or {}).get("provider_type")
+    ptype = _meta_ptype(meta)
     no_effort = sum(1 for r in scored if _disc.publish_refusal(r, ptype))
     out = []
     if no_stamp:
@@ -10685,8 +10999,9 @@ def html_rows(labels: list[str], stats: dict, cfg: dict | None = None) -> list[d
             "rank": i, "label": l, "model_id": meta.get("model_id"),
             "provider": meta.get("provider") or meta.get("device"),
             # hosted API vs local rig (None = unknown, never filtered as hosted)
-            "hosted": (meta.get("provider_type") or meta.get("provider")) not in LOCAL_PROVIDER_TYPES
-            if (meta.get("provider_type") or meta.get("provider")) else None,
+            "hosted": (bool(meta["hosted"]) if isinstance(meta.get("hosted"), bool) else
+                       (meta.get("provider_type") or meta.get("provider")) not in LOCAL_PROVIDER_TYPES
+                       if (meta.get("provider_type") or meta.get("provider")) else None),
             "chat": c["chat"], "coding": c["coding"], "overall": c["total"],
             # rc4: why a model with rows missing has no Overall ("not ranked: 2 jobs to re-run (Tools)"); the key is
             # present only when set (rc4 / pending_scaling none), so a 4.1 row stays byte-identical (board41 public golden)
@@ -10862,7 +11177,8 @@ def _subtotal_html(row: dict, s: dict) -> None:
         row["measured"] = seg45_measured(s)      # the page's data carries the segment tree only, nothing summed
         tb = s.get("segments45") or {}
         row.pop("tiers_cell", None)               # the column is not on the new board; no old-tree text in its data
-        # Code and Chat cells are the STANDARD points (Overall = Code + Chat); the section's pack points are a tag
+        # Code and Chat cells are the TOTALS (standard + bonus packs; Overall = Code total + Chat total, owner
+        # 2026-11-25); the split is a tag beside the number
         for d in (s.get("scorecard") or {}).get("score_defs") or []:
             if not d.get("in_total", True) or d["key"] not in ("work", "chat"):
                 continue
@@ -10871,8 +11187,11 @@ def _subtotal_html(row: dict, s: dict) -> None:
             if not sect:
                 continue
             std = sect["points"]
-            row[g] = None if std is None else round(std, 1)
-            row["s"][g], row["m"][g] = row[g], sect.get("margin")
+            tot_ = sect.get("total") if sect.get("total") is not None else std
+            row[g] = None if tot_ is None else round(tot_, 1)
+            ta_ = sect.get("total_accuracy") or {}
+            row["s"][g], row["m"][g] = row[g], (ta_.get("half") if ta_.get("half") is not None
+                                                 else sect.get("margin"))
             ct = dict(row.get("cell_text") or {})
             tg = dict(row.get("sub_tag") or {})
             ct.pop(g, None)
@@ -10881,8 +11200,9 @@ def _subtotal_html(row: dict, s: dict) -> None:
                 ct[g] = "pending"
             elif not sect["complete"]:
                 ct[g] = _d45_cell(sect)
-            if (sect.get("pack_points") or 0) > 0.05:
-                tg[g] = f"+ {sect['pack_points']:.1f} pack points (not in Overall)"
+            if (sect.get("pack_points") or 0) > 0.05 and std is not None:
+                tg[g] = (f"= {std:.1f} standard + {sect['pack_points']:.1f} bonus"
+                         + (f" (of {float(sect['max_with_packs']):g})" if sect.get("max_with_packs") else ""))
             row["cell_text"], row["sub_tag"] = ct, tg
         row["points_cell"] = " · ".join(_s45line(tb, sec, s.get("marks45")) for sec in ("code", "chat") if tb.get(sec))
         row["cell_text"] = {**(row.get("cell_text") or {}), **texts}
@@ -10959,6 +11279,13 @@ HTML_LEGEND = [
 ]
 
 #: model that run on this rig / box rather than through a paid API
+def _meta_ptype(meta: dict | None) -> str | None:
+    """The provider type a hosted-vs-local decision reads from a model's meta: ``"local"`` when the run recorded
+    the server as one we own (meta ``hosted: false``, by address or the entry's ``hosted:`` word)."""
+    m = meta or {}
+    return "local" if m.get("hosted") is False else m.get("provider_type")
+
+
 LOCAL_PROVIDER_TYPES = {"studioforge", "lmstudio", "llamacpp", "ollama", "vllm", "local"}
 
 
@@ -11036,9 +11363,14 @@ CEILING_MARK = "‡"
 CEILING_SHARE = 0.95
 CEILING_NOTE = ("‡ = at the ceiling: every model on this board measured on the part (at least two) answered at least "
                 "95% of its standard questions right, so the part does not separate them here.")
-PACKS_NOTE45 = ("Pack points = points from ladder packs (harder sets, given only after ≥ 90% on the part), shown "
-                "apart from the standard points; they are never part of Overall, of the Code and Chat cells or of "
-                "the sort order.")
+PACKS_NOTE45 = ("Bonus packs = harder sets, given only after ≥ 90% on the part. Their points add on top: Code total = "
+                "Code standard + Code bonus, Chat likewise, Overall = Code total + Chat total, and the rank and ties "
+                "are on the totals (owner 2026-11-25). The maximum with packs = the standard maximum + every pack "
+                "that exists today; it grows as packs are added. A pack that unlocked and has not run counts 0 for "
+                "now (named in the notes as owed); the row is ranked on what is measured. The range beside a total "
+                "is the total's own; the standard score's range (the one the 2.5% accuracy bar applies to) is "
+                "printed after the word \"standard\". NSFW and Uncensored add their own packs the same way and "
+                "never enter Overall.")
 PACKS_NOTE = ("Pack points = points from ladder packs (harder sets, given only after ≥ 90% on the part), shown apart "
               "from the standard points in the section columns; total = standard + packs, the number Overall adds.")
 
@@ -11125,12 +11457,22 @@ def seg45_measured(s: dict) -> dict:
                                                 for p in g["pending"]],
                                     "margin": g.get("margin"), "cut": g.get("cut"),
                                     "marks": {f: (g.get("marks") or {}).get(f) for f in ("state", "reason")},
-                                    "notes": list(g.get("notes") or [])}
-                                for k, g in sect["segments"].items()}}
+                                    "notes": list(g.get("notes") or []),
+                                    # R37/R38: the part's own split (standard + its bonus packs)
+                                    "pack_points": g.get("pack_points"),
+                                    "total": (None if g["points"] is None
+                                              else round(float(g["points"]) + float(g.get("pack_points") or 0.0), 4))}
+                                for k, g in sect["segments"].items()},
+                   "pack_sources": sect.get("pack_sources")}
     ov = tb.get("overall")
     if ov:
         out["overall"] = {f: ov.get(f) for f in ("points", "max", "measured_points", "measured_max", "pack_points",
                                                   "margin", "pending_reasons")}
+    # owner 2026-11-25 (R37/R38, totals45): the totals are the headline numbers; ``points`` stays the standard points
+    # for one release (old readers), ``standard_points`` names it from now on
+    for sk, g in (s.get("totals45") or {}).items():
+        if sk in out:
+            out[sk].update(totals_fields45(g))
     npb = s.get("nsfw_plus") or {}
     nums = npb.get("numbers") or {}
     out["nsfw_plus"] = {nm: ({"label": n["label"], "points": n.get("value"), "of": n.get("of", 10),
@@ -11155,11 +11497,28 @@ def seg45_measured(s: dict) -> dict:
         out["nsfw_plus"]["same_family"] = bool(npb.get("same_family"))
         out["nsfw_plus"]["self_graded"] = bool(npb.get("self_graded"))
         out["nsfw_plus"]["judge_check"] = npb.get("judge_check")
+    if nums and npb.get("totals45"):
+        for nm, g in npb["totals45"].items():
+            tgt = out["nsfw_plus"].get("total") if nm == "nsfw_plus" else out["nsfw_plus"].get(nm)
+            if isinstance(tgt, dict):
+                tgt.update(totals_fields45(g))
     if s.get("accuracy45"):
         # INTENT-45: each model's own accuracy range per score and subcomponent (accuracy45.py); the item margin is
         # the second, labelled figure
         out["accuracy"] = s["accuracy45"]
     return out
+
+
+def totals_fields45(g: dict) -> dict:
+    """The public fields of one total (totals45.group_total): what the site and the Hugging Face export read."""
+    return {"standard_points": g.get("standard"), "bonus_points": g.get("bonus"), "total": g.get("total"),
+            "total_points": g.get("total"),            # alias of total: the site's import reads this name
+            "standard_max": g.get("max"), "max_with_packs": g.get("max_with_packs"),
+            "total_accuracy": g.get("accuracy"), "standard_accuracy": g.get("standard_accuracy"),
+            "packs": [{k: p.get(k) for k in ("part", "name", "kind", "unlock", "figure", "state", "points", "max",
+                                             "lost_rows") if p.get(k) is not None or k in ("figure", "unlock")}
+                      for p in g.get("packs") or []],
+            "packs_owed": list(g.get("owed") or [])}
 
 
 #: a realigned model's PUBLIC report.json drops these whole top-level blocks: the old score tree (scorecard with
@@ -11169,7 +11528,7 @@ _OLD_TREE_TOP = (INTERNAL_OLD_TREE, "scorecard", "chain_stats", "subset_stats", 
                  "tier_states", "nsfw", "marks_input45")
 #: headline keys kept for a realigned model, and the section keys their per-key dicts keep
 _HL_KEEP = ("S", "P", "T1", "m", "sort", "rank", "not_ranked", "overall_of", "class",
-            "overall_mode", "tie", "tie_group")
+            "overall_mode", "tie", "tie_group", "total45", "clearly_better")
 _HL_SECTIONS = ("work", "chat", "overall")
 #: an old-tree part id (``work/c1_implied``, ``nsfw/n1_scene``, a bare ``n6a_craft``) or an old NSFW part label;
 #: the segment tree's own ids (``segment:chat/character``) are not old tree
@@ -11423,7 +11782,9 @@ def render_report_html(labels: list[str], stats: dict, cfg: dict | None = None,
                  **({"comp_text": {k: v for k, v in r["comp_text"].items() if k in kept_labels}}
                     if isinstance(r.get("comp_text"), dict) else {})} for r in rows]
     if seg45 and scores:                      # realignment names (spec section 6); Everyday moved into Chat
-        scores = [{**c, "label": {"work": "Code /10", "coding": "Code /10", "chat": "Chat /10"}.get(sd["key"], c["label"])}
+        _ch = {"work": head45("Code", "code", stats, 10), "coding": head45("Code", "code", stats, 10),
+               "chat": head45("Chat", "chat", stats, 10)}
+        scores = [{**c, "label": _ch.get(sd["key"], c["label"])}
                   for c, sd in zip(scores, sides)] if len(scores) == len(sides) else scores
     from . import assistant45 as _a45
     a45 = (_a45.block(prof_b) if prof_b and prof_b.get("chains") and not routed(prof_b) and not seg45 else None)
@@ -11455,7 +11816,7 @@ def render_report_html(labels: list[str], stats: dict, cfg: dict | None = None,
         grp = next((d.get("group") or d["key"] for d in ((stats[labels[0]].get("scorecard") or {})
                     .get("score_defs") or []) if d["key"] == sub_key), sub_key)
         scores = [x for c in scores
-                  for x in ([{"key": f"adult_{nm}", "label": (f"{sl} /10" if seg45 else f"{sl} (/10)")}
+                  for x in ([{"key": f"adult_{nm}", "label": (head45(sl, nm, stats, 10) if seg45 else f"{sl} (/10)")}
                              for nm, sl in subs]
                             if c["key"] == grp else [c])]
     if a45 and scores is not None:
@@ -11464,8 +11825,8 @@ def render_report_html(labels: list[str], stats: dict, cfg: dict | None = None,
         pass
     from . import display45 as _d45h
     html = render_html(rows, subtitle=subtitle, banner=banner, hide_class=hide_class,
-                       overall_label=("Overall /20" if seg45 else None),
-                       beside_overall=([{"key": "adult_nsfw_plus", "label": "NSFW+ /20"}]
+                       overall_label=(head45("Overall", "overall", stats, 20) if seg45 else None),
+                       beside_overall=([{"key": "adult_nsfw_plus", "label": head45("NSFW+", "nsfw_plus", stats, 20)}]
                                        if (seg45 and sub_key and scores) else None),
                        board_title=("CrucibleForge: Chat &amp; Coding" if seg45 else None),
                        omit_columns=(("tiers_cell",) if seg45 else ()),

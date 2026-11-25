@@ -189,10 +189,7 @@ class LabelLocks:
         self.files: dict[str, object] = {}
 
     def acquire(self, labels: list[str]) -> tuple[list[str], list[str]]:
-        try:
-            import fcntl
-        except ImportError:
-            return list(labels), []
+        from .filelock import lock
         self.dir.mkdir(parents=True, exist_ok=True)
         got, held = [], []
         for label in labels:
@@ -201,7 +198,7 @@ class LabelLocks:
                 continue
             f = open(self.dir / _lock_name(label), "a+", encoding="utf-8")
             try:
-                fcntl.flock(f.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+                lock(f, blocking=False)
             except BlockingIOError:
                 f.close()
                 held.append(label)
@@ -215,14 +212,10 @@ class LabelLocks:
         return got, held
 
     def release(self) -> None:
-        try:
-            import fcntl
-        except ImportError:
-            fcntl = None
+        from .filelock import unlock
         for f in self.files.values():
             try:
-                if fcntl:
-                    fcntl.flock(f.fileno(), fcntl.LOCK_UN)
+                unlock(f)
             except OSError:
                 pass
             f.close()
@@ -247,17 +240,14 @@ class DeviceLocks:
         self.files: list = []
 
     def acquire(self, wait_s: float = 0.0, poll_s: float = 2.0, stop=None) -> None:
-        try:
-            import fcntl
-        except ImportError:
-            return
+        from .filelock import lock
         self.dir.mkdir(parents=True, exist_ok=True)
         deadline = time.time() + max(0.0, wait_s)
         for d in self.devices:
             f = open(self.dir / f".rig.gpu{d}.lock", "a+", encoding="utf-8")
             while True:
                 try:
-                    fcntl.flock(f.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+                    lock(f, blocking=False)
                     break
                 except BlockingIOError:
                     if time.time() >= deadline or (stop is not None and stop()):
@@ -276,9 +266,9 @@ class DeviceLocks:
     def release(self) -> None:
         for f in self.files:
             try:
-                import fcntl
-                fcntl.flock(f.fileno(), fcntl.LOCK_UN)
-            except (ImportError, OSError):
+                from .filelock import unlock
+                unlock(f)
+            except OSError:
                 pass
             f.close()
         self.files = []

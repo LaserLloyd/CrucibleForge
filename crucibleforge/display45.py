@@ -291,6 +291,10 @@ def section_cell(sect: dict | None, digits: int = 1) -> str:
     if sect.get("points") is None:
         return "pending: not run"
     pts = f"{sect['points']:.{digits}f}"
+    if sect.get("complete", True) and not sect.get("pending_points") and sect.get("total") is not None \
+            and float(sect.get("bonus_points") or 0.0) > 0.05:
+        # owner 2026-11-25 (R37/R38): the total is the headline number, the split and the standard range beside it
+        return total_text(sect, digits)
     if sect.get("complete", True) and not sect.get("pending_points"):
         acc = sect.get("accuracy")
         if acc and acc.get("half") is not None:
@@ -298,6 +302,22 @@ def section_cell(sect: dict | None, digits: int = 1) -> str:
             return f"{pts} {_A.range_text(acc)}"
         return pts + (f" ± {sect['margin']:.1f}" if sect.get("margin") else "")
     return f"{pts} of {sect['measured_max']:.{digits}f} measured"
+
+
+def total_text(t: dict, digits: int = 1) -> str:
+    """A total with its split: ``13.3 of 15 ±0.40 (2.7% of max; ...) = 10.0 standard ±0.20 (2.0% of max; ...) +
+    3.3 bonus``. ``t`` carries total, standard_points, bonus_points, max_with_packs and the two ranges
+    (total_accuracy = the total's; accuracy = the standard score's, the one the 2.5% bar applies to)."""
+    from . import accuracy45 as _A
+    ta, sa = t.get("total_accuracy"), t.get("accuracy")
+    std = t.get("standard_points", t.get("points"))
+    head = f"{t['total']:.{digits}f} of {float(t['max_with_packs']):g}"
+    if ta and ta.get("half") is not None:
+        head += " " + _A.range_text(ta)
+    std_t = f"{std:.{digits}f} standard"
+    if sa and sa.get("half") is not None:
+        std_t += " " + _A.range_text(sa)
+    return f"{head} = {std_t} + {float(t['bonus_points']):.{digits}f} bonus"
 
 
 def overall_text(ov: dict) -> str | None:

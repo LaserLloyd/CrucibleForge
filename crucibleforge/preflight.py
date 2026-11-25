@@ -320,8 +320,7 @@ def judge_unrunnable_reason(cfg: dict, judge: dict | str | None) -> str | None:
         # fix round 2026-11-18 (P4 / D15): a hosted judge bills every verdict; without a price no spend cap can
         # bound the judge phase and the plan price cannot include it. Refused before generation starts.
         from . import providers as _providers
-        from . import spend as _spend
-        if (_spend.is_hosted(prov.type) and not _providers.ALLOW_UNPRICED
+        if (prov.is_hosted and not _providers.ALLOW_UNPRICED
                 and not (judge.get("price") or prov.prices.get(str(mid)))):
             return (f"judge {mid} on {prov.name} is a hosted model without a price: add `price: {{input: X, "
                     "output: Y}}` per million tokens to the judge entry in models.yaml (or pass --allow-unpriced)")

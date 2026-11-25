@@ -352,9 +352,11 @@ def test_the_run_summary_prints_one_judge_cost_line():
 
 def test_the_judge_plan_line():
     line = judge45.judge_cost_plan_line({"input": 1.0, "output": 2.0}, 10, 30, 1000, 500, 1000, route="J on r")
-    assert line.startswith("  judge cost (estimate) (J on r): ~$0.02 expected for ~10 call(s), up to $0.09")
+    # the upper figure: 30 calls at the measured length (1000 in x $1 + 500 out x $2 per M), the cut priced apart
+    assert line.startswith("  judge cost (estimate) (J on r): ~$0.02 expected for ~10 call(s), up to $0.06")
+    assert "1,000-token output limit adds up to $0.0010 each" in line
     assert "not capped by --spend-cap-usd" in line
-    assert "the overall ceiling CF_SPEND_GLOBAL_CAP_USD still applies" in line
+    assert "a lifetime ceiling applies only when CF_SPEND_GLOBAL_CAP_USD is set" in line
     assert judge45.judge_cost_plan_line(None, 10, 30, 1000, 500, 1000, route="J on r") == (
         "  judge cost unknown: J on r has no price in models.yaml; ~10-30 calls, ~0.01M tokens; "
         "not limited by any cap")
@@ -808,7 +810,7 @@ def test_a_tilde_in_a_user_provider_name_is_refused_at_load():
 def test_the_plan_judge_range_allows_four_calls_per_sample():
     assert cli.HOSTED_JUDGE_CALLS_PER_SAMPLE == 4
     line = judge45.judge_cost_plan_line({"input": 1.0, "output": 2.0}, 10, 120, 1000, 500, 1000, route="J on r")
-    assert "(~120 calls: a reply cut at its length is asked again, then the judge may re-ask)" in line
+    assert "(~120 calls: every call asked again under the retry rules, each at the measured reply length;" in line
     src = open(cli.__file__, encoding="utf-8").read()
     # review D (2026-11-25): the plan counts judged rows in judge_call_model, whose upper figure is rows x 4
     assert '"high": rows * HOSTED_JUDGE_CALLS_PER_SAMPLE' in src
@@ -832,3 +834,28 @@ def test_the_judge_and_model_status_say_hosted_or_local():
     assert cli._judge_status(Namespace(judge="loc"), cfg) == "judge: q local (rig)"
     assert cli._judge_status(Namespace(judge=None), cfg) is None
     assert cli._model_status_lines(cfg, [{"name": "m", "provider": "gw2"}]) == ["  m: hosted (gw2)"]
+
+
+def test_the_run_cost_footnote_names_a_hosted_judge(monkeypatch):
+    """Docker user path 2026-11-25: the footnote always said "the judge runs locally", even with a hosted judge."""
+    from crucibleforge import judge45 as J
+    cfg = {"providers": {"or": {"type": "openai", "base_url": "https://openrouter.ai/api/v1"},
+                         "rig": {"type": "openai", "base_url": "http://192.168.200.7:1234/v1"}}}  # scrub-ok: made-up test address
+    prof = {"judge": {"model_id": "local/judge", "provider": "rig"}}
+    monkeypatch.setattr(J, "judge_providers", lambda results=None: {"x/hosted-judge": "or"})
+    stats = {"m": {"other_judge45": {"ids": ["x/hosted-judge"]}}, "n": {}}
+    assert "the judge runs locally" in report.cost_footnote(prof, ["n"], stats, cfg)
+    t = report.cost_footnote(prof, ["m", "n"], stats, cfg)
+    assert "the judge runs locally" not in t
+    assert "the judge is billed apart and not counted here: x/hosted-judge on or (hosted)" in t
+
+
+def test_the_typical_figure_is_not_under_the_measured_light_runs_on_input():
+    """Docker user path 2026-11-25: GPT-6 Luna planned $0.47 and booked $0.74 (4.39M in / 0.58M out at $0.10 /
+    $0.50). The re-measured profiles: typical within 30% of that run, thinkers' input at their measured median."""
+    m = plan_price.MEASURED
+    est = plan_price.estimate(_rows(m["ref_rows"]), {"input": 0.10, "output": 0.50}, thinks=None)
+    booked = 4.39 * 0.10 + 0.58 * 0.50
+    assert booked * 0.7 <= est["expected_usd"] <= booked * 1.1
+    assert est["long_usd"] >= booked
+    assert m["long_thinker"][0] >= 7.77                   # every measured thinker run but the two lightest

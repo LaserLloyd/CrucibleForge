@@ -24,52 +24,104 @@
 set -eu
 
 DATA_DIR=/data
-PUID="${PUID:-1000}"
-PGID="${PGID:-1000}"
 CFG="${CRUCIBLEFORGE_CONFIG:-$DATA_DIR/models.yaml}"
 LLM_BASE_URL="${LLM_BASE_URL:-http://host.docker.internal:1234/v1}"
 SEED_TEMPLATE="${CRUCIBLEFORGE_SEED_TEMPLATE:-/app/models.example.yaml}"
+JAIL=/usr/local/libexec/cf-jail
+WORK=/tmp/cfwork
 
-log() { printf '%s crucibleforge-entrypoint: %s\n' "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" "$*" >&2; }
+log() { [ -n "${CF_QUIET:-}" ] || printf '%s crucibleforge-entrypoint: %s\n' "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" "$*" >&2; }
+say() { printf '%s\n' "$*" >&2; }
 die() { log "FATAL: $*"; exit 1; }
 
+# `test ...` (the one-command front door) talks to people, not to logs: keep the entrypoint quiet for it.
+[ "${1:-}" = "test" ] && CF_QUIET=1
+
+not_writable() {
+    say ""
+    say "Cannot write to the results folder you gave with -v (it is /data inside the container)."
+    say "  On Fedora, RHEL or another SELinux system add :Z after it:  -v \"\$PWD/makobench:/data:Z\""
+    say "  Otherwise create the folder yourself first (mkdir makobench) so that it belongs to you."
+    exit 24
+}
+
 # ---- 1. privileges ----------------------------------------------------------
-if [ "$(id -u)" = "0" ]; then
-    log "started as root; chown ${DATA_DIR} to ${PUID}:${PGID} and drop privileges"
-    if [ "$(id -u app)" != "$PUID" ] || [ "$(id -g app)" != "$PGID" ]; then
-        # Cosmetic only (names the uid "app" in ps/id). Under compose /etc is on
-        # the read-only image filesystem, so this normally fails; nothing below
-        # needs it: setpriv takes numeric ids and HOME is /data.
-        { groupmod -o -g "$PGID" app && usermod -o -u "$PUID" -g "$PGID" app; } 2>/dev/null \
-            || log "note: /etc is read-only; running as uid ${PUID} without a passwd entry"
+# Started as root (the default `docker run`): the benchmark runs as the OWNER OF THE DATA FOLDER, so the files
+# it writes on a bind mount belong to the person who ran the command. Model-written code never runs as that user:
+# it runs through the setuid helper ($JAIL) as uid 65534 with no network (crucibleforge/jail.py).
+if [ "$(id -u)" = "0" ] && [ -z "${CF_DROPPED:-}" ]; then
+    mkdir -p "$DATA_DIR" 2>/dev/null || true
+    real_root=0
+    awk 'NR==1 && $1==0 && $2==0 && $3==4294967295 {f=1} END {exit !f}' /proc/self/uid_map 2>/dev/null && real_root=1
+    if [ -n "${PUID:-}" ]; then
+        RUID="$PUID"; RGID="${PGID:-$PUID}"
+        chown "$RUID:$RGID" "$DATA_DIR" 2>/dev/null || true
+    else
+        RUID="$(stat -c %u "$DATA_DIR")"; RGID="$(stat -c %g "$DATA_DIR")"
+        if [ "$RUID" = "0" ]; then
+            if setpriv --reuid=1000 --regid=1000 --clear-groups test -w "$DATA_DIR" 2>/dev/null; then
+                RUID=1000; RGID=1000
+            elif [ "$real_root" = "1" ] && [ -z "$(ls -A "$DATA_DIR" 2>/dev/null)" ]; then
+                # Docker created the folder (as root) because it did not exist: give it to uid 1000, the usual
+                # first desktop user. `mkdir makobench` before `docker run` avoids this guess.
+                chown 1000:1000 "$DATA_DIR" && RUID=1000 && RGID=1000
+                log "note: the data folder was created by Docker as root; it now belongs to uid 1000"
+            fi
+            # else: rootless Podman/Docker, where uid 0 in here IS the person who ran the command
+        fi
     fi
-    mkdir -p "$DATA_DIR"
-    chown "$PUID:$PGID" "$DATA_DIR"
-    # Any entry not owned by PUID -- an existing models.yaml, or the image's own
-    # /data/results and /data/tmp (UID 1000, mode 0750) that a fresh named volume
-    # is populated with -- would be unreadable after the drop.
-    if [ -n "$(find "$DATA_DIR" -mindepth 1 -maxdepth 2 ! -user "$PUID" 2>/dev/null | head -n 1)" ]; then
-        log "ownership mismatch on existing data: one-time recursive chown"
-        chown -R "$PUID:$PGID" "$DATA_DIR"
+    if [ "$RUID" != "0" ] && ! setpriv --reuid="$RUID" --regid="$RGID" --clear-groups true 2>/dev/null; then
+        # started with --cap-drop ALL (or similar): no way to switch user; carry on as uid 0 with no capabilities
+        if ! { touch "$DATA_DIR/.cf-write-test" 2>/dev/null && rm -f "$DATA_DIR/.cf-write-test"; }; then
+            say "This container cannot switch to the data folder's owner (uid $RUID): its capabilities were dropped."
+            say "  Add --user $RUID:$RGID to the command (or leave out --cap-drop)."
+            exit 24
+        fi
+        log "note: cannot switch to uid $RUID here (capabilities dropped); files are written as uid 0"
+        RUID=0; RGID=0
     fi
-    # --clear-groups, not --init-groups: --init-groups looks the uid up in
-    # /etc/passwd and aborts ("uid N not found") for any PUID other than 1000,
-    # because the usermod above cannot write the read-only /etc.
-    exec setpriv --reuid="$PUID" --regid="$PGID" --clear-groups --inh-caps=-all -- "$0" "$@"
+    touch "$DATA_DIR/.cf-write-test" 2>/dev/null && rm -f "$DATA_DIR/.cf-write-test" || not_writable
+    install -d -m 0711 -o "$RUID" -g "$RGID" "$WORK" 2>/dev/null || mkdir -p "$WORK" 2>/dev/null || true
+    for d in "$DATA_DIR/results" "$DATA_DIR/tmp"; do
+        [ -d "$d" ] && [ "$(stat -c %u "$d")" != "$RUID" ] && chown -R "$RUID:$RGID" "$d" 2>/dev/null || true
+    done
+    [ -f "$CFG" ] && { chown "$RUID:$RGID" "$CFG" 2>/dev/null; chmod 0600 "$CFG" 2>/dev/null; } || true
+    # the graded code's user may not look into the folder at all (best effort: some file systems ignore modes)
+    chmod o-rwx "$DATA_DIR" 2>/dev/null || true
+    [ -u "$JAIL" ] && export CRUCIBLEFORGE_JAIL="$JAIL"
+    export CF_DROPPED=1 TMPDIR="$WORK"
+    if [ "$RUID" = "0" ]; then
+        # uid 0 inside a user namespace: keep only what the benchmark needs (start the jail helper, manage its
+        # scratch); everything else is dropped from the bounding set.
+        setpriv --inh-caps=-all --bounding-set=-all,+setuid,+setgid,+chown,+fowner,+dac_override,+kill true \
+            2>/dev/null && exec setpriv --inh-caps=-all \
+            --bounding-set=-all,+setuid,+setgid,+chown,+fowner,+dac_override,+kill \
+            -- "$0" "$@"
+        exec "$0" "$@"
+    fi
+    exec setpriv --reuid="$RUID" --regid="$RGID" --clear-groups --inh-caps=-all -- "$0" "$@"
+fi
+export TMPDIR="${TMPDIR:-$WORK}"
+[ -d "$TMPDIR" ] || mkdir -p "$TMPDIR" 2>/dev/null || export TMPDIR=/tmp
+[ -z "${CRUCIBLEFORGE_JAIL:-}" ] && [ -u "$JAIL" ] && export CRUCIBLEFORGE_JAIL="$JAIL"
+# Model-written code runs only when the jail works here (it does not under no-new-privileges or a nosuid mount).
+# Then it stands in for bubblewrap, which Docker's default profile blocks; otherwise the engine refuses as usual.
+if [ -n "${CRUCIBLEFORGE_JAIL:-}" ] && (cd "$TMPDIR" && "$CRUCIBLEFORGE_JAIL" /bin/true) 2>/dev/null; then
+    export CRUCIBLEFORGE_ALLOW_UNSANDBOXED=1
+else
+    unset CRUCIBLEFORGE_JAIL
+    [ "${CRUCIBLEFORGE_ALLOW_UNSANDBOXED:-}" = "1" ] && \
+        log "WARNING: the jail helper does not work in this container (started with no-new-privileges?); model-written code runs as the benchmark user, with network"
 fi
 
 # ---- 2. writability --------------------------------------------------------
 if [ ! -w "$DATA_DIR" ]; then
     log "${DATA_DIR} is not writable by UID $(id -u) (owned by $(stat -c '%u:%g' "$DATA_DIR" 2>/dev/null || echo '?'))."
-    log "  Bind mount owned by another user? Either chown it to $(id -u):$(id -g), or use the"
-    log "  PUID/PGID override (docs/deploy/docker.md, 'Volume permissions'), or use the named volume."
-    die "data directory not writable"
+    not_writable
 fi
-mkdir -p "$DATA_DIR/results" "$DATA_DIR/tmp"
-for d in "$DATA_DIR/results" "$DATA_DIR/tmp"; do
-    [ -r "$d" ] && [ -w "$d" ] && [ -x "$d" ] \
-        || die "$d is not usable by UID $(id -u) (owned by $(stat -c '%u:%g' "$d" 2>/dev/null || echo '?'))"
-done
+mkdir -p "$DATA_DIR/results"
+[ -r "$DATA_DIR/results" ] && [ -w "$DATA_DIR/results" ] && [ -x "$DATA_DIR/results" ] \
+    || die "$DATA_DIR/results is not usable by UID $(id -u) (owned by $(stat -c '%u:%g' "$DATA_DIR/results" 2>/dev/null || echo '?'))"
 
 # ---- 3. pre-upgrade backup --------------------------------------------------
 state_files() {
@@ -130,11 +182,15 @@ if [ ! -f "$CFG" ] && [ -f "$SEED_TEMPLATE" ]; then
         -e "s|http://host.docker.internal:1234/v1|${url_sed}|g" \
         "$SEED_TEMPLATE" > "$CFG.seed.$$"
     mv "$CFG.seed.$$" "$CFG"
+    chmod 0600 "$CFG"
     log "seeded $CFG from ${SEED_TEMPLATE} (local provider -> ${LLM_BASE_URL})"
 fi
 
 # ---- 5/6. command + GUI token -------------------------------------------------
-if [ "$#" -eq 0 ] || [ "${1#-}" != "$1" ] || ! command -v "$1" >/dev/null 2>&1; then
+if [ "${1:-}" = "test" ]; then
+    shift
+    set -- python -m crucibleforge.quicktest "$@"
+elif [ "$#" -eq 0 ] || [ "${1#-}" != "$1" ] || ! command -v "$1" >/dev/null 2>&1; then
     set -- crucibleforge "$@"
 fi
 # (CRUCIBLEFORGE_GUI_TOKEN is read by the GUI itself; it is NOT appended to argv,

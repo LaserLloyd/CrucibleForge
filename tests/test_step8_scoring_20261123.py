@@ -272,7 +272,8 @@ def test_nsfw_plus_column_sits_beside_overall():
     assert "adult_nsfw_plus" not in [c["key"] for c in main0]               # the 4.1 page is unchanged
     src = inspect.getsource(R.render_scorecard) if hasattr(R, "render_scorecard") else \
         (ROOT / "crucibleforge" / "report.py").read_text(encoding="utf-8")
-    assert '(["NSFW+ /20"] if np_col else [])' in src
+    # R37/R38 (2026-11-26): the head carries the maximum with packs from the data, never a fixed /20
+    assert '([head45("NSFW+", "nsfw_plus", stats, 20)] if np_col else [])' in src
 
 
 def test_nsfw_plus_total_cell_prints_its_range_and_source():

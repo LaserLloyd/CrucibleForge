@@ -198,6 +198,24 @@ def report_points(model: dict) -> dict:
     pk = ((model or {}).get("nsfw_plus") or {}).get("packs45") or {}
     if out.get("nsfw_plus") is not None and pk.get("board") is not None:
         out["nsfw_packs"] = _pt(pk.get("points")) or 0.0
+    # owner 2026-11-25 (R37/R38, totals45): each run's TOTALS (standard + that group's bonus packs), so the range of a
+    # total is the run-to-run spread of the totals themselves, never a sum of separate ranges
+    for sec in ("code", "chat"):
+        if out.get(sec) is not None:
+            out[f"{sec}_total"] = out[sec] + (out.get(f"{sec}_packs") or 0.0)
+    if out.get("code_total") is not None and out.get("chat_total") is not None:
+        out["overall_total"] = out["code_total"] + out["chat_total"]
+    if pk.get("board") is not None:
+        from . import nsfwpack45 as _npk
+        half_pk = {"nsfw": 0.0, "uncensored": 0.0}
+        for pid, b in (pk.get("board") or {}).items():
+            h = str((_npk.GATE_OF.get(pid) or ("nsfw",))[0])
+            half_pk["uncensored" if h.startswith("unc") else "nsfw"] += float((b or {}).get("points") or 0.0)
+        for half in ("nsfw", "uncensored"):
+            if out.get(half) is not None:
+                out[f"{half}_total"] = out[half] + half_pk[half]
+        if out.get("nsfw_total") is not None and out.get("uncensored_total") is not None:
+            out["nsfw_plus_total"] = out["nsfw_total"] + out["uncensored_total"]
     return {k: v for k, v in out.items() if v is not None}
 
 

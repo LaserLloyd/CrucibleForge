@@ -70,20 +70,22 @@ CAP_MODEL_ENV = "CF_SPEND_CAP_MODEL"
 #: the global cap over EVERYTHING booked outside this ledger too (A8, 2026-11-12):
 #: baseline + this ledger + helper journal + rerun journals (see :func:`status`)
 GLOBAL_CAP_ENV = "CF_SPEND_GLOBAL_CAP_USD"
-BASELINE_ENV = "CF_SPEND_BASELINE_USD"         # the earlier global ledger (11-09: 231.07)
+BASELINE_ENV = "CF_SPEND_BASELINE_USD"         # spend booked before this ledger existed (an operator's own figure)
 HELPER_JOURNAL_ENV = "CF_SPEND_HELPER_JOURNAL"  # the helper's llmcall journal
 RERUN_DIR_ENV = "CF_SPEND_RERUN_DIR"           # durable copies of the Claude rerun journals
-#: where the 4.5 build keeps them (llmcall's JOURNAL = tools/spend.jsonl); used under
-#: bench45 when the env var is unset, and a no-op wherever the path does not exist
-_MASTER_PLAN = Path("~/Documents/Research/master-plan-20261111")
-DEFAULT_HELPER_JOURNAL = _MASTER_PLAN / "tools" / "spend.jsonl"
-DEFAULT_RERUN_DIR = _MASTER_PLAN / "build" / "spend-journals"
+#: no default helper journal or rerun directory: an operator who keeps them names them in the two env vars above
+#: (a shipped default pointed into one maintainer's home; Docker user path 2026-11-25)
+DEFAULT_HELPER_JOURNAL: Path | None = None
+DEFAULT_RERUN_DIR: Path | None = None
 #: THE bench45 ledger: a fixed path, so every process and every model books to one file
 BENCH45_LEDGER = Path("~/.local/share/crucibleforge/bench45-spend-ledger.jsonl")
 BENCH45_PROFILE = "bench45"
-DEFAULT_GLOBAL_CAP_USD = 330.0                  # the owner 2026-11-12 (was 260)
-#: the earlier global ledger (11-09), the baseline under bench45 unless $CF_SPEND_BASELINE_USD
-DEFAULT_BASELINE_USD = 231.07
+#: what ships: no lifetime global ceiling and a zero baseline. A ceiling or an earlier spend figure belongs to one
+#: account, so it comes only from the operator's environment ($CF_SPEND_GLOBAL_CAP_USD, $CF_SPEND_BASELINE_USD);
+#: the profile's old ``spend.global_cap_usd`` key (one account's figure, frozen in profiles/bench45.yaml) is no longer
+#: read (Docker user path 2026-11-25). Per-run and per-model caps (--spend-cap-usd, $CF_SPEND_CAP_USD) are unchanged.
+DEFAULT_GLOBAL_CAP_USD: float | None = None
+DEFAULT_BASELINE_USD = 0.0
 #: provider types that run on hardware we own (no bill)
 LOCAL_TYPES = {"studioforge", "lmstudio", "llamacpp", "llama.cpp", "ollama", "vllm", "local"}
 
@@ -367,10 +369,6 @@ def cap_model() -> str | None:
     return os.environ.get(CAP_MODEL_ENV, "").strip() or None
 
 
-try:                                    # POSIX only; Windows runs without the lock
-    import fcntl as _fcntl
-except ImportError:                     # pragma: no cover
-    _fcntl = None
 
 #: what one call is assumed to cost when nothing better is known (a request
 #: with no price block or size to estimate from): conservative, never 0
@@ -413,7 +411,7 @@ def _pid_alive(pid) -> bool:
 
 
 class _Ledger:
-    """The shared ledger opened under an exclusive ``fcntl`` lock: every
+    """The shared ledger opened under an exclusive file lock (filelock.py, POSIX and Windows): every
     process's admission check (spent + live reservations) and its own
     reservation line happen as ONE step, so two processes cannot both pass the
     same stale total."""
@@ -424,15 +422,15 @@ class _Ledger:
     def __enter__(self):
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self.f = self.path.open("a+", encoding="utf-8")
-        if _fcntl is not None:
-            _fcntl.flock(self.f, _fcntl.LOCK_EX)
+        from .filelock import lock
+        lock(self.f)
         return self
 
     def __exit__(self, *exc):
         try:
             self.f.flush()
-            if _fcntl is not None:
-                _fcntl.flock(self.f, _fcntl.LOCK_UN)
+            from .filelock import unlock
+            unlock(self.f)
         finally:
             self.f.close()
 
@@ -498,6 +496,14 @@ def is_hosted(provider_type: str | None) -> bool:
     return str(provider_type or "openai").lower() not in LOCAL_TYPES
 
 
+def effective_type(provider_type: str | None, base_url: str | None = None, hosted: bool | None = None) -> str | None:
+    """The provider type the hosted-vs-local decisions read: ``provider_type`` for a hosted API, ``"local"`` for an
+    OpenAI-shaped server on this machine or the local network (:func:`is_hosted_at`). ``hosted`` = the provider
+    entry's own ``hosted:`` word, which wins (a paid API behind a private address)."""
+    h = bool(hosted) if hosted is not None else is_hosted_at(provider_type, base_url)
+    return provider_type if h else ("local" if is_hosted(provider_type) else provider_type)
+
+
 def local_host(base_url: str | None) -> bool:
     """A server on this machine or the local network: loopback, a private address (10/8, 172.16/12, 192.168/16,
     IPv6 ULA / link-local), the carrier-grade range 100.64/10 (a tailnet), a ``.local`` / ``.lan`` / ``.internal``
@@ -550,9 +556,8 @@ def _bench45_active() -> bool:
 
 
 def global_cap() -> float | None:
-    """The global cap: ``$CF_SPEND_GLOBAL_CAP_USD`` (an override only), else, while
-    bench45 is active, the profile's ``spend.global_cap_usd`` (A6's file; absent
-    = DEFAULT_GLOBAL_CAP_USD, 330). None outside bench45 (4.1 unchanged)."""
+    """The global cap: ``$CF_SPEND_GLOBAL_CAP_USD`` when the operator set one, else None (no lifetime ceiling ships;
+    the profile's ``spend.global_cap_usd`` is one account's figure and is not read)."""
     raw = os.environ.get(GLOBAL_CAP_ENV, "").strip()
     if raw:
         try:
@@ -560,14 +565,7 @@ def global_cap() -> float | None:
         except ValueError:
             log.error("%s=%r is not a number - every hosted call is refused", GLOBAL_CAP_ENV, raw)
             return 0.0
-    if not _bench45_active():
-        return None
-    try:
-        from .profiles import load_profile
-        v = (load_profile(BENCH45_PROFILE).get("spend") or {}).get("global_cap_usd")
-        return max(0.0, float(v)) if v is not None else DEFAULT_GLOBAL_CAP_USD
-    except Exception:  # noqa: BLE001 - unreadable profile: the default, never "no cap"
-        return DEFAULT_GLOBAL_CAP_USD
+    return DEFAULT_GLOBAL_CAP_USD
 
 
 def explicit_cap_set(model_id: str) -> bool:
@@ -662,7 +660,7 @@ def guard(provider_type: str | None, model_id: str, own: float = 0.0) -> None:
 
 def reserve(provider_type: str | None, model_id: str, estimate: float = 0.0) -> Reservation:
     """Guard AND reserve in one atomic step (a process lock, plus the ledger's
-    fcntl lock when a shared ledger is named, so concurrent workers and
+    file lock (filelock.py) when a shared ledger is named, so concurrent workers and
     processes cannot all pass the same stale total). The reservation is the
     larger of ``estimate`` (see :func:`estimate_call_cost`) and the dearest
     call seen so far, never less than FALLBACK_ESTIMATE_USD: the first call of
@@ -842,7 +840,7 @@ COUNT_PLAN_ENV = "CF_SPEND_COUNT_PLAN"          # 1 = count plan models in the t
 
 def _num(env: str) -> float:
     raw = os.environ.get(env, "").strip()
-    if not raw and env == BASELINE_ENV and _bench45_active():
+    if not raw and env == BASELINE_ENV:
         return DEFAULT_BASELINE_USD
     try:
         return float(raw or 0.0)
@@ -900,8 +898,10 @@ def _rerun_files(rerun_dir: Path | str | None) -> list[Path]:
 
 
 def _default(path: Path, exists) -> str | None:
-    """``path`` while bench45 is active and it exists, else None (a public checkout)."""
-    p = path.expanduser()
+    """``path`` while bench45 is active and it exists, else None (no default ships: None)."""
+    if path is None:
+        return None
+    p = Path(path).expanduser()
     return str(p) if _bench45_active() and exists(p) else None
 
 
@@ -920,8 +920,7 @@ def status(*, ledger: Path | str | None = None, helper: Path | str | None = None
     rerun_dir = rerun_dir if rerun_dir is not None else (os.environ.get(RERUN_DIR_ENV) or _default(
         DEFAULT_RERUN_DIR, Path.is_dir))
     base = _num(BASELINE_ENV) if baseline is None else float(baseline)
-    gcap = (global_cap() if global_cap() is not None else DEFAULT_GLOBAL_CAP_USD) \
-        if cap_usd is None else float(cap_usd)
+    gcap = global_cap() if cap_usd is None else float(cap_usd)
     if count_plan is None:
         count_plan = os.environ.get(COUNT_PLAN_ENV, "").strip() in ("1", "true", "yes")
     parts = {"baseline": {"total": base, "plan": 0.0, "metered": base, "path": None},
@@ -935,7 +934,8 @@ def status(*, ledger: Path | str | None = None, helper: Path | str | None = None
     plan_total = sum(v["plan"] for v in parts.values())
     return {"parts": parts, "cap_usd": gcap, "count_plan": bool(count_plan), "total_usd": round(total, 4),
             "plan_usd_not_counted": 0.0 if count_plan else round(plan_total, 4),
-            "headroom_usd": round(gcap - total, 4), "over": total >= gcap}
+            "headroom_usd": None if gcap is None else round(gcap - total, 4),
+            "over": gcap is not None and total >= gcap}
 
 
 def outside_total_usd() -> float:
@@ -946,11 +946,14 @@ def outside_total_usd() -> float:
 
 
 def render_status(st: dict) -> str:
-    L = [f"spend: global cap ${st['cap_usd']:.2f}  ({'plan models counted' if st['count_plan'] else 'plan models (Grok/MiniMax) not counted'})"]
+    cap_t = ("no global cap set ($CF_SPEND_GLOBAL_CAP_USD)" if st["cap_usd"] is None
+             else f"global cap ${st['cap_usd']:.2f}")
+    L = [f"spend: {cap_t}  ({'plan models counted' if st['count_plan'] else 'plan models (Grok/MiniMax) not counted'})"]
     for name, v in st["parts"].items():
         shown = v["total"] if st["count_plan"] else v["metered"]
         extra = f"  (+${v['plan']:.2f} plan, not counted)" if v["plan"] and not st["count_plan"] else ""
         L.append(f"  {name:34} ${shown:9.2f}{extra}")
     L.append(f"  {'TOTAL':34} ${st['total_usd']:9.2f}")
-    L.append(f"  {'HEADROOM':34} ${st['headroom_usd']:9.2f}" + ("   OVER THE CAP" if st["over"] else ""))
+    if st["headroom_usd"] is not None:
+        L.append(f"  {'HEADROOM':34} ${st['headroom_usd']:9.2f}" + ("   OVER THE CAP" if st["over"] else ""))
     return "\n".join(L)

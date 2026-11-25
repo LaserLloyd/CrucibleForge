@@ -85,7 +85,7 @@ def test_provider_chat_refuses_without_sending(capenv, monkeypatch):
     monkeypatch.setattr(api, "stream_chat_retried",
                         lambda *a, **k: sent.append(1) or _res(1, 1))
     # 4.5 (merge r2): only a PRICED model is capped; an unpriced one is never refused
-    p = providers.Provider(name="x", type="openai", base_url="http://127.0.0.1:9/v1",
+    p = providers.Provider(name="x", type="openai", base_url="http://127.0.0.1:9/v1", hosted_override=True,
                            prices={"m": {"input": 1.0, "output": 1.0}})
     with pytest.raises(spend.SpendCapExceeded):
         p.chat("m", [{"role": "user", "content": "hi"}])
@@ -203,7 +203,7 @@ def test_inline_cases_inherit_the_set_v2_flag(tmp_path):
 def test_billed_error_is_charged_and_retry_is_guarded(capenv, monkeypatch):
     from crucibleforge import api
     capenv.setenv(spend.CAP_ENV, "1.3")
-    p = providers.Provider(name="x", type="openai", base_url="http://127.0.0.1:9/v1",
+    p = providers.Provider(name="x", type="openai", base_url="http://127.0.0.1:9/v1", hosted_override=True,
                            prices={"m": {"input": 1.0, "output": 1.0}})
     spend._max_call[0] = 0.6                  # a call costs about 0.6 USD here
     calls = []
@@ -231,7 +231,7 @@ def test_retry_rechecks_the_cap_before_resending(capenv, monkeypatch):
     from crucibleforge import api
     capenv.setenv(spend.CAP_ENV, "1")
     spend._max_call[0] = 0.6
-    p = providers.Provider(name="x", type="openai", base_url="http://127.0.0.1:9/v1",
+    p = providers.Provider(name="x", type="openai", base_url="http://127.0.0.1:9/v1", hosted_override=True,
                            prices={"m": {"input": 1.0, "output": 1.0}})
     sent = []
 

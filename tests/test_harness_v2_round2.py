@@ -240,7 +240,7 @@ def capenv(monkeypatch, tmp_path):
 
 
 def _provider():
-    return providers.Provider(name="x", type="openai", base_url="http://127.0.0.1:9/v1",
+    return providers.Provider(name="x", type="openai", base_url="http://127.0.0.1:9/v1", hosted_override=True,
                               prices={"m": {"input": 10.0, "output": 100.0}})
 
 

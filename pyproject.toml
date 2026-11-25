@@ -27,6 +27,7 @@ dependencies = [
 
 [project.scripts]
 crucibleforge = "crucibleforge.cli:main"
+crucibleforge-test = "crucibleforge.quicktest:main"
 
 [dependency-groups]
 dev = [
@@ -79,6 +80,7 @@ ignore = ["E741"]
 # so reformatting one of them would mark every stored row stale. They are cleaned in 4.5.1 together with a re-stamp.
 # The list was generated from `ruff check .` at the 4.5.0 release; remove a line when its file is fixed.
 [tool.ruff.lint.per-file-ignores]
+"deploy/e2e/fake_openai.py" = ["E401", "E701", "E702"]   # a compact test fake
 "crucibleforge/cli.py" = ["F401", "F541"]
 "crucibleforge/explicit_gate_g1b.py" = ["E702"]
 "crucibleforge/explicit_gate_g1c.py" = ["E702", "E731", "F811"]

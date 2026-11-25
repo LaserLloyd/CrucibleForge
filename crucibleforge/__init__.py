@@ -3,13 +3,14 @@
 import sys as _sys
 
 if _sys.platform == "win32":
-    # `resource` and `fcntl` exist only on POSIX. The modules that use them (CPU and memory limits around graded
-    # code, a file lock) import them at the top and are byte-frozen by the row stamps, so they cannot be edited to
-    # import lazily. Empty stand-ins let the package import on Windows; the code paths that call into them are the
-    # sandboxed graders, which Windows runs in Docker or with --allow-unsandboxed (README, Install).
+    # `resource` exists only on POSIX. The grading modules that use it (CPU and memory limits around graded code)
+    # import it at the top and are byte-frozen by the row stamps, so they cannot be edited to import lazily. An empty
+    # stand-in lets the package import on Windows; the code paths that call into it are the sandboxed graders, which
+    # Windows runs in Docker or with --allow-unsandboxed (README, Install). There is no `fcntl` stand-in: every file
+    # lock goes through filelock.py (msvcrt on Windows), and an empty fcntl would only make a lock look taken.
     import types as _types
 
-    for _name in ("resource", "fcntl"):
+    for _name in ("resource",):
         _sys.modules.setdefault(_name, _types.ModuleType(_name))
 
 from .version import SUITE_VERSION

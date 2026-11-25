@@ -1219,12 +1219,14 @@ class Provider:
             else:
                 body_extra.setdefault(field_name, key)
         price = self.prices.get(model_id)
-        if spend.is_hosted(self.type):
+        # the spend gate's type: "local" for an OpenAI-shaped server on a local address (is_hosted), never billed
+        stype = self.type if self.is_hosted else "local"
+        if spend.is_hosted(stype):
             spend.note_judge_call()
         if not price:
             # the hosted judge needs no price (owner 2026-11-24: the judge is not part of the model's cost; the run
             # summary then says "judge cost not priced"); the global ceiling still gates a priced judge
-            if (spend.is_hosted(self.type) and not ALLOW_UNPRICED and not spend.is_judge()
+            if (spend.is_hosted(stype) and not ALLOW_UNPRICED and not spend.is_judge()
                     and spend.explicit_cap_set(model_id)):
                 # fail closed: an unpriced hosted call cannot be bounded by a cap somebody set.
                 # bench45's standing default cap alone does not arm this (fix round 2026-11-18,
@@ -1245,15 +1247,15 @@ class Provider:
         # never sent (SpendCapExceeded is a WindowClosed: no row, job pending)
         spend.check(model_id, self.name)
         est = spend.estimate_call_cost(price, messages, kw.get("max_tokens"))
-        token = spend.reserve(self.type, model_id, est)
+        token = spend.reserve(stype, model_id, est)
         try:
             result = stream_chat_retried(
                 self.base_url, self.api_key, model_id, messages,
                 headers=headers, verify_model=self.verify_model, extra_body=body_extra,
-                pre_send=lambda: spend.guard(self.type, model_id, own=token),
-                on_billed_error=lambda e: spend.record_error(self.type, model_id, price, e, token),
+                pre_send=lambda: spend.guard(stype, model_id, own=token),
+                on_billed_error=lambda e: spend.record_error(stype, model_id, price, e, token),
                 **kw)
-            spend.record(self.type, model_id, price, result, estimate=est)
+            spend.record(stype, model_id, price, result, estimate=est)
             return result
         finally:
             spend.release(token)

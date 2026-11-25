@@ -172,7 +172,8 @@ def test_sanity_still_trips_on_truly_empty_replies():
 
 def test_unpriced_hosted_is_listed(monkeypatch):
     class P:
-        def __init__(self, t): self.type = t
+        def __init__(self, t):
+            self.type, self.is_hosted = t, t != "studioforge"
     monkeypatch.setattr("crucibleforge.providers.provider_for",
                         lambda cfg, e: P("openai" if e["name"].startswith("h") else "studioforge"))
     es = [{"name": "h1"}, {"name": "h2", "price": {"input": 0, "output": 0}},

@@ -83,7 +83,7 @@ def _fresh(monkeypatch):
 
 
 def _prov(m, price=PRICE, **extra):
-    cfg = {"providers": {"mock": {"type": "openai", "base_url": m.url, "api_key_env": "MOCK_KEY",
+    cfg = {"providers": {"mock": {"type": "openai", "base_url": m.url, "api_key_env": "MOCK_KEY", "hosted": True,
                                   **extra}},
            "models": [{"name": MODEL, "provider": "mock", "model_id": MODEL, "price": price}]}
     return get_provider(cfg, "mock")
@@ -288,7 +288,7 @@ def test_unpriced_openai_shape_provider_is_never_capped(mock, monkeypatch):
     monkeypatch.setattr(_providers, "ALLOW_UNPRICED", True)
     monkeypatch.setenv("CF_SPEND_CAP_USD", "0")
     m = mock()
-    cfg = {"providers": {"mock": {"type": "openai", "base_url": m.url, "api_key_env": "MOCK_KEY"}},
+    cfg = {"providers": {"mock": {"type": "openai", "base_url": m.url, "api_key_env": "MOCK_KEY", "hosted": True}},
            "models": [{"name": MODEL, "provider": "mock", "model_id": MODEL}]}
     get_provider(cfg, "mock").chat(MODEL, MSGS, max_tokens=8)
     assert len(m.requests) == 1

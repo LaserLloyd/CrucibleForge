@@ -40,16 +40,19 @@ def _stats(pack_work=0.8, pack_chat=0.4, share=0.5):
     return {"m1": m}
 
 
-def test_s11_overall_is_code_plus_chat_standard_and_packs_apart(tmp_path, monkeypatch):
+def test_s11_overall_is_code_total_plus_chat_total(tmp_path, monkeypatch):
+    # owner 2026-11-25 (R37/R38): pack points add on top; Overall = Code total + Chat total, ranked on it
     write_passing_marks(tmp_path)
     monkeypatch.setattr(report, "results_dir", lambda: tmp_path)
     st = _stats()
     report._apply_segments45(["m1"], st, PROF, None)
     tb, hl = st["m1"]["segments45"], st["m1"]["headline"]
     assert tb["overall"]["points"] == pytest.approx(tb["code"]["points"] + tb["chat"]["points"])
-    assert hl["S"]["overall"] == round(tb["overall"]["points"], 1) and hl["sort"] == tb["overall"]["points"]
     assert tb["overall"]["pack_points"] == pytest.approx(1.2) and tb["code"]["pack_points"] == pytest.approx(0.8)
-    # the cell text of the two sections is the standard points: cells add up to Overall
+    assert tb["overall"]["total"] == pytest.approx(tb["overall"]["points"] + 1.2)
+    assert hl["S"]["overall"] == round(tb["overall"]["total"], 1) and hl["sort"] == tb["overall"]["total"]
+    assert hl["T1"]["overall"] == tb["overall"]["points"]
+    # the cell text of the two sections is their total: cells add up to Overall
     cells = [float(report._s45cell(tb, k).split()[0]) for k in ("code", "chat")]
     assert abs(sum(cells) - hl["S"]["overall"]) <= 0.11
     assert st["m1"]["scorer_stamp"] == S.scorer_stamp()
