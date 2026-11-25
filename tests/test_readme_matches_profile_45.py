@@ -66,7 +66,9 @@ def test_profile_name_suite_and_default_command():
     text = README.read_text(encoding="utf-8")
     assert profiles.DEFAULT_PROFILE == "bench45"
     assert "`bench45`" in text
-    assert version.SUITE_VERSION in text and version.SUITE_VERSION.startswith("4.5")
+    # the README names the suite (4.5); a patch release (4.5.1) is the same test and needs no README change
+    minor = ".".join(version.SUITE_VERSION.split(".")[:2])
+    assert minor == "4.5" and minor in text
     assert "crucibleforge all --models <label> --judge <provider>:<judge-model-id>" in text
     # NSFW+ runs by default and the README names the opt-out
     assert "--no-nsfw-plus" in text
@@ -214,9 +216,11 @@ def _budget_rows(path: Path):
 def _real_budgets():
     """{part label: set of token figures} from the profile and the case files: a chain part's rung ceiling (x its items
     per prompt) and history room, a bank case's ``bank_budget``, a case's own ``budget``, else the regime's (4 x the
-    case's max_tokens, between the floor and the cap)."""
-    from crucibleforge import config
+    case's max_tokens, between the floor and the cap). 4.5.1: the profile's ``budgets_451`` block decides (chain
+    ceilings mapped by value, case budgets, the reasoning + answer formula), as the runner does."""
+    from crucibleforge import budgets451, config
     prof = dict(profiles.load_profile("bench45", {}))
+    b451 = budgets451.block(prof)
     prof["_public"] = True
     by_id = {}
     for cat in {"tooluse", "codebank", "rpdeep"}:
@@ -227,6 +231,7 @@ def _real_budgets():
         for r in spec.get("flat") or []:
             ceil = r.get("ceiling") or r.get("ceiling_per_turn")
             if ceil:
+                ceil = budgets451.ceiling(b451, ceil) if b451 else ceil
                 got.setdefault(key, set()).add(int(ceil) * int(r.get("items_per_prompt") or 1))
             if r.get("history_budget"):
                 got[key].add(int(r["history_budget"]))
@@ -242,7 +247,11 @@ def _real_budgets():
                 vals = set()
                 for cid in p["cases"]:
                     c = by_id[cid]
-                    fb = prof["bank_budget"] if c["category"] == "codebank" else c.get("budget")
+                    fb = prof["bank_budget"] if c["category"] == "codebank" else (
+                        budgets451.case_budget(b451, cid) or c.get("budget"))
+                    if not fb and b451:
+                        vals.add(int(budgets451.formula(b451, int(c["max_tokens"]))))
+                        continue
                     vals.add(int(fb) if fb else max(int(prof["thinking_max_tokens_floor"]), min(
                         int(prof["thinking_max_tokens_cap"]),
                         int(prof["thinking_max_tokens_factor"]) * int(c["max_tokens"]))))

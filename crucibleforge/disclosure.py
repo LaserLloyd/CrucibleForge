@@ -64,13 +64,32 @@ def _thinking(row: dict, settled) -> bool | str:
 
 
 def _cut(row: dict) -> bool:
-    if str(row.get("finish_reason") or "") in CUT_REASONS:
+    """Cut = the provider said it stopped at the limit (finish ``length``). 4.5.1 (PLAN-451-LIMITS step 2, ruling 3):
+    a reply that finished (``stop``) after more tokens than were sent is not cut; it thought past the budget and the
+    row records ``over_budget`` (:func:`over_budget`). A row with no finish reason at all keeps the old token test."""
+    fr = str(row.get("finish_reason") or "")
+    if fr in CUT_REASONS:
         return True
+    if fr:
+        return False
     m = row.get("metrics") or {}
     sent = row.get("max_tokens_sent")
     comp = m.get("completion_tokens")
     single = int(m.get("n_turns") or 1) <= 1
     return bool(single and sent and comp is not None and int(comp) >= int(sent))
+
+
+def over_budget(row: dict) -> int | None:
+    """Reasoning tokens the server reported beyond the budget sent (``reasoning_tokens - max_tokens_sent``, > 0), or
+    None. Some hosted routes do not enforce ``max_tokens`` on the reasoning channel: recorded, never cut."""
+    m = row.get("metrics") or {}
+    rt = m.get("reasoning_tokens") if m.get("reasoning_tokens_source") == "server" else None
+    sent = row.get("max_tokens_sent")
+    try:
+        d = int(rt) - int(sent) if rt is not None and sent else 0
+    except (TypeError, ValueError):
+        return None
+    return d if d > 0 else None
 
 
 def row_fields(row: dict, *, settled_thinking=None, extra_body: dict | None = None,

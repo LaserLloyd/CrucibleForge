@@ -8,8 +8,9 @@ GPU etiquette on a shared server.
 * **Thinking models, as deployed** — graders and the judge read the
   *content* channel, never the reasoning. Each model runs with its maker's
   recommended sampler and default thinking; every model gets the same output
-  budget per row (case `max_tokens` × 4, floor 16,384, cap 24,576; the function cases and the code-bank
-  rows carry their own 65,536 budget). There is no
+  budget per row (4.5.1: a reasoning allowance of 10 × `max_tokens` between 32,768 and 57,344, plus
+  `max_tokens` for the answer; the function cases and the code-bank rows carry their own 65,536 budget,
+  CQ1-CQ3 131,072; see SCORING.md "4.5.1 budgets and tolerances"). There is no
   thinking-off retry: an answer that never arrives scores as missing, and a
   row that ran out of budget counts as failed (the `--escalate` retry only
   feeds Room).

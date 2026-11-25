@@ -1,11 +1,51 @@
-# Judge configuration (4.5 additions)
+# The judge
 
-Everything here is optional. Without these keys the judge behaves exactly as in 4.1.
+## Choosing the judge
 
-## Registry `judge:` block (a hosted model as the judge)
+Any model can be the judge, local or hosted: `--judge <provider>:<model-id>`, a registry label, or a name under
+`judge:` in `models.yaml`. The model under test and the judge are chosen independently
+([CONFIG.md](CONFIG.md#mixing-a-local-or-hosted-model-with-a-local-or-hosted-judge)); for example a laptop runs a
+local 8B model and OpenRouter judges it. The scores published on MakoBench are judged by the same model run locally
+at 8-bit (Q8): the plain Qwen 3.8 27B.
+
+**Quick setup: the judge through OpenRouter.** Set `OPENROUTER_API_KEY`. `models.yaml` from `config --init` already
+carries Qwen 3.8 27B through OpenRouter as a judge candidate with its price (`qwen27-judge-openrouter`):
+
+```bash
+uv run crucibleforge all --models <label> --judge openrouter:qwen/qwen3.8-27b
+```
+
+A hosted judge is billed by its provider (this one lists at about $0.04 in and $1.50 out per million tokens; check
+its page). It is not part of the model's Run cost and is not limited by the run's spend cap; its spend is printed
+on its own line ("judge cost not priced" when its entry has no price). A hosted judge receives every reply it judges, NSFW+ included; pass `--no-nsfw-plus` to leave NSFW+ out.
+
+**Your own GPU: a local judge.** Load the model (Qwen 3.8 27B at 8-bit is about 29 GB of weights plus a 16,384-token
+context) in LM Studio or on a StudioForge server and point the run at it:
+
+```yaml
+providers:
+  lmstudio:
+    type: lmstudio                 # LM Studio; llama-server: type: openai, http://127.0.0.1:8080/v1 (a local address is a local judge)
+    base_url: http://localhost:1234/v1
+```
+
+```bash
+uv run crucibleforge all --models <label> --judge lmstudio:<model key>
+```
+
+**Your board and publishing it.** Rows judged by another judge are scored and ranked on your own board, marked ⚖
+beside Overall with "judged by <id> (<provider>); MakoBench's published scores use the local Qwen 3.8 27B Q8 judge";
+a board that mixes judges says so in one line above the table. `report --public` refuses such rows unless you pass
+`--allow-other-judge`. Re-judging a model with another judge makes the board read only the latest judge for that
+model.
+
+**No judge.** `--no-judge` scores everything code checks; the judged parts read `pending`, Overall stays blank, and
+`crucibleforge judge --models <label>` fills them later.
+
+## Registry `judge:` block
 
 A `models.yaml` entry may carry a `judge:` block. Its keys override the entry for
-its use as a judge only:
+its use as a judge only, for example thinking on and the sampler a hosted judge requires:
 
 ```yaml
 - name: grok-4.7

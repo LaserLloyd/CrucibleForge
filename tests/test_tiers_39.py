@@ -559,7 +559,7 @@ def test_plan_prints_rows_repeats_budgets_and_tiers_without_a_model(capsys, monk
 # ---------------------------------------------------------------- version
 
 def test_suite_390_and_per_case_bank_stamps():
-    assert version.SUITE_VERSION == "4.5.0"  # 4.5 release (ship plan C8)
+    assert version.SUITE_VERSION == "4.5.1"  # 4.5 release (ship plan C8)
     h = version.bank_case_hash("codebank", "CB-D4-watch-sessions")
     row = {"category": "codebank", "case_id": "CB-D4-watch-sessions", "bank_revision": h,
            "bench_revision": version.revision()}

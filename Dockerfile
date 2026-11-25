@@ -50,6 +50,10 @@ COPY README.md LICENSE models.example.yaml ./
 COPY crucibleforge/ ./crucibleforge/
 COPY cases/ ./cases/
 COPY profiles/ ./profiles/
+# calibration/ holds the run-noise estimates behind every score's range and the 4.5 marks and classing files;
+# archive/ is the frozen 4.1 test (`--profile bench`) whose cases the judge's element index also reads.
+COPY calibration/ ./calibration/
+COPY archive/ ./archive/
 # the short Docker starter registry (compose.yaml seeds /data/models.yaml from it)
 COPY deploy/models.docker.yaml ./deploy/models.docker.yaml
 RUN --mount=type=cache,target=/root/.cache/uv \

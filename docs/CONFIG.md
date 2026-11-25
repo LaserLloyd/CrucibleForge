@@ -6,11 +6,63 @@ Everything CrucibleForge needs to know lives in one file, `models.yaml`: **provi
 **models** (which model on it) and a **judge**. Keys never go in it; a provider names an environment variable
 with `api_key_env`. Create the file with `uv run crucibleforge config --init`.
 
-## Backends and APIs
+## Providers
 
-CrucibleForge is a client. Everything it needs is in `models.yaml`: a **provider** (where a server is), a
-**model** (which model on it) and a **judge**. Run `uv run crucibleforge config --init` to get a file with all
-of the examples below already in it.
+CrucibleForge is a client: it needs no particular server. A provider's `type:` in `models.yaml` selects how it is
+talked to. StudioForge is one optional local backend, not a requirement.
+
+| Provider kind | Examples | What you need | `type:` |
+| --- | --- | --- | --- |
+| Any OpenAI-compatible local server | llama-server, Ollama, vLLM, LM Studio, Open WebUI | its `base_url`; no key unless the server asks for one | `openai` |
+| Hosted OpenAI-compatible API | OpenRouter, DeepSeek, OpenAI, xAI, MiniMax, Anthropic's compatible endpoint | `base_url`, `api_key_env` naming the key's environment variable, a `price` on each model | `openai` |
+| LM Studio with load management | LM Studio and its `lms` CLI | LM Studio installed on the same machine | `lmstudio` |
+| Anthropic Messages API | Claude, with prompt caching | `ANTHROPIC_API_KEY` (or your variable) and a `price` | `anthropic` |
+| StudioForge (optional) | a llama.cpp multi-GPU server | its gateway URL; adds GPU scheduling, leases and parallel slots | `studioforge` |
+| Claude Code subscription | the local `claude` CLI | a logged-in `claude`; rows are marked as not comparable with API rows | `claude_code` |
+
+### Mixing a local or hosted model with a local or hosted judge
+
+The model under test (`--models`) and the judge (`--judge <provider>:<model-id>`) are chosen independently, and the
+judge may be any model. The scores published on MakoBench are judged by Qwen 3.8 27B run locally at 8-bit (Q8).
+
+| Model under test | Judge | Who it suits |
+| --- | --- | --- |
+| hosted | hosted (OpenRouter) | no GPU at all: the quick setup in the README |
+| local | hosted (OpenRouter) | a laptop running a local 8B model, judged through OpenRouter |
+| hosted | local | a GPU server for the judge, an API for the model |
+| local | local | your own GPUs |
+
+**A local model under test.** One provider block and one command (LM Studio shown; for llama-server use
+`type: openai` and `http://127.0.0.1:8080/v1`, for Ollama `type: openai` and `http://localhost:11434/v1`):
+
+```yaml
+providers:
+  lmstudio:
+    type: lmstudio                 # or type: openai for any other local server
+    base_url: http://localhost:1234/v1
+```
+
+```bash
+uv run crucibleforge models add my-8b lmstudio <model key> --context-length 32768
+uv run crucibleforge all --models my-8b --judge openrouter:qwen/qwen3.8-27b --plan
+```
+
+**A local judge.** Load the judge model on a local provider like the one above and pass
+`--judge lmstudio:<model key>` (or `--judge llamacpp:<model id>` for llama-server: a `type: openai` provider whose
+`base_url` is on this machine or the local network counts as local). Qwen 3.8 27B at 8-bit needs about 30 GB of GPU memory; a local judge costs nothing
+per call.
+
+**A hosted judge.** Any model on a hosted provider. `models.yaml` from `config --init` already carries Qwen 3.8 27B
+through OpenRouter as a judge candidate with its price:
+
+```bash
+export OPENROUTER_API_KEY=sk-or-...
+uv run crucibleforge all --models my-8b --judge openrouter:qwen/qwen3.8-27b
+```
+
+A hosted judge is billed by its provider, is not part of the model's Run cost and is not limited by the run's spend
+cap; its spend is printed on its own line ("judge cost not priced" when its entry has no price). A hosted judge receives every reply it judges, NSFW+
+included; pass `--no-nsfw-plus` to leave NSFW+ out. Full judge options: [JUDGE.md](JUDGE.md).
 
 ### Local server
 
@@ -88,7 +140,7 @@ models:
 **Run cost.** The report (`report.md`, `report.html`, `report.json`) shows what ONE run of the standard Code and
 Chat tests cost at the provider's price, per hosted model: the recorded per-request cost, or, for a row with none,
 its token counts times `price`. It leaves out the NSFW tests (kept in separate `cost_separate_usd` fields), bonus
-sets, retries and re-runs, the judge (it runs locally), and cache or off-peak discounts. A provider billed by a flat
+sets, retries and re-runs, the judge (billed apart when hosted), and cache or off-peak discounts. A provider billed by a flat
 plan instead of per token adds `basis: list` to the price block (`price: {input: 0.15, output: 0.60, basis: list}`);
 its figure shows as `~$0.42`, an estimate at list price. `$0.66*` means some requests returned no usage data, so the
 figure is partial. Local models show `—`. A hosted model without a `price` is refused at run start unless you pass
@@ -100,6 +152,19 @@ This is computed from the transcripts on every report, so future runs are marked
 generation whose first 3 replies were all blocked stops with `first 3 replies all blocked by the provider's content
 filter` (a provider refusing everything, such as a wrong key tier or region), not the empty-reply "misconfigured
 model" error; blocked replies are otherwise ignored by that empty-reply guard.
+
+**Provider keys for limits and placement.**
+- `max_output_tokens`: the provider's output maximum, one number or `{model_id: number}` (a model entry may set it
+  too). A budget above it is clamped and the row records `budget_clamp {route_max, wanted}`. Without it the engine
+  reads the provider's `/models` listing (OpenRouter's `top_provider.max_completion_tokens`), else the documented
+  maximum of the shipped examples (DeepSeek 393,216, MiniMax 524,288). A request the API refuses for its
+  `max_tokens` is retried once at the limit the error names, and that limit is kept for the run.
+- `judge_max_output_tokens`: the ceiling of a hosted judge's one length retry (default 32,768).
+- `hosted: true|false`: overrides the address rule. An `openai`-type provider on a loopback, private,
+  carrier-grade/tailnet, `.local` or single-label address counts as local (no judge cost line, no hosted wording);
+  set `hosted: true` for a paid API behind such an address (a LiteLLM or company gateway). The plan and the run
+  summary print "judge: <id> hosted|local (<provider>)" so a wrong guess shows.
+- A `~` in a provider name is refused: it is reserved for the judge's own entry.
 
 `models.example.yaml` also has entries for OpenAI, xAI, MiniMax and Open WebUI. Claude works directly: Anthropic's
 OpenAI-compatible endpoint is `type: openai` with `base_url: https://api.anthropic.com/v1`. A vendor with no

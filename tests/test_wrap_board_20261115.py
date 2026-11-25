@@ -59,9 +59,9 @@ def test_a_4_1_render_reads_word_for_word_what_it_read_before_the_flip(tmp_path)
 def test_the_suite_label_follows_the_rendered_profile():
     from crucibleforge.version import SUITE_VERSION, suite_version
     assert suite_version(profiles.ARCHIVE_PROFILE) == "4.1.0"
-    assert suite_version("bench45") == SUITE_VERSION == "4.5.0"
+    assert suite_version("bench45") == SUITE_VERSION == "4.5.1"
     assert report._current_revision({"_profile": "bench"}).startswith("4.1.0+")
-    assert report._current_revision({"_profile": "bench45"}).startswith("4.5.0+")
+    assert report._current_revision({"_profile": "bench45"}).startswith("4.5.1+")
 
 
 def test_a_part_whose_rows_all_wait_for_the_judge_is_pending_the_judge_not_not_run():

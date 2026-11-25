@@ -70,7 +70,9 @@ def test_the_fields_from_a_row():
     est = {**row, "finish_reason": "stop", "metrics": {**row["metrics"], "reasoning_tokens_source": "estimated",
                                                         "completion_tokens": 100}}
     f = disclosure.row_fields(est, settled_thinking=False)
-    assert f["reasoning_tokens"] is None and f["cut"] is True          # at the ceiling without saying length
+    # 4.5.1 (PLAN-451-LIMITS step 2, ruling 3): a reply that says it finished (stop) is not cut, even at the ceiling
+    assert f["reasoning_tokens"] is None and f["cut"] is False
+    assert disclosure.row_fields({**est, "finish_reason": None})["cut"] is True   # no finish reason: token test
     none = {"finish_reason": "stop", "max_tokens_sent": 100, "metrics": {"completion_tokens": 10}}
     assert disclosure.row_fields(none, settled_thinking=False) == {
         "thinking": False, "effort": "provider default", "reasoning_tokens": None, "finish_reason": "stop",

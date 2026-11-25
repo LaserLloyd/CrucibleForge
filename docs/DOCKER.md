@@ -9,6 +9,8 @@ API (DeepSeek, OpenRouter, OpenAI, Anthropic).
 Everything you keep (your `models.yaml`, the results and the GUI token) lives
 on one Docker volume, `crucibleforge-data`, mounted at `/data`.
 
+> The shortest path, one hosted model judged through OpenRouter in five commands: [FIRST-RUN-DOCKER.md](FIRST-RUN-DOCKER.md).
+
 > Want an always-on, hardened GUI service (healthcheck, resource limits,
 > PUID/PGID for bind mounts, backups and upgrades)? That is
 > [`deploy/compose/compose.yml`](deploy/docker.md). This page is the short path.
@@ -131,13 +133,17 @@ docker compose run --rm crucibleforge all --models local-model --judge local-jud
 
 * The judge must be a **different model** from the one under test (it never
   grades its own answers).
-* Before judging, the judge must pass a calibration canary that includes
-  scoring clearly explicit text. **Hosted judges usually fail it** (they refuse
-  or under-rate that text) and the judge phase stops with
-  `canary FAILED`. The reliable judge is a **local uncensored instruct
-  model** (an "abliterated" / "heretic" fine-tune of a 12B-32B model, on your
-  llama.cpp / LM Studio server; `local-judge` in the starter). It runs on your
-  server's GPU or CPU, never in this container.
+* Any judge works, local or hosted. The scores published on MakoBench are judged
+  by the plain Qwen 3.8 27B run locally at 8-bit (Q8). A local judge runs on your
+  server's GPU or CPU (`local-judge` in the starter), never in this container; a
+  hosted one needs only its key (`--judge openrouter:qwen/qwen3.8-27b`, the
+  shipped entry, as in [FIRST-RUN-DOCKER.md](FIRST-RUN-DOCKER.md)). A hosted judge
+  is billed by its provider, apart from the model's Run cost and spend cap.
+* Before judging, the judge must pass a canary of known answers, and before
+  NSFW+ an explicit-text check. A judge that refuses or under-rates explicit text
+  fails that check: NSFW+ is then not judged and the run summary says so in one
+  line. A hosted copy of the judge can differ from the local 8-bit one on NSFW+
+  (in a 2026-11-25 probe it needed thinking on to pass; the shipped entry has it on).
 * Without `--judge`, the bench profile asks for the maintainer's own rig judge,
   which you do not have: always pass `--judge`.
 

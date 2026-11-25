@@ -59,13 +59,15 @@ VERDICT_KEYS = frozenset(("score", "passed", "outcome", "elements", "cut_off", "
 ROW_GRADE_KEYS = ("grade", "grade_detail", "elements", "score", "format_errors", "applied", "env",
                   "tamper", "needs_judge", "rubric", "reference", "judge_key", "checks", "prose")
 #: the grading switches a regrade may name as its reason
-SWITCHES = ("ran_out", "empty_stop", "degenerate", "speaker_tag_lead", "element_weight", "answer_sheet")
+SWITCHES = ("ran_out", "empty_stop", "degenerate", "speaker_tag_lead", "element_weight", "answer_sheet",
+            # 4.5.1 (PLAN-451-LIMITS step 4c): the edit parser reads a bare >>>>>>> closer (edittol, a wrapper)
+            "bare_closer")
 #: switches whose change is in the shared chain grading (chains.py), not in a family's source: the
 #: chain revision does not move, so the tool regrades CURRENT attempts too and supersedes only
 #: those whose verdict changes (element_weight: a weight-0 check stays weight 0, 2026-11-14;
 #: answer_sheet: a full literal "N." knowledge sheet reads in order, graders.literal_n_numbered,
 #: 2026-11-15 -- a graders.py change, so no family revision moves)
-RECHECK_SWITCHES = ("element_weight", "answer_sheet")
+RECHECK_SWITCHES = ("element_weight", "answer_sheet", "bare_closer")
 #: instance-block keys that may differ only when the regrade's switch is that key
 SWITCH_BLOCK_KEYS = {"ran_out": "ran_out"}
 
@@ -367,7 +369,9 @@ def plan(rows: list[dict], specs: dict[str, dict], reason: str, switch: str | No
             continue
         new_rows = _regrade_rows(grp, case, rules)
         nb = new_rows[-1]["chain"]
-        if recheck and all(nb.get(k) == old.get(k) for k in VERDICT_KEYS):
+        if recheck and all(nb.get(k) == old.get(k) for k in VERDICT_KEYS) and all(
+                r.get("tolerated") == o.get("tolerated") and r.get("fixcheck") == o.get("fixcheck")
+                for r, o in zip(new_rows, grp)):
             rec["status"] = "current"          # the shared grading gives the stored verdict: nothing to write
             continue
         code_ids = [e.get("id") for e in nb.get("elements") or []]
@@ -753,6 +757,9 @@ def main(argv: list[str] | None = None) -> int:
         if comp and comp != "default":
             os.environ[profiles.COMPOSITION_ENV] = comp
             print(f"composition {comp} (from {meta.name})", file=sys.stderr)
+    if a.switch == "bare_closer":
+        from . import edittol
+        edittol.install()
     from .gen import _det
     cfg = config.load_config()
     prof = profiles.load_profile(pname, cfg)

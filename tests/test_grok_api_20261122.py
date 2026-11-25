@@ -284,8 +284,9 @@ def test_named_chains_run_in_a_board_pass_and_standard_units_by_first_reply(monk
 
     monkeypatch.setattr(cli, "_first_reply_rule", lambda prof: True)
     monkeypatch.setattr(cli, "_first_reply_jobs",
-                        lambda label, cfg, cases, smoke=False: {(None, c["id"], 1) for c in cases
-                                                               if c["id"] == "TZ16"})
+                        lambda label, cfg, cases, smoke=False, **kw: {(None, c["id"], 1) for c in cases
+                                                                     if c["id"] == "TZ16"})
+    monkeypatch.setattr(cli, "_resume_rows", lambda label, cfg: [])     # the 4.5.1 match rule: test_resume_match_451
     monkeypatch.setattr(cli, "halted", lambda: False)
     cases = [{"id": "TZ16"}, {"id": "IZ02"}, {"id": "FLAT-toolgap_L1-005", "chain_spec": {"x": 1}}]
     summary, ran = cli._run_selected({}, [{"name": "grok"}], cases, {}, _args(), ["TZ16", "IZ02",
@@ -370,7 +371,8 @@ def test_keepalive_ceiling_short_allowance_keeps_the_floor():
 
 
 def test_keepalive_ceiling_scales_with_the_allowance_and_the_wall_clock_caps_it():
-    assert api.keepalive_ceiling(300, 65536) == 65536 * 2.5 / 40          # 4,096 s
+    # 4.5.1 (PLAN-451-LIMITS step 3): 65,536 x 2.5 / 40 = 4,096 s, capped at KEEPALIVE_MAX_S (2,700 s)
+    assert api.keepalive_ceiling(300, 65536) == api.KEEPALIVE_MAX_S == 2700.0
     assert api.keepalive_ceiling(300, 24576) == 24576 * 2.5 / 40          # 1,536 s: covers the stored 902 s think
     assert api.keepalive_ceiling(300, 65536, max_wall_s=1800) == 1800
     assert api.keepalive_ceiling(300, 4096, max_wall_s=300) == 300
@@ -402,6 +404,6 @@ def test_a_short_allowance_is_still_cut_at_the_floor(monkeypatch):
 
 def test_silence_past_the_scaled_ceiling_still_raises(monkeypatch):
     _patch_stream(monkeypatch, _silent_then_answer(4300), step=5.0)
-    with pytest.raises(api.KeepaliveStall, match="ceiling 4096s"):
+    with pytest.raises(api.KeepaliveStall, match="ceiling 2700s"):
         api.stream_chat("https://api.x.ai/v1", "k", "grok-4.7", [{"role": "user", "content": "q"}],
                         max_tokens=65536, stall_s=300, verify_model=False)

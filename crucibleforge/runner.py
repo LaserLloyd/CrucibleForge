@@ -36,8 +36,8 @@ from datetime import datetime, timezone
 from . import degenerate, earlystop, lms, rpdeep, session_checks, stopflag, studioforge
 from dataclasses import replace as _dc_replace
 
-from .api import (Aborted, ChatResult, GenerationRejected, ProtocolRejected, RequestRejected, RowTimeout,
-                  TransportError, WindowClosed, WrongModelError, in_reasoning_flag,
+from .api import (Aborted, ChatResult, GenerationRejected, ModelOutputInvalid, ProtocolRejected, RequestRejected,
+                  RowTimeout, TransportError, WindowClosed, WrongModelError, in_reasoning_flag,
                   reasoning_answer)
 from .config import CSV_COLUMNS, results_dir, append_transcript, load_transcripts, repeats_for, transcript_path
 from .graders import (_extract_tool_calls_from_text, grade, grade_tool_call, prose_metrics)
@@ -236,6 +236,41 @@ _CASE_LOCAL_REJECT_STATUSES = (400, 413, 422)
 def _billing_rejection(e: Exception) -> bool:
     from .preflight import billing_rejection
     return billing_rejection(e)
+
+
+#: finish_reason of a reply the server could not parse (api.ModelOutputInvalid): the model's own miss, scored as an
+#: empty answer (scoring45 never counts it missing); the row's notes count them
+MODEL_OUTPUT_INVALID = "model_output_invalid"
+
+
+#: finish_reason (and row key) of a job the model's OWN maximum context cannot hold: a scored miss (step 6)
+CONTEXT_MODEL_MAX = "context_model_max"
+#: what a serving window must hold beyond prompt + budget (template, tool schemas, slack): PLAN-451-LIMITS step 6
+WINDOW_SLACK_451 = 1536
+
+
+def prompt_tokens_upper(messages_or_text) -> int:
+    """A cautious prompt size for sizing a window: chars / 3.5, plus 15% (a tokenizer that splits finer than the
+    board's 3.5-chars rule must still fit)."""
+    if isinstance(messages_or_text, str):
+        n = len(messages_or_text)
+    else:
+        n = sum(len(m.get("content") or "") + len(m.get("reasoning_content") or "") for m in messages_or_text or [])
+    return int(n / 3.5 * 1.15) + 1
+
+
+def context_max_result(ctx_len: int, needed: int) -> ChatResult:
+    """The empty reply that stands for a job the model's own maximum context cannot hold (served at that maximum)."""
+    r = ChatResult(finish_reason=CONTEXT_MODEL_MAX)
+    r.context_model_max = f"context {int(ctx_len)} < needed {int(needed)}"
+    return r
+
+
+def invalid_output_result(e: Exception) -> ChatResult:
+    """The empty reply that stands for a model output the server could not parse."""
+    r = ChatResult(finish_reason=MODEL_OUTPUT_INVALID)
+    r.model_output_invalid = str(e)[:300]
+    return r
 
 
 def _rejection_kind(case: dict, e: Exception) -> str:
@@ -487,6 +522,12 @@ def resolve_sampler(cfg: dict, entry: dict) -> tuple[dict, str]:
     return {}, "default"
 
 
+def thinking_setting(entry: dict) -> bool | str:
+    """The models.yaml ``thinking`` of ``entry`` as _Ctx reads it: True, False or "auto"."""
+    t = entry.get("thinking", "auto")
+    return "auto" if t == "auto" else bool(t)
+
+
 def protocol_stamp(cfg: dict, entry: dict, provider: Provider, ctx) -> dict:
     """The request protocol a row is measured under -- the conformance
     fingerprint (provider type, reasoning replay, extra_body keys, sampler).
@@ -510,6 +551,7 @@ class _Ctx:
         self.model_id = entry["model_id"]
         # subject_copies.Placement when the model is served by declared copies (else None)
         self.placement = None
+        self.window_fallback = None     # review 3 fix 2: {wanted, granted, why} when a wide load fell back
         self.ctx_len = ctx_len
         self.extra_body = model_extra_body(entry)
         # Provider-gated reasoning replay (MiniMax's documented protocol: the
@@ -559,6 +601,21 @@ class _Ctx:
         self._probe_pending: str | None = None
         d = cfg.get("defaults", {})
         self.max_output = int(entry.get("max_output_tokens") or 0)
+        # 4.5.1 (PLAN-451-LIMITS step 1c): a route's own output maximum (OpenRouter's top_provider
+        # max_completion_tokens) when the registry names none; budgets above it are clamped and say so
+        self.max_output_source = "registry" if self.max_output else None
+        if not self.max_output and hasattr(provider, "route_max_output"):
+            try:
+                self.max_output = int(provider.route_max_output(str(entry.get("model_id") or "")) or 0)
+                self.max_output_source = (provider.route_max_source() if hasattr(provider, "route_max_source")
+                                          else "provider listing") if self.max_output else None
+            except Exception:  # noqa: BLE001 - an unreadable listing clamps nothing
+                self.max_output = 0
+        #: review 3, fix 3: {asked, limit} once a provider refused a budget and the run learnt its limit
+        self.output_refusal: dict | None = None
+        from . import budgets451 as _b451
+        #: the profile's 4.5.1 budgets block (None: the 4.5.0 formula)
+        self.b451 = _b451.block(cfg)
         self.think_factor = float(d.get("thinking_max_tokens_factor", 4))
         self.think_cap = int(d.get("thinking_max_tokens_cap", 32768))
         self.think_floor = int(d.get("thinking_max_tokens_floor") or 0)
@@ -691,6 +748,10 @@ class _Ctx:
         within [floor, cap] for a thinking model — and for every model under
         the one-budget rule (S8); else the case's own max_tokens."""
         if self.thinking or getattr(self, "one_budget", False):
+            if getattr(self, "b451", None) and not getattr(self, "rung", None):
+                # 4.5.1: a reasoning allowance, then the category's own answer allowance (budgets451.formula)
+                from .budgets451 import formula
+                return formula(self.b451, max_tokens)
             return int(min(self.think_cap, max(max_tokens, max_tokens * self.think_factor,
                                                self.think_floor)))
         return int(max_tokens)
@@ -786,6 +847,12 @@ class _Ctx:
         sid = held.serve_id if held is not None else self.model_id
         try:
             r = self.provider.chat(sid, messages, **kw)
+        except ModelOutputInvalid as e:
+            # the server could not parse what the MODEL wrote, after the transport retries: the model's reply is a
+            # miss, graded as an empty answer by the case's own grader (never an errored row, never the abort)
+            log.warning("%s: the server could not parse the model's output (%s) — scored as a miss",
+                        self.model_id, str(e)[:200])
+            return invalid_output_result(e)
         except WrongModelError as e:
             if self.placement is not None:
                 raise    # declared copies never reload through the provider (run_case_repeat)
@@ -794,8 +861,41 @@ class _Ctx:
             with self.reload_lock:
                 self.provider.switch_model(self.model_id, self.ctx_len)
             r = self.provider.chat(self.model_id, messages, **kw)
+        except Exception as e:  # noqa: BLE001 - an output-limit refusal and a context refusal at the model's own
+            # maximum are handled here; anything else re-raises
+            lim = output_limit_from_error(e, kw.get("max_tokens"))
+            if lim:
+                # review 3, fix 3: the provider refused the budget and named its limit: retry ONCE at that limit,
+                # keep it for the rest of the run (rows are stamped budget_clamp), never leave the job owed for it
+                log.warning("!!! %s: the provider refused max_tokens=%s and states a limit of %d - retrying once at "
+                            "%d (later rows are clamped to it)", self.model_id, kw.get("max_tokens"), lim, lim)
+                self.output_refusal = {"asked": int(kw["max_tokens"]), "limit": int(lim)}
+                self.max_output, self.max_output_source = int(lim), "provider refusal"
+                kw["max_tokens"] = int(lim)
+                r = self.provider.chat(sid, messages, **kw)
+                self._observe(r)
+                return r
+            mx = self.model_max_context()
+            if mx and self.ctx_len and int(self.ctx_len) >= mx and _context_refusal_only(e):
+                # 4.5.1 (PLAN-451-LIMITS step 6): served at the model's own maximum, the job still does not fit: the
+                # model cannot do this case -> a scored miss with a note, never a missing row owed forever
+                need = prompt_tokens_upper(messages) + int(kw.get("max_tokens") or 0) + WINDOW_SLACK_451
+                log.warning("%s: the job needs about %d tokens, the model's maximum context is %s - scored as a miss",
+                            self.model_id, need, self.ctx_len)
+                return context_max_result(int(self.ctx_len), need)
+            raise
         self._observe(r)
         return r
+
+    def model_max_context(self) -> int | None:
+        """The model's own maximum context: the registry's ``max_context``, else the rig's trained window."""
+        mx = self.entry.get("max_context") if isinstance(getattr(self, "entry", None), dict) else None
+        if not mx and hasattr(self.provider, "trained_context"):
+            try:
+                mx = self.provider.trained_context(self.model_id)
+            except Exception:  # noqa: BLE001 - unknown maximum: nothing is scored as a miss
+                mx = None
+        return int(mx) if mx else None
 
     @staticmethod
     def _answered(r: ChatResult) -> bool:
@@ -1127,7 +1227,14 @@ def _sanity_check(state: dict, rows: list[dict], label: str) -> None:
     """If the first N completions are all empty the model is misconfigured:
     stop burning hours on it. Skipped / errored rows are not completions, and
     neither is a reply the provider blocked (finish_reason content_filter):
-    that is the provider's decision, not a broken model."""
+    that is the provider's decision, not a broken model.
+
+    4.5.1 (PLAN-451-LIMITS step 3): never in a recover, targeted or rung round (``state["sanity_off"]``: such a
+    round is made of jobs that were empty or cut before, so "the first N are empty" says nothing about the
+    setup; it ended grok-4.7's recover round), and a reply whose usage reports reasoning tokens is not empty
+    (a provider that hides reasoning text still thought)."""
+    if state.get("sanity_off"):
+        return
     for row in rows:
         if row.get("skipped") or row.get("error"):
             continue  # not a completion — counted by the transport guard
@@ -1142,12 +1249,12 @@ def _sanity_check(state: dict, rows: list[dict], label: str) -> None:
                     and state["sanity_blocked"] == SANITY_CHECK_AFTER):
                 raise ModelRunError(f"first {SANITY_CHECK_AFTER} replies all blocked by the "
                                     f"provider's content filter for {label}")
-        if blocked:
-            continue
+        if blocked or row.get("finish_reason") in (MODEL_OUTPUT_INVALID, CONTEXT_MODEL_MAX):
+            continue     # a reply the server could not parse is a scored miss, not a misconfigured (silent) model
         if row.get("turn") in (None, 1):
             state["sanity_total"] += 1
             if not (row.get("response") or row.get("reasoning") or row.get("tool_calls")
-                    or _made_tool_calls(row)):
+                    or _made_tool_calls(row) or _reasoning_tokens(row) > 0):
                 state["sanity_empty"] += 1
     if (state["sanity_total"] >= SANITY_CHECK_AFTER
             and state["sanity_empty"] == state["sanity_total"]):
@@ -1556,11 +1663,81 @@ def run_plan(cfg: dict) -> dict:
     return dict((cfg.get("defaults") or {}).get("run_plan") or {})
 
 
+#: the smallest window a wide round falls back to (a 65,536 budget plus the pad): below it the round is refused as
+#: before (PLAN-451-LIMITS review 3, fix 2)
+WIDE_FALLBACK_FLOOR = 65536 + ESCALATION_CTX_PAD
+
+
+def window_fallbacks(wanted: int, floor: int = WIDE_FALLBACK_FLOOR) -> list[int]:
+    """The windows a refused wide load is retried at, largest first (7/8, 3/4, 5/8 of the wanted window on a
+    4,096 grid, then the floor), never below ``floor``."""
+    out: list[int] = []
+    for frac in (7 / 8, 3 / 4, 5 / 8):
+        w = int(wanted * frac) // 4096 * 4096
+        if floor <= w < wanted and w not in out:
+            out.append(w)
+    if floor < wanted and floor not in out:
+        out.append(floor)
+    return out
+
+
+_OUT_LIMIT_WORDS = re.compile(r"max_tokens|max_completion_tokens|max_output_tokens|max_new_tokens|output tokens|"
+                              r"completion tokens", re.I)
+_OUT_LIMIT_NUM = re.compile(r"(?<![\w.])(\d{1,3}(?:,\d{3})+|\d{3,7})(?![\w.])")
+
+
+def output_limit_from_error(err, asked) -> int | None:
+    """The output limit a provider's refusal of ``max_tokens=asked`` states (review 3, fix 3), or None: the error
+    must name the output-token parameter, and the limit is the largest number in it below ``asked`` (at least 256):
+    "max_tokens is too large: 131072. This model supports at most 65536 completion tokens", "the valid range of
+    max_tokens is [1, 8192]", "must be less than or equal to 64000"."""
+    try:
+        asked = int(asked or 0)
+    except (TypeError, ValueError):
+        return None
+    text = str(err or "")
+    if not asked or not _OUT_LIMIT_WORDS.search(text) or is_ctx_short_error(text):
+        return None
+    nums = [int(n.replace(",", "")) for n in _OUT_LIMIT_NUM.findall(text)]
+    below = [n for n in nums if 256 <= n < asked]
+    return max(below) if below else None
+
+
+def _wide_load_fallback(cfg: dict, provider, model_id: str, ctx_len, cases, rung, err: Exception):
+    """(window, load seconds) after a refused load of a WIDE round (one whose window comes from a fixed budget,
+    :func:`wide_context`): the largest of :func:`window_fallbacks` the rig accepts. Anything else (a rung, a
+    narrow round, a lease refusal, a stop) re-raises ``err`` unchanged, as before."""
+    wide = wide_context(cfg, cases) if not rung else None
+    try:
+        from .studioforge import DayCardRefused as _refused
+    except Exception:  # noqa: BLE001
+        _refused = ()
+    if not (wide and ctx_len and int(ctx_len) >= int(wide)) or isinstance(err, _refused) or STOP.is_set():
+        raise err
+    for w in window_fallbacks(int(ctx_len)):
+        try:
+            load_s = provider.switch_model(model_id, w)
+        except Exception as e2:  # noqa: BLE001
+            if isinstance(e2, _refused) or STOP.is_set():
+                raise
+            log.warning("%s: the rig refused the wide window %d too (%s)", model_id, w, str(e2)[:120])
+            continue
+        log.warning("!!! %s: the rig refused the wide window %s (%s); loaded at %d instead", model_id, ctx_len,
+                    str(err)[:160], w)
+        return w, load_s
+    raise err
+
+
 def fixed_budget(cfg: dict, case: dict) -> int | None:
     """The one output budget a row is sent whatever the model, when the case
     has one: the code bank's ``bank_budget`` (bank rows), else a ladder set's
     ``ladder_budget`` (cases/ladder/.../set-<n>.json "budget": harder level,
     more room — config, not code). None = the board regime's budget."""
+    from . import budgets451 as _b451
+    b451 = _b451.block(cfg)
+    cb = _b451.case_budget(b451, case.get("id"))
+    if cb:
+        return cb                    # 4.5.1 case_budgets (CQ1-3: 131,072); the case dict itself is untouched
     if case.get("category") in BANK_CATEGORIES:
         b = int(cfg["defaults"].get("bank_budget") or 0)
         return b or None
@@ -1568,7 +1745,7 @@ def fixed_budget(cfg: dict, case: dict) -> int | None:
         # 4.5 chains: the load floor must hold the largest rung ceiling (chains.py) plus, for
         # a multi-turn item, its ``history_budget`` (the room the accumulated history may
         # take: earlier turns' prompts, replies and replayed thinking)
-        cs = [int(r["ceiling"]) + int(r.get("history_budget") or 0)
+        cs = [int(_b451.ceiling(b451, r["ceiling"])) + int(r.get("history_budget") or 0)
               for r in case["chain_spec"]["rungs"] if r.get("ceiling")]
         return max(cs) if cs else None
     if case.get("ladder_budget"):
@@ -1596,6 +1773,32 @@ def wide_context(cfg: dict, cases=None) -> int | None:
     return best
 
 
+def prompt_window(cfg: dict, entry: dict, cases=None) -> int | None:
+    """4.5.1 (PLAN-451-LIMITS step 6): the window a thinker's round needs so every job's prompt AND budget fit:
+    the maximum over the round's jobs of (prompt, sized cautiously by :func:`prompt_tokens_upper`) + the job's
+    budget (fixed, else the budgets_451 formula) + :data:`WINDOW_SLACK_451`, capped at the registry's
+    ``max_context``. None without the budgets_451 block (4.5.0 sizing) or without jobs."""
+    from . import budgets451 as _b451
+    b = _b451.block(cfg)
+    if not b or not cases:
+        return None
+    mt_table = (cfg.get("defaults") or {}).get("max_tokens") or {}
+    best = 0
+    for c in cases:
+        budget = fixed_budget(cfg, c)
+        if not budget:
+            mt = c.get("max_tokens") or mt_table.get(c.get("category"))
+            budget = _b451.formula(b, int(mt)) if mt else None
+        if not budget:
+            continue
+        text = (c.get("system") or "") + (c.get("prompt") or "")
+        best = max(best, prompt_tokens_upper(text) + int(budget) + WINDOW_SLACK_451)
+    if not best:
+        return None
+    cap = entry.get("max_context")
+    return min(best, int(cap)) if cap else best
+
+
 def bank_context(cfg: dict, cases=None) -> int | None:
     """The load floor a round with code-bank rows needs so every bank row gets
     the FULL ``bank_budget`` (65,536) instead of a budget clamped to a small
@@ -1620,12 +1823,17 @@ def load_context(cfg: dict, entry: dict, rung: int | None = None,
     explicit = entry.get("context") or entry.get("load_ctx")
     ctx_len = explicit or entry.get("context_length") or cfg["defaults"].get("context_length")
     thinker = cfg["defaults"].get("thinker_context")
+    from .budgets451 import block as _b451_block
+    if (_b451_block(cfg) or {}).get("thinker_context"):
+        # 4.5.1 (PLAN-451-LIMITS step 1c): 81,920, so prompt + slack + a 65,536 bank/CL budget fits unclamped
+        thinker = max(int(thinker or 0), int(_b451_block(cfg)["thinker_context"]))
     if thinker and not explicit and entry.get("thinking") is True:
         # D14: a registry-declared thinker loads at least this wide (profile
         # ``thinker_context``, 4.5: 73,728); a per-model ``context`` wins
         ctx_len = max(int(ctx_len or 0), int(thinker))
     for floor in (cfg["defaults"].get("context_floor"), min_ctx, bank_context(cfg, cases),
-                  wide_context(cfg, cases)):
+                  wide_context(cfg, cases),
+                  prompt_window(cfg, entry, cases) if entry.get("thinking") is True and not explicit else None):
         if floor and ctx_len:
             ctx_len = max(int(ctx_len), int(floor))
     if rung:
@@ -1726,6 +1934,15 @@ def _run_one_model_body(cfg, entry, cases, csvw: _Csv, smoke,
              f", round {round_name}" if round_name else "")
     if not provider.is_available(model_id):
         raise ModelRunError(f"{model_id} is not served by provider {provider.name}")
+    if ctx.max_output_source in (None, "documented default") and hasattr(provider, "route_max_output"):
+        # review 3, fix 3: the availability check read the provider's listing; a maximum it states wins over the
+        # documented default
+        try:
+            _mx = int(provider.route_max_output(str(model_id)) or 0)
+            if _mx:
+                ctx.max_output, ctx.max_output_source = _mx, provider.route_max_source()
+        except Exception:  # noqa: BLE001 - an unreadable listing keeps what was known
+            pass
     # the rig refuses a load past the model's trained window (HTTP 400), so a
     # small model would fail outright at the bench context: load it at its
     # trained window instead — the rows that cannot fit are skipped (n/a)
@@ -1763,8 +1980,18 @@ def _run_one_model_body(cfg, entry, cases, csvw: _Csv, smoke,
             ctx_len = wanted_ctx = placement.ctx
             ctx.ctx_len = ctx_len
     else:
-        load_s = provider.switch_model(model_id, ctx_len)
+        try:
+            load_s = provider.switch_model(model_id, ctx_len)
+        except Exception as e:  # noqa: BLE001 - only a wide round falls back; anything else re-raises as before
+            ctx_len, load_s = _wide_load_fallback(cfg, provider, model_id, ctx_len, ctx_cases, rung, e)
+            ctx.ctx_len = ctx_len
+            ctx.window_fallback = {"wanted": int(wanted_ctx), "granted": int(ctx_len), "why": str(e)[:200]}
+            wanted_ctx = ctx_len
     live_ctx = provider.live_context(model_id)
+    if live_ctx and ctx_len and live_ctx < int(ctx_len) and not rung and wide_context(cfg, ctx_cases):
+        # the rig served a narrower window than the wide round asked: the rows still run, their fixed budgets
+        # clamped to (window - prompt - slack) and stamped budget_clamp {route_max: "rig window", ...}
+        ctx.window_fallback = {"wanted": int(ctx_len), "granted": int(live_ctx), "why": "the rig served less"}
     if live_ctx and ctx_len and live_ctx < int(ctx_len):
         log.warning("%s is serving ctx=%d, below the registry context %s — long-context "
                     "cases beyond %d are skipped (n/a), not failed", label, live_ctx, ctx_len,
@@ -1785,6 +2012,8 @@ def _run_one_model_body(cfg, entry, cases, csvw: _Csv, smoke,
     ctx.detect_thinking()
 
     state = {"rows": 0, "sanity_total": 0, "sanity_empty": 0,
+             # 4.5.1: a recover / targeted / rung round is no run start (see _sanity_check)
+             "sanity_off": bool(recover_mode or rung),
              "speed_samples": [], "speed_gated": False, "skipped": 0,
              "cost": 0.0, "consecutive_errors": 0, "case_errors": 0,
              # "first N replies all blocked" only means a refusing provider on a
@@ -1875,8 +2104,16 @@ def _run_one_model_body(cfg, entry, cases, csvw: _Csv, smoke,
             "category": case["category"], "case_id": case["id"], "repeat": repeat,
             "difficulty": case.get("difficulty", "medium"),
             "seed": seed, "temperature": temperature, "top_p": top_p,
-            "max_tokens_sent": max_tokens,
+            # 4.5.1 (PLAN-451-LIMITS step 3): the budget this row is SENT (a fixed case budget or the board
+            # formula), not the case's raw max_tokens -- an errored row used to stamp 6,144 where 65,536 went out;
+            # every finished row overwrites it with what its call really sent
+            "max_tokens_sent": planned_budget(ctx, case, max_tokens),
+            **budget_stamp(ctx, case, max_tokens),
             "load_ctx": ctx_len,
+            # 4.5.1 (resume rule, cli._stored_mismatch): the registry's thinking setting (the row's own ``thinking``
+            # says what was seen), and a --smoke run's mark (its rows never stand in for a full run's)
+            "thinking_setting": thinking_setting(entry),
+            **({"smoke": True} if smoke else {}),
             **({"round": round_name} if round_name else {}),
         }
 
@@ -1899,6 +2136,16 @@ def _run_one_model_body(cfg, entry, cases, csvw: _Csv, smoke,
                 # P2 (fix round 2026-11-18, D11): what the measurement ran under, on every row
                 row.update(_disclosure.row_fields(row, settled_thinking=ctx.thinking,
                                                   extra_body=ctx.extra_body, cc_effort=ctx.cc_effort))
+                _sent = row.get("max_tokens_sent")
+                if (getattr(ctx, "output_refusal", None) and isinstance(_sent, int) and _sent > int(ctx.max_output or 0)
+                        and not row.get("budget_clamp")):
+                    # review 3, fix 3: this row's budget was refused and re-sent at the provider's stated limit
+                    row["budget_clamp"] = {"route_max": int(ctx.max_output), "wanted": _sent,
+                                           "granted": int(ctx.max_output), "source": "provider refusal"}
+                    row["max_tokens_sent"] = int(ctx.max_output)
+                _ob = _disclosure.over_budget(row)
+                if _ob:
+                    row["over_budget"] = _ob      # 4.5.1 step 2: thought past the budget sent (not enforced)
                 _note = _disclosure.settings_note(entry, provider.type, ctx.extra_body)
                 if _note:
                     row["settings_note"] = _note
@@ -2083,9 +2330,12 @@ def _run_one_model_body(cfg, entry, cases, csvw: _Csv, smoke,
                 try:
                     rows = _generate()
                     short = any(row_ctx_short(r, ctx.ctx_len) for r in rows)
-                except RequestRejected as e:
-                    if not (retries and e.status in _CASE_LOCAL_REJECT_STATUSES
-                            and is_ctx_short_error(str(e))):
+                except TransportError as e:
+                    # the server's own "does not fit the context" answer, whatever its HTTP status (llama-server
+                    # sends it as a 500): the ctx_short outcome, never a transport failure
+                    local = isinstance(e, RequestRejected) and e.status in _CASE_LOCAL_REJECT_STATUSES \
+                        and is_ctx_short_error(str(e))
+                    if not (retries and (local or _context_refusal_only(e))):
                         raise
                     rows, short = None, True
                 if not short:
@@ -2182,6 +2432,16 @@ def _run_one_model_body(cfg, entry, cases, csvw: _Csv, smoke,
                 # this budget, never an excluded row (review 2026-10-26)
                 kind = _rejection_kind(case, e)
                 persist([_error_row(base_row, case, f"request rejected: {e}", kind=kind)])
+                return
+            if _context_refusal_only(e):
+                # the server says the prompt does not fit the context it is loaded with (any status): the existing
+                # ctx_short outcome for this job, never a transport failure and never counted toward the abort
+                log.error("[%s] %s r%d: the prompt does not fit the served context (ctx %s): recorded as ctx_short",
+                          label, case["id"], repeat, ctx.ctx_len)
+                with ctx.lock:
+                    state["case_errors"] += 1
+                persist([_error_row(base_row, case, f"ctx_short: the server refused the prompt: {str(e)[:300]}",
+                                    kind="ctx_short")])
                 return
             with ctx.lock:
                 state["consecutive_errors"] += 1
@@ -2301,6 +2561,12 @@ def _run_one_model_body(cfg, entry, cases, csvw: _Csv, smoke,
     workers = (ctx.placement.pool.total_slots() if ctx.placement is not None
                else provider.workers(model_id))
     warnings: list[str] = []
+    wf = getattr(ctx, "window_fallback", None)
+    if wf:
+        msg = (f"the rig would not serve the wide window {wf['wanted']} ({wf['why']}); this round runs at "
+               f"{wf['granted']} and each fixed budget that no longer fits is clamped and stamped (budget_clamp)")
+        log.warning("!!! %s: %s", label, msg)
+        warnings.append(msg)
     if ctx.thinking and workers <= FEW_SLOTS_WARN and len(jobs) > workers:
         msg = (f"thinking model on only {workers} parallel slot(s) — {len(jobs)} jobs with "
                f"up to {ctx.budget(6144)}-token budgets will queue behind each other; "
@@ -2735,13 +3001,15 @@ def overflow_jobs(rows: list[dict]) -> set[tuple]:
     return out
 
 
-def escalation_rungs(cfg: dict) -> list[int]:
+def escalation_rungs(cfg: dict, output_max: int | None = None) -> list[int]:
     """The profile's ascending output budgets for the escalation round (empty
-    list = off). Only rungs above the board cap mean anything."""
+    list = off). Only rungs above the board cap mean anything. ``output_max``: the model's (or its route's)
+    output maximum; a rung above it can never be sent whole, so it is not offered or labelled (4.5.1,
+    PLAN-451-LIMITS step 1c/11: a route capped at 65,536 has no 131,072 rung)."""
     d = cfg.get("defaults") or {}
     raw = d.get("escalation_rungs", DEFAULT_ESCALATION_RUNGS)
     cap = int(d.get("thinking_max_tokens_cap", 32768))
-    return sorted({int(x) for x in (raw or []) if int(x) > cap})
+    return sorted({int(x) for x in (raw or []) if int(x) > cap and not (output_max and int(x) > int(output_max))})
 
 
 #: A rung that failed this many times since the label's last board run is given
@@ -2901,6 +3169,10 @@ def _annotate_recovery(row: dict, result: ChatResult) -> None:
     not show whether the retry ran) onto the transcript row."""
     if getattr(result, "empty_retry", False):
         row["empty_retry"] = True
+    if getattr(result, "model_output_invalid", None):
+        row["model_output_invalid"] = result.model_output_invalid      # what the server said (a scored miss)
+    if getattr(result, "context_model_max", None):
+        row["context_model_max"] = result.context_model_max            # step 6: "context N < needed M" (a scored miss)
     if getattr(result, "thinking_fallback", None):
         row["thinking_fallback"] = result.thinking_fallback
     if getattr(result, "empty_stop_retry", None):
@@ -2940,21 +3212,85 @@ def row_budget(ctx, case: dict, prompt_tokens: int) -> int | None:
     budget, so a ladder budget never applies inside a rung round."""
     if case.get("category") in BANK_CATEGORIES:
         return bank_budget(ctx, prompt_tokens)
+    from . import budgets451 as _b451
+    b451 = getattr(ctx, "b451", None)
     if case.get("chain") and getattr(ctx, "ctx_len", None):
         # 4.5 chains (R23): no scoring budget; the attempt's ceiling = the profile's per-family
         # `ceiling` (the model's output maximum), never above the served window minus the
         # prompt. A cut there is a failed attempt ("ran out"), never a budget rule.
         b = int(ctx.ctx_len) - int(prompt_tokens) - BANK_WINDOW_SLACK
         if (case["chain"].get("ceiling")):
-            b = min(b, int(case["chain"]["ceiling"]))
+            # 4.5.1 ceilings map (by value) in the runner only: the chain block and its revision stay as stored
+            b = min(b, int(_b451.ceiling(b451, case["chain"]["ceiling"])))
         return max(b, 256)
-    lb = case.get("ladder_budget") or case.get("budget")
+    lb = _b451.case_budget(b451, case.get("id")) or case.get("ladder_budget") or case.get("budget")
     if not lb or getattr(ctx, "rung", None):
         return None
     b = int(lb)
     if getattr(ctx, "ctx_len", None):
         b = min(b, int(ctx.ctx_len) - int(prompt_tokens) - BANK_WINDOW_SLACK)
     return max(b, 256)
+
+
+def planned_budget(ctx, case: dict, max_tokens: int) -> int:
+    """The budget a row of ``case`` is sent: the case's fixed budget (:func:`row_budget`, estimated on its opening
+    prompt) or the board formula (``ctx.budget``). Stamped on every row before the call, so an errored row records
+    what went out, not the case's raw ``max_tokens``."""
+    try:
+        exact = row_budget(ctx, case, _prompt_tokens(_messages_for(case)))
+    except Exception:  # noqa: BLE001 - a case shape _messages_for does not know: the board formula
+        exact = None
+    return int(exact or ctx.budget(max_tokens))
+
+
+def budget_stamp(ctx, case: dict, max_tokens: int) -> dict:
+    """4.5.1 row fields: ``budget_rev``/``budget_reason`` under the profile's ``budgets_451`` block, and
+    ``budget_clamp {route_max, wanted}`` when the route's output maximum is below the planned budget."""
+    out: dict = {}
+    b = getattr(ctx, "b451", None)
+    if b and not getattr(ctx, "rung", None):
+        from . import budgets451 as _b451
+        if _b451.case_budget(b, case.get("id")):
+            why = _b451.reason("case budget", b, str(_b451.case_budget(b, case.get("id"))))
+        elif case.get("category") in BANK_CATEGORIES:
+            why = _b451.reason("bank budget", b)
+        elif case.get("chain"):
+            c = (case.get("chain") or {}).get("ceiling")
+            why = _b451.reason("chain ceiling", b, f"{c} -> {_b451.ceiling(b, c)}" if c else "window")
+        elif case.get("ladder_budget") or case.get("budget"):
+            why = _b451.reason("case budget", b, str(case.get("ladder_budget") or case.get("budget")))
+        else:
+            why = _b451.reason("formula", b, f"answer {int(max_tokens)}")
+        out.update({"budget_rev": _b451.REV, "budget_reason": why})
+    mx = int(getattr(ctx, "max_output", 0) or 0)
+    try:
+        want = planned_budget(ctx, case, max_tokens)
+    except Exception:  # noqa: BLE001
+        want = 0
+    if mx and want > mx:
+        out["budget_clamp"] = {"route_max": mx, "wanted": int(want), "granted": mx,
+                               "source": getattr(ctx, "max_output_source", None) or "registry"}
+    elif b and not getattr(ctx, "rung", None) and not case.get("chain"):
+        # review 3, fix 2: a fixed case budget the served window cut down (a wide round the rig would not serve
+        # whole): the row runs with what fits and says so; it has budget_rev, so it is not owed again for this
+        from . import budgets451 as _b451
+        fb = (_b451.case_budget(b, case.get("id")) or case.get("ladder_budget") or case.get("budget")
+              if case.get("category") not in BANK_CATEGORIES else None)
+        if fb and want and int(want) < int(fb):
+            out["budget_clamp"] = {"route_max": "rig window", "wanted": int(fb), "granted": int(want),
+                                   "window": int(getattr(ctx, "ctx_len", 0) or 0)}
+    return out
+
+
+def _reasoning_tokens(row: dict) -> int:
+    """Reasoning tokens the provider reported for a row (0 when none or unknown)."""
+    for v in (row.get("reasoning_tokens"), (row.get("metrics") or {}).get("reasoning_tokens")):
+        try:
+            if v:
+                return int(v)
+        except (TypeError, ValueError):
+            continue
+    return 0
 
 
 def _prompt_tokens(messages: list[dict]) -> int:
@@ -3003,6 +3339,8 @@ def grade_single_row(row: dict, result: ChatResult, case: dict, blank: bool, sen
     of a stored row (crucibleforge.regrade) share this code, so a regrade cannot drift from a
     fresh run. ``blank``: graded as an empty answer (4.5 empty-stop / degenerate rule)."""
     verdict = grade(_blank_view(result) if blank else _answer_view(result), case)
+    from . import edittol as _edittol
+    row.pop("tolerated", None)
     if verdict:
         row["grade"] = verdict["grade"]
         detail = verdict["detail"]
@@ -3035,6 +3373,9 @@ def grade_single_row(row: dict, result: ChatResult, case: dict, blank: bool, sen
                                       completion_tokens=result.completion_tokens, sent=sent, blank=blank)
         if fc is not None:
             row["fixcheck"] = fc
+    if not blank:
+        # 4.5.1 step 4c: a bare >>>>>>> closer the edit parser accepted (edittol) is said on the row
+        _edittol.stamp(row, _answer_view(result).response_text, verdict)
     if case.get("rubric"):
         row["needs_judge"] = True
         row["rubric"] = case["rubric"]
@@ -3171,7 +3512,9 @@ def _run_multiturn(case, base_row, ctx: _Ctx, max_tokens, temperature, top_p, se
     history: list[dict] = []
     n_turns = len(case["turns"])
     chain = case.get("chain") or None
-    ceiling = int(chain["ceiling"]) if chain and chain.get("ceiling") else None
+    from .budgets451 import ceiling as _b451_ceiling
+    ceiling = (int(_b451_ceiling(getattr(ctx, "b451", None), chain["ceiling"])) if chain and chain.get("ceiling")
+               else None)
     prev: ChatResult | None = None
     stopped = False
 
@@ -3224,8 +3567,9 @@ def _run_multiturn(case, base_row, ctx: _Ctx, max_tokens, temperature, top_p, se
                               recover=ctx.recover_for(case),
                               **({"regen": ctx.regen_for(case)} if hasattr(ctx, "regen_for") else {}),
                               temperature=temperature, top_p=top_p, seed=seed)
-        except (RequestRejected, GenerationRejected) as e:
-            if not (chain and is_ctx_short_error(str(e))):
+        except TransportError as e:
+            if not (chain and (isinstance(e, (RequestRejected, GenerationRejected)) and is_ctx_short_error(str(e))
+                               or _context_refusal_only(e))):
                 raise
             history.pop()
             rows.append(_context_row(base_row, i, user_turn, "refused by the server: context",
@@ -3458,7 +3802,9 @@ def _run_env_loop(case, base_row, ctx: _Ctx, max_tokens, temperature, seed, top_
                 break
             turn_budgets.append(exact)
         elif getattr(ctx, "ctx_len", None):
-            room = int(ctx.ctx_len) - ctx.budget(max_tokens)
+            # 4.5.1 (PLAN-451-LIMITS step 6): the room left is measured against the budget this turn is sent
+            exact = row_budget(ctx, case, need)
+            room = int(ctx.ctx_len) - int(exact or ctx.budget(max_tokens))
             if need > room:
                 for m in messages:
                     m.pop("reasoning_content", None)
@@ -3475,6 +3821,12 @@ def _run_env_loop(case, base_row, ctx: _Ctx, max_tokens, temperature, seed, top_
             # mid-episode 400/422 (typically the context window): the work so
             # far is graded as it stands, like the context cap
             end_reason = f"request rejected mid-episode: {str(e)[:120]}"
+            break
+        except TransportError as e:
+            if not _context_refusal_only(e):
+                raise
+            # the same "does not fit the context" answer sent as a 5xx: the context cap, graded as it stands
+            end_reason = "context cap (model window)"
             break
         last = result
         every.append(result)
@@ -3541,6 +3893,14 @@ def _run_env_loop(case, base_row, ctx: _Ctx, max_tokens, temperature, seed, top_
     return row
 
 
+#: 4.5.1 (PLAN-451-LIMITS step 5) console-loop revision stamped on its rows: empty stops regenerated, the session's
+#: EMPTY reminder reaches the model, a finished answer in the reasoning channel is the reply, per-turn budget stamp.
+#: A tool row of the console loop without it that ended on an empty reply is owed again (attempts45.superseded)
+from . import attempts45 as _attempts45  # noqa: E402 - one revision for the runner and the resume rule
+from .attempts45 import CONSOLE_REV  # noqa: E402
+from . import calltol as _calltol  # noqa: E402
+
+
 def _run_console_loop(case, base_row, ctx: _Ctx, max_tokens, temperature, seed, top_p=None) -> dict:
     """Interactive console family (COMPACTOR, FC3): one command per reply, the simulator answers.
 
@@ -3571,22 +3931,43 @@ def _run_console_loop(case, base_row, ctx: _Ctx, max_tokens, temperature, seed, 
     truncated_turns = 0
     last = None
     end_reason = "session over"
+    turn_budgets: list[int] = []
+    in_reasoning = 0
+    empty_retries = 0
+    # the 4.5.1 console revision applies to the tool families (toolworld, toolgap); COMPACTOR rows stay as they were
+    rev2 = fam_name in _attempts45.CONSOLE_FAMILIES
+    regen = {"regen": ctx.regen_for(case)} if rev2 and hasattr(ctx, "regen_for") else {}
+    offered = _calltol.offered_tools(case.get("system"), fam_name) if rev2 else frozenset()
+    n_glued = 0
     while sess.state == "running":
         check_abort()
         exact = row_budget(ctx, case, _prompt_tokens(messages))
+        turn_budgets.append(int(exact or ctx.budget(max_tokens)))
+        # 4.5.1 (PLAN-451-LIMITS step 5): an empty stop is regenerated like every other row's (regen_for; the chain
+        # rule of recover_for kept it off here), and a finished answer left in the reasoning channel is the reply
         result = ctx.call(messages, max_tokens=max_tokens, exact_budget=exact,
-                          recover=ctx.recover_for(case),
+                          recover=ctx.recover_for(case), **regen,
                           temperature=temperature, top_p=top_p, seed=seed)
         last = result
         every.append(result)
+        if getattr(result, "empty_stop_retry", None) or getattr(result, "empty_retry", False):
+            empty_retries += 1
         if result.finish_reason == "length":
             truncated_turns += 1
-        reply = result.response_text or ""
+        reply, from_reasoning = reply_of(result) if rev2 else (result.response_text or "", False)
+        reply = reply or ""
+        in_reasoning += int(from_reasoning)
         replies.append(reply)
-        nxt = sess.step_reply(reply)
+        # 4.5.1 (PLAN-451-LIMITS step 4b): a call glued mid-line to an offered tool with a valid JSON object is read
+        # as its own line (calltol); the conversation keeps the model's own reply
+        fed, glued = _calltol.split(reply, offered) if rev2 else (reply, 0)
+        n_glued += glued
+        nxt = sess.step_reply(fed)
         messages.append({"role": "assistant", "content": reply})
         messages.append({"role": "user", "content": nxt})
-        if not reply.strip() and result.finish_reason != "length":
+        if not reply.strip() and result.finish_reason != "length" and not rev2:
+            # the compactor console never ends on its own; the gen families (toolworld, toolgap) decide: an empty
+            # reply gets the session's own EMPTY reminder, or ends the task (sess.state)
             end_reason = "empty reply"
             break
     halted = sess.state == "stopped"
@@ -3614,12 +3995,18 @@ def _run_console_loop(case, base_row, ctx: _Ctx, max_tokens, temperature, seed, 
         cblock = {"family": fam_name, "key": cfg["key"], "state": sess.state, "turns": sess.turn,
                   "faults": getattr(sess, "strikes", None), "end": getattr(sess, "end", None) or end_reason,
                   "truncated_turns": truncated_turns}
+        if n_glued:
+            cblock["calls_without_line_break"] = n_glued
     if truncated_turns and not halted:
         detail = f"TRUNCATED ({truncated_turns} turn(s) hit the budget); {detail}"
     row = {**base_row, "run_id": str(uuid.uuid4())[:8], "turn": None,
-           "max_tokens_sent": ctx.budget(max_tokens),
+           # the largest budget a turn was sent (row_budget per turn; ctx.budget was stamped before 4.5.1)
+           "max_tokens_sent": (max(turn_budgets) if rev2 and turn_budgets else ctx.budget(max_tokens)),
+           **({"console_rev": CONSOLE_REV, "calltol": _calltol.REV} if rev2 else {}),
+           **({"answered_in_reasoning": in_reasoning} if in_reasoning else {}),
+           **({"empty_stop_retries": empty_retries} if empty_retries else {}),
            "prompt": case["prompt"][:200],
-           "response": (last.response_text if last else ""),
+           "response": ((replies[-1] if replies else "") if rev2 else (last.response_text if last else "")),
            "reasoning": (last.reasoning_text if last else ""),
            "tool_calls": [],
            "finish_reason": "length" if (truncated_turns and not halted) else (last.finish_reason if last else None),
@@ -3863,6 +4250,14 @@ def _context_refusal(e: Exception) -> bool:
     """A server refusal saying the request did not fit the context window."""
     text = f"{e} {getattr(e, 'body', '') or ''}"
     return bool(_FIT_REFUSAL_RE.search(text)) or is_ctx_short_error(text)
+
+
+def _context_refusal_only(e: Exception) -> bool:
+    """:func:`_context_refusal`, and nothing that must keep its own path: a protocol refusal, a billing refusal, a
+    stop, a closed window, a stalled or timed-out row."""
+    if isinstance(e, (ProtocolRejected, Aborted, WindowClosed, RowTimeout)) or _billing_rejection(e):
+        return False
+    return _context_refusal(e)
 
 
 def _tool_turn_fits(ctx, messages: list[dict], tools, exact, max_tokens) -> bool:

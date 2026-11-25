@@ -2472,7 +2472,12 @@ def _coverage(rows: list[dict], meta: dict, cfg: dict | None,
         else:
             notes.append(unj)
     if unparsable:
-        notes.append(f"{unparsable} verdict{'s' if unparsable != 1 else ''} unparsable")
+        from .judge45 import JUDGE_FILTERED, judge_filtered
+        jf = sum(1 for r in rows if judge_filtered(r.get("judge")))
+        if unparsable - jf:
+            notes.append(f"{unparsable - jf} verdict{'s' if unparsable - jf != 1 else ''} unparsable")
+        if jf:
+            notes.append(f"{jf} row{'s' if jf != 1 else ''} not judged yet: {JUDGE_FILTERED}")
     if rejudge:
         notes.append(f"{rejudge} verdict{'s' if rejudge != 1 else ''} judged under older "
                      "grading (re-judge pending)")
@@ -5027,6 +5032,223 @@ def reruns45(rows: list[dict]) -> dict | None:
     return {"jobs": len(by), "by_job": dict(sorted(by.items()))} if by else None
 
 
+#: the visible mark of a row judged (in part) by a judge other than the profile's (owner 2026-11-24)
+OTHER_JUDGE_MARK = "⚖"
+#: one line above the table when a board's rows were judged by different judges
+MIXED_JUDGES_LINE = "rows on this board were judged by different judges: ranks compare across judges"
+
+
+def model_output_invalid_note(n: int) -> str:
+    """Review E (2026-11-25): replies the server could not parse (runner.MODEL_OUTPUT_INVALID), scored as misses."""
+    return f"{n} {'reply' if n == 1 else 'replies'} could not be parsed by the server and count as misses"
+
+
+#: PLAN-451-LIMITS step 7: why a stored row lost its points, or what was tolerated; the classes counted per segment
+LOSS_CLASSES = ("cut", "empty", "context", "transport", "clamped", "over_budget", "tolerated", "rerun_failed")
+#: the classes whose rows score nothing (points at stake); the others are facts about scored rows
+_LOST = ("cut", "empty", "context", "transport")
+_LOSS_WORDS = {"cut": "cut", "empty": "empty", "context": "context too small", "transport": "transport",
+               "clamped": "budget clamped by the route", "over_budget": "thought past the budget",
+               "rerun_failed": "re-run failed on infrastructure, old reply kept"}
+#: the engine group of each board section (chain parts are written "<group>/<part>")
+_SEC_GROUP = {"code": "work", "chat": "chat"}
+
+
+def segment_map45(tree: dict | None) -> dict:
+    """``{"parts": {"<group>/<part>": {"<sec>.<segment>": share}}, "cases": {case_id: "<sec>.<segment>"}, "max":
+    {"<sec>.<segment>": points}}`` from the segment tree (segments45.tree): which segment a row and a part's points
+    belong to. A part listed by several segments (rplong scenes) is shared by the number of its cases in each."""
+    parts: dict[str, dict[str, float]] = {}
+    cases: dict[str, str] = {}
+    mx: dict[str, float] = {}
+    for sec, segs in (tree or {}).items():
+        if sec not in _SEC_GROUP or not isinstance(segs, dict):
+            continue                                        # only the Code and Chat sections hold segments
+        grp = _SEC_GROUP[sec]
+        for seg, d in segs.items():
+            if not isinstance(d, dict):
+                continue
+            key = f"{sec}.{seg}"   # "chat.remembers": a "chat/<x>" key reads as an old part id (public scrub)
+            mx[key] = float(d.get("max") or 0.0)
+            for cid in d.get("cases") or []:
+                cases[str(cid)] = key
+            for part, w in (d.get("parts") or {}).items():
+                if isinstance(w, dict):                     # a scene list (rplong): case ids
+                    for cid in w:
+                        cases[str(cid)] = key
+                    parts.setdefault(f"{grp}/j_{part}", {})[key] = float(len(w))
+                else:
+                    parts.setdefault(f"{grp}/{part}", {})[key] = 1.0
+    for p_, d in parts.items():
+        t = sum(d.values()) or 1.0
+        parts[p_] = {k: v / t for k, v in d.items()}
+    return {"parts": parts, "cases": cases, "max": mx}
+
+
+def _row_segment(r: dict, smap: dict) -> str | None:
+    cid = str(r.get("case_id") or "")
+    for k, v in smap["cases"].items():
+        if cid == k or cid.startswith(k + "-") or cid.startswith("FLAT-" + k):
+            return v
+    part = (r.get("chain") or {}).get("part")
+    shares = smap["parts"].get(str(part)) if part else None
+    if shares:
+        return max(shares, key=shares.get)
+    return None
+
+
+def row_loss_classes(r: dict) -> list[str]:
+    """The loss classes of one board row (a row may be in several: a clamped row that was also cut)."""
+    out = []
+    kind = str(r.get("error_kind") or "")
+    err = bool(r.get("error") or r.get("skipped") or r.get("grade") == "error")
+    if (err and (kind == "ctx_short" or "ctx_short" in str(r.get("error") or ""))) or r.get("context_model_max"):
+        out.append("context")
+    elif err:
+        out.append("transport")
+    elif r.get("finish_reason") == "length" or r.get("truncated"):
+        out.append("cut")
+    elif (r.get("empty_stop") or (r.get("console") or {}).get("end") == "empty reply"
+          or not (str(r.get("response") or "").strip() or r.get("tool_conversation") or r.get("conversation"))):
+        out.append("empty")
+    if r.get("budget_clamp"):
+        out.append("clamped")
+    if r.get("over_budget"):
+        out.append("over_budget")
+    if r.get("tolerated") or (r.get("console") or {}).get("calls_without_line_break"):
+        out.append("tolerated")
+    if r.get("_rerun_failed"):
+        out.append("rerun_failed")
+    return out
+
+
+def losses45(rows: list[dict], tree: dict | None, shares: dict | None = None) -> dict:
+    """``losses`` of report.json per model (PLAN-451-LIMITS step 7, no silent loss): ``{"<sec>.<segment>": {cut,
+    empty, context, transport, clamped, over_budget, tolerated, points_at_stake}}`` over the board's rows (newest
+    complete run per job). ``points_at_stake`` = the segment's points x (lost rows / its rows) x the model's mean
+    score on its answered rows: what the lost rows would have been worth at the model's own level. Segments with
+    nothing to say are left out. Report only: no score reads it."""
+    smap = segment_map45(tree)
+    last: dict[tuple, dict] = {}
+    for r in _board_rows(rows):
+        ch = r.get("chain") or {}
+        # one row per job: a multi-turn job's last row stands for it (its turns are not separate losses)
+        last[(r.get("bench_run_id"), r.get("case_id"), r.get("repeat"), ch.get("rung"), ch.get("attempt"))] = r
+    from .attempts45 import rerun_gave_up
+    gave = rerun_gave_up(rows)
+    by: dict[str, list[dict]] = {}
+    for r in last.values():
+        if (r.get("case_id"), r.get("repeat") or 1) in gave and not r.get("chain"):
+            r = {**r, "_rerun_failed": True}
+        seg = _row_segment(r, smap)
+        if seg:
+            by.setdefault(seg, []).append(r)
+    out = {}
+    for seg, rs in sorted(by.items()):
+        rec = dict.fromkeys(LOSS_CLASSES, 0)
+        lost, answered = 0, []
+        for r in rs:
+            cls = row_loss_classes(r)
+            for c in cls:
+                rec[c] += 1
+            if any(c in _LOST for c in cls):
+                lost += 1
+            elif r.get("score") is not None:
+                try:
+                    answered.append(float(r["score"]))
+                except (TypeError, ValueError):
+                    pass
+        if not any(rec.values()):
+            continue
+        mean = (sum(answered) / len(answered) if answered
+                else float((shares or {}).get(seg) or 0.0))      # no row scores: the segment's own share
+        rec["points_at_stake"] = round(smap["max"].get(seg, 0.0) * lost / len(rs) * mean, 3)
+        out[seg] = rec
+    return out
+
+
+def losses_line(losses: dict | None) -> str | None:
+    """The one details line, e.g. "Lost rows: code.tools 3 empty (0.20 pt); tolerated: 4 rows (...)"."""
+    if not losses:
+        return None
+    lost, tol = [], 0
+    for seg, rec in losses.items():
+        bits = [f"{rec[c]} {_LOSS_WORDS[c]}" for c in ("cut", "empty", "context", "transport", "clamped",
+                                                       "over_budget", "rerun_failed") if rec.get(c)]
+        if bits:
+            lost.append(f"{seg} {', '.join(bits)} ({float(rec.get('points_at_stake') or 0.0):.2f} pt)")
+        tol += int(rec.get("tolerated") or 0)
+    if not lost and not tol:
+        return None
+    line = "Lost rows: " + ("; ".join(lost) if lost else "none")
+    if tol:
+        line += f"; tolerated: {tol} row{'s' if tol != 1 else ''} (bare closer or calls without a line break)"
+    return line
+
+
+def pack_points_by_segment45(tree: dict | None, sec: str, total: float, ladder_card: dict | None,
+                             ladder_points: float, engine_parts: dict | None, fixes_points: float,
+                             chat_packs: dict | None) -> dict[str, float]:
+    """Bonus (pack) points of one section per segment, summing to ``total`` (the section's ``pack_points``):
+    the chat packs and the Fixes pack go to their own segment, an engine pack to its part's segment, and the
+    ladder packs' points (old S - old T1) are shared over the parts whose ladder points exceed their standard
+    points, in proportion to that excess. Report data only: no score reads it."""
+    smap = segment_map45(tree)
+    segs = [k.split(".", 1)[1] for k in smap["max"] if k.startswith(sec + ".")]
+    out = dict.fromkeys(segs, 0.0)
+
+    def add(part_key: str, v: float) -> None:
+        shares = smap["parts"].get(part_key) or {}
+        if not shares:
+            out["other"] = out.get("other", 0.0) + v
+            return
+        for k, w in shares.items():
+            out[k.split(".", 1)[1]] = out.get(k.split(".", 1)[1], 0.0) + v * w
+    for name, v in (chat_packs or {}).items():
+        if name in out:
+            out[name] += float((v or {}).get("points") or 0.0)
+    if fixes_points and "fixes" in out:
+        out["fixes"] += float(fixes_points)
+    for k, v in (engine_parts or {}).items():
+        add(k, float((v or {}).get("delta") or 0.0))
+    grp = _SEC_GROUP.get(sec, sec)
+    excess = {}
+    for p_, d in ((ladder_card or {}).get(grp) or {}).items():
+        if not isinstance(d, dict) or d.get("points") is None:
+            continue
+        ch = d.get("chains") or {}
+        std = ch.get("points") if ch.get("points") is not None else float(d.get("std_share") or 0.0) * float(
+            d.get("max") or 0.0)
+        x = float(d["points"]) - float(std or 0.0)
+        if x > 1e-9:
+            excess[f"{grp}/{p_}"] = x
+    if ladder_points > 0:
+        tot = sum(excess.values())
+        if tot > 0:
+            for k, x in excess.items():
+                add(k, ladder_points * x / tot)
+        else:
+            out["other"] = out.get("other", 0.0) + ladder_points
+    out = {k: round(v, 4) for k, v in out.items() if v or k in segs}
+    gap = round(float(total) - sum(out.values()), 4)
+    if gap and out:
+        big = max(out, key=lambda k: abs(out[k]))
+        out[big] = round(out[big] + gap, 4)                  # rounding: the parts add up to the section exactly
+    return out
+
+
+def mixed_judges45(labels: list[str], stats: dict) -> bool:
+    """True when the board's rows were not all judged by the same judge(s): a row marked other_judge45 beside a
+    row judged by the profile's judge alone, or two marked rows with different judges."""
+    keys = {tuple((stats[l].get("other_judge45") or {}).get("ids") or ()) for l in labels if l in stats}
+    return len(keys) > 1
+
+
+def other_judge_cell(s: dict) -> str:
+    """The Overall cell's mark for a row judged by another judge: " ⚖"; '' otherwise."""
+    return f" {OTHER_JUDGE_MARK}" if s.get("other_judge45") else ""
+
+
 def notes_cell(s: dict) -> str:
     """Scorecard Notes: only what makes a row NOT comparable (failed,
     partial, unjudged, stale, other judge), plus a real vendor version."""
@@ -5050,6 +5272,10 @@ def notes_cell(s: dict) -> str:
         + (["NSFW+"] if (s.get("nsfw_plus") or {}).get("self_graded") else [])
     if selfg:
         notes.append(f"graded by itself: {' and '.join(selfg)} (this model is the judge)")
+    if s.get("other_judge45"):
+        notes.append(OTHER_JUDGE_MARK + " " + s["other_judge45"]["note"])
+    if s.get("model_output_invalid"):
+        notes.append(model_output_invalid_note(s["model_output_invalid"]))
     cf = s.get("content_filtered") or {}
     if cf.get("total"):
         n = cf["total"]
@@ -5711,6 +5937,7 @@ def _apply_segments45(labels: list[str], stats: dict, prof: dict | None, inputs:
     for l in labels:
         rows = list((inputs or {}).get(l, ((),))[0] or [])
         if inputs is not None:
+            # PLAN-451-LIMITS step 7: no silent loss: per segment, the rows that lost points and why (report only)
             stats[l]["rplong45"] = _rplong45(l, rows, prof)
             stats[l]["fix45"] = _fr.case_scores(rows, _fix_cases(prof))
         marks = _s45.load_marks(results_dir())
@@ -5789,6 +6016,27 @@ def _apply_segments45(labels: list[str], stats: dict, prof: dict | None, inputs:
             packs[key] = (pk, 0.0)
             std = tb[sec]["points"]
             tb[sec]["pack_points"] = round(pk, 4)
+            # the site's per-part bonus column (2026-11-25): where the section's pack points come from, per segment,
+            # summing to pack_points. Report data only: no score moves. packs45 lists the Chat packs alone; the
+            # ladder packs (old S - old T1) and the engine/Fixes packs are the rest of pack_points
+            _ladder_pk = max(0.0, float(old_s) - float(old_std)) if old_s is not None and old_std is not None else 0.0
+            _cp_ = tb[sec].get("packs45") if sec == "chat" else None
+            tb[sec]["pack_sources"] = {
+                "ladder": round(_ladder_pk, 4),
+                "engine": round(sum(v["delta"] for k, v in _eng["parts"].items() if k.startswith(key + "/")), 4),
+                "fixes": round(float(_fix["points"]) if sec == "code" and _fix is not None else 0.0, 4),
+                "chat_packs": round(sum(float(v.get("points") or 0.0) for v in (_cp_ or {}).values()), 4)}
+            _bys = pack_points_by_segment45(
+                _s45.tree(prof), sec, tb[sec]["pack_points"], _ladder_card, _ladder_pk,
+                {k: v for k, v in _eng["parts"].items() if k.startswith(key + "/")},
+                float(_fix["points"]) if sec == "code" and _fix is not None else 0.0, _cp_)
+            for seg_, v_ in _bys.items():
+                g_ = (tb[sec].get("segments") or {}).get(seg_)
+                if isinstance(g_, dict):
+                    g_["pack_points"] = v_
+                else:
+                    tb[sec].setdefault("pack_points_unassigned", 0.0)
+                    tb[sec]["pack_points_unassigned"] = round(tb[sec]["pack_points_unassigned"] + v_, 4)
             hl.setdefault("pack_of", {})[key] = pack_max45(
                 key, _ladder_card, _eng["parts"], _fix if sec == "code" else None,
                 tb[sec].get("packs45") if sec == "chat" else None, _unlock_of(prof))
@@ -5797,6 +6045,13 @@ def _apply_segments45(labels: list[str], stats: dict, prof: dict | None, inputs:
             hl.setdefault("P", {})[key] = v
             hl.setdefault("T1", {})[key] = std
             hl.setdefault("m", {})[key] = tb[sec]["margin"]
+        if inputs is not None and rows:
+            # PLAN-451-LIMITS step 7: no silent loss: per segment, the rows that lost points and why (report only);
+            # a segment whose rows carry no score of their own (judged scenes) is valued at its segment share
+            _shares = {f"{sec}.{k}": (float(g["points"]) / float(g["max"]))
+                       for sec in ("code", "chat") for k, g in ((tb.get(sec) or {}).get("segments") or {}).items()
+                       if isinstance(g, dict) and g.get("points") is not None and g.get("max")}
+            stats[l]["losses"] = losses45(rows, _s45.tree(prof), _shares)
         # INTENT-45: each model's own accuracy range, beside every score (board cells and report.json): from its
         # replicate runs on the board's scale when the board has them (precision45.json), labelled with source and n.
         # The pack gates above keep reading ``acc_`` (this run's repeats, the stamped rule): no pack point moves here.
@@ -6089,6 +6344,27 @@ def _np_measured(num: dict) -> tuple[float, float]:
     return sum(g["value"] for g in segs), sum(g["max"] for g in segs)
 
 
+def np_other_judge(s: dict) -> str | None:
+    """The trace of an NSFW+ block whose units were read from another judge's votes (owner 2026-11-24: any judge;
+    judge45.verdicts uses them only where the profile's judge has no vote): the Chat rows' wording, and the other
+    judges left out when more than one exists. None for a block read from the profile judge alone."""
+    np_ = s.get("nsfw_plus") or {}
+    oj = np_.get("other_judge") or (np_.get("judge45") or {}).get("other_judge")
+    if not oj:
+        return None
+    t = other_judge_text([oj])
+    ign = (np_.get("judge45") or {}).get("other_judges_ignored") or []
+    if ign:
+        t += f" (votes of {', '.join(ign)} left out: one judge per model, the latest)"
+    return t
+
+
+def _np_judged_by(s: dict) -> str:
+    """The cell suffix for another judge's votes: " (judged by <id> (<provider>))"; '' otherwise."""
+    t = np_other_judge(s)
+    return f" ({t.split(';', 1)[0]})" if t else ""
+
+
 def np_cell(s: dict, key: str) -> str:
     """One NSFW+ number as a board cell: ``6.2`` when complete, ``4.1 of 7.5 measured, not ranked`` while a
     segment is pending, the plain not-run line otherwise."""
@@ -6099,9 +6375,9 @@ def np_cell(s: dict, key: str) -> str:
     if not num:
         return NSFW_PLUS_NOT_RUN
     if num.get("value") is not None:
-        return f"{num['value']:.1f}" + _np_range(s, key)
+        return f"{num['value']:.1f}" + _np_range(s, key) + _np_judged_by(s)
     pts, mx = _np_measured(num)
-    return f"{pts:.1f} of {mx:g} measured, not ranked" if mx else "pending"
+    return (f"{pts:.1f} of {mx:g} measured, not ranked" if mx else "pending") + _np_judged_by(s)
 
 
 def _np_range(s: dict, key: str) -> str:
@@ -6156,7 +6432,7 @@ def np_total_cell(s: dict) -> str:
     if not t:
         return NSFW_PLUS_NOT_RUN
     if t.get("value") is not None:
-        return f"{t['value']:.1f}" + _np_range(s, "nsfw_plus")
+        return f"{t['value']:.1f}" + _np_range(s, "nsfw_plus") + _np_judged_by(s)
     pts = mx = 0.0
     for k, _ in NSFW_PLUS_KEYS:
         num = _np_num(s, k) or {}
@@ -6165,7 +6441,7 @@ def np_total_cell(s: dict) -> str:
         else:
             p_, m_ = _np_measured(num)
             pts, mx = pts + p_, mx + m_
-    return f"{pts:.1f} of {mx:g} measured, not ranked" if mx else "pending"
+    return (f"{pts:.1f} of {mx:g} measured, not ranked" if mx else "pending") + _np_judged_by(s)
 
 
 def _np_cap(t: str) -> str:
@@ -6181,6 +6457,9 @@ def np_judge_line(s: dict) -> str | None:
     t = f"classed by {j.get('model') or 'no judge named'}, one vote per unit"
     if (s.get("nsfw_plus") or {}).get("self_graded"):
         t += "; graded by itself (this model is the judge)"
+    oj = np_other_judge(s)
+    if oj:
+        t += f"; {j.get('other_units')} unit(s) {oj}"
     return t + (f"; {miss} unit(s) not judged yet" if miss else "")
 
 
@@ -6195,6 +6474,8 @@ def np_judge_check_line(stats: dict, labels: list[str]) -> str | None:
             fl = n.get("flags") or {}
             if fl:
                 t += "; opinion flags " + ", ".join(f"{f} {r} of {k}" for f, (r, k) in sorted(fl.items()))
+            if n.get("judge") and n["judge"] != _primary_judge(None):
+                t += f" ({other_judge_text([n['judge']])})"
             return t + " (printed only; it never withholds a score)"
     return None
 
@@ -7962,6 +8243,8 @@ def _points_tables(ranked: list[str], stats: dict, sc: dict, cfg: dict | None,
     a45_valid = _a45.validated(prof)
     a45_ceil = _a45.ceiling(ranked, stats) if a45 and a45_valid else False
     L += banner45_md(banner45(prof, ranked, stats))
+    if mixed_judges45(ranked, stats):
+        L += [f"> {MIXED_JUDGES_LINE}", ""]
     for i, l in enumerate(ranked, 1):
         c = stats[l]["scorecard"]
         hl = stats[l].get("headline") or {}
@@ -7975,7 +8258,7 @@ def _points_tables(ranked: list[str], stats: dict, sc: dict, cfg: dict | None,
             # 4.5 routed: no Efficiency / Room (4.1 budget rungs); the whole run's cost; the route
             sec_cells = [c + bonus45_tag(hl, d["key"]) for c, d in zip(sec_cells, defs)]
             rows.append([hl.get("rank", str(i)), l, held45_cell(stats[l])
-                         or (headline_cell(hl, "overall") + bonus45_tag(hl, "overall"))]
+                         or (headline_cell(hl, "overall") + bonus45_tag(hl, "overall") + other_judge_cell(stats[l]))]
                         + ([hl.get("class") or "-"] if show_class else []) + [hl.get("lean") or "-"]
                         + sec_cells
                         + [fmt(c["tok_per_s"])]
@@ -7992,7 +8275,8 @@ def _points_tables(ranked: list[str], stats: dict, sc: dict, cfg: dict | None,
                                 lambda d: [(np_cell(stats[l], nm) if seg45 else subtotal_cell(stats[l], nm))
                                            for nm, _ in subs])
         ov_cell = (hl.get("not_ranked") or "pending") if (tb45 and hl.get("S", {}).get("overall") is None) else None
-        rows.append([hl.get("rank", str(i)), l, ov_cell or held45_cell(stats[l]) or headline_cell(hl, "overall")]
+        rows.append([hl.get("rank", str(i)), l, ov_cell or held45_cell(stats[l])
+                     or (headline_cell(hl, "overall") + other_judge_cell(stats[l]))]
                     + ([np_total_cell(stats[l])] if np_col else [])
                     + ([hl.get("class") or "-"] if show_class else []) + [hl.get("lean") or "-"]
                     + ([room_cell(stats[l]) or "-"] if room_col else [])
@@ -8952,6 +9236,18 @@ def _model_notes(label: str, s: dict, cfg: dict | None = None) -> list[str]:
                    f"(it is the judge)")
     if (s.get("nsfw_plus") or {}).get("self_graded"):
         out.append("graded by itself: the adult page was judged by this model (it is the judge)")
+    if s.get("model_output_invalid"):
+        out.append(model_output_invalid_note(s["model_output_invalid"]))
+    ll = losses_line(s.get("losses"))
+    if ll:
+        out.append(ll)
+    if s.get("other_judge45"):
+        out.append(f"{OTHER_JUDGE_MARK} {s['other_judge45']['note']} (scored and ranked on this board)")
+    elif np_other_judge(s):
+        out.append(f"NSFW+ {np_other_judge(s)}")
+    jn = judges_note(label)
+    if jn:
+        out.append(jn)
     for w in (s.get("meta") or {}).get("warnings") or []:
         out.append("⚠️ " + w)
     out += [("⚠️ " if n["severity"] == "warn" else "") + n["text"] for n in s.get("notes45") or []]
@@ -9105,6 +9401,11 @@ def _board_rows(rows: list[dict]) -> list[dict]:
         keep[k] = rid
         if len(done) > 1:
             marks[k] = {"run_ids": sorted(done, key=lambda x: done[x]["stamp"]), "kept": rid}
+            # 4.5.1 (PLAN-451-LIMITS): a run owed again by attempts45.superseded says why it was replaced
+            why = sorted({w for x, g in done.items() if x != rid for w in map(_attempts45.superseded, g["rows"])
+                          if w})
+            if why:
+                marks[k]["reason"] = ", ".join(why)
     out = []
     for r in rows:
         k = (r.get("case_id"), r.get("repeat"))
@@ -9604,7 +9905,12 @@ def room_stats(label: str, cfg: dict | None, board_rows: list[dict], meta: dict,
         _, cfg_p, _ = _profile_applied(cfg)
     except Exception:  # noqa: BLE001 — no profile readable: no escalation known
         cfg_p = cfg or {}
-    rungs = escalation_rungs(cfg_p)
+    # a model or route that caps its output below a rung never gets that rung (its clamp is on the rows)
+    ent_ = next((m for m in (cfg or {}).get("models") or [] if isinstance(m, dict) and m.get("name") == label), {})
+    omax_ = [int(ent_["max_output_tokens"])] if ent_.get("max_output_tokens") else []
+    omax_ += [int((r.get("budget_clamp") or {}).get("route_max")) for r in board_rows
+              if isinstance((r.get("budget_clamp") or {}).get("route_max"), int)]
+    rungs = escalation_rungs(cfg_p, min(omax_) if omax_ else None)
     top = max(rungs) if rungs else 0
     out = {"total": None, "chat": None, "coding": None, "rungs": [],
            "ran_out": len(escalation_jobs(board_rows, 1 << 30)), "pending": 0}
@@ -10056,9 +10362,22 @@ STALE_NO_STAMP = "stale: made before grader stamps"
 _CARD_INPUTS = ("label", "run_ids")
 
 
-def other_judge_text(ids) -> str:
-    """D13 (lead 2026-11-19 b): a part placed by a judge other than the profile's."""
-    return f"judged by {', '.join(ids)}, not the board's judge: not comparable"
+def other_judge_text(ids, cfg: dict | None = None) -> str:
+    """D13 (lead 2026-11-19 b): a part placed by a judge other than the profile's. Owner 2026-11-24 (any judge may
+    judge): neutral words, the provider that served it when the results folder recorded one, and which judge
+    MakoBench's published scores use."""
+    from . import judge45 as _J
+    try:
+        provs = _J.judge_providers()
+    except Exception:  # noqa: BLE001 -- a trace never breaks the board
+        provs = {}
+    who = ", ".join(f"{i} ({provs[i]})" if provs.get(i) else str(i) for i in ids)
+    try:
+        board = _primary_judge(cfg)
+    except Exception:  # noqa: BLE001
+        board = None
+    ref = f"the local {_J.judge_name(board)} judge" if board else "the profile's local judge"
+    return f"judged by {who}; MakoBench's published scores use {ref}"
 
 
 def other_judge_rows(rows: list[dict], prof: dict | None) -> dict[str, int]:
@@ -10083,7 +10402,8 @@ def rank_parts45(labels: list[str], stats: dict, prof: dict | None) -> None:
     * a row is ranked only among rows that have every part the board currently counts (a part counted for at least
       one current row). A row missing one (not measured, judge agreement not measured for this model, ...) keeps
       its points as "x of y", is not ranked, and says why;
-    * a row with a part placed by a judge other than the profile's (D13) is never ranked;
+    * a row with a part placed by a judge other than the profile's (D13) is ranked like any other and marked
+      (other_judge45; owner 2026-11-24: any user may use any judge);
     * when the ranked rows' maximum is below the full Overall, the Overall and section cells print "x of y".
     Rows of different maxima are never ranked against each other."""
     if not prof or not no_scaling(prof):
@@ -10118,10 +10438,8 @@ def rank_parts45(labels: list[str], stats: dict, prof: dict | None) -> None:
             if why is not None:
                 w = (why.get("whys") or [why.get("why")])[0] or "pending"
                 bits.append(f"{shorts.get(k, k[1])} {str(w).removeprefix('pending: ')}")
-        for k, ids in sorted((c.get("other_judge") or {}).items()):
-            sk = tuple(k.split("/", 1))
-            if sk in {x for x in shorts}:
-                bits.append(f"{shorts.get(sk, sk[1])} {other_judge_text(ids)}")
+        # owner 2026-11-24 (any judge): a part placed by a judge other than the profile's is scored and ranked on
+        # the user's own board, marked with the judge (other_judge45); only ``report --public`` refuses it
         mm = c.get("measured_max") or {}
         in_total = [d["key"] for d in tot_defs(c)]
         of = sum(float(mm.get(k) or 0) for k in in_total)
@@ -10133,6 +10451,61 @@ def rank_parts45(labels: list[str], stats: dict, prof: dict | None) -> None:
         full = sum(float(p.get("weight") or 0) for d in tot_defs(c) for p in d["parts"])
         if mm and of < full - 1e-9:
             c["overall_of"] = of
+
+
+def _np_other_judge_info(rows: list[dict], meta: dict | None, cfg: dict | None) -> dict | None:
+    """The NSFW+ judge info (judge45.verdicts) when the model's NSFW+ units are read from a judge other than the
+    profile's; None when the profile judge's votes are the ones used or nothing is stored."""
+    try:
+        from . import judge45 as _J
+        from . import nsfwplus45 as _np
+        prof = _tier_profile(cfg)
+        label = (meta or {}).get("model_label") or next((r.get("model_label") for r in rows if r.get("model_label")),
+                                                         None)
+        if not _np.enabled(prof) or not label or not _J.run_judge(results_dir(), label):
+            return None
+        units = _np.units_from_rows(rows)
+        if not units:
+            return None
+        _v, info = _J.verdicts(units, results_dir(), label, prof)
+        return info if info.get("other_judge") else None
+    except Exception:  # noqa: BLE001 -- a trace never breaks the board
+        return None
+
+
+def _np_other_judge_of(rows: list[dict], meta: dict | None, cfg: dict | None) -> str | None:
+    """held45's NSFW+ check: the other-judge trace, or None."""
+    info = _np_other_judge_info(rows, meta, cfg)
+    return np_other_judge({"nsfw_plus": {"judge45": info}}) if info else None
+
+
+def other_judge_ids(label: str, cfg: dict | None, rows: list[dict] | None = None) -> list[str]:
+    """Review F2: the judge ids other than the profile's behind anything ``report --public`` would publish for
+    ``label``: a scored row's verdict, a session placement, an NSFW+ vote. [] for a model judged by the profile's
+    judge alone."""
+    ref = _primary_judge(cfg)
+    if rows is None:
+        rows = board_filter(label, cfg) or []
+    ids = {j for j in (row_judge_id(r) for r in rows) if j and ref and j != ref}
+    ids |= set(other_judge_rows(rows, _tier_profile(cfg)))
+    info = _np_other_judge_info(rows, {"model_label": label}, cfg)
+    if info:
+        ids.add(str(info["other_judge"]))
+    return sorted(ids)
+
+
+def judges_note(label: str) -> str | None:
+    """A model whose rows were judged by more than one recorded judge (review F2): which one the board uses."""
+    try:
+        from . import judge45 as _J
+        js = _J.label_judges(results_dir(), label)
+        cur = _J.run_judge(results_dir(), label)
+    except Exception:  # noqa: BLE001
+        return None
+    if len(js) < 2 or not cur:
+        return None
+    return (f"rows of this model were judged by {', '.join(js)}; the board uses {cur}'s verdicts only (one judge "
+            f"per model; rows {cur} has not judged read pending)")
 
 
 def held45(rows: list[dict], meta: dict | None, cfg: dict | None) -> list[str]:
@@ -10158,11 +10531,19 @@ def held45(rows: list[dict], meta: dict | None, cfg: dict | None) -> list[str]:
         out.append(f"stale: {changed} row{'s' if changed != 1 else ''} graded by older grading code")
     if no_effort:
         out.append(f"{no_effort} hosted row{'s' if no_effort != 1 else ''} without a recorded reasoning effort")
-    oj = other_judge_rows(rows, _tier_profile(cfg))
+    # report --public --allow-other-judge (a user's board); a local board never holds a row for its judge (owner
+    # 2026-11-24): it is scored, ranked and marked (other_judge45)
+    allow = bool((cfg or {}).get("_allow_other_judge")) or not public_render(cfg)
+    npj = None if allow else _np_other_judge_of(rows, meta, cfg)
+    if npj:
+        # owner 2026-11-24: NSFW+ units read from another judge's votes are shown on the user's own board and held
+        # off a public one, as Chat placements by another judge are
+        out.append(f"NSFW+ {npj}")
+    oj = {} if allow else other_judge_rows(rows, _tier_profile(cfg))
     if oj:
-        # D13 (lead 2026-11-19 b): sessions placed by another judge are shown on a local board, never published
+        # D13 (lead 2026-11-19 b): sessions placed by another judge are never published without the switch
         n = sum(oj.values())
-        out.append(f"{n} session placement{'s' if n != 1 else ''} {other_judge_text(sorted(oj))}")
+        out.append(f"{n} session placement{'s' if n != 1 else ''} {other_judge_text(sorted(oj), cfg)}")
     return out
 
 
@@ -10212,6 +10593,15 @@ def board_stats(labels_arg: str | None, cfg: dict | None) -> tuple[list[str], di
             meta = {k: meta[k] for k in ("model_label", "model_id", "device", "provider",
                                          "provider_type", "price", "profile") if k in meta}
         stats[label] = tier_model_stats(label, cfg, rows, meta, era)
+        oj45 = other_judge_ids(label, cfg, rows) if not era["old"] else []
+        if oj45:
+            # owner 2026-11-24: scored and ranked, marked with the judge that placed it (key absent otherwise, so an
+            # all-local board renders as before)
+            stats[label]["other_judge45"] = {"ids": oj45, "note": other_judge_text(oj45, cfg)}
+        moi = sum(1 for r in rows if r.get("finish_reason") == "model_output_invalid" or r.get("model_output_invalid"))
+        if moi:
+            # review E (2026-11-25): replies the server could not parse are scored misses; the row says how many
+            stats[label]["model_output_invalid"] = moi
         cov = stats[label].get("coverage") or {}
         stats[label]["provisional"] = bool(cov.get("provisional"))
         stats[label]["provisional_reason"] = cov.get("provisional_reason")
@@ -10367,6 +10757,8 @@ def html_rows(labels: list[str], stats: dict, cfg: dict | None = None) -> list[d
             "quant_reason": s.get("quant_reason"), "served": s.get("served"),
             "served_precision": s.get("served_precision"),
             "judge": ", ".join(str(j).rsplit("/", 1)[-1] for j in judges) if judges else None,
+            # owner 2026-11-24: judged (in part) by a judge other than the profile's; the key exists only then
+            **({"other_judge": s["other_judge45"]["note"]} if s.get("other_judge45") else {}),
             # PUBOUT 4.5 (4.5 boards only; a 4.1 board's data is frozen): how the judge scored this row's
             # judged parts (thinking, samples per reply); what "partial" means for this row in plain words
             # (None when complete); the Class band from the profile's headline.classes, always (`class`
@@ -10758,7 +11150,8 @@ def seg45_measured(s: dict) -> dict:
         j = npb.get("judge45") or {}
         out["nsfw_plus"]["judge"] = {f: j.get(f) for f in ("model", "prompt_sha", "flag_prompt_sha", "class_units",
                                                            "class_judged", "class_missing", "flag_units",
-                                                           "flags_read", "flags_missing")}
+                                                           "flags_read", "flags_missing", "other_judge",
+                                                           "other_units", "other_judges_ignored")}
         out["nsfw_plus"]["same_family"] = bool(npb.get("same_family"))
         out["nsfw_plus"]["self_graded"] = bool(npb.get("self_graded"))
         out["nsfw_plus"]["judge_check"] = npb.get("judge_check")
@@ -10948,6 +11341,8 @@ def render_report_html(labels: list[str], stats: dict, cfg: dict | None = None,
     # the status banner / Class hiding follow the board's profile, routed or not (rc2 has no routing)
     prof_b = prof45 or (_tier_profile(cfg) if labels else None)
     banner = banner45(prof_b, rank_labels(labels, stats), stats) if prof_b else []
+    if mixed_judges45(labels, stats):
+        banner = list(banner) + [MIXED_JUDGES_LINE]
     hide_class = class_hidden45(prof_b)
     if labels and not routed(prof45):
         # (a routed board: the 4.1 tier legend does not describe its numbers; scale45_footnote below)

@@ -6,6 +6,189 @@ was ever published as Gauntlet, so there is no migration to do — the entries
 below are kept because the engineering they record is real, not to narrate a
 rename.
 
+## 4.5.1 (dev)
+
+4.5.1 raises token budgets that cut capable models before they could answer and accepts two harmless format slips
+(a bare `>>>>>>>` closer; a tool `CALL` on the same line as earlier text); rows affected under 4.5.0 were re-run or
+re-graded, and no test question changed. Cases, calibration, weights and marks are untouched; grader stamps do not
+move (the scorer stamp moves once). Scores made under 4.5.0 and 4.5.1 sit on one board.
+
+In short:
+- **Any judge**, local or hosted, for a user's own runs. Its rows are scored, ranked on the user's board and marked
+  ⚖; `report --public` refuses them unless `--allow-other-judge`. MakoBench's published scores use the local 8-bit
+  (Q8) judge. A hosted copy of the judge can differ from it on the adult page (NSFW+): in a 2026-11-25 probe it
+  needed thinking on to pass the explicit-text check.
+- **Judge cost** is booked apart from every model's Run cost and spend cap, and estimated from real call counts.
+- **Resume** re-uses stored replies only when the model's settings match.
+- **Thinking allowance + answer allowance**: per-category budgets (instruct 33,536; role-play/NSFW 34,768; story
+  35,768; tool use 33,792; coding, reasoning, math 63,488), the from-scratch programs CQ1-CQ3 at 131,072, chain
+  ceilings 32,768 → 49,152 and 16,384 → 32,768 per turn; provider output maxima clamp a budget and the clamp is
+  recorded on the row.
+- **Stall ceiling**: a request waits at most 2,700 s for its next token.
+- **Tool tasks** regenerate an empty reply and send the task's EMPTY reminder; an answer left in reasoning is read.
+- **A rejected output or an oversize prompt is a scored miss**, never an abort or a silent gap.
+- **`losses`** per model in the report (cut, empty, context, transport, clamped, over budget, tolerated, points at
+  stake) and **bonus points per part**.
+- **`all --plan`** lists and prices owed rows by reason.
+- **Fix rows** are graded without bubblewrap under the documented `CRUCIBLEFORGE_ALLOW_UNSANDBOXED=1` switch (the
+  container is the isolation), and rows stored as unavailable are re-graded from their stored reply.
+
+Details follow.
+
+**Budgets (profile block `budgets_451`).** A row without a fixed budget is sent min(57,344, max(10 × `max_tokens`,
+32,768)) + `max_tokens`: a reasoning allowance followed by the category's own answer allowance. CQ1-CQ3 are sent
+131,072 (loaded at 139,264; a rig that will not load that window falls back to 7/8, 3/4, 5/8 of it and then 73,728,
+warns, clamps the budget to what fits and stamps `budget_clamp {route_max: "rig window", wanted, granted}`). Chain
+ceilings map by value (32,768 → 49,152; 16,384 → 32,768). Thinkers load at 81,920 at least, or at the largest
+prompt + budget + 1,536 of their round, capped at the registry `max_context`. A route's output maximum
+(`max_output_tokens` on the provider or model entry, else the `/models` listing, else the documented value for
+DeepSeek 393,216 and MiniMax 524,288) clamps the budget, stamped `budget_clamp {route_max, wanted}`; an API that
+refuses `max_tokens` is retried once at the limit it names; no escalation rung above that maximum is offered. Old
+profile keys are untouched so they still describe 4.5.0 rows. New rows carry `budget_rev: 2` and `budget_reason`.
+
+**Cut and over-budget.** A reply is cut only when it ends on the length limit. Reasoning a provider lets run past
+`max_tokens` is recorded as `over_budget` and never cut on our side. Errored rows stamp the budget that was sent.
+The keep-alive ceiling is capped at 2,700 s (a 65,536-token request had 600 s on the 2026-11-22 build). The
+empty-start sanity abort is off in recover, targeted and rung rounds, and a row with reported reasoning tokens is
+not empty.
+
+**Two format tolerances, nothing else.**
+- Bare closer (`edittol`, rev et-2): in a SEARCH/REPLACE block that has its SEARCH and `=======` lines, a line of five
+  to nine `>` alone closes the block, but only the last such line before the next block or the end; a proper
+  `>>>>>>> REPLACE` after it makes it replacement text. `codebank.py` is not edited (a wrapper installed at start).
+  Rows say `tolerated: {bare_closer, rev}`. Stored rows: `python -m crucibleforge.edittol <label>` (dry run; `--go`).
+- Mid-line tool call (`calltol`, rev ct-2): in the tool tasks, `CALL <tool> {json}` after a closing `}` `.` `!` `?`
+  `)` is read as its own line when the tool is offered and the JSON parses; a quoted, backticked, narrated, refused
+  or fenced call is never read. The stored conversation keeps the model's reply; the row says `calltol` and
+  `console.calls_without_line_break`.
+
+**Tool console.** The tool-task loop regenerates an empty stop, lets the task's own EMPTY reminder reach the model,
+ends only when the session stops, reads an answer left in the reasoning channel and stamps the per-turn budget
+(`console_rev: 2`).
+
+**Context.** A context refusal while the model is served at its own maximum is a scored miss noting "context N <
+needed M"; below that maximum it stays `ctx_short` and is owed again.
+
+**Owed rows and re-runs.** A stored reply cut below its unit's new budget, an older tool row holding a tolerated
+mid-line call, or an older tool row that ended on an empty reply is *owed*: it keeps scoring until a plain resume
+re-runs it, and the new row carries `rerun: {reason}`. A re-run that fails on infrastructure twice is no longer owed
+(the old row keeps scoring; `losses` names it `rerun_failed`). A CQ unit re-runs only the repeats without a
+4.5.1-budget reply. `all --plan` prints owed jobs by reason (budget raised, tool tolerance, empty stop, context,
+stall, transport, other, not run) with their tokens and dollars.
+
+**Losses and bonus points.** `report.json` gets `losses` per model and segment (cut, empty, context, transport,
+clamped, over_budget, rerun_failed, tolerated, points_at_stake) and the row details one "Lost rows: ..." line. Each
+segment shows its share of the section's pack points and their sources. Report data only; no score moves.
+
+**Any judge.** A user may name any judge for a 4.5 run, local or hosted (`--judge <name or provider:model-id>`).
+MakoBench's published scores use the local Qwen 3.8 27B Q8 judge; rows placed by any other judge are scored and
+ranked on the user's board and say so: "judged by <model id> (<provider>); MakoBench's published scores use the local Qwen 3.8 27B Q8
+judge". The run's judge, hosted or local, also classes the adult page (NSFW+) and runs `judge-check`; a hosted
+judge therefore receives every reply it judges, the adult page included, unless `--no-nsfw-plus` is passed (the
+user's own opt-out, for any judge). Its NSFW+ votes are stored under its own model id, so none is asked or billed
+twice. No GPU lease or rig call is made for a judge that is not on a StudioForge provider. When the judge's provider
+refuses or filters a judge call (a content filter, a refusal, an empty answer), the unit is never scored as the
+model's refusal: it stays not judged ("the judge's provider refused or filtered this unit"), is asked again on the
+next run, and the run summary and the board count such units. The user's own board shows the NSFW+ result of a
+run judged by another judge. One judge per model: each model's current judge (the judge of its latest judge phase)
+is the only one whose verdicts and NSFW+ votes the board reads; rows and votes of the model's other recorded judges
+stay in the files and read as not judged, so the next judge phase judges them again, and the model's notes say so.
+A folder judged by the profile's judge alone renders exactly as before. Cells and notes from another judge carry the
+same "judged by ..." wording as Chat rows. `report --public` refuses (exit 6, naming the models and judge ids) when
+anything it would publish was judged by a judge other than the profile's, unless `--allow-other-judge` is passed. `judge-check` shows the latest judge's stored result when the
+profile judge has none.
+
+**A hosted judge's answers parse (first hosted run, 2026-11-24).** Through OpenRouter a thinking judge model reasoned
+by default and spent its output budget before the verdict (386 of 843 judge calls unparsable, every one cut at its
+ceiling), because OpenRouter ignores the chat-template switch a local server reads. A judge on OpenRouter with
+thinking off now sends OpenRouter's own switch, `reasoning: {enabled: false}` (also on the `qwen27-judge-openrouter`
+example entry), and the judge's no-think retry of a thinking judge is translated the same way. A hosted judge call
+still cut at its ceiling with no complete JSON verdict is asked once more with four times the output budget (capped
+at 32768 tokens, or the provider entry's `judge_max_output_tokens`); both calls are booked as judge spend. A local
+judge's requests are unchanged. A judge call the judge's provider refuses on content grounds (HTTP 400 "prompt
+flagged", a moderation refusal) is not retried; the unit stays not judged ("the judge's provider refused or filtered
+this unit"), and a judge phase with such units exits 12 with a line saying the refusal was the judge's provider's,
+not the model's. A model's own calls keep their transport handling. An `openai`-type provider whose `base_url` is a
+local server (loopback, a private or carrier-grade/tailnet address, a `.local` or single-label host) counts as local
+everywhere a hosted judge is treated apart: no judge cost line, no hosted wording. `hosted: true|false` on a provider
+entry overrides that.
+
+**Every judge phase reaches a hosted judge (second hosted run, 2026-11-24).** `all` guards the judge once per judge
+phase; a later phase (role-play sessions, the ladder rounds' pack judge) guarded the already-resolved judge again and
+got a provider entry with no URL, so 372 judge calls failed and the row was not ranked. The guard is now idempotent
+and a judge's own provider entry always resolves to the user's provider entry; a test drives every judge caller
+through a real HTTP round trip. The example OpenRouter judge entry now runs with thinking on, as the local judge
+does: with thinking off it failed the judge's explicit-text check (NSFW rows stayed pending). When any judge fails
+only that check, the run summary says so in one line ("the judge failed its explicit-text check: NSFW+ was not
+judged; ...") instead of leaving the rows silently pending.
+
+**A plain re-run resumes.** Running the same `all` command again re-drew every standard job of a model whose rows
+were already stored (only chains and ladder rounds resumed), billing them a second time. Under the 4.5 first-reply
+rule a model with stored replies now runs only its owed jobs; `--fresh` still starts over. A stored reply is reused
+only when it was made under the entry's current conditions: the same model id and provider, the sampler in force, the
+thinking setting, the reasoning effort, the request protocol, the current case content, and not a `--smoke` run (new
+rows record the thinking setting and the smoke mark). On any difference the model runs its full set, as 4.5.0 did, and
+one line says why; the old replies stay on disk. With `--cases` only the named jobs made under other conditions run
+again.
+
+**Fix rows in a container.** The bug-fix rows honour `--allow-unsandboxed` / `CRUCIBLEFORGE_ALLOW_UNSANDBOXED=1` like
+every other code test (same warning line), so a run in the Docker image is ranked. Where bubblewrap works nothing
+changes: same runner, same checker stamp, same verdicts (the checker's files and `fixrows45.py` are byte-identical). A
+fix row stored while no route existed (`fixcheck: {unavailable: true}`) is graded on the next `run`/`all` from its
+stored reply, with no model call, once a route exists (bubblewrap installed or the switch set); the verdict is the one
+a first grading stores, written as a superseding row marked `regraded_by`. An agent fix row (CB-F1) keeps no final
+tree, so it is run again instead.
+
+**Judge cost is the whole run.** The judge's price now rides on the config, so a later judge phase working on a copy
+of it (role-play sessions, packs, NSFW+ classing) books its calls at the judge's price instead of $0, and `all` ends
+with one line for every judge call of the run. The plan's judge range allows up to 4 calls per sample (a length
+retry, then the judge's own re-ask). The plan and the run summary say whether the judge and each model are hosted or
+local, and name `hosted: true` for an API at a local address. A `~` in a provider name is refused (reserved for the
+judge's own entry).
+
+**Judge cost apart.** A hosted judge's calls are never part of a model's Run cost and never count against the
+model's `--spend-cap-usd` / `$CF_SPEND_CAP_USD`. Judge spend is decided by the role of the call (the judge is served
+through its own provider entry), never by model id, so the same hosted model under test and as judge keeps its
+generation inside its own caps. A priced judge is booked in the spend ledger as `kind: judge` lines and meets the
+overall ceiling (`CF_SPEND_GLOBAL_CAP_USD`); the run prints one line with its cost. No price is required on a judge
+entry; an unpriced one is counted (calls and tokens) and the plan and the run summary print "judge cost unknown:
+<id> on <provider> has no price in models.yaml; N calls, T tokens; not limited by any cap".
+
+**Another judge on your own board.** A row judged by a judge other than the profile's is scored and ranked on the
+user's own board, marked ⚖ beside its Overall score, with the note "judged by <id> (<provider>); MakoBench's published
+scores use the local Qwen 3.8 27B Q8 judge" in its notes and details (md and HTML). A board whose rows were judged by
+different judges says so in one line above the table. `report --public` still refuses such rows unless
+`--allow-other-judge`. A board judged by the profile's judge alone renders as before.
+
+**Judge estimate counts the calls a run makes.** The plan's hosted-judge figure now counts judged rows, NSFW+ units
+(when the adult page is on), the role-play session judge with its rung check, and pack rounds in the upper figure, at
+calls and tokens per call measured on 4.5 runs, with one line per part. The standard profile is estimated at about 850
+calls (measured: 837).
+
+**A server's verdict is a score, never an abort.** A server's "the prompt does not fit the context" answer, whatever
+its HTTP status, is the job's `ctx_short` outcome (as a 400 already was) and never counts toward the consecutive-failure
+abort; tool and agent loops grade the work as it stands. A server's rejection of the model's own output ("The model
+produced output that does not match the expected ... format") is retried like a transport error and then scored as a
+miss (an empty answer graded by the case's grader, finish `model_output_invalid`), counted in the row's notes ("N
+replies could not be parsed by the server and count as misses"), never missing and never the abort. A connection
+error or any other 5xx is still a transport error, and a server that is really gone still aborts the model.
+
+**Cost estimator rebuilt.** The plan price now comes from token profiles measured on 4.5 runs (input-heavy, far
+less output than the old per-row estimate, which was 5 to 15 times too high). The plan line prints a typical figure,
+a figure for a model that thinks at length, and the every-row-to-its-budget ceiling, says packs are extra, and that
+cached input usually bills lower. A model entry with `thinking: true` is expected at the "thinks at length" figure;
+when thinking is not set before the run, the advice is about twice the "thinks at length" figure. That figure with
+packs is not under the heaviest measured run (GLM-5.3 Flash, 7.99M in / 3.76M out with packs). A `price:` block may carry `cached_input` (same as `cache_read`): rows whose
+response reports cache-read tokens are then priced at it.
+
+**Fixed after the first models outside the launch set were run (2026-11-24).** No stored score of a launch model
+changed.
+- A reply cut in the middle of an emoji left a character that could not be saved; the judge's verdict was lost and
+  the model's role-play sessions stayed pending. Such replies are now judged and stored.
+- A turn that ended in a tool call with no text, from a model that reports no reasoning tokens, was read as a dropped
+  reply. A model that passed a tool dialogue four times had its Tools score left pending and was not ranked. A turn
+  that ends in a tool call is now always counted as the model's answer.
+
 ## 4.5.0 release notes: what changed since 4.1
 
 MakoBench 4.5 is a new test with new grading rules. Its scores do not compare with 4.1 scores, and 4.1 is kept as an
@@ -51,14 +234,6 @@ NSFW, Uncensored and NSFW+ are wider than the 5% limit for a single run; the boa
 The adult figures come from 7 + 2 + 2 repeat runs of three models (8 degrees of freedom). The mean of the
 reference model's own seven runs has NSFW+ ±0.60 (3.0%), NSFW ±0.45 and Uncensored ±0.26.
 
-**Fixed after the first models outside the launch set were run (2026-11-24).** No stored score of a launch model
-changed.
-- A reply cut in the middle of an emoji left a character that could not be saved; the judge's verdict was lost and
-  the model's role-play sessions stayed pending. Such replies are now judged and stored.
-- A turn that ended in a tool call with no text, from a model that reports no reasoning tokens, was read as a dropped
-  reply. A model that passed a tool dialogue four times had its Tools score left pending and was not ranked. A turn
-  that ends in a tool call is now always counted as the model's answer.
-
 **Where the judge leans.** A one-time audit re-judged the eight long chat scenes (4.5 of the 10 Chat points) of five
 models, 581 facts in all, with three other models outside the bench, and took their agreed answer as the truth. The
 judge differed from it on 35 facts: 18 too lenient and 17 too strict, so most errors cancel. On every model its lean
@@ -70,9 +245,9 @@ the Chat points), has not been run.
 **Score-moving fixes after the freeze.**
 - Uses tools: the 30 seeded tool tasks keep their share of the segment at report time, so the segment completes,
   and their repeat count is read from their own rows.
-- The xAI (Grok) client only: each request gets a fresh conversation id, so a model no longer receives its earlier
+- xAI provider (Grok models): each request gets a fresh conversation id, so a model never receives its earlier
   hidden reasoning back in the next turn; a stream that sends only keep-alives is stopped; the billed cost is booked
-  as the provider reports it. This changes only Grok rows.
+  as the provider reports it. Rows of models on other providers are unchanged.
 
 **Running a release.** `scripts/release45.py` now runs b-judge, c-assemble, d-report, e-resolution, e-board and
 e-accuracy by default, takes `--force <steps>` to re-run steps that are already done and `--report-jobs N` to render

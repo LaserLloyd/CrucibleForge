@@ -266,6 +266,11 @@ def validate_config(cfg: dict) -> None:
     for pname, p in cfg["providers"].items():
         if not isinstance(p, dict):
             raise ConfigError(f"provider {pname}: must be a mapping")
+        if "~" in str(pname):
+            # reserved: a hosted judge is served through its own entry ``<provider>~judge`` (spend.judge_role books
+            # every call through a name ending in ``~judge`` as judge spend, outside the model's caps)
+            raise ConfigError(f"provider {pname}: '~' is reserved in provider names (the hosted judge's own entry is "
+                              f"'<provider>{JUDGE_ALIAS}'); rename the provider")
         ptype = p.get("type", "openai")
         if ptype not in PROVIDER_TYPES:
             raise ConfigError(f"provider {pname}: unknown type {ptype!r} "
@@ -358,9 +363,21 @@ def _has_literal_api_key(node) -> bool:
     return False
 
 
+#: the hosted judge's own provider entry is ``<provider>~judge`` (spend.JUDGE_PROVIDER_SUFFIX): calls through it are
+#: judge calls, booked apart. It is the user's ``<provider>`` entry under another name.
+JUDGE_ALIAS = "~judge"
+
+
 def provider_of(cfg: dict, name: str) -> dict:
+    """The provider entry ``name``. A judge alias ``<provider>~judge`` that the config does not list (a caller that
+    resolves the judge against the config as loaded, not the copy the judge guard returned) is the ``<provider>``
+    entry: every judge caller reaches the same server, and the name keeps the judge spend role."""
+    provs = (cfg or {}).get("providers") or {}
+    base = str(name)
+    while base.endswith(JUDGE_ALIAS) and base not in provs:
+        base = base[: -len(JUDGE_ALIAS)]
     try:
-        p = dict(cfg["providers"][name])
+        p = dict(provs[base])
     except KeyError:
         raise ConfigError(f"unknown provider {name!r}") from None
     p["name"] = name
@@ -561,7 +578,22 @@ def load_transcripts(label: str) -> list[dict]:
             rows.append(json.loads(line))
         except json.JSONDecodeError:
             continue  # torn final line from a killed run — skip
-    return dedupe_rows(rows)
+    return dedupe_rows(_one_judge(label, rows))
+
+
+def _one_judge(label: str, rows: list[dict]) -> list[dict]:
+    """Review F2 (4.5.1): one judge per model across resumes (judge45.one_judge_rows). A folder with no other judge
+    recorded for ``label`` (every folder judged by the profile's judge alone) is returned unchanged."""
+    res = results_dir()
+    if not (res / "judge45" / "run_judge.json").is_file():
+        return rows
+    try:
+        from . import judge45
+        from .profiles import active_name, load_profile
+        picked = judge45.one_judge_rows(res, label, rows, judge45.judge_id(load_profile(active_name(None))))
+    except Exception:  # noqa: BLE001 -- the selection never hides rows by failing
+        return rows
+    return rows if picked is None else picked
 
 
 def dedupe_rows(rows: list[dict]) -> list[dict]:

@@ -59,17 +59,42 @@ part names; the map under the list says which segment each one feeds):
 | Part | Output tokens one reply may use (the budget sent) |
 | --- | --- |
 | Careful small functions | 65,535 per prompt of three briefs |
-| Follows tool rules | 16,384 per reply on two dialogues, 65,536 on the third |
+| Follows tool rules | 33,792 per reply on two dialogues, 65,536 on the third |
 | Steps through code | 71,680, 70,656 or 69,632 by difficulty level (4, 6, 8) |
 | Knows language traps | 65,536 |
-| Uses tools | 16,384 per turn on the seeded tool tasks, with up to 49,000 tokens of history room |
-| State over a session | 16,384 per turn |
-| Keeps a tally over a session | 16,384 per turn, with up to 49,000 tokens of history room |
+| Uses tools | 32,768 per turn on the seeded tool tasks, with up to 49,000 tokens of history room |
+| State over a session | 32,768 per turn |
+| Keeps a tally over a session | 32,768 per turn, with up to 49,000 tokens of history room |
 | Says what it does not know | 71,680 |
-| Role-play: sessions | 16,384 per turn, with up to 49,000 tokens of history room |
-| Role-play: long scenes | 16,384 per turn |
+| Role-play: sessions | 32,768 per turn, with up to 49,000 tokens of history room |
+| Role-play: long scenes | 34,768 per turn |
 <!-- budgets:end -->
 
+
+**4.5.1 budgets and tolerances.** Thinking and the answer no longer share one cap. A row without a fixed budget is
+sent a reasoning allowance plus the category's own answer allowance: min(57,344, max(10 × `max_tokens`, 32,768)) +
+`max_tokens` (profile block `budgets_451`). That gives instruct 33,536, role-play and NSFW 34,768, story 35,768,
+tool use 33,792, and coding, reasoning and math 63,488 tokens. The from-scratch programs CQ1-CQ3 are sent 131,072
+(the rig loads that round at 139,264; if it will not, the largest window it grants is used, the budget is clamped to
+fit and the row says so). Chain ceilings of 32,768 become 49,152 and per-turn ceilings of 16,384 become 32,768. A
+thinker is loaded at 81,920 tokens at least, or more when a round's prompt plus budget needs it. A budget above the
+route's output maximum is clamped and the row records `budget_clamp {route_max, wanted}`. Reasoning that a provider
+lets run past the budget is recorded as `over_budget` and never cut on our side; a reply is cut only when it ends on
+the length limit. A request waits at most 2,700 s for its next token before it is an infrastructure failure. Two
+format slips are accepted, nothing else:
+- **A bare closer.** In a SEARCH/REPLACE edit, a line of five to nine `>` alone closes the block, but only when it
+  is the last such line before the next `<<<<<<< SEARCH` or the end of the reply and the block already has its
+  SEARCH and `=======` lines. A proper `>>>>>>> REPLACE` after it means the bare line was replacement text. The row
+  records `tolerated: {bare_closer, rev}`.
+- **A tool call on the same line as earlier text.** In the tool tasks, `CALL <tool> {json}` written mid-line is read
+  as its own line only when the tool is offered, the JSON parses and the character before `CALL` closes a thought
+  (`}` `.` `!` `?` `)`). A quoted, backticked, narrated, refused or fenced call is never read. The row records
+  `calltol` and `console.calls_without_line_break`.
+
+Tool tasks regenerate an empty reply and send the task's own EMPTY reminder before the dialogue ends, and an answer
+left in the reasoning channel is read. A reply the server rejects as unparsable output, and a prompt larger than
+the model's own maximum context, are scored misses ("context N < needed M"), never left out. A context refusal
+below the model's maximum stays an infrastructure failure and is owed again.
 
 What each item set asks of the model:
 
@@ -198,8 +223,11 @@ hosted model named as the judge is refused when the judge step starts, before it
   these calls. It is also the board's reference model: its own row is graded by itself and carries a note saying
   so. Any other model under test is never its own judge. A canary of known answers runs before any scoring. The
   judge's verdicts are stamped with its rubric and settings, so a changed instrument makes older verdicts stale
-  instead of silently mixing them. Another local judge can be named with `--judge`; its placements carry its id and
-  read "(judged by <id>, not the board's judge: not comparable)".
+  instead of silently mixing them. Any other judge, local or hosted, can be named with `--judge` for your own runs:
+  its rows are scored and ranked on your board, marked ⚖ beside Overall with "judged by <id> (<provider>);
+  MakoBench's published scores use the local Qwen 3.8 27B Q8 judge", and `report --public` refuses them unless
+  `--allow-other-judge`. A hosted copy of the judge can differ from the local 8-bit one on NSFW+ (in a 2026-11-25
+  probe it needed thinking on to pass the explicit-text check).
 - **Marks are notes.** The judge marks (`calibration/judge-marks-45.1-draft.json` for the long scenes, the frozen
   marks v2 for the sessions) print beside the parts and never hold or change a score. **Which marks.** Role-play
   sessions use agreement on ladder placements (the measured figures are read from `judge_marks.json` at render).
@@ -229,9 +257,10 @@ The rest of the rules for each outcome are in [SCORING-RULES-45.md](SCORING-RULE
 
 ## Known limits
 
-- **The Erotica order check uses a stand-in pair.** Like every mark it is a note and holds nothing. The mark written
-  for it compares Grok with DeepSeek v4 flash, and no Grok run existed when it was applied. The pair required instead is the mark's own second pair (the heretic
-  model above MiniMax M3.1 Flash), which rests on weaker earlier evidence. The written pair prints "not tested".
+- **The Erotica order check reads its second pair.** Like every mark it is a note and holds nothing. Its first pair
+  (Grok above DeepSeek v4 flash) needs a complete Grok run, which the 4.5.0 board does not have, so that pair prints
+  "not tested" and the check reads the mark's second pair (the heretic model above MiniMax M3.1 Flash), which rests
+  on weaker earlier evidence.
   The rule is in `calibration/marks-pairs-45-addendum-20261120.json`, written before any release reply was read.
 - **On NSFW+ a refusal anywhere in a scored turn scores 0 for the unit**, even when the same reply then complies. The
   check looks for the engine's refusal phrase on every scored turn. (Chat's sessions and long scenes follow the
@@ -313,7 +342,9 @@ which on the launch board tied models up to 0.8 Overall points apart.
 - **Re-runs: the first reply counts.** The scored attempt of a unit is the first attempt that produced a model
   reply (a finished reply, a reply cut at the full budget, or one the provider's filter stopped). A later attempt
   replaces it only when the earlier one was an infrastructure failure (transport error, HTTP 429 or 5xx, a timeout
-  with no reply, a lost lease, an empty reply). Later attempts at a unit that has a reply are ignored and the row
+  with no reply, a lost lease, an empty reply) or when 4.5.1 owes the unit again (see "4.5.1 budgets and
+  tolerances" below: a reply cut below the unit's new budget, an older tool row the console mishandled); the
+  replacing row carries a `rerun` mark with the reason. Later attempts at a unit that has a reply are ignored and the row
   says how many ("N later attempts ignored"). A multi-turn session is one unit. Its rows, in time order, split into
   attempts where the turn numbering restarts (a turn number not greater than the one before starts a new attempt). A
   row that only continues an attempt after an infrastructure failure at that same turn is joined to it. The scored
@@ -394,4 +425,4 @@ The 4.1 test (suite 4.1.0: 33 cases, the old weights and labels) is frozen under
 | **tok/s**, **Run cost**, **Minutes** | Throughput, dollars at the model's price, wall-clock minutes of the run. |
 | **Run settings** | Thinking, effort, median reasoning tokens, cut and empty counts. |
 | **Suite**, **Run date** | The suite version and the date of the run. |
-| **Notes** | Everything that makes a row not comparable: partial, stale, a different judge, re-runs, near-unlock warnings. |
+| **Notes** | Everything a reader should know about a row: partial, stale, another judge, re-runs, near-unlock warnings. |

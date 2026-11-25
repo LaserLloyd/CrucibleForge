@@ -223,7 +223,8 @@ chains:
   0/1/2 element YES = 1, PARTIAL = 0.5, NO = 0. Only when no credit is given does it score
   on `pass` (1 or 0). This is the rule because the rubric was written and screened on that
   scale (N2's rc2 proxy numbers are by credit). Paying PARTIAL as full also compressed the
-  gaps the section exists to show (Grok vs DS-flash quality 0.136 -> 0.063 on the screen).
+  gaps the section exists to show (on the screening data, the quality gap between two hosted models fell from
+  0.136 to 0.063).
   The standard error uses the same credit values. This applies to flat judged parts only;
   classic judged parts are scored in `report.py` and are unchanged.
 - **Judge gate.** `judge_gate: <judge element id>` (only on a `judged: true` part, e.g.
@@ -279,7 +280,9 @@ multi-turn item). A multi-item prompt gets min(N x `ceiling`, 65,536).
 
 - **What it caps.** It is each request's output maximum, thinking included. A multi-turn
   family gets it per turn: for example 2,500 per turn for the multi-turn families and 32,768
-  for some single-shot families.
+  for some single-shot families. Since 4.5.1 the profile's `budgets_451.ceilings` map raises a
+  stored ceiling by value when it is sent (32,768 to 49,152; 16,384 to 32,768); the chain block
+  itself is unchanged.
 - **Effective value.** It is never above the served window minus the prompt. With no
   ceiling, the window is the ceiling.
 - **Load context.** The model is loaded at least at the largest ceiling plus the pad.

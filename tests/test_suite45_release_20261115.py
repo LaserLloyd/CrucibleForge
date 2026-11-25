@@ -17,8 +17,8 @@ from crucibleforge.config import ConfigError
 
 
 def test_the_harness_stamps_45():
-    assert version.SUITE_VERSION == "4.5.0"
-    assert version.revision().startswith("4.5.0+")
+    assert version.SUITE_VERSION == "4.5.1"
+    assert version.revision().startswith("4.5.1+")
 
 
 def test_a_41_stamped_bench45_row_is_still_current_by_regime():

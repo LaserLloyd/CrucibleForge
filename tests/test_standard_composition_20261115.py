@@ -44,7 +44,7 @@ def test_a_bare_run_is_the_shipping_test(bare):
         assert prof.get("chains")                               # the 4.5-only rules key on this
         assert not prof.get("reuse")                            # no 4.1 row counts
         assert prof.get("judge_stamp_required") is True
-    assert version.SUITE_VERSION == "4.5.0" and version.revision().startswith("4.5.0+")
+    assert version.SUITE_VERSION == "4.5.1" and version.revision().startswith("4.5.1+")
     st = judge_digest._profile_settings("bench45")
     assert st["is45"] and st["stamp_required"]
 

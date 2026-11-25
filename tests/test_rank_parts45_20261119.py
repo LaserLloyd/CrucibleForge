@@ -42,30 +42,33 @@ def test_when_no_row_counts_a_part_every_row_is_ranked_at_x_of_y():
     assert R.section_cell45(hl, DEFS[1]) == "**4**.0 of 6"
 
 
-def test_a_row_judged_by_another_judge_is_never_ranked():
+def test_a_row_judged_by_another_judge_is_ranked_on_the_users_board():
+    # owner 2026-11-24: any judge; the row is scored and ranked, marked by board_stats (other_judge45)
     st = {"a": _stats(), "b": _stats(other=["other-judge"])}
     R.rank_parts45(["a", "b"], st, PROF)
     assert st["a"]["scorecard"]["total"] == 12.0
-    assert st["b"]["scorecard"]["total"] is None
-    assert st["b"]["scorecard"]["unranked_why"] == \
-        "not ranked: RPS judged by other-judge, not the board's judge: not comparable"
+    assert st["b"]["scorecard"]["total"] == 12.0 and "unranked_why" not in st["b"]["scorecard"]
 
 
 def test_the_points_cell_names_the_other_judge():
     hl = {"S": {"chat": 7.0}, "pts": {"chat/h2": 4.0, "chat/rps": 3.0}, "other_judge": {"chat/rps": ["other-judge"]}}
     d = {"key": "chat", "parts": [{"key": "h2", "weight": 6.0, "short": "State", "label": "State"},
                                   {"key": "rps", "weight": 4.0, "short": "RPS", "label": "RPS"}]}
-    assert "RPS 3.0 (judged by other-judge, not the board's judge: not comparable)" in R.points_cell(hl, d)
+    assert "RPS 3.0 (judged by other-judge; MakoBench's published scores use the local Qwen 3.8 27B Q8 judge)" in R.points_cell(hl, d)
 
 
 def test_the_public_gate_refuses_placements_by_another_judge(monkeypatch):
     monkeypatch.setattr(R, "_tier_profile", lambda cfg: PROF)
     monkeypatch.setattr(R, "active_name", lambda cfg=None: "bench45")
     row = {"judge_ladder": {"complete": True, "instrument": {"judge_model": "other-judge"}}}
-    held = R.held45([row], {}, {})
-    assert any("1 session placement judged by other-judge, not the board's judge: not comparable" in h for h in held)
+    pub = {"_audience": R.PUBLIC}
+    held = R.held45([row], {}, pub)
+    assert any("1 session placement judged by other-judge; MakoBench's published scores use the local Qwen 3.8 27B Q8 judge" in h for h in held)
     mine = {"judge_ladder": {"complete": True, "instrument": {"judge_model": "board-judge"}}}
-    assert not any("judged by" in h for h in R.held45([mine], {}, {}))
+    assert not any("judged by" in h for h in R.held45([mine], {}, pub))
+    # the user's own board never holds the row for its judge (owner 2026-11-24), nor does --allow-other-judge
+    assert not any("judged by" in h for h in R.held45([row], {}, {}))
+    assert not any("judged by" in h for h in R.held45([row], {}, {**pub, "_allow_other_judge": True}))
 
 
 def test_the_board_reads_another_judges_placement_marked_and_prefers_its_own(monkeypatch):
@@ -119,8 +122,13 @@ def test_the_docs_say_what_another_judge_does():
     root = Path(__file__).resolve().parents[1]
     for f in ("README.md", "docs/RUNNING.md"):
         t = " ".join((root / f).read_text(encoding="utf-8").split())
-        assert "not the board's judge: not comparable" in t, f
-        assert "never ranked" in t and "refuse" in t, f
+        assert "scored and ranked on your board" in t, f      # review C (4.5.1): ranked and marked
+        assert "not comparable" not in t, f
+    # owner 2026-11-24 (review C, 4.5.1): rows judged by another judge are scored AND ranked on the user's board,
+    # marked, with one line when a board mixes judges; the old "never ranked" wording is the docs agent's to update
+    import inspect
+    assert R.MIXED_JUDGES_LINE.startswith("rows on this board were judged by different judges")
+    assert "(scored and ranked on this board)" in inspect.getsource(R._model_notes)
 
 
 def test_a_section_with_packs_also_says_of_what_when_the_board_is_short(monkeypatch):

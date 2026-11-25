@@ -64,6 +64,18 @@ early_stop:
 thinking_max_tokens_factor: 4
 thinking_max_tokens_cap: 24576
 thinking_max_tokens_floor: 16384
+# 4.5.1 (PLAN-451-LIMITS step 1, lead ruling 2026-11-25): thinking and answer no longer share one cap. The keys above
+# keep describing 4.5.0 rows; rows made under this block carry budget_rev 2 (crucibleforge/budgets451.py). Board
+# regime: min(cap, max(max_tokens x factor, floor)) + max_tokens (instruct 33,536, rp/rpdeep/nsfw 34,768, story
+# 35,768, tooluse 33,792, coding/reasoning/math 63,488). case_budgets and ceilings apply in the runner only (case
+# files, chain blocks and their hashes untouched). A stored row cut below its new budget is owed again on resume.
+budgets_451:
+  factor: 10
+  floor: 32768
+  cap: 57344
+  case_budgets: {"CQ1-*": 131072, "CQ2-*": 131072, "CQ3-*": 131072}
+  ceilings: {32768: 49152, 16384: 32768}
+  thinker_context: 81920
 reasoning_overflow_recovery: false
 # Escalation round ("Room" column, 2026-10-25, runner.DEFAULT_ESCALATION_RUNGS):
 # after a run, every job whose answer ran out of the 24576 budget (thinking

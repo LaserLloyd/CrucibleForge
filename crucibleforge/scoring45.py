@@ -48,6 +48,13 @@ def _is_ctx_short(r: dict) -> bool:
                 or r.get("finish_reason") == "ctx_short")
 
 
+#: finish_reason (and row key) of a reply the server could not parse: a scored miss (runner.MODEL_OUTPUT_INVALID)
+MODEL_OUTPUT_INVALID = "model_output_invalid"
+#: finish_reason (and row key) of a job the model's own maximum context cannot hold: a scored miss
+#: (runner.CONTEXT_MODEL_MAX, PLAN-451-LIMITS step 6)
+CONTEXT_MODEL_MAX = "context_model_max"
+
+
 #: row categories whose provider content-filter stop is the model side's
 #: refusal (scored W=0 as in 4.1), not an infrastructure gap (WP-02 decision)
 REFUSAL_CATEGORIES = frozenset({"nsfw"})
@@ -88,6 +95,11 @@ def _row_empty(r: dict, refusal_ids=frozenset()) -> str | None:
         # four passed runs of one dialogue became "missing" and the model lost its rank (2026-11-24).
         return None
     if r.get("finish_reason") == "length" or r.get("truncated"):
+        return None
+    if (r.get("finish_reason") in (MODEL_OUTPUT_INVALID, CONTEXT_MODEL_MAX) or r.get(MODEL_OUTPUT_INVALID)
+            or r.get(CONTEXT_MODEL_MAX)):
+        # the server could not parse what the model wrote (runner.invalid_output_result): the model's own miss,
+        # graded as an empty answer, never a dropped stream to re-run (owner: a model that cannot do a case scores 0)
         return None
     if (r.get("judge") or {}).get("refused") or r.get("refused"):
         return None

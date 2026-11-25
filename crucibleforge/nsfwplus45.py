@@ -860,11 +860,15 @@ def report_block(rows: list[dict], label: str, results, profile: dict | None, mo
     out = {"state": "complete" if all(n["value"] is not None for n in num.values()) else "pending",
            "reason": None, "numbers": num, "total": total_of(num), "counts": c45, "counts45": c45,
            "attempts": attempts_block(units), "judge45": info,
-           "judge_check": judge45.check_numbers(judge45.load_check(results, jid)),
+           # the profile judge's stored check; when it has none, the stored check of the folder's latest judge
+           "judge_check": judge45.check_numbers(judge45.load_check(results, jid)
+                                                or judge45.load_check(results, judge45.run_judge(results))),
            "same_family": judge45.same_family(jid, label),
            # the judge is also the board's reference model (amendment r): its own page is graded by itself
            "self_graded": bool(jid and model_id and jid == model_id),
            "counts_line": {k: format_counts(v, k) for k, v in c45.items() if v["asks"]}}
     if why:
         out["judge_pending"] = why            # "not judged yet: ..." (the only reason a judged part is pending)
+    if info.get("other_judge"):
+        out["other_judge"] = info["other_judge"]          # units read from another judge's votes (judge45.verdicts)
     return out

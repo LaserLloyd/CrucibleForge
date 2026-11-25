@@ -60,11 +60,13 @@ def test_one_repeat_each(prof):
 def test_budgets_fit_the_stored_token_use(prof):
     cfg, selected = profiles.apply_profile({**prof, "chains": {}}, {"defaults": {}})
     got = {c["id"]: int(plan_budget(cfg, {"thinking": True}, c, 40960).split()[0]) for c in selected if c["id"] in ALL}
-    # stored sound answers: formats <= 3.2k, long-document items <= 8k, reasoning up to ~21k (RX13 / RX20)
+    # stored sound answers: formats <= 3.2k, long-document items <= 8k, reasoning up to ~21k (RX13 / RX20).
+    # 4.5.1 (PLAN-451-LIMITS step 1, budgets_451): a reasoning allowance (floor 32,768) plus the item's own answer
+    # allowance; 4.5.0 sent 16,384 / 24,576 here, under one shared cap
     for i in IDS["instruct"] + IDS["longctx"]:
-        assert got[i] == 16384, (i, got[i])
+        assert 32768 < got[i] <= 32768 + 1024, (i, got[i])
     for i in IDS["reasoning"]:
-        assert got[i] == 24576 or (i == "RX02-knights-knaves" and got[i] >= 20480), (i, got[i])
+        assert got[i] == 63488, (i, got[i])
 
 
 def test_other_compositions_do_not_carry_the_block(monkeypatch):

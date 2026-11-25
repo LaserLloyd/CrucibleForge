@@ -103,7 +103,7 @@ leak, 4 the server is busy, 5 the server is unreachable.
 | `report --check-stale` | List, per model, the rows whose grader stamp is missing or different; exit 1 when any scored row is stale. |
 | `budget [--profile P] [--case ID]` | The author's home time-budget check (see [BUDGET.md](BUDGET.md)); exit 1 over the limit. |
 | `spend status` | The spend ledger against the cap. |
-| `report --public [--out DIR]` | Build the public board: private categories left out, every file leak-checked. |
+| `report --public [--out DIR]` | Build the public board: private categories left out, every file leak-checked. Rows judged by a model other than the profile's local judge need `--allow-other-judge`. |
 | `compare <a> <b>` | Paired bootstrap difference of two models' headline scores. Calls no model. |
 | `calibrate [--reference <label>]` | Flag sub-scores the reference model aces (too easy) and sub-scores a model maxed (needs a new pack). Reads the board only. |
 | `pack list [--json] [--no-board] [--recompute]` | Every pack per part, its questions, planner time estimate, and the models that maxed the part. |

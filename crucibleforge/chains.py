@@ -1617,7 +1617,10 @@ class Driver:
         # that step (same stamp): usable_row alone checks a row against its own chain block,
         # so a spec change that keeps the chain id (ceiling 2,500 -> 16,384, 2026-11-14) would
         # let the old rows stand in for the new instances and the chain would never re-run.
-        usable = [r for r in prior_rows or [] if usable_row(r) and self._current(r)]
+        # 4.5.1 (PLAN-451-LIMITS step 1e): an attempt owed again (attempts45.superseded: cut under the old budget,
+        # an old empty tool ending) is not "already graded"
+        from .attempts45 import superseded as _superseded
+        usable = [r for r in prior_rows or [] if usable_row(r) and self._current(r) and not _superseded(r)]
         #: the stored rows this run keeps (early stop judges them with the new ones on a resume)
         self.reused = usable
         for cid, res in results_from_rows(usable).items():

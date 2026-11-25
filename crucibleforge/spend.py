@@ -91,6 +91,19 @@ _lock = threading.Lock()
 _spent = [0.0]
 _inflight = [0.0]          # sum of the reservations of calls on the wire
 _max_call = [0.0]          # the largest single-call cost seen: the reservation size
+# The judge is not part of any model's cost (owner 2026-11-24). A hosted judge's calls are booked apart: never in a
+# model's Run cost, never against --spend-cap-usd / $CF_SPEND_CAP_USD; ledger lines of kind "judge" that those sums
+# skip. The global runaway ceiling ($CF_SPEND_GLOBAL_CAP_USD / the bench45 default) still counts them: it bounds
+# every dollar the ledger sees.
+# Judge spend is decided by the ROLE of the call, never by model id (review F3): the hosted judge is served through
+# its own provider entry (``<provider>~judge``, cli._guard_45_judge), marked here; a call made through it runs inside
+# :func:`judge_role` (Provider.chat), so the same hosted model used as the model under test is still that model's
+# spend (Run cost, --spend-cap-usd).
+_JUDGE_PROVIDERS: set[str] = set()
+_ROLE = threading.local()
+_judge_spent = [0.0]
+_judge_calls = [0]
+_judge_tokens = [0, 0]             # (input, output) of every hosted judge call, priced or not
 _warned: set[str] = set()
 
 #: the cap a staged run gets when it sets none (USD)
@@ -184,6 +197,73 @@ def check_allowed(model: str, provider: str | None = None) -> None:
                  f"- spending limit, call not sent")
 
 
+JUDGE_PROVIDER_SUFFIX = "~judge"
+
+
+def mark_judge(provider_name: str) -> None:
+    """``provider_name`` serves this process's hosted judge: every call made through it is judge spend."""
+    with _lock:
+        _JUDGE_PROVIDERS.add(str(provider_name))
+
+
+def forget_judges() -> None:
+    """No hosted judge in this process any more (tests; a new invocation)."""
+    with _lock:
+        _JUDGE_PROVIDERS.clear()
+        _judge_spent[0] = 0.0
+        _judge_calls[0] = 0
+        _judge_tokens[0] = _judge_tokens[1] = 0
+
+
+class judge_role:
+    """``with judge_role(provider.name):`` -- the calls made inside, on this thread, are judge calls when the provider
+    is a marked judge provider (re-entrant)."""
+
+    def __init__(self, provider_name: str | None):
+        # a ``<provider>~judge`` entry is the judge's own by construction (config.provider_of resolves it)
+        self.on = str(provider_name) in _JUDGE_PROVIDERS or str(provider_name).endswith(JUDGE_PROVIDER_SUFFIX)
+
+    def __enter__(self):
+        self.prev = getattr(_ROLE, "on", False)
+        _ROLE.on = self.on or self.prev
+        return self
+
+    def __exit__(self, *exc):
+        _ROLE.on = self.prev
+        return False
+
+
+def is_judge(model_id: str | None = None) -> bool:
+    """True inside a judge call (:class:`judge_role`). ``model_id`` is ignored: the role decides, never the id."""
+    return bool(getattr(_ROLE, "on", False))
+
+
+def note_judge_call(result=None) -> None:
+    """Count one hosted judge call and its tokens (priced or not: an unpriced judge is never invisible)."""
+    if not is_judge():
+        return
+    with _lock:
+        if result is None:
+            _judge_calls[0] += 1
+            return
+        _judge_tokens[0] += int(getattr(result, "prompt_tokens", 0) or 0) + int(
+            getattr(result, "billed_extra_prompt_tokens", 0) or 0)
+        _judge_tokens[1] += int(getattr(result, "completion_tokens", 0) or 0) + int(
+            getattr(result, "billed_extra_completion_tokens", 0) or 0)
+
+
+def judge_tokens() -> tuple[int, int]:
+    """(input, output) tokens of the hosted judge calls in this process."""
+    with _lock:
+        return _judge_tokens[0], _judge_tokens[1]
+
+
+def judge_totals() -> tuple[int, float]:
+    """(hosted judge calls sent, their USD) in this process."""
+    with _lock:
+        return _judge_calls[0], _judge_spent[0]
+
+
 def check(model: str, provider: str | None = None) -> None:
     """The 4.5 admission hook ``Provider.chat`` calls before a priced call
     (the dollar cap itself is enforced by :func:`reserve` / :func:`guard`)."""
@@ -203,6 +283,8 @@ def reset() -> None:
         _inflight[0] = 0.0
         _max_call[0] = 0.0
         _warned.clear()
+        _judge_spent[0] = 0.0
+        _judge_calls[0] = 0
 
 
 def cap() -> float | None:
@@ -354,9 +436,10 @@ class _Ledger:
         finally:
             self.f.close()
 
-    def state(self, model: str | None = None) -> tuple[float, dict[str, float]]:
+    def state(self, model: str | None = None, include_judge: bool = False) -> tuple[float, dict[str, float]]:
         """(sum of billed cost_usd, {rid: usd} of live, unreleased reservations);
-        ``model`` keeps only that model's lines (a per-model cap)."""
+        ``model`` keeps only that model's lines (a per-model cap). Judge lines (kind "judge", judge
+        reservations) count only with ``include_judge`` (the global ceiling)."""
         self.f.seek(0)
         total, held, pids = 0.0, {}, {}
         for line in self.f:
@@ -367,6 +450,8 @@ class _Ledger:
             if not isinstance(d, dict):
                 continue
             kind = d.get("kind")
+            if not include_judge and (kind == "judge" or (kind == "reserve" and d.get("judge"))):
+                continue
             if kind == "release":
                 held.pop(d.get("id"), None)
             elif model and d.get("model") != model:
@@ -411,6 +496,40 @@ def spent_locked() -> float:
 
 def is_hosted(provider_type: str | None) -> bool:
     return str(provider_type or "openai").lower() not in LOCAL_TYPES
+
+
+def local_host(base_url: str | None) -> bool:
+    """A server on this machine or the local network: loopback, a private address (10/8, 172.16/12, 192.168/16,
+    IPv6 ULA / link-local), the carrier-grade range 100.64/10 (a tailnet), a ``.local`` / ``.lan`` / ``.internal``
+    name or a single-label host. A public name or address is not local; no URL = not known to be local."""
+    import ipaddress
+    from urllib.parse import urlsplit
+    raw = str(base_url or "").strip()
+    if not raw:
+        return False
+    try:
+        host = (urlsplit(raw if "//" in raw else "//" + raw).hostname or "").rstrip(".").lower()
+    except ValueError:
+        return False
+    if not host:
+        return False
+    if host == "localhost" or host.endswith((".localhost", ".local", ".lan", ".internal", ".home.arpa")):
+        return True
+    try:
+        ip = ipaddress.ip_address(host)
+    except ValueError:
+        return "." not in host                       # a single-label name resolves on the local network only
+    if ip.version == 6 and ip.ipv4_mapped:
+        ip = ip.ipv4_mapped
+    if ip.is_loopback or ip.is_private or ip.is_link_local:
+        return True
+    return ip.version == 4 and ip in ipaddress.ip_network("100.64.0.0/10")
+
+
+def is_hosted_at(provider_type: str | None, base_url: str | None) -> bool:
+    """:func:`is_hosted` with the server's address: an OpenAI-shaped provider whose ``base_url`` is a local server
+    (:func:`local_host`) is local -- free, no judge cost, no hosted wording."""
+    return is_hosted(provider_type) and not local_host(base_url)
 
 
 def _over(c: float, model_id: str, s: float, est: float = 0.0) -> SpendCapExceeded:
@@ -485,11 +604,11 @@ def _global_gate(lg: "_Ledger | None", model_id: str, est: float = 0.0,
         return
     outside = outside_total_usd()
     if lg is not None:
-        sp, held = lg.state(None)
+        sp, held = lg.state(None, include_judge=True)
         rid = getattr(own, "rid", None)
         s = outside + sp + sum(v for k, v in held.items() if k != rid)
     else:
-        s = outside + _spent[0] + max(0.0, _inflight[0] - float(own))
+        s = outside + _spent[0] + _judge_spent[0] + max(0.0, _inflight[0] - float(own))
     if s >= g or s + est > g:
         _journal({"ts": _now(), "model": model_id, **_context(), "refused": True,
                   "total_usd": round(s, 6), "global_cap_usd": g})
@@ -503,7 +622,19 @@ def _global_gate(lg: "_Ledger | None", model_id: str, est: float = 0.0,
 def guard(provider_type: str | None, model_id: str, own: float = 0.0) -> None:
     """Raise SpendCapExceeded when a hosted call would start over the cap.
     Spent plus the other calls' reservations (all processes, with a ledger)
-    counts; ``own`` = this call's reservation, so a retry does not count itself."""
+    counts; ``own`` = this call's reservation, so a retry does not count itself. A hosted judge call meets
+    the global ceiling only."""
+    if is_judge(model_id):
+        if not is_hosted(provider_type) or global_cap() is None:
+            return
+        p = ledger_path()
+        if p is not None:
+            with _Ledger(p) as lg:
+                _global_gate(lg, model_id, own=own)
+        else:
+            with _lock:
+                _global_gate(None, model_id, own=own)
+        return
     c = _model_cap(model_id)
     if not is_hosted(provider_type) or (c is None and run_cap() is None and global_cap() is None):
         return
@@ -535,7 +666,10 @@ def reserve(provider_type: str | None, model_id: str, estimate: float = 0.0) -> 
     processes cannot all pass the same stale total). The reservation is the
     larger of ``estimate`` (see :func:`estimate_call_cost`) and the dearest
     call seen so far, never less than FALLBACK_ESTIMATE_USD: the first call of
-    a run is not free. -> a :class:`Reservation` for :func:`release`."""
+    a run is not free. -> a :class:`Reservation` for :func:`release`. A hosted judge call reserves against
+    the global ceiling only."""
+    if is_judge(model_id):
+        return _reserve_judge(provider_type, model_id, estimate)
     c = _model_cap(model_id)
     if not is_hosted(provider_type) or (c is None and run_cap() is None and global_cap() is None):
         return Reservation(0.0)
@@ -569,6 +703,26 @@ def reserve(provider_type: str | None, model_id: str, estimate: float = 0.0) -> 
         return tok
 
 
+def _reserve_judge(provider_type: str | None, model_id: str, estimate: float) -> Reservation:
+    if not is_hosted(provider_type) or global_cap() is None:
+        return Reservation(0.0)
+    est = max(float(estimate or 0.0), 0.0) or FALLBACK_ESTIMATE_USD
+    p = ledger_path()
+    with _lock:
+        if p is not None:
+            with _Ledger(p) as lg:
+                _global_gate(lg, model_id, est)
+                tok = Reservation(est)
+                tok.rid = f"{os.getpid()}-{time.time_ns()}"
+                lg.append({"kind": "reserve", "id": tok.rid, "pid": os.getpid(), "usd": round(est, 6),
+                           "model": model_id, "judge": True})
+            tok.run = 0.0
+            return tok
+        _global_gate(None, model_id, est)
+        # no ledger: nothing is held in flight for the judge (the model's run cap must never see it)
+        return Reservation(0.0)
+
+
 def release(token: float) -> None:
     if not token:
         return
@@ -587,7 +741,7 @@ def record_error(provider_type: str | None, model_id: str, price: dict | None,
                  exc: BaseException, token: float = 0.0) -> float | None:
     """Charge a billed attempt that raised: the usage the exception carries,
     else the reservation estimate (conservative, never 0 while a cap is set)."""
-    if not is_hosted(provider_type) or not any_cap():
+    if not is_hosted(provider_type) or not any_cap() or (is_judge(model_id) and not price):
         return None
     cost = call_cost(price, exc)
     if cost is None:
@@ -632,6 +786,8 @@ def record(provider_type: str | None, model_id: str, price: dict | None, result,
     if not is_hosted(provider_type):
         return None
     cost = call_cost(price, result)
+    if cost is None and is_judge(model_id):
+        return None                     # an unpriced judge: "judge cost not priced", never charged
     if cost is None and any_cap():
         # a hosted success the cap cannot price (no price block, or no usage in
         # the reply) is charged at its reservation estimate: never free (GPT 7)
@@ -650,11 +806,17 @@ def record(provider_type: str | None, model_id: str, price: dict | None, result,
 
 
 def _add(model_id: str, cost: float, result=None, provider: str | None = None) -> float:
+    judge = is_judge(model_id)
     with _lock:
-        _spent[0] += cost
-        _max_call[0] = max(_max_call[0], cost)
+        if judge:
+            _judge_spent[0] += cost
+        else:
+            _spent[0] += cost
+            _max_call[0] = max(_max_call[0], cost)
         rec = {"ts": _now(), "model": model_id, "provider": provider, **_context(),
                "call_usd": round(cost, 6), "total_usd": round(_spent[0], 6), "cap_usd": cap()}
+        if judge:
+            rec["kind"] = "judge"
         if result is not None and hasattr(result, "cache_read_tokens"):
             pt = result.prompt_tokens or 0
             cr = result.cache_read_tokens or 0
@@ -668,7 +830,7 @@ def _add(model_id: str, cost: float, result=None, provider: str | None = None) -
         if p is not None:
             with _Ledger(p) as lg:
                 lg.append({"ts": round(time.time(), 3), "pid": os.getpid(),
-                           "model": model_id, "cost_usd": round(cost, 6)})
+                           "model": model_id, "cost_usd": round(cost, 6), **({"kind": "judge"} if judge else {})})
     return cost
 
 

@@ -105,7 +105,7 @@ overlay's `private:` list plus every category whose file is in
 ids and labels.
 
 - `crucibleforge report` — your board, private components included.
-- `crucibleforge report --public [--out DIR]` — the board for anyone else
+- `crucibleforge report --public [--out DIR]` — the board for anyone else (add `--allow-other-judge` when your rows were judged by a model other than the profile's local judge)
   (default `results/public/`): private rows, cases and weights are left out
   *before* scoring, so the Chat score is the one without them (not yours with
   a column hidden). Every file is then re-checked for every private category

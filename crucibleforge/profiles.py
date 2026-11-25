@@ -844,6 +844,8 @@ def apply_profile(prof: dict, cfg: dict, smoke: bool = False) -> tuple[dict, lis
               # the context window are retried then errored (runner.row_ctx_short);
               # judged cases are generated first (runner.judged_first)
               "thinker_context", "ctx_short_retry", "judged_first",
+              # 4.5.1 (PLAN-451-LIMITS): reasoning + answer budgets, case budgets, chain ceilings (budgets451.py)
+              "budgets_451",
               # M1 (R3): stop a model whose first answers are blank or
               # cut off (earlystop.py; thresholds live in the profile)
               "early_stop",

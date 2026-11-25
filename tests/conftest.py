@@ -216,7 +216,10 @@ def _process_switch_env_restored(monkeypatch):
             monkeypatch.delenv(k)          # ... and leaves it absent for the test
         else:
             monkeypatch.setenv(k, v)
+    from crucibleforge import spend as _spend
+    _spend.forget_judges()          # a hosted judge marked by one test never books another test's calls apart
     yield
+    _spend.forget_judges()
 
 def pytest_configure(config):
     config.addinivalue_line(

@@ -66,7 +66,7 @@ Fix tasks from level 5 up are in the Fixes pack (`c3_fix` set-3), not in the sta
 stores `row["fixcheck"]` = `fixrows45.stamp_verdict(...)` of the host-compared verdict (plus `cut` / `empty` /
 `short_cut`); the Fixes segment reads nothing else. A one-shot reply cut at 98% or more of the budget sent scores 0
 and stays in the mean (D10a); a reply cut below that is graded as delivered; an empty reply scores 0. The bug hunt
-is graded on its final files. A box without a working bwrap stores `fixcheck: {unavailable: true}` (the row never counts; the segment reads "fix rows not graded: no sandbox").
+is graded on its final files. A box without a working bwrap stores `fixcheck: {unavailable: true}` (the row never counts; the segment reads "fix rows not graded: no sandbox"), unless `--allow-unsandboxed` / `CRUCIBLEFORGE_ALLOW_UNSANDBOXED=1` is set (4.5.1, `fixopen.py`: the same checker runs without the mount namespace; the container is the isolation). A row stored as unavailable is graded from its stored reply on the next `run`/`all` once a route exists; the bug hunt keeps no final tree and is run again. A bare `>>>>>>>` closer is read under the 4.5.1 tolerance (`edittol`, SCORING.md).
 
 Generate ONLY some of these units for a model into an existing result folder (the folder's stored rows are only
 appended to; nothing is archived or re-judged; a unit that already has a reply is not drawn again, only one whose

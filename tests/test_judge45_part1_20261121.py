@@ -99,13 +99,15 @@ def test_store_key_is_judge_id_prompt_sha_and_content_sha(tmp_path):
     assert again.get("flags", JUDGE, "p1", "c1") is None            # another kind
 
 
-def test_a_stored_hosted_vote_is_never_used(tmp_path):
+def test_a_stored_hosted_judge_vote_is_kept_so_it_is_never_asked_or_billed_twice(tmp_path):
+    # owner 2026-11-24: any judge may judge, a hosted one too; its votes are kept under its own model id
     p = tmp_path / "judge45" / f"{LABEL}.jsonl"
     p.parent.mkdir(parents=True)
-    rec = {"kind": "class", "judge": JUDGE, "prompt_sha": "p1", "content": "c1",
-           "vote": {"cls": "EXPLICIT", "quote_ok": True, "stamp": {"model": JUDGE, "hosted": True}}}
+    rec = {"kind": "class", "judge": "vendor/hosted-judge", "prompt_sha": "p1", "content": "c1",
+           "vote": {"cls": "EXPLICIT", "quote_ok": True, "stamp": {"model": "vendor/hosted-judge", "hosted": True}}}
     p.write_text(json.dumps(rec) + "\n", encoding="utf-8")
-    assert J.JudgeStore(p).get("class", JUDGE, "p1", "c1") is None
+    assert J.JudgeStore(p).get("class", "vendor/hosted-judge", "p1", "c1")["cls"] == "EXPLICIT"
+    assert J.JudgeStore(p).get("class", JUDGE, "p1", "c1") is None      # never read as the profile judge's vote
 
 
 def test_an_identical_read_is_never_made_twice(tmp_path):
@@ -146,12 +148,12 @@ def test_a_parse_on_the_retry_is_stored(tmp_path):
 
 
 # ================================================================== no hosted grader or checker
-def test_the_guard_refuses_a_hosted_model_for_any_grading_role():
-    with pytest.raises(J.HostedGrader, match="local"):
-        J.require_local("NSFW+ classing", "deepseek-v4-flash", "openai")
-    J.require_local("NSFW+ classing", JUDGE, "studioforge")       # local: fine
-    with pytest.raises(J.HostedGrader):
-        J.judge_reader("deepseek-v4-flash", provider="deepseek", provider_type="openai")
+def test_the_run_judge_reads_the_adult_page_local_or_hosted():
+    # owner 2026-11-24: "Have it automatically run nsfw even on hosted judge" -- the run's judge is the reader
+    assert J.judge_reader("deepseek-v4-flash", provider="deepseek", provider_type="openai").hosted is True
+    assert J.judge_reader(JUDGE, provider="studioforge", provider_type="studioforge").hosted is False
+    with pytest.raises(J.HostedGrader, match="local"):     # the helper stays for the second-reader roles
+        J.require_local("Chat long-scene second reader", "deepseek-v4-flash", "openai")
 
 
 def test_the_profile_reader_set_holds_no_hosted_role():
@@ -181,12 +183,13 @@ def test_a_hosted_second_reader_is_refused_before_any_call():
         RM.run_second_reader([], rd, jc=None, results="/nonexistent", label="x")
 
 
-def test_the_main_judge_of_a_45_profile_must_be_local():
+def test_any_judge_may_judge_a_45_profile_a_hosted_one_is_returned_to_be_booked_apart():
+    # owner 2026-11-24: "allow any user to use any judge they want" (was: the main judge must be local)
     cfg = {"providers": {"deepseek": {"type": "openai"}, "studioforge": {"type": "studioforge"}}}
     prof = _prof()
-    with pytest.raises(J.HostedGrader):
-        J.guard_judge(cfg, {"provider": "deepseek", "model_id": "deepseek-v4-flash"}, prof)
-    J.guard_judge(cfg, prof["judge"], prof)
+    got = J.guard_judge(cfg, {"provider": "deepseek", "model_id": "deepseek-v4-flash"}, prof)
+    assert got == {"provider": "deepseek", "model_id": "deepseek-v4-flash"}
+    assert J.guard_judge(cfg, prof["judge"], prof) is None                  # local: nothing to book apart
 
 
 def test_agree_is_not_in_the_default_release_and_classing_steps_left_it():
@@ -348,16 +351,20 @@ def test_board_section_prints_nsfw_plus_of_20_beside_the_halves(tmp_path):
     assert RP.np_total_cell({"nsfw_plus": blk}).endswith("measured, not ranked")
 
 
-def test_cli_refuses_a_hosted_judge_for_a_45_profile():
+def test_cli_keeps_the_hosted_judge_the_user_named_and_no_other_hosted_fallback():
     from crucibleforge import cli
 
     class A:
         judge = "deepseek:deepseek-v4-flash"
-    cfg = {"providers": {"deepseek": {"type": "openai"}}, "judge": {"candidates": [
-        {"name": "ds", "provider": "deepseek", "model_id": "deepseek-v4-flash"},
-        {"name": "g", "provider": "studioforge", "model_id": JUDGE}]}}
-    with pytest.raises(SystemExit, match="hosted"):
-        cli._guard_45_judge(A(), cfg, _prof())
+    cfg = {"providers": {"deepseek": {"type": "openai"}, "other": {"type": "openai"}},
+           "judge": {"candidates": [
+               {"name": "ds", "provider": "deepseek", "model_id": "deepseek-v4-flash"},
+               {"name": "o", "provider": "other", "model_id": "other-model"},
+               {"name": "g", "provider": "studioforge", "model_id": JUDGE}]}}
+    a = A()
+    out = cli._guard_45_judge(a, cfg, _prof())
+    assert [c["name"] for c in out["judge"]["candidates"]] == ["ds", "g"]
+    assert a._hosted_judge["model_id"] == "deepseek-v4-flash" and a._hosted_judge["priced"] is False
     A.judge = None
     out = cli._guard_45_judge(A(), cfg, _prof())
     assert [c["name"] for c in out["judge"]["candidates"]] == ["g"]           # no hosted fallback judge left

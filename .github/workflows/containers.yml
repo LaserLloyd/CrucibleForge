@@ -113,9 +113,29 @@ jobs:
 
       - name: Smoke test the built image
         if: env.PUBLISH != 'true'
+        # `cases verify` exits 1 on any finding, and 4.5.0 ships known findings
+        # (.github/cases-verify-known.txt, the same list the CI workflow uses:
+        # 4.1 pack folders the 4.5 profile does not name, and a few others).
+        # The image is checked the same way as the checkout: it fails only on a
+        # finding that is NOT in that list, or when the command itself crashes.
         run: |
           docker run --rm "${{ steps.ref.outputs.image }}" --help
-          docker run --rm -e CRUCIBLEFORGE_ALLOW_UNSANDBOXED=1 "${{ steps.ref.outputs.image }}" cases verify --categories math,instruct,reasoning
+          set +e
+          docker run --rm -e CRUCIBLEFORGE_ALLOW_UNSANDBOXED=1 "${{ steps.ref.outputs.image }}" \
+            cases verify --categories math,instruct,reasoning > verify.out 2>&1
+          rc=$?
+          set -e
+          tail -n 5 verify.out
+          if ! grep -q 'cases checked' verify.out; then
+            echo "cases verify did not finish (exit $rc)"; cat verify.out; exit 1
+          fi
+          grep '^FAIL' verify.out \
+            | sed -E 's#(FAIL ladder: ).*cases[/\\]+ladder[/\\]+([A-Za-z_0-9]+)[/\\]+([A-Za-z_0-9]+):#\1cases/ladder/\2/\3:#' \
+            | sort -u > verify-found.txt || true
+          sort -u .github/cases-verify-known.txt > verify-known.txt
+          comm -23 verify-found.txt verify-known.txt > verify-new.txt
+          echo "cases verify in the image: exit $rc, $(wc -l < verify-found.txt) finding(s), $(wc -l < verify-new.txt) not in the known list"
+          if [ -s verify-new.txt ]; then cat verify-new.txt; exit 1; fi
 
       # The beginner path: first-start seed, non-root, no private files in the
       # image, compose.yaml valid. No model and no key are used.

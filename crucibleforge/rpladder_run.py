@@ -191,7 +191,8 @@ def run(cfg: dict, prof: dict, labels: list[str], *, windows: list[int], judge_o
     """The ladder pass. D13 (lead 2026-11-19 b): a judge other than the profile's is accepted. Its verdicts, rung
     check and placements are keyed and stamped with its own id (``instrument.judge_model``), never the profile
     judge's, and a unit already placed by the profile judge is left alone. The board prints such a part as
-    "judged by <id>, not the board's judge: not comparable" and never ranks the row; a public render refuses it."""
+    "judged by <id> (<provider>); MakoBench's published scores use the local <judge> judge" and never ranks the row;
+    a public render refuses it unless --allow-other-judge."""
     j = prof.get("judge") or {}
     board_judge = j.get("model_id") if isinstance(j, dict) else str(j)
     held: dict = {}
@@ -201,8 +202,11 @@ def run(cfg: dict, prof: dict, labels: list[str], *, windows: list[int], judge_o
                     judge_model=board_judge, board_judge=board_judge, held=held)
     except _OtherJudge:
         other = held["jc"].model_id
-        log.warning("ladder: the loaded judge %s is not the profile's %s: its placements are stamped with its own "
-                    "id and the board marks them not comparable", other, board_judge)
+        from .judge45 import base_provider, judge_name
+        prov = getattr(getattr(held["jc"], "provider", None), "name", None)
+        who = f"{other} ({base_provider(prov)})" if prov else str(other)
+        log.warning("ladder: placements stamped with the judge's own id: judged by %s; MakoBench's published scores "
+                    "use the local %s judge", who, judge_name(board_judge))
         out = _run(cfg, prof, labels, windows=windows, judge_override=judge_override, deadline=deadline,
                    rung_check_only=rung_check_only, force=force, attach=attach, client=client,
                    judge_model=other, board_judge=board_judge, held=held)

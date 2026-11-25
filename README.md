@@ -9,52 +9,55 @@ conversation, co-write to a brief, follow everyday instructions), each out of 10
 two single runs closer than about 0.45 Overall points cannot be told apart, and the board marks ties itself. NSFW+ /20 is shown apart, beside Overall and never part of it.
 
 It is the engine behind the public [MakoBench board](https://www.laserlloyd.com/makobench/). <!-- scrub-ok: public project/site URL, deliberate -->
-Current suite: **4.5.0** (`SUITE_VERSION` in `crucibleforge/version.py`), profile `bench45`.
+Current suite: **4.5.1** (`SUITE_VERSION` in `crucibleforge/version.py`), profile `bench45`.
 Licence: [MIT-0](LICENSE). Author: Laser Lloyd.
 
 <p align="center"><img src="docs/images/how-it-works.svg" alt="How MakoBench works: the same questions for every model, your model answers, the answers are checked by code and one local judge, scores with a range, the board" width="560"></p>
 
-## Quick start
+## First run in five minutes
 
-You need a model to test, a local judge model on a server you run (a hosted model is never accepted as the judge),
-and a computer with [uv](https://docs.astral.sh/uv/). The computer itself needs no GPU; the judge's server does.
-Prefer containers? See [docs/INSTALL.md](docs/INSTALL.md).
-
-```bash
-git clone https://github.com/LaserLloyd/CrucibleForge.git && cd CrucibleForge   # scrub-ok: public repo URL
-uv sync --python 3.13
-uv run crucibleforge config --init        # writes models.yaml from the example; keys never go in it
-```
-
-Edit `models.yaml`: enable an example provider or add your own ([docs/CONFIG.md](docs/CONFIG.md)). Below,
-`<provider>:<judge-model-id>` is your local judge, for example the profile's own
-`studioforge:unsloth/Qwen3.8-27B-GGUF/Qwen3.8-27B-Q8_0` or a model on your LM Studio or llama-server provider.
+The model under test and the judge are chosen separately, and each can be local or hosted: a laptop running a local
+8B model can be judged through OpenRouter, a GPU box can run both, a plain computer can use OpenRouter for both.
+The quick setup below needs only an [OpenRouter](https://openrouter.ai/) key and [uv](https://docs.astral.sh/uv/).
 
 ```bash
-export DEEPSEEK_API_KEY=...       # a hosted model: the key name your provider entry uses; give the model a price:
-uv run crucibleforge all --models <label> --judge <provider>:<judge-model-id> --plan
-uv run crucibleforge all --models <label> --judge <provider>:<judge-model-id> --spend-cap-usd 5 --yes
+git clone https://github.com/LaserLloyd/CrucibleForge.git && cd CrucibleForge && uv sync --python 3.13   # scrub-ok: public repo URL
+uv run crucibleforge config --init      # writes models.yaml; its `openrouter` provider reads OPENROUTER_API_KEY
+export OPENROUTER_API_KEY=sk-or-...     # keys live in the environment, never in models.yaml
+uv run crucibleforge models add gpt-6-luna openrouter openai/gpt-6-luna --context-length 1050000 --price-in 0.1 --price-out 0.5
+uv run crucibleforge all --models gpt-6-luna --judge openrouter:qwen/qwen3.8-27b --plan   # calls nothing
+uv run crucibleforge all --models gpt-6-luna --judge openrouter:qwen/qwen3.8-27b --spend-cap-usd 6
 ```
 
-- `--plan` calls nothing and prints what would run and an estimated price. A local model needs no key and no cap.
-- The run uses the standard test (profile `bench45`, the default) plus NSFW+, which runs by default. NSFW+ sends
-  adult-fiction requests: add `--no-nsfw-plus` to leave it out (or `nsfw_plus: false` on a model entry).
-- `--smoke` runs a small subset to prove your setup; it is not a score.
-- Results land in `results/report.html` and `report.md`. A point-and-click version: `uv run crucibleforge gui`.
+- **Prices** are USD per million tokens from the model's OpenRouter page; a hosted model without one is refused.
+  `--plan` prints the rows, the minutes and three price figures (a typical run, a model that thinks at length,
+  every row to its budget), then the judge's estimated cost on its own line. Set the cap to about twice the figure
+  that fits the model.
+- **The judge** here is Qwen 3.8 27B through OpenRouter. Any judge works, local or hosted, any model:
+  `crucibleforge all --models <label> --judge <provider>:<judge-model-id>` (since 4.5.1). The scores published on
+  MakoBench are judged by the same model run locally at 8-bit (Q8). A hosted judge is billed by its provider, is
+  not part of the model's Run cost and is not limited by the run's spend cap. A hosted judge receives every reply it
+  judges, NSFW+ included; pass `--no-nsfw-plus` to leave NSFW+ out. `--no-judge` scores what code
+  checks and leaves the judged parts `pending`.
+- **Local instead.** A local model under test: `uv run crucibleforge models add my-8b lmstudio <model key>` (no key,
+  no price); a local judge: load it in LM Studio and pass `--judge lmstudio:<model key>`. Any OpenAI-compatible
+  server works ([docs/CONFIG.md](docs/CONFIG.md#providers)).
+- **NSFW+** (adult fiction, NSFW+ /20) runs by default in a standard run and never enters Overall.
+
+While it runs you see one `[gpt-6-luna] <case> r1 done (N rows)` line per answer, a run summary with the cost, the
+judge's lines, and finally `wrote results/report.md` and `results/report.html`. On the board, **Overall /20** is
+Code plus Chat and sets the rank; **Code /10** is code that hidden tests run (write, fix, use tools, read code);
+**Chat /10** is role-play, memory, co-writing and everyday instructions, checked by code and the judge; `±` is the
+90% range of one run. The same steps in Docker: [docs/FIRST-RUN-DOCKER.md](docs/FIRST-RUN-DOCKER.md).
+
+<p align="center"><img src="docs/images/board.png" alt="The generated 4.5 board: a table of 11 ranked models with columns rank, Model, Overall out of 20, Code out of 10 and Chat out of 10, each score with its plus-minus range, tied ranks such as 1= and 3=, and bonus pack points printed apart as not in Overall" width="720"></p>
+
+- `--smoke` runs a small subset to prove your setup; it is not a score. A point-and-click version: `uv run crucibleforge gui`.
 - On Windows and macOS add `--allow-unsandboxed` before the subcommand, or use Docker (coding answers run in a
   sandbox those systems lack).
-
-## What a run costs
-
-- **Hosted flash-class model.** `all --plan` prints an expected price and a worst case. Measured: about $0.35 and
-  20 minutes of generation for one flash-class model, about $1.50 and 50 to 60 minutes for another; the local
-  judge and pack pass then took 40 to 90 minutes on the judge's GPUs. A frontier model can cost much more, and its
-  bonus packs (run only if it scores 90% on a part) can cost more than the standard test. Set `--spend-cap-usd`
-  for the whole run including packs.
-- **Local model on your own GPU.** Free, but slow for models that think at length: three full runs of a local 27B
-  thinking model, judge and packs included, took 269, 314 and 432 minutes with 8 parallel slots on two GPUs.
-- **The judge** is always local, so it costs no API money. The profile's judge is the plain Qwen 3.8 27B at 8-bit
-  and needs a capable GPU server.
+- **Cost of other models.** A frontier model can cost much more than a flash-class one, and its bonus packs (run
+  only at 90% on a part) can cost more than the standard test. A local model is free but slow when it thinks at
+  length (a 27B thinking model took 269 to 432 minutes with judge and packs on two GPUs).
 
 ## The scores
 
@@ -97,12 +100,12 @@ one: [docs/PACKS.md](docs/PACKS.md).
 - **Fixed questions.** Every model gets the same question sets. Generated items come from the release seed `4.5.0`
   and fixed card seeds, so two runs ask the same questions.
 - **Same conditions.** Each model runs with its maker's recommended sampler, its default thinking and the same
-  output budget. The first reply a unit produced is the one scored; a retry counts only after an infrastructure
-  failure.
+  output budgets. The first reply a unit produced is the one scored; a retry counts only after an infrastructure
+  failure, or when 4.5.1 owes the unit again (a reply cut under 4.5.0's lower budget).
 - **Code checks first.** Code is run in a sandbox, answers are compared with keys written in advance, and rules are
   checked by code. Only what code cannot check goes to the judge.
-- **One local judge.** The plain Qwen 3.8 27B at 8-bit grades the role-play sessions, the long chat scenes and the
-  NSFW+ classing, with a quoted line as evidence. There is no second reader and no hosted grader.
+- **One judge.** On the published board the plain Qwen 3.8 27B, run locally at 8-bit (Q8), grades the role-play
+  sessions, the long chat scenes and the NSFW+ classing, with a quoted line as evidence. There is no second reader.
 - **Ranges from repeat runs.** The `±` beside a score is a 90% range measured from whole runs repeated on the same
   models. One run: Code ±0.22, Chat ±0.29, Overall ±0.31. NSFW+ needs two runs to get under 5%.
 - **Ties.** Rank is by Overall. A model is marked tied with the one above (`2=`) when neither its Code total nor
@@ -128,10 +131,10 @@ How the benchmark itself was checked (repeat runs, judge audit, kill tests, revi
 
 Every column and mark: [docs/SCORING.md](docs/SCORING.md#board-columns).
 
-**Another judge.** `--judge <provider>:<model-id>` takes any other model on a local server. Its rows read
-"(judged by <id>, not the board's judge: not comparable)", are never ranked against rows the profile's judge
-placed, and `report --public` refuses them. A hosted judge is refused when the judge step starts. `--no-judge`
-scores what code can grade and leaves the judged segments pending.
+**The judge.** `--judge <provider>:<model-id>` takes any model, local or hosted. The scores published on MakoBench
+are judged by Qwen 3.8 27B run locally at 8-bit (Q8). Rows judged by another judge are scored and ranked on your
+board and marked ⚖ with the judge's id. `--no-judge` scores what code can grade and leaves the judged
+segments pending. More: [docs/JUDGE.md](docs/JUDGE.md).
 
 ## What it does not measure
 
@@ -143,7 +146,7 @@ It grades behaviour, never a refusal as a virtue. Who it suits: [docs/SCORING.md
 
 CrucibleForge runs from a git checkout with `uv sync`. A wheel or `pip install` is not supported: the cases,
 profiles and `models.example.yaml` live outside the Python package. Python 3.12 or newer works; the commands above
-use 3.13, the version the Docker image pins. Coding answers run in a `bubblewrap` sandbox, so on Linux install
+use 3.13, the version the Docker image uses. Coding answers run in a `bubblewrap` sandbox, so on Linux install
 `bwrap`. Step by step for each system: [docs/INSTALL.md](docs/INSTALL.md).
 
 The 4.1 test is frozen under `archive/4.1.0/` and runs with `--profile bench`; its rows do not mix with 4.5.
@@ -166,7 +169,7 @@ The 4.1 test is frozen under `archive/4.1.0/` and runs with `--profile bench`; i
 | [docs/CASES.md](docs/CASES.md), [docs/CUSTOM-TESTS.md](docs/CUSTOM-TESTS.md) | Adding cases, your own private tests |
 | [docs/CONTENT-RULES.md](docs/CONTENT-RULES.md) | What new tests never include |
 | [docs/DEVELOPING.md](docs/DEVELOPING.md) | Repository layout, tests, the publishing scrub check |
-| [docs/DOCKER.md](docs/DOCKER.md), [docs/deploy/docker.md](docs/deploy/docker.md) | The container image: quick setup and the always-on service |
+| [docs/FIRST-RUN-DOCKER.md](docs/FIRST-RUN-DOCKER.md), [docs/DOCKER.md](docs/DOCKER.md), [docs/deploy/docker.md](docs/deploy/docker.md) | The container image: first run, quick setup and the always-on service |
 | [docs/OPENCLAW.md](docs/OPENCLAW.md) | Driving CrucibleForge from an agent framework |
 | [CHANGELOG.md](CHANGELOG.md), [SECURITY.md](SECURITY.md) | Release history, reporting a vulnerability |
 

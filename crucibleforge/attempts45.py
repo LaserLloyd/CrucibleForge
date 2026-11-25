@@ -57,6 +57,59 @@ def is_infra(r: dict, refusal_ids=frozenset()) -> bool:
     return S._row_empty(r, refusal_ids) in ("empty", "content_filter")
 
 
+#: console-loop revision a tool row needs to stand (runner.CONSOLE_REV): an older row that ended on an empty reply
+#: was never regenerated and never got the session's EMPTY reminder (PLAN-451-LIMITS step 5)
+CONSOLE_REV = 2
+#: the console families whose old empty endings are owed again
+CONSOLE_FAMILIES = ("toolworld", "toolgap")
+
+
+#: review 3 note 4: a superseded reply whose re-run failed on infrastructure this many times (no newer model reply)
+#: is no longer owed by a plain resume; it keeps scoring and the model's losses say so (``rerun_failed``)
+RERUN_INFRA_CAP = 2
+
+
+def rerun_gave_up(rows: Iterable[dict]) -> set[tuple]:
+    """``{(case_id, repeat)}`` of single-reply jobs (not chain attempts) whose newest model reply is superseded and
+    has :data:`RERUN_INFRA_CAP` or more infrastructure rows after it: a resume stops owing them."""
+    by: dict[tuple, list[dict]] = {}
+    for r in rows:
+        if r.get("chain"):
+            continue
+        by.setdefault((r.get("case_id"), r.get("repeat") or 1), []).append(r)
+    out = set()
+    for k, rs in by.items():
+        replies = [r for r in rs if not is_infra(r)]
+        if not replies:
+            continue
+        last = max(replies, key=lambda r: str(r.get("ts") or ""))
+        if not superseded(last):
+            continue
+        t0 = str(last.get("ts") or "")
+        if sum(1 for r in rs if is_infra(r) and str(r.get("ts") or "") > t0) >= RERUN_INFRA_CAP:
+            out.add(k)
+    return out
+
+
+def superseded(r: dict) -> str | None:
+    """Why a stored reply is owed again although it is a model reply (4.5.1, PLAN-451-LIMITS), or None.
+
+    Such a row still SCORES while it is the only one (the board does not move until a re-run lands); a plain resume
+    owes its job again (cli._first_reply_jobs), and the newer complete run then replaces it on the board with a
+    ``rerun`` mark carrying this reason."""
+    from .budgets451 import superseded_by_budget
+    if superseded_by_budget(r):
+        return "budget raised"
+    con = r.get("console") or {}
+    if (con.get("family") in CONSOLE_FAMILIES and int(r.get("console_rev") or 0) < CONSOLE_REV
+            and con.get("end") == "empty reply"):
+        return "empty stop"
+    from .calltol import superseded as _glued
+    if _glued(r):
+        return "tool tolerance"
+    return None
+
+
 def _numbered(r: dict) -> bool:
     return r.get("turn") not in (None, "final")
 

@@ -158,7 +158,9 @@ def test_the_estimate_scales_with_the_price():
     rows = [({"id": "x", "prompt": "a" * 300, "category": "coding"}, 2, 1000)]
     one = plan_price.estimate(rows, {"input": 1.0, "output": 1.0}, thinks=False)
     two = plan_price.estimate(rows, {"input": 2.0, "output": 2.0}, thinks=False)
-    assert one["rows"] == 2 and one["in_tok"] == pytest.approx(2 * (100 + 64))
-    assert one["ceiling_tok"] == 2000 and one["out_tok"] == 1000          # no target: half the budget
+    # 4.5.1: expected tokens = the measured per-run profile x the share of the standard run's rows planned
+    share = 2 / plan_price.MEASURED["ref_rows"]
+    assert one["rows"] == 2 and one["in_tok"] == pytest.approx(plan_price.MEASURED["typical"][0] * 1e6 * share)
+    assert one["ceiling_tok"] == 2000                                     # the ceiling is still each row's budget
     assert two["expected_usd"] == pytest.approx(2 * one["expected_usd"])
     assert plan_price.estimate(rows, None, thinks=False)["expected_usd"] is None

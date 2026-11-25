@@ -43,7 +43,7 @@ def _old_recipe(c: dict, extra_drop=()) -> str:
 # ------------------------------------------------------------ version tuples
 
 def test_suite_versions_compare_as_tuples():
-    assert version.SUITE_VERSION == "4.5.0"  # 4.5 release (ship plan C8); per-case currency, nothing stales on the bump
+    assert version.SUITE_VERSION == "4.5.1"  # 4.5 release (ship plan C8); per-case currency, nothing stales on the bump
     assert version.stamp_version("4.1.0+x") > version.stamp_version("4.0.1+x") > version.stamp_version("4.0.0+x") > version.stamp_version("3.10.0+x")
     assert version.stamp_version("3.10.0+x") > version.stamp_version("3.9.0+y")
     assert "3.10.0" < "3.9.0"            # why strings must never be compared

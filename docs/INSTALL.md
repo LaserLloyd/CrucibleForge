@@ -3,12 +3,14 @@
 [README](../README.md) · [Install](INSTALL.md) · [Running](RUNNING.md) · [Config](CONFIG.md) · [Scoring](SCORING.md) · [CLI](CLI.md) · [Design notes](DESIGN.md) · [Cases](CASES.md) · [Developing](DEVELOPING.md)
 
 Pick your platform; in each, method 1 is the simplest. CrucibleForge runs from a git checkout (a wheel or `pip install` is not supported:
-the cases, profiles and `models.example.yaml` live outside the Python package). It needs an OpenAI-compatible LLM server to test, such as the
-StudioForge gateway, LM Studio, Ollama or a hosted API; no GPU is needed on the machine that runs CrucibleForge.
+the cases, profiles and `models.example.yaml` live outside the Python package). It talks to any OpenAI-compatible LLM server
+(llama-server, LM Studio, Ollama, vLLM) or a hosted API (OpenRouter, DeepSeek, OpenAI, Anthropic); StudioForge is one
+optional local backend. No GPU is needed on the machine that runs CrucibleForge. Which provider types exist and what
+each needs: [CONFIG.md](CONFIG.md#providers).
 
-Ports: 8777 (the web GUI, loopback only by default). Point the LLM endpoint at the StudioForge gateway `http://<host>:1234/v1`,
-never at the panel on :8080, which does not serve `/v1`. If your gateway requires a key, put its name in `api_key_env` on the provider
-in `models.yaml` (the key itself stays in an environment variable).
+Ports: 8777 (the web GUI, loopback only by default). If your server requires a key, put its name in `api_key_env` on
+the provider in `models.yaml` (the key itself stays in an environment variable). A StudioForge server's OpenAI API is
+its gateway (`http://<host>:1234/v1`), never the panel on :8080, which does not serve `/v1`.
 
 Native installs run model-written code for the coding cases, so on Linux they need `bubblewrap` (`bwrap`); Windows and macOS have none
 and need `--allow-unsandboxed`. The Docker image avoids both: the container is the sandbox.

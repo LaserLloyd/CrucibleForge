@@ -1069,6 +1069,12 @@ def cmd_run(args, cfg):
     if serving:
         log.warning("StudioForge residents mid-request right now: %s — the load will wait "
                     "for them to go idle (never evicts a serving model)", serving)
+    # 4.5.1: fix rows stored while no grading route existed are graded now from their stored replies (no model call)
+    from . import fixopen as _fixopen
+    for e in entries:
+        n_fix = _fixopen.regrade_unavailable(e["name"], cases)
+        if n_fix:
+            print(f"{e['name']}: {n_fix} fix row(s) stored without a sandbox graded now from their stored replies")
     try:
         from . import routing as _routing
         if _routing.spec(prof) is not None:
@@ -1084,6 +1090,8 @@ def cmd_run(args, cfg):
         summary[label] = {"failed": True, "error": why}
     print("\nrun summary:")
     _print_run_summary(summary)
+    print("models (hosted or local, as spend caps and the judge rules class them):")
+    print("\n".join(_model_status_lines(cfg, entries)))
     return _run_rc(summary, [e["name"] for e in entries] + list(unrunnable))
 
 
@@ -1092,17 +1100,145 @@ def _first_reply_rule(prof) -> bool:
     return str((prof or {}).get(_at45.RULE_KEY) or "").strip().lower() == _at45.RULE
 
 
-def _first_reply_jobs(label: str, cfg: dict, cases: list[dict], smoke: bool = False) -> set:
+def _first_reply_jobs(label: str, cfg: dict, cases: list[dict], smoke: bool = False,
+                      entry: dict | None = None, rows: list[dict] | None = None) -> set:
     """``{(None, case id, repeat)}`` the label still owes under the first-reply rule: every (case, repeat) of
-    ``cases`` that has no stored row that produced a model reply (attempts45.is_infra rows are owed again)."""
+    ``cases`` that has no stored row that produced a model reply (attempts45.is_infra rows are owed again). With
+    ``entry``, a stored reply counts only when it was made under the entry's current conditions
+    (:func:`_stored_mismatch`); ``rows`` = :func:`_resume_rows` already read."""
     from . import attempts45 as _at45
-    from . import report
     from .config import repeats_for
-    have = {(r.get("case_id"), r.get("repeat") or 1)
-            for r in report.board_filter(label, cfg, sampler_view="current") if not _at45.is_infra(r)}
+    rows = _resume_rows(label, cfg) if rows is None else rows
+    now = _conditions(cfg, entry, smoke) if entry is not None else None
+    # a fix row still marked unavailable after cmd_run's regrade (an agent row: its final tree is not stored) is owed
+    # again once a grading route exists; without one it waits, as before
+    from . import fixopen as _fixopen
+    route = any(_fixopen.unavailable(r) for r in rows) and _fixopen.route_available()
+    have = {(r.get("case_id"), r.get("repeat") or 1) for r in rows
+            if not _at45.is_infra(r) and (now is None or _row_mismatch(r, now) is None)
+            and not (route and _fixopen.unavailable(r)) and not _at45.superseded(r)}
+    # 4.5.1 (PLAN-451-LIMITS step 1e): a case with its own 4.5.1 budget (CQ1-3) re-runs as a whole unit, every
+    # repeat, when one of its rows was cut under the old budget, so one unit never mixes budgets
+    from . import budgets451 as _b451
+    from .profiles import row_switch as _row_switch
+    whole = {r.get("case_id") for r in rows if _at45.superseded(r) == "budget raised"
+             and _b451.case_budget(_row_switch(r, _b451.KEY), r.get("case_id"))}
+    # review 3 note 6: a repeat of such a unit that already has a reply under the 4.5.1 budget is not re-run when an
+    # interrupted unit is resumed (only the repeats still holding an old-budget reply are)
+    done451 = {(r.get("case_id"), r.get("repeat") or 1) for r in rows
+               if r.get("budget_rev") and not _at45.is_infra(r)}
+    have = {h for h in have if h[0] not in whole or h in done451}
+    # review 3 note 4: a superseded reply whose re-run failed on infrastructure RERUN_INFRA_CAP times is not owed
+    # again without bound (it keeps scoring; report.losses45 names it)
+    have |= _rerun_gave_up(label, rows)
     return {(None, c["id"], n) for c in cases
             for n in range(1, repeats_for(cfg, c["category"], smoke, c) + 1)
             if (c["id"], n) not in have}
+
+
+def _rerun_gave_up(label: str, rows: list[dict]) -> set:
+    """attempts45.rerun_gave_up over every stored row of ``label`` (the board view keeps only the newest per job)."""
+    from . import attempts45 as _at45
+    try:
+        from .config import load_transcripts
+        allr = load_transcripts(label) or rows
+    except Exception:  # noqa: BLE001 - no transcript readable: judge the rows given
+        allr = rows
+    return _at45.rerun_gave_up(allr)
+
+
+def _resume_rows(label: str, cfg: dict) -> list[dict]:
+    """The stored rows a resume may reuse: the board's latest row per job of current case content, every sampler
+    (review R1: the sampler is compared by :func:`_row_mismatch`, whatever report.SAMPLER_RETEST holds)."""
+    from . import report
+    return report.board_filter(label, cfg, sampler_view="none")
+
+
+def _resume_protocol(p: dict | None) -> dict:
+    """A row's protocol stamp as the resume rule compares it: parity-equal provider types folded
+    (conformance.comparable_protocol); the sampler left to report.sampler_stale; ``reasoning_format`` left out of the
+    request keys (the runner adopts it from the rig's capabilities after the load, _Ctx.adopt_rig_reasoning)."""
+    from .conformance import comparable_protocol
+    q = comparable_protocol(p)
+    q.pop("sampler", None)
+    q["extra_body_keys"] = sorted(set(q.get("extra_body_keys") or []) - {"reasoning_format"})
+    return q
+
+
+def _conditions(cfg: dict, entry: dict, smoke: bool) -> dict:
+    """What a stored row of ``entry`` must match to be reused by a resume (review R1/R2, 4.5.1)."""
+    from . import report
+    from .runner import thinking_setting
+    now = {"label": entry["name"], "model_id": entry.get("model_id"), "provider": entry.get("provider"),
+           "sampler": report.sampler_want(entry["name"], cfg), "thinking": thinking_setting(entry),
+           "effort": None, "protocol": None, "smoke": bool(smoke)}
+    try:
+        from .conformance import _make_ctx, protocol_fingerprint
+        from .disclosure import effort_sent
+        from .providers import provider_for
+        prov = provider_for(cfg, entry)
+        ctx = _make_ctx(cfg, entry, prov)
+        now["effort"] = effort_sent(ctx.extra_body, ctx.cc_effort)
+        now["protocol"] = _resume_protocol(protocol_fingerprint(cfg, entry, prov, ctx))
+    except Exception as e:  # noqa: BLE001 -- unreadable: those two are not compared, the rest still are
+        log.warning("%s: request settings unreadable (%s): stored replies are compared without them", entry["name"], e)
+    return now
+
+
+def _row_thinking_setting(r: dict):
+    """The models.yaml ``thinking`` a stored row was made under, or None when the row cannot tell. Rows before
+    4.5.1 carry only what was seen: False is settled by the registry alone (runner._Ctx), "unknown"/None is "auto"
+    that never settled, True (reasoning was seen) fits any setting."""
+    s = r.get("thinking_setting")
+    if s is True or s is False or s == "auto":
+        return s
+    t = r.get("thinking")
+    if t is False:
+        return False
+    if t is None or t == "unknown":
+        return "auto"
+    return None
+
+
+def _row_mismatch(r: dict, now: dict) -> str | None:
+    """What differs between the conditions a stored row was made under and the entry's current ones (None = the
+    row may be reused). A field the row does not carry is not compared (an older harness), except a --smoke run's
+    rows, which are marked since 4.5.1 (an unmarked smoke row cannot be told from a full run's repeat 1)."""
+    from . import report
+    if r.get("model_id") != now["model_id"]:
+        return "model id"
+    if r.get("provider") and now["provider"] and r["provider"] != now["provider"]:
+        return "provider"
+    if report.sampler_stale(r, now["sampler"]):
+        return "sampler"
+    t = _row_thinking_setting(r)
+    if t is not None and t != now["thinking"]:
+        return "thinking setting"
+    if now["effort"] is not None and r.get("effort") is not None and str(r["effort"]) != now["effort"]:
+        return "reasoning effort"
+    if now["protocol"] is not None and isinstance(r.get("protocol"), dict) \
+            and _resume_protocol(r["protocol"]) != now["protocol"]:
+        return "request protocol"
+    if r.get("smoke") and not now["smoke"]:
+        return "--smoke run (the smoke subset, one repeat)"
+    return None
+
+
+def _stored_mismatch(cfg: dict, entry: dict, rows: list[dict], smoke: bool) -> str | None:
+    """The first difference any reusable stored row of ``entry`` shows (:func:`_row_mismatch`), or None."""
+    from . import attempts45 as _at45
+    now = _conditions(cfg, entry, smoke)
+    for r in rows:
+        if not _at45.is_infra(r):
+            why = _row_mismatch(r, now)
+            if why:
+                return why
+    return None
+
+
+def _mismatch_line(label: str, why: str, full: bool = True) -> str:
+    return (f"stored replies for {label} were made with a different {why}: "
+            + ("running the full set" if full else "those jobs run again") + "; they stay on disk")
 
 
 def _run_routed(cfg, entries, cases, prof, args) -> dict:
@@ -1165,7 +1301,28 @@ def _run_selected(cfg, entries, cases, prof, args, only, run_models) -> tuple[di
     jobs_by = None
     chain_sel: list[dict] = []
     all_entries = list(entries)
-    if only and _first_reply_rule(prof):
+    resumed = None
+    if _first_reply_rule(prof) and not only and not getattr(args, "fresh", False):
+        # a plain re-run of the same command is a resume (docs/RUNNING.md "Resume": finished jobs are reused). The
+        # second hosted run of 2026-11-24 re-drew all 97 standard jobs of a model whose rows were already stored
+        # (only chains and ladder rounds resumed): billed again, and ignored or marked as a re-run on the board.
+        # A model with stored replies takes the owed-jobs path below; a model with none runs as before.
+        # Review R1/R2 (4.5.1): a stored reply is reused only when it was made under the entry's current conditions
+        # (model id, provider, sampler, thinking setting, effort, request protocol, case content, not a --smoke
+        # run). On any difference the model runs its full set, as 4.5.0 did, and one line says why.
+        from .config import repeats_for
+        std = [c for c in cases if not c.get("chain_spec")]
+        n_all = sum(repeats_for(cfg, c["category"], args.smoke, c) for c in std)
+        owed = {}
+        for e in entries:
+            rows = _resume_rows(e["name"], cfg)
+            why = _stored_mismatch(cfg, e, rows, args.smoke)
+            if why:
+                print(_mismatch_line(e["name"], why))
+                continue
+            owed[e["name"]] = _first_reply_jobs(e["name"], cfg, std, args.smoke, entry=e, rows=rows)
+        resumed = {k: v for k, v in owed.items() if len(v) < n_all} or None
+    if (only or resumed) and _first_reply_rule(prof):
         # retry fairness: a unit whose first attempt produced a reply is never presented again by a
         # resume (only an infrastructure failure is); to re-draw on purpose, archive the rows first.
         # A named chain (FLAT-<set>-<i>) is not a job of the recover path, which skips chains: it
@@ -1173,12 +1330,23 @@ def _run_selected(cfg, entries, cases, prof, args, only, run_models) -> tuple[di
         # (a graded attempt is never presented again), so only its owed attempts are drawn.
         chain_sel = [c for c in cases if c.get("chain_spec")]
         cases = [c for c in cases if not c.get("chain_spec")]
-        jobs_by = {e["name"]: _first_reply_jobs(e["name"], cfg, cases, args.smoke) for e in entries}
+        if resumed is None:
+            jobs_by = {}
+            ids = {c["id"] for c in cases}
+            for e in entries:
+                # named cases: a stored reply made under other conditions is owed again (its job alone)
+                rows = [r for r in _resume_rows(e["name"], cfg) if r.get("case_id") in ids]
+                why = _stored_mismatch(cfg, e, rows, args.smoke)
+                if why:
+                    print(_mismatch_line(e["name"], why, full=False))
+                jobs_by[e["name"]] = _first_reply_jobs(e["name"], cfg, cases, args.smoke, entry=e, rows=rows)
+        else:
+            jobs_by = resumed
         for label, js in jobs_by.items():
             print(f"{label}: {len(js)} job(s) to run (units that already have a reply are not re-drawn)"
                   + (f"; {len(chain_sel)} named chain(s) resume from their stored attempts"
                      if chain_sel else ""))
-        entries = [e for e in entries if jobs_by[e["name"]]]
+        entries = [e for e in entries if e["name"] not in jobs_by or jobs_by[e["name"]]]
     summary = {}
     if entries:
         summary = run_models(cfg, entries, cases, smoke=args.smoke, jobs_by_label=jobs_by,
@@ -1302,7 +1470,9 @@ def cmd_escalate(args, cfg):
         return 0
     todo = {e["name"]: len(escalation_todo(report.board_filter(e["name"], cfg, with_rungs=True,
                                                                            sampler_view="current"),
-                                           e["name"], rungs)) for e in entries}
+                                           e["name"], [r for r in rungs if not e.get("max_output_tokens")
+                                                       or r <= int(e["max_output_tokens"])]))
+            for e in entries}
     print(f"escalation rungs {rungs} — jobs out of budget: " +
           ", ".join(f"{k}={v}" for k, v in todo.items()))
     entries = [e for e in entries if todo[e["name"]]]
@@ -1474,6 +1644,7 @@ def cmd_ladder_judge(args, cfg):
         return 3
     cfg, _cases, prof = _apply_profile_arg(args, cfg)
     cfg = _guard_45_judge(args, cfg, prof)
+    args._judge_prof = prof
     labels = [e["name"] for e in resolve_models(cfg, args.models)]
     windows = [int(x) for x in args.windows.split(",")] if args.windows else None
     windows = LR.part_windows(prof, windows)
@@ -1483,6 +1654,14 @@ def cmd_ladder_judge(args, cfg):
     if args.plan:
         out = LR.plan(cfg, prof, labels, jmodel, windows)
         print(LR.dumps(out))
+        hj = getattr(args, "_hosted_judge", None)
+        if hj:
+            from . import judge45 as _J
+            from .providers import get_provider
+            price = get_provider(cfg, hj["provider"]).prices.get(str(hj["model_id"]))
+            print(_J.judge_cost_plan_line(price, out["calls_low"], out["calls_high"] * HOSTED_JUDGE_CALLS_PER_SAMPLE,
+                                          *_J.LADDER_CALL_TOKENS,
+                                          route=f"{hj['model_id']} on {hj['provider']}"))
         return 0
     deadline = None
     if args.until:
@@ -1496,6 +1675,7 @@ def cmd_ladder_judge(args, cfg):
     # the pair judge takes its own GPU lease inside LR.run (a loaded judge); inside `all` the process lives on, so
     # the lease must go back here (a hosted or attached judge holds none: restore is then a no-op)
     guard = _ProviderGuard(cfg, [], judge=override)
+    _record_judge_provider(args, cfg, labels)
     try:
         out = LR.run(cfg, prof, labels, windows=windows, judge_override=override, deadline=deadline,
                      rung_check_only=args.rung_check, force=args.force, attach=args.attach,
@@ -1503,6 +1683,9 @@ def cmd_ladder_judge(args, cfg):
     finally:
         guard.restore()
     for line in LR.summary_lines(out):
+        print(line)
+    line = _judge_cost_line(args)
+    if line:
         print(line)
     return 0 if out.get("rung_check_complete") else 1
 
@@ -1671,20 +1854,230 @@ def cmd_agree(args, cfg):
 
 
 def _guard_45_judge(args, cfg, prof):
-    """4.5 profiles grade with one LOCAL judge (owner 2026-11-21): a hosted --judge / profile judge is refused with a
-    plain message, and hosted judge candidates leave the config this command uses (no fallback can pick one)."""
+    """The run's judge (owner 2026-11-24: any judge the user names, local or hosted). Hosted judge candidates the
+    user did not name leave the config this command uses (no fallback can pick one)."""
     from . import judge45 as _J
     try:
-        _J.guard_judge(cfg, getattr(args, "judge", None), prof)
+        hosted = _J.guard_judge(cfg, getattr(args, "judge", None), prof)
     except _J.HostedGrader as e:
         raise SystemExit(str(e))
-    cfg = _J.local_only_cfg(cfg, prof)
+    cfg = _J.local_only_cfg(cfg, prof, keep=hosted)
+    args._hosted_judge = None
+    if hosted:
+        # owner 2026-11-24: any judge the user names may judge, a hosted one too. It is billed by its provider and
+        # booked apart from every model's Run cost and spend cap (spend.mark_judge); no rig is touched.
+        # Review F3: judge spend is decided by the ROLE of the call. The judge is served through its own provider
+        # entry ``<provider>~judge`` (a copy of the provider), marked as a judge provider: the same hosted model under
+        # test, called through ``<provider>``, stays that model's spend (Run cost, --spend-cap-usd).
+        from . import spend as _spend
+        from .providers import get_provider
+        from .providers import OPENROUTER_THINKING_OFF, is_openrouter
+        from .config import provider_of
+        # idempotent: `all` guards the judge for each judge phase, and a later phase gets the already-resolved judge
+        # (provider ``<provider>~judge``) with the config as loaded. Never ``<provider>~judge~judge`` with an empty
+        # entry (second hosted run 2026-11-24: 372 role-play and pack judge calls with no URL).
+        base = str(_J.base_provider(str(hosted["provider"])))
+        jp = base + _spend.JUDGE_PROVIDER_SUFFIX
+        provs = dict((cfg or {}).get("providers") or {})
+        entry = dict(provider_of(cfg, base))
+        entry.pop("name", None)
+        provs[jp] = entry
+        cfg = {**cfg, "providers": provs}
+        hosted = {**hosted, "provider": jp}
+        eb = dict(hosted.get("extra_body") or {})
+        if not hosted.get("thinking") and is_openrouter(provs[jp].get("base_url")) and "reasoning" not in eb:
+            # a judge run with thinking off (the default) must say so in OpenRouter's terms: a thinking model there
+            # otherwise reasons by default and spends the verdict's output budget (first hosted run 2026-11-24)
+            hosted["extra_body"] = {**eb, **OPENROUTER_THINKING_OFF}
+            print(f"judge: {hosted['model_id']} on OpenRouter runs with thinking off (reasoning.enabled false)")
+        j = dict(cfg.get("judge") or {})
+        over = {"provider": jp, **({"extra_body": hosted["extra_body"]} if hosted.get("extra_body") else {})}
+        j["candidates"] = [({**c, **over} if c.get("model_id") == hosted["model_id"]
+                            and c.get("provider") == base else c) for c in j.get("candidates") or []]
+        cfg["judge"] = j
+        # the judge's price rides on the config itself (providers.get_provider reads ``_judge_prices``), not on one
+        # cached Provider object: a later phase that copies the config (`ladder-judge`: {**cfg, "_profile": ...})
+        # builds a new Provider, which priced nothing and booked the session judge's 632 calls at $0 (third Docker
+        # run 2026-11-25: "$0.0343 for 732 calls" while the provider balance fell ~$0.18)
+        cfg["_judge_prices"] = {**(cfg.get("_judge_prices") or {}),
+                                jp: ({str(hosted["model_id"]): dict(hosted["price"])} if hosted.get("price") else {})}
+        prov = get_provider(cfg, jp)
+        if hosted.get("price"):
+            prov.prices[str(hosted["model_id"])] = dict(hosted["price"])
+        else:
+            prov.prices.pop(str(hosted["model_id"]), None)    # a model entry's price is the MODEL's, not the judge's
+        _spend.mark_judge(jp)
+        args.judge = hosted
+        args._hosted_judge = {"model_id": hosted["model_id"], "provider": base,
+                              "priced": bool(prov.prices.get(str(hosted["model_id"])))}
+        return cfg
     if _J.is_45(prof) and isinstance(getattr(args, "judge", None), dict):
         # the profile names the judge by model; the config's judge candidate for that model says WHICH copy (devices,
         # parallel slots, instance name): keep them, as a `--judge <candidate name>` would (rig test 2026-11-21: the
         # profile dict alone loaded the judge on the default cards)
         args.judge = _J.with_candidate_copy(cfg, args.judge)
     return cfg
+
+
+#: no case id is this: a case filter that keeps no row (an empty list would mean "every case")
+_NO_CASE = "\x00no-case"
+
+
+def _opt_out_cases(args, labels: list[str], only: list[str] | None) -> list[str] | None:
+    """The case filter of a judge phase under ``--no-nsfw-plus`` (the user's own opt-out, any judge): the adult rows
+    are left pending and every other pending row is judged; the NSFW+ units are skipped by the adult phase."""
+    from . import adult_guard as _AG
+    from .judge import _pending_rows
+    force, retry = bool(getattr(args, "force", False)), bool(getattr(args, "retry_failed", False))
+    rows = [r for l in labels for r in _pending_rows(l, force, retry, only)]
+    adult = [r for r in rows if _AG.is_adult(r)]
+    if not adult:
+        return only
+    print(f"NSFW+: {len(adult)} adult row(s) left pending (--no-nsfw-plus)")
+    keep = sorted({r.get("case_id") for r in rows if not _AG.is_adult(r) and r.get("case_id")})
+    return keep or [_NO_CASE]
+
+
+#: the one run-summary line when the judge failed only its explicit-text calibration probe (judge.CanaryNsfwOnly):
+#: the NSFW rows stay pending, never judged by a judge that softens explicit text
+EXPLICIT_CHECK_FAILED = ("judge: the judge failed its explicit-text check: NSFW+ was not judged; MakoBench's published "
+                         "NSFW+ uses the local Q8 judge")
+
+
+class _ExplicitCheckWatch(logging.Handler):
+    """Notices the judge phase's "canary FAILED (NSFW probes only)" (judge.run_judge holds the NSFW rows and goes
+    on; its result does not carry it), so the run summary says it in one line instead of N silent pending rows."""
+
+    def __init__(self):
+        super().__init__(logging.WARNING)
+        self.failed = 0
+
+    def emit(self, record):
+        try:
+            if "NSFW probes only" in record.getMessage():
+                self.failed += 1
+        except Exception:  # noqa: BLE001 -- a log record never breaks the judge
+            pass
+
+    def __enter__(self):
+        logging.getLogger("crucibleforge.judge").addHandler(self)
+        return self
+
+    def __exit__(self, *exc):
+        logging.getLogger("crucibleforge.judge").removeHandler(self)
+        return False
+
+    def line(self) -> str | None:
+        return EXPLICIT_CHECK_FAILED if self.failed else None
+
+
+#: a judge phase whose hosted judge's provider refused or filtered judge calls (HTTP 400 "prompt flagged", a content
+#: filter): every other row was judged; those rows stay pending, never scored as the model's refusal
+JUDGE_REFUSED_EXIT = 12
+
+
+def _judge_filtered_line(labels) -> str | None:
+    """One run-summary line counting the rows whose judge call the JUDGE's provider refused or filtered (stored as
+    judge_failed: no verdict, never the model's refusal; asked again by `judge --retry-failed`)."""
+    from . import judge45 as _J
+    n = 0
+    for label in labels or []:
+        tf = results_dir() / f"transcripts_{label}.jsonl"
+        if not tf.is_file():
+            continue
+        with tf.open(encoding="utf-8") as fh:
+            for line in fh:
+                if '"judge_failed": true' not in line:
+                    continue
+                try:
+                    r = json.loads(line)
+                except ValueError:
+                    continue
+                n += bool(_J.judge_filtered(r.get("judge")))
+    if not n:
+        return None
+    return (f"judge: {n} row(s) not judged ({_J.JUDGE_FILTERED}); they are not scored as the model's refusal and "
+            "stay pending (`crucibleforge judge --retry-failed` asks again)")
+
+
+def _record_judge_provider(args, cfg, labels: list[str] | None = None) -> None:
+    """The results folder remembers which provider served a judge other than the profile's (judge45): the board's
+    trace reads "judged by <id> (<provider>)"."""
+    from . import judge45 as _J
+    from .judge import resolve_judge_spec
+    spec = getattr(args, "judge", None)
+    prof = getattr(args, "_judge_prof", None)
+    if not spec:
+        _J.record_run_judge(results_dir(), _J.judge_id(prof), labels=labels)   # the profile's judge is current
+        return
+    try:
+        cand = resolve_judge_spec(cfg, spec) or {}
+    except Exception:  # noqa: BLE001 -- an unknown judge fails later with its own message
+        return
+    if cand.get("model_id"):
+        _J.record_run_judge(results_dir(), str(cand["model_id"]), cand.get("provider"), labels=labels)
+    if cand.get("model_id") and cand.get("provider") and cand["model_id"] != _J.judge_id(prof):
+        _J.record_judge_provider(results_dir(), str(cand["model_id"]), str(cand["provider"]))
+
+
+def _judge_cost_line(args, whole_run: bool = False) -> str | None:
+    """The hosted judge's own spend, apart from every model's Run cost and spend cap (owner 2026-11-24): the sum of
+    every call this process made in the judge role (spend.judge_totals: standard and long-scene judge, role-play
+    sessions, pack judge, NSFW+ classing, judge-check). ``whole_run``: `all`'s last line. None for a local judge."""
+    hj = getattr(args, "_hosted_judge", None)
+    if not hj:
+        return None
+    from . import spend as _spend
+    calls, usd = _spend.judge_totals()
+    if not hj.get("priced"):
+        ti, to = _spend.judge_tokens()
+        return (f"judge cost unknown: {hj['model_id']} on {hj['provider']} has no price in models.yaml; {calls} "
+                f"calls, {ti + to} tokens; not limited by any cap")
+    return (f"judge cost{', whole run (every judge phase)' if whole_run else ''}: ${usd:.4f} for {calls} call(s) "
+            f"to {hj['model_id']} on {hj['provider']} (billed apart: not part of any model's Run cost)")
+
+
+#: a hosted judge's calls per judge sample at worst: the provider's length retry (Provider.chat, a verdict cut at its
+#: output budget) and then judge.py's own re-ask of a reply without a usable verdict, each one sent at most once
+HOSTED_JUDGE_CALLS_PER_SAMPLE = 4
+
+
+def _where(cfg: dict, provider: str | None) -> str:
+    """"hosted (<provider>)" or "local (<provider>)", as the spend and judge rules class it (judge45.provider_hosted).
+    A provider of an API type classed local by its address (a gateway on a private, tailnet or single-label host) says
+    how to class it hosted, so a paid API behind such an address is never treated as local without notice."""
+    from . import judge45 as _J
+    from . import spend as _spend
+    from .config import provider_of
+    base = _J.base_provider(provider) or "?"
+    if _J.provider_hosted(cfg, base):
+        return f"hosted ({base})"
+    try:
+        explicit = provider_of(cfg or {}, base).get("hosted") is not None
+    except Exception:  # noqa: BLE001 -- not listed: classed by its name
+        explicit = True
+    if not explicit and _spend.is_hosted(_J.provider_type(cfg, base)):
+        return (f"local ({base}: an API type at a local address; a paid API behind it? set hosted: true on "
+                f"providers.{base})")
+    return f"local ({base})"
+
+
+def _judge_status(args, cfg: dict) -> str | None:
+    """The run's judge, hosted or local (review note 6), or None when the command does not name one yet."""
+    hj = getattr(args, "_hosted_judge", None)
+    if hj:
+        return f"judge: {hj['model_id']} {_where(cfg, hj['provider'])}"
+    j = getattr(args, "judge", None)
+    if isinstance(j, str):
+        j = next((c for c in ((cfg or {}).get("judge") or {}).get("candidates") or []
+                  if j in (c.get("name"), c.get("model_id"))), None)
+    if isinstance(j, dict) and j.get("provider"):
+        return f"judge: {j.get('model_id')} {_where(cfg, j['provider'])}"
+    return None
+
+
+def _model_status_lines(cfg: dict, entries: list[dict]) -> list[str]:
+    return [f"  {e['name']}: {_where(cfg, e.get('provider'))}" for e in entries]
 
 
 def _allow_self_judge(args) -> bool:
@@ -1718,6 +2111,9 @@ def _adult_judge_phase(args, cfg, prof, labels, inst=None) -> dict:
     judge lease the caller holds; the same judge that graded the rows), one vote each, into ``judge45/``."""
     from . import judge45 as _J
     from .judge import _load_judge
+    from .adult_guard import args_wants as _adult_wanted
+    if not _adult_wanted(args):
+        return {}                     # --no-nsfw-plus: the user's own opt-out, any judge
     todo = {l: p for l, p in _adult_plan_of(args, cfg, prof, labels).items() if p["calls_needed"]}
     if not todo:
         return {}
@@ -1726,7 +2122,9 @@ def _adult_judge_phase(args, cfg, prof, labels, inst=None) -> dict:
     benched = set() if _J.self_grades(prof) else {by_name[l]["model_id"] for l in labels if l in by_name}
     jc = _load_judge(cfg, benched, rows=sum(p["calls_needed"] for p in todo.values()), samples=1,
                      override=getattr(args, "judge", None), **({"instance": inst} if inst else {}))
-    reader = _J.judge_reader(jc.model_id, provider=jc.provider.name, provider_type=jc.provider.type)
+    reader = _J.judge_reader(jc.model_id, provider=jc.provider.name, provider_type=jc.provider.type,
+                                 base_url=getattr(jc.provider, "base_url", None),
+                                 hosted=getattr(jc.provider, "is_hosted", None))
     chat = _J.client_chat(jc)
     out = {}
     for label in todo:
@@ -1741,9 +2139,11 @@ def _adult_judge_phase(args, cfg, prof, labels, inst=None) -> dict:
             log.error("NSFW+ judge for %s failed: %s (its units stay not judged yet)", label, e)
             continue
         st = out[label]
+        filt = st.get("judge_filtered") or 0
         print(f"NSFW+ judge {jc.model_id} on {label}: {st['classed']} unit(s) classed, {st['flagged']} opinion-flag "
-              f"unit(s) read, {st['pending_class'] + st['pending_flags']} not judged yet (unparsable), "
-              f"{st['calls']} call(s)")
+              f"unit(s) read, {st['pending_class'] + st['pending_flags'] - filt} not judged yet (unparsable), "
+              + (f"{filt} not judged yet ({_J.JUDGE_FILTERED}), " if filt else "")
+              + f"{st['calls']} call(s)")
     return out
 
 
@@ -1780,7 +2180,9 @@ def cmd_judge_check(args, cfg):
             print(f"judge lease: {e}", file=sys.stderr)
             return 4
         jc = _load_judge(cfg, set(), rows=110, samples=1, override=getattr(args, "judge", None))
-        reader = _J.judge_reader(jc.model_id, provider=jc.provider.name, provider_type=jc.provider.type)
+        reader = _J.judge_reader(jc.model_id, provider=jc.provider.name, provider_type=jc.provider.type,
+                                 base_url=getattr(jc.provider, "base_url", None),
+                                 hosted=getattr(jc.provider, "is_hosted", None))
         _J.run_check(results_dir(), reader, _J.client_chat(jc), prof,
                      width=max(1, int(getattr(jc, "concurrency", 1) or 1)))
         jid = jc.model_id
@@ -1797,6 +2199,9 @@ def cmd_judge(args, cfg):
     args._judge_prof = prof
     entries = resolve_models(cfg, args.models)
     labels = [e["name"] for e in entries]
+    # review F2: this run's judge becomes each model's current judge BEFORE the pending set is read, so rows another
+    # recorded judge scored read as not judged and are judged now (one judge per model, never a mix)
+    _record_judge_provider(args, cfg, labels)
     shard = _shard_of(args)
     args.steal_labels = None
     forced = bool(getattr(args, "force", False))
@@ -1856,6 +2261,9 @@ def cmd_judge(args, cfg):
     from .judge import judge_gate
     retry_failed = bool(getattr(args, "retry_failed", False))
     only = _judge_cases(args, prof_cases)
+    from .adult_guard import args_wants as _adult_wanted
+    if not _adult_wanted(args):
+        only = _opt_out_cases(args, list(labels) + list(args.steal_labels or []), only)
     n_pending, restamp = judge_gate(cfg, list(labels) + list(args.steal_labels or []),
                                     override=getattr(args, "judge", None),
                                     allow_fallback=getattr(args, "judge_fallback", None),
@@ -1894,8 +2302,17 @@ def cmd_judge(args, cfg):
                                          inst_keys)
         finally:
             dl.release()
-    with rig_phase(needed=not remote, what="judge phase"):
-        return _cmd_judge_locked(args, cfg, labels, samples, retry_failed, only)
+    with rig_phase(needed=not remote, what="judge phase"), _ExplicitCheckWatch() as watch:
+        rc = _cmd_judge_locked(args, cfg, labels, samples, retry_failed, only)
+    filtered = _judge_filtered_line(labels)
+    for line in (_judge_status(args, cfg), watch.line(), filtered, _judge_cost_line(args)):
+        if line:
+            print(line)
+    if rc == 0 and filtered and getattr(args, "_hosted_judge", None):
+        print(f"judge: exit {JUDGE_REFUSED_EXIT}: the JUDGE's provider refused or filtered some judge calls; the "
+              "model answered those rows, they are not judged yet (not the model's refusal)")
+        return JUDGE_REFUSED_EXIT
+    return rc
 
 
 def cmd_judge_shards(args, cfg):
@@ -2170,6 +2587,13 @@ def _stamp_judge_error(labels: list[str], error: str) -> None:
         _write_meta_atomic(p, meta)
 
 
+def _report_labels(args, full_board: bool) -> list[str]:
+    """The models a report renders: ``--models``, else every model with stored rows in the results folder."""
+    if getattr(args, "models", None) and not full_board:
+        return [x for x in str(args.models).split(",") if x]
+    return sorted({p.stem.removeprefix("transcripts_") for p in results_dir().glob("transcripts_*.jsonl")})
+
+
 def disclosure_problems(cfg: dict | None, labels: list[str]) -> dict[str, list[str]]:
     """{label: [case ids]} of the board rows of HOSTED models that do not record the reasoning effort they ran
     at (P2, D11: such a row is never published). Rig models are checked by settings_gate instead."""
@@ -2261,6 +2685,23 @@ def _cmd_report(args, cfg, full_board: bool = False):
                           f"({', '.join(ids[:8])}{' ...' if len(ids) > 8 else ''}); re-run them",
                           file=sys.stderr)
                 return 4
+            # review F2: nothing judged by a judge other than the profile's reaches a public board by accident
+            if not getattr(args, "allow_other_judge", False):
+                from .report import _primary_judge, other_judge_ids
+                found = {}
+                for label in _report_labels(args, full_board):
+                    ids = other_judge_ids(label, cfg)
+                    if ids:
+                        found[label] = ids
+                if found:
+                    print(f"refused: report --public: judged by a judge other than the profile's "
+                          f"({_primary_judge(cfg) or '?'}): "
+                          + "; ".join(f"{label}: {', '.join(ids)}" for label, ids in sorted(found.items()))
+                          + ". MakoBench's published board uses the profile's judge only; pass --allow-other-judge "
+                            "to publish your own board with them", file=sys.stderr)
+                    return 6
+            else:
+                cfg = {**(cfg or {}), "_allow_other_judge": True}
         try:
             md = generate(None if full_board else args.models, write=True, public=True,
                           out_dir=getattr(args, "out", None), cfg=cfg or None)
@@ -2576,6 +3017,12 @@ def cmd_all(args, cfg):
     print(clock.summary_line())
     if getattr(args, "timing", False):
         print(clock.table(ran or []))
+    jline = _judge_cost_line(args, whole_run=True)
+    if jline:
+        print(jline)
+    if rc_j == JUDGE_REFUSED_EXIT:
+        print(f"exit {JUDGE_REFUSED_EXIT}: the judge's provider refused or filtered some judge calls; those rows are "
+              "not judged yet (a judge-side refusal, not the model's); `crucibleforge judge --retry-failed` asks again")
     return rc_r or rc or rc_j or rc_s or rc_t
 
 
@@ -2942,6 +3389,8 @@ def plan_budget(cfg_p: dict, entry: dict, case: dict, ctx_len: int | None) -> st
     fake.think_factor = float(d.get("thinking_max_tokens_factor", 4))
     fake.think_cap = int(d.get("thinking_max_tokens_cap", 32768))
     fake.think_floor = int(d.get("thinking_max_tokens_floor") or 0)
+    from .budgets451 import block as _b451_block
+    fake.b451, fake.rung = _b451_block(cfg_p), None
     think = _Ctx.budget(fake, mt)
     one = d.get("regime") == REGIME_DEPLOYED and bool(run_plan(cfg_p).get("one_budget", True))
     t = entry.get("thinking", "auto")
@@ -2952,16 +3401,126 @@ def plan_budget(cfg_p: dict, entry: dict, case: dict, ctx_len: int | None) -> st
     return f"{think} if thinking, else {mt}"
 
 
-def plan_reader_line(n_units: int, graded_family: str | None, prof: dict | None) -> str:
+def plan_reader_line(n_units: int, graded_family: str | None, prof: dict | None, hosted: str | None = None) -> str:
     """The `plan` line for the NSFW+ classing: the run's judge reads each classed unit and each opinion-flag unit
-    once (one local judge, owner 2026-11-21); no reader, no hosted call, nothing priced."""
+    once (one local judge, owner 2026-11-21); no reader, nothing priced. ``hosted``: the user's hosted judge id (owner
+    2026-11-24, any judge): it reads them instead, priced in the judge cost line."""
     from . import judge45 as _J
     if not n_units:
         return "  NSFW+ judge: no units to read"
-    jid = _J.judge_id(prof) or "the run's judge"
+    jid = hosted or _J.judge_id(prof) or "the run's judge"
     note = " (same family as the graded model: the board notes it)" if _J.same_family(jid, graded_family) else ""
+    where = "hosted, priced in the judge cost line below" if hosted else "local, free"
     return (f"  NSFW+ judge: at most {n_units} calls by {jid}, one vote per classed or opinion-flag unit "
-            f"(local, free){note}")
+            f"({where}){note}")
+
+
+#: the order the plan prints owed reasons in (PLAN-451-LIMITS: the lead checks them against the plan's table)
+OWED_REASONS = ("budget raised", "tool tolerance", "empty stop", "context", "stall", "transport", "other", "not run")
+
+
+def owed_reason(rows: list[dict]) -> str:
+    """Why a job with these stored rows is owed by a plain resume (one word list, :data:`OWED_REASONS`)."""
+    from . import attempts45 as _at45
+    from . import scoring45 as _S
+    if not rows:
+        return "not run"
+    for r in rows:
+        why = _at45.superseded(r)
+        if why:
+            return {"budget raised": "budget raised", "empty stop": "empty stop"}.get(why, "tool tolerance")
+    for r in rows:
+        if _S._is_ctx_short(r):
+            return "context"
+        if "keep-alive" in str(r.get("error") or "") or "no data event" in str(r.get("error") or ""):
+            return "stall"
+    for r in rows:
+        if r.get("error_kind") == "transport" or r.get("grade") == "error":
+            return "transport"
+    return "other"
+
+
+def owed_lines(entry: dict, cfg: dict, cases: list[dict], smoke: bool, price: dict | None = None) -> list[str]:
+    """The plan's "owed on resume" lines for a model with stored replies: the jobs a plain resume would run, by
+    reason (none for a model that never ran, or whose stored replies were made under other conditions)."""
+    try:
+        rows = _resume_rows(entry["name"], cfg)
+    except Exception:  # noqa: BLE001 - no stored rows readable: nothing to say
+        return []
+    if not rows:
+        return []
+    why = _stored_mismatch(cfg, entry, rows, smoke)
+    if why:
+        return [f"  owed on resume: every job ({why})"]
+    std = [c for c in cases if not c.get("chain_spec")]
+    jobs = _first_reply_jobs(entry["name"], cfg, std, smoke, entry=entry, rows=rows)
+    priced: list = []                       # (case-like dict, output budget) of every owed job, for the price line
+    by_case = {c["id"]: c for c in std}
+    for _b, cid, _rep in jobs:
+        c = by_case.get(cid)
+        if c is not None:
+            try:
+                from .runner import load_context
+                priced.append((c, _plan_price_budget(cfg, entry, c, load_context(cfg, entry, cases=[c]))))
+            except Exception:  # noqa: BLE001 - a case the plan cannot size is priced at its stored budget
+                priced.append((c, int(c.get("max_tokens") or 0)))
+    by_job: dict = {}
+    for r in rows:
+        by_job.setdefault((r.get("case_id"), r.get("repeat") or 1), []).append(r)
+    from collections import Counter
+    n = Counter(owed_reason(by_job.get((cid, rep), [])) for _b, cid, rep in jobs)
+    # chain units (tool consoles, ladders) are re-made by the chain driver, which skips the same superseded and
+    # errored attempts (chains.py): one count per stored attempt, by reason
+    from . import attempts45 as _at45
+    att: dict = {}
+    for r in rows:
+        ch = r.get("chain") or {}
+        if ch:
+            att[(r.get("bench_run_id"), r.get("case_id"), r.get("repeat"), ch.get("rung"), ch.get("attempt"))] = r
+    newest: dict = {}
+    for (rid, cid, rep, rung, a), r in att.items():
+        newest.setdefault((cid, rep, rung, a), []).append(r)
+    for grp in newest.values():
+        last = max(grp, key=lambda r: str(r.get("ts") or ""))
+        if _at45.superseded(last) or _at45.is_infra(last):
+            n[owed_reason([last])] += 1
+            from . import budgets451 as _b451
+            from .profiles import row_switch as _rs
+            ceil = (last.get("chain") or {}).get("ceiling")
+            b = _b451.ceiling(_rs(last, _b451.KEY), ceil) if ceil else int(last.get("max_tokens_sent") or 0)
+            priced.append(({"id": last.get("case_id"), "category": last.get("category")}, int(b or 0)))
+    gave = len(_rerun_gave_up(entry["name"], rows))
+    tail = ([f"  no longer owed: {gave} job(s) whose re-run failed on infrastructure "
+             f"{__import__('crucibleforge.attempts45', fromlist=['x']).RERUN_INFRA_CAP}+ times (kept, in losses)"]
+            if gave else [])
+    if not n:
+        return ["  owed on resume: none"] + tail
+    parts = ", ".join(f"{k} {n[k]}" for k in OWED_REASONS if n.get(k))
+    return [f"  owed on resume: {sum(n.values())} job(s): {parts}", owed_price_line(priced, price, entry)] + tail
+
+
+def _plan_price_budget(cfg: dict, entry: dict, case: dict, ctx_len) -> int:
+    from . import plan_price as _pp
+    return _pp.budget_int(plan_budget(cfg, entry, case, ctx_len))
+
+
+def owed_price_line(priced: list, price: dict | None, entry: dict) -> str:
+    """Review 3 note 9: what the owed jobs cost before a plain ``all`` spends on them: tokens (input, expected
+    output, every row to its full budget) and dollars at the model's price."""
+    from . import plan_price as _pp
+    targets = _pp._targets()
+    thinks = entry.get("thinking") is not False
+    tin = tex = tce = 0.0
+    for c, b in priced:
+        i, e, ce = _pp.row_tokens(c, int(b or 0), thinks, targets)
+        tin, tex, tce = tin + i, tex + e, tce + ce
+    head = (f"  owed price: {len(priced)} row(s), ~{tin / 1e6:.2f}M in + ~{tex / 1e6:.2f}M out expected, "
+            f"{tce / 1e6:.2f}M out if every row ran to its budget")
+    if not price:
+        return head + " (no price: rig model or none set)"
+    pin, pout = float(price.get("input", 0) or 0), float(price.get("output", 0) or 0)
+    return head + (f"; ~${(tin * pin + tex * pout) / 1e6:.2f} expected, "
+                   f"${(tin * pin + tce * pout) / 1e6:.2f} at most")
 
 
 def cmd_plan(args, cfg) -> int:
@@ -2977,14 +3536,21 @@ def cmd_plan(args, cfg) -> int:
     from . import spend as _spend
     from .config import repeats_for
     from .runner import _LOADING_TYPES, plan_rounds
-    from .providers import provider_for
+    from .providers import get_provider, provider_for
     cfg_p, cases, prof = _apply_profile_arg(args, cfg)
     entries = resolve_models(cfg_p, args.models)
     if not entries:
         raise SystemExit("no models selected (pass --models)")
+    hj_args = copy.copy(args)
+    _guard_45_judge(hj_args, cfg_p, prof)
+    hj = None if getattr(args, "no_judge", False) else getattr(hj_args, "_hosted_judge", None)
     smoke = getattr(args, "smoke", False)
     samples = int((cfg_p.get("judge") or {}).get("samples", 3) or 3)
     out = []
+    if not getattr(args, "no_judge", False):
+        js = _judge_status(hj_args, cfg_p)
+        if js:
+            out.append(js)
 
     def rows_of(cs, ctx_len, entry):
         lines, n = [], 0
@@ -3026,13 +3592,17 @@ def cmd_plan(args, cfg) -> int:
         t1 = [c for c in cases if c["category"] != "perf"]
         n_all = sum(repeats_for(cfg_p, c["category"], smoke, c) for c in t1)
         out.append(f"== {e['name']} ({e.get('provider')}:{e['model_id']})")
+        out.append(f"  model: {_where(cfg_p, e.get('provider'))}")
         out.append(f"  T1 — every model: {n_all} rows ({len(t1)} cases) + {len(perf)} perf probes")
         n_adult = sum(1 for c in t1 if _is_adult(c))
         out.append(f"  {said[0]}; 0 NSFW+ units" if said else f"  NSFW+: included, {n_adult} NSFW+ units")
         if not said:
             out.append(plan_reader_line(
                 sum(repeats_for(cfg_p, c["category"], smoke, c) for c in t1 if _is_adult(c)),
-                __import__("crucibleforge.lineage", fromlist=["family"]).family(e["name"]), prof))
+                __import__("crucibleforge.lineage", fromlist=["family"]).family(e["name"]), prof,
+                hosted=str(hj["model_id"]) if hj else None))
+        out += owed_lines(e, cfg_p, t1, smoke, price=e.get("price") or provider_for(cfg_p, e).prices.get(
+            str(e.get("model_id"))))
         rounds = plan_rounds(cfg_p, e, cases)
         gen_total, judged_total, parts = 0.0, 0, []
         priced_rows = []
@@ -3066,18 +3636,87 @@ def cmd_plan(args, cfg) -> int:
         # D15 (fix round 2026-11-18): the plan price per model, printed before any hosted go
         price = e.get("price") or prov.prices.get(str(e.get("model_id")))
         out.append(_plan_price.plan_line(
-            _plan_price.estimate(priced_rows, price, thinks=e.get("thinking", "auto") is not False),
-            hosted=not rig and _spend.is_hosted(prov.type), priced=bool(price)))
-        if not rig and _spend.is_hosted(prov.type) and _spend.budget_line():
+            _plan_price.estimate(priced_rows, price,
+                                 thinks={True: True, False: False}.get(e.get("thinking"))),     # None = not known
+            hosted=not rig and prov.is_hosted, priced=bool(price)))
+        if not rig and prov.is_hosted and _spend.budget_line():
             out.append(_spend.budget_line())
-        out += _plan_ladder(args, cfg_p, prof, e, rig, prov, rows_of, jobs_of, samples) \
+        tally: dict = {}
+        more = _plan_ladder(args, cfg_p, prof, e, rig, prov, rows_of, jobs_of, samples, tally=tally) \
             if uses_ladder(args, cfg) else _plan_tiers(args, cfg_p, prof, e, rows_of)
+        if hj:
+            from . import judge45 as _J
+            jprice = get_provider(cfg_p, hj["provider"]).prices.get(str(hj["model_id"]))
+            # review D (2026-11-25): what a standard run of this profile actually judges, at measured calls and
+            # tokens per call (judge45.JUDGE_CALL_TOKENS ...); the plan used to price ~5 calls for a run of 837
+            out += _J.judge_cost_plan_parts(
+                jprice, judge_call_model(prof, judged_total * 3, adult_on=not said, n_adult=n_adult,
+                                         judge_id=str(hj["model_id"]), pack_samples=tally.get("judged", 0) * 3),
+                route=f"{hj['model_id']} on {hj['provider']}")
+        out += more
     print("\n".join(out))
     print("\n(plan only — no model, provider or judge was called; times are estimates)")
     return 0
 
 
-def _plan_ladder(args, cfg_p, prof, e, rig, prov, rows_of, jobs_of, samples) -> list[str]:
+def judge_call_model(prof: dict, t1_samples: float, *, adult_on: bool, n_adult: int, judge_id: str,
+                     pack_samples: float = 0.0) -> list[dict]:
+    """The judge calls of one standard run of ``prof`` (review D, 2026-11-25), as parts for
+    judge45.judge_cost_plan_parts: [{"what", "calls" (expected), "high", "tokens"}].
+
+    * judged rows: the plan's judged cases (``t1_samples`` = rows x the per-row samples) plus the flat units of every
+      judged chain part (the role-play sessions and, with the adult page on, its judged parts), at the measured
+      calls per row; the upper figure lets every call be asked again (HOSTED_JUDGE_CALLS_PER_SAMPLE);
+    * NSFW+ units (adult page on): the measured share read, up to every unit;
+    * the session judge: the rung check (once per judge and results folder: only the requests not cached), then the
+      sessions' window x axis pairs, the first wave times the measured factor, up to three waves on every axis;
+    * pack rounds a strong model unlocks: in the upper figure only."""
+    from . import judge45 as _J
+    chains = (prof or {}).get("chains") or {}
+    flat_rows = 0
+    sessions = 0
+    try:
+        from . import rpladder_run as LR
+        spart = LR.PART
+    except Exception:  # noqa: BLE001 -- an estimate never fails the plan
+        LR, spart = None, None
+    for key, ch in chains.items():
+        if not isinstance(ch, dict) or not ch.get("judged"):
+            continue
+        if str(key).startswith("nsfw/") and not adult_on:
+            continue
+        n = sum(int(f.get("count") or 0) for f in ch.get("flat") or [] if isinstance(f, dict))
+        flat_rows += n
+        if key == spart and (ch.get("judge_mode") or {}).get("kind") == "ladder":
+            sessions += n
+    rows = float(t1_samples) + flat_rows
+    parts = [{"what": f"judged rows ({rows:.0f})", "calls": rows * _J.JUDGE_CALLS_PER_ROW,
+              "high": rows * HOSTED_JUDGE_CALLS_PER_SAMPLE, "tokens": _J.JUDGE_CALL_TOKENS}]
+    if adult_on and n_adult:
+        parts.append({"what": f"NSFW+ units ({n_adult})", "calls": n_adult * _J.NSFW_PLUS_UNITS_READ,
+                      "high": n_adult, "tokens": _J.JUDGE_CALL_TOKENS})
+    if sessions and LR is not None:
+        from . import rpladder as RL
+        from .config import results_dir
+        try:
+            cards = RL.load()
+            reqs = RL.rung_check_requests(cards, judge_id)
+            cache = RL.VerdictCache(LR.cache_path(results_dir()))
+            check = sum(1 for r in reqs if cache.get(r["key"]) is None)
+            windows = LR.part_windows(prof, None)
+        except Exception:  # noqa: BLE001
+            check, windows = 0, [1]
+        first = sessions * len(windows) * len(RL.AXES) * 2
+        parts.append({"what": f"session judge ({sessions} sessions, rung check {check})",
+                      "calls": check + first * _J.SESSION_WAVE_FACTOR, "high": check + first * 3,
+                      "tokens": _J.LADDER_CALL_TOKENS})
+    if pack_samples:
+        parts.append({"what": "pack rounds, if every set unlocks", "calls": 0,
+                      "high": float(pack_samples) * HOSTED_JUDGE_CALLS_PER_SAMPLE, "tokens": _J.JUDGE_CALL_TOKENS})
+    return parts
+
+
+def _plan_ladder(args, cfg_p, prof, e, rig, prov, rows_of, jobs_of, samples, tally: dict | None = None) -> list[str]:
     from . import estimate as est
     from . import ladder
     from .runner import load_context
@@ -3114,6 +3753,8 @@ def _plan_ladder(args, cfg_p, prof, e, rig, prov, rows_of, jobs_of, samples) -> 
             gen_all += est.generation_min(secs, slots) + (est.RELOAD_S / 60 if rig else 0)
             judged_all += judged
     jm = est.judge_min(judged_all, 3) if judged_all else 0.0
+    if tally is not None:
+        tally["judged"] = judged_all
     out.append(f"  estimate if every set unlocks: +{gen_all:.0f} min generation, "
                f"+{jm:.0f} min judge (one load and judge pass per set, an upper bound)")
     return out
@@ -4277,7 +4918,7 @@ def main(argv=None):
                        help="with --judge: allow the next judge candidate if the forced "
                             "judge cannot be loaded (default: strict — the judge phase fails)")
         p.add_argument("--judge", default=None,
-                       help="judge to use: a judge.candidates name, a registry label (e.g. minimax-m3), or provider:model_id. Default: the profile's judge (bench: Gemma-4-31B heretic Q8). A hosted-API judge takes no GPU lease and no rig lock")
+                       help="judge to use: a judge.candidates name, a registry label (e.g. minimax-m3), or provider:model_id. Default: the profile's judge (bench45: Qwen 3.8 27B Q8, local; MakoBench's published scores use it). Any local or hosted model may judge; a hosted-API judge takes no GPU lease and no rig lock, receives every reply it judges, NSFW+ included, unless --no-nsfw-plus is passed, and is billed by its provider: it is not part of the model's Run cost and not capped by the run's spend cap")
         p.add_argument("--no-judge", action="store_true", dest="no_judge",
                        help="no judge at all: every programmatic column scores, the judged "
                             "facts stay unjudged (the board says so), Overall is blank and the "
@@ -4302,7 +4943,9 @@ def main(argv=None):
                                                "(pair judge; rung check first; no model is re-run)")
     p_lj.add_argument("--models", default="all")
     p_lj.add_argument("--profile", default=None, help="default: bench45")
-    p_lj.add_argument("--judge", default=None, help="must resolve to the profile's judge (verdicts are stamped)")
+    p_lj.add_argument("--judge", default=None, help="default: the profile's judge. Any local or hosted model may judge; its placements carry "
+                                             "its own id. A hosted judge is billed by its provider and is not capped "
+                                             "by the run's spend cap")
     p_lj.add_argument("--windows", default=None, help="scoring windows, e.g. 1,3 (default: the part's ladder "
                                                       "judge mode, else 1,3); the rung check always uses 1,2,3")
     p_lj.add_argument("--plan", action="store_true", help="no judge: print calls and minutes")
@@ -4353,7 +4996,7 @@ def main(argv=None):
                          help="comma-separated case ids to judge (only these cases' rows; "
                               "the others stay pending — use it to re-judge one case after "
                               "a grading-only case fix)")
-    p_judge.add_argument("--judge", default=None, help="judge to use: a judge.candidates name, a registry label (e.g. minimax-m3), or provider:model_id. Default: the profile's judge (bench: Gemma-4-31B heretic Q8). A hosted-API judge takes no GPU lease and no rig lock")
+    p_judge.add_argument("--judge", default=None, help="judge to use: a judge.candidates name, a registry label (e.g. minimax-m3), or provider:model_id. Default: the profile's judge (bench45: Qwen 3.8 27B Q8, local; MakoBench's published scores use it). Any local or hosted model may judge; a hosted-API judge takes no GPU lease and no rig lock, receives every reply it judges, NSFW+ included, unless --no-nsfw-plus is passed, and is billed by its provider: it is not part of the model's Run cost and not capped by the run's spend cap")
     p_judge.add_argument("--allow-self-judge", action="store_true",
                          help="experiments only: let the judge score its own rows "
                               "(the report flags them as self-judged)")
@@ -4416,6 +5059,7 @@ def main(argv=None):
                               "(standard + pack questions, e.g. nsfw/uncensored); implies "
                               "--force for those rows, never generates")
     add_spend_cap_arg(p_judge)
+    add_adult_arg(p_judge)
     add_staged_arg(p_judge)
     add_v2_args(p_judge)
     p_js = sub.add_parser(
@@ -4462,6 +5106,10 @@ def main(argv=None):
                                "left out and every file is leak-checked before writing; "
                                "writes results/public/ (or --out), never the local board")
     p_report.add_argument("--out", default=None, help="with --public: output directory")
+    p_report.add_argument("--allow-other-judge", action="store_true",
+                          help="with --public: publish rows, session placements and NSFW+ votes judged by a judge "
+                               "other than the profile's (your own board; refused by default, MakoBench's published "
+                               "board uses the profile's judge only)")
     p_report.add_argument("--allow-placeholders", action="store_true",
                           help="with --public: render although README.md, docs/SCORING.md or docs/RUNNING.md "
                                "still hold a {{MEASURED: ...}} placeholder (refused by default)")
@@ -4794,6 +5442,12 @@ def main(argv=None):
         graders.ALLOW_UNSANDBOXED = True
         # Anything we spawn (the GUI's own runs) inherits the decision.
         os.environ["CRUCIBLEFORGE_ALLOW_UNSANDBOXED"] = "1"
+    # 4.5.1: the fix rows honour the same switch (flag or env) as every other code test when no bwrap works here
+    from . import fixopen
+    fixopen.install()
+    # 4.5.1 (PLAN-451-LIMITS step 4c): the edit parser reads a bare >>>>>>> closer of a well-formed block (edittol)
+    from . import edittol
+    edittol.install()
 
     if args.cmd == "spend":
         sys.exit(cmd_spend(args))

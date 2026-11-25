@@ -109,6 +109,14 @@ def _expand_env(value):
     return value
 
 
+
+#: documented output maxima of the shipped hosted provider examples, by API host, used when neither the registry
+#: nor the provider entry nor the /models listing states one (review 3, fix 3; read 2026-11-25): DeepSeek's Chat
+#: Completions reference gives max_tokens 1..393,216 (384K) for its Flash model; MiniMax's OpenAI-compatible
+#: reference gives max_completion_tokens up to 524,288 for MiniMax-M3.1-Flash and M3. A provider that refuses a
+#: budget anyway is retried once at the limit its error states (runner._Ctx._chat).
+HOSTED_OUTPUT_MAX = {"api.deepseek.com": 393216, "api.minimax.io": 524288, "api.minimaxi.com": 524288}
+
 class ProviderError(RuntimeError):
     pass
 
@@ -157,6 +165,16 @@ class Provider:
     # (``reasoning_replay: true``); the built-in default is ON for MiniMax
     # and OFF everywhere else -- see reasoning_replay_default().
     reasoning_replay: bool = False
+    # a hosted judge's one retry after a cut verdict asks for at most this many output tokens (None = the built-in
+    # JUDGE_LENGTH_RETRY_CAP); models.yaml ``judge_max_output_tokens`` on the provider entry
+    judge_max_output_tokens: int | None = None
+    # models.yaml ``max_output_tokens`` on the provider entry (review 3, fix 3): the provider's output maximum, one
+    # number or ``{model_id: number}``; else the provider's /models listing when it states one, else
+    # HOSTED_OUTPUT_MAX for a known host. Budgets above it are clamped and the row says so (budget_clamp)
+    max_output_tokens: object = None
+    # models.yaml ``hosted: true|false`` on the provider entry: the user's word on whether this server is a hosted
+    # API (billed, judge spend apart) or a local one; None = by type and address (spend.is_hosted_at)
+    hosted_override: bool | None = None
     # WP-BENCH FIX-2: force=true is never sent on this provider's own
     # initiative (see studioforge.acquire_lease) — only when a caller has
     # explicitly set this, itself only ever flipped by the CLI's
@@ -213,6 +231,9 @@ class Provider:
     _vacated_render: bool = field(default=False, repr=False)
     # remembers what /models returned (None = endpoint doesn't support listing)
     _models_cache: set | None = field(default=None, repr=False)
+    _route_max: dict = field(default_factory=dict, repr=False)
+    _route_max_read: bool = field(default=False, repr=False)
+    _route_max_warned: set = field(default_factory=set, repr=False)
     _lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
     _lease: dict | None = field(default=None, repr=False)
     _keepalive: threading.Thread | None = field(default=None, repr=False)
@@ -310,11 +331,63 @@ class Provider:
                         mid = m.get("id") if isinstance(m, dict) else m
                         if mid:
                             ids.add(str(mid))
+                            # 4.5.1 (PLAN-451-LIMITS step 1c): a route's own output maximum, when it states one
+                            top = (m.get("top_provider") or {}) if isinstance(m, dict) else {}
+                            mx = top.get("max_completion_tokens") if isinstance(top, dict) else None
+                            if not mx and isinstance(m, dict):
+                                # another hosted API that states its output maximum in its listing (review 3, fix 3)
+                                mx = next((m.get(k) for k in ("max_output_tokens", "max_completion_tokens",
+                                                              "output_token_limit") if isinstance(m.get(k), int)),
+                                          None)
+                            if isinstance(mx, int) and mx > 0:
+                                self._route_max[str(mid)] = mx
             except Exception as e:
                 log.debug("%s: /models listing failed: %s", self.name, e)
         with self._lock:
             self._models_cache = set(ids)
         return ids
+
+    def route_max_output(self, model_id: str) -> int | None:
+        """The provider's output maximum for ``model_id``, or None (no clamp): the provider entry's
+        ``max_output_tokens`` (a number or ``{model_id: number}``), else what the /models listing states for it
+        (OpenRouter ``top_provider.max_completion_tokens``; another hosted API's ``max_output_tokens`` /
+        ``max_completion_tokens`` / ``output_token_limit``), else :data:`HOSTED_OUTPUT_MAX` for the host. Rig
+        providers: None. :meth:`route_max_source` says where the number came from."""
+        mx, self._route_max_src = self._route_max_lookup(model_id)
+        return mx
+
+    def route_max_source(self) -> str | None:
+        return getattr(self, "_route_max_src", None)
+
+    def _route_max_lookup(self, model_id: str) -> tuple[int | None, str | None]:
+        from urllib.parse import urlparse
+        if self.type not in HOSTED_TYPES or not self.is_hosted:
+            return None, None                   # a local server (a rig behind an OpenAI-shape API) has no route max
+        conf = self.max_output_tokens
+        if isinstance(conf, dict):
+            conf = conf.get(model_id)
+        if conf:
+            return int(conf), "provider config"
+        host = (urlparse(self.base_url or "").hostname or "").lower()
+        if host == "openrouter.ai" and not self._route_max_read:
+            self._route_max_read = True
+            self.list_models(refresh=True)
+        # another API: its listing is read by the run's availability check (is_available), never fetched here only
+        # for this; the runner asks again after that check
+        if model_id in self._route_max:
+            return int(self._route_max[model_id]), "provider listing"
+        if host == "openrouter.ai":
+            # review 3 note 8: an id that matches no route left the clamp silently off; say so, loudly, once
+            if model_id not in self._route_max_warned:
+                self._route_max_warned.add(model_id)
+                listed = model_id in (self._models_cache or set())
+                log.warning("!!! %s: OpenRouter's /models listing %s %r: no output maximum known, budgets are NOT "
+                            "clamped (set max_output_tokens on the model or provider entry)", self.name,
+                            "states no output maximum for" if listed else "has no route for", model_id)
+            return None, None
+        if host in HOSTED_OUTPUT_MAX:
+            return int(HOSTED_OUTPUT_MAX[host]), "documented default"
+        return None, None
 
     def is_available(self, model_id: str) -> bool:
         ids = self.list_models()
@@ -1066,9 +1139,39 @@ class Provider:
                 except studioforge.StudioForgeError as e:
                     log.warning("restore of %s failed: %s", mid, e)
 
+    @property
+    def is_hosted(self) -> bool:
+        """A hosted API: the entry's ``hosted:`` when set, else by type and address (a local server is local)."""
+        if self.hosted_override is not None:
+            return self.hosted_override
+        return spend.is_hosted_at(self.type, self.base_url)
+
     # ------------------------------------------------------------ chat
     def chat(self, model_id: str, messages: list[dict], *,
              client_name: str | None = None, **kw):
+        """One chat call. A call through the hosted judge's own provider entry runs as a judge call
+        (spend.judge_role): booked apart from every model's cost and caps (review F3: by role, never by id).
+        A hosted judge call also gets the provider's own thinking-off switch (:func:`judge_thinking_off`) and,
+        when it is cut at its output ceiling with no complete JSON object, ONE more try at a larger budget
+        (:func:`judge_length_retry_tokens`). A local judge's calls are sent exactly as before."""
+        with spend.judge_role(self.name):
+            hosted_judge = spend.is_judge() and self.is_hosted
+            if hosted_judge:
+                kw["extra_body"] = judge_thinking_off(self.base_url, merge_extra_body(self.extra_body,
+                                                                                      kw.get("extra_body")))
+            result = self._chat(model_id, messages, client_name=client_name, **kw)
+            if hosted_judge:
+                spend.note_judge_call(result)
+                bigger = judge_length_retry_tokens(result, kw.get("max_tokens"), self.judge_max_output_tokens)
+                if bigger:
+                    log.warning("judge call on %s cut at %s output tokens with no complete verdict: asked once "
+                                "more with %d", model_id, kw.get("max_tokens"), bigger)
+                    result = self._chat(model_id, messages, client_name=client_name, **{**kw, "max_tokens": bigger})
+                    spend.note_judge_call(result)
+            return result
+
+    def _chat(self, model_id: str, messages: list[dict], *,
+              client_name: str | None = None, **kw):
         """One streamed completion with retries (see api.stream_chat_retried).
 
         ``client_name`` overrides the identity a StudioForge caller declares
@@ -1116,8 +1219,12 @@ class Provider:
             else:
                 body_extra.setdefault(field_name, key)
         price = self.prices.get(model_id)
+        if spend.is_hosted(self.type):
+            spend.note_judge_call()
         if not price:
-            if (spend.is_hosted(self.type) and not ALLOW_UNPRICED
+            # the hosted judge needs no price (owner 2026-11-24: the judge is not part of the model's cost; the run
+            # summary then says "judge cost not priced"); the global ceiling still gates a priced judge
+            if (spend.is_hosted(self.type) and not ALLOW_UNPRICED and not spend.is_judge()
                     and spend.explicit_cap_set(model_id)):
                 # fail closed: an unpriced hosted call cannot be bounded by a cap somebody set.
                 # bench45's standing default cap alone does not arm this (fix round 2026-11-18,
@@ -1265,6 +1372,10 @@ def get_provider(cfg: dict, name: str) -> Provider:
         rename_params={str(k): str(v) for k, v in (p.get("rename_params") or {}).items()},
         drop_params=[str(k) for k in (p.get("drop_params") or [])],
         reasoning_replay=reasoning_replay_default(p),
+        judge_max_output_tokens=int(p["judge_max_output_tokens"]) if p.get("judge_max_output_tokens") else None,
+        max_output_tokens=(dict(p["max_output_tokens"]) if isinstance(p.get("max_output_tokens"), dict)
+                           else int(p["max_output_tokens"]) if p.get("max_output_tokens") else None),
+        hosted_override=None if p.get("hosted") is None else bool(p["hosted"]),
         lease=bool(p.get("lease", False)) and ptype == "studioforge",
         lease_devices=list(p["lease_devices"]) if p.get("lease_devices") else None,
         lease_idle_ttl_s=float(p.get("lease_idle_ttl_s", studioforge.LEASE_IDLE_TTL_S) or 0)
@@ -1290,6 +1401,10 @@ def get_provider(cfg: dict, name: str) -> Provider:
     for m in list(cfg.get("models") or []) + list((cfg.get("judge") or {}).get("candidates") or []):
         if isinstance(m, dict) and m.get("provider") == name and m.get("price") and m.get("model_id"):
             prov.prices.setdefault(str(m["model_id"]), dict(m["price"]))
+    # the hosted judge's own entry ``<provider>~judge`` (cli._guard_45_judge): its price is the judge's, set on the
+    # config so every Provider built from any copy of it books the judge's calls at that price
+    for mid, pr in (((cfg.get("_judge_prices") or {}).get(name)) or {}).items():
+        prov.prices[str(mid)] = dict(pr)
     if ptype == "studioforge" and LEASE_MODE[0]:
         apply_lease_mode(prov, LEASE_MODE[0])
     _CACHE[key] = (cfg, prov)
@@ -1354,6 +1469,55 @@ def clear_cache() -> None:
     _CACHE.clear()
 
 
+#: a hosted judge call cut at its output ceiling (finish=length) with no complete JSON object in its answer is asked
+#: once more with this many times the output budget, capped at JUDGE_LENGTH_RETRY_CAP (or the provider entry's
+#: ``judge_max_output_tokens``); a second cut answer is left to the judge's own handling (unparsable, pending)
+JUDGE_LENGTH_RETRY_FACTOR = 4
+JUDGE_LENGTH_RETRY_CAP = 32768
+
+
+def is_openrouter(base_url: str | None) -> bool:
+    host = (urlparse(str(base_url or "")).hostname or "").lower()
+    return host == "openrouter.ai" or host.endswith(".openrouter.ai")
+
+
+#: OpenRouter's documented switch for a model's reasoning (the request's ``reasoning`` object); it ignores the
+#: ``chat_template_kwargs.enable_thinking`` a local llama.cpp / StudioForge server honours (probe 2026-11-24:
+#: Qwen 3.8 27B still reasoned with it and answered with none under this)
+OPENROUTER_THINKING_OFF = {"reasoning": {"enabled": False}}
+
+
+def judge_thinking_off(base_url: str | None, extra: dict | None) -> dict:
+    """A hosted judge's request extras with thinking OFF said the way its provider understands: on OpenRouter, a
+    call that asks ``chat_template_kwargs.enable_thinking: false`` (the judge's no-think retry) also carries
+    ``reasoning: {enabled: false}``. A ``reasoning`` object already present is the user's choice and is kept."""
+    out = dict(extra or {})
+    if not is_openrouter(base_url) or "reasoning" in out:
+        return out
+    ctk = out.get("chat_template_kwargs")
+    if isinstance(ctk, dict) and ctk.get("enable_thinking") is False:
+        out.update(OPENROUTER_THINKING_OFF)
+    return out
+
+
+def has_json_object(text: str | None) -> bool:
+    """The answer holds one complete JSON object (a verdict the judge can read) outside any thinking block."""
+    from .api import strip_thinking_tags
+    from .judge import _last_json_object
+    return _last_json_object(strip_thinking_tags(text or "")) is not None
+
+
+def judge_length_retry_tokens(result, max_tokens, cap: int | None = None) -> int | None:
+    """The output budget of the one retry of a judge call cut at its ceiling with no complete JSON object, or None
+    (no retry: the answer ended on its own, holds a verdict, or the budget cannot grow)."""
+    if getattr(result, "finish_reason", None) != "length" or not max_tokens:
+        return None
+    if has_json_object(getattr(result, "response_text", "")):
+        return None
+    bigger = min(int(max_tokens) * JUDGE_LENGTH_RETRY_FACTOR, int(cap or JUDGE_LENGTH_RETRY_CAP))
+    return bigger if bigger > int(max_tokens) else None
+
+
 def model_extra_body(entry: dict) -> dict:
     """Per-model request extras (v3 ``extra_body``; v2 ``studioforge`` was
     upgraded into it by config.upgrade_legacy)."""
@@ -1391,8 +1555,9 @@ def cache_prices(entry: dict, native: bool = True) -> tuple[float, float] | None
     try:
         cw = float(price["cache_write"]) if price.get("cache_write") is not None \
             else p[0] * wf
-        cr = float(price["cache_read"]) if price.get("cache_read") is not None \
-            else p[0] * rf
+        # ``cached_input`` (the OpenAI / OpenRouter name for it) is the same thing as ``cache_read``
+        cr_raw = price.get("cache_read") if price.get("cache_read") is not None else price.get("cached_input")
+        cr = float(cr_raw) if cr_raw is not None else p[0] * rf
     except (TypeError, ValueError):
         return p[0] * wf, p[0] * rf
     return cw, cr

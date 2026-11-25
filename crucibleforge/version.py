@@ -30,7 +30,7 @@ from pathlib import Path
 
 # Bump for notable harness/metric changes (semver). The content-hash tracks
 # test-content changes automatically on top of this.
-SUITE_VERSION = "4.5.0"
+SUITE_VERSION = "4.5.1"
 #: the suite the archive profile (``bench``, 4.1) renders as: a 4.1 board's label follows the profile being
 #: rendered, not the global version (lead 2026-11-15: the flip made a 4.1 render read "suite 4.5.0+...",
 #: and the site's version switch reads that stamp)

@@ -16,6 +16,7 @@ New module: imported by no generator module and by no grader-stamp closure (it o
 from __future__ import annotations
 
 import json
+import re
 import threading
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -46,10 +47,28 @@ def require_local(role: str, model_id: str | None, provider_type: str | None) ->
                            "check anything. Point the judge at a local model (StudioForge, LM Studio, llama.cpp).")
 
 
+def provider_hosted(cfg: dict | None, provider: str | None) -> bool:
+    """The provider serves through a hosted API: a hosted type (``spend.is_hosted``) whose ``base_url`` is not a
+    local server (loopback, private or tailnet address, ``.local`` / single-label host: ``spend.local_host``)."""
+    from . import spend
+    from .config import provider_of
+    try:
+        entry = provider_of(cfg or {}, provider)
+    except Exception:  # noqa: BLE001 -- a provider the config does not list is taken by its own name
+        return spend.is_hosted(provider)
+    if entry.get("hosted") is not None:
+        return bool(entry["hosted"])                 # the user's explicit word (a hosted API behind a private address)
+    return spend.is_hosted_at(entry.get("type"), entry.get("base_url"))
+
+
 def provider_type(cfg: dict | None, provider: str | None) -> str | None:
     """The provider's configured type; a provider the config does not list is taken by its own name (a provider
     named ``studioforge`` is local, ``deepseek`` is hosted)."""
-    return (((cfg or {}).get("providers") or {}).get(provider) or {}).get("type") or provider
+    from .config import provider_of
+    try:
+        return provider_of(cfg or {}, provider).get("type") or provider
+    except Exception:  # noqa: BLE001
+        return provider
 
 
 def is_45(profile: dict | None) -> bool:
@@ -67,10 +86,13 @@ def self_grades(profile: dict | None) -> bool:
     return is_45(profile)
 
 
-def guard_judge(cfg: dict | None, spec, profile: dict | None) -> None:
-    """The run's judge of a 4.5 profile must be local (``spec`` = ``--judge`` or the profile's judge)."""
+def guard_judge(cfg: dict | None, spec, profile: dict | None) -> dict | None:
+    """The run's judge of a 4.5 profile (``spec`` = ``--judge`` or the profile's judge). Owner 2026-11-24: "allow
+    any user to use any judge they want" -- a local or a hosted model, any model. Returns the resolved candidate
+    when the judge the user named is served by a hosted API (the caller keeps that one candidate and books its
+    spend apart), else None. Rows judged by any judge but the profile's carry the existing "judged by" trace."""
     if not is_45(profile) or not spec:
-        return
+        return None
     if isinstance(spec, dict):
         cand = spec
     else:
@@ -78,22 +100,31 @@ def guard_judge(cfg: dict | None, spec, profile: dict | None) -> None:
         try:
             cand = resolve_judge_spec(cfg or {}, spec) or {}
         except Exception:  # noqa: BLE001 -- an unknown judge fails later with its own message
-            return
-    require_local("judge", cand.get("model_id"), provider_type(cfg, cand.get("provider")))
+            return None
+    if not cand.get("provider") or not provider_hosted(cfg, cand.get("provider")):
+        return None
+    return {k: v for k, v in cand.items() if k not in _copy_keys()}     # rig copy keys do not apply to an API
 
 
-def local_only_cfg(cfg: dict, profile: dict | None) -> dict:
-    """``cfg`` for a 4.5 profile with every hosted judge candidate removed, so no fallback can ever pick a hosted
-    model to grade (owner 2026-11-21). Other profiles (the 4.1 archive) are returned unchanged."""
+def local_only_cfg(cfg: dict, profile: dict | None, keep: dict | None = None) -> dict:
+    """``cfg`` for a 4.5 profile with every hosted judge candidate removed, so no fallback ever picks a hosted model
+    the user did not name. ``keep`` = the hosted judge the user named (:func:`guard_judge`): it alone stays. Other
+    profiles (the 4.1 archive) are returned unchanged."""
     if not is_45(profile):
         return cfg
     j = (cfg or {}).get("judge") or {}
     cands = j.get("candidates") or []
-    keep = [c for c in cands if not __import__("crucibleforge.spend", fromlist=["is_hosted"]).is_hosted(
-        provider_type(cfg, c.get("provider")))]
-    if len(keep) == len(cands):
+
+    def kept(c):
+        # a later phase guards the already-resolved judge (provider ``<p>~judge``): the user's candidate is on ``<p>``
+        if (keep and base_provider(c.get("provider")) == base_provider(keep.get("provider"))
+                and c.get("model_id") == keep.get("model_id")):
+            return True
+        return not provider_hosted(cfg, c.get("provider"))
+    keep_ = [c for c in cands if kept(c)]
+    if len(keep_) == len(cands):
         return cfg
-    return {**cfg, "judge": {**j, "candidates": keep}}
+    return {**cfg, "judge": {**j, "candidates": keep_}}
 
 
 #: the candidate keys that say which copy of the judge serves (instances.CAND_KEYS + the serve id)
@@ -112,6 +143,261 @@ def with_candidate_copy(cfg: dict, spec: dict) -> dict:
     return spec
 
 
+# ------------------------------------------------------------------ which provider judged (the board's trace)
+PROVIDERS_FILE = "judge_providers.json"
+_PROV_CACHE: dict = {}
+
+
+def record_judge_provider(results, model_id: str, provider: str) -> None:
+    """``<results>/judge45/judge_providers.json`` {judge model id: provider name}: the board names where a judge
+    other than the profile's ran ("judged by <id> (<provider>)"). Written when a judge phase starts."""
+    provider = base_provider(provider)
+    p = Path(results) / STORE_DIR / PROVIDERS_FILE
+    cur = judge_providers(results)
+    if cur.get(model_id) == provider:
+        return
+    cur[model_id] = provider
+    p.parent.mkdir(parents=True, exist_ok=True)
+    tmp = p.with_name(f".{p.name}.tmp")
+    tmp.write_text(json.dumps(cur, indent=1, sort_keys=True) + "\n", encoding="utf-8")
+    tmp.replace(p)
+    _PROV_CACHE.clear()
+
+
+RUN_JUDGE_FILE = "run_judge.json"
+
+
+def base_provider(name: str | None) -> str | None:
+    """The provider a user named: the hosted judge's own entry ``<provider>~judge`` (spend role) reads ``<provider>``."""
+    from .spend import JUDGE_PROVIDER_SUFFIX
+    if not name:
+        return name
+    s = str(name)
+    while s.endswith(JUDGE_PROVIDER_SUFFIX):
+        s = s.removesuffix(JUDGE_PROVIDER_SUFFIX)
+    return s
+
+
+def _read_run_judge(results) -> dict:
+    try:
+        d = json.loads((Path(results) / STORE_DIR / RUN_JUDGE_FILE).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    return d if isinstance(d, dict) else {}
+
+
+def record_run_judge(results, model_id: str | None, provider: str | None = None,
+                     labels: list[str] | None = None) -> None:
+    """``<results>/judge45/run_judge.json``: the judge of the LATEST judge phase in this folder (``model_id``,
+    ``provider``) and, per model label, its CURRENT judge and every judge recorded for it (``by_label``). The board
+    uses exactly one judge per model, the current one (review F2: never a mix across a resume): rows and NSFW+ votes
+    of the label's other recorded judges are kept in the files but read as not judged."""
+    if not model_id:
+        return
+    p = Path(results) / STORE_DIR / RUN_JUDGE_FILE
+    old = _read_run_judge(results)
+    prov = base_provider(str(provider)) if provider else None
+    rec = {"model_id": str(model_id), "provider": prov, "by_label": dict(old.get("by_label") or {})}
+    for label in labels or []:
+        e = dict(rec["by_label"].get(label) or {})
+        js = list(e.get("judges") or [])
+        if str(model_id) not in js:
+            js.append(str(model_id))
+        rec["by_label"][label] = {"current": str(model_id), "provider": prov, "judges": js}
+    if not rec["by_label"]:
+        rec.pop("by_label")
+    if old == rec:
+        return
+    p.parent.mkdir(parents=True, exist_ok=True)
+    tmp = p.with_name(f".{p.name}.tmp")
+    tmp.write_text(json.dumps(rec, sort_keys=True) + "\n", encoding="utf-8")
+    tmp.replace(p)
+
+
+def run_judge(results, label: str | None = None) -> str | None:
+    """The model id of the current judge of ``label`` in this folder, else of the folder's latest judge phase
+    (:func:`record_run_judge`); None when nothing is recorded."""
+    d = _read_run_judge(results)
+    if label is not None:
+        e = (d.get("by_label") or {}).get(label)
+        if isinstance(e, dict) and e.get("current"):
+            return str(e["current"])
+    return str(d.get("model_id")) if d.get("model_id") else None
+
+
+def label_judges(results, label: str) -> list[str]:
+    """Every judge recorded for ``label`` in this folder (oldest first); [] when none."""
+    e = (_read_run_judge(results).get("by_label") or {}).get(label) or {}
+    return [str(x) for x in e.get("judges") or []]
+
+
+def row_judge(row: dict) -> str | None:
+    """The judge id of a stored row's verdict (``judge_id``, else ``judge_model``); None for an unjudged row."""
+    if not isinstance(row.get("judge"), dict):
+        return None
+    j = row.get("judge_id") or row.get("judge_model")
+    return str(j) if j else None
+
+
+def one_judge_rows(results, label: str, rows: list[dict], profile_judge: str | None) -> list[dict] | None:
+    """Review F2: the raw (append-only, not yet deduped) rows of ``label`` with exactly one judge per model. None when
+    nothing is to change (no other judge recorded for the label: every board renders as before). Per stored row key
+    the last line judged by the label's CURRENT judge wins; when it has none, the last line is kept and, if its
+    verdict came from another RECORDED judge of the label (or the profile's judge), the verdict is set aside: the row
+    reads not judged (pending) and the next judge phase judges it with the current judge. Verdicts of judges never
+    recorded for the label (older folders) are untouched."""
+    judges = label_judges(results, label)
+    cur = run_judge(results, label) if judges else None
+    if not cur:
+        return None
+    others = (set(judges) | ({profile_judge} if profile_judge else set())) - {cur}
+    if not any(row_judge(r) in others for r in rows):
+        return None
+    by: dict = {}
+    for r in rows:
+        k = (r.get("bench_run_id"), r.get("case_id"), r.get("repeat"), r.get("turn"))
+        by.setdefault(k, []).append(r)
+    out = []
+    for lines in by.values():
+        pick = next((r for r in reversed(lines) if row_judge(r) == cur), None)
+        if pick is None:
+            pick = lines[-1]
+            if row_judge(pick) in others:
+                pick = {k: v for k, v in pick.items() if k not in ("judge", "judge_id", "judge_model")}
+                pick["judge_set_aside"] = True
+        out.append(pick)
+    return out
+
+
+def judge_providers(results=None) -> dict[str, str]:
+    """{judge model id: provider name} recorded in the results directory (default: the active one); {} if none."""
+    if results is None:
+        from .config import results_dir
+        results = results_dir()
+    p = Path(results) / STORE_DIR / PROVIDERS_FILE
+    try:
+        st = p.stat()
+    except OSError:
+        return {}
+    key = (str(p), st.st_mtime_ns, st.st_size)
+    if key not in _PROV_CACHE:
+        try:
+            d = json.loads(p.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            d = {}
+        _PROV_CACHE.clear()
+        _PROV_CACHE[key] = {str(k): str(v) for k, v in d.items()} if isinstance(d, dict) else {}
+    return dict(_PROV_CACHE[key])
+
+
+def judge_name(model_id: str | None) -> str:
+    """"Qwen 3.8 27B Q8" for ``unsloth/Qwen3.8-27B-GGUF/Qwen3.8-27B-Q8_0`` (display only)."""
+    s = str(model_id or "").rsplit("/", 1)[-1]
+    s = re.sub(r"[-_.](I?Q\d)(?:_[0-9A-Z_]+)?$", r" \1", s, flags=re.IGNORECASE)
+    s = re.sub(r"(?<=[A-Za-z]{2})(?=\d)", " ", s)
+    return re.sub(r"\s+", " ", s.replace("-", " ").replace("_", " ")).strip()
+
+
+#: plan estimate of one standard judge call (input, expected output, output ceiling), measured: the input is the mean
+#: prompt of the judge calls stored in four 4.5 production runs (3,107 to 3,313 tokens), the output what the hosted
+#: candidate billed per call on a fresh standard run (175 row and NSFW+ calls, $0.1122 at 0.04/1.50 per M: ~340 with
+#: thinking on); the judge's max_tokens is the ceiling
+JUDGE_CALL_TOKENS = (3200, 340, 8192)
+#: one role-play session pair call (two windows of two sessions; thinking off), measured on the same run: 662 calls
+#: (rung check included) billed $0.0906, ~$0.000137 a call at 0.04/1.50 per M
+LADDER_CALL_TOKENS = (2300, 30, 300)
+#: measured on a fresh standard run (2026-11-25, hosted candidate): judge calls per judged row (123 calls for 103
+#: rows: element-mode rows take more than one), and the share of the plan's NSFW+ units actually read (52 of 113)
+JUDGE_CALLS_PER_ROW = 1.2
+NSFW_PLUS_UNITS_READ = 0.46
+#: session judge calls after the first wave (pairs asked again until a placement is final), measured: 230 calls for
+#: 12 sessions at two windows, i.e. 1.2 x the first wave over every axis
+SESSION_WAVE_FACTOR = 1.2
+
+
+def judge_cost_plan_line(price: dict | None, calls_low: float, calls_high: float, in_tok: int, out_tok: int,
+                         out_cap: int, route: str = "") -> str:
+    """The plan's judge line: a hosted judge is billed by its provider, apart from every model's Run cost and
+    outside the run's spend cap (owner 2026-11-24)."""
+    where = f" ({route})" if route else ""
+    pin = pout = None
+    if price:
+        try:
+            pin, pout = float(price.get("input", 0) or 0), float(price.get("output", 0) or 0)
+        except (TypeError, ValueError, AttributeError):
+            pin = pout = None
+    if pin is None:
+        # review F4: never invisible -- one loud line, the calls and the tokens it will send
+        tok = calls_low * (in_tok + out_tok)
+        return (f"  judge cost unknown: {route or 'the judge'} has no price in models.yaml; ~{calls_low:.0f}-"
+                f"{calls_high:.0f} calls, ~{tok / 1e6:.2f}M tokens; not limited by any cap")
+    lo = calls_low * (in_tok * pin + out_tok * pout) / 1e6
+    hi = calls_high * (in_tok * pin + out_cap * pout) / 1e6
+    return (f"  judge cost (estimate){where}: ~${lo:.2f} expected for ~{calls_low:.0f} call(s), up to ${hi:.2f} "
+            f"(~{calls_high:.0f} calls: a reply cut at its length is asked again, then the judge may re-ask); "
+            "billed by the judge's provider, not part of the model's Run cost and not capped by --spend-cap-usd "
+            "(the overall ceiling CF_SPEND_GLOBAL_CAP_USD still applies)")
+
+
+def judge_cost_plan_parts(price: dict | None, parts: list[dict], route: str = "") -> list[str]:
+    """The plan's judge lines from a call model: ``parts`` = [{"what", "calls", "high", "tokens": (in, out, cap)}].
+    One total line (expected calls and dollars, the upper figure), then one line per part. Same wording as
+    :func:`judge_cost_plan_line` for the total."""
+    pin = pout = None
+    if price:
+        try:
+            pin, pout = float(price.get("input", 0) or 0), float(price.get("output", 0) or 0)
+        except (TypeError, ValueError, AttributeError):
+            pin = pout = None
+    calls = sum(float(p["calls"]) for p in parts)
+    high = sum(float(p["high"]) for p in parts)
+    where = f" ({route})" if route else ""
+    if pin is None:
+        tok = sum(float(p["calls"]) * (p["tokens"][0] + p["tokens"][1]) for p in parts)
+        head = (f"  judge cost unknown: {route or 'the judge'} has no price in models.yaml; ~{calls:.0f}-{high:.0f} "
+                f"calls, ~{tok / 1e6:.2f}M tokens; not limited by any cap")
+    else:
+        lo = sum(float(p["calls"]) * (p["tokens"][0] * pin + p["tokens"][1] * pout) for p in parts) / 1e6
+        hi = sum(float(p["high"]) * (p["tokens"][0] * pin + p["tokens"][2] * pout) for p in parts) / 1e6
+        head = (f"  judge cost (estimate){where}: ~${lo:.2f} expected for ~{calls:.0f} call(s), up to ${hi:.2f} "
+                f"(~{high:.0f} calls: every pack round unlocked, a reply cut at its length asked again, the judge "
+                "re-asking); billed by the judge's provider, not part of the model's Run cost and not capped by "
+                "--spend-cap-usd (the overall ceiling CF_SPEND_GLOBAL_CAP_USD still applies)")
+    return [head] + [f"    {p['what']}: ~{float(p['calls']):.0f} call(s), up to {float(p['high']):.0f}" for p in parts]
+
+
+#: why a unit has no verdict when the JUDGE's side refused it (a provider content filter, a refusal, an empty
+#: answer): never the graded model's refusal or failure; the unit stays not judged and is asked again next run
+JUDGE_FILTERED = "the judge's provider refused or filtered this unit"
+_FILTER_WORDS = ("content_filter", "content filter", "safeguard", "content_policy", "content policy", "moderation",
+                 "flagged", "refus")
+
+
+def judge_filtered(j: dict | None) -> bool:
+    """True when a stored standard-judge result (``row["judge"]``) or a classing/flag vote has no verdict because the
+    judge's side refused it: finish ``content_filter``, a provider error naming a filter or policy, or an empty
+    answer that was not cut by length. An empty GENERATION (the model wrote nothing) is the model's, never this."""
+    j = j or {}
+    if j.get("empty_generation"):
+        return False
+    if "cls" in j or "flags" in j:                      # a classing45 / flags45 vote
+        if j.get("cls") in C.CLASSES or j.get("flags") is not None:
+            return False
+        if j.get("reason") == "filtered" or j.get("finish") == "content_filter":
+            return True
+        return not str(j.get("raw") or "").strip() and j.get("finish") not in ("length", None) \
+            and j.get("reason") != "error"
+    if not j.get("judge_failed"):
+        return False
+    fin = j.get("judge_finish_reason")
+    if fin == "content_filter":
+        return True
+    err = f"{j.get('judge_error') or ''} {j.get('judge_raw') or ''}".lower()
+    if any(w in err for w in _FILTER_WORDS):
+        return True
+    return not str(j.get("judge_raw") or "").strip() and fin not in ("length", None)
+
+
 def judge_id(profile: dict | None) -> str | None:
     """The model id of the profile's judge (the one whose votes the report reads)."""
     j = (profile or {}).get("judge")
@@ -120,11 +406,14 @@ def judge_id(profile: dict | None) -> str | None:
     return str(j) if j else None
 
 
-def judge_reader(model_id: str, *, provider: str = "judge", provider_type: str | None = "studioforge") -> C.ReaderSpec:
-    """The judge as a classing reader (one vote per unit). Refuses a hosted provider."""
-    require_local("NSFW+ classing", model_id, provider_type)
+def judge_reader(model_id: str, *, provider: str = "judge", provider_type: str | None = "studioforge",
+                 base_url: str | None = None, hosted: bool | None = None) -> C.ReaderSpec:
+    """The run's judge as a classing reader (one vote per unit), local or hosted (owner 2026-11-24: any judge, the
+    adult page included unless --no-nsfw-plus). A hosted judge's spend is booked as kind judge by the provider."""
+    from . import spend
     return C.ReaderSpec(name="judge", provider=provider, model_id=model_id, family=lineage.family(model_id),
-                        hosted=False, admitted=True)
+                        hosted=bool(spend.is_hosted_at(provider_type, base_url) if hosted is None else hosted),
+                        admitted=True)
 
 
 def client_chat(jc):
@@ -151,8 +440,8 @@ def store_path(results, label: str) -> Path:
 
 class JudgeStore:
     """``<results>/judge45/<label>.jsonl``: ``{kind, judge, prompt_sha, content, vote, ...meta}`` per line, keyed by
-    (kind, judge model id, prompt sha, content sha). A later line of the same key wins. A vote stamped hosted is
-    never loaded (it counts for nothing)."""
+    (kind, judge model id, prompt sha, content sha). A later line of the same key wins. A hosted judge's votes are
+    loaded like a local one's (owner 2026-11-24: any judge): a stored vote is never asked, or billed, twice."""
 
     def __init__(self, path):
         self.path = Path(path)
@@ -166,8 +455,6 @@ class JudgeStore:
                 except ValueError:
                     continue
                 if not isinstance(rec, dict) or not isinstance(rec.get("vote"), dict):
-                    continue
-                if ((rec["vote"].get("stamp") or {}).get("hosted")):
                     continue
                 self.lines.append(rec)
                 self._d[(rec.get("kind"), rec.get("judge"), rec.get("prompt_sha"), rec.get("content"))] = rec
@@ -307,15 +594,13 @@ def judge_model(results, label: str, profile: dict | None, reader: C.ReaderSpec,
     """Class every unread NSFW+ unit and read every unread opinion-flag unit of one model with the judge (``reader``
     + ``chat``), one vote each, into the judge store. Resumable: a stored vote is never asked again; an unparsable
     reply after :data:`PARSE_ATTEMPTS` is not stored (the unit stays "not judged yet", asked again next run)."""
-    if reader.hosted:
-        raise HostedGrader(f"NSFW+ classing: {reader.model_id} is hosted; MakoBench 4.5 grades with a local judge only")
     jid = reader.model_id
     units = model_units(results, label)
     prompt, fprompt = _prompts(profile)
     store = JudgeStore(store_path(results, label))
     cls_u, fl_u = todo(units, store, jid, prompt, fprompt)
     stats = {"label": label, "judge": jid, "calls": 0, "classed": 0, "flagged": 0, "pending_class": 0,
-             "pending_flags": 0}
+             "pending_flags": 0, "judge_filtered": 0}
     lock = threading.Lock()
 
     def count(k, n=1):
@@ -338,6 +623,8 @@ def judge_model(results, label: str, profile: dict | None, reader: C.ReaderSpec,
             count("classed")
         else:
             count("pending_class")
+            if judge_filtered(v):
+                count("judge_filtered")
 
     def one_flag(q):
         calls = [0]
@@ -349,6 +636,8 @@ def judge_model(results, label: str, profile: dict | None, reader: C.ReaderSpec,
         count("calls", calls[0])
         if v.get("flags") is None:
             count("pending_flags")
+            if judge_filtered(v):
+                count("judge_filtered")
             return
         fl = v["flags"] if q["opinion"] else {"refused": v["flags"]["refused"]}   # position: opinion cards only
         store.put("flags", jid, fprompt[1], C.unit_sha(q["question"], q["reply"]),
@@ -380,6 +669,24 @@ def verdicts(units: list[dict], results, label: str, profile: dict | None, jid: 
     prompt, fprompt = _prompts(profile)
     info["prompt_sha"], info["flag_prompt_sha"] = prompt[1], fprompt[1]
     store = JudgeStore(store_path(results, label))
+    # owner 2026-11-24 (any judge): one current judge per model, the judge of the label's latest judge phase
+    # (run_judge.json). When that judge is the profile judge, or the folder has no run_judge.json (a 4.5.0 folder),
+    # only the profile judge's votes are read and the folder renders exactly as before. When it is another judge and
+    # the label has a recorded judge phase (``one``), only that judge's votes are read and the profile judge's votes
+    # are not; without a recorded phase, a unit the profile judge has no vote for reads the other judge's vote.
+    alt = run_judge(results, label) if jid else None
+    alt = alt if alt and alt != jid else None
+    one = bool(alt and label_judges(results, label))       # review F2: the label's current judge alone, never a mix
+    used_alt = [0]
+    others = sorted({str(ln.get("judge")) for ln in store.lines if ln.get("judge") and ln.get("judge") != jid})
+
+    def vote(kind, psha, key):
+        v = None if one else store.get(kind, jid, psha, key)
+        if v is None and alt:
+            v = store.get(kind, alt, psha, key)
+            if v is not None:
+                used_alt[0] += 1
+        return v
     for u in units:
         cl = u.get("classing")
         if not cl:
@@ -389,7 +696,7 @@ def verdicts(units: list[dict], results, label: str, profile: dict | None, jid: 
         refusal = not any(st.values()) and adult45.detector(cl["reply"])
         verdict = None
         if _readable(u) and jid:
-            verdict = verdict_of(store.get("class", jid, prompt[1], C.unit_sha(cl["ask"], cl["reply"])))
+            verdict = verdict_of(vote("class", prompt[1], C.unit_sha(cl["ask"], cl["reply"])))
             info["class_judged" if verdict else "class_missing"] += 1
         if refusal:
             u["code"] = {"refused": True}
@@ -399,13 +706,18 @@ def verdicts(units: list[dict], results, label: str, profile: dict | None, jid: 
             out[u["id"]] = verdict
     for q in _flag_units(units):
         info["flag_units"] += 1
-        v = store.get("flags", jid, fprompt[1], C.unit_sha(q["question"], q["reply"])) if jid else None
+        v = vote("flags", fprompt[1], C.unit_sha(q["question"], q["reply"])) if jid else None
         if v and isinstance(v.get("flags"), dict):
             info["flags_read"] += 1
             out[q["unit_id"]] = {**v["flags"], "validated": [f for f in FLAGS if f in v["flags"]]}
         else:
             info["flags_missing"] += 1
             out[q["unit_id"]] = {"missing": True}
+    if used_alt[0]:
+        info["other_judge"] = alt
+        info["other_units"] = used_alt[0]
+        if len(others) > 1:
+            info["other_judges_ignored"] = [o for o in others if o != alt]
     if info["class_missing"] or info["flags_missing"]:
         info["pending"] = (f"{NOT_JUDGED}: {info['class_missing']} of {info['class_units']} classed unit(s) and "
                            f"{info['flags_missing']} of {info['flag_units']} opinion-flag unit(s) have no judge vote "
@@ -420,8 +732,6 @@ def run_check(results, reader: C.ReaderSpec, chat, profile: dict | None = None, 
     read is never made twice); the result is written to ``<results>/judge45/check.json`` under the judge's model id
     and returned. It never withholds a score."""
     from . import flags45
-    if reader.hosted:
-        raise HostedGrader(f"judge check: {reader.model_id} is hosted")
     jid = reader.model_id
     prompt, fprompt = _prompts(profile)
     store = JudgeStore(Path(results) / STORE_DIR / "constructed.jsonl")

@@ -25,13 +25,13 @@ uv run crucibleforge report                          # rebuild the board from st
   only with `--no-nsfw-plus` (on `run`, `all`, `recover`, `escalate` and `bench-all`) or with `nsfw_plus: false` on a
   model entry (the older `adult_page` key is still read). The Claude
   Code route never runs it. `all --plan` says `NSFW+: not run (--no-nsfw-plus)` and lists no NSFW+ unit when it is left
-  out. NSFW+ sends explicit and dark fiction requests to the model and the run's local judge classes the answers; a hosted
-  model that you do not want that on needs `--no-nsfw-plus`.
-- **One local judge.** The judge grades the long chat scenes and the role-play sessions and classes NSFW+, all
-  inside `judge` / `all`. It must be served locally: a hosted model given as `--judge` is refused when the
-  judge step starts. `all --plan` does not check this yet and `all` generates before it judges, so check the
-  judge you name before a paid run.
-  There is no second reader.
+  out. NSFW+ sends explicit and dark fiction requests to the model and the run's judge classes the answers; a hosted
+  model that you do not want that on needs `--no-nsfw-plus`. A hosted judge receives every reply it judges, NSFW+ included; pass `--no-nsfw-plus` to leave NSFW+ out.
+- **One judge.** The judge grades the long chat scenes and the role-play sessions and classes NSFW+, all inside
+  `judge` / `all`. Any model can be the judge, local or hosted (`--judge <provider>:<model-id>`), and the model under
+  test can be local or hosted either way ([CONFIG.md](CONFIG.md#mixing-a-local-or-hosted-model-with-a-local-or-hosted-judge)).
+  The scores published on MakoBench are judged by Qwen 3.8 27B run locally at 8-bit (Q8). Rows judged by another
+  judge are scored and ranked on your board and marked ⚖ with the judge's id. There is no second reader.
 - **Packs.** A part that scores 90% unlocks its harder sets in the same run. `--no-ladder` (or `--no-tiers`)
   runs the standard questions only; `--ladder-sections work` limits packs to one section.
 - **Time.** Every job runs at once up to the server's parallel slots, longest first. The plan prints an
@@ -56,8 +56,9 @@ uv run crucibleforge report                          # rebuild the board from st
 
 ### Spend cap and the plan price
 
-For a hosted model, `all --plan` prints `~$X expected` and `$Y if every row ran to its budget` (packs and the
-judge are extra: size the cap for the whole run). There are two caps and one rule for each, the same in `run`,
+For a hosted model, `all --plan` prints `~$X expected` and `$Y if every row ran to its budget` (packs are extra:
+size the cap for the whole run). A hosted judge is billed by its provider, is not part of the model's Run cost and
+is not limited by the run's spend cap; its spend is printed on its own line. There are two caps and one rule for each, the same in `run`,
 `all`, `agree` and the judge passes. `--spend-cap-usd USD` caps **this invocation's own spend** and never reads
 the shared ledger (`agree --cap-usd` is the same rule). `CF_SPEND_CAP_USD` together with a ledger
 (`CF_SPEND_LEDGER`; the fixed bench45 ledger under that profile) is a **cumulative budget across invocations**
@@ -78,15 +79,15 @@ Every row is sent with a fixed output budget, the same for every model (a model'
 | Part | Output tokens one reply may use (the budget sent) |
 | --- | --- |
 | Careful small functions | 65,535 per prompt of three briefs |
-| Follows tool rules | 16,384 per reply on two dialogues, 65,536 on the third |
+| Follows tool rules | 33,792 per reply on two dialogues, 65,536 on the third |
 | Steps through code | 71,680, 70,656 or 69,632 by difficulty level (4, 6, 8) |
 | Knows language traps | 65,536 |
-| Uses tools | 16,384 per turn on the seeded tool tasks, with up to 49,000 tokens of history room |
-| State over a session | 16,384 per turn |
-| Keeps a tally over a session | 16,384 per turn, with up to 49,000 tokens of history room |
+| Uses tools | 32,768 per turn on the seeded tool tasks, with up to 49,000 tokens of history room |
+| State over a session | 32,768 per turn |
+| Keeps a tally over a session | 32,768 per turn, with up to 49,000 tokens of history room |
 | Says what it does not know | 71,680 |
-| Role-play: sessions | 16,384 per turn, with up to 49,000 tokens of history room |
-| Role-play: long scenes | 16,384 per turn |
+| Role-play: sessions | 32,768 per turn, with up to 49,000 tokens of history room |
+| Role-play: long scenes | 34,768 per turn |
 <!-- budgets:end -->
 
 A reply that ends on the length limit having used at least 98% of the budget sent for its row "did not finish"; on the short-keyed parts and on NSFW+ it is graded as delivered and counted, and on the one-shot fix and change tasks of Fixes it scores 0 (see `docs/SCORING.md`).
@@ -94,16 +95,14 @@ A reply that ends on the length limit having used at least 98% of the budget sen
 ### Judge requirements
 
 The role-play parts need a judge: `--judge <provider>:<model_id>`, a registry label, or a name under `judge:` in
-`models.yaml`. The 4.5 profile's judge is the plain Qwen 3.8 27B at 8-bit with a 16,384-token context: about
-29 GB of weights (27 billion parameters at 8.5 bits each), plus the context cache. It is also the board's reference
+`models.yaml`. The 4.5 profile's judge is the plain Qwen 3.8 27B with a 16,384-token context; any other model, local
+or hosted, may be passed with `--judge`. The published board runs it locally at 8-bit (Q8): about 29 GB of weights (27 billion parameters at 8.5 bits each), plus the context cache. It is also the board's reference
 model: when it is under test it grades its own rows and the board says "graded by itself" (a same-family judge is
 noted too). The 4.1 profile keeps its Gemma 4 31B judge, which never grades the model under test or its family.
 Before scoring, a canary of known answers runs; a judge that fails it
-twice aborts the phase and nothing is scored. A different judge works for the long scenes but is flagged on the
-board. The ladder pass also accepts a different judge for the role-play sessions. Its verdicts, rung check and
-placements are keyed and stamped with that judge's own id, and a session the profile's judge already placed is
-left alone. The board prints the part as "(judged by <id>, not the board's judge: not comparable)". That row is never
-ranked against rows placed by the profile's judge, and `report --public` refuses to publish it. `--no-judge` leaves the
+twice aborts the phase and nothing is scored. Every verdict, rung check and ladder placement is stamped with the id
+of the judge that made it, so the report always says which judge scored a row, and a session already placed by one
+judge is left alone when another runs. `--no-judge` leaves the
 judged parts pending (Overall blank, row unranked); `crucibleforge judge --models <label>` judges them later.
 `all` places the role-play sessions of the models it ran on their ladders (the `ladder-judge` pass) right after the
 standard judge, so the one documented command is complete; `--no-judge` skips it. To place stored sessions by hand (or
@@ -128,7 +127,28 @@ again), run `crucibleforge ladder-judge --models <label>` (`--plan` first).
 
 Nothing needs a special command: run the same command again. Finished jobs are reused (per case and repeat the
 newest *finished* run counts, so an aborted resume never replaces a finished one); errored or missing jobs are
-re-run; judged rows keep their verdicts. `--fresh` archives the model's earlier transcript first. A drain
+re-run; judged rows keep their verdicts. A stored reply is reused only when it was made under the entry's current
+conditions: the same model id and provider, sampler, thinking setting, reasoning effort and request protocol, and not
+a `--smoke` run. On any difference the model runs its full set and one line says why ("stored replies for <label>
+were made with a different <what>: running the full set; they stay on disk").
+
+**Owed rows.** A job a plain resume would run again is *owed*. `all --plan` lists owed jobs by reason, with their
+estimated tokens and dollars, before anything is called: `budget raised` (a reply cut below the unit's 4.5.1 budget),
+`tool tolerance` (an older tool row holding a call written mid-line), `empty stop` (an older tool row that ended on an
+empty reply), `context`, `stall`, `transport`, `other`, `not run`. An owed row keeps scoring until its re-run lands;
+the new row carries a `rerun` mark with the reason. A re-run that fails on infrastructure twice is no longer owed: the
+old row keeps scoring and the model's losses name it. A from-scratch program unit (CQ1-CQ3) re-runs only the repeats
+that have no 4.5.1-budget reply. Fix rows stored while no sandbox route existed are graded from their stored reply on
+the next `run`/`all` (no model call) once one exists; an agent fix row keeps no final tree and is run again.
+
+**After an upgrade** (for example 4.5.0 to 4.5.1): run `all --models <label> --plan` first, read the owed lines and
+the price, set the cap, then run the same `all` command. Rows a tolerance would change are re-graded from the stored
+reply with no model call: `python -m crucibleforge.edittol <label>` (dry run; `--go` writes) for bare closers.
+
+**Losses.** `report.json` holds `losses` per model and segment (cut, empty, context, transport, clamped,
+over_budget, rerun_failed, tolerated, points at stake), and the row details print one line, for example "Lost rows:
+code.tools 3 empty (0.20 pt); tolerated: 4 rows (bare closer or calls without a line break)". Each segment also shows
+its share of the bonus (pack) points and where they came from. `--fresh` archives the model's earlier transcript first. A drain
 request (SIGUSR1 or a `<results>/.drain` file) lets in-flight requests finish, then exits with code 75 so a later
 run resumes. A row whose stamp no longer matches is **stale**: `report --check-stale` lists them (exit 1); re-run
 or regrade them, they are not mixed silently.

@@ -281,6 +281,9 @@ SILENT_THINK_TOK_S = 40.0
 #: ... times the overrun xAI allows: reasoning is not held to max_tokens (stored rows: 58,824 at 24,576 = 2.4x,
 #: 78,708 at 65,536 = 1.2x).
 SILENT_THINK_OVERRUN = 2.5
+#: 4.5.1 (PLAN-451-LIMITS step 3): the keep-alive ceiling never exceeds this many seconds -- the profile's
+#: ``escalation_max_wall_s``, about twice the slowest good grok-4.7 row (1,243 s silent)
+KEEPALIVE_MAX_S = 2700.0
 
 
 def _is_xai_host(base_url: str) -> bool:
@@ -298,6 +301,7 @@ def keepalive_ceiling(stall_s: float | None, max_tokens: int | None,
         return None
     cap = max(stall_s * KEEPALIVE_STALL_FACTOR,
               max(0, int(max_tokens or 0)) * SILENT_THINK_OVERRUN / SILENT_THINK_TOK_S)
+    cap = min(cap, KEEPALIVE_MAX_S)
     return min(cap, max_wall_s) if max_wall_s else cap
 
 
@@ -329,6 +333,30 @@ class RequestRejected(TransportError):
         super().__init__(f"HTTP {status}: {body}")
         self.status = status
         self.body = body
+
+
+class ProviderFiltered(RequestRejected):
+    """A JUDGE call the judge's provider refused on content grounds (OpenRouter HTTP 400 "your prompt was flagged",
+    a moderation / content-policy refusal), sometimes relayed inside the SSE stream. Raised only for a judge call
+    (spend.judge_role): the identical prompt is refused again, so it is never retried; the judge records the row as
+    not judged (the judge's provider refused or filtered it), never as the model's refusal. A model's own call keeps
+    the plain transport path."""
+
+
+#: provider words for a content refusal of the REQUEST (judge calls only, see ProviderFiltered)
+_FILTER_MARKERS = ("flagged", "moderation", "content policy", "content_policy", "usage policy",
+                   "content_filter", "content filter", "safety system")
+
+
+def _judge_filtered(status: int | None, body: str) -> bool:
+    if status not in (None, 400, 403):
+        return False
+    if status is None and str(_error_code(body) or "") not in ("400", "403"):
+        return False
+    if not any(m in (body or "").lower() for m in _FILTER_MARKERS):
+        return False
+    from . import spend
+    return spend.is_judge()
 
 
 class ProtocolRejected(TransportError):
@@ -370,6 +398,32 @@ _GENERATION_REJECT_MARKERS = (
     # (precog-123b aborted a whole run on three of these in a row)
     "unable to generate parser",
 )
+
+
+class ModelOutputInvalid(TransportError):
+    """A server's definitive answer that the MODEL's own output could not be parsed (llama-server HTTP 500 "The
+    model produced output that does not match the expected <name> format"). Unlike :class:`GenerationRejected` it
+    is retried like any transport error (a sampled reply may parse the next time); once the retries are used up the
+    runner scores the reply as a miss (runner.MODEL_OUTPUT_INVALID), never an errored row, and it never counts
+    toward the consecutive-failure abort. A connection error or any other 5xx stays a transport error."""
+
+
+#: server words for "the model's own output could not be parsed" (matched lowercase on a 5xx / SSE error body)
+_MODEL_OUTPUT_MARKERS = (
+    "model produced output",                 # llama-server: "...that does not match the expected <x> format"
+    "failed to parse the model output",
+    "failed to parse model output",
+    "could not parse the model output",
+    "could not parse model output",
+    "unable to parse the model output",
+    "unable to parse model output",
+)
+
+
+def model_output_invalid(text) -> bool:
+    """Whether a server error message says the model's own output could not be parsed."""
+    low = str(text or "").lower()
+    return any(m in low for m in _MODEL_OUTPUT_MARKERS)
 
 
 class RateLimited(TransportError):
@@ -529,6 +583,10 @@ def classify_server_error(status: int | None, body: str,
     msg = f"HTTP {status}: {body[:500]}" if status else body[:500]
     if any(m in low for m in _GENERATION_REJECT_MARKERS):
         return GenerationRejected(msg)
+    if model_output_invalid(low):
+        return ModelOutputInvalid(msg)
+    if _judge_filtered(status, body):
+        return ProviderFiltered(status or 400, body[:500])
     ra, sugg = _parse_error_hints(body)
     if ra is None and retry_after_header:
         try:
@@ -797,6 +855,8 @@ def stream_chat(base_url: str, api_key: str, model: str, messages: list[dict], *
                     if 400 <= resp.status_code < 500 and resp.status_code not in (408, 429):
                         if any(m in err.lower() for m in _GENERATION_REJECT_MARKERS):
                             raise GenerationRejected(f"HTTP {resp.status_code}: {err[:500]}")
+                        if _judge_filtered(resp.status_code, err):
+                            raise ProviderFiltered(resp.status_code, err[:500])
                         raise RequestRejected(resp.status_code, err[:500])
                     raise classify_server_error(resp.status_code, err,
                                                 resp.headers.get("Retry-After"))

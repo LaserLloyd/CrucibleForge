@@ -72,7 +72,7 @@ providers:
     type: lmstudio
     base_url: http://localhost:1234/v1
     api_key: lm-studio
-  studioforge:                    # a StudioForge rig (leases, load priorities): where the 4.5 judge runs
+  studioforge:                    # optional: a StudioForge rig (leases, load priorities); not needed for any run
     type: studioforge
     base_url: http://127.0.0.1:1234/v1
     api_key_env: STUDIOFORGE_API_KEY
@@ -92,6 +92,10 @@ providers:
     base_url: https://api.deepseek.com/v1
     api_key_env: DEEPSEEK_API_KEY
     concurrency: 8
+    # the provider's output maximum (one number, or {model_id: number}); budgets above it are clamped and the
+    # row says so. Omitted: the /models listing, else the built-in documented value for api.deepseek.com
+    # (393216, the Flash model's max_tokens range). A refusal that names a lower limit is retried once at it.
+    max_output_tokens: 393216
     # a hosted provider: say where its protocol was read, and when
     docs: https://api-docs.deepseek.com/
     docs_verified: 2026-11-03          # YYYY-MM-DD: the last review
@@ -99,6 +103,9 @@ providers:
     # sizes for a 32768-token local server (remote providers only):
     thinking_max_tokens_cap: 65536
     thinking_max_tokens_factor: 12
+  # `hosted: true|false` on a provider entry overrides how it is treated: an `openai`-type server on a loopback,
+  # private, tailnet (100.64/10), `.local` or single-label address counts as local (free, no judge cost line);
+  # `hosted: true` says it is a billed API anyway (e.g. a hosted API reached through a private gateway).
   openrouter:
     type: openai
     base_url: https://openrouter.ai/api/v1
@@ -158,6 +165,7 @@ providers:
     base_url: https://api.minimax.io/v1
     api_key_env: MINIMAX_API_KEY
     concurrency: 8
+    max_output_tokens: 524288     # MiniMax-M3.1-Flash / M3 max_completion_tokens (see the deepseek entry)
     # reasoning_replay: true is the built-in default here (the provider is
     # pointed at MiniMax's API), so the chain is passed back to the model.
     # Set it to false to turn the protocol off for this provider, or true on
@@ -215,11 +223,11 @@ defaults:
 #   chat: {rp: 20, nsfw: 20, explicit_peak: 5, willing: 5, steer: 5}
 #   coding: {coding: 20, tooluse: 10, instruct: 10, reasoning: 5}
 
-# Judge: first candidate whose provider is up, serves the model, and is not
-# itself under test. A local UNCENSORED model is needed to score the NSFW/RP
-# rows (hosted judges may refuse them — the calibration canary aborts if so);
-# any small instruct model is enough for the `reference` rubric (hard
-# questions with a gold answer). `--judge provider:model_id` forces one.
+# Judge: `--judge provider:model_id` (or a candidate's name) picks any model,
+# local or hosted, e.g. --judge openrouter:qwen/qwen3.8-27b (the priced
+# candidate below). Without it the profile's judge is used. The scores published on MakoBench are judged
+# by Qwen 3.8 27B run locally at 8-bit (Q8). A judge must accept the NSFW/RP
+# rows; one that refuses them fails the calibration canary and the phase aborts.
 judge:
   temperature: 0.0          # greedy + fixed seed: repeatable verdicts
   max_tokens: 4096
@@ -242,6 +250,20 @@ judge:
     - {name: local-judge-q8, provider: lmstudio, model_id: "your-other-judge", context_length: 16384, thinking: true}
     # the 4.1 judge, kept by name only (`--judge gemma4-31b-heretic`)
     - {name: gemma4-31b-heretic, provider: studioforge, model_id: "llmfan46/gemma-4-31B-it-uncensored-heretic-GGUF/gemma-4-31B-it-uncensored-heretic-Q8_0", context_length: 16384, thinking: true}
+    # any local or hosted model may judge (`--judge <name>`); MakoBench's published scores use the local Q8 judge
+    # above, and rows judged by another model say which. Example: the same model through a hosted API
+    # (`--judge qwen27-judge-openrouter`) for a machine that cannot run it. OpenRouter serves this model through
+    # many providers at different precisions: the extra_body below asks for 8-bit or better (the local judge is
+    # Q8_0). `thinking: true` as the local judge runs (profiles/bench45.yaml): with thinking off this route failed
+    # the judge's explicit-text check (it rated the check's clearly sexual text 3, 5 needed, so NSFW rows stayed
+    # pending) and classed fewer `judge-check` items right; with thinking on it rated it 6 and passed (probe
+    # 2026-11-25). A verdict cut at its output ceiling is asked once more with four times the budget. A judge
+    # entry with thinking off on OpenRouter is sent `reasoning: {enabled: false}` (OpenRouter ignores the
+    # chat-template switch a local server reads). A judge call OpenRouter refuses ("prompt flagged") is left not
+    # judged, never scored as the model's refusal. A hosted judge receives every reply it judges, the adult page (NSFW+) included, unless
+    # --no-nsfw-plus is passed. It is billed apart from every model's Run cost and spend cap; without a price the
+    # run says "judge cost not priced".
+    - {name: qwen27-judge-openrouter, provider: openrouter, model_id: "qwen/qwen3.8-27b", thinking: true, price: {input: 0.04, output: 1.50}, extra_body: {provider: {quantizations: [fp8, fp16, bf16]}}}
 
 # models under test.  price = USD per 1M tokens (the report's Run cost column).
 # A flat-plan provider (billed per plan, not per token) adds `basis: list`:

@@ -168,7 +168,7 @@ def test_the_edit_is_grading_only():
     # changed CL3/CL4/CB-C5/CB-C6/TZ20 content on purpose, which moved it
     assert version.cases_hash() == "04da7abe"  # 4.1.0 key review 2026-11-08: safety probes removed, 16 content fixes
     # the suite prefix is the release (4.5.0 since ship plan C8); the 4.1 content hash is what is pinned
-    assert version.revision() == f"{version.SUITE_VERSION}+04da7abe" and version.SUITE_VERSION == "4.5.0"
+    assert version.revision() == f"{version.SUITE_VERSION}+04da7abe" and version.SUITE_VERSION == "4.5.1"
 
 
 def test_a_row_answered_before_the_edit_rejudges_but_does_not_regenerate():
