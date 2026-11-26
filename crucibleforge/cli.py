@@ -4425,6 +4425,20 @@ def cmd_rejudge_reasoning(args, cfg) -> int:
     return 0
 
 
+def cmd_forfeit(args, cfg):
+    """Declare or remove a forfeit (forfeit45.py): the owner's recorded decision that one job the provider never
+    answered (MISSING, reason error, >= 3 stored error rows, no policy block) counts as a failed answer."""
+    from . import forfeit45
+    label = args.models.strip()
+    if "," in label or label == "all":
+        print("forfeit: --models takes one model label", file=sys.stderr)
+        return 2
+    rc, line = forfeit45.declare(results_dir(), label, args.case.strip(), args.repeat, args.reason, cfg,
+                                 undo=args.undo)
+    print(line, file=sys.stderr if rc else sys.stdout)
+    return rc
+
+
 def cmd_card_check(args, cfg):
     """``card-check``: the settings proposal for one model (cardcheck.py)."""
     from . import cardcheck, settings_gate
@@ -5692,6 +5706,16 @@ def main(argv=None):
     p_rr.add_argument("--write", action="store_true",
                       help="record new/changed values in models.yaml (reasoning_replay: {value, source, ...})")
 
+    p_ff = sub.add_parser(
+        "forfeit", help="declare (or --undo) a forfeit: one job the provider never answered after repeated tries "
+                        "counts as a failed answer instead of missing (recorded in <results>/forfeits.json)")
+    p_ff.add_argument("--models", required=True, metavar="LABEL", help="the model label (one)")
+    p_ff.add_argument("--case", required=True, metavar="ID", help="the case id of the job")
+    p_ff.add_argument("--repeat", type=int, default=1, help="the job's repeat (default 1)")
+    p_ff.add_argument("--reason", default="", help="why, in plain words (required unless --undo)")
+    p_ff.add_argument("--undo", action="store_true", help="remove the record: the job is missing again")
+    p_ff.add_argument("--profile", default=None, help="the board's profile (default: bench45)")
+
     args = parser.parse_args(argv)
     if args.cmd == "bench-all" and args.plan_json and (args.go or args.detach):
         parser.error("--plan-json is a plan only: drop --go/--detach")
@@ -5799,7 +5823,7 @@ def main(argv=None):
                "judge-shards": cmd_judge_shards, "budget": cmd_budget, "gen": cmd_gen,
                "scratch-init": cmd_scratch_init, "registry-check": cmd_registry_check,
                "digest": cmd_digest, "quarantine": cmd_quarantine,
-               "rejudge-reasoning": cmd_rejudge_reasoning}[args.cmd]
+               "rejudge-reasoning": cmd_rejudge_reasoning, "forfeit": cmd_forfeit}[args.cmd]
     # WP-BENCH FIX-6: `run`/`all` are the two commands that do real benched
     # work end to end, so they are the ones tracked by the fleet-wide
     # runs/<id>/{report.md,meta.json} contract. This wraps the dispatch

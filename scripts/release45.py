@@ -33,7 +33,7 @@ Steps, in order (``--only`` takes a step name or its letter a-e)::
   b-chat          second reader of the eight long chat scenes (scripts/read_chat45.py + agree)    [hosted: cap]
   b-packs         second reader of the Chat pack scenes (read_chat45.py --packs + agree --parts chat/packs45)
                                                                                                     [hosted: --pack-cap-usd]
-  c-assemble      the combined board dir (copies of the folders' stored rows and reader stores)
+  c-assemble      the combined board dir (copies of the folders' stored rows, reader stores and forfeits)
   c-classing      classing marks (scripts/check_classing_marks.py, C2-C6 from the store)
   c-longscene     long-scene marks (scripts/check_rplong_marks45.py)
   c-packmarks     Chat pack marks P1-P5 (scripts/check_pack_marks45.py), spread into every folder's marks45.json
@@ -176,7 +176,7 @@ def signature(folder: Path) -> str:
     """What a step's result depends on in this folder: the stored rows and the reader stores (name + size)."""
     h = hashlib.sha256()
     for pat in ("transcripts_*.jsonl", "meta_*.json", "readers45/*.jsonl", "readers45/nsfwpacks45/*.jsonl",
-                "agree/*.jsonl", "judge45/*.jsonl", "judge45/check.json"):
+                "agree/*.jsonl", "judge45/*.jsonl", "judge45/check.json", "forfeits.json"):
         for f in sorted(folder.glob(pat)):
             h.update(f"{f.relative_to(folder)}:{f.stat().st_size}\n".encode())
     return h.hexdigest()[:16]
@@ -860,6 +860,33 @@ class Release:
                 elif not dst.exists():
                     dst.write_bytes(src.read_bytes())
         self.assemble_marks()
+        self.assemble_forfeits()
+
+    def assemble_forfeits(self) -> None:
+        """4.5.1: the board carries every folder's declared forfeits (forfeits.json, keyed by model, case and
+        repeat), so a job a folder counts as a failed answer is counted the same way on the combined board. A record
+        applies on the board only while that job is still missing there (a later run's answer counts instead).
+        Rebuilt from the folders every time: a forfeit undone in its folder leaves the board too."""
+        recs: dict[tuple, dict] = {}
+        for f in self.folders:
+            p = f / "forfeits.json"
+            if not p.is_file():
+                continue
+            try:
+                body = json.loads(p.read_text(encoding="utf-8"))
+            except ValueError:
+                raise Stop(f"c-assemble: {p} is unreadable; fix or remove it (a forfeit is never guessed)", 2)
+            for r in body if isinstance(body, list) else ():
+                if isinstance(r, dict) and r.get("model") and r.get("case_id"):
+                    recs.setdefault((r["model"], r["case_id"], r.get("repeat")), r)
+        p = self.board / "forfeits.json"
+        if not recs:
+            if p.is_file():
+                p.unlink()
+            return
+        tmp = p.with_name(p.name + f".tmp{os.getpid()}")
+        tmp.write_text(json.dumps(list(recs.values()), indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
+        os.replace(tmp, p)
 
     def assemble_marks(self) -> None:
         """Review A F6/F7: the board carries the folders' mark results (``marks45.json``), so a check that FAILED in

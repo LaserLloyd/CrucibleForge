@@ -5294,6 +5294,10 @@ def notes_cell(s: dict) -> str:
     er = s.get("errored_rows") or {}
     if er.get("n"):
         notes.append(f"{er['n']}/{er['total']} rows errored (counted failed; a resume re-runs them)")
+    from .forfeit45 import note as _forfeit_note
+    ff = _forfeit_note(s.get("forfeits") or [])
+    if ff:
+        notes.append(ff)
     rr = s.get("reruns45") or {}
     if rr.get("jobs"):
         n = rr["jobs"]
@@ -7667,12 +7671,16 @@ def stats_from_tier_rows(label: str, cfg: dict | None, prof: dict,
     ran_out = points_mode(prof) and not (era or {}).get("old")
     from . import scoring45 as _s45
     missing_jobs: list[dict] = []
+    forfeits: list[dict] = []
     if _s45.pending_policy(prof) and points_mode(prof) and not (era or {}).get("old"):
         # 4.5 (PLAN-45-v2 5.1): an infrastructure-failed / empty / ctx_short /
         # unjudged / judge-failed job is MISSING, never 0: it leaves the scored
         # rows and the model is pending (unranked) until it is re-run. A job that
         # ran out of its budget stays the model's own failure (ran_out below).
-        by_t, missing_jobs = _s45.split_missing(by_t, _refusal_case_ids(prof))
+        # 4.5.1 forfeits (forfeit45.py): a job board_view turned into a failed answer stays scored, never MISSING
+        from . import forfeit45 as _ff45
+        by_t, missing_jobs = _ff45.split_missing(by_t, _refusal_case_ids(prof))
+        forfeits = _ff45.applied(label, by_t)
         errored = {"n": 0, "total": 0}
         by_t, info = _errored_as_failed(by_t, ran_out=ran_out, errors=False)
         ran_out_jobs = info["ran_out"]
@@ -7699,6 +7707,8 @@ def stats_from_tier_rows(label: str, cfg: dict | None, prof: dict,
         st["attempts45"] = at45
     st["ran_out_failed"] = ran_out_jobs
     st["missing_jobs"] = missing_jobs
+    if forfeits:        # only when a forfeit is on record: other rows' report data stays byte-identical
+        st["forfeits"] = forfeits
     from . import assistant45 as _a45
     if _a45.block(prof) and _BOOT.get() is None and not (era or {}).get("old"):
         # Assistant basics (checked): a column outside Overall, read from its own rows only (assistant45.py)
@@ -9482,6 +9492,10 @@ def _suite_now() -> str:
 def _model_notes(label: str, s: dict, cfg: dict | None = None) -> list[str]:
     """Run-quality notes for one model (not failures)."""
     out = []
+    from .forfeit45 import note as _forfeit_note
+    ff = _forfeit_note(s.get("forfeits") or [])
+    if ff:
+        out.append(ff + " (a declared forfeit, scored as a failed answer; record in forfeits.json)")
     floor = float(((cfg or {}).get("defaults") or {}).get("min_tok_per_s", 0) or 0)
     med = (s.get("speed") or {}).get("tok_per_s_median")
     if floor and med is not None and med < floor:
@@ -10369,7 +10383,36 @@ def board_view(label: str, cfg: dict | None) -> tuple[list[dict], dict]:
         if old:
             return old, {"old": True, "suites": suites_of(old),
                          "rerun_cases": len(have), "expected": expected}
-    return cur, {"old": False, "suites": suites_of(cur)}
+    return _forfeit_rows(label, cur, cfg), {"old": False, "suites": suites_of(cur)}
+
+
+def _forfeit_failed(r: dict, case: dict | None, fix: bool = False) -> dict:
+    """A forfeited job's row (forfeit45.py) as the failed answer the graders would have stored for a reply that
+    fixes or answers nothing: _counted_failed, plus, on a Fixes unit, the bug-fix checker's verdict for an empty
+    reply (fixrows45.reply_verdict: score 0, grade fail, the current checker stamp). ``fix``: the row is a unit of
+    the score tree's Fixes segment (a generated patch case is not in the static case set)."""
+    from . import forfeit45 as _ff45
+    r = _counted_failed(r, _ff45.ROW_KEY, case)
+    from . import fixrows45 as _fr
+    if fix or (case and _fr.is_fix_case(case)):
+        r["score"] = 0.0
+        r["fixcheck"] = _fr.reply_verdict(case, "", finish_reason="stop", completion_tokens=None, sent=None,
+                                          blank=True)
+    return r
+
+
+def _forfeit_rows(label: str, rows: list[dict], cfg: dict | None) -> list[dict]:
+    """4.5.1: the board rows with each declared forfeit's job (forfeits.json in the results folder; only while that
+    job is MISSING with reason error) scored as a failed answer, in memory. ``rows`` is returned unchanged (same
+    object) when no forfeit is on record for ``label``."""
+    from . import forfeit45 as _ff45
+    if not _ff45.records_for(label):
+        return rows
+    prof = _tier_profile(cfg)
+    cases = _cases_by_id()
+    fix = set(_fix_cases(prof)) if prof else set()
+    return _ff45.apply(label, rows, _refusal_case_ids(prof) if prof else frozenset(),
+                       lambda r: _forfeit_failed(r, cases.get(r.get("case_id")), r.get("case_id") in fix))
 
 
 _PROFILE_IDS_WARNED: list = []

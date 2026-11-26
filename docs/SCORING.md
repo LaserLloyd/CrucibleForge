@@ -162,9 +162,17 @@ Every answer ends in one of these ways. The rule is the same on every part unles
 | Content-filter stop or a dropped reply | A hosted provider's filter stop is infrastructure, not the model's answer: off the NSFW+ the unit stays pending ("missing") and is re-run. On Predict and agent rows a filter stop or a dropped reply is missing, not 0. |
 | Cut off at the token ceiling | The reply leaves the part's mean and is counted. If more than a quarter of a part's units are cut **and at least two are**, the part reads `not measured (n of m replies cut)`, adds nothing, and the row is marked provisional. A cut reply is never a silent zero. Exception, the short-keyed parts (Steps through code, Knows language traps, State, Tally, Says what it does not know; profile key `cut_at_full_budget: zero`, shipped on): a reply that ended on the length limit having used at least 98% of the budget actually sent for that row "did not finish". It is graded on what it delivered (an empty visible answer scores 0), stays in the mean, never makes the part "not measured", and the part prints both figures: `Traps 0.66 of 1.25: 2 of 5 replies did not finish within 65,536 tokens and score 0 (0.90 on the 3 that finished)`; the finished-only figure is display only. A cut below the full budget (a provider's lower cap) and every long-output part stay under the rule above. Set `cut_at_full_budget: omit` to return to the plain rule. Second exception, the one-shot fix and change tasks of Fixes (graded by the bug-fix checker): a reply cut at 98% or more of its budget scores 0 and stays in the mean, and a shorter cut reply is graded as delivered. The same budget applies to every model; "thinking" models get a larger window, never a smaller one. |
 | Judge has not run | The part reads "pending the judge". The units already decided do not stand in for it. |
-| Job errored, or rows missing | The part adds nothing and is named; its other rows never stand in. The row is not ranked until the rows exist. |
+| Job errored, or rows missing | The part adds nothing and is named; its other rows never stand in. The row is not ranked until the rows exist, or until the job is declared a forfeit (below). |
 | Not run | `not run`, never 0. |
 | Route cannot run a part | For example the Claude Code route has no tools: `not run (the Claude Code route has no tools)`; out of the measured maximum, never 0. |
+
+**Forfeits.** A job the provider never answers after repeated tries can be declared a forfeit by the person running
+the benchmark (`crucibleforge --results DIR forfeit --models LABEL --case ID --reason "..."`). It then counts as a
+failed answer, zero for that job, in the totals, the ranges and the rank, and the report says so on the model's row
+(`1 job counted as 0: PATCHFIX-core-4-1, the provider never answered in 5 tries`). It is never automatic: the job must
+be missing because of errors, with at least 3 stored error rows and no provider policy block among them. The record,
+with the time and error of each try, is `forfeits.json` in the results folder; `--undo` removes it, and a later
+answer to the job counts instead.
 
 **Numbers are never scaled.** A pending part adds nothing and nothing is scaled up over it. The Code and
 Chat cells print measured points out of the measured maximum (for example `6.4 of 7.5`), and a section

@@ -56,6 +56,14 @@ untouched and no grader stamp moves (the scorer stamp moves once, for the bonus 
   down the list.
 - The board's Minutes cell shows a dash when the rows come from several runs; `report.json` lists `losses` per model
   (cut, empty, context, transport, clamped, over budget, tolerated, points at stake) and bonus points per part.
+- **Forfeits.** A job the provider never answers after repeated tries can be declared a forfeit by the person running
+  the benchmark: `crucibleforge --results DIR forfeit --models LABEL --case ID [--repeat N] --reason "..."`
+  (`--undo` removes it). The job then counts as a failed answer (0 points) instead of missing, so the row can be
+  ranked, and the report says so on the model's row ("1 job counted as 0: ..., the provider never answered in 5
+  tries"; `forfeits` in `report.json`). It is never automatic: the command refuses unless the job is missing with
+  reason `error`, has at least 3 stored error rows and none of them is a provider policy block. The record, with
+  each try's time and error, is `forfeits.json` beside `runs.csv`; stored rows are never changed, and the combined
+  board (`scripts/release45.py`) carries every folder's forfeits. A later answer to the job replaces the forfeit.
 
 **Local model servers**
 - **Requests at once = what the server serves:** `test --local` reads it from the server (StudioForge's model list,

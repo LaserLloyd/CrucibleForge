@@ -218,6 +218,7 @@ missing folder, a missing item or any disagreement is an error. It is a maintain
 | `config error: no models.yaml found` | `uv run crucibleforge config --init` |
 | A hosted run refused: missing price | Add `price:` to the model entry (and to a hosted judge) |
 | `spend cap reached` | Raise `--spend-cap-usd`, or stop; finished jobs are kept and reused |
+| `not ranked: 1 job to re-run` and the provider never answers that job | Re-run it first. After at least 3 failed tries you may declare it a forfeit: `crucibleforge --results DIR forfeit --models LABEL --case ID --reason "..."`; it then counts as a failed answer and the report says so (docs/SCORING.md, Forfeits) |
 | `not ranked: stale …` | The rows predate the current grader stamps: re-run, or `report --check-stale` to see which |
 | A thinking model's parts read `not measured (n of m replies cut)` | Its replies hit the ceiling; the same budget applies to everyone. Not a bug. (On the short-keyed parts a reply that used the full budget is instead counted as "did not finish" and graded as delivered.) |
 | Server busy / lease refused (StudioForge) | A 503 `priority_hold` means wait and retry; a 409 is terminal. Never force on someone else's server |
