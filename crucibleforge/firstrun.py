@@ -48,6 +48,7 @@ CODES = {
     "SPEND_CAP": 36,
     "LOCAL_KEY_NEEDED": 37,
     "LOCAL_KEY_REJECTED": 38,
+    "STALLED": 39,
     "STOPPED": 130,
 }
 #: the fixed first words of each message (the code adds the details after them)
@@ -79,6 +80,7 @@ HEADLINES = {
     "SPEND_CAP": "The run reached its spend cap",
     "LOCAL_KEY_NEEDED": "Your model server asks for a key:",
     "LOCAL_KEY_REJECTED": "The model server rejected the key in",
+    "STALLED": "The model server stopped answering",
     "STOPPED": "Stopped. Nothing is lost",
 }
 #: start-up notes that are not failures (the run goes on)
@@ -186,7 +188,7 @@ def no_folder_lines() -> list[str]:
             "    Linux/macOS:  mkdir makobench && docker run --rm -it -v \"$PWD/makobench:/data\" ...",
             "    PowerShell:   mkdir makobench; docker run --rm -it -v \"${PWD}\\makobench:/data\" ...",
             "    cmd.exe:      mkdir makobench & docker run --rm -it -v \"%cd%\\makobench:/data\" ...",
-            "  (On Fedora or RHEL add :Z after /data.) Nothing was spent."]
+            "  Nothing was spent."]
 
 
 def shared_note(mount: Mount) -> str:

@@ -8,7 +8,7 @@ Usage: fake_openai.py [port] [logfile]   (FAKE_REQUIRE_KEY=<key>: every call nee
 import json, os, sys, threading, time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-PORT = int(sys.argv[1]) if len(sys.argv) > 1 else 18099
+PORT = int(sys.argv[1]) if len(sys.argv) > 1 else 28099
 LOG = sys.argv[2] if len(sys.argv) > 2 else "requests.jsonl"
 #: what GET .../models lists: OpenRouter's shape (id, pricing per token as strings, context_length)
 CTX = int(os.environ.get("FAKE_CTX") or 32768)        # the context window it reports (a local server's, for --local)
@@ -17,6 +17,12 @@ MODELS = [{"id": i, "object": "model", "context_length": CTX,
            "top_provider": {"context_length": CTX, "max_completion_tokens": 32768}}
           for i in ("fake/fake-model", "fake/other-model", "qwen/qwen3.8-27b", "fake-model", "fake-judge")]
 LOCK = threading.Lock()
+#: FAKE_SLOTS=N: a server with N slots (like llama-server -np N or a StudioForge load): requests past N wait in a
+#: queue and get NO byte until a slot frees; FAKE_HOLD_S=s: each answer streams over s seconds (a chunk every 0.5 s)
+SLOTS = int(os.environ.get("FAKE_SLOTS") or 0)
+HOLD_S = float(os.environ.get("FAKE_HOLD_S") or 0)
+SLOT_SEM = threading.BoundedSemaphore(SLOTS) if SLOTS else None
+STATS = {"in_flight": 0, "max_in_flight": 0, "queued_max": 0, "waiting": 0}
 CODE = """```python
 import os, glob, socket, json
 def _probe():
@@ -35,7 +41,7 @@ def _probe():
     out["proc_environ_with_key"] = keys
     out["env_has_key"] = "FAKEKEY" in os.environ
     try:
-        s = socket.create_connection(("host.containers.internal", 18099), 2); s.close(); out["network"] = True
+        s = socket.create_connection(("host.containers.internal", FAKE_PORT), 2); s.close(); out["network"] = True
     except Exception as e:
         out["network"] = str(e)
     try:
@@ -49,7 +55,7 @@ def solve(*args, **kw):
     return 0
 print(0)
 ```
-"""
+""".replace("FAKE_PORT", str(PORT))
 
 def fill(s, depth=0):
     if not isinstance(s, dict): return "ok"
@@ -93,7 +99,11 @@ class H(BaseHTTPRequestHandler):
     def do_GET(self):
         if self._locked(): return
         auth = self.headers.get("Authorization") or ""
-        if self.path.rstrip("/").endswith("/models"):
+        if SLOTS and self.path.rstrip("/").endswith("/props"):
+            self._send(200, {"total_slots": SLOTS})        # llama-server's answer
+        elif self.path.rstrip("/").endswith("/stats"):
+            self._send(200, STATS)
+        elif self.path.rstrip("/").endswith("/models"):
             self._send(200, {"object": "list", "data": MODELS})
         elif self.path.rstrip("/").endswith("/key"):
             if auth.endswith("sk-rejected"):
@@ -112,6 +122,21 @@ class H(BaseHTTPRequestHandler):
         if self._locked(): return
         n = int(self.headers.get("Content-Length") or 0)
         req = json.loads(self.rfile.read(n) or b"{}")
+        if SLOT_SEM is None:
+            return self._answer(req)
+        with LOCK:
+            STATS["waiting"] += 1; STATS["queued_max"] = max(STATS["queued_max"], STATS["waiting"])
+        SLOT_SEM.acquire()                       # queued: silent until a slot frees
+        with LOCK:
+            STATS["waiting"] -= 1; STATS["in_flight"] += 1
+            STATS["max_in_flight"] = max(STATS["max_in_flight"], STATS["in_flight"])
+        try:
+            self._answer(req)
+        finally:
+            with LOCK:
+                STATS["in_flight"] -= 1
+            SLOT_SEM.release()
+    def _answer(self, req):
         if (self.headers.get("Authorization") or "").endswith("sk-402"):
             self._send(402, {"error": {"message": "Insufficient credits. Add more using https://openrouter.ai/settings/credits", "code": 402}})
             return
@@ -132,7 +157,14 @@ class H(BaseHTTPRequestHandler):
             def ch(o):
                 d = ("data: " + json.dumps(o) + "\n\n").encode()
                 self.wfile.write(b"%x\r\n%s\r\n" % (len(d), d))
-            ch({**base, "object": "chat.completion.chunk", "choices": [{"index": 0, "delta": {"role": "assistant", "content": text}, "finish_reason": None}]})
+            if HOLD_S:                           # stream the answer over HOLD_S seconds, a piece every 0.5 s
+                k = max(1, int(HOLD_S / 0.5)); step = max(1, len(text) // k)
+                parts = [text[i:i + step] for i in range(0, len(text), step)]
+                for i, part in enumerate(parts):
+                    if i: time.sleep(HOLD_S / len(parts))
+                    ch({**base, "object": "chat.completion.chunk", "choices": [{"index": 0, "delta": {"role": "assistant", "content": part}, "finish_reason": None}]})
+            else:
+                ch({**base, "object": "chat.completion.chunk", "choices": [{"index": 0, "delta": {"role": "assistant", "content": text}, "finish_reason": None}]})
             ch({**base, "object": "chat.completion.chunk", "choices": [{"index": 0, "delta": {}, "finish_reason": "stop"}], "usage": usage})
             d = b"data: [DONE]\n\n"; self.wfile.write(b"%x\r\n%s\r\n0\r\n\r\n" % (len(d), d))
         else:

@@ -26,6 +26,7 @@ import copy
 import csv
 from pathlib import Path
 import json
+import os
 import logging
 import re
 import threading
@@ -222,7 +223,10 @@ CREATIVE_CATEGORIES = ("rp", "nsfw", "story", "rpdeep")
 # long ends the row (errored, not failed). It never cuts a model that is still
 # producing — a generating model streams continuously. defaults.stall_timeout_s
 # overrides; 0 disables.
-DEFAULT_STALL_S = 300.0
+DEFAULT_STALL_S = float(os.environ.get("CF_STALL_TIMEOUT_S") or 300.0)
+#: a local server's request may wait this long for its first byte (queued behind the server's busy slots) before it
+#: counts as stuck; the stall limit applies from the first byte on (4.5.1)
+LOCAL_FIRST_BYTE_S = 3600.0
 
 # A thinking model on this few parallel slots will overrun the time box: the
 # long pole is several max-budget cases queued behind each other.
@@ -410,6 +414,9 @@ def _metrics_sum(results: list[ChatResult]) -> dict:
             "answer_tokens": _answer_tokens(comp, tot("reasoning_tokens")),
             "tok_per_s": (round(comp / gen, 2) if gen and comp and comp >= 2 else None),
             "prompt_tok_per_s": results[-1].prompt_tok_per_s,
+            # the provider's billed figure, only when EVERY call reported one (else tokens x price, as before)
+            **({"provider_cost_usd": round(sum(r.provider_cost_usd for r in results), 8)}
+               if all(getattr(r, "provider_cost_usd", None) is not None for r in results) else {}),
             "n_turns": len(results)}
 
 
@@ -476,6 +483,8 @@ def _metrics(result: ChatResult) -> dict:
         "reasoning_tokens_source": getattr(result, "reasoning_tokens_source", None),
         "answer_tokens": _answer_tokens(result.completion_tokens, result.reasoning_tokens),
         "tok_per_s": result.tok_per_s, "prompt_tok_per_s": result.prompt_tok_per_s,
+        **({"provider_cost_usd": result.provider_cost_usd}
+           if getattr(result, "provider_cost_usd", None) is not None else {}),
     }
 
 
@@ -833,6 +842,10 @@ class _Ctx:
         """One completion; on eviction/wrong-model, reload once and retry."""
         if self.stall_s:
             kw.setdefault("stall_s", self.stall_s)
+            # a local server queues what it has no slot for: the wait for the first byte is not a stall
+            # (4.5.1); a hosted API answers or refuses at once, so its limit stays the stall limit
+            if getattr(self.provider, "is_hosted", True) is False:
+                kw.setdefault("first_byte_s", max(self.stall_s, self.max_wall_s or 0.0, LOCAL_FIRST_BYTE_S))
         if self.max_wall_s:
             kw.setdefault("max_wall_s", self.max_wall_s)
         if GEN_DEADLINE[0]:
@@ -2161,6 +2174,11 @@ def _run_one_model_body(cfg, entry, cases, csvw: _Csv, smoke,
                              (m.get("cache_read_tokens") or 0) + (m.get("billed_extra_cache_read_tokens") or 0),
                              (m.get("cache_write_tokens") or 0) + (m.get("billed_extra_cache_write_tokens") or 0),
                              native_cache=m.get("cache_write_tokens") is not None)
+                if (m.get("provider_cost_usd") is not None and entry.get("price")
+                        and not (m.get("billed_extra_prompt_tokens") or m.get("billed_extra_completion_tokens"))):
+                    # the provider's own figure for this row (OpenRouter usage.cost, xAI ticks): the same number the
+                    # spend ledger books, so the run summary, Run cost and the closing cost line agree (4.5.1)
+                    c = float(m["provider_cost_usd"])
                 if provider.type == "claude_code":
                     # subscription, not metered: cost 0, and say so (after cache45's pricing,
                     # so the metered providers keep their cache-aware cost)

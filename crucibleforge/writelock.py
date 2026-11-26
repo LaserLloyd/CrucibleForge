@@ -67,13 +67,8 @@ def _pid_of(note: str) -> int | None:
 def _alive(pid: int | None) -> bool:
     if not pid:
         return False
-    try:
-        os.kill(pid, 0)
-    except ProcessLookupError:
-        return False
-    except PermissionError:
-        return True
-    return True
+    from .pidcheck import pid_alive         # never os.kill(pid, 0) on Windows: that is a real Ctrl-C
+    return pid_alive(pid)
 
 
 def acquire(results: Path, command: str, say=None):

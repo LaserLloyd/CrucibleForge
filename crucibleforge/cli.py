@@ -285,12 +285,9 @@ V2_ORPHAN_AGE_S = 24 * 3600
 
 
 def _pid_is_crucibleforge(pid: int) -> bool:
-    try:
-        os.kill(pid, 0)
-    except ProcessLookupError:
+    from .pidcheck import pid_alive         # never os.kill(pid, 0) on Windows: that is a real Ctrl-C
+    if not pid_alive(pid):
         return False
-    except PermissionError:
-        return True
     try:
         cmd = Path(f"/proc/{pid}/cmdline").read_bytes()
     except OSError:

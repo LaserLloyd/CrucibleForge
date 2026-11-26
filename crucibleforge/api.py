@@ -14,6 +14,7 @@ from __future__ import annotations
 import json
 import logging
 import re
+import threading
 import time
 from dataclasses import dataclass, field
 
@@ -48,9 +49,10 @@ RATE_LIMIT_CODES = ("too_many_credential_attempts", "key_rate_limited")
 
 
 def rate_limit_wait(retry_after_s: float | None, waited_s: float) -> float:
-    """The next 429 wait (Retry-After, else 5 s; at most 300 s; never past the
-    15-minute budget). 0 = the budget is spent."""
-    hint = RATE_LIMIT_DEFAULT_S if retry_after_s is None else max(float(retry_after_s), 1.0)
+    """The next 429 wait (Retry-After, else a back-off that doubles: 5, 5, 10, 20, 40 ... s; at most 300 s;
+    never past the 15-minute budget). 0 = the budget is spent."""
+    hint = (max(RATE_LIMIT_DEFAULT_S, waited_s) if retry_after_s is None
+            else max(float(retry_after_s), 1.0))
     return max(0.0, min(hint, RATE_LIMIT_MAX_WAIT_S, RATE_LIMIT_BUDGET_S - waited_s))
 
 
@@ -719,14 +721,44 @@ USD_PER_TICK = 1e-10
 
 
 def provider_cost_usd(usage: dict | None) -> float | None:
-    """The call's billed USD as the provider reports it, or None. Only xAI's
-    ``cost_in_usd_ticks`` is known; a non-numeric or negative value is ignored."""
+    """The call's billed USD as the provider reports it, or None: xAI's ``cost_in_usd_ticks``, or OpenRouter's
+    ``cost`` (USD, its own figure for the call: 4.5.1, the list price x tokens differed from the key's usage).
+    A non-numeric or negative value is ignored."""
     if not isinstance(usage, dict):
         return None
     v = usage.get("cost_in_usd_ticks")
-    if isinstance(v, bool) or not isinstance(v, (int, float)) or v < 0:
-        return None
-    return float(v) * USD_PER_TICK
+    if not isinstance(v, bool) and isinstance(v, (int, float)) and v >= 0:
+        return float(v) * USD_PER_TICK
+    v = usage.get("cost")
+    if not isinstance(v, bool) and isinstance(v, (int, float)) and v >= 0:
+        return float(v)
+    return None
+
+
+def _stall_watchdog(resp, started: dict, stall_s: float) -> None:
+    """From the first byte of the answer on, cut the connection after ``stall_s`` seconds of silence (the socket's
+    own read timeout is then the longer queue limit, see ``first_byte_s``). Shutting the socket down wakes the
+    reading thread, which reports a stall (``started["cut"]``)."""
+    import socket as _socket
+    try:
+        sock = resp.extensions["network_stream"].get_extra_info("socket")
+    except (KeyError, AttributeError):
+        sock = None
+    if sock is None:
+        return
+
+    def watch():
+        while not started.get("done"):
+            time.sleep(min(0.25, stall_s / 4))
+            t = started.get("t")
+            if t is not None and not started.get("done") and time.perf_counter() - t > stall_s:
+                started["cut"] = True
+                try:
+                    sock.shutdown(_socket.SHUT_RDWR)
+                except OSError:
+                    pass
+                return
+    threading.Thread(target=watch, name="stall-watchdog", daemon=True).start()
 
 
 def _merge_tool_call_deltas(raw_deltas: list[dict]) -> list[dict]:
@@ -756,6 +788,7 @@ def stream_chat(base_url: str, api_key: str, model: str, messages: list[dict], *
                 verify_model: bool = True,
                 timeout: float = 900.0,
                 stall_s: float | None = None,
+                first_byte_s: float | None = None,
                 max_wall_s: float | None = None,
                 deadline: float | None = None,
                 rename_params: dict | None = None,
@@ -786,7 +819,10 @@ def stream_chat(base_url: str, api_key: str, model: str, messages: list[dict], *
     OpenAI-compatible backends don't know it).
     stall_s: raise StreamStalled when the server sends nothing for this long
     (a generous safety net for stuck connections — it never cuts a model
-    that is still producing). max_wall_s: raise RowTimeout past this total.
+    that is still producing). first_byte_s: the limit BEFORE the server's first byte of the answer, when it
+    differs (a local server with fewer slots than requests in flight holds the rest in its queue, silent; that
+    wait is not a stall: 4.5.1, a 2-slot StudioForge at 120 tok/s was aborted on three 300 s queue waits). The
+    stall clock starts at the first byte. max_wall_s: raise RowTimeout past this total.
     deadline: an absolute ``time.time()``; past it the request is dropped
     with WindowClosed (the run's time window, not this row's fault).
     """
@@ -841,8 +877,11 @@ def stream_chat(base_url: str, api_key: str, model: str, messages: list[dict], *
         raise WindowClosed("the run's time window closed: request not started")
     window_s = (max(1.0, deadline - time.time()) + 1.0) if deadline else None
     read_timeout = min(x for x in (timeout, stall_s, max_wall_s, window_s) if x)
+    # before the first byte: the (longer) queue limit when one is given; the stall clock starts at the first byte
+    wait_timeout = min(x for x in (timeout, first_byte_s or stall_s, max_wall_s, window_s) if x)
+    started = {"yes": False}
     try:
-        with httpx.Client(timeout=httpx.Timeout(read_timeout, connect=15)) as http:
+        with httpx.Client(timeout=httpx.Timeout(wait_timeout, connect=15)) as http:
             hdrs = {"Content-Type": "application/json", **(headers or {})}
             if api_key:
                 hdrs["Authorization"] = f"Bearer {api_key}"
@@ -913,7 +952,13 @@ def stream_chat(base_url: str, api_key: str, model: str, messages: list[dict], *
                         if choice.get("finish_reason"):
                             r.finish_reason = choice["finish_reason"]
 
+                if wait_timeout != read_timeout:
+                    # the socket's own timeout is the (long) queue limit; from the first byte on, a watchdog
+                    # holds the stall limit: silence on a request the server has STARTED answering
+                    _stall_watchdog(resp, started, read_timeout)
                 for raw_chunk in resp.iter_text():
+                    started["t"] = time.perf_counter()
+                    started["yes"] = True
                     if stopflag.ABORT.is_set():
                         raise Aborted("stopping: stream dropped")
                     if stopflag.CUT.is_set():
@@ -957,12 +1002,20 @@ def stream_chat(base_url: str, api_key: str, model: str, messages: list[dict], *
             raise WindowClosed("the run's time window closed: request dropped") from e
         if max_wall_s and waited >= max_wall_s * 0.99:
             raise RowTimeout(f"request exceeded its {max_wall_s:.0f}s wall-clock ceiling") from e
+        if stall_s and not started["yes"] and wait_timeout != read_timeout:
+            raise StreamStalled(f"no answer started within {wait_timeout:.0f}s (the request waited in the "
+                                f"server's queue or the server is stuck)") from e
         if stall_s:
             raise StreamStalled(f"no data from the server for {read_timeout:.0f}s "
                                 f"(stalled after {waited:.0f}s)") from e
         raise TransportError(str(e) or "read timeout") from e
     except Exception as e:
+        if started.get("cut"):
+            raise StreamStalled(f"no data from the server for {read_timeout:.0f}s after the answer started "
+                                f"(stalled after {time.perf_counter() - t0:.0f}s)") from e
         raise TransportError(str(e)) from e
+    finally:
+        started["done"] = True
 
     r.total_s = time.perf_counter() - t0
     # Strip thinking tags at the boundary — every grader, the judge and the

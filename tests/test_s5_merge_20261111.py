@@ -13,13 +13,16 @@ def test_both_provider_types_exist_and_claude_code_stays_single_threaded():
     assert {"anthropic", "claude_code", "openai"} <= set(PROVIDER_TYPES)
     assert "claude_code" not in providers.HOSTED_TYPES and "anthropic" in providers.HOSTED_TYPES
     cfg = {"providers": {"cc": {"type": "claude_code"},
-                         "an": {"type": "anthropic", "base_url": "http://127.0.0.1:1"}},
+                         "an": {"type": "anthropic", "base_url": "https://api.anthropic.com/v1"},
+                         # 4.5.1: the same API shape on the user's own machine gets one request at a time
+                         "loc": {"type": "anthropic", "base_url": "http://127.0.0.1:1"}},
            "models": [{"name": "a", "provider": "cc", "model_id": "x"}],
            "judge": {"candidates": [{"provider": "cc", "model_id": "x"}]}, "defaults": {}}
     validate_config(cfg)
     clear_cache()
     assert get_provider(cfg, "cc").concurrency == 1
     assert get_provider(cfg, "an").concurrency == providers.API_DEFAULT_CONCURRENCY
+    assert get_provider(cfg, "loc").concurrency == 1
 
 
 def test_claude_code_never_reaches_the_api_or_the_spend_path(monkeypatch):

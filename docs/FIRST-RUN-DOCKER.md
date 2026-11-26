@@ -43,7 +43,7 @@ named `fake/fake-model`, so the prices and balance are the stand-in's):
   PASS  config  models.yaml is valid
   PASS  model   fake/fake-model on OpenRouter ($0.10 in / $0.50 out per million tokens)
   PASS  judge   Qwen 3.8 27B through OpenRouter
-  PASS  plan    about $0.77 for the model and the judge; the run stops at $5.00
+  PASS  plan    about $0.77 for the model and the judge; the run stops at $1.75 (about twice that)
 ```
 
 ## What happens
@@ -53,7 +53,8 @@ named `fake/fake-model`, so the prices and balance are the stand-in's):
    builds the generated questions to size their answers); a line every 15 seconds says which step it is on.
 3. It prints the plan: the model, the judge, whether NSFW+ (adult fiction) is included, the expected cost of the model and
    of the judge (about, and up to, for the standard test, and what the bonus packs add if they all open), and a rough
-   time. It sets two spend limits at about twice the estimate.
+   time. It sets a spend cap of about twice the estimate (model and judge together, rounded up, at least $1): a guard
+   against a runaway, not a budget. `--cap <USD>` after the model id sets another.
 4. It asks `Continue? [y/N]`. Nothing is spent before you answer `y`. (`--yes` skips the question.)
 5. It runs, one line per answer, then prints the result. Each total is printed with its split: the standard score
    plus the bonus points of the harder packs the model opened (the rank is on the total; today's maximum is 17 for
@@ -65,9 +66,14 @@ Code    11.9 of 17 = 9.0 standard + 3.0 bonus
 Chat    9.7 of 17 = 8.0 standard + 1.7 bonus
 Adult (NSFW+, never part of Overall) 9.8 of 26 = 8.9 standard + 0.9 bonus
 Judged by Qwen 3.8 27B through OpenRouter; MakoBench's published scores use the local 8-bit (Q8) judge.
-Judge cost: $0.2149 for 892 call(s) to qwen/qwen3.8-27b on openrouter
+Cost of this run: model $… + judge $… = $… (as billed per call where the provider reports it)
+  (the board's Run cost: $… counts one standard Code and Chat run only, so models compare)
 Open results/report.html in the folder you mounted with -v (for example makobench) in your browser (report.md is the same board as text).
 ```
+
+The cost line is this run's own spend, every part of it (NSFW+, bonus rounds and retries included), as OpenRouter
+bills each call; the board's Run cost is a fixed measure for comparing models. Run the same command again on a
+finished folder and it says `Nothing left to run: the results are complete` at once.
 
 The adult line can instead read `Adult (NSFW+): no number yet (...)`: the judge did not class every adult answer
 (its calls failed, or its check did not pass). The answers are kept; the same command asks the judge again.
@@ -116,6 +122,11 @@ LiteLLM, most shared servers), add `-e LOCAL_API_KEY=<the server's key>` (PowerS
 same server it uses `LOCAL_API_KEY`. Like the OpenRouter key, these stay in the container's memory: they are not
 written to the results folder, not printed, and the model's code cannot see them. Run `check` first: it shows the
 server's model ids when yours is not one of them (give the id exactly as listed) and the context window it reports.
+
+The test sends your server only as many requests at once as it serves: it asks the server (llama-server, StudioForge
+and LM Studio-style servers say it) and otherwise sends one at a time; the plan shows the number and where it came
+from. `--parallel N` sets it yourself, for example after starting llama-server with `-np 4` or Ollama with
+`OLLAMA_NUM_PARALLEL=4`. Time a request waits in the server's queue never counts against it.
 
 `localhost` is changed to your computer's address inside the container (Docker Desktop, Podman and Linux Docker
 each name it differently; the test finds it). `--add-host=host.docker.internal:host-gateway` gives that address a
@@ -166,11 +177,12 @@ shell, `$LASTEXITCODE` in PowerShell). Nothing is spent before the plan is shown
 | `Nothing answered at` | 26 | Your model server is not running, or listens only on localhost: start it on `0.0.0.0` (see above). On Linux add `--add-host=host.docker.internal:host-gateway`; with rootless Docker use your computer's network address. |
 | `Your model server asks for a key:` | 37 | Add `-e LOCAL_API_KEY=<the server's key>` (for `--judge-local` on another server: `-e JUDGE_LOCAL_API_KEY=...`). |
 | `The model server rejected the key in` | 38 | Copy the key again from the server's settings into the variable the message names. |
+| `The model server stopped answering` | 39 | Nothing is lost. For your own server, run the same command with `--parallel 1` (it got more requests at once than it serves); for a hosted model, wait a few minutes and run it again. |
 | `has no model called` | 23 | The server is up but that model is not loaded: load it, or use a name from the list it prints. |
 | `context window is too small for this test` | 34 | Restart your server with the context it names (`llama-server -c N`, LM Studio: Context Length, Ollama: `OLLAMA_CONTEXT_LENGTH=N`). |
 | `No terminal to answer "Continue?" on.` | 25 | Add `-it` to `docker run`, or `--yes` after `test`. |
 | `Not started. Nothing was spent.` | 25 | You answered no. |
-| `The run reached its spend cap` | 36 | Run the same command again: it continues with a fresh cap. |
+| `The run reached its spend cap` | 36 | Nothing is lost. The message says what was spent. Run the same command again: it continues, and the rest gets its own cap of about twice its estimate. If the model writes long answers, add the higher `--cap` the message names. |
 | `The run ended with code` | 27 | Read the lines above it; run the same command again to continue. |
 | `Stopped. Nothing is lost` | 130 | You pressed Ctrl-C (or the computer slept). Run the same command again to continue. |
 | `Note: this folder's file system does not keep owners apart` | - | The run goes on; see Safety above. |

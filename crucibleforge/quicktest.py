@@ -16,6 +16,7 @@ from __future__ import annotations
 import argparse
 import difflib
 import json
+import math
 import os
 import re
 import struct
@@ -35,9 +36,11 @@ OPENROUTER_URL = "https://openrouter.ai/api/v1"
 #: the shipped OpenRouter judge candidate (models.example.yaml `qwen27-judge-openrouter`): its spec resolves to it
 DEFAULT_JUDGE = "openrouter:qwen/qwen3.8-27b"
 CAP_FACTOR = 2.0            # spend caps: about twice the plan's own figure (lead 2026-11-24: a cut run costs more)
-MIN_CAP_USD = 0.50
+#: the smallest cap: below about $0.50 an estimate is mostly noise (reply lengths vary more than the price of a few
+#: dozen calls), so a cheap run is never cut by it; $1 still stops a runaway early
+MIN_CAP_USD = 1.00
 
-from .firstrun import CODES, HEADLINES  # noqa: E402 - every message's headline and exit code live there
+from .firstrun import CODES, HEADLINES, package_version  # noqa: E402 - every message's headline and exit code live there
 
 EXIT_OK = 0
 EXIT_USAGE = 2
@@ -54,6 +57,17 @@ EXIT_STOPPED = CODES["STOPPED"]
 MIN_FREE_DATA_MB = 200
 MIN_FREE_TMP_MB = 500
 #: keys of other services, by their fixed prefix (an OpenRouter key starts with sk-or-)
+def article(name: str) -> str:
+    """'a' or 'an' by how a service name is said: an Anthropic, an OpenAI, an xAI, an HF; a Google, a Groq."""
+    w = name.strip()
+    low = w.lower()
+    if low.startswith(("eu", "uni", "use", "one")):      # said "you-", "won-"
+        return "a"
+    if len(w) > 1 and w[1].isupper() or w.isupper():     # an initialism (xAI, HF, NVIDIA): the first letter's name
+        return "an" if low[:1] in "aefhilmnorsx" else "a"
+    return "an" if low[:1] in "aeiou" else "a"
+
+
 OTHER_KEYS = (("sk-ant-", "Anthropic"), ("sk-proj-", "OpenAI"), ("sk-svcacct-", "OpenAI"), ("AIza", "Google"),
               ("gsk_", "Groq"), ("xai-", "xAI"), ("hf_", "Hugging Face"), ("pplx-", "Perplexity"))
 
@@ -181,7 +195,7 @@ def key_format(raw: str | None) -> str:
                    "  In PowerShell, from a variable:  -e OPENROUTER_API_KEY=$env:OPENROUTER_API_KEY")
     for prefix, who in OTHER_KEYS:
         if key.startswith(prefix):
-            raise fail("KEY_OTHER_PROVIDER", f" it looks like a {who} key. OpenRouter keys start with sk-or-.",
+            raise fail("KEY_OTHER_PROVIDER", f" it looks like {article(who)} {who} key. OpenRouter keys start with sk-or-.",
                        "  Make one at https://openrouter.ai/keys and put it in the command.")
     return key
 
@@ -415,10 +429,12 @@ def host_url(url: str) -> str:
     return url if url.endswith("/v1") else url + "/v1"
 
 
-def ensure_provider(cfg: dict, name: str, base_url: str, key_env: str | None = None) -> None:
+def ensure_provider(cfg: dict, name: str, base_url: str, key_env: str | None = None, parallel: int = 1) -> None:
+    """The provider entry for a server on the user's machine: its address, the NAME of its key variable, and how
+    many requests it gets at once (`parallel`: what the server serves at once, see :func:`local_slots`)."""
     prov = cfg.setdefault("providers", {})
     cur = dict(prov.get(name) or {})
-    cur.update({"type": "openai", "base_url": base_url, "concurrency": int(cur.get("concurrency") or 4)})
+    cur.update({"type": "openai", "base_url": base_url, "concurrency": max(1, int(parallel))})
     if key_env:
         cur["api_key_env"] = key_env
     else:
@@ -501,6 +517,54 @@ def probe_local(url: str, model: str, key_env: str | None = None, what: str = "m
     return None
 
 
+#: never more requests at once to a server on the user's machine than this, whatever it says
+MAX_LOCAL_PARALLEL = 16
+
+
+def local_slots(url: str, model: str, key_env: str | None = None) -> tuple[int, str]:
+    """(requests to send at once, why) for a server on the user's machine: as many as it serves at once, where it
+    says (StudioForge's model list, llama-server /props or /slots, an LM Studio style /api/v1/models), else 1.
+    More than that waits in the server's queue (4.5.1). Each ask is time-boxed; a failure counts as "does not say"."""
+    key = (os.environ.get(key_env, "").strip() if key_env else "") or None
+    root = url[:-3] if url.endswith("/v1") else url
+
+    def ask(u):
+        try:
+            return _get_json(u, key, timeout=5)
+        except (urllib.error.URLError, OSError, ValueError):
+            return None
+
+    def num(v):
+        try:
+            n = int(v)
+        except (TypeError, ValueError):
+            return None
+        return n if n > 0 else None
+
+    def done(n, why):
+        n = min(n, MAX_LOCAL_PARALLEL)
+        return n, f"{n} at a time ({why})"
+    for d in ((ask(url + "/models") or {}).get("data") or []):
+        if isinstance(d, dict) and d.get("id") == model:
+            n = num((d.get("studioforge") or {}).get("parallel")) or num(d.get("parallel"))
+            if n:
+                return done(n, "the server's model list says it serves that many at once")
+    props = ask(root + "/props") or {}
+    n = num(props.get("total_slots")) or num((props.get("default_generation_settings") or {}).get("n_parallel"))
+    if n:
+        return done(n, "llama-server /props")
+    slots = ask(root + "/slots")
+    if isinstance(slots, list) and slots:
+        return done(len(slots), "llama-server /slots")
+    for m in ((ask(root + "/api/v1/models") or {}).get("models") or []):
+        if isinstance(m, dict) and model in (m.get("key"), m.get("id")):
+            for inst in m.get("loaded_instances") or []:
+                n = num((inst.get("config") or {}).get("parallel"))
+                if n:
+                    return done(n, "the server's /api/v1/models")
+    return 1, "1 at a time: the server does not say how many it serves at once (--parallel N sets it)"
+
+
 def local_key_env(which: str, url: str, model_url: str | None = None) -> str | None:
     """The NAME of the variable that holds a local server's key (only names are written to models.yaml):
     LOCAL_API_KEY for the model; JUDGE_LOCAL_API_KEY for --judge-local, else LOCAL_API_KEY when the judge is on the
@@ -569,14 +633,25 @@ def read_plan(text: str) -> dict:
     return out
 
 
-def caps(plan: dict) -> tuple[float | None, float | None]:
-    """(model cap, whole-run cap): about twice the plan's 'thinks at length' figure, and that plus twice the judge's
-    expected figure for the run as a whole. None where the plan has no price (a local model / a local judge)."""
-    mc = plan.get("model_long_usd")
-    model_cap = max(MIN_CAP_USD, round(CAP_FACTOR * mc, 2)) if mc is not None else None
-    jc = plan.get("judge_usd")             # its "up to" figure assumes every reply re-asked: far above any real run
-    total = (model_cap or 0.0) + (max(MIN_CAP_USD, round(CAP_FACTOR * jc, 2)) if jc is not None else 0.0)
-    return model_cap, (round(total, 2) if total else None)
+def cap_step(usd: float) -> float:
+    """Round a cap UP to a step a person reads at a glance: $0.25 under $5, $1 under $50, $5 above."""
+    step = 0.25 if usd < 5 else 1.0 if usd < 50 else 5.0
+    return round(math.ceil(round(usd / step, 6)) * step, 2)
+
+
+def caps(plan: dict, override: float | None = None) -> tuple[float | None, float | None]:
+    """(model cap, whole-run cap). The owner's rule: a spend cap is a runaway guard of about TWICE the run's own
+    plan estimate, never a tight or fixed figure. Estimate = the plan's expected model cost + expected judge cost
+    (each as the plan prices it, pack rounds included); cap = 2 x that, rounded up to a step, at least
+    MIN_CAP_USD. The model's own cap is the same figure (it cannot spend more than the whole run). `override`
+    (--cap) replaces both. (None, None) when nothing in the run is priced (a local model and a local judge)."""
+    if override is not None:
+        return override, override
+    parts = [v for v in (plan.get("model_usd"), plan.get("judge_usd")) if v is not None]
+    if not parts:
+        return None, None
+    cap = max(MIN_CAP_USD, cap_step(CAP_FACTOR * sum(parts)))
+    return (cap if plan.get("model_usd") is not None else None), cap
 
 
 # ---------------------------------------------------------------- result
@@ -625,6 +700,8 @@ def summary_lines(label: str, judge_desc: str) -> list[str]:
         # the judge has not classed every adult answer (its calls failed, or its check did not pass): the answers
         # are kept, the number waits; the same command asks the judge again
         why = str(n.get("judge_pending") or n.get("reason") or "not judged yet")
+        # the engine names its own command; in this container the same `test` command is the way to go on
+        why = re.sub(r"\s*\(?run `crucibleforge [^`]*`\)?", "", why).strip(" ;")
         lines.append(f"Adult (NSFW+): no number yet ({why}); the answers are kept, and the same command asks the "
                      "judge again")
     lines.append(f"Judged by {judge_desc}; MakoBench's published scores use the local 8-bit (Q8) judge.")
@@ -692,19 +769,168 @@ def run_engine(args: list[str], env: dict) -> tuple[int, list[str]]:
     return (EXIT_STOPPED if stops["n"] else rc), tail
 
 
-def diagnose(tail: list[str]) -> tuple[int, list[str]]:
+def _count(text: str) -> int:
+    """--parallel: a whole number from 1 to MAX_LOCAL_PARALLEL."""
+    try:
+        n = int(text)
+    except ValueError:
+        n = 0
+    if not 1 <= n <= MAX_LOCAL_PARALLEL:
+        raise argparse.ArgumentTypeError(f"--parallel takes a whole number from 1 to {MAX_LOCAL_PARALLEL} (got {text!r})")
+    return n
+
+
+def _usd(text: str) -> float:
+    """--cap: a positive dollar amount ('3', '2.50', '$4')."""
+    try:
+        v = float(text.strip().lstrip("$"))
+    except ValueError:
+        v = 0.0
+    if not v > 0 or math.isinf(v):
+        raise argparse.ArgumentTypeError(f"--cap takes an amount in US dollars above 0, like 3 or 2.50 (got {text!r})")
+    return v
+
+
+#: per results folder: the state each model's last COMPLETE `test` left (every answer in, every number made)
+COMPLETE_FILE = ".test-complete.json"
+
+
+def results_fingerprint(label: str, args: list[str]) -> str:
+    """What a resume would have to look at, cheaply: the model's stored answers (size and time of its transcript),
+    models.yaml, the engine's pack-round nothing-owed record (2eb4bd7), this image's version and the options.
+    Any change -> a different fingerprint -> the plan runs as usual."""
+    import hashlib
+    h = hashlib.sha256(json.dumps([label, args, package_version()]).encode())
+    res = results_dir()
+    for f in (res / f"transcripts_{label}.jsonl", config_path(), res / ".ladder-nothing-owed.json"):
+        try:
+            st = f.stat()
+            h.update(f"{f.name}:{st.st_size}:{st.st_mtime_ns}".encode())
+            if f.suffix != ".jsonl":
+                h.update(f.read_bytes())
+        except OSError:
+            h.update(f"{f.name}:missing".encode())
+    return h.hexdigest()[:24]
+
+
+def _complete_path() -> Path:
+    return results_dir() / COMPLETE_FILE
+
+
+def nothing_left(label: str, args: list[str]) -> bool:
+    try:
+        return (json.loads(_complete_path().read_text(encoding="utf-8")) or {}).get(label) == \
+            results_fingerprint(label, args)
+    except (OSError, ValueError):
+        return False
+
+
+def record_complete(label: str, args: list[str], lines: list[str]) -> bool:
+    """After a run that left nothing pending (no 'pending', 'not complete yet' or 'no number yet' in its result):
+    remember the state, so the same command next time says so without planning (the plan takes minutes)."""
+    if any(w in ln for ln in lines for w in ("pending", "not complete yet", "no number yet", "not ranked", "not run")):
+        return False
+    p = _complete_path()
+    try:
+        d = json.loads(p.read_text(encoding="utf-8")) if p.exists() else {}
+        d[label] = results_fingerprint(label, args)
+        p.write_text(json.dumps(d), encoding="utf-8")
+        return True
+    except (OSError, ValueError):
+        return False
+
+
+def ledger_split(path: str | None) -> tuple[float, float] | None:
+    """(model, judge) USD this run booked in its own spend ledger: per call, the provider's billed figure where it
+    reports one (OpenRouter's usage.cost), else tokens at the listed price. None without a ledger."""
+    if not path:
+        return None
+    m = j = 0.0
+    try:
+        for ln in Path(path).read_text(encoding="utf-8").splitlines():
+            try:
+                d = json.loads(ln)
+                c = float(d.get("cost_usd") or 0.0)
+            except (ValueError, TypeError, AttributeError):
+                continue
+            if d.get("kind") == "judge":
+                j += c
+            else:
+                m += c
+    except OSError:
+        return None
+    return m, j
+
+
+def cost_lines(ledger: str | None, tail: list[str]) -> list[str]:
+    """ONE model cost, ONE judge cost and their total for this run (every phase: standard rows, NSFW+, bonus rounds,
+    retries), from the run's ledger. The board's "Run cost" is a different, fixed measure (one standard Code and
+    Chat run, so models compare): named as such."""
+    m, j = ledger_split(ledger) or (0.0, 0.0)
+    if not m:           # no ledger lines for the model (no cap set, or a server the spend rules count as local)
+        m = sum(float(x) for x in re.findall(r"^\s+\S+: \d+ rows, load .*\$(\d+\.\d+)\s*$", "\n".join(tail), re.M))
+    if not j:
+        jl = re.search(r"judge cost, whole run[^:]*: \$(\d+\.\d+)", "\n".join(tail))
+        j = float(jl.group(1)) if jl else 0.0
+    if not (m or j):
+        return []
+    nd = 2 if m + j >= 1 else 4                 # a cheap run keeps its cents' fractions (a stand-in judge: $0.0012)
+    out = [f"Cost of this run: model ${m:.{nd}f} + judge ${j:.{nd}f} = ${m + j:.{nd}f} (as billed per call where "
+           "the provider reports it)"]
+    rc_line = next((ln for ln in reversed(tail) if ln.strip().startswith("Run cost:")), None)
+    if rc_line:
+        out.append(f"  (the board's {rc_line.strip()} counts one standard Code and Chat run only, so models compare)")
+    return out
+
+
+def ledger_spent(path: str | None) -> float | None:
+    """What this run spent, summed from its own spend ledger (model and judge lines); None without one."""
+    if not path:
+        return None
+    total = 0.0
+    try:
+        for ln in Path(path).read_text(encoding="utf-8").splitlines():
+            try:
+                total += float(json.loads(ln).get("cost_usd") or 0.0)
+            except (ValueError, TypeError, AttributeError):
+                continue
+    except OSError:
+        return None
+    return total
+
+
+def diagnose(tail: list[str], spent: float | None = None, cap: float | None = None,
+             local: bool = False) -> tuple[int, list[str]]:
     """(exit code, a plain sentence) for the engine failures a first-time user can fix; (RUN_FAILED, []) else."""
     blob = "\n".join(tail[-200:])
     # the engine's own cap refusal is phrased as an HTTP 402: test it before the provider's 402
     if re.search(r"SpendCapExceeded|spend cap (reached|exceeded)|cap reached", blob, re.I):
-        return CODES["SPEND_CAP"], [HEADLINES["SPEND_CAP"] + " (about twice the estimate) and stopped sending requests.",
-                                    "Run the same command again to continue; each run gets a fresh cap."]
+        higher = cap_step(max(2 * cap, MIN_CAP_USD)) if cap else None
+        return CODES["SPEND_CAP"], [
+            HEADLINES["SPEND_CAP"] + (f" (${cap:.2f})" if cap else "") + " and stopped sending requests"
+            + (f" after spending ${spent:.2f}." if spent is not None else "."),
+            "Nothing is lost: every finished answer is kept. Run the same command again to continue; the rest gets "
+            "its own cap of about twice its estimate.",
+            "If the model simply writes long answers, continue with a higher cap: add --cap "
+            + (f"{higher:.2f}" if higher else "<USD>") + " after the model id."]
+    # a model given up after stalls: say what was seen before any 429 a judge waited out in the same tail
+    stalls = len(re.findall(r"no data from the server for|no answer started within", blob))
+    if re.search(r"consecutive transport failures|aborting this model", blob):
+        seen = f"{stalls} request(s) got no data for minutes" if stalls else "several requests failed in a row"
+        return CODES["STALLED"], [
+            f"{HEADLINES['STALLED']}: {seen}, so the run gave up on the model.",
+            "Nothing is lost: every finished answer is kept, and the same command continues.",
+            *(["Most often the server got more requests at once than it serves: run the same command with "
+               "--parallel 1 after the model name.",
+               "If that does not help, check the server's own log or window for an error."] if local else
+              ["The provider may be overloaded: wait a few minutes and run the same command again."])]
     if re.search(r"\b402\b|insufficient credits|requires more credits|Payment Required", blob, re.I):
         return EXIT_NO_CREDIT, list(_no_credit_lines())
     if re.search(r"\b401\b.*(openrouter|key)|invalid api key|User not found", blob, re.I):
         return EXIT_KEY_REJECTED, [HEADLINES["KEY_REJECTED"] + " during the run. Copy it again from "
                                    "https://openrouter.ai/keys and run the same command: it continues."]
-    if re.search(r"\b429\b|rate.?limit", blob, re.I):
+    # a 429 that was waited out ("waiting Ns") is not why a run ended: only one given up on counts
+    if any(re.search(r"\b429\b|rate.?limit", ln, re.I) and not re.search(r"waiting \d", ln) for ln in tail[-200:]):
         return CODES["RATE_LIMITED"], [f"OpenRouter {HEADLINES['RATE_LIMITED']}",
                                        "Wait a few minutes and run the same command again; nothing is lost."]
     if re.search(r"No space left on device|Disk quota exceeded|ENOSPC|EDQUOT", blob):
@@ -734,6 +960,10 @@ def parse(argv: list[str]) -> argparse.Namespace:
                     help="leave out NSFW+ (adult fiction, never part of Overall)")
     ap.add_argument("--local", metavar="URL", help="the model runs on an OpenAI-compatible server at URL "
                     "(Ollama http://localhost:11434, llama-server/LM Studio http://localhost:8080 or :1234)")
+    ap.add_argument("--cap", type=_usd, metavar="USD", help="stop the run when it has spent USD (default: about "
+                    "twice the plan's estimate)")
+    ap.add_argument("--parallel", type=_count, metavar="N", help="requests at once to your own server (--local, "
+                    "--judge-local); default: as many as the server serves at once where it says, else 1")
     ap.add_argument("--judge-local", nargs=2, metavar=("URL", "MODEL"), help="judge with a model on your own server")
     ap.add_argument("--smoke", action="store_true", help=argparse.SUPPRESS)
     ap.add_argument("--no-ladder", action="store_true", help=argparse.SUPPRESS)
@@ -853,6 +1083,7 @@ def _main(a: argparse.Namespace) -> int:
         save_cfg(cfg)
 
     ctx = None
+    at_once: dict = {}
 
     def _model():
         nonlocal ctx
@@ -860,12 +1091,16 @@ def _main(a: argparse.Namespace) -> int:
             url = host_url(a.local)
             kenv = local_key_env("model", url)
             ctx = probe_local(url, a.model, kenv, "model")
-            ensure_provider(cfg, "local", url, kenv)
+            par, why = (a.parallel, f"{a.parallel} at a time (--parallel)") if a.parallel else \
+                local_slots(url, a.model, kenv)
+            at_once["model"] = why
+            ensure_provider(cfg, "local", url, kenv, par)
             save_cfg(cfg)
             lab = register(cfg, label_for(a.model), "local", a.model, ctx, None)
             return (lab, f"{a.model} on your server ({url})"), f"{a.model} answers at {url}" + (
                 f" (key from {kenv})" if kenv else "") + (
-                f"; context window {ctx} tokens" if ctx else "; the server does not say its context window")
+                f"; context window {ctx} tokens" if ctx else "; the server does not say its context window") + \
+                f"; requests: {why}"
         info = find_model(openrouter_models(), a.model)
         pr = info.get("pricing") or {}
         try:
@@ -888,9 +1123,12 @@ def _main(a: argparse.Namespace) -> int:
             jurl = host_url(a.judge_local[0])
             kenv = local_key_env("judge", jurl, host_url(a.local) if a.local else None)
             probe_local(jurl, a.judge_local[1], kenv, "judge")
-            ensure_provider(c2, "localjudge", jurl, kenv)
+            par, why = (a.parallel, f"{a.parallel} at a time (--parallel)") if a.parallel else \
+                local_slots(jurl, a.judge_local[1], kenv)
+            at_once["judge"] = why
+            ensure_provider(c2, "localjudge", jurl, kenv, par)
             save_cfg(c2)
-            judge, judge_desc = f"localjudge:{a.judge_local[1]}", f"{a.judge_local[1]} on your server"
+            judge, judge_desc = f"localjudge:{a.judge_local[1]}", f"{a.judge_local[1]} on your server ({why})"
         else:
             judge, judge_desc = DEFAULT_JUDGE, "Qwen 3.8 27B through OpenRouter"
         return None, judge_desc
@@ -900,19 +1138,23 @@ def _main(a: argparse.Namespace) -> int:
         (["--smoke"] if a.smoke else []) + (["--no-ladder"] if a.no_ladder else [])
     plan: dict = {}
     extra: list[str] = []
+    done = bool(label and judge) and nothing_left(label, common)
 
     def _plan():
         nonlocal plan, extra
+        if done:
+            return True, "nothing left to run: the results are complete"
         say("  ....  plan    working out the questions, the cost and the time (can take a few minutes) ...")
         rc, out = engine_out("all", *common, "--plan", tick="still planning", phases=True)
         if rc != 0:
             raise Fail(EXIT_RUN_FAILED, "The plan failed:", *out.strip().splitlines()[-15:])
         plan = read_plan(out)
         extra = context_check(out, ctx, local=bool(a.local))
-        mc, rc_ = caps(plan)
+        mc, rc_ = caps(plan, a.cap)
         cost = sum(v for v in (plan.get("model_usd"), plan.get("judge_usd")) if v is not None)
         det = (f"about ${cost:.2f} for the model and the judge" if cost else "no hosted cost") + \
-            (f"; the run stops at ${rc_:.2f}" if rc_ else "")
+            (f"; the run stops at ${rc_:.2f}" + (" (--cap)" if a.cap is not None else " (about twice that)")
+             if rc_ else "")
         bal = (keyinfo or {}).get("balance") if isinstance(keyinfo, dict) else None
         if bal is not None and rc_ and bal < rc_:
             det += f" (your balance ${bal:.2f} may run out first: the run then stops and continues later)"
@@ -927,27 +1169,38 @@ def _main(a: argparse.Namespace) -> int:
         say("", "Ready. Start it with the same command, with test instead of check.")
         return EXIT_OK
     assert planned and label and judge
-    model_cap, run_cap = caps(plan)
+    if done:
+        say("", "Nothing left to run: the results are complete (this command made no request).", "",
+            *summary_lines(label, judge_desc))
+        say(*files_lines())
+        return EXIT_OK
+    model_cap, run_cap = caps(plan, a.cap)
     say("", "Plan", f"  model:  {model_desc}", f"  judge:  {judge_desc}",
         "  NSFW+ (adult fiction): " + ("left out (--no-adult)" if a.no_adult else
                                        "included, scored apart from Overall (--no-adult leaves it out)"))
     if plan.get("model_usd") is not None:
         say(f"  model cost:  about ${plan['model_usd']:.2f} (up to ${plan['model_long_usd']:.2f} if it thinks at "
-            f"length); stops at ${model_cap:.2f}")
+            "length)")
     if plan.get("judge_usd") is not None:
         more = plan.get("judge_packs_max_usd")
         say(f"  judge cost:  about ${plan['judge_usd']:.2f}, up to ${plan['judge_max_usd']:.2f} for the standard test"
             + (f" and ${more:.2f} more if every bonus pack opens" if more else "")
             + " (billed by OpenRouter, apart from the model's cost)")
+    for who, why in at_once.items():
+        say(f"  {who} requests: {why}")
     if run_cap:
-        say(f"  whole run stops at ${run_cap:.2f} of spending")
+        say(f"  spend cap:   the run stops at ${run_cap:.2f}, " + ("set with --cap" if a.cap is not None else
+            "about twice the estimate (a guard against a runaway, not a budget; --cap <USD> sets another)"))
     if plan.get("minutes"):
         say(f"  time:  the plan's rough estimate is {plan['minutes']:.0f} min (hosted models are often faster)")
-    if plan.get("owed"):
+    owed = [ln.replace("owed on resume:", "").strip() for ln in plan.get("owed") or []]
+    if owed and all(o.startswith("none") for o in owed):
+        say("  Every answer is already in this folder: no new answers are paid for; this command only finishes "
+            "what is left (judging, bonus rounds, the board).")
+    elif owed:
         say("  An earlier run in this folder stopped before the end: this command continues it.")
-    for ln in plan.get("owed") or []:
-        say("  earlier results in this folder: owed again: " + ln.replace("owed on resume:", "").strip()
-            + f" ({plan.get('rows') or 'the'} rows to run are in the cost above)")
+        for o in owed:
+            say(f"  still to run: {o}")
     say("  The coding answers run inside this container (see 'Safety' in docs/FIRST-RUN-DOCKER.md).")
 
     if not a.yes:
@@ -973,18 +1226,22 @@ def _main(a: argparse.Namespace) -> int:
     run_args = ["all", *common] + (["--spend-cap-usd", f"{model_cap:.2f}"] if model_cap else [])
     say("", "Running (the same command continues it later if it stops) ...", "")
     rc, tail = run_engine(run_args, env)
+    spent_usd = ledger_spent(env.get("CF_SPEND_LEDGER"))
     mins = (time.time() - t0) / 60
     if rc == EXIT_STOPPED:
         say("", HEADLINES["STOPPED"] + ": run the same command again to continue.")
         return EXIT_STOPPED
-    say("", f"Finished in {mins:.0f} min." if rc == 0 else f"{HEADLINES['RUN_FAILED']} {rc} after {mins:.0f} min.")
-    code, why = diagnose(tail) if rc else (EXIT_OK, [])
+    # one number: the exit code this command returns (the engine's own code is in its log)
+    code, why = diagnose(tail, spent_usd, run_cap, bool(a.local or a.judge_local)) if rc else (EXIT_OK, [])
+    say("", f"Finished in {mins:.0f} min." if rc == 0 else f"{HEADLINES['RUN_FAILED']} {code} after {mins:.0f} min."
+        if code == EXIT_RUN_FAILED else f"The run stopped after {mins:.0f} min (exit code {code}):")
     for ln in why:
         say(ln)
-    say("", *summary_lines(label, judge_desc))
-    jc = next((ln for ln in reversed(tail) if ln.startswith("judge cost, whole run")), None)
-    if jc:
-        say(jc.replace("judge cost, whole run (every judge phase)", "Judge cost").split(" (billed apart")[0])
+    result = summary_lines(label, judge_desc)
+    say("", *result)
+    say(*cost_lines(env.get("CF_SPEND_LEDGER"), tail))
+    if rc == 0:
+        record_complete(label, common, result)
     say(*files_lines())
     return EXIT_OK if rc == 0 else code
 

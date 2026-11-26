@@ -10,7 +10,9 @@
 set -u
 ENGINE=${ENGINE:-docker}
 IMAGE=${IMAGE:-crucibleforge:dev}
-PORT=${PORT:-18099}
+# the two fake servers listen on PORT and PORT+1: well away from the ports model servers use (1234, 8000, 8080,
+# 11434) and the ranges their workers take (18100-18199 seen on a Windows rig)
+PORT=${PORT:-28099}
 HERE=$(cd "$(dirname "$0")" && pwd)
 MSYS=""
 case "$(uname -s 2>/dev/null)" in MINGW*|MSYS*|CYGWIN*) MSYS=1; export MSYS_NO_PATHCONV=1 MSYS2_ARG_CONV_EXCL='*' ;; esac
@@ -34,12 +36,24 @@ if [ -n "${E2E_HOST:-}" ]; then HOSTNAME_IN=$E2E_HOST; ADDHOST=""; fi
 Z=""
 [ -e /sys/fs/selinux/enforce ] && [ "$(cat /sys/fs/selinux/enforce 2>/dev/null)" = "1" ] && Z=":Z"
 
-"$PY" "$HERE/fake_openai.py" "$PORT" "$LOG" & FPID=$!
+# a native Windows python (Git Bash) needs C:/... paths: MSYS path conversion is off on purpose (see above)
+FAKEPY="$(hostpath "$HERE")/fake_openai.py"
+LPORT=$((PORT + 1)); SPORT=$((PORT + 2))
+for p in "$PORT" "$LPORT" "$SPORT"; do
+    if ! "$PY" -c "import socket,sys; s=socket.socket(); s.bind(('0.0.0.0', int(sys.argv[1]))); s.close()" "$p" 2>/dev/null; then
+        echo "E2E STOP: port $p is already in use on this computer (the fake servers need PORT, PORT+1 and PORT+2)."
+        echo "  Pick two free ones: PORT=<n> sh deploy/e2e/offline_e2e.sh  (now PORT=$PORT)"
+        rm -rf "$WORK"; exit 2
+    fi
+done
+"$PY" "$FAKEPY" "$PORT" "$(hostpath "$LOG")" & FPID=$!
 # a second fake: a local model server that asks for a key (StudioForge, vLLM --api-key, llama-server --api-key)
-LPORT=$((PORT + 1)); LKEY=local-e2e-key-0001
-FAKE_REQUIRE_KEY=$LKEY FAKE_CTX=262144 "$PY" "$HERE/fake_openai.py" "$LPORT" "$LOG.local" & LPID=$!
+LKEY=local-e2e-key-0001
+FAKE_REQUIRE_KEY=$LKEY FAKE_CTX=262144 "$PY" "$FAKEPY" "$LPORT" "$(hostpath "$LOG.local")" & LPID=$!
+# a third: a server with ONE slot that queues the rest silently and streams each answer over 1 s (llama-server -np 1)
+FAKE_SLOTS=1 FAKE_HOLD_S=1 FAKE_CTX=262144 "$PY" "$FAKEPY" "$SPORT" "$(hostpath "$LOG.slots")" & SPID=$!
 VOL=cf-e2e-$$
-trap 'kill $FPID $LPID 2>/dev/null; $ENGINE volume rm -f "$VOL" >/dev/null 2>&1; [ -n "${KEEP:-}" ] || rm -rf "$WORK" 2>/dev/null' EXIT
+trap 'kill $FPID $LPID $SPID 2>/dev/null; $ENGINE volume rm -f "$VOL" >/dev/null 2>&1; [ -n "${KEEP:-}" ] || rm -rf "$WORK" 2>/dev/null' EXIT
 sleep 1
 
 FAKE="http://$HOSTNAME_IN:$PORT/api/v1"
@@ -84,7 +98,7 @@ out=$(runm "$V" $SELFTEST 2>&1); rc=$?
 # user-namespace map that leaves the folder's owner unmapped; the run must work and say the folder is shared
 if [ "$ENGINE" = "podman" ] && [ -z "$MSYS" ]; then
     mkdir -p "$WORK/ign"; chmod 777 "$WORK/ign"
-    out=$(runm "--uidmap 0:1:65536 --gidmap 0:1:65536 -e CF_ASSUME_REAL_ROOT=1 -v $WORK/ign:/data$Z" \
+    out=$(runm "--uidmap 0:1:65536 --gidmap 0:1:65536 -e CF_ASSUME_REAL_ROOT=1 -v $(hostpath "$WORK/ign"):/data$Z" \
           test fake/fake-model --yes 2>&1); rc=$?
     [ $rc -eq 20 ] && echo "$out" | grep -q "does not keep owners apart" \
         && ok "folder that ignores chown: runs, says the folder is shared" || fail "ignored chown: rc $rc: $out"
@@ -102,7 +116,7 @@ out=$(run "" "$WORK/f" test fake/fake-model --yes 2>&1); rc=$?
 out=$(run '"sk-or-v1-quoted"' "$WORK/f" test fake/fake-model --yes 2>&1); rc=$?
 [ $rc -eq 21 ] && echo "$out" | grep -q "quote marks" && ok "quoted key: rc 21" || fail "quoted key: rc $rc: $out"
 out=$(run sk-ant-e2e "$WORK/f" test fake/fake-model --yes 2>&1); rc=$?
-[ $rc -eq 21 ] && echo "$out" | grep -q "Anthropic key" && ok "another service's key: rc 21" || fail "other key: rc $rc"
+[ $rc -eq 21 ] && echo "$out" | grep -q "an Anthropic key" && ok "another service's key: rc 21" || fail "other key: rc $rc"
 out=$(run sk-busy "$WORK/f" test fake/fake-model --yes 2>&1); rc=$?
 [ $rc -eq 30 ] && echo "$out" | grep -q "nothing is lost" && ok "rate limited: rc 30" || fail "429: rc $rc: $out"
 out=$($ENGINE run --rm -e OPENROUTER_API_KEY=sk-e2e -e CRUCIBLEFORGE_OPENROUTER_URL=http://no-such-host.invalid/api/v1 \
@@ -134,6 +148,22 @@ if [ $rc -eq 0 ] && echo "$out" | grep -q "PASS  model.*context window 262144" &
     && grep -q "api_key_env: LOCAL_API_KEY" "$WORK/l/models.yaml" && ! grep -rq "$LKEY" "$WORK/l" 2>/dev/null; then
     ok "local server with the right key: check rc 0, context reported, key only by name in models.yaml"
 else fail "local right key: rc $rc: $out"; fi
+# a 1-slot server: check reads its slots; a run with 4 requests in flight (3 wait in its queue, silent, longer than
+# the 2 s stall limit set here) must finish without a stall: queue time is not silence (4.5.1, the rig's StudioForge)
+SL="--local http://$HOSTNAME_IN:$SPORT --judge-local http://$HOSTNAME_IN:$SPORT fake-judge"
+mkdir -p "$WORK/s"
+# shellcheck disable=SC2086
+out=$($ENGINE run --rm $ADDHOST -v "$(hostpath "$WORK/s"):/data$Z" "$IMAGE" check fake-model $SL 2>&1); rc=$?
+[ $rc -eq 0 ] && echo "$out" | grep -q "requests: 1 at a time (llama-server /props)" \
+    && ok "check reads the server's slots: 1 at a time (llama-server /props)" || fail "slots check: rc $rc: $out"
+# shellcheck disable=SC2086
+out=$($ENGINE run --rm $ADDHOST -e CF_STALL_TIMEOUT_S=2 -v "$(hostpath "$WORK/s"):/data$Z" "$IMAGE" \
+      test fake-model $SL --smoke --yes --parallel 4 2>&1); rc=$?
+q=$(curl -s "http://127.0.0.1:$SPORT/stats" 2>/dev/null | "$PY" -c "import json,sys; print(json.load(sys.stdin)['queued_max'])" 2>/dev/null)
+if [ $rc -eq 0 ] && ! echo "$out" | grep -q "no data from the server\|no answer started\|stopped answering" \
+    && [ "${q:-0}" -ge 2 ]; then
+    ok "1-slot server, 4 at once, 2 s stall limit: up to $q queued, no stall, rc 0"
+else fail "slotted run: rc $rc, queued ${q:-?}: $(echo "$out" | tail -n 15)"; fi
 mkdir -p "$WORK/c"; printf 'providers:\n  openrouter: {type: openai\n' > "$WORK/c/models.yaml"
 out=$(run sk-e2e "$WORK/c" test fake/fake-model --yes 2>&1); rc=$?
 [ $rc -eq 31 ] && echo "$out" | grep -q "line" && ok "broken models.yaml: rc 31, names the line" || fail "config: rc $rc: $out"
@@ -172,7 +202,8 @@ echo "$out" > "$WORK/run1.txt"
 grep -q "^Overall " "$WORK/run1.txt" && ok "summary: $(grep '^Overall' "$WORK/run1.txt")" || fail "no Overall line"
 grep -q "^Code " "$WORK/run1.txt" && grep -q "^Chat " "$WORK/run1.txt" && ok "Code and Chat lines" || fail "no Code/Chat lines"
 grep -q "^Adult (NSFW+" "$WORK/run1.txt" && ok "adult line" || fail "no adult line"
-grep -q "^Judge cost: \$0\.0*[1-9]" "$WORK/run1.txt" && ok "$(grep '^Judge cost' "$WORK/run1.txt")" || fail "no non-zero judge cost line"
+grep -q "^Cost of this run: model \$[0-9.]* + judge \$0\.0*[1-9]" "$WORK/run1.txt" && ok "$(grep '^Cost of this run' "$WORK/run1.txt")" \
+    || fail "no cost line with a non-zero judge cost"
 grep -q "report.html" "$WORK/run1.txt" && ok "names report.html" || fail "does not say which file to open"
 [ -s "$WORK/r/results/report.html" ] && [ -s "$WORK/r/results/report.md" ] && ok "report files on the host" || fail "no report files"
 if [ -n "$MSYS" ]; then

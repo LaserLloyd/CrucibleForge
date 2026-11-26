@@ -401,13 +401,13 @@ def estimate_call_cost(price: dict | None, messages=None, max_tokens=None) -> fl
 
 
 def _pid_alive(pid) -> bool:
+    """Alive, or unknown (an unreadable id holds its reservation, as before); never os.kill(pid, 0) on Windows."""
+    from .pidcheck import pid_alive
     try:
-        os.kill(int(pid), 0)
-    except ProcessLookupError:
-        return False
-    except (PermissionError, ValueError, TypeError, OSError):
+        int(pid)
+    except (ValueError, TypeError):
         return True
-    return True
+    return pid_alive(pid)
 
 
 class _Ledger:

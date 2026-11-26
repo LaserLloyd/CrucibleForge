@@ -58,7 +58,7 @@ In short:
   The entrypoint now decides the run user, makes the folder that user's, proves it by writing a file as that user,
   never removes a permission the user writes through, and checks that the graded code's user cannot write the
   folder; a file system that keeps its own owners is detected and said in one line (`crucibleforge/firstrun.py`).
-- **Every first-run failure ends with what to do, for this machine, and its own exit code** (20 to 38): no folder
+- **Every first-run failure ends with what to do, for this machine, and its own exit code** (20 to 39): no folder
   given (`-v`), a folder that cannot be written (the fix named for Docker Desktop on Windows or a Mac, SELinux, a
   network share or a root-owned Linux folder), low disk, an empty, quoted or other service's key, a rejected key,
   no credit, HTTP 429, an unknown model id, no DNS, no route, a proxy or certificate interception (`HTTPS_PROXY`,
@@ -72,6 +72,25 @@ In short:
   `models.yaml`; the jail self-test checks both keys are out of the graded code's reach. A missing key (exit 37) and
   a rejected key (exit 38) have their own messages; a wrong model id lists the server's ids, and `check` reports the
   server's context window against what the suite needs.
+- **A local server with few slots is no longer aborted as "stalled"** (Windows re-test, a 2-slot StudioForge at
+  120 tok/s): the run kept 4 requests in flight, the rest waited in the server's queue, and that silent wait counted
+  toward the 300 s stall clock. Now `test --local` sends as many requests at once as the server serves (StudioForge's
+  model list, llama-server `/props` or `/slots`, an LM Studio-style `/api/v1/models`; else 1, and the plan says
+  which), `--parallel N` sets it, and an OpenAI-compatible server on your own machine defaults to 1 in the engine
+  too (was 8). For a local server the stall clock starts at the answer's first byte (a queued request may wait up to
+  an hour); silence after that is still a stall. A run that does end on stalls says so (exit 39) and names
+  `--parallel 1`; a 429 that was waited out is no longer reported as the reason, 429 waits back off (5, 5, 10, 20 s
+  ... within 15 min), and the closing message prints one exit code, the one the command returns.
+- **One cost figure**: OpenRouter's own per-call `usage.cost` is booked (rows, run summary, spend ledger), and the
+  test ends with `Cost of this run: model $A + judge $B = $C`; the board's Run cost is named as the fixed
+  per-model measure it is (one standard Code and Chat run).
+- **A later run of the same command**: with nothing owed it says so ("Every answer is already in this folder"), and
+  once a run left nothing pending, the same command says "Nothing left to run: the results are complete" without
+  planning (it took 100-150 s on a Windows folder). The NSFW+ line no longer names `crucibleforge judge`.
+- **The `test` spend cap is about twice the plan's expected total** (model + judge, as the plan prices them), rounded
+  up ($0.25 steps under $5, $1 under $50, $5 above), at least $1, so a very cheap run is not cut by estimate noise.
+  It was twice the "thinks at length" figure plus the judge, which came to $5.00 for a $0.77 plan. `--cap <USD>`
+  sets another; a cap stop says what was spent, that nothing is lost, and the higher `--cap` to continue with.
 - `test` and `check` are listed in `crucibleforge --help`; a Ctrl-C stop reads "stopped", not "FAILED"; the
   entrypoint prints its routine lines only with `CF_VERBOSE=1` and names the package version; planning prints which
   step it is on; an adult page the judge has not classed says why and that the same command retries it.

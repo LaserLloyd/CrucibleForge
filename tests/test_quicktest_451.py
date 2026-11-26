@@ -138,7 +138,8 @@ def test_no_terminal_refuses_before_spending(fake, monkeypatch, capsys):
     rc, out = _run(capsys, "openai/gpt-6-luna")
     assert rc == qt.EXIT_NOT_CONFIRMED and "--yes" in out
     assert not ran and all("--plan" in c for c in calls)
-    assert "model cost:  about $0.40" in out and "stops at $1.80" in out    # cap = twice the long figure
+    # cap = twice the expected total (0.40 + 0.20), rounded up to the next $0.25
+    assert "model cost:  about $0.40" in out and "the run stops at $1.25, about twice the estimate" in out
 
 
 def test_answer_no_starts_nothing(fake, monkeypatch, capsys):
@@ -154,11 +155,50 @@ def test_answer_no_starts_nothing(fake, monkeypatch, capsys):
     assert rc == qt.EXIT_NOT_CONFIRMED and "Nothing was spent" in out and not ran
 
 
-def test_caps_are_about_twice_the_estimate():
-    m, r = qt.caps({"model_long_usd": 0.9, "judge_usd": 0.35, "judge_max_usd": 9.0})
-    assert m == 1.8 and r == pytest.approx(1.8 + 0.7)
+@pytest.mark.parametrize("model,judge,cap", [
+    (0.47, 0.30, 1.75),      # the page's example: about $0.77 -> 1.54 -> $1.75 (the old rule said $5.00)
+    (0.47, 0.21, 1.50),      # the measured gpt-6-luna plan, $0.68 (the run cost $0.82, 1.2x)
+    (0.05, 0.02, 1.00),      # a very cheap run: the floor, not 0.14
+    (3.10, 0.90, 8.00),      # $1 steps from $5
+    (40.0, 14.0, 110.0),     # $5 steps from $50
+    (0.40, None, 1.00),      # a local judge: the model alone
+])
+def test_cap_is_about_twice_the_plans_expected_total(model, judge, cap):
+    m, r = qt.caps({"model_usd": model, "model_long_usd": model * 3, "judge_usd": judge, "judge_max_usd": 9.0})
+    assert r == cap and m == cap
+    assert cap >= 2 * (model + (judge or 0)) and (cap == qt.MIN_CAP_USD or cap <= 2 * (model + (judge or 0)) * 1.3)
+
+
+def test_cap_edge_cases_and_override():
     assert qt.caps({}) == (None, None)
-    assert qt.caps({"model_long_usd": 0.01})[0] == qt.MIN_CAP_USD
+    assert qt.caps({"judge_usd": 0.6}) == (None, 1.25)                 # a local model, judged on OpenRouter
+    assert qt.caps({"model_usd": 0.4, "judge_usd": 0.2}, 7.5) == (7.5, 7.5)
+    assert qt.cap_step(1.5) == 1.5 and qt.cap_step(1.51) == 1.75 and qt.cap_step(5.2) == 6.0
+    with pytest.raises(SystemExit):
+        qt.parse(["openai/gpt-6-luna", "--cap", "0"])
+    assert qt.parse(["openai/gpt-6-luna", "--cap", "$4"]).cap == 4.0
+
+
+def test_cap_flag_reaches_the_plan_and_the_engine(fake, monkeypatch, capsys):
+    _planned(monkeypatch)
+    ran = []
+    monkeypatch.setattr(qt, "run_engine", lambda args, env: ran.append((args, env)) or (0, []))
+    monkeypatch.setattr(qt, "summary_lines", lambda *a: [])
+    rc, out = _run(capsys, "openai/gpt-6-luna", "--yes", "--cap", "3")
+    assert "the run stops at $3.00, set with --cap" in out
+    args, env = ran[0]
+    assert args[args.index("--spend-cap-usd") + 1] == "3.00" and env["CF_SPEND_GLOBAL_CAP_USD"] == "3.00"
+
+
+def test_cap_stop_says_what_was_spent_and_how_to_go_on(tmp_path):
+    led = tmp_path / "l.jsonl"
+    led.write_text('{"cost_usd": 1.0}\n{"cost_usd": 0.62, "kind": "judge"}\nnot json\n', encoding="utf-8")
+    spent = qt.ledger_spent(str(led))
+    assert spent == pytest.approx(1.62) and qt.ledger_spent(None) is None
+    code, lines = qt.diagnose(["crucibleforge global spend cap reached: $1.75 booked"], spent, 1.75)
+    text = "\n".join(lines)
+    assert code == qt.CODES["SPEND_CAP"] and "($1.75)" in text and "after spending $1.62" in text
+    assert "Nothing is lost" in text and "--cap 3.50" in text
 
 
 def test_no_adult_is_an_alias():
@@ -173,6 +213,9 @@ def test_host_url_in_a_container(monkeypatch):
     assert qt.host_url("http://192.0.2.5:8080") == "http://192.0.2.5:8080/v1"
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="POSIX signals: the engine is drained with SIGUSR1, which Windows "
+                    "lacks, and a console Ctrl-C there reaches every process on the console, pytest included; the "
+                    "image (Linux) is where this path runs")
 def test_ctrl_c_stops_cleanly_and_says_how_to_continue(tmp_path):
     """A real child engine stand-in: the first Ctrl-C drains it, the wrapper reports 'run the same command'."""
     child = tmp_path / "eng.py"
@@ -333,11 +376,12 @@ def test_check_prints_pass_and_fix_lines_and_spends_nothing(fake, monkeypatch, c
     assert "balance $4.00" in out and out.rstrip().endswith("test instead of check.")
 
 
-def test_check_collects_every_fix_and_exits_with_the_first_code(fake, monkeypatch, capsys):
+@pytest.mark.parametrize("key,code", [("sk-rejected", qt.EXIT_KEY_REJECTED), ("sk-limit", qt.EXIT_NO_CREDIT)])
+def test_check_collects_every_fix_and_exits_with_the_first_code(fake, monkeypatch, capsys, key, code):
     _planned(monkeypatch)
-    monkeypatch.setenv("OPENROUTER_API_KEY", "sk-rejected")
+    monkeypatch.setenv("OPENROUTER_API_KEY", key)
     rc, out = _run(capsys, "openai/gpt-6-lune", "--check")
-    assert rc == qt.EXIT_KEY_REJECTED
+    assert rc == code
     assert "FIX   key" in out and "FIX   model" in out and "SKIP  plan" in out
 
 
@@ -441,3 +485,82 @@ def test_check_local_with_key_passes_and_writes_only_the_variable_name(locked, f
     monkeypatch.delenv("LOCAL_API_KEY")
     rc, out = _run(capsys, LOCAL_IDS[0], "--check", "--local", locked)
     assert rc == 37 and "FIX   model" in out and "-e LOCAL_API_KEY=" in out
+
+
+@pytest.mark.parametrize("name,art", [("Anthropic", "an"), ("OpenAI", "an"), ("Google", "a"), ("Groq", "a"),
+                                      ("xAI", "an"), ("Hugging Face", "a"), ("Perplexity", "a"), ("HF", "an"),
+                                      ("Unified", "a"), ("Ollama", "an")])
+def test_the_article_fits_the_service_name(name, art):
+    assert qt.article(name) == art
+
+
+def test_another_services_key_reads_right_for_every_known_prefix():
+    for prefix, who in qt.OTHER_KEYS:
+        with pytest.raises(qt.Fail) as e:
+            qt.key_format(prefix + "x" * 30)
+        text = "\n".join(e.value.lines)
+        assert f"looks like {qt.article(who)} {who} key" in text
+        assert " a Anthropic" not in text and " a OpenAI" not in text and " a xAI" not in text
+
+
+def test_no_folder_message_has_no_linux_only_hint():
+    from crucibleforge.firstrun import no_folder_lines
+    text = "\n".join(no_folder_lines())
+    assert ":Z" not in text and "Fedora" not in text
+    assert "PowerShell" in text and "cmd.exe" in text and "Linux/macOS" in text
+
+
+# ---------------------------------------------------------------- a later run of the same command (4.5.1)
+def test_a_complete_folder_is_recognised_before_planning(fake, monkeypatch, capsys):
+    calls = _planned(monkeypatch)
+    res = qt.results_dir()
+    res.mkdir(parents=True, exist_ok=True)
+    (res / "transcripts_gpt-6-luna.jsonl").write_text("{}\n", encoding="utf-8")
+    args = ["--models", "gpt-6-luna", "--judge", qt.DEFAULT_JUDGE]
+    assert not qt.record_complete("gpt-6-luna", args, ["Overall 1.0 of 34", "Code    pending"])
+    assert qt.record_complete("gpt-6-luna", args, ["Overall 1.0 of 34 = 1.0 standard + 0.0 bonus"])
+    assert qt.nothing_left("gpt-6-luna", args)
+    ran = []
+    monkeypatch.setattr(qt, "run_engine", lambda *a, **k: ran.append(a) or (0, []))
+    monkeypatch.setattr(qt, "summary_lines", lambda *a: ["Overall 1.0 of 34"])
+    rc, out = _run(capsys, "openai/gpt-6-luna", "--yes")
+    assert rc == 0 and not ran and not calls, out             # no plan, no run
+    assert "Nothing left to run: the results are complete" in out
+    (res / "transcripts_gpt-6-luna.jsonl").write_text("{}\n{}\n", encoding="utf-8")   # any change: plan again
+    assert not qt.nothing_left("gpt-6-luna", args)
+
+
+def test_nothing_owed_is_said_plainly_and_no_rows_to_run(fake, monkeypatch, capsys):
+    _planned(monkeypatch)
+    plan = ("price (estimate, typical): ~$0.40 expected (a typical model), $0.90 for a model that thinks at length\n"
+            "judge cost (estimate): ~$0.20 expected, up to $0.35\n-> ~42 min\nT1 — every model: 279 rows\n"
+            "  owed on resume: none\n")
+    monkeypatch.setattr(qt, "engine_out", lambda *a, **k: (0, plan))
+    monkeypatch.setattr(sys, "stdin", io.StringIO(""))
+    rc, out = _run(capsys, "openai/gpt-6-luna")
+    assert "Every answer is already in this folder" in out
+    assert "stopped before the end" not in out and "rows to run" not in out
+
+
+def test_the_adult_line_never_names_a_command_a_docker_user_cannot_type(tmp_path, monkeypatch):
+    monkeypatch.setenv("CRUCIBLEFORGE_CONFIG", str(tmp_path / "models.yaml"))
+    (tmp_path / "results").mkdir()
+    rep = {"models": {"m": {"segments45": {}, "scorecard": {}, "nsfw_plus": {
+        "state": "pending", "judge_pending": "not judged yet: 73 of 73 unit(s) have no judge vote (run `crucibleforge judge`)"}}}}
+    (tmp_path / "results" / "report.json").write_text(json.dumps(rep), encoding="utf-8")
+    monkeypatch.setattr(qt, "results_dir", lambda: tmp_path / "results")
+    line = next(ln for ln in qt.summary_lines("m", "j") if ln.startswith("Adult"))
+    assert "crucibleforge judge" not in line and "the same command asks the judge again" in line
+
+
+def test_one_model_cost_one_judge_cost_and_their_total(tmp_path):
+    led = tmp_path / "l.jsonl"
+    led.write_text('{"cost_usd": 0.20}\n{"cost_usd": 0.11}\n{"cost_usd": 0.2247, "kind": "judge"}\n', encoding="utf-8")
+    lines = qt.cost_lines(str(led), ["  Run cost: $0.31"])
+    assert lines[0].startswith("Cost of this run: model $0.3100 + judge $0.2247 = $0.5347")
+    assert "Run cost: $0.31" in lines[1] and "one standard Code and Chat run" in lines[1]
+    assert qt.cost_lines(None, []) == []
+    # no ledger: the engine's own lines (each phase's run summary, the whole-run judge line)
+    tail = ["  m: 576 rows, load 0.0s (openrouter), $0.3792", "  m: 8 rows, load 0.0s (openrouter), $0.0089",
+            "judge cost, whole run (every judge phase): $0.2247 for 871 call(s) to q on openrouter (billed apart)"]
+    assert qt.cost_lines(None, tail)[0].startswith("Cost of this run: model $0.3881 + judge $0.2247 = $0.6128")

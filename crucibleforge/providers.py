@@ -1358,7 +1358,13 @@ def get_provider(cfg: dict, name: str) -> Provider:
                               f"(known: {', '.join(sorted(KNOWN_MCP_KEYS))})")
     ptype = p.get("type", "openai")
     # claude_code is not in HOSTED_TYPES: it keeps concurrency 1 (one subscription CLI at a time)
-    conc_raw = p.get("concurrency", API_DEFAULT_CONCURRENCY if ptype in HOSTED_TYPES
+    # an OpenAI-compatible server on the user's own machine (``hosted: false``, or a local address) serves 1 to 4
+    # requests at once; 8 in flight queued the rest, and the queue wait read as stalls (4.5.1): 1 unless the entry
+    # says otherwise
+    local_openai = ptype in HOSTED_TYPES and (
+        p.get("hosted") is False or (p.get("hosted") is None and not spend.is_hosted_at(
+            ptype, str(p.get("base_url") or "").rstrip("/"))))
+    conc_raw = p.get("concurrency", 1 if local_openai else API_DEFAULT_CONCURRENCY if ptype in HOSTED_TYPES
                      else 1 if ptype != "studioforge" else "auto")
     conc_auto = str(conc_raw).lower() == "auto"
     prov = Provider(
