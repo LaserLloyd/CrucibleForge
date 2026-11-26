@@ -40,7 +40,9 @@ Z=""
 FAKEPY="$(hostpath "$HERE")/fake_openai.py"
 LPORT=$((PORT + 1)); SPORT=$((PORT + 2)); VPORT=$((PORT + 3))  # VPORT: the results page, published from the image
 for p in "$PORT" "$LPORT" "$SPORT" "$VPORT"; do
-    if ! "$PY" -c "import socket,sys; s=socket.socket(); s.bind(('0.0.0.0', int(sys.argv[1]))); s.close()" "$p" 2>/dev/null; then
+    # SO_REUSEADDR off Windows: a port a previous run's page just closed sits in TIME_WAIT, which is not "in use" for a
+    # server (they all set it); on Windows the same option would let the probe bind a port that IS in use
+    if ! "$PY" -c "import socket,sys; s=socket.socket(); sys.argv[2] or s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1); s.bind(('0.0.0.0', int(sys.argv[1]))); s.close()" "$p" "$MSYS" 2>/dev/null; then
         echo "E2E STOP: port $p is already in use on this computer (the fake servers and the results page need PORT to PORT+3)."
         echo "  Pick two free ones: PORT=<n> sh deploy/e2e/offline_e2e.sh  (now PORT=$PORT)"
         rm -rf "$WORK"; exit 2

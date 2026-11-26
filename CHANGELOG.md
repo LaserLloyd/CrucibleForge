@@ -6,120 +6,114 @@ was ever published as Gauntlet, so there is no migration to do — the entries
 below are kept because the engineering they record is real, not to narrate a
 rename.
 
-## 4.5.1 (dev)
+## 4.5.1 - 2026-11-26
 
-4.5.1 raises token budgets that cut capable models before they could answer and accepts two harmless format slips
-(a bare `>>>>>>>` closer; a tool `CALL` on the same line as earlier text); rows affected under 4.5.0 were re-run or
-re-graded, and no test question changed. Cases, calibration, weights and marks are untouched; grader stamps do not
-move (the scorer stamp moves once). Scores made under 4.5.0 and 4.5.1 sit on one board.
+4.5.1 makes MakoBench something you can run with one command, counts the bonus pack points in the score again, and
+fixes what the first outside runs found: budgets that cut capable models, local servers aborted as "stalled", and a
+Windows run that could interrupt itself. No test question changed; cases, calibration, weights and marks are
+untouched and no grader stamp moves (the scorer stamp moves once, for the bonus rule). Rows made under 4.5.0 and
+4.5.1 sit on one board.
 
-In short:
-- **A hosted run never calls your own machine:** `run`/`all` hand their judge to the rig guard, so a run that uses
-  only hosted models no longer asked a local server (port 1234) for its residents or printed a StudioForge warning;
-  and `test` tells the engine which providers its run uses (`CRUCIBLEFORGE_PROVIDERS_IN_USE`), so the judge's
-  candidate scan counts every other configured provider as down without a request. `test --serve` answers on its port
-  from the first second ("Getting ready" during the checks and the plan).
-- **Plain progress instead of the raw log** on the one-command `test`: one line every 30 s (`42 of 279 answers ·
-  $0.21 so far · about 14 min left for the answers`, then `judging the answers`), warnings as plain `note:` lines;
-  the full log goes to `results/run.log` (`CF_VERBOSE=1` shows it). The page says `--yes` is for scripts.
-- **A finished folder says what its results cost in all:** the cost line sums every run's spend ledger in the folder
-  (`Nothing new was run this time; the results in this folder cost $… in total: model $… + judge $…`); a folder
-  finished by an earlier build is recognised after one plan and is not run again; the board's Minutes cell shows a
-  dash, never "not recorded", when the rows come from several runs.
-- **Ctrl-C says what it waits for:** the first one names the answers still in progress and about how long they take
-  at this speed; a second one stops at once (the engine's hard stop, then a kill after 20 s) and those answers are
-  asked again next time.
-- **A repeat on a folder whose last run ended normally starts at once:** no plan (it took 109 to 153 s on Windows);
-  it says every answer is in, then finishes what is left under the last plan's spend cap.
-- **Windows:** the tool replaces characters a legacy console code page cannot show instead of failing; the test suite
-  runs with UTF-8 I/O (CI sets `PYTHONUTF8=1`), passes the sandbox opt-in to its own subprocesses explicitly, reads
-  a lock holder's pid from the holder itself, and skips two POSIX-only checks with the reason.
-- **The results in a browser:** `view` serves the finished report read only at `http://localhost:8377`, and
-  `test ... --serve` shows the run's progress there, then the report (publish the port as `-p 127.0.0.1:8377:8377`).
-  Only the report and report.md are served; anyone who can reach the port can read them.
-- **Bonus pack points add to the score again and count in the rank (as in 4.1); 4.5.0 printed them beside the
-  score.** Code total = Code (10) + its packs, Chat likewise, Overall = Code total + Chat total, always printed with
-  the split (`20.7 of 34 = 16.9 standard + 3.8 bonus`); today's maximums are 17, 17 and 34. Each total prints its own
-  range beside the standard score's (a pack can open in one run and not another; the 2.5% bar is the standard
-  score's). NSFW+ packs add inside NSFW and Uncensored and never enter Overall. No stored answer changes;
-  ranks change for models that earned bonus points.
-- **Rank = 1 + the number of models clearly better on the total** (90% paired interval of the difference above
-  zero). A shared place means that pair cannot be told apart, so a list can read 1=, 1=, 1=, 2, 4=; ties no longer
-  chain down the list.
+**Run it yourself**
+- **One command in Docker:** `docker run --rm -it -e OPENROUTER_API_KEY=... -v "$PWD/makobench:/data"
+  ghcr.io/laserlloyd/crucibleforge:4.5.1 test <openrouter-model-id>` registers the model with its OpenRouter price,
+  plans, shows the cost, asks, runs, and continues when run again ([docs/FIRST-RUN-DOCKER.md](docs/FIRST-RUN-DOCKER.md)).
+  `check` instead of `test` runs only the free pre-flight: one PASS or FIX line each for the folder, the key and
+  balance, `models.yaml`, the model, the judge and the cost. `test` and `check` are listed in `crucibleforge --help`.
+- **Plain failures with their own exit codes (20 to 40):** no folder given, a folder that cannot be written (with the
+  fix for Docker Desktop on Windows or a Mac, SELinux, a network share or a root-owned folder), low disk, an empty,
+  quoted or other service's key, a rejected key, no credit, HTTP 429, an unknown model id, no DNS, no route, a proxy
+  or certificate interception, a wrong clock, a local server that is down, asks for a key, has the model unloaded,
+  too small a context window or stops answering, no terminal, a broken `models.yaml`, a folder used by a newer image,
+  the spend cap, a taken results-page port. The table in `docs/FIRST-RUN-DOCKER.md` is tested against the code.
+- **While it runs:** one progress line every 30 s (`42 of 279 answers · $0.21 so far · about 14 min left for the
+  answers`) and plain `note:` lines; the full log goes to `results/run.log` (`CF_VERBOSE=1` shows it). The first
+  Ctrl-C finishes the answers in progress and says how many and about how long; a second one stops at once. The run
+  ends with each total and its split and one cost line.
+- **The results in a browser:** `view` serves the finished report, read only, at `http://localhost:8377`; `test
+  ... --serve` shows the run's progress there from the first second, then the report. Publish the port as
+  `-p 127.0.0.1:8377:8377`. Only the report and `report.md` are served (never `models.yaml`, keys, spend records or
+  answers; any other path is 404); GET and HEAD only, no directory listing, a content security policy that lets
+  only the report's own script run. Anyone who can reach the port can read the results.
+- **Isolation in the image:** code a model wrote runs as another user with no network (the results page's port
+  included), no view of the key or the results folder, and process, memory, CPU and file-size limits
+  (`deploy/cf-jail.c`); the benchmark runs as the owner of the results folder. The first run into a fresh Windows
+  folder works (Docker Desktop shows it as root's with mode 777); a file system that keeps its own owners is detected
+  and said in one line.
+- **Again on the same folder:** a run that stopped continues; with nothing owed it says "Every answer is already in
+  this folder"; once nothing is pending it says "Nothing left to run: the results are complete" at once, and a
+  folder whose last run ended normally skips the plan. The cost line then gives what the folder's results cost in
+  all.
+
+**Scores**
+- **Bonus pack points add to the score and count in the rank (as in 4.1); 4.5.0 printed them beside it.** Code total
+  = Code (10) + its packs, Chat likewise, Overall = Code total + Chat total, always printed with the split
+  (`20.7 of 34 = 16.9 standard + 3.8 bonus`); today's maximums are 17, 17 and 34. Each total prints its own range
+  beside the standard score's (a pack can open in one run and not another; the 2.5% bar is the standard score's).
+  NSFW+ packs add inside NSFW and Uncensored, and NSFW+ never enters Overall.
+- **Rank = 1 + the number of models clearly better on the total** (90% paired interval of the difference above zero).
+  A shared place means that pair cannot be told apart, so a list can read 1=, 1=, 1=, 2, 4=; ties no longer chain
+  down the list.
+- The board's Minutes cell shows a dash when the rows come from several runs; `report.json` lists `losses` per model
+  (cut, empty, context, transport, clamped, over budget, tolerated, points at stake) and bonus points per part.
+
+**Local model servers**
+- **Requests at once = what the server serves:** `test --local` reads it from the server (StudioForge's model list,
+  llama-server `/props` or `/slots`, an LM Studio-style `/api/v1/models`; else 1, and the plan says which);
+  `--parallel N` sets it; an OpenAI-compatible server on your own machine defaults to 1 in the engine too (was 8).
+- **The stall clock starts at the answer's first byte** for a local server: time in the server's queue is not a
+  stall. A run that does end on stalls says so (exit 39) and suggests `--parallel 1`.
+- **Keys for local servers:** `-e LOCAL_API_KEY=...` (and `-e JUDGE_LOCAL_API_KEY=...` for `--judge-local`); only
+  the variable's name goes into `models.yaml`, and the jail self-test checks both keys are out of the graded code's
+  reach. A wrong model id lists the server's ids; `check` reports the server's context window against what the suite
+  needs.
+- A run with only hosted models makes no request to a local server listed in `models.yaml` (`test` names the
+  providers its run uses in `CRUCIBLEFORGE_PROVIDERS_IN_USE`).
+
+**Windows**
+- **A run could interrupt itself:** liveness checks used `os.kill(pid, 0)`, which on Windows sends Ctrl-C to the
+  console. They now ask the process table (`OpenProcess`); the lock that keeps two writers off one results folder
+  works the same on every platform.
+- The tool replaces characters a legacy console code page cannot show instead of failing; the test suite runs with
+  UTF-8 I/O on every platform.
+
+**Measurement**
+- **Budgets:** a thinking allowance plus the category's answer allowance (instruct 33,536; role-play/NSFW 34,768;
+  story 35,768; tool use 33,792; coding, reasoning, math 63,488), the from-scratch programs CQ1-CQ3 at 131,072,
+  chain ceilings 32,768 → 49,152 and 16,384 → 32,768 per turn; a provider's output maximum clamps a budget and the
+  clamp is recorded on the row. A request waits at most 2,700 s for its next token. Rows cut under 4.5.0's budgets
+  are owed and re-run on a plain resume.
+- **Two format tolerances, nothing else:** a bare `>>>>>>>` closer in a SEARCH/REPLACE block, and a tool `CALL` on
+  the same line as earlier text; rows say when one was applied.
+- **Tool tasks** regenerate an empty reply and send the task's own reminder; an answer left in the reasoning channel
+  is read. A server's rejection of the model's output, or a prompt that does not fit, is a scored miss, never an
+  abort or a silent gap.
+- **Any judge for your own runs,** local or hosted (`--judge`). Its rows are scored, ranked on your board and marked
+  ⚖; `report --public` refuses them unless `--allow-other-judge`. MakoBench's published scores keep using the local
+  8-bit (Q8) Qwen 3.8 27B judge. A hosted copy of that judge can differ from it on the adult page.
+
+**Spend**
 - **No spend ceiling or earlier-spend baseline ships.** 4.5.0 counted one maintainer's earlier spend against every
   user and read that account's ceiling from the profile. An operator now sets `CF_SPEND_GLOBAL_CAP_USD` (a lifetime
   ceiling), `CF_SPEND_BASELINE_USD` (spend before the ledger) and the journal paths (`CF_SPEND_HELPER_JOURNAL`,
   `CF_SPEND_RERUN_DIR`); per-run caps (`--spend-cap-usd`, `CF_SPEND_CAP_USD`) are unchanged.
-- **Any judge**, local or hosted, for a user's own runs. Its rows are scored, ranked on the user's board and marked
-  ⚖; `report --public` refuses them unless `--allow-other-judge`. MakoBench's published scores use the local 8-bit
-  (Q8) judge. A hosted copy of the judge can differ from it on the adult page (NSFW+): in a 2026-11-25 probe it
-  needed thinking on to pass the explicit-text check.
-- **One command in Docker**: `docker run --rm -it -e OPENROUTER_API_KEY=... -v "$PWD/makobench:/data" ghcr.io/laserlloyd/crucibleforge:4.5.1 test <openrouter-model-id>` registers the model with its OpenRouter price, plans, asks, caps spending at about twice the estimate, runs, and continues when run again ([docs/FIRST-RUN-DOCKER.md](docs/FIRST-RUN-DOCKER.md)). In the image, code a model wrote runs as another user with no network, no view of the key or the results folder, and process, memory, CPU and file-size limits (`deploy/cf-jail.c`); the benchmark runs as the owner of the results folder. The image is published to GHCR from `v*` tags only (amd64 and arm64).
-- **Judge cost** is booked apart from every model's Run cost and spend cap, and estimated from real call counts.
-- **Resume** re-uses stored replies only when the model's settings match.
-- **Thinking allowance + answer allowance**: per-category budgets (instruct 33,536; role-play/NSFW 34,768; story
-  35,768; tool use 33,792; coding, reasoning, math 63,488), the from-scratch programs CQ1-CQ3 at 131,072, chain
-  ceilings 32,768 → 49,152 and 16,384 → 32,768 per turn; provider output maxima clamp a budget and the clamp is
-  recorded on the row.
-- **Stall ceiling**: a request waits at most 2,700 s for its next token.
-- **Tool tasks** regenerate an empty reply and send the task's EMPTY reminder; an answer left in reasoning is read.
-- **A rejected output or an oversize prompt is a scored miss**, never an abort or a silent gap.
-- **`losses`** per model in the report (cut, empty, context, transport, clamped, over budget, tolerated, points at
-  stake) and **bonus points per part**.
-- **`all --plan`** lists and prices owed rows by reason.
-- **Judge cost in the plan**: the upper figure is priced at the measured reply length (it said $9.70 for a judge
-  that cost $0.20), split into the standard run and what pack rounds add if every set unlocks; the Run cost
-  footnote names the run's judge and whether it is hosted. Plan prices use re-measured token profiles.
-- **Resume with nothing owed** skips pack re-planning, and `all` ends with the run's result (`--print-report` prints
-  the whole board as before).
-- **The one-command `test`** ends with each total and its split, and Ctrl-C no longer crashes it on a busy terminal.
-  The image was tested with Podman and with rootless Docker 29; rootless Docker reaches a model server on the host
-  only by the host's network address (documented).
-- **The first run into a fresh folder works on Windows.** Docker Desktop shows a new Windows folder as root's with
-  mode 777; the entrypoint picked uid 1000 without making the folder its own, then removed the "other" bits, so the
-  first run always stopped with "Cannot write to the results folder" (a folder with a file in it stayed broken).
-  The entrypoint now decides the run user, makes the folder that user's, proves it by writing a file as that user,
-  never removes a permission the user writes through, and checks that the graded code's user cannot write the
-  folder; a file system that keeps its own owners is detected and said in one line (`crucibleforge/firstrun.py`).
-- **Every first-run failure ends with what to do, for this machine, and its own exit code** (20 to 40): no folder
-  given (`-v`), a folder that cannot be written (the fix named for Docker Desktop on Windows or a Mac, SELinux, a
-  network share or a root-owned Linux folder), low disk, an empty, quoted or other service's key, a rejected key,
-  no credit, HTTP 429, an unknown model id, no DNS, no route, a proxy or certificate interception (`HTTPS_PROXY`,
-  `SSL_CERT_FILE`), a wrong clock, a local server that is down or has the model unloaded or too small a context
-  window, no terminal, a broken `models.yaml` (file, line, and a valid example; near-miss keys named with the valid
-  one), and a folder last used by a newer image. The table in `docs/FIRST-RUN-DOCKER.md` is tested against the code.
-- **`check`** (`docker run ... check <model>`): the free pre-flight alone, one PASS or FIX line each for the folder,
-  the key and balance, `models.yaml`, the model, the judge and the cost; `test` runs the same checks first.
-- `test --local` and `check --local` work with a model server that asks for a key: `-e LOCAL_API_KEY=...` (and
-  `-e JUDGE_LOCAL_API_KEY=...` for `--judge-local` on another server). Only the variable's name goes into
-  `models.yaml`; the jail self-test checks both keys are out of the graded code's reach. A missing key (exit 37) and
-  a rejected key (exit 38) have their own messages; a wrong model id lists the server's ids, and `check` reports the
-  server's context window against what the suite needs.
-- **A local server with few slots is no longer aborted as "stalled"** (Windows re-test, a 2-slot StudioForge at
-  120 tok/s): the run kept 4 requests in flight, the rest waited in the server's queue, and that silent wait counted
-  toward the 300 s stall clock. Now `test --local` sends as many requests at once as the server serves (StudioForge's
-  model list, llama-server `/props` or `/slots`, an LM Studio-style `/api/v1/models`; else 1, and the plan says
-  which), `--parallel N` sets it, and an OpenAI-compatible server on your own machine defaults to 1 in the engine
-  too (was 8). For a local server the stall clock starts at the answer's first byte (a queued request may wait up to
-  an hour); silence after that is still a stall. A run that does end on stalls says so (exit 39) and names
-  `--parallel 1`; a 429 that was waited out is no longer reported as the reason, 429 waits back off (5, 5, 10, 20 s
-  ... within 15 min), and the closing message prints one exit code, the one the command returns.
-- **One cost figure**: OpenRouter's own per-call `usage.cost` is booked (rows, run summary, spend ledger), and the
-  test ends with `Cost of this run: model $A + judge $B = $C`; the board's Run cost is named as the fixed
-  per-model measure it is (one standard Code and Chat run).
-- **A later run of the same command**: with nothing owed it says so ("Every answer is already in this folder"), and
-  once a run left nothing pending, the same command says "Nothing left to run: the results are complete" without
-  planning (it took 100-150 s on a Windows folder). The NSFW+ line no longer names `crucibleforge judge`.
-- **The `test` spend cap is about twice the plan's expected total** (model + judge, as the plan prices them), rounded
-  up ($0.25 steps under $5, $1 under $50, $5 above), at least $1, so a very cheap run is not cut by estimate noise.
-  It was twice the "thinks at length" figure plus the judge, which came to $5.00 for a $0.77 plan. `--cap <USD>`
-  sets another; a cap stop says what was spent, that nothing is lost, and the higher `--cap` to continue with.
-- `test` and `check` are listed in `crucibleforge --help`; a Ctrl-C stop reads "stopped", not "FAILED"; the
-  entrypoint prints its routine lines only with `CF_VERBOSE=1` and names the package version; planning prints which
-  step it is on; an adult page the judge has not classed says why and that the same command retries it.
-- **CI** runs the wall-clock and CPU-time tests in a step of their own after the parallel run.
-- **Fix rows** are graded without bubblewrap under the documented `CRUCIBLEFORGE_ALLOW_UNSANDBOXED=1` switch (the
-  container is the isolation), and rows stored as unavailable are re-graded from their stored reply.
+- **The `test` cap is about twice the plan's expected total** (model + judge), rounded up, at least $1; `--cap <USD>`
+  sets another, and a cap stop says what was spent and how to continue.
+- **One cost line:** OpenRouter's own per-call cost is booked, and the test ends with `Cost of this run: model $A +
+  judge $B = $C`; the board's Run cost is named as the fixed per-model measure it is. Judge cost is booked apart from
+  every model's Run cost and cap, and estimated from real call counts; the plan prices rows from token profiles
+  measured on 4.5 runs (the old estimate was 5 to 15 times too high).
+
+**Smaller fixes**
+- Resume re-uses stored replies only when the model's settings match, and a plain re-run no longer re-draws a stored
+  model's standard jobs. `all --plan` lists and prices owed rows by reason.
+- A hosted thinking judge's verdicts parse on OpenRouter (its own reasoning switch is sent), and every judge phase
+  reaches a hosted judge; a judge call the judge's provider refuses leaves the unit not judged, never the model's
+  refusal.
+- Fix rows are graded in the container under `CRUCIBLEFORGE_ALLOW_UNSANDBOXED=1`; rows stored as unavailable are
+  re-graded from their stored reply.
+- A reply cut inside an emoji is stored and judged; a turn that ends in a tool call counts as the model's answer.
+- CI runs the wall-clock tests in a step of their own.
 
 Details follow.
 

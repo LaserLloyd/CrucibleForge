@@ -12,12 +12,12 @@ name: crucibleforge
 
 services:
   app:
-    image: ${IMAGE:-crucibleforge:local}
+    image: ${IMAGE:-ghcr.io/laserlloyd/crucibleforge:4.5.1}
     build:
       context: ../..
       dockerfile: Dockerfile
       args:
-        VERSION: ${VERSION:-dev}
+        VERSION: ${VERSION:-4.5.1}
     container_name: crucibleforge
     hostname: crucibleforge
     restart: unless-stopped

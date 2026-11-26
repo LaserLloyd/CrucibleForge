@@ -26,8 +26,9 @@ mkdir makobench
 docker run --rm -it -e OPENROUTER_API_KEY=sk-or-... -v "${PWD}\makobench:/data" ghcr.io/laserlloyd/crucibleforge:4.5.1 test openai/gpt-6-luna
 ```
 
-Not tested on Windows yet: a folder path with spaces (the quotes are meant to cover it), Docker Desktop's
-first-time "share this folder?" question (answer Share), and the published image (the test used one built locally).
+Not tested on Windows yet: a folder path with spaces (the quotes are meant to cover it) and Docker Desktop's
+first-time "share this folder?" question (answer Share). The Windows tests ran the same build made locally, before
+the image was published.
 In `cmd.exe` write `"%cd%\makobench:/data"` instead.
 
 **macOS, Terminal** (not tested yet): the Linux command, unchanged.

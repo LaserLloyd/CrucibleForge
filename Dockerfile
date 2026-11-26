@@ -84,7 +84,7 @@ RUN find /app -name '__pycache__' -type d -prune -exec rm -rf {} + \
 # ---------------------------------------------------------------------------
 FROM python:3.13-slim-trixie@sha256:7249d5587b78209a006dc4a3b5340678f84ea729239193aa559962cd8c1fce50 AS runtime
 
-ARG VERSION=dev
+ARG VERSION=4.5.1
 ARG REVISION=unknown
 ARG CREATED
 
