@@ -643,9 +643,13 @@ class _ProviderGuard:
         # With a known judge only ITS provider is guarded: a hosted-API judge
         # must not snapshot/restore (i.e. reload models on) the rig.
         judge_cands = (cfg.get("judge") or {}).get("candidates", [])
+        # (4.5.1: `run`/`all` pass their --judge too, so a hosted-only run never calls a local rig it does not use)
         if include_judge and judge:
             from .judge import resolve_judge_spec
-            judge_cands = [resolve_judge_spec(cfg, judge)]
+            try:
+                judge_cands = [resolve_judge_spec(cfg, judge)]
+            except Exception:  # an unknown spec fails in the judge step with its own message; guard no rig for it
+                judge_cands = []
         if include_judge:
             for cand in judge_cands:
                 try:
@@ -1054,7 +1058,8 @@ def cmd_run(args, cfg):
              [e["name"] for e in entries], len(cases), args.smoke,
              getattr(args, "fresh", False))
 
-    guard = _ProviderGuard(cfg, entries, force_evict=getattr(args, "force_evict", False))
+    guard = _ProviderGuard(cfg, entries, force_evict=getattr(args, "force_evict", False),
+                           judge=getattr(args, "judge", None))
     busy = guard.busy()
     if busy and not args.yes:
         print(f"LM Studio is currently serving {busy} — someone may be "
@@ -1431,7 +1436,8 @@ def cmd_recover(args, cfg):
     if not getattr(args, "no_link_check", False):
         from .preflight import check_link_health
         check_link_health(cfg, [e for e in entries if todo[e["name"]]])
-    guard = _ProviderGuard(cfg, entries, force_evict=getattr(args, "force_evict", False))
+    guard = _ProviderGuard(cfg, entries, force_evict=getattr(args, "force_evict", False),
+                           judge=getattr(args, "judge", None))
     busy = guard.busy()
     if busy and not args.yes:
         print(f"LM Studio is currently serving {busy} — re-run with --yes to proceed.")
@@ -1486,7 +1492,8 @@ def cmd_escalate(args, cfg):
     if not getattr(args, "no_link_check", False):
         from .preflight import check_link_health
         check_link_health(cfg, entries)
-    guard = _ProviderGuard(cfg, entries, force_evict=getattr(args, "force_evict", False))
+    guard = _ProviderGuard(cfg, entries, force_evict=getattr(args, "force_evict", False),
+                           judge=getattr(args, "judge", None))
     busy = guard.busy()
     if busy and not getattr(args, "yes", False):
         print(f"LM Studio is currently serving {busy} — re-run with --yes to proceed.")
@@ -5049,6 +5056,8 @@ def package_version() -> str:
 
 
 def main(argv=None):
+    from .firstrun import safe_console
+    safe_console()
     raw = list(sys.argv[1:] if argv is None else argv)
     lead = [a for a in raw if not a.startswith("-")][:1]
     if lead and lead[0] in ("test", "check"):

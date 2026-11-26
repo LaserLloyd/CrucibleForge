@@ -14,6 +14,26 @@ re-graded, and no test question changed. Cases, calibration, weights and marks a
 move (the scorer stamp moves once). Scores made under 4.5.0 and 4.5.1 sit on one board.
 
 In short:
+- **A hosted run never calls your own machine:** `run`/`all` hand their judge to the rig guard, so a run that uses
+  only hosted models no longer asked a local server (port 1234) for its residents or printed a StudioForge warning.
+- **Plain progress instead of the raw log** on the one-command `test`: one line every 30 s (`42 of 279 answers ·
+  $0.21 so far · about 14 min left for the answers`, then `judging the answers`), warnings as plain `note:` lines;
+  the full log goes to `results/run.log` (`CF_VERBOSE=1` shows it). The page says `--yes` is for scripts.
+- **A finished folder says what its results cost in all:** the cost line sums every run's spend ledger in the folder
+  (`Nothing new was run this time; the results in this folder cost $… in total: model $… + judge $…`); a folder
+  finished by an earlier build is recognised after one plan and is not run again; the board's Minutes cell shows a
+  dash, never "not recorded", when the rows come from several runs.
+- **Ctrl-C says what it waits for:** the first one names the answers still in progress and about how long they take
+  at this speed; a second one stops at once (the engine's hard stop, then a kill after 20 s) and those answers are
+  asked again next time.
+- **A repeat on a folder whose last run ended normally starts at once:** no plan (it took 109 to 153 s on Windows);
+  it says every answer is in, then finishes what is left under the last plan's spend cap.
+- **Windows:** the tool replaces characters a legacy console code page cannot show instead of failing; the test suite
+  runs with UTF-8 I/O (CI sets `PYTHONUTF8=1`), passes the sandbox opt-in to its own subprocesses explicitly, reads
+  a lock holder's pid from the holder itself, and skips two POSIX-only checks with the reason.
+- **The results in a browser:** `view` serves the finished report read only at `http://localhost:8377`, and
+  `test ... --serve` shows the run's progress there, then the report (publish the port as `-p 127.0.0.1:8377:8377`).
+  Only the report and report.md are served; anyone who can reach the port can read them.
 - **Bonus pack points add to the score again and count in the rank (as in 4.1); 4.5.0 printed them beside the
   score.** Code total = Code (10) + its packs, Chat likewise, Overall = Code total + Chat total, always printed with
   the split (`20.7 of 34 = 16.9 standard + 3.8 bonus`); today's maximums are 17, 17 and 34. Each total prints its own
@@ -58,7 +78,7 @@ In short:
   The entrypoint now decides the run user, makes the folder that user's, proves it by writing a file as that user,
   never removes a permission the user writes through, and checks that the graded code's user cannot write the
   folder; a file system that keeps its own owners is detected and said in one line (`crucibleforge/firstrun.py`).
-- **Every first-run failure ends with what to do, for this machine, and its own exit code** (20 to 39): no folder
+- **Every first-run failure ends with what to do, for this machine, and its own exit code** (20 to 40): no folder
   given (`-v`), a folder that cannot be written (the fix named for Docker Desktop on Windows or a Mac, SELinux, a
   network share or a root-owned Linux folder), low disk, an empty, quoted or other service's key, a rejected key,
   no credit, HTTP 429, an unknown model id, no DNS, no route, a proxy or certificate interception (`HTTPS_PROXY`,

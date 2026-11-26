@@ -103,6 +103,9 @@ os.environ["CRUCIBLEFORGE_RESULTS"] = tempfile.mkdtemp(prefix="crucibleforge-tes
 # must not change what the suite verifies. Private-category tests build their
 # own fixtures (tests/test_private_categories.py).
 os.environ["CRUCIBLEFORGE_NO_PRIVATE"] = "1"
+# every subprocess a test starts reads and writes UTF-8 (a Windows console is cp437/cp1252: em dashes came back garbled)
+os.environ.setdefault("PYTHONUTF8", "1")
+os.environ.setdefault("PYTHONIOENCODING", "utf-8")
 # ... and the default composition: a CF_COMPOSITION exported in the operator's shell (a board
 # render, a run) switched every profile load of the session (2026-11-15, PACKS2: four
 # test_main_nsfw_rc2 tests failed under CF_COMPOSITION=rc3-main). A test that wants a

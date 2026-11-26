@@ -61,6 +61,9 @@ jobs:
     name: tests (${{ matrix.os }})
     needs: privacy
     runs-on: ${{ matrix.os }}
+    # UTF-8 I/O for pytest and every process it starts: a Windows console decodes as cp1252/cp437 otherwise
+    env:
+      PYTHONUTF8: "1"
     strategy:
       fail-fast: false
       matrix:

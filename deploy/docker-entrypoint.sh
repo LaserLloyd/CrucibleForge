@@ -38,7 +38,7 @@ die() { log "FATAL: $*"; exit 1; }
 
 CMD="${1:-}"
 # `test` / `check` (the one-command front door and its free pre-flight) talk to people, not to logs.
-{ [ "$CMD" = "test" ] || [ "$CMD" = "check" ]; } && CF_QUIET=1
+{ [ "$CMD" = "test" ] || [ "$CMD" = "check" ] || [ "$CMD" = "view" ]; } && CF_QUIET=1
 
 # the message is tailored to the mount (crucibleforge/firstrun.py folder_help): exit 24
 not_writable() { exec python -m crucibleforge.firstrun folder-help "$(id -u)"; }
@@ -53,7 +53,7 @@ not_writable() { exec python -m crucibleforge.firstrun folder-help "$(id -u)"; }
 # with a message tailored to the mount (Docker Desktop on Windows or Mac, SELinux, a network share, ...).
 if [ "$(id -u)" = "0" ] && [ -z "${CF_DROPPED:-}" ]; then
     mkdir -p "$DATA_DIR" 2>/dev/null || true
-    if [ "$CMD" = "test" ] || [ "$CMD" = "check" ]; then
+    if [ "$CMD" = "test" ] || [ "$CMD" = "check" ] || [ "$CMD" = "view" ]; then
         python -m crucibleforge.firstrun has-folder || exec python -m crucibleforge.firstrun no-folder
     fi
     python -m crucibleforge.firstrun version-check "$DATA_DIR/.image-version" || exit $?
@@ -168,6 +168,10 @@ if [ "${1:-}" = "test" ]; then
 elif [ "${1:-}" = "check" ]; then
     shift
     set -- python -m crucibleforge.quicktest --check "$@"
+elif [ "${1:-}" = "view" ]; then
+    # the finished results, read only, in a browser: publish the port as -p 127.0.0.1:8377:8377
+    shift
+    set -- python -m crucibleforge.viewserver "$@"
 elif [ "$#" -eq 0 ] || [ "${1#-}" != "$1" ] || ! command -v "$1" >/dev/null 2>&1; then
     set -- crucibleforge "$@"
 fi

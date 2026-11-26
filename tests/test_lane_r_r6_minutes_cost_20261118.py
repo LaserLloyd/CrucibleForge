@@ -1,6 +1,6 @@
 """R6 (fix round 2026-11-18, REVIEW finding 11): minutes come from ``meta.timing`` (the phases of the run command,
 summed) and dollars from the rows' recorded cost, printed per row. The check: the printed minutes are within 2% of
-the run's wall clock on a synthetic meta. A row without timing prints "not recorded". Toy board: no model, no rig."""
+the run's wall clock on a synthetic meta. A row without timing prints a dash. Toy board: no model, no rig."""
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
@@ -37,7 +37,7 @@ def test_printed_minutes_are_within_two_percent_of_the_wall_clock(tmp_path, monk
     printed = float(cell(md, "m", "Minutes"))
     wall = WALL_S / 60
     assert abs(printed - wall) / wall <= 0.02, (printed, wall)
-    assert cell(md, "o", "Minutes") == "not recorded"
+    assert cell(md, "o", "Minutes") == "—"
     rows = {r["label"]: r for r in html_data(html)["rows"]}
     assert rows["m"]["minutes"] == printed and rows["o"]["minutes"] is None
     assert stats["m"]["run_minutes45"] == printed
@@ -55,4 +55,4 @@ def test_rows_from_several_runs_are_not_timed():
     assert report.timing_minutes45(meta, [{"bench_run_id": "r2"}, {"bench_run_id": "r1"}]) is None
     assert report.timing_minutes45(meta, [{"bench_run_id": "r2"}]) is not None
     assert report.timing_minutes45(meta, [{}]) is None
-    assert report.minutes45_cell({"run_minutes45": None, "run_ids45": 3}) == "not recorded (rows from 3 runs)"
+    assert report.minutes45_cell({"run_minutes45": None, "run_ids45": 3}) == "—"

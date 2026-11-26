@@ -12,17 +12,19 @@ from crucibleforge import cli, writelock
 
 
 def test_a_second_writer_exits_at_once_naming_the_holder(tmp_path):
-    hold = ("import sys; from pathlib import Path; from crucibleforge import writelock as w\n"
-            f"f = w.acquire(Path({str(tmp_path)!r}), 'all --models x'); print('held', flush=True)\n"
+    # the holder says its own pid: on Windows a venv's python.exe is a launcher, so Popen.pid is not the interpreter
+    hold = ("import os, sys; from pathlib import Path; from crucibleforge import writelock as w\n"
+            f"f = w.acquire(Path({str(tmp_path)!r}), 'all --models x'); print('held', os.getpid(), flush=True)\n"
             "sys.stdin.read(); w.release(f)\n")
     holder = subprocess.Popen([sys.executable, "-c", hold], stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True)
     try:
-        assert holder.stdout.readline().strip() == "held"
+        said, pid = holder.stdout.readline().split()
+        assert said == "held"
         code = ("from pathlib import Path; from crucibleforge import writelock as w\n"
                 f"w.acquire(Path({str(tmp_path)!r}), 'run --models x')\n")
         p = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, timeout=60)
         assert p.returncode == writelock.BUSY_EXIT
-        assert f"pid {holder.pid} since " in p.stderr and "all --models x" in p.stderr
+        assert f"pid {pid} since " in p.stderr and "all --models x" in p.stderr
         assert "Read-only commands" in p.stderr
     finally:
         holder.communicate("", timeout=60)

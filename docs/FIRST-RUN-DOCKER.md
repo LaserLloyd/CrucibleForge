@@ -55,8 +55,11 @@ named `fake/fake-model`, so the prices and balance are the stand-in's):
    of the judge (about, and up to, for the standard test, and what the bonus packs add if they all open), and a rough
    time. It sets a spend cap of about twice the estimate (model and judge together, rounded up, at least $1): a guard
    against a runaway, not a budget. `--cap <USD>` after the model id sets another.
-4. It asks `Continue? [y/N]`. Nothing is spent before you answer `y`. (`--yes` skips the question.)
-5. It runs, one line per answer, then prints the result. Each total is printed with its split: the standard score
+4. It asks `Continue? [y/N]`. Nothing is spent before you answer `y`. (`--yes` skips the question: it is for
+   scripts. The commands on this page ask, which is why they have `-it`.)
+5. It runs, with one progress line every 30 seconds (`42 of 279 answers · $0.21 so far · about 14 min left for the
+   answers`, then `judging the answers`) and a plain `note:` for anything worth knowing; the engine's full log goes to
+   `results/run.log` in your folder (`-e CF_VERBOSE=1` shows it in the terminal instead). Then it prints the result. Each total is printed with its split: the standard score
    plus the bonus points of the harder packs the model opened (the rank is on the total; today's maximum is 17 for
    Code and Chat, 34 for Overall). For `openai/gpt-6-luna` (rootless Docker, 2026-11-25):
 
@@ -72,17 +75,49 @@ Open results/report.html in the folder you mounted with -v (for example makobenc
 ```
 
 The cost line is this run's own spend, every part of it (NSFW+, bonus rounds and retries included), as OpenRouter
-bills each call; the board's Run cost is a fixed measure for comparing models. Run the same command again on a
-finished folder and it says `Nothing left to run: the results are complete` at once.
+bills each call; when the folder's results took several runs, the next line gives their total. The board's Run
+cost is a fixed measure for comparing models. Run the same command again on a finished folder and it says
+`Nothing left to run: the results are complete` at once, with what the results cost:
+`Nothing new was run this time; the results in this folder cost $… in total: model $… + judge $…`.
 
 The adult line can instead read `Adult (NSFW+): no number yet (...)`: the judge did not class every adult answer
 (its calls failed, or its check did not pass). The answers are kept; the same command asks the judge again.
 
 **Stopped, or the computer slept?** Run the same command again. Finished answers are kept; it continues where it
-stopped and shows what is still owed and what it will cost before it spends anything. Ctrl-C stops cleanly.
+stopped and shows what is still owed and what it will cost before it spends anything. Ctrl-C stops cleanly: it
+first lets the answers already in progress finish (it says how many and about how long; with a slow local server
+that can be minutes), and a second Ctrl-C stops at once (those answers are asked again next time).
 
 **Options** go after `test`: `--no-adult` (or `--no-nsfw-plus`) leaves out NSFW+, the adult-fiction page that is
 scored apart and never added to Overall; `--yes` does not ask.
+
+## Open the results in your browser
+
+The report is a file in your folder (`makobench/results/report.html`); double-click it. To have the container show
+it instead, publish one port and add `view`. It serves the report, read only, until you press Ctrl-C:
+
+```bash
+docker run --rm -it -p 127.0.0.1:8377:8377 -v "$PWD/makobench:/data" ghcr.io/laserlloyd/crucibleforge:4.5.1 view
+```
+
+```powershell
+docker run --rm -it -p 127.0.0.1:8377:8377 -v "${PWD}\makobench:/data" ghcr.io/laserlloyd/crucibleforge:4.5.1 view
+```
+
+Then open <http://localhost:8377>. To watch a test as it runs, add the same `-p 127.0.0.1:8377:8377` to the test
+command and `--serve` after the model id: the page shows the model, the step, the answers stored, the cost so far
+and the start time, refreshes itself, and turns into the report when the run ends. The test then prints
+`Your results are open at http://localhost:8377 (press Ctrl-C to close)` and keeps the page open until Ctrl-C.
+Without `--serve` (or `view`) nothing listens.
+
+In Docker Desktop the published port shows as `8377:8377` in the container's row, and clicking it opens the page.
+A port shows there only when it is published with `-p`; the image's `EXPOSE` line alone does not do it. (Not tried
+on Windows yet; tested on Linux with Podman.)
+
+The page serves only the report (`/`, `/report.html`) and `/report.md`: never `models.yaml`, your keys, the spend
+records or the answers themselves, whatever address is asked for. **Anyone who can reach the port can read the
+results**: `127.0.0.1:` before the port keeps it on this computer; leave it out only if you mean to share the page on
+your network. Another port: `-e PORT=8378 -p 127.0.0.1:8378:8378` (or `--port 8378` after `view` or `test`).
 
 ## What it costs
 
@@ -183,6 +218,7 @@ shell, `$LASTEXITCODE` in PowerShell). Nothing is spent before the plan is shown
 | `No terminal to answer "Continue?" on.` | 25 | Add `-it` to `docker run`, or `--yes` after `test`. |
 | `Not started. Nothing was spent.` | 25 | You answered no. |
 | `The run reached its spend cap` | 36 | Nothing is lost. The message says what was spent. Run the same command again: it continues, and the rest gets its own cap of about twice its estimate. If the model writes long answers, add the higher `--cap` the message names. |
+| `The results page could not open: something already uses port` | 40 | Another program in the container has the port: give another one, `-e PORT=8378 -p 127.0.0.1:8378:8378`. If Docker itself says `port is already allocated`, the port is taken on your computer: change only the first number, `-p 127.0.0.1:8378:8377`. |
 | `The run ended with code` | 27 | Read the lines above it; run the same command again to continue. |
 | `Stopped. Nothing is lost` | 130 | You pressed Ctrl-C (or the computer slept). Run the same command again to continue. |
 | `Note: this folder's file system does not keep owners apart` | - | The run goes on; see Safety above. |

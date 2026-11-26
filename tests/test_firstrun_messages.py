@@ -9,7 +9,8 @@ from crucibleforge import firstrun as fr
 
 ROOT = Path(__file__).resolve().parents[1]
 PAGE = ROOT / "docs" / "FIRST-RUN-DOCKER.md"
-SOURCES = [ROOT / "crucibleforge" / "firstrun.py", ROOT / "crucibleforge" / "quicktest.py"]
+SOURCES = [ROOT / "crucibleforge" / "firstrun.py", ROOT / "crucibleforge" / "quicktest.py",
+           ROOT / "crucibleforge" / "viewserver.py"]
 
 
 def _rows() -> list[tuple[str, str]]:

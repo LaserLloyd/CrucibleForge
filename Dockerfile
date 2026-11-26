@@ -133,7 +133,9 @@ WORKDIR /app
 # No USER: the entrypoint starts as root, then runs the benchmark as the owner of /data (never as root on the
 # host) and model code as uid 65534. No HEALTHCHECK: `test` runs to completion; the GUI service in
 # deploy/compose declares its own (python /usr/local/bin/healthcheck.py).
-EXPOSE 8777
+# 8777: the web GUI; 8377: the read-only results page (`view`, `test --serve`). EXPOSE only documents them: a port
+# is reachable (and Docker Desktop shows it as a link) only when it is published with -p.
+EXPOSE 8777 8377
 
 STOPSIGNAL SIGTERM
 ENTRYPOINT ["/usr/bin/tini", "--", "/usr/local/bin/docker-entrypoint.sh"]

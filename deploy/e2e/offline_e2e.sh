@@ -38,10 +38,10 @@ Z=""
 
 # a native Windows python (Git Bash) needs C:/... paths: MSYS path conversion is off on purpose (see above)
 FAKEPY="$(hostpath "$HERE")/fake_openai.py"
-LPORT=$((PORT + 1)); SPORT=$((PORT + 2))
-for p in "$PORT" "$LPORT" "$SPORT"; do
+LPORT=$((PORT + 1)); SPORT=$((PORT + 2)); VPORT=$((PORT + 3))  # VPORT: the results page, published from the image
+for p in "$PORT" "$LPORT" "$SPORT" "$VPORT"; do
     if ! "$PY" -c "import socket,sys; s=socket.socket(); s.bind(('0.0.0.0', int(sys.argv[1]))); s.close()" "$p" 2>/dev/null; then
-        echo "E2E STOP: port $p is already in use on this computer (the fake servers need PORT, PORT+1 and PORT+2)."
+        echo "E2E STOP: port $p is already in use on this computer (the fake servers and the results page need PORT to PORT+3)."
         echo "  Pick two free ones: PORT=<n> sh deploy/e2e/offline_e2e.sh  (now PORT=$PORT)"
         rm -rf "$WORK"; exit 2
     fi
@@ -53,14 +53,14 @@ FAKE_REQUIRE_KEY=$LKEY FAKE_CTX=262144 "$PY" "$FAKEPY" "$LPORT" "$(hostpath "$LO
 # a third: a server with ONE slot that queues the rest silently and streams each answer over 1 s (llama-server -np 1)
 FAKE_SLOTS=1 FAKE_HOLD_S=1 FAKE_CTX=262144 "$PY" "$FAKEPY" "$SPORT" "$(hostpath "$LOG.slots")" & SPID=$!
 VOL=cf-e2e-$$
-trap 'kill $FPID $LPID $SPID 2>/dev/null; $ENGINE volume rm -f "$VOL" >/dev/null 2>&1; [ -n "${KEEP:-}" ] || rm -rf "$WORK" 2>/dev/null' EXIT
+trap 'kill $FPID $LPID $SPID 2>/dev/null; $ENGINE rm -f "cf-e2e-view-$$" "cf-e2e-serve-$$" >/dev/null 2>&1; $ENGINE volume rm -f "$VOL" >/dev/null 2>&1; [ -n "${KEEP:-}" ] || rm -rf "$WORK" 2>/dev/null' EXIT
 sleep 1
 
 FAKE="http://$HOSTNAME_IN:$PORT/api/v1"
 run() {  # run KEY DIR ARGS... : the documented one command, plus the fake OpenRouter address
     key=$1; dir=$2; shift 2
     # shellcheck disable=SC2086
-    $ENGINE run --rm $ADDHOST -e OPENROUTER_API_KEY="$key" -e CRUCIBLEFORGE_OPENROUTER_URL="$FAKE" \
+    $ENGINE run --rm $ADDHOST -e OPENROUTER_API_KEY="$key" -e CRUCIBLEFORGE_OPENROUTER_URL="$FAKE" ${RUNENV:-} \
         -v "$(hostpath "$dir"):/data$Z" "$IMAGE" "$@"
 }
 # the same, with any results folder spec (a tmpfs, a named volume) and extra engine options
@@ -196,8 +196,23 @@ out=$($ENGINE run --rm $ADDHOST -e OPENROUTER_API_KEY=sk-canary-e2e -e LOCAL_API
 
 # 3. one whole run with the one command, then the same command again (resume: nothing new to send)
 mkdir -p "$WORK/r"
+# the folder's seeded local provider (and its local judges) point at the 1-slot fake: a run that uses only hosted
+# models must not send it a single request
+hits() { curl -s "http://127.0.0.1:$SPORT/stats" 2>/dev/null | "$PY" -c "import json,sys; print(json.load(sys.stdin)['requests'])" 2>/dev/null; }
+h0=$(hits)
+RUNENV="-e LLM_BASE_URL=http://$HOSTNAME_IN:$SPORT/v1"
 out=$(run sk-e2e "$WORK/r" test fake/fake-model --yes 2>&1); rc=$?
 echo "$out" > "$WORK/run1.txt"
+h1=$(hits)
+[ -n "$h0" ] && [ "$h0" = "$h1" ] && grep -q "host.containers.internal:$SPORT\|host.docker.internal:$SPORT\|$HOSTNAME_IN:$SPORT" "$WORK/r/models.yaml" \
+    && ok "hosted-only run: 0 requests to the local server in models.yaml" || fail "hosted-only run sent $h0 -> $h1 requests to the local server: $(curl -s "http://127.0.0.1:$SPORT/stats" | cut -c1-300)"
+grep -qi "studioforge" "$WORK/run1.txt" && fail "a hosted run printed StudioForge: $(grep -i studioforge "$WORK/run1.txt" | head -2)" \
+    || ok "nothing StudioForge-specific printed"
+grep -qE "^ *20[0-9]{2}-[0-9]{2}-[0-9]{2} [0-9:]{8}[,.][0-9]+ (INFO|WARNING|ERROR)" "$WORK/run1.txt" \
+    && fail "raw log lines on the terminal: $(grep -cE ' (INFO|WARNING) ' "$WORK/run1.txt")" || ok "no raw log lines on the terminal"
+grep -qE "^  [0-9]+ of [0-9]+ answers" "$WORK/run1.txt" && ok "progress: $(grep -E '^  [0-9]+ of [0-9]+ answers' "$WORK/run1.txt" | tail -1)" \
+    || fail "no progress line"
+grep -q " INFO " "$WORK/r/results/run.log" 2>/dev/null && ok "the raw log is in results/run.log" || fail "no results/run.log"
 [ $rc -eq 0 ] && ok "run: rc 0" || fail "run: rc $rc: $(tail -n 30 "$WORK/run1.txt")"
 grep -q "^Overall " "$WORK/run1.txt" && ok "summary: $(grep '^Overall' "$WORK/run1.txt")" || fail "no Overall line"
 grep -q "^Code " "$WORK/run1.txt" && grep -q "^Chat " "$WORK/run1.txt" && ok "Code and Chat lines" || fail "no Code/Chat lines"
@@ -218,6 +233,11 @@ grep -q '"model": "openrouter~' "$LOG" && fail "a request named the judge's inte
 n1=$(wc -l < "$LOG")
 t1=$(cat "$WORK"/r/results/transcripts_*.jsonl 2>/dev/null | wc -l)
 out=$(run sk-e2e "$WORK/r" test fake/fake-model --yes 2>&1); rc=$?
+echo "$out" > "$WORK/run2.txt"
+[ "$(hits)" = "$h0" ] && ok "same command again: still 0 requests to the local server" || fail "resume asked the local server"
+grep -q "in this folder cost " "$WORK/run2.txt" && ok "$(grep 'in this folder cost' "$WORK/run2.txt" | sed 's/^ *//')" \
+    || fail "no folder total on the second run: $(grep -i cost "$WORK/run2.txt" | tail -2)"
+RUNENV=""
 t2=$(cat "$WORK"/r/results/transcripts_*.jsonl 2>/dev/null | wc -l)
 gen=$(tail -n +"$((n1 + 1))" "$LOG" | grep -c '"model": "fake/fake-model"')
 # the same command again re-uses every stored answer: no new rows; the only model calls are the run's few
@@ -225,6 +245,52 @@ gen=$(tail -n +"$((n1 + 1))" "$LOG" | grep -c '"model": "fake/fake-model"')
 [ $rc -eq 0 ] && [ "$t2" -eq "$t1" ] && [ "$gen" -le 8 ] \
     && ok "same command again: rc 0, no new answers ($t1 rows kept, $gen probe calls)" \
     || fail "resume: rc $rc, rows $t1 -> $t2, $gen model requests"
+
+# 4. the results page: `view` on the finished folder, published on loopback as the docs say; only the report is
+#    reachable; then `test --serve` on the same (complete) folder keeps the page open until it is stopped
+page() { curl -s --path-as-is -o "$WORK/page.out" -D "$WORK/page.head" -w '%{http_code}' -X "${2:-GET}" "http://127.0.0.1:$VPORT$1"; }
+waitpage() { i=0; while [ $i -lt 60 ]; do [ "$(page /report.md)" = 200 ] && return 0; sleep 1; i=$((i + 1)); done; return 1; }
+$ENGINE run -d --name "cf-e2e-view-$$" -p "127.0.0.1:$VPORT:8377" -v "$(hostpath "$WORK/r"):/data$Z" "$IMAGE" view >/dev/null
+if waitpage; then
+    [ "$(page /)" = 200 ] && cmp -s "$WORK/page.out" "$WORK/r/results/report.html" && ok "view: / is the report (200)" \
+        || fail "view: / is not the report"
+    grep -qi "^content-security-policy: default-src 'none'.*script-src 'sha256-" "$WORK/page.head" \
+        && ! grep -qi "^access-control" "$WORK/page.head" && ok "view: strict CSP (script by hash), no CORS" \
+        || fail "view headers: $(tr -d '\r' < "$WORK/page.head" | tr '\n' '|')"
+    bad=""
+    for u in /models.yaml /../models.yaml /%2e%2e/models.yaml /..%2f..%2fetc%2fpasswd "/$(cd "$WORK/r/results" && ls transcripts_*.jsonl | head -1)" \
+             /results/report.html /spend/ /report.json /.test-complete.json; do
+        c=$(page "$u"); [ "$c" = 404 ] || bad="$bad $u=$c"
+    done
+    [ -z "$bad" ] && ok "view: models.yaml, transcripts, traversal and other paths are 404" || fail "view served:$bad"
+    [ "$(page / POST)" = 405 ] && ok "view: read only (POST 405)" || fail "view: POST not refused"
+else
+    fail "view: no page on 127.0.0.1:$VPORT: $($ENGINE logs "cf-e2e-view-$$" 2>&1 | tail -5)"
+fi
+$ENGINE logs "cf-e2e-view-$$" 2>&1 | grep -q "Your results are open at http://localhost:8377 (press Ctrl-C to close)" \
+    && ok "view: says where the page is" || fail "view: no address line"
+$ENGINE rm -f "cf-e2e-view-$$" >/dev/null 2>&1
+# the jail with the page up in the same container: graded code reaches no network, this port included
+out=$(runm "-v $(hostpath "$WORK/r"):/data$Z" sh -c 'python -m crucibleforge.viewserver >/dev/null & sleep 2;
+  python -c "import socket; socket.create_connection((\"127.0.0.1\", 8377), 2); print(\"PAGE-UP\")";
+  python -m crucibleforge.jail --selftest' 2>&1); rc=$?
+echo "$out" | grep -q PAGE-UP && echo "$out" | grep -q '"ok": true' && echo "$out" | grep -q '"net_results_page": "' \
+    && ok "jail selftest with the page up: ok, the page's port is unreachable from graded code" \
+    || fail "jail with page: rc $rc: $(echo "$out" | tail -3 | cut -c1-300)"
+$ENGINE run -d --name "cf-e2e-serve-$$" $ADDHOST -e OPENROUTER_API_KEY=sk-e2e -e CRUCIBLEFORGE_OPENROUTER_URL="$FAKE" \
+    -p "127.0.0.1:$VPORT:8377" -v "$(hostpath "$WORK/r"):/data$Z" "$IMAGE" test fake/fake-model --yes --serve >/dev/null
+i=0; until $ENGINE logs "cf-e2e-serve-$$" 2>&1 | grep -q "Your results are open at" || [ $i -ge 900 ]; do sleep 1; i=$((i + 1)); done
+$ENGINE logs "cf-e2e-serve-$$" 2>&1 > "$WORK/serve.txt"
+grep -q "Every answer is already in this folder" "$WORK/serve.txt" && ! grep -q "working out the questions" "$WORK/serve.txt" \
+    && ok "third run: says every answer is in before any planning" || fail "third run planned: $(grep -i 'plan' "$WORK/serve.txt" | head -3)"
+grep -q "Your results are open at http://localhost:8377" "$WORK/serve.txt" && [ "$(page /)" = 200 ] \
+    && cmp -s "$WORK/page.out" "$WORK/r/results/report.html" \
+    && ok "test --serve: says the results are open and serves the report until stopped" \
+    || fail "test --serve: $($ENGINE logs "cf-e2e-serve-$$" 2>&1 | tail -4)"
+$ENGINE stop -t 20 "cf-e2e-serve-$$" >/dev/null 2>&1
+src=$($ENGINE inspect -f '{{.State.ExitCode}}' "cf-e2e-serve-$$" 2>/dev/null)
+[ "$src" = 0 ] && ok "test --serve: stopping it closes the page with the run's code (0)" || fail "test --serve exit $src"
+$ENGINE rm -f "cf-e2e-serve-$$" >/dev/null 2>&1
 
 [ $fails -eq 0 ] && echo "E2E PASS" || echo "E2E FAIL ($fails)"
 exit $fails

@@ -3,6 +3,7 @@ element per rule fails plain `cases verify --profile bench45`; unknown profile."
 import copy
 import json
 import shutil
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -90,8 +91,11 @@ def test_standard_required_on_scored_cases_unless_pending():
 # ------------------------------------------------ plain `cases verify --profile bench45`
 
 def _cli(*args, cwd=ROOT):
-    return subprocess.run([sys.executable, "-m", "crucibleforge.cli", *args], cwd=cwd, text=True,
-                          capture_output=True, timeout=900)
+    # the suite's own fixtures run where bwrap does not exist (conftest): the opt-in is passed explicitly, since an
+    # xdist worker on Windows does not hand the parent's setting on; UTF-8 both ways (a Windows console is cp437/1252)
+    env = {**os.environ, "CRUCIBLEFORGE_ALLOW_UNSANDBOXED": "1", "PYTHONUTF8": "1", "PYTHONIOENCODING": "utf-8"}
+    return subprocess.run([sys.executable, "-m", "crucibleforge.cli", *args], cwd=cwd, text=True, encoding="utf-8",
+                          errors="replace", capture_output=True, timeout=900, env=env)
 
 
 def test_unknown_profile_is_reported_not_a_traceback():

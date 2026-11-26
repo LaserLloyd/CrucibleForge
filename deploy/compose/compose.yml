@@ -7,6 +7,7 @@
 # CLI inside the container (one-off, same volume):
 #   docker compose -f deploy/compose/compose.yml run --rm app status
 #   docker compose -f deploy/compose/compose.yml run --rm app all --models <label> --yes
+#   docker compose -f deploy/compose/compose.yml run --rm --service-ports app view   # the report at http://localhost:8377 (Ctrl-C closes it)
 name: crucibleforge
 
 services:
@@ -25,6 +26,8 @@ services:
     ports:
       # 8777 is the GUI's own default. Loopback only unless you opt out.
       - "${BIND_ADDR:-127.0.0.1}:${HOST_PORT:-8777}:8777"
+      # 8377 is the read-only results page (`view`, `test --serve`); only `run --service-ports` publishes it there
+      - "${BIND_ADDR:-127.0.0.1}:${VIEW_PORT:-8377}:8377"
 
     env_file:
       - path: .env

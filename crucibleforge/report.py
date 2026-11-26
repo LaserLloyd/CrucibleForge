@@ -4635,9 +4635,10 @@ def disclosure45_cell(s: dict) -> str:
 
 def minutes45_cell(s: dict) -> str:
     v = s.get("run_minutes45")
-    n = s.get("run_ids45") or 0
     if v is None:
-        return f"not recorded (rows from {n} runs)" if n > 1 else "not recorded"
+        # 4.5.1: no single run time (rows from several runs, or a run from before the timing record): a dash, as the
+        # key says; never "not recorded" in front of a reader
+        return "—"
     p = s.get("run_minutes_packs45")
     return f"{v:.1f}" + (f" (+ {p:.1f} ladder packs)" if p else "")
 
@@ -11380,7 +11381,7 @@ def _ceil_lab(d: dict, p: dict, ceil: set) -> str:
 
 
 MINUTES_NOTE = ("Minutes = the wall-clock minutes of the run command's recorded phases (generation, judge, report), "
-                "summed; \"not recorded\" = a run from before the timing record. Run cost = the rows' recorded cost "
+                "summed; — = no single run time (the rows come from several runs, or from before the timing record). Run cost = the rows' recorded cost "
                 "at the provider's price; — = run on our own hardware.")
 
 

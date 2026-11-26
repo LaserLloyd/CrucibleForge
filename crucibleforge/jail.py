@@ -143,6 +143,7 @@ def net(host, port):
 out["net_internet"] = net("1.1.1.1", 443)
 out["net_host"] = net(os.environ.get("CF_SELFTEST_HOST", "host.docker.internal"), 80)
 out["net_loopback"] = net("127.0.0.1", 9)
+out["net_results_page"] = net("127.0.0.1", RESULTS_PORT)
 import resource
 out["rlimit_nproc"] = resource.getrlimit(resource.RLIMIT_NPROC)[0]
 out["rlimit_cpu"] = resource.getrlimit(resource.RLIMIT_CPU)[0]
@@ -156,7 +157,8 @@ def selftest() -> dict:
     from . import graders as _g
     with tempfile.TemporaryDirectory(prefix="jailtest-") as td:
         p = Path(td) / "hostile.py"
-        p.write_text(_HOSTILE, encoding="utf-8")
+        from .viewserver import port_from_env  # the results page `test --serve` / `view` may have open
+        p.write_text(_HOSTILE.replace("RESULTS_PORT", str(port_from_env())), encoding="utf-8")
         r = subprocess.run([_g._REAL_PY, "-I", str(p)], capture_output=True, text=True, cwd=td,
                            env=_g._child_env(), timeout=60)
     line = next((ln for ln in r.stdout.splitlines() if ln.startswith("SELFTEST ")), None)
@@ -179,7 +181,7 @@ def selftest() -> dict:
         fails.append("reads models.yaml")
     if got["write_cwd"] is not True:
         fails.append(f"cannot write its own scratch directory ({got['write_cwd']})")
-    for k in ("net_internet", "net_host", "net_loopback"):
+    for k in ("net_internet", "net_host", "net_loopback", "net_results_page"):
         if got[k] is True:
             fails.append(f"{k}: connected")
     for k in ("rlimit_nproc", "rlimit_cpu", "rlimit_fsize"):

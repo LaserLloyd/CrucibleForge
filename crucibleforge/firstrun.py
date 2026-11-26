@@ -27,6 +27,18 @@ import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 
+def safe_console() -> None:
+    """A Windows console with a legacy code page (cp437, cp1252) cannot show every character a message may hold (an
+    em dash, a middle dot): replace what it cannot show instead of crashing with UnicodeEncodeError (4.5.1)."""
+    import sys
+    for s in (sys.stdout, sys.stderr):
+        try:
+            if (getattr(s, "encoding", "") or "").lower().replace("-", "") not in ("utf8", "utf_8"):
+                s.reconfigure(errors="replace")
+        except (AttributeError, ValueError, OSError):
+            pass
+
+
 # ---------------------------------------------------------------- exit codes and headlines
 CODES = {
     "NO_KEY": 20, "KEY_EMPTY": 20,
@@ -49,6 +61,7 @@ CODES = {
     "LOCAL_KEY_NEEDED": 37,
     "LOCAL_KEY_REJECTED": 38,
     "STALLED": 39,
+    "PORT_TAKEN": 40,
     "STOPPED": 130,
 }
 #: the fixed first words of each message (the code adds the details after them)
@@ -81,6 +94,7 @@ HEADLINES = {
     "LOCAL_KEY_NEEDED": "Your model server asks for a key:",
     "LOCAL_KEY_REJECTED": "The model server rejected the key in",
     "STALLED": "The model server stopped answering",
+    "PORT_TAKEN": "The results page could not open: something already uses port",
     "STOPPED": "Stopped. Nothing is lost",
 }
 #: start-up notes that are not failures (the run goes on)

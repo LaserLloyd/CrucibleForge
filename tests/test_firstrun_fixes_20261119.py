@@ -79,4 +79,4 @@ def test_the_minutes_cell_says_both_numbers():
     assert report.minutes45_cell({"run_minutes45": 110.0, "run_minutes_packs45": 20.0, "run_ids45": 2}) == \
         "110.0 (+ 20.0 ladder packs)"
     assert report.minutes45_cell({"run_minutes45": 110.0, "run_ids45": 1}) == "110.0"
-    assert report.minutes45_cell({"run_minutes45": None, "run_ids45": 2}) == "not recorded (rows from 2 runs)"
+    assert report.minutes45_cell({"run_minutes45": None, "run_ids45": 2}) == "—"

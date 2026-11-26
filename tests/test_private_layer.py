@@ -102,6 +102,8 @@ def test_hook_refuses_a_commit_that_names_or_adds_the_layer(tmp_path):
             assert r.returncode == 0, r.stderr
         return r
 
+    if shutil.which("sh") is None:
+        pytest.skip("no sh on PATH (a plain Windows console; Git for Windows' sh runs the hooks, as on CI)")
     git("init", "-q")
     subprocess.run(["sh", "scripts/install-hooks.sh"], cwd=repo, env=env, capture_output=True, check=True)
     git("add", ".gitignore", "scripts", "cases/tooluse.json")

@@ -709,6 +709,101 @@ def summary_lines(label: str, judge_desc: str) -> list[str]:
 
 
 # ---------------------------------------------------------------- run
+PROGRESS_EVERY_S = 30
+_LOGLINE = re.compile(r"^\d{4}-\d\d-\d\d[ T]\d\d:\d\d:\d\d(?:[,.]\d+)?\s+(DEBUG|INFO|WARNING|ERROR|CRITICAL)\s+(.*)$")
+_JOBS = re.compile(r"running (\d+) jobs with concurrency=(\d+)")
+_DONE = re.compile(r"^\[[^\]]+\] \S+ r\d+ done \(")
+MAX_NOTES = 10
+
+
+def _rel_results() -> str:
+    res = results_dir()
+    return str(res.relative_to(config_path().parent)) if res.is_relative_to(config_path().parent) else str(res)
+
+
+def open_run_log(args: list[str]):
+    """The engine's raw log, appended to results/run.log (one header per invocation); None if it cannot be written."""
+    try:
+        f = open(results_dir() / "run.log", "a", encoding="utf-8")
+        f.write(f"\n=== {time.strftime('%Y-%m-%d %H:%M:%S')} crucibleforge {package_version()}: "
+                f"{' '.join(a for a in args if a)} ===\n")
+        return f
+    except OSError:
+        return None
+
+
+class Progress:
+    """Reads the engine's log lines and says, in one plain line, how far the run is; warnings become plain notes."""
+
+    def __init__(self, ledger: str | None = None):
+        self.ledger, self.t0 = ledger, time.time()
+        self.total = self.done = 0
+        self.first_job: float | None = None
+        self.phase = "preparing the questions"
+        self.notes: set[str] = set()
+        self.shown_step = 0
+        self.at_once = 0
+
+    def stopping_line(self) -> str:
+        """What the first Ctrl-C does, said at once: how many answers are still coming and about how long they take."""
+        n = min(self.at_once, self.total - self.done) if self.phase == "answering" and self.at_once else 0
+        if n <= 0:
+            return ("Stopping: finishing what is already in progress. Press Ctrl-C again to stop now; anything "
+                    "unfinished is asked again next time.")
+        each = (time.time() - self.first_job) * self.at_once / self.done if self.first_job and self.done else None
+        how = f" (up to about {max(each / 60, 1):.0f} min at this speed)" if each else ""
+        what = "answer" if n == 1 else f"{n} answers"
+        return (f"Stopping: finishing the {what} already in progress{how}. Press Ctrl-C again to stop now; "
+                f"{'it' if n == 1 else f'those {n}'} would be asked again next time.")
+
+    def feed(self, line: str) -> list[str]:
+        m = _LOGLINE.match(line.rstrip("\n"))
+        if not m:
+            return []                   # the engine's own tables and summaries: in run.log; the closing lines say it
+        level, msg = m.groups()
+        out = []
+        j = _JOBS.search(msg)
+        if j:
+            self.total += int(j.group(1))
+            self.at_once = int(j.group(2))
+            self.first_job = self.first_job or time.time()
+            self.phase = "answering"
+        elif _DONE.match(msg):
+            self.done += 1
+            step = (10 * self.done) // max(self.total, 1)
+            if step > self.shown_step and self.total >= 20:
+                self.shown_step = step
+                out.append(self.line())
+        elif level == "INFO" and re.search(r"\bjudg", msg, re.I) and self.phase != "judging the answers":
+            self.phase = "judging the answers"
+        if level in ("WARNING", "ERROR", "CRITICAL"):
+            key = re.sub(r"\d+", "#", msg)[:80]
+            if key not in self.notes and len(self.notes) < MAX_NOTES:
+                self.notes.add(key)
+                out.append(f"  note: {msg.strip()}")
+                if len(self.notes) == MAX_NOTES:
+                    out.append(f"  (further notes only in {_rel_results()}/run.log)")
+        return out
+
+    def line(self) -> str:
+        mins = (time.time() - self.t0) / 60
+        parts = []
+        if self.total and self.phase == "answering":
+            parts.append(f"{min(self.done, self.total)} of {self.total} answers")
+        else:
+            parts.append(self.phase)
+        spent = ledger_spent(self.ledger)
+        if spent and spent >= 0.00005:
+            parts.append(f"${spent:.2f} so far" if spent >= 1 else f"${spent:.4f} so far")
+        left = None
+        if self.phase == "answering" and self.first_job and self.done >= 5 and self.total > self.done:
+            rate = self.done / max(time.time() - self.first_job, 1.0)
+            left = (self.total - self.done) / rate / 60
+        parts.append(f"about {max(left, 1):.0f} min left for the answers" if left is not None
+                     else f"{mins:.0f} min so far")
+        return "  " + " · ".join(parts)
+
+
 def run_engine(args: list[str], env: dict) -> tuple[int, list[str]]:
     """Run the engine with its output shown live; the first Ctrl-C asks it to finish what is in flight and stop
     (its drain), a second one stops it at once. Returns (exit code, the output's last lines)."""
@@ -717,53 +812,82 @@ def run_engine(args: list[str], env: dict) -> tuple[int, list[str]]:
     tail: list[str] = []
     stops = {"n": 0}
 
+    prog = Progress(ledger=(env or {}).get("CF_SPEND_LEDGER"))
+
+    def _write(text: str) -> None:
+        # never print() here: the handler can run while the main thread is inside sys.stdout.flush(), and a
+        # buffered write then raises "reentrant call". os.write is unbuffered and safe in a handler.
+        try:
+            os.write(sys.stdout.fileno(), text.encode(sys.stdout.encoding or "utf-8", "replace"))
+        except (OSError, ValueError, LookupError):
+            pass
+
     def on_int(_sig, _frm):
         stops["n"] += 1
         if stops["n"] == 1:
-            # never print() here: the handler can run while the main thread is inside sys.stdout.flush(), and a
-            # buffered write then raises "reentrant call". os.write is unbuffered and safe in a handler.
-            try:
-                os.write(sys.stdout.fileno(),
-                         b"\nStopping: finishing the requests already sent (Ctrl-C again to stop at once) ...\n")
-            except (OSError, ValueError):
-                pass
+            _write("\n" + prog.stopping_line() + "\n")
             try:
                 proc.send_signal(getattr(signal, "SIGUSR1", signal.SIGTERM))
             except ProcessLookupError:
                 pass
-        else:
+        elif stops["n"] == 2:
+            _write("\nStopping now: the answers in progress are dropped and asked again next time ...\n")
             try:
-                proc.terminate()
+                proc.terminate()            # the engine's hard stop: marks the run stopped, releases a rig lease
             except ProcessLookupError:
                 pass
+
+            def last_resort():              # it gets 20 s to close cleanly, then it is killed
+                try:
+                    proc.wait(timeout=20)
+                except subprocess.TimeoutExpired:
+                    proc.kill()
+            threading.Thread(target=last_resort, daemon=True).start()
     old = signal.signal(signal.SIGINT, on_int)
     old_term = signal.signal(signal.SIGTERM, on_int)
+    done = threading.Event()
     try:
         assert proc.stdout is not None
         jailed, told = bool(os.environ.get("CRUCIBLEFORGE_JAIL")), False
-        last, t0, done = [time.time()], time.time(), threading.Event()
+        verbose = os.environ.get("CF_VERBOSE", "").strip() not in ("", "0")
+        logf = open_run_log(args)
+        last = [time.time()]
 
-        def quiet_ticker():                  # the engine can be quiet for minutes (grading, judging): say so
+        def ticker():                    # the engine can be quiet for minutes (grading, judging): say where it is
             while not done.wait(5):
-                if time.time() - last[0] >= 30:
-                    say(f"  ... still working ({(time.time() - t0) / 60:.0f} min so far)")
+                if time.time() - last[0] >= PROGRESS_EVERY_S:
+                    say(prog.line() if not verbose else
+                        f"  ... still working ({(time.time() - prog.t0) / 60:.0f} min so far)")
                     last[0] = time.time()
-        threading.Thread(target=quiet_ticker, daemon=True).start()
+        threading.Thread(target=ticker, daemon=True).start()
         for line in proc.stdout:
-            last[0] = time.time()
+            if logf is not None:
+                try:
+                    logf.write(line)
+                    logf.flush()
+                except OSError:
+                    logf = None
+            tail.append(line.rstrip("\n"))
+            del tail[:-400]
             if jailed and "--allow-unsandboxed is in force" in line:
                 # the engine's generic warning; in the image the jail stands in for bubblewrap (jail.py)
                 if not told:
                     say("  coding answers run in the container's jail: another user, no network, limits")
                     told = True
                 continue
-            sys.stdout.write(line)
-            sys.stdout.flush()
-            tail.append(line.rstrip("\n"))
-            del tail[:-400]
+            if verbose:
+                last[0] = time.time()
+                sys.stdout.write(line)
+                sys.stdout.flush()
+                continue
+            for out in prog.feed(line):
+                last[0] = time.time()
+                say(out)
         rc = proc.wait()
     finally:
         done.set()
+        if logf is not None:
+            logf.close()
         signal.signal(signal.SIGINT, old)
         signal.signal(signal.SIGTERM, old_term)
     return (EXIT_STOPPED if stops["n"] else rc), tail
@@ -804,13 +928,20 @@ def results_fingerprint(label: str, args: list[str]) -> str:
     res = results_dir()
     for f in (res / f"transcripts_{label}.jsonl", config_path(), res / ".ladder-nothing-owed.json"):
         try:
-            st = f.stat()
-            h.update(f"{f.name}:{st.st_size}:{st.st_mtime_ns}".encode())
-            if f.suffix != ".jsonl":
-                h.update(f.read_bytes())
+            if f.suffix == ".jsonl":            # the answers: size and time (a big file; any append moves both)
+                st = f.stat()
+                h.update(f"{f.name}:{st.st_size}:{st.st_mtime_ns}".encode())
+            else:                               # small files: their content only (each `test` saves models.yaml
+                h.update(f.name.encode() + b":" + f.read_bytes())   # again, same bytes, new time)
         except OSError:
             h.update(f"{f.name}:missing".encode())
     return h.hexdigest()[:24]
+
+
+def owed_nothing(plan: dict) -> bool:
+    """The plan of a folder with stored answers says no answer is owed (every 'owed on resume' line is 'none')."""
+    owed = [ln.replace("owed on resume:", "").strip() for ln in plan.get("owed") or []]
+    return bool(owed) and all(o.startswith("none") for o in owed)
 
 
 def _complete_path() -> Path:
@@ -830,6 +961,8 @@ def record_complete(label: str, args: list[str], lines: list[str]) -> bool:
     remember the state, so the same command next time says so without planning (the plan takes minutes)."""
     if any(w in ln for ln in lines for w in ("pending", "not complete yet", "no number yet", "not ranked", "not run")):
         return False
+    if not any(ln.startswith("Overall ") for ln in lines):     # no board row at all is not "complete"
+        return False
     p = _complete_path()
     try:
         d = json.loads(p.read_text(encoding="utf-8")) if p.exists() else {}
@@ -838,6 +971,27 @@ def record_complete(label: str, args: list[str], lines: list[str]) -> bool:
         return True
     except (OSError, ValueError):
         return False
+
+
+def answers_in(label: str, args: list[str]) -> dict | None:
+    """The record the last run of the same command left when it ended normally (every answer it could get is stored;
+    only judging, a bonus round it opens and the board may be left): {"cap": its cap}. None when the folder changed
+    since (any stored answer, models.yaml, the options or the build) or no such run is recorded."""
+    try:
+        rec = (json.loads(_complete_path().read_text(encoding="utf-8")) or {}).get(label + "#answers")
+    except (OSError, ValueError):
+        return None
+    return rec if isinstance(rec, dict) and rec.get("fp") == results_fingerprint(label, args) else None
+
+
+def record_answers(label: str, args: list[str], cap: float | None) -> None:
+    p = _complete_path()
+    try:
+        d = json.loads(p.read_text(encoding="utf-8")) if p.exists() else {}
+        d[label + "#answers"] = {"fp": results_fingerprint(label, args), "cap": cap}
+        p.write_text(json.dumps(d), encoding="utf-8")
+    except (OSError, ValueError):
+        pass
 
 
 def ledger_split(path: str | None) -> tuple[float, float] | None:
@@ -862,7 +1016,32 @@ def ledger_split(path: str | None) -> tuple[float, float] | None:
     return m, j
 
 
-def cost_lines(ledger: str | None, tail: list[str]) -> list[str]:
+def folder_ledgers(label: str, spend_dir: Path | None = None) -> list[Path]:
+    """Every spend ledger this folder holds for ``label`` (one per `test` invocation: ``<label>-YYYYmmdd-HHMMSS.jsonl``;
+    exact names only, so model ``m`` never counts ``m-2``'s)."""
+    d = spend_dir or (config_path().parent / "spend")
+    pat = re.compile(re.escape(label) + r"-\d{8}-\d{6}\.jsonl")
+    try:
+        return sorted(p for p in d.iterdir() if pat.fullmatch(p.name))
+    except OSError:
+        return []
+
+
+def folder_cost(label: str, spend_dir: Path | None = None) -> tuple[float, float, int]:
+    """(model, judge, invocations that spent anything): what this folder's results of ``label`` cost in all."""
+    m = j = 0.0
+    n = 0
+    for p in folder_ledgers(label, spend_dir):
+        mm, jj = ledger_split(str(p)) or (0.0, 0.0)
+        m, j, n = m + mm, j + jj, n + (1 if mm + jj > 0 else 0)
+    return m, j, n
+
+
+def _usd_fmt(*vals: float) -> int:
+    return 2 if sum(vals) >= 1 else 4            # a cheap run keeps its cents' fractions (a stand-in judge: $0.0012)
+
+
+def cost_lines(ledger: str | None, tail: list[str], label: str | None = None) -> list[str]:
     """ONE model cost, ONE judge cost and their total for this run (every phase: standard rows, NSFW+, bonus rounds,
     retries), from the run's ledger. The board's "Run cost" is a different, fixed measure (one standard Code and
     Chat run, so models compare): named as such."""
@@ -872,11 +1051,22 @@ def cost_lines(ledger: str | None, tail: list[str]) -> list[str]:
     if not j:
         jl = re.search(r"judge cost, whole run[^:]*: \$(\d+\.\d+)", "\n".join(tail))
         j = float(jl.group(1)) if jl else 0.0
-    if not (m or j):
+    fm, fj, runs = folder_cost(label) if label else (0.0, 0.0, 0)
+    out = []
+    if m or j:
+        nd = _usd_fmt(m, j)
+        out.append(f"Cost of this run: model ${m:.{nd}f} + judge ${j:.{nd}f} = ${m + j:.{nd}f} (as billed per call "
+                   "where the provider reports it)")
+        if runs > 1 and fm + fj > m + j + 5e-5:
+            nd = _usd_fmt(fm, fj)
+            out.append(f"  The results in this folder cost ${fm + fj:.{nd}f} in total over {runs} runs: model "
+                       f"${fm:.{nd}f} + judge ${fj:.{nd}f}.")
+    elif fm or fj:
+        nd = _usd_fmt(fm, fj)
+        out.append(f"Nothing new was run this time; the results in this folder cost ${fm + fj:.{nd}f} in total: "
+                   f"model ${fm:.{nd}f} + judge ${fj:.{nd}f}.")
+    else:
         return []
-    nd = 2 if m + j >= 1 else 4                 # a cheap run keeps its cents' fractions (a stand-in judge: $0.0012)
-    out = [f"Cost of this run: model ${m:.{nd}f} + judge ${j:.{nd}f} = ${m + j:.{nd}f} (as billed per call where "
-           "the provider reports it)"]
     rc_line = next((ln for ln in reversed(tail) if ln.strip().startswith("Run cost:")), None)
     if rc_line:
         out.append(f"  (the board's {rc_line.strip()} counts one standard Code and Chat run only, so models compare)")
@@ -965,12 +1155,19 @@ def parse(argv: list[str]) -> argparse.Namespace:
     ap.add_argument("--parallel", type=_count, metavar="N", help="requests at once to your own server (--local, "
                     "--judge-local); default: as many as the server serves at once where it says, else 1")
     ap.add_argument("--judge-local", nargs=2, metavar=("URL", "MODEL"), help="judge with a model on your own server")
+    ap.add_argument("--serve", "--open", dest="serve", action="store_true",
+                    help="show progress and then the report at http://localhost:8377 (publish the port with "
+                    "-p 127.0.0.1:8377:8377); keeps serving after the run until Ctrl-C")
+    ap.add_argument("--port", type=int, default=None, metavar="N", help="the results page's port with --serve "
+                    "(default 8377, or $PORT)")
     ap.add_argument("--smoke", action="store_true", help=argparse.SUPPRESS)
     ap.add_argument("--no-ladder", action="store_true", help=argparse.SUPPRESS)
     return ap.parse_args(argv)
 
 
 def main(argv: list[str] | None = None) -> int:
+    from .firstrun import safe_console
+    safe_console()
     a = parse(sys.argv[1:] if argv is None else argv)
     try:
         return _main(a)
@@ -1139,11 +1336,17 @@ def _main(a: argparse.Namespace) -> int:
     plan: dict = {}
     extra: list[str] = []
     done = bool(label and judge) and nothing_left(label, common)
+    # the last run of this command ended normally and nothing changed since: no plan (1 to 3 minutes of building the
+    # questions to price them); every answer is stored, only judging and the board are left
+    stored = None if done or not (label and judge) else answers_in(label, common)
 
     def _plan():
         nonlocal plan, extra
         if done:
             return True, "nothing left to run: the results are complete"
+        if stored is not None:
+            plan = {"owed": ["owed on resume: none"]}
+            return True, "every answer is already in this folder (the last run ended normally): nothing to plan"
         say("  ....  plan    working out the questions, the cost and the time (can take a few minutes) ...")
         rc, out = engine_out("all", *common, "--plan", tick="still planning", phases=True)
         if rc != 0:
@@ -1169,12 +1372,32 @@ def _main(a: argparse.Namespace) -> int:
         say("", "Ready. Start it with the same command, with test instead of check.")
         return EXIT_OK
     assert planned and label and judge
+    if not done and owed_nothing(plan) and record_complete(label, common, summary_lines(label, judge_desc)):
+        # a folder finished by a build from before the record (or whose record was moved): the plan found nothing
+        # owed and every number is made, so the engine pass would only re-read what is there (minutes, nothing new)
+        say("", "This folder's results were made by an earlier build: it is checked once (that was the plan step); "
+            "the same command now says so at once.")
+        done = True
+    page = None
+    if a.serve:
+        from . import viewserver
+        port = a.port or viewserver.port_from_env()
+        page = viewserver.Status(model=a.model, label=label, total=int(plan["rows"]) if plan.get("rows") else None)
+        try:
+            page.srv = viewserver.start(port, page)
+        except viewserver.PortTaken:
+            say("", *viewserver.taken_lines(port), "  Nothing was spent.")
+            return CODES["PORT_TAKEN"]
+        page.port = port
     if done:
         say("", "Nothing left to run: the results are complete (this command made no request).", "",
             *summary_lines(label, judge_desc))
+        say(*cost_lines(None, [], label))
         say(*files_lines())
-        return EXIT_OK
+        return serve_on(page, EXIT_OK)
     model_cap, run_cap = caps(plan, a.cap)
+    if stored is not None and a.cap is None and stored.get("cap"):
+        model_cap = run_cap = float(stored["cap"])       # the last plan's guard: a bonus round may still open
     say("", "Plan", f"  model:  {model_desc}", f"  judge:  {judge_desc}",
         "  NSFW+ (adult fiction): " + ("left out (--no-adult)" if a.no_adult else
                                        "included, scored apart from Overall (--no-adult leaves it out)"))
@@ -1194,14 +1417,19 @@ def _main(a: argparse.Namespace) -> int:
     if plan.get("minutes"):
         say(f"  time:  the plan's rough estimate is {plan['minutes']:.0f} min (hosted models are often faster)")
     owed = [ln.replace("owed on resume:", "").strip() for ln in plan.get("owed") or []]
-    if owed and all(o.startswith("none") for o in owed):
+    if owed_nothing(plan):
         say("  Every answer is already in this folder: no new answers are paid for; this command only finishes "
-            "what is left (judging, bonus rounds, the board).")
+            "what is left (judging, bonus rounds, the board)." if stored is None else
+            "  Every answer is already in this folder: this command only finishes what is left (judging, the board, "
+            "and a bonus round only if the judging opens one).")
     elif owed:
         say("  An earlier run in this folder stopped before the end: this command continues it.")
         for o in owed:
             say(f"  still to run: {o}")
     say("  The coding answers run inside this container (see 'Safety' in docs/FIRST-RUN-DOCKER.md).")
+    if page is not None:
+        say(f"  results page: http://localhost:{page.port} shows the progress now and the report when it is ready "
+            "(anyone who can reach that port can read it)")
 
     if not a.yes:
         # no terminal (-it left out): stdin is closed and input() meets end-of-file at once; with -i but no -t
@@ -1223,8 +1451,14 @@ def _main(a: argparse.Namespace) -> int:
         spend_dir.mkdir(exist_ok=True)
         env["CF_SPEND_LEDGER"] = str(spend_dir / f"{label}-{time.strftime('%Y%m%d-%H%M%S')}.jsonl")
         env["CF_SPEND_GLOBAL_CAP_USD"] = f"{run_cap:.2f}"
+    if page is not None:
+        page.ledger, page.step = env.get("CF_SPEND_LEDGER"), "answering and judging"
     run_args = ["all", *common] + (["--spend-cap-usd", f"{model_cap:.2f}"] if model_cap else [])
-    say("", "Running (the same command continues it later if it stops) ...", "")
+    say("", "Running (the same command continues it later if it stops) ...")
+    if os.environ.get("CF_VERBOSE", "").strip() in ("", "0"):
+        say(f"  one progress line every {PROGRESS_EVERY_S} s; the full log goes to {_rel_results()}/run.log "
+            "(-e CF_VERBOSE=1 shows it here)")
+    say("")
     rc, tail = run_engine(run_args, env)
     spent_usd = ledger_spent(env.get("CF_SPEND_LEDGER"))
     mins = (time.time() - t0) / 60
@@ -1239,11 +1473,23 @@ def _main(a: argparse.Namespace) -> int:
         say(ln)
     result = summary_lines(label, judge_desc)
     say("", *result)
-    say(*cost_lines(env.get("CF_SPEND_LEDGER"), tail))
-    if rc == 0:
-        record_complete(label, common, result)
+    say(*cost_lines(env.get("CF_SPEND_LEDGER"), tail, label))
+    if rc == 0 and not record_complete(label, common, result):
+        record_answers(label, common, run_cap)
     say(*files_lines())
-    return EXIT_OK if rc == 0 else code
+    if page is not None:
+        page.finished = "finished" if rc == 0 else f"stopped (exit code {code}): see the terminal"
+    return serve_on(page, EXIT_OK if rc == 0 else code)
+
+
+def serve_on(page, code: int) -> int:
+    """With --serve: keep the results page open until Ctrl-C, then return the run's own exit code."""
+    if page is None:
+        return code
+    from . import viewserver
+    say("", f"Your results are open at http://localhost:{page.port} (press Ctrl-C to close).")
+    viewserver.wait_forever(page.srv)
+    return code
 
 
 if __name__ == "__main__":

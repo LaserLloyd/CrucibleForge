@@ -99,6 +99,9 @@ def test_unknown_model_suggests_close_ids(fake, monkeypatch, capsys):
 
 
 @pytest.mark.skipif(hasattr(os, "geteuid") and os.geteuid() == 0, reason="root ignores directory modes")
+@pytest.mark.skipif(sys.platform == "win32", reason="chmod 0o500 does not make a folder read-only on Windows (it sets "
+                    "only the read-only attribute, which folders ignore): the folder stays writable, so the run goes "
+                    "on, as it should; exit 24 is for a folder the run really cannot write")
 def test_unwritable_folder(fake, monkeypatch, capsys):
     d = fake / "data"
     d.mkdir()
@@ -230,7 +233,7 @@ def test_ctrl_c_stops_cleanly_and_says_how_to_continue(tmp_path):
                    "sys.exit(rc)\n", encoding="utf-8")
     root = Path(qt.__file__).resolve().parents[1]
     p = subprocess.Popen([sys.executable, str(drv)], stdout=subprocess.PIPE, text=True, cwd=root,
-                         env={**os.environ, "PYTHONPATH": str(root)})
+                         env={**os.environ, "PYTHONPATH": str(root), "CF_VERBOSE": "1"})  # the raw stream
     assert p.stdout is not None
     assert p.stdout.readline().strip() == "started"
     p.send_signal(signal.SIGINT)
@@ -564,3 +567,71 @@ def test_one_model_cost_one_judge_cost_and_their_total(tmp_path):
     tail = ["  m: 576 rows, load 0.0s (openrouter), $0.3792", "  m: 8 rows, load 0.0s (openrouter), $0.0089",
             "judge cost, whole run (every judge phase): $0.2247 for 871 call(s) to q on openrouter (billed apart)"]
     assert qt.cost_lines(None, tail)[0].startswith("Cost of this run: model $0.3881 + judge $0.2247 = $0.6128")
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="POSIX signals (see the test above)")
+def test_a_second_ctrl_c_stops_at_once_even_while_answers_drain(tmp_path):
+    """The stand-in drains for minutes (a slow local server); the second Ctrl-C ends it within seconds."""
+    import time as _t
+    child = tmp_path / "eng.py"
+    child.write_text("import signal,sys,time\n"
+                     "signal.signal(signal.SIGUSR1, lambda *a: print('draining', flush=True))\n"
+                     "signal.signal(signal.SIGTERM, lambda *a: (print('hard stop', flush=True), sys.exit(143)))\n"
+                     "print('started', flush=True)\n"
+                     "for _ in range(600): time.sleep(0.5)\n", encoding="utf-8")
+    drv = tmp_path / "drv.py"
+    drv.write_text("import sys\nfrom crucibleforge import quicktest as qt\n"
+                   f"qt.engine_argv = lambda *a: [sys.executable, {str(child)!r}]\n"
+                   "rc, tail = qt.run_engine([], None)\nsys.exit(rc)\n", encoding="utf-8")
+    root = Path(qt.__file__).resolve().parents[1]
+    p = subprocess.Popen([sys.executable, str(drv)], stdout=subprocess.PIPE, text=True, cwd=root,
+                         env={**os.environ, "PYTHONPATH": str(root), "CF_VERBOSE": "1"})
+    assert p.stdout is not None
+    assert p.stdout.readline().strip() == "started"
+    p.send_signal(signal.SIGINT)
+    lines = [p.stdout.readline(), p.stdout.readline(), p.stdout.readline()]
+    assert any(ln.startswith("Stopping: finishing") and "Press Ctrl-C again to stop now" in ln for ln in lines)
+    t0 = _t.time()
+    p.send_signal(signal.SIGINT)
+    out = p.stdout.read()
+    assert p.wait(timeout=30) == qt.EXIT_STOPPED and _t.time() - t0 < 10
+    assert "Stopping now" in out and "hard stop" in out
+
+
+def test_a_folder_whose_last_run_ended_normally_skips_the_plan(fake, monkeypatch, capsys):
+    """Rig, 2026-11-26: the same command on a finished folder planned for 109-153 s before saying every answer was
+    in. The last run's normal end is recorded; the next one says so at once and goes straight to what is left."""
+    calls = _planned(monkeypatch)
+    res = qt.results_dir()
+    res.mkdir(parents=True, exist_ok=True)
+    (res / "transcripts_gpt-6-luna.jsonl").write_text("{}\n", encoding="utf-8")
+    args = ["--models", "gpt-6-luna", "--judge", qt.DEFAULT_JUDGE]
+    qt.record_answers("gpt-6-luna", args, 3.0)
+    assert qt.answers_in("gpt-6-luna", args) == {"fp": qt.results_fingerprint("gpt-6-luna", args), "cap": 3.0}
+    ran = []
+    monkeypatch.setattr(qt, "run_engine", lambda a, env: ran.append((a, env)) or (0, []))
+    monkeypatch.setattr(qt, "summary_lines", lambda *a: ["Overall 1.0 of 34", "Adult (NSFW+): no number yet (x)"])
+    rc, out = _run(capsys, "openai/gpt-6-luna", "--yes")
+    assert rc == 0 and not calls, out                        # no plan
+    assert out.index("Every answer is already in this folder") < out.index("Running")
+    assert ran and ran[0][0][0] == "all" and ran[0][1]["CF_SPEND_GLOBAL_CAP_USD"] == "3.00"
+    (res / "transcripts_gpt-6-luna.jsonl").write_text("{}\n{}\n", encoding="utf-8")   # any change: plan again
+    assert qt.answers_in("gpt-6-luna", args) is None
+
+
+def test_saving_models_yaml_again_with_the_same_bytes_keeps_the_record(fake, monkeypatch):
+    """Every `test` saves models.yaml (the model step registers the model): same bytes, new time. That must not make a
+    finished folder look changed (the e2e's third run planned again because of it)."""
+    import time as _t
+    res = qt.results_dir()
+    res.mkdir(parents=True, exist_ok=True)
+    (res / "transcripts_m.jsonl").write_text("{}\n", encoding="utf-8")
+    cfg = qt.config_path()
+    cfg.parent.mkdir(parents=True, exist_ok=True)
+    cfg.write_text("models: []\n", encoding="utf-8")
+    fp = qt.results_fingerprint("m", ["--models", "m"])
+    _t.sleep(0.01)
+    cfg.write_text("models: []\n", encoding="utf-8")
+    assert qt.results_fingerprint("m", ["--models", "m"]) == fp
+    cfg.write_text("models: [x]\n", encoding="utf-8")
+    assert qt.results_fingerprint("m", ["--models", "m"]) != fp

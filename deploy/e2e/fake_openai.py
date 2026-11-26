@@ -22,7 +22,7 @@ LOCK = threading.Lock()
 SLOTS = int(os.environ.get("FAKE_SLOTS") or 0)
 HOLD_S = float(os.environ.get("FAKE_HOLD_S") or 0)
 SLOT_SEM = threading.BoundedSemaphore(SLOTS) if SLOTS else None
-STATS = {"in_flight": 0, "max_in_flight": 0, "queued_max": 0, "waiting": 0}
+STATS = {"in_flight": 0, "max_in_flight": 0, "queued_max": 0, "waiting": 0, "requests": 0, "get_paths": {}}
 CODE = """```python
 import os, glob, socket, json
 def _probe():
@@ -97,6 +97,10 @@ class H(BaseHTTPRequestHandler):
             return True
         return False
     def do_GET(self):
+        if not self.path.rstrip("/").endswith("/stats"):
+            with LOCK:
+                STATS["requests"] += 1
+                STATS["get_paths"][self.path] = STATS["get_paths"].get(self.path, 0) + 1
         if self._locked(): return
         auth = self.headers.get("Authorization") or ""
         if SLOTS and self.path.rstrip("/").endswith("/props"):
@@ -119,6 +123,7 @@ class H(BaseHTTPRequestHandler):
             self._send(200, {"data": {"total_credits": 5, "total_usage": used}})
         else: self._send(200, {"ok": True})
     def do_POST(self):
+        with LOCK: STATS["requests"] += 1
         if self._locked(): return
         n = int(self.headers.get("Content-Length") or 0)
         req = json.loads(self.rfile.read(n) or b"{}")

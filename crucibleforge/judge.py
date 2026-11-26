@@ -1615,10 +1615,12 @@ def _load_judge(cfg: dict, benched_model_ids: set[str], rows: int, samples: int,
         allow_fallback = False
         candidates = [forced]
     elif override:
-        eligible = _eligible_judge_candidates(cfg, benched_model_ids)
         forced = select_judge(cfg, benched_model_ids, override=override)
-        others = [c for c in eligible if c["model_id"] != forced["model_id"]]
-        candidates = [forced] + (others if allow_fallback else [])
+        # the other candidates are probed only when they may be used (--judge-fallback): a run with a named hosted
+        # judge never asks a local server it does not use (4.5.1)
+        others = [c for c in _eligible_judge_candidates(cfg, benched_model_ids)
+                  if c["model_id"] != forced["model_id"]] if allow_fallback else []
+        candidates = [forced] + others
     else:
         forced = None
         candidates = _eligible_judge_candidates(cfg, benched_model_ids)
