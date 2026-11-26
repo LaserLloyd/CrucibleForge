@@ -45,6 +45,8 @@ print(json.dumps({{"type": "result", "subtype": "success", "is_error": False,
 
 @pytest.fixture
 def fake(tmp_path, monkeypatch):
+    if sys.platform == "win32":
+        pytest.skip("the stand-in executable is a shebang script, which Windows cannot run")
     d = tmp_path / "bin"
     d.mkdir()
     exe = d / "claude"

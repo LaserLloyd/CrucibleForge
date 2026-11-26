@@ -103,6 +103,17 @@ for p in glob.glob("/proc/[0-9]*/environ"):
     if b"KEY=" in b or b"TOKEN=" in b:
         seen.append(p)
 out["proc_environ_with_key"] = seen
+# the keys by name, each one checked on its own: OpenRouter's and a local model server's (model and judge)
+names = ("OPENROUTER_API_KEY", "LOCAL_API_KEY", "JUDGE_LOCAL_API_KEY")
+out["named_keys_in_env"] = [n for n in names if n in os.environ]
+named = []
+for p in glob.glob("/proc/[0-9]*/environ"):
+    try:
+        b = open(p, "rb").read()
+    except OSError:
+        continue
+    named += [p + ":" + n for n in names if (n + "=").encode() in b]
+out["named_keys_in_proc"] = named
 def tryw(p):
     try:
         with open(p, "w") as f:
@@ -159,6 +170,8 @@ def selftest() -> dict:
         fails.append(f"key names in its environment: {got['key_in_env']}")
     if got["proc_environ_with_key"]:
         fails.append(f"reads a key from {got['proc_environ_with_key']}")
+    if got.get("named_keys_in_env") or got.get("named_keys_in_proc"):
+        fails.append(f"sees {got.get('named_keys_in_env') or []} {got.get('named_keys_in_proc') or []}")
     for k in ("write_data", "write_results", "write_app"):
         if got[k] is True:
             fails.append(f"{k}: allowed")

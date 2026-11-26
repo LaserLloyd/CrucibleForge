@@ -52,6 +52,29 @@ In short:
 - **The one-command `test`** ends with each total and its split, and Ctrl-C no longer crashes it on a busy terminal.
   The image was tested with Podman and with rootless Docker 29; rootless Docker reaches a model server on the host
   only by the host's network address (documented).
+- **The first run into a fresh folder works on Windows.** Docker Desktop shows a new Windows folder as root's with
+  mode 777; the entrypoint picked uid 1000 without making the folder its own, then removed the "other" bits, so the
+  first run always stopped with "Cannot write to the results folder" (a folder with a file in it stayed broken).
+  The entrypoint now decides the run user, makes the folder that user's, proves it by writing a file as that user,
+  never removes a permission the user writes through, and checks that the graded code's user cannot write the
+  folder; a file system that keeps its own owners is detected and said in one line (`crucibleforge/firstrun.py`).
+- **Every first-run failure ends with what to do, for this machine, and its own exit code** (20 to 38): no folder
+  given (`-v`), a folder that cannot be written (the fix named for Docker Desktop on Windows or a Mac, SELinux, a
+  network share or a root-owned Linux folder), low disk, an empty, quoted or other service's key, a rejected key,
+  no credit, HTTP 429, an unknown model id, no DNS, no route, a proxy or certificate interception (`HTTPS_PROXY`,
+  `SSL_CERT_FILE`), a wrong clock, a local server that is down or has the model unloaded or too small a context
+  window, no terminal, a broken `models.yaml` (file, line, and a valid example; near-miss keys named with the valid
+  one), and a folder last used by a newer image. The table in `docs/FIRST-RUN-DOCKER.md` is tested against the code.
+- **`check`** (`docker run ... check <model>`): the free pre-flight alone, one PASS or FIX line each for the folder,
+  the key and balance, `models.yaml`, the model, the judge and the cost; `test` runs the same checks first.
+- `test --local` and `check --local` work with a model server that asks for a key: `-e LOCAL_API_KEY=...` (and
+  `-e JUDGE_LOCAL_API_KEY=...` for `--judge-local` on another server). Only the variable's name goes into
+  `models.yaml`; the jail self-test checks both keys are out of the graded code's reach. A missing key (exit 37) and
+  a rejected key (exit 38) have their own messages; a wrong model id lists the server's ids, and `check` reports the
+  server's context window against what the suite needs.
+- `test` and `check` are listed in `crucibleforge --help`; a Ctrl-C stop reads "stopped", not "FAILED"; the
+  entrypoint prints its routine lines only with `CF_VERBOSE=1` and names the package version; planning prints which
+  step it is on; an adult page the judge has not classed says why and that the same command retries it.
 - **CI** runs the wall-clock and CPU-time tests in a step of their own after the parallel run.
 - **Fix rows** are graded without bubblewrap under the documented `CRUCIBLEFORGE_ALLOW_UNSANDBOXED=1` switch (the
   container is the isolation), and rows stored as unavailable are re-graded from their stored reply.

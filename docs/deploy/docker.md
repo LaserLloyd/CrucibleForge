@@ -138,6 +138,13 @@ groups, and installs a seccomp filter that refuses IPv4, IPv6, netlink and packe
 memory reads and `io_uring`. The benchmark itself runs as the owner of `/data` (the container starts as root only
 to find that owner) and is non-dumpable, so its environment cannot be read through `/proc` by another user.
 
+The folder step (`crucibleforge/firstrun.py prepare`, run by the entrypoint as root) picks that user (`PUID`, else
+the folder's owner; a root-owned folder means uid 1000 under rootful Docker and Docker Desktop, and uid 0 under
+rootless engines, where uid 0 is you), makes the folder that user's, proves it by writing a file as that user, and
+only then closes the folder to other users. A file system that keeps its own owners (some network shares, Docker
+Desktop folders without owner support) keeps its permissions, the run says so in one line, and the graded code's
+user may then be able to write the folder; it is tested at every start and reported, never assumed.
+
 What that gives, each point checked by `python -m crucibleforge.jail --selftest` in the offline end-to-end test
 (`deploy/e2e/offline_e2e.sh`, run by CI on every push):
 

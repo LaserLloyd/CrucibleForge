@@ -19,19 +19,38 @@ docker run --rm -it -e OPENROUTER_API_KEY=sk-or-... -v "$PWD/makobench:/data" gh
 On Fedora, RHEL or another SELinux system write `"$PWD/makobench:/data:Z"`. With Podman, write `podman` instead of
 `docker`; nothing else changes.
 
-**Windows, PowerShell** (not tested yet):
+**Windows, PowerShell** (tested with Docker Desktop 4.95 on WSL 2, PowerShell 7, Windows 11):
 
 ```powershell
 mkdir makobench
 docker run --rm -it -e OPENROUTER_API_KEY=sk-or-... -v "${PWD}\makobench:/data" ghcr.io/laserlloyd/crucibleforge:4.5.1 test openai/gpt-6-luna
 ```
 
+Not tested on Windows yet: a folder path with spaces (the quotes are meant to cover it), Docker Desktop's
+first-time "share this folder?" question (answer Share), and the published image (the test used one built locally).
+In `cmd.exe` write `"%cd%\makobench:/data"` instead.
+
 **macOS, Terminal** (not tested yet): the Linux command, unchanged.
+
+**Check first, for free.** Write `check` instead of `test` to run only the checks: the folder, the key (and your
+balance), the model id, `models.yaml`, and the cost estimate. Nothing is spent. It prints one `PASS` or `FIX` line
+for each, and `test` runs the same checks before its first paid call. From the offline test (a stand-in provider
+named `fake/fake-model`, so the prices and balance are the stand-in's):
+
+```text
+  PASS  folder  your results folder is writable, 298 GB free
+  PASS  key     accepted by OpenRouter; balance $5.00
+  PASS  config  models.yaml is valid
+  PASS  model   fake/fake-model on OpenRouter ($0.10 in / $0.50 out per million tokens)
+  PASS  judge   Qwen 3.8 27B through OpenRouter
+  PASS  plan    about $0.77 for the model and the judge; the run stops at $5.00
+```
 
 ## What happens
 
-1. Within a second it says what it is checking: the folder, the key, the model.
-2. It looks the model up on OpenRouter, with its price, and plans the test.
+1. Within a second it says what it is checking, then one `PASS` line per check: the folder, the key, the model.
+2. It looks the model up on OpenRouter, with its price, and plans the test. Planning takes one to three minutes (it
+   builds the generated questions to size their answers); a line every 15 seconds says which step it is on.
 3. It prints the plan: the model, the judge, whether NSFW+ (adult fiction) is included, the expected cost of the model and
    of the judge (about, and up to, for the standard test, and what the bonus packs add if they all open), and a rough
    time. It sets two spend limits at about twice the estimate.
@@ -49,6 +68,9 @@ Judged by Qwen 3.8 27B through OpenRouter; MakoBench's published scores use the 
 Judge cost: $0.2149 for 892 call(s) to qwen/qwen3.8-27b on openrouter
 Open results/report.html in the folder you mounted with -v (for example makobench) in your browser (report.md is the same board as text).
 ```
+
+The adult line can instead read `Adult (NSFW+): no number yet (...)`: the judge did not class every adult answer
+(its calls failed, or its check did not pass). The answers are kept; the same command asks the judge again.
 
 **Stopped, or the computer slept?** Run the same command again. Finished answers are kept; it continues where it
 stopped and shows what is still owed and what it will cost before it spends anything. Ctrl-C stops cleanly.
@@ -82,6 +104,19 @@ docker run --rm -it --add-host=host.docker.internal:host-gateway -e OPENROUTER_A
 - **llama-server:** add `--host 0.0.0.0`; the address is `http://localhost:8080`.
 - **LM Studio:** Developer tab, turn on "Serve on local network"; the address is `http://localhost:1234`.
 
+On Windows (Docker Desktop, PowerShell), `host.docker.internal` works without `--add-host`:
+
+```powershell
+docker run --rm -it -e OPENROUTER_API_KEY=$env:OPENROUTER_API_KEY -v "${PWD}\makobench:/data" ghcr.io/laserlloyd/crucibleforge:4.5.1 test --local http://localhost:11434 qwen3:8b
+```
+
+If your server asks for a key (vLLM or llama-server started with `--api-key`, LM Studio with authentication on,
+LiteLLM, most shared servers), add `-e LOCAL_API_KEY=<the server's key>` (PowerShell, from a variable:
+`-e LOCAL_API_KEY=$env:LOCAL_API_KEY`). A judge on another server takes its own `-e JUDGE_LOCAL_API_KEY=...`; on the
+same server it uses `LOCAL_API_KEY`. Like the OpenRouter key, these stay in the container's memory: they are not
+written to the results folder, not printed, and the model's code cannot see them. Run `check` first: it shows the
+server's model ids when yours is not one of them (give the id exactly as listed) and the context window it reports.
+
 `localhost` is changed to your computer's address inside the container (Docker Desktop, Podman and Linux Docker
 each name it differently; the test finds it). `--add-host=host.docker.internal:host-gateway` gives that address a
 name on Linux Docker; Docker Desktop and Podman have it already, and the option does no harm there. **Rootless
@@ -97,19 +132,50 @@ your results folder, and has limits on processes, memory, CPU time and file size
 own files inside the container, and the container is not a virtual machine. Details, and the test that checks each
 point: [deploy/docker.md](deploy/docker.md#coding-cases-and-the-sandbox).
 
+Keeping that code out of your results folder needs a folder whose file system keeps owners apart. A normal folder on
+Linux, a Docker volume and a Windows folder shared by Docker Desktop (which stores owners) do. When the folder's
+file system cannot (some network shares, Docker Desktop folders without owner support), the run still works, and
+its first lines say so: `Note: this folder's file system does not keep owners apart`. Your key and the network
+stay out of that code's reach either way.
+
 ## If something goes wrong
 
-| You see | Do this |
-|---|---|
-| `No OpenRouter key was given.` | Put the key in the command: `-e OPENROUTER_API_KEY=sk-or-...`. |
-| `OpenRouter rejected the key` | Copy the key again from [openrouter.ai/keys](https://openrouter.ai/keys). |
-| `out of credit` | Add credit on OpenRouter, then run the same command: it continues. |
-| `OpenRouter has no model called ...` | Use one of the ids it suggests, exactly as written. |
-| `Cannot write to the results folder` | SELinux: add `:Z` after the folder. Otherwise create the folder yourself first (`mkdir makobench`). |
-| `No terminal to ask "Continue?"` | Add `-it` to `docker run`, or `--yes` after `test`. |
-| `Nothing answered at http://...` | Your model server is not running, or listens only on localhost (see above). With rootless Docker, use your computer's network address instead of `localhost`. |
-| `reached its spend cap` | Run the same command again: it continues with a fresh cap. |
-| The files in the folder belong to another user | Create the folder yourself before the first run (`mkdir makobench`); the test then writes as you. |
-| `cannot switch to the data folder's owner` | You added `--cap-drop`: also add `--user $(id -u):$(id -g)`. |
+Every message ends with what to do, and the command stops with its own exit code (`echo $?` in a Linux or macOS
+shell, `$LASTEXITCODE` in PowerShell). Nothing is spent before the plan is shown and you answer `y`.
+
+| You see (the message starts with) | Exit | What to do |
+|---|---|---|
+| `No results folder was given` | 28 | Add `-v` with a folder (`mkdir makobench` first); the message shows the command for your shell. |
+| `Cannot write to the results folder you gave with -v` | 24 | The message names the fix for your system: on Windows or a Mac, use a folder inside your user folder; on Fedora or RHEL, add `:Z`; on Linux, `mkdir` the folder yourself (or `sudo chown -R $(id -u):$(id -g) makobench`). |
+| `This container cannot switch to the data folder's owner` | 24 | You added `--cap-drop`: also add `--user $(id -u):$(id -g)`. |
+| `There is not enough free disk space` | 32 | Free some space (Docker Desktop: Settings, Resources, Disk image size; or `docker system prune`), then run the same command. |
+| `This results folder was last used by a newer CrucibleForge` | 35 | Use the newer image, or a new folder for this one. Nothing in the folder was changed. |
+| `models.yaml has a mistake` | 31 | Fix the line it names, or rename `models.yaml` to `models.yaml.old`: the next run writes a fresh one and keeps your results. |
+| `No OpenRouter key was given.` | 20 | Put the key in the command: `-e OPENROUTER_API_KEY=sk-or-...`. |
+| `The OpenRouter key is empty.` | 20 | Put the key itself after the `=` sign. |
+| `The OpenRouter key has quote marks or spaces in it.` | 21 | Give it without quote marks inside; in PowerShell from a variable: `-e OPENROUTER_API_KEY=$env:OPENROUTER_API_KEY`. |
+| `This is not an OpenRouter key:` | 21 | It is another service's key. Make one at [openrouter.ai/keys](https://openrouter.ai/keys) (it starts with `sk-or-`). |
+| `OpenRouter rejected the key` | 21 | Copy the key again from [openrouter.ai/keys](https://openrouter.ai/keys). |
+| `The OpenRouter account is out of credit` | 22 | Add credit on OpenRouter, then run the same command: it continues. |
+| `OpenRouter is limiting requests right now (HTTP 429).` | 30 | Wait a minute and run the same command again; nothing is lost. |
+| `OpenRouter has no model called` | 23 | Use one of the ids it suggests, exactly as written. |
+| `The container could not look up` | 29 | No internet or no name lookups from containers: check the connection, restart Docker. Behind a company proxy add `-e HTTPS_PROXY=http://<proxy>:<port>`. |
+| `The container could not reach` | 29 | As above: the connection, or a proxy (`-e HTTPS_PROXY=...`). |
+| `Something between this computer and` | 29 | A company proxy or antivirus replaces HTTPS certificates: add `-e HTTPS_PROXY=...` and `-e SSL_CERT_FILE=/data/<certificate>.pem` with the certificate file in your results folder. |
+| `This computer's clock looks wrong` | 33 | Set the date and time correctly (automatic time), restart Docker, run again. |
+| `Nothing answered at` | 26 | Your model server is not running, or listens only on localhost: start it on `0.0.0.0` (see above). On Linux add `--add-host=host.docker.internal:host-gateway`; with rootless Docker use your computer's network address. |
+| `Your model server asks for a key:` | 37 | Add `-e LOCAL_API_KEY=<the server's key>` (for `--judge-local` on another server: `-e JUDGE_LOCAL_API_KEY=...`). |
+| `The model server rejected the key in` | 38 | Copy the key again from the server's settings into the variable the message names. |
+| `has no model called` | 23 | The server is up but that model is not loaded: load it, or use a name from the list it prints. |
+| `context window is too small for this test` | 34 | Restart your server with the context it names (`llama-server -c N`, LM Studio: Context Length, Ollama: `OLLAMA_CONTEXT_LENGTH=N`). |
+| `No terminal to answer "Continue?" on.` | 25 | Add `-it` to `docker run`, or `--yes` after `test`. |
+| `Not started. Nothing was spent.` | 25 | You answered no. |
+| `The run reached its spend cap` | 36 | Run the same command again: it continues with a fresh cap. |
+| `The run ended with code` | 27 | Read the lines above it; run the same command again to continue. |
+| `Stopped. Nothing is lost` | 130 | You pressed Ctrl-C (or the computer slept). Run the same command again to continue. |
+| `Note: this folder's file system does not keep owners apart` | - | The run goes on; see Safety above. |
+| `exec format error` | - | The image does not match your computer's processor: `docker pull` the image again (it is published for amd64 and arm64), or add `--platform linux/amd64`. |
+| `WARNING: Support for cgroup v1 is deprecated` | - | Printed by `docker info` on some Docker Desktop setups; harmless. |
+| The files in the folder belong to another user | - | Create the folder yourself before the first run (`mkdir makobench`); the test then writes as you. |
 
 Want the full program (other providers, the GUI, many models, compose)? [DOCKER.md](DOCKER.md).

@@ -480,7 +480,7 @@ def _v2_report_body(cmd: str, args, cfg: dict, rc: int, state: dict) -> str:
                 meta = {}
         if meta.get("failed"):
             err = " ".join(str(meta.get("error") or "unknown error").split())
-            result_lines.append(f"{label}: FAILED — {err}")
+            result_lines.append(_failed_or_stopped(label, err))
             failed.append((label, err))
             continue
         card = s.get("scorecard") or {}
@@ -1380,10 +1380,18 @@ def _merge_summaries(a: dict, b: dict) -> dict:
     return out
 
 
+def _failed_or_stopped(label: str, err: str) -> str:
+    """A Ctrl-C drain is a normal stop, not a failure: say so (the meta still marks it failed so a resume reruns it)."""
+    from .runner import DRAIN_NOTE
+    if err.startswith(DRAIN_NOTE):
+        return f"{label}: stopped — {err}"
+    return f"{label}: FAILED — {err}"
+
+
 def _print_run_summary(summary: dict) -> None:
     for label, s in summary.items():
         if s.get("failed"):
-            print(f"  {label}: FAILED — {s.get('error')}")
+            print("  " + _failed_or_stopped(label, str(s.get("error"))))
         else:
             extra = f", {s['skipped']} skipped (ctx)" if s.get("skipped") else ""
             errs = f", {s['case_errors']} case error(s)" if s.get("case_errors") else ""
@@ -5044,6 +5052,13 @@ def package_version() -> str:
 
 
 def main(argv=None):
+    raw = list(sys.argv[1:] if argv is None else argv)
+    lead = [a for a in raw if not a.startswith("-")][:1]
+    if lead and lead[0] in ("test", "check"):
+        # its own parser and messages; global options (--config) do not apply to it
+        from . import quicktest
+        rest = raw[raw.index(lead[0]) + 1:]
+        return quicktest.main((["--check"] if lead[0] == "check" else []) + rest)
     parser = argparse.ArgumentParser(
         prog="crucibleforge",
         description="CrucibleForge — LLM capability benchmark (hard tier, deterministic "
@@ -5060,6 +5075,9 @@ def main(argv=None):
     parser.add_argument("--results", default=None,
                         help="results directory (default: <config dir>/results)")
     sub = parser.add_subparsers(dest="cmd", required=True)
+    # the one-command front door (crucibleforge/quicktest.py); listed here so `--help` shows it, run below
+    sub.add_parser("test", add_help=False, help="benchmark one model with no setup (test --help for its options)")
+    sub.add_parser("check", add_help=False, help="the free pre-flight of `test`: folder, key, model, cost; spends nothing")
 
     def add_force_evict_arg(p):
         p.add_argument(

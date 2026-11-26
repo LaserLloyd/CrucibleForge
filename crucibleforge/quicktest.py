@@ -22,6 +22,7 @@ import struct
 import socket
 import shutil
 import signal
+import ssl
 import subprocess
 import sys
 import threading
@@ -36,17 +37,25 @@ DEFAULT_JUDGE = "openrouter:qwen/qwen3.8-27b"
 CAP_FACTOR = 2.0            # spend caps: about twice the plan's own figure (lead 2026-11-24: a cut run costs more)
 MIN_CAP_USD = 0.50
 
+from .firstrun import CODES, HEADLINES  # noqa: E402 - every message's headline and exit code live there
+
 EXIT_OK = 0
 EXIT_USAGE = 2
-EXIT_NO_KEY = 20
-EXIT_KEY_REJECTED = 21
-EXIT_NO_CREDIT = 22
-EXIT_UNKNOWN_MODEL = 23
-EXIT_NOT_WRITABLE = 24
-EXIT_NOT_CONFIRMED = 25
-EXIT_LOCAL_UNREACHABLE = 26
-EXIT_RUN_FAILED = 27
-EXIT_STOPPED = 130
+EXIT_NO_KEY = CODES["NO_KEY"]
+EXIT_KEY_REJECTED = CODES["KEY_REJECTED"]
+EXIT_NO_CREDIT = CODES["NO_CREDIT"]
+EXIT_UNKNOWN_MODEL = CODES["UNKNOWN_MODEL"]
+EXIT_NOT_WRITABLE = CODES["NOT_WRITABLE"]
+EXIT_NOT_CONFIRMED = CODES["NOT_CONFIRMED"]
+EXIT_LOCAL_UNREACHABLE = CODES["LOCAL_UNREACHABLE"]
+EXIT_RUN_FAILED = CODES["RUN_FAILED"]
+EXIT_STOPPED = CODES["STOPPED"]
+#: free space the run needs: its results (about 11 MB for one model) and the graded programs' scratch
+MIN_FREE_DATA_MB = 200
+MIN_FREE_TMP_MB = 500
+#: keys of other services, by their fixed prefix (an OpenRouter key starts with sk-or-)
+OTHER_KEYS = (("sk-ant-", "Anthropic"), ("sk-proj-", "OpenAI"), ("sk-svcacct-", "OpenAI"), ("AIza", "Google"),
+              ("gsk_", "Groq"), ("xai-", "xAI"), ("hf_", "Hugging Face"), ("pplx-", "Perplexity"))
 
 IN_CONTAINER = os.path.exists("/.dockerenv") or os.path.exists("/run/.containerenv") or \
     os.environ.get("CRUCIBLEFORGE_IN_CONTAINER") == "1"
@@ -59,6 +68,48 @@ class Fail(Exception):
         super().__init__(lines[0] if lines else "")
         self.code = code
         self.lines = lines
+
+
+def fail(name: str, rest: str = "", *more: str) -> Fail:
+    """Fail(code of `name`, its headline + rest, more lines...)."""
+    return Fail(CODES[name], HEADLINES[name] + rest, *more)
+
+
+PROXY_LINES = ("  Behind a company proxy? Pass it into the container:  -e HTTPS_PROXY=http://<proxy>:<port>",
+               "  (and -e NO_PROXY=host.docker.internal when a model runs on this computer).")
+
+
+def net_fail(e: BaseException, host: str) -> Fail:
+    """A plain sentence for a connection that failed before any HTTP answer: DNS, TLS (a proxy that replaces
+    certificates, or a wrong clock), or no route at all."""
+    reason = getattr(e, "reason", e)
+    text = str(reason)
+    if isinstance(reason, ssl.SSLCertVerificationError) or "CERTIFICATE_VERIFY_FAILED" in text:
+        if re.search(r"not yet valid|expired", text, re.I):
+            return fail("CLOCK", f" ({text}).",
+                        "  Set the date and time correctly (turn on automatic time), restart Docker, and run again.")
+        return fail("TLS", f" {host} replaced its security certificate ({text}).",
+                    "  This is usually a company proxy or an antivirus that inspects HTTPS. Pass the proxy and its",
+                    "  certificate: put the certificate file in your results folder, then add",
+                    "    -e HTTPS_PROXY=http://<proxy>:<port> -e SSL_CERT_FILE=/data/<certificate>.pem")
+    if isinstance(reason, socket.gaierror) or re.search(r"Name or service not known|Temporary failure in name "
+                                                         r"resolution|nodename nor servname", text):
+        return fail("DNS", f" {host} (no internet, or no name lookups from containers).",
+                    "  Check that this computer is online; if a browser works, restart Docker.", *PROXY_LINES)
+    return fail("NETWORK", f" {host} ({text}).", "  Check the internet connection, then run the same command again.",
+                *PROXY_LINES)
+
+
+def http_fail(e: urllib.error.HTTPError, what: str) -> Fail | None:
+    if e.code == 429:
+        return Fail(CODES["RATE_LIMITED"], f"OpenRouter {HEADLINES['RATE_LIMITED']}",
+                    "  Wait a minute and run the same command again; nothing is lost.")
+    if e.code in (401, 403):
+        return fail("KEY_REJECTED", " (it is wrong, revoked or mistyped).",
+                    "  Copy it again from https://openrouter.ai/keys and run the same command.")
+    if e.code == 402:
+        return Fail(EXIT_NO_CREDIT, *_no_credit_lines())
+    return None
 
 
 def say(*lines: str) -> None:
@@ -79,11 +130,17 @@ def _get_json(url: str, key: str | None = None, timeout: float = 30.0):
 
 
 def openrouter_models() -> list[dict]:
+    """OpenRouter's public model list (no key needed)."""
     try:
         return list(_get_json(or_url() + "/models").get("data") or [])
-    except (urllib.error.URLError, OSError, ValueError) as e:
-        raise Fail(EXIT_RUN_FAILED, f"Could not reach OpenRouter to look the model up ({e}).",
-                   "Check the internet connection and run the same command again.") from e
+    except urllib.error.HTTPError as e:
+        f = http_fail(e, "the model list")
+        raise (f or Fail(EXIT_RUN_FAILED, f"OpenRouter answered HTTP {e.code} for its model list.",
+                         "  Try again in a few minutes.")) from e
+    except (urllib.error.URLError, OSError) as e:
+        raise net_fail(e, "openrouter.ai") from e
+    except ValueError as e:
+        raise net_fail(e, "openrouter.ai (the answer was not OpenRouter's: a proxy page?)") from e
 
 
 def find_model(models: list[dict], wanted: str) -> dict:
@@ -99,31 +156,56 @@ def find_model(models: list[dict], wanted: str) -> dict:
     near = difflib.get_close_matches(wanted, list(by_id), n=5, cutoff=0.4)
     if not near:
         near = [k for k in by_id if wanted.lower().split("/")[-1][:6] in k.lower()][:5]
-    lines = [f"OpenRouter has no model called '{wanted}'."]
+    lines = [f"{HEADLINES['UNKNOWN_MODEL']} '{wanted}'."]
     if near:
         lines.append("Did you mean one of these?")
         lines += [f"  {n}" for n in near]
-    lines.append("The ids are listed at https://openrouter.ai/models (copy the id shown under the name).")
+    lines.append("The ids are listed at https://openrouter.ai/models (copy the id shown under the name), or in a")
+    lines.append("terminal:  curl -s https://openrouter.ai/api/v1/models | grep '\"id\"'")
     raise Fail(EXIT_UNKNOWN_MODEL, *lines)
 
 
-def check_key(key: str | None) -> None:
-    """A missing, rejected or empty-credit OpenRouter key stops here, before anything is planned."""
-    if not key:
-        raise Fail(EXIT_NO_KEY, "No OpenRouter key was given.",
-                   "Get one at https://openrouter.ai/keys, then put it in the command:",
+def key_format(raw: str | None) -> str:
+    """The key as OpenRouter needs it, or a plain failure for a key that cannot work (before any request)."""
+    if raw is None:
+        raise fail("NO_KEY", "", "Get one at https://openrouter.ai/keys, then put it in the command:",
                    "  docker run ... -e OPENROUTER_API_KEY=sk-or-... ...")
+    key = raw.strip()
+    if not key:
+        raise fail("KEY_EMPTY", " The variable OPENROUTER_API_KEY is set but holds nothing.",
+                   "  Put the key itself after the = sign:  -e OPENROUTER_API_KEY=sk-or-...",
+                   "  (-e OPENROUTER_API_KEY alone passes the variable from your shell: set it there first.)")
+    if key[0] in "'\"`" or key[-1] in "'\"`" or any(ch.isspace() for ch in key):
+        raise fail("KEY_QUOTED", "",
+                   "  Give the key without quote marks inside it:  -e OPENROUTER_API_KEY=sk-or-...",
+                   "  In PowerShell, from a variable:  -e OPENROUTER_API_KEY=$env:OPENROUTER_API_KEY")
+    for prefix, who in OTHER_KEYS:
+        if key.startswith(prefix):
+            raise fail("KEY_OTHER_PROVIDER", f" it looks like a {who} key. OpenRouter keys start with sk-or-.",
+                       "  Make one at https://openrouter.ai/keys and put it in the command.")
+    return key
+
+
+def check_key(key: str | None) -> dict:
+    """A missing, malformed, rejected or empty-credit OpenRouter key stops here, before anything is planned.
+    Returns what it learned: {"balance": float | None, "skew_s": float | None}."""
+    key = key_format(key)
+    out: dict = {"balance": None, "skew_s": None}
     try:
-        info = _get_json(or_url() + "/key", key).get("data") or {}
+        req = urllib.request.Request(or_url() + "/key", headers={"User-Agent": "crucibleforge-test",
+                                                                 "Authorization": f"Bearer {key}"})
+        with urllib.request.urlopen(req, timeout=30) as r:  # noqa: S310 - a fixed https URL or the test override
+            info = json.loads(r.read().decode("utf-8")).get("data") or {}
+            out["skew_s"] = _skew(r.headers.get("Date"))
     except urllib.error.HTTPError as e:
-        if e.code in (401, 403):
-            raise Fail(EXIT_KEY_REJECTED, "OpenRouter rejected the key (it is wrong, revoked or mistyped).",
-                       "Copy it again from https://openrouter.ai/keys and run the same command.") from e
-        if e.code == 402:
-            raise Fail(EXIT_NO_CREDIT, *_no_credit_lines()) from e
-        return                                   # another status: let the run itself report it
-    except (urllib.error.URLError, OSError, ValueError):
-        return
+        f = http_fail(e, "the key")
+        if f:
+            raise f from e
+        return out                               # another status: let the run itself report it
+    except (urllib.error.URLError, OSError) as e:
+        raise net_fail(e, "openrouter.ai") from e
+    except ValueError:
+        return out
     left = info.get("limit_remaining")
     if isinstance(left, (int, float)) and left <= 0:
         raise Fail(EXIT_NO_CREDIT, *_no_credit_lines())
@@ -131,13 +213,23 @@ def check_key(key: str | None) -> None:
         cr = _get_json(or_url() + "/credits", key).get("data") or {}
         bal = float(cr["total_credits"]) - float(cr["total_usage"])
     except (urllib.error.URLError, OSError, ValueError, KeyError, TypeError):
-        return                                   # not every key may read it: the run reports a 402 itself
+        return out                               # not every key may read it: the run reports a 402 itself
+    out["balance"] = bal
     if bal <= 0:
         raise Fail(EXIT_NO_CREDIT, *_no_credit_lines())
+    return out
+
+
+def _skew(date_header: str | None) -> float | None:
+    from email.utils import parsedate_to_datetime
+    try:
+        return time.time() - parsedate_to_datetime(date_header).timestamp() if date_header else None
+    except (TypeError, ValueError):
+        return None
 
 
 def _no_credit_lines() -> tuple[str, ...]:
-    return ("The OpenRouter account is out of credit (or the key's own limit is used up).",
+    return (HEADLINES["NO_CREDIT"] + " (or the key's own limit is used up).",
             "Add credit at https://openrouter.ai/settings/credits, then run the same command: it continues.")
 
 
@@ -147,24 +239,36 @@ def engine_argv(*args: str) -> list[str]:
     return ([exe] if exe else [sys.executable, "-m", "crucibleforge.cli"]) + list(args)
 
 
-def engine_out(*args: str, env: dict | None = None, tick: str | None = None, every: float = 15.0) -> tuple[int, str]:
+def engine_out(*args: str, env: dict | None = None, tick: str | None = None, every: float = 15.0,
+               phases: bool = False) -> tuple[int, str]:
     """Run the engine, capture its output; with `tick`, print a 'still ...' line every `every` seconds meanwhile
-    (the plan can take minutes and must not look stuck)."""
+    (the plan can take minutes and must not look stuck). With `phases`, the line names what the engine is doing
+    (its own 'plan: still working (N s): <step>' lines)."""
     stop = threading.Event()
     t0 = time.time()
+    phase = [""]
+    chunks: list[str] = []
 
     def ticker():
         while not stop.wait(every):
-            say(f"  ... {tick} ({time.time() - t0:.0f} s)")
+            say(f"  ... {tick} ({time.time() - t0:.0f} s)" + (f": {phase[0]}" if phase[0] else ""))
     th = threading.Thread(target=ticker, daemon=True) if tick else None
     if th:
         th.start()
     try:
-        p = subprocess.run(engine_argv(*args), capture_output=True, text=True, encoding="utf-8", errors="replace",
-                           env=env)
+        p = subprocess.Popen(engine_argv(*args), stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
+                             encoding="utf-8", errors="replace", env=env)
+        assert p.stdout is not None
+        for line in p.stdout:
+            chunks.append(line)
+            if phases:
+                m = re.match(r"plan: still working \(\d+s\): (.+)", line.strip())
+                if m:
+                    phase[0] = m.group(1)
+        rc = p.wait()
     finally:
         stop.set()
-    return p.returncode, (p.stdout or "") + (p.stderr or "")
+    return rc, "".join(chunks)
 
 
 def config_path() -> Path:
@@ -176,14 +280,92 @@ def results_dir() -> Path:
     return Path(os.environ.get("CRUCIBLEFORGE_RESULTS") or Path(config_path()).parent / "results")
 
 
-def load_cfg() -> dict:
+def load_cfg(notes: list[str] | None = None) -> dict:
+    """models.yaml, checked the way the engine will check it; a hand-edit mistake is named by file, line and key
+    with an example of a valid line, instead of a traceback later."""
     import yaml
     p = config_path()
     if not p.exists():
         rc, out = engine_out("config", "--init")
         if not p.exists():
             raise Fail(EXIT_RUN_FAILED, f"Could not create {p}:", out.strip()[-400:])
-    return yaml.safe_load(p.read_text(encoding="utf-8")) or {}
+    text = p.read_text(encoding="utf-8", errors="replace")
+    where = _host_path(p)
+    try:
+        cfg = yaml.safe_load(text) or {}
+    except yaml.YAMLError as e:
+        mark = getattr(e, "problem_mark", None)
+        line = f", line {mark.line + 1}" if mark is not None else ""
+        raise fail("BAD_CONFIG", f" ({where}{line}): {getattr(e, 'problem', None) or e}.", *_config_fix_lines()) \
+            from e
+    if not isinstance(cfg, dict):
+        raise fail("BAD_CONFIG", f" ({where}): it should be a list of settings (providers:, models:, judge:, ...).",
+                   *_config_fix_lines())
+    from .config import ConfigError, upgrade_legacy, validate_config
+    import copy
+    try:
+        validate_config(upgrade_legacy(copy.deepcopy(cfg)))
+    except ConfigError as e:
+        msg = str(e)
+        tok = re.findall(r"'([^']+)'", msg) or re.findall(r"^(?:provider|model) (\S+?):", msg)
+        line = next((f", line {n}" for n, ln in enumerate(text.splitlines(), 1) if tok and tok[0] in ln), "")
+        raise fail("BAD_CONFIG", f" ({where}{line}): {msg}.", *_config_fix_lines()) from e
+    except (KeyError, TypeError, AttributeError) as e:
+        raise fail("BAD_CONFIG", f" ({where}): a section has the wrong shape ({e}).", *_config_fix_lines()) from e
+    if notes is not None:
+        notes += unknown_key_notes(cfg, text, where)
+    return cfg
+
+
+def _host_path(p: Path) -> str:
+    return "models.yaml in your results folder" if IN_CONTAINER and str(p).startswith("/data/") else str(p)
+
+
+def _config_fix_lines() -> tuple[str, ...]:
+    return ("  A valid model line looks like:  - {name: my-model, provider: openrouter, model_id: openai/gpt-6-luna}",
+            "  Fix that line, or rename models.yaml to models.yaml.old: the next run writes a fresh one (results are kept).")
+
+
+def _known_keys() -> dict[str, set]:
+    """Keys the shipped example config uses, per section (a key outside these is not wrong, only unseen)."""
+    import yaml
+    known: dict[str, set] = {"top": set(), "provider": set(), "model": set()}
+    for f in (Path(__file__).resolve().parent.parent / "models.example.yaml", Path("/app/models.example.yaml")):
+        try:
+            ex = yaml.safe_load(f.read_text(encoding="utf-8")) or {}
+        except (OSError, yaml.YAMLError):
+            continue
+        known["top"] |= set(ex)
+        for pv in (ex.get("providers") or {}).values():
+            known["provider"] |= set(pv or {})
+        for m in ex.get("models") or []:
+            known["model"] |= set(m or {})
+        break
+    return known
+
+
+def unknown_key_notes(cfg: dict, text: str, where: str) -> list[str]:
+    """A key that is a near-miss of a known one (base_ulr, modle_id) is almost surely a typo: name it with the
+    closest valid key. Keys with no close match are left alone (the engine has more keys than the example shows)."""
+    known, out = _known_keys(), []
+
+    def look(keys, section, ctx):
+        for k in keys:
+            if not isinstance(k, str) or not known[section] or k in known[section]:
+                continue
+            near = difflib.get_close_matches(k, sorted(known[section]), n=1, cutoff=0.8)
+            if near:
+                line = next((n for n, ln in enumerate(text.splitlines(), 1) if re.search(rf"\b{re.escape(k)}\s*:", ln)), 0)
+                out.append(f"  note: {where}{f', line {line}' if line else ''}: unknown key '{k}' {ctx} "
+                           f"(did you mean '{near[0]}'?)")
+    look(cfg.keys(), "top", "at the top")
+    for pn, pv in (cfg.get("providers") or {}).items():
+        if isinstance(pv, dict):
+            look(pv.keys(), "provider", f"in provider {pn}")
+    for m in cfg.get("models") or []:
+        if isinstance(m, dict):
+            look(m.keys(), "model", f"in model {m.get('name')}")
+    return out
 
 
 def save_cfg(cfg: dict) -> None:
@@ -266,21 +448,101 @@ def register(cfg: dict, label: str, provider: str, model_id: str, ctx: int | Non
     return name
 
 
-def probe_local(url: str, model: str) -> None:
+def probe_local(url: str, model: str, key_env: str | None = None, what: str = "model") -> int | None:
+    """The local server answers and serves `model`. Returns the model's context window when the server says it
+    (vLLM max_model_len, LM Studio loaded_context_length, llama-server n_ctx, Ollama's context), else None.
+    `key_env` names the variable holding the server's key (LOCAL_API_KEY / JUDGE_LOCAL_API_KEY); its value is
+    sent as a Bearer key and never printed or written anywhere."""
+    var = key_env or ("JUDGE_LOCAL_API_KEY" if what == "judge" else "LOCAL_API_KEY")
+    key = os.environ.get(key_env, "").strip() if key_env else ""
     try:
-        data = _get_json(url + "/models", timeout=10).get("data") or []
+        data = _get_json(url + "/models", key or None, timeout=10).get("data") or []
+    except urllib.error.HTTPError as e:
+        if e.code in (401, 403):
+            if not key:
+                raise Fail(CODES["LOCAL_KEY_NEEDED"], f"{HEADLINES['LOCAL_KEY_NEEDED']} add -e {var}=<the server's key> "
+                           f"to the docker command (the server at {url} answered HTTP {e.code}).",
+                           "  The key stays in the container's memory: it is not written to the results folder.") from e
+            raise Fail(CODES["LOCAL_KEY_REJECTED"], f"{HEADLINES['LOCAL_KEY_REJECTED']} {key_env} (HTTP {e.code} "
+                       f"from {url}).", f"  Copy the key again from the server's settings and put it in -e {key_env}=...") \
+                from e
+        raise Fail(EXIT_LOCAL_UNREACHABLE, f"{HEADLINES['LOCAL_UNREACHABLE']} {url} with a model list "
+                   f"(HTTP {e.code}).", "  Is this the server's OpenAI-compatible address (it usually ends in /v1)?") from e
     except (urllib.error.URLError, OSError, ValueError) as e:
-        hint = ("On Linux the server must listen on all addresses, not only localhost (Ollama: OLLAMA_HOST=0.0.0.0; "
-                "llama-server: --host 0.0.0.0; LM Studio: 'Serve on local network'). With rootless Docker the "
-                "container cannot reach localhost at all: give your computer's network address instead "
-                "(http://<that address>:11434 for Ollama; `hostname -I` prints it)." if IN_CONTAINER else "")
-        raise Fail(EXIT_LOCAL_UNREACHABLE, f"Nothing answered at {url} ({e}).",
-                   "Is the model server running?" + (" " + hint if hint else "")) from e
+        lines = [f"{HEADLINES['LOCAL_UNREACHABLE']} {url} ({getattr(e, 'reason', e)}).",
+                 "  Is the model server running, and does it listen on all addresses (0.0.0.0), not only localhost?",
+                 "    Ollama: OLLAMA_HOST=0.0.0.0   llama-server: --host 0.0.0.0   LM Studio: 'Serve on local network'"]
+        if IN_CONTAINER and Path("/proc/net/route").exists() and not _docker_desktop():
+            lines += ["  On Linux add to the docker command:  --add-host=host.docker.internal:host-gateway",
+                      "  With rootless Docker the container cannot reach this computer by that name: give its network",
+                      "  address instead (hostname -I prints it), e.g.  --local http://<that address>:11434"]
+        raise Fail(EXIT_LOCAL_UNREACHABLE, *lines) from e
     ids = [d.get("id") for d in data if d.get("id")]
     if ids and model not in ids:
-        near = difflib.get_close_matches(model, ids, n=5, cutoff=0.3) or ids[:5]
-        raise Fail(EXIT_UNKNOWN_MODEL, f"The server at {url} has no model called '{model}'.",
-                   "It lists: " + ", ".join(near))
+        near = difflib.get_close_matches(model, ids, n=5, cutoff=0.3)
+        rest = [i for i in ids if i not in near]
+        shown = near + rest[:max(0, 20 - len(near))]
+        raise Fail(EXIT_UNKNOWN_MODEL, f"The server at {url} {HEADLINES['LOCAL_NO_MODEL']} '{model}'.",
+                   "  Give the id exactly as the server lists it" + (" (closest first)" if near else "") + ":",
+                   *[f"    {i}" for i in shown],
+                   *([f"    ... and {len(ids) - len(shown)} more"] if len(ids) > len(shown) else []),
+                   "  Or load the model in the server first (Ollama: ollama pull <name>; LM Studio: load it).")
+    entry = next((d for d in data if d.get("id") == model), {})
+    for k in ("max_model_len", "loaded_context_length", "context_length", "max_context_length"):
+        if isinstance(entry.get(k), int) and entry[k] > 0:
+            return int(entry[k])
+    root = url[:-3] if url.endswith("/v1") else url
+    try:                                      # llama-server
+        n = ((_get_json(root + "/props", key or None, timeout=5).get("default_generation_settings") or {}).get("n_ctx"))
+        if isinstance(n, int) and n > 0:
+            return n
+    except (urllib.error.URLError, OSError, ValueError):
+        pass
+    return None
+
+
+def local_key_env(which: str, url: str, model_url: str | None = None) -> str | None:
+    """The NAME of the variable that holds a local server's key (only names are written to models.yaml):
+    LOCAL_API_KEY for the model; JUDGE_LOCAL_API_KEY for --judge-local, else LOCAL_API_KEY when the judge is on the
+    same server as the model. None when no key was given (a server without auth)."""
+    from urllib.parse import urlsplit
+    if which == "judge":
+        if os.environ.get("JUDGE_LOCAL_API_KEY", "").strip():
+            return "JUDGE_LOCAL_API_KEY"
+        if not (model_url and urlsplit(model_url).netloc == urlsplit(url).netloc):
+            return None
+    return "LOCAL_API_KEY" if os.environ.get("LOCAL_API_KEY", "").strip() else None
+
+
+def _docker_desktop() -> bool:
+    try:
+        socket.gethostbyname("host.docker.internal")
+        return True
+    except OSError:
+        return False
+
+
+def context_check(plan_text: str, ctx: int | None, local: bool) -> list[str]:
+    """Rows the plan marks 'n/a (ctx: needs N)': a local server can be restarted with a larger window (refused
+    with the number needed); a hosted model's window is what it is (one note, those rows count as missed)."""
+    needs = [int(n) for n in re.findall(r"n/a \(ctx: needs (\d+)\)", plan_text)]
+    if not needs:
+        if not local:
+            return []
+        if ctx:
+            return [f"  note: context window {ctx} tokens: every question in this suite fits."]
+        return ["  note: the server does not say the model's context window, so it could not be checked; a question "
+                "that does not fit fails in the run (llama-server -c, LM Studio Context Length, "
+                "Ollama OLLAMA_CONTEXT_LENGTH set it)."]
+    need = max(needs)
+    if local:
+        raise Fail(CODES["LOCAL_CONTEXT"], f"The model's {HEADLINES['LOCAL_CONTEXT']}: it has {ctx or '?'} tokens, "
+                   f"{len(needs)} question(s) need up to {need}.",
+                   f"  Restart the server with a context of at least {need} tokens:",
+                   f"    llama-server -c {need}   LM Studio: Context Length {need}   Ollama: OLLAMA_CONTEXT_LENGTH={need}",
+                   "  then run the same command again.")
+    return [f"  note: the model's context window ({ctx} tokens) is too small for {len(needs)} question(s) (they need "
+            f"up to {need}); those count as missed."]
 
 
 # ---------------------------------------------------------------- plan
@@ -360,7 +622,11 @@ def summary_lines(label: str, judge_desc: str) -> list[str]:
     elif nt.get("value") is not None:
         lines.append(f"{label} {nt['value']:.1f} of {nt.get('of', 20)}")
     else:
-        lines.append(f"Adult (NSFW+): {n.get('reason') or n.get('judge_check') or 'not judged yet'}")
+        # the judge has not classed every adult answer (its calls failed, or its check did not pass): the answers
+        # are kept, the number waits; the same command asks the judge again
+        why = str(n.get("judge_pending") or n.get("reason") or "not judged yet")
+        lines.append(f"Adult (NSFW+): no number yet ({why}); the answers are kept, and the same command asks the "
+                     "judge again")
     lines.append(f"Judged by {judge_desc}; MakoBench's published scores use the local 8-bit (Q8) judge.")
     return lines
 
@@ -426,20 +692,26 @@ def run_engine(args: list[str], env: dict) -> tuple[int, list[str]]:
     return (EXIT_STOPPED if stops["n"] else rc), tail
 
 
-def diagnose(tail: list[str]) -> list[str]:
-    """A plain sentence for the engine failures a first-time user can fix."""
+def diagnose(tail: list[str]) -> tuple[int, list[str]]:
+    """(exit code, a plain sentence) for the engine failures a first-time user can fix; (RUN_FAILED, []) else."""
     blob = "\n".join(tail[-200:])
     # the engine's own cap refusal is phrased as an HTTP 402: test it before the provider's 402
     if re.search(r"SpendCapExceeded|spend cap (reached|exceeded)|cap reached", blob, re.I):
-        return ["The run reached its spend cap (about twice the estimate) and stopped sending requests.",
-                "Run the same command again to continue; each run gets a fresh cap."]
+        return CODES["SPEND_CAP"], [HEADLINES["SPEND_CAP"] + " (about twice the estimate) and stopped sending requests.",
+                                    "Run the same command again to continue; each run gets a fresh cap."]
     if re.search(r"\b402\b|insufficient credits|requires more credits|Payment Required", blob, re.I):
-        return list(_no_credit_lines())
+        return EXIT_NO_CREDIT, list(_no_credit_lines())
     if re.search(r"\b401\b.*(openrouter|key)|invalid api key|User not found", blob, re.I):
-        return ["OpenRouter rejected the key during the run. Copy it again from https://openrouter.ai/keys."]
-    if re.search(r"No space left on device", blob):
-        return ["The disk is full. Free some space and run the same command again."]
-    return []
+        return EXIT_KEY_REJECTED, [HEADLINES["KEY_REJECTED"] + " during the run. Copy it again from "
+                                   "https://openrouter.ai/keys and run the same command: it continues."]
+    if re.search(r"\b429\b|rate.?limit", blob, re.I):
+        return CODES["RATE_LIMITED"], [f"OpenRouter {HEADLINES['RATE_LIMITED']}",
+                                       "Wait a few minutes and run the same command again; nothing is lost."]
+    if re.search(r"No space left on device|Disk quota exceeded|ENOSPC|EDQUOT", blob):
+        return CODES["DISK_FULL"], [HEADLINES["DISK_FULL"] + " (the disk or your quota is full).",
+                                    "Free some space (Docker Desktop: Settings > Resources > Disk image size, or "
+                                    "docker system prune) and run the same command again."]
+    return EXIT_RUN_FAILED, []
 
 
 def files_lines() -> list[str]:
@@ -452,9 +724,12 @@ def files_lines() -> list[str]:
 
 def parse(argv: list[str]) -> argparse.Namespace:
     ap = argparse.ArgumentParser(prog="test", description="Benchmark one model with no setup: an OpenRouter id, "
-                                 "or --local URL MODEL for a model on your own machine.")
+                                 "or --local URL MODEL for a model on your own machine. `check` instead of `test` "
+                                 "runs only the free pre-flight.")
     ap.add_argument("model", help="an OpenRouter model id (e.g. openai/gpt-6-luna), or the model name with --local")
     ap.add_argument("--yes", "-y", action="store_true", help="do not ask before running")
+    ap.add_argument("--check", action="store_true",
+                    help="only the free pre-flight: folder, key, model, config, cost estimate; nothing is spent")
     ap.add_argument("--no-adult", "--no-nsfw-plus", dest="no_adult", action="store_true",
                     help="leave out NSFW+ (adult fiction, never part of Overall)")
     ap.add_argument("--local", metavar="URL", help="the model runs on an OpenAI-compatible server at URL "
@@ -473,31 +748,103 @@ def main(argv: list[str] | None = None) -> int:
         say("", *f.lines)
         return f.code
     except KeyboardInterrupt:
-        say("", "Stopped. Nothing is lost: run the same command again to continue.")
+        say("", HEADLINES["STOPPED"] + ": run the same command again to continue.")
         return EXIT_STOPPED
 
 
-def _main(a: argparse.Namespace) -> int:
-    t0 = time.time()
-    say("CrucibleForge test: checking the folder, the key and the model ...")
-    from . import jail
-    jail.install()                          # this process holds the key: non-dumpable in the image
+class Preflight:
+    """The free checks, in order. `test` stops at the first one that needs fixing; `check` runs every check it can
+    and prints a PASS/FIX list."""
+
+    def __init__(self, collect: bool):
+        self.collect, self.first_code, self.rows = collect, 0, []
+
+    def step(self, name: str, fn, *needs: bool):
+        if not all(needs):
+            self._row("SKIP", name, ["(needs the step above)"])
+            return None
+        try:
+            val, detail = fn()
+        except Fail as f:
+            if not self.collect:
+                raise
+            self.first_code = self.first_code or f.code
+            self._row("FIX ", name, [ln for ln in f.lines if ln], code=f.code)
+            return None
+        self._row("PASS", name, [detail] if detail else [])
+        return val if val is not None else True
+
+    def _row(self, tag: str, name: str, lines: list[str], code: int | None = None):
+        head = f"  {tag}  {name:<7}" + (f" {lines[0].strip()}" if lines else "") + (f"  (exit {code})" if code else "")
+        say(head, *[f"           {ln.strip()}" for ln in lines[1:]])
+
+
+def folder_check() -> tuple[Path, str]:
+    from . import firstrun
     data = config_path().parent
+    if IN_CONTAINER and str(data) == "/data" and not firstrun.mount_of("/data").point:
+        raise Fail(CODES["NO_FOLDER"], *firstrun.no_folder_lines())
     try:
         data.mkdir(parents=True, exist_ok=True)
         probe = data / f".write-test-{os.getpid()}"
         probe.write_text("x", encoding="utf-8")
         probe.unlink()
     except OSError as e:
-        raise Fail(EXIT_NOT_WRITABLE, f"Cannot write to the results folder ({e.strerror or e}).",
-                   "On Fedora/RHEL (SELinux) add :Z to the folder: -v \"$PWD/makobench:/data:Z\".",
-                   "Otherwise make sure the folder belongs to you: mkdir makobench before docker run.") from e
-    key = os.environ.get("OPENROUTER_API_KEY", "").strip()
+        if e.errno in (28, 122):                     # ENOSPC, EDQUOT
+            raise fail("DISK_FULL", f" in the results folder ({e.strerror}).",
+                       "  Free some space, then run the same command again.") from e
+        if not IN_CONTAINER:
+            raise Fail(EXIT_NOT_WRITABLE, f"Cannot write to the results folder {data} ({e.strerror or e}).",
+                       "  Use a folder you own: set CRUCIBLEFORGE_CONFIG to a models.yaml path in it.") from e
+        m = firstrun.mount_of(str(data))
+        try:
+            owner = data.stat().st_uid
+        except OSError:
+            owner = None
+        raise Fail(EXIT_NOT_WRITABLE, *firstrun.folder_help(m, owner, os.getuid(), firstrun.selinux_active())) from e
+    free = shutil.disk_usage(data).free / 2**20
+    tmp = Path(os.environ.get("TMPDIR") or "/tmp")
+    tfree = shutil.disk_usage(tmp).free / 2**20 if tmp.exists() else MIN_FREE_TMP_MB
+    if free < MIN_FREE_DATA_MB or tfree < MIN_FREE_TMP_MB:
+        low, have, need = ("results folder", free, MIN_FREE_DATA_MB) if free < MIN_FREE_DATA_MB else \
+            ("container's scratch space", tfree, MIN_FREE_TMP_MB)
+        raise fail("DISK_FULL", f" in the {low}: {have:.0f} MB free, the run needs about {need} MB.",
+                   "  Free some space (Docker Desktop: Settings > Resources > Disk image size, or docker system prune)",
+                   "  and run the same command again.")
+    note = ""
+    if os.environ.get("CF_FOLDER_SHARED") == "1":
+        note = "; " + firstrun.shared_note(firstrun.mount_of("/data"))
+    where = "your results folder" if IN_CONTAINER else str(data)
+    return data, f"{where} is writable, {free / 1024:.0f} GB free{note}"
+
+
+def _main(a: argparse.Namespace) -> int:
+    t0 = time.time()
+    say("CrucibleForge " + ("check (free: nothing is spent)" if a.check else "test") + ": the folder, the key, "
+        "the model ...")
+    from . import jail
+    jail.install()                          # this process holds the key: non-dumpable in the image
+    pf = Preflight(collect=a.check)
+    data = pf.step("folder", folder_check)
     uses_or = not a.local or not a.judge_local
+    raw = os.environ.get("OPENROUTER_API_KEY")
+    keyinfo = None
     if uses_or:
-        check_key(key)
-    cfg = load_cfg()
-    if os.environ.get("CRUCIBLEFORGE_OPENROUTER_URL") and "openrouter" in (cfg.get("providers") or {}):
+        def _key():
+            k = check_key(raw)
+            bal = k.get("balance")
+            skew = k.get("skew_s")
+            det = "accepted by OpenRouter" + (f"; balance ${bal:.2f}" if bal is not None else "")
+            if skew is not None and abs(skew) > 300:
+                det += f"; note: this computer's clock is {abs(skew) / 60:.0f} min off (fix it if HTTPS errors appear)"
+            return k, det
+        keyinfo = pf.step("key", _key)
+    notes: list[str] = []
+    cfg = pf.step("config", lambda: (load_cfg(notes), "models.yaml is valid" + ("" if not notes else
+                                                                                 " (see the notes below)")), bool(data))
+    for n in notes:
+        say(n)
+    if os.environ.get("CRUCIBLEFORGE_OPENROUTER_URL") and cfg and "openrouter" in (cfg.get("providers") or {}):
         cfg["providers"]["openrouter"]["base_url"] = or_url()      # tests: a fake OpenRouter
         cfg["providers"]["openrouter"]["hosted"] = True            # priced and capped like the real one
         for c in ((cfg.get("judge") or {}).get("candidates") or []):  # the fake answers judges in schema mode only
@@ -505,14 +852,20 @@ def _main(a: argparse.Namespace) -> int:
                 c["thinking"] = False
         save_cfg(cfg)
 
-    if a.local:
-        url = host_url(a.local)
-        probe_local(url, a.model)
-        ensure_provider(cfg, "local", url)
-        save_cfg(cfg)
-        label = register(cfg, label_for(a.model), "local", a.model, None, None)
-        model_desc = f"{a.model} on your server ({url})"
-    else:
+    ctx = None
+
+    def _model():
+        nonlocal ctx
+        if a.local:
+            url = host_url(a.local)
+            kenv = local_key_env("model", url)
+            ctx = probe_local(url, a.model, kenv, "model")
+            ensure_provider(cfg, "local", url, kenv)
+            save_cfg(cfg)
+            lab = register(cfg, label_for(a.model), "local", a.model, ctx, None)
+            return (lab, f"{a.model} on your server ({url})"), f"{a.model} answers at {url}" + (
+                f" (key from {kenv})" if kenv else "") + (
+                f"; context window {ctx} tokens" if ctx else "; the server does not say its context window")
         info = find_model(openrouter_models(), a.model)
         pr = info.get("pricing") or {}
         try:
@@ -520,26 +873,60 @@ def _main(a: argparse.Namespace) -> int:
         except (TypeError, ValueError):
             price = (0.0, 0.0)
         ctx = (info.get("top_provider") or {}).get("context_length") or info.get("context_length")
-        label = register(cfg, label_for(info["id"]), "openrouter", info["id"], ctx, price)
-        model_desc = f"{info['id']} on OpenRouter (${price[0]:.2f} in / ${price[1]:.2f} out per million tokens)"
+        lab = register(cfg, label_for(info["id"]), "openrouter", info["id"], ctx, price)
+        desc = f"{info['id']} on OpenRouter (${price[0]:.2f} in / ${price[1]:.2f} out per million tokens)"
+        return (lab, desc), desc
+    got = pf.step("model", _model, bool(cfg))
+    label, model_desc = got if got else (None, None)
 
-    cfg = load_cfg()
-    if a.judge_local:
-        jurl = host_url(a.judge_local[0])
-        probe_local(jurl, a.judge_local[1])
-        ensure_provider(cfg, "localjudge", jurl)
-        save_cfg(cfg)
-        judge, judge_desc = f"localjudge:{a.judge_local[1]}", f"{a.judge_local[1]} on your server"
-    else:
-        judge, judge_desc = DEFAULT_JUDGE, "Qwen 3.8 27B through OpenRouter"
+    judge = judge_desc = None
 
-    common = ["--models", label, "--judge", judge] + (["--no-nsfw-plus"] if a.no_adult else []) + \
+    def _judge():
+        nonlocal judge, judge_desc
+        c2 = load_cfg()
+        if a.judge_local:
+            jurl = host_url(a.judge_local[0])
+            kenv = local_key_env("judge", jurl, host_url(a.local) if a.local else None)
+            probe_local(jurl, a.judge_local[1], kenv, "judge")
+            ensure_provider(c2, "localjudge", jurl, kenv)
+            save_cfg(c2)
+            judge, judge_desc = f"localjudge:{a.judge_local[1]}", f"{a.judge_local[1]} on your server"
+        else:
+            judge, judge_desc = DEFAULT_JUDGE, "Qwen 3.8 27B through OpenRouter"
+        return None, judge_desc
+    pf.step("judge", _judge, bool(cfg))
+
+    common = ["--models", label or "", "--judge", judge or ""] + (["--no-nsfw-plus"] if a.no_adult else []) + \
         (["--smoke"] if a.smoke else []) + (["--no-ladder"] if a.no_ladder else [])
-    say(f"Planning the test of {model_desc} ...")
-    rc, out = engine_out("all", *common, "--plan", tick="still planning")
-    if rc != 0:
-        raise Fail(EXIT_RUN_FAILED, "The plan failed:", *out.strip().splitlines()[-15:])
-    plan = read_plan(out)
+    plan: dict = {}
+    extra: list[str] = []
+
+    def _plan():
+        nonlocal plan, extra
+        say("  ....  plan    working out the questions, the cost and the time (can take a few minutes) ...")
+        rc, out = engine_out("all", *common, "--plan", tick="still planning", phases=True)
+        if rc != 0:
+            raise Fail(EXIT_RUN_FAILED, "The plan failed:", *out.strip().splitlines()[-15:])
+        plan = read_plan(out)
+        extra = context_check(out, ctx, local=bool(a.local))
+        mc, rc_ = caps(plan)
+        cost = sum(v for v in (plan.get("model_usd"), plan.get("judge_usd")) if v is not None)
+        det = (f"about ${cost:.2f} for the model and the judge" if cost else "no hosted cost") + \
+            (f"; the run stops at ${rc_:.2f}" if rc_ else "")
+        bal = (keyinfo or {}).get("balance") if isinstance(keyinfo, dict) else None
+        if bal is not None and rc_ and bal < rc_:
+            det += f" (your balance ${bal:.2f} may run out first: the run then stops and continues later)"
+        return True, det
+    planned = pf.step("plan", _plan, bool(label), bool(judge))
+    for ln in extra:
+        say(ln)
+    if a.check:
+        if pf.first_code:
+            say("", "Fix the FIX lines above, then run the same command again.")
+            return pf.first_code
+        say("", "Ready. Start it with the same command, with test instead of check.")
+        return EXIT_OK
+    assert planned and label and judge
     model_cap, run_cap = caps(plan)
     say("", "Plan", f"  model:  {model_desc}", f"  judge:  {judge_desc}",
         "  NSFW+ (adult fiction): " + ("left out (--no-adult)" if a.no_adult else
@@ -556,21 +943,26 @@ def _main(a: argparse.Namespace) -> int:
         say(f"  whole run stops at ${run_cap:.2f} of spending")
     if plan.get("minutes"):
         say(f"  time:  the plan's rough estimate is {plan['minutes']:.0f} min (hosted models are often faster)")
+    if plan.get("owed"):
+        say("  An earlier run in this folder stopped before the end: this command continues it.")
     for ln in plan.get("owed") or []:
         say("  earlier results in this folder: owed again: " + ln.replace("owed on resume:", "").strip()
             + f" ({plan.get('rows') or 'the'} rows to run are in the cost above)")
     say("  The coding answers run inside this container (see 'Safety' in docs/FIRST-RUN-DOCKER.md).")
 
     if not a.yes:
-        if not sys.stdin.isatty():
-            raise Fail(EXIT_NOT_CONFIRMED, "No terminal to ask \"Continue?\" on. Add --yes to run without asking "
-                       "(or start docker with -it).")
+        # no terminal (-it left out): stdin is closed and input() meets end-of-file at once; with -i but no -t
+        # the question still works line by line
+        say("Continue? [y/N] ")
         try:
-            ans = input("Continue? [y/N] ").strip().lower()
-        except EOFError:
+            ans = sys.stdin.readline()
+        except (OSError, ValueError):
             ans = ""
-        if ans not in ("y", "yes"):
-            raise Fail(EXIT_NOT_CONFIRMED, "Not started. Nothing was spent.")
+        if not ans:
+            raise fail("NO_TERMINAL", " Add --yes to run without asking, or start docker with -it.",
+                       "  Nothing was spent.")
+        if ans.strip().lower() not in ("y", "yes"):
+            raise fail("NOT_CONFIRMED")
 
     env = dict(os.environ)
     if run_cap:
@@ -583,18 +975,18 @@ def _main(a: argparse.Namespace) -> int:
     rc, tail = run_engine(run_args, env)
     mins = (time.time() - t0) / 60
     if rc == EXIT_STOPPED:
-        say("", "Stopped. Nothing is lost: run the same command again to continue.")
+        say("", HEADLINES["STOPPED"] + ": run the same command again to continue.")
         return EXIT_STOPPED
-    say("", f"Finished in {mins:.0f} min." if rc == 0 else f"The run ended with code {rc} after {mins:.0f} min.")
-    for ln in diagnose(tail) if rc else []:
+    say("", f"Finished in {mins:.0f} min." if rc == 0 else f"{HEADLINES['RUN_FAILED']} {rc} after {mins:.0f} min.")
+    code, why = diagnose(tail) if rc else (EXIT_OK, [])
+    for ln in why:
         say(ln)
     say("", *summary_lines(label, judge_desc))
     jc = next((ln for ln in reversed(tail) if ln.startswith("judge cost, whole run")), None)
     if jc:
         say(jc.replace("judge cost, whole run (every judge phase)", "Judge cost").split(" (billed apart")[0])
     say(*files_lines())
-    return EXIT_OK if rc == 0 else (EXIT_NO_CREDIT if diagnose(tail)[:1] == [_no_credit_lines()[0]]
-                                    else EXIT_RUN_FAILED)
+    return EXIT_OK if rc == 0 else code
 
 
 if __name__ == "__main__":

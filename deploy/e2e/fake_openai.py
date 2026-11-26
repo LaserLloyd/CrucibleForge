@@ -4,16 +4,17 @@ GET /v1/models ; POST /v1/chat/completions (stream or not). If the request carri
 response_format json_schema (judge calls) the reply is a JSON object satisfying that schema
 (ints = mid value, bools false, strings 'ok'); otherwise a canned text reply that includes a
 python code block. Every request is appended to FAKE_LOG (jsonl: path, model, n_messages, schema?).
-Usage: fake_openai.py [port] [logfile]"""
-import json, sys, threading, time
+Usage: fake_openai.py [port] [logfile]   (FAKE_REQUIRE_KEY=<key>: every call needs that Bearer key)"""
+import json, os, sys, threading, time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 PORT = int(sys.argv[1]) if len(sys.argv) > 1 else 18099
 LOG = sys.argv[2] if len(sys.argv) > 2 else "requests.jsonl"
 #: what GET .../models lists: OpenRouter's shape (id, pricing per token as strings, context_length)
-MODELS = [{"id": i, "object": "model", "context_length": 32768,
+CTX = int(os.environ.get("FAKE_CTX") or 32768)        # the context window it reports (a local server's, for --local)
+MODELS = [{"id": i, "object": "model", "context_length": CTX,
            "pricing": {"prompt": "0.0000001", "completion": "0.0000005"},
-           "top_provider": {"context_length": 32768, "max_completion_tokens": 32768}}
+           "top_provider": {"context_length": CTX, "max_completion_tokens": 32768}}
           for i in ("fake/fake-model", "fake/other-model", "qwen/qwen3.8-27b", "fake-model", "fake-judge")]
 LOCK = threading.Lock()
 CODE = """```python
@@ -81,13 +82,24 @@ class H(BaseHTTPRequestHandler):
         b = body if isinstance(body, bytes) else json.dumps(body).encode()
         self.send_response(code); self.send_header("Content-Type", ctype)
         self.send_header("Content-Length", str(len(b))); self.end_headers(); self.wfile.write(b)
+    def _locked(self):
+        """FAKE_REQUIRE_KEY=<key>: answer 401 to anything without `Authorization: Bearer <key>` (a server with auth,
+        like StudioForge, vLLM --api-key or llama-server --api-key)."""
+        need = os.environ.get("FAKE_REQUIRE_KEY")
+        if need and (self.headers.get("Authorization") or "") != f"Bearer {need}":
+            self._send(401, {"error": {"message": "invalid or missing API key", "code": 401}})
+            return True
+        return False
     def do_GET(self):
+        if self._locked(): return
         auth = self.headers.get("Authorization") or ""
         if self.path.rstrip("/").endswith("/models"):
             self._send(200, {"object": "list", "data": MODELS})
         elif self.path.rstrip("/").endswith("/key"):
             if auth.endswith("sk-rejected"):
                 self._send(401, {"error": {"message": "User not found.", "code": 401}})
+            elif auth.endswith("sk-busy"):
+                self._send(429, {"error": {"message": "Rate limit exceeded", "code": 429}})
             elif auth.endswith("sk-broke"):
                 self._send(200, {"data": {"label": "e2e", "limit": 1, "limit_remaining": 0, "usage": 1}})
             else:
@@ -97,6 +109,7 @@ class H(BaseHTTPRequestHandler):
             self._send(200, {"data": {"total_credits": 5, "total_usage": used}})
         else: self._send(200, {"ok": True})
     def do_POST(self):
+        if self._locked(): return
         n = int(self.headers.get("Content-Length") or 0)
         req = json.loads(self.rfile.read(n) or b"{}")
         if (self.headers.get("Authorization") or "").endswith("sk-402"):

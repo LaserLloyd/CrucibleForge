@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import io
 import json
+import re
 import os
 import signal
 import subprocess
@@ -91,7 +92,7 @@ def test_key_failures(fake, monkeypatch, capsys, key, code, words):
 
 def test_unknown_model_suggests_close_ids(fake, monkeypatch, capsys):
     monkeypatch.setenv("OPENROUTER_API_KEY", "sk-good")
-    monkeypatch.setattr(qt, "load_cfg", lambda: {"providers": {}, "models": []})
+    monkeypatch.setattr(qt, "load_cfg", lambda notes=None: {"providers": {}, "models": []})
     rc, out = _run(capsys, "openai/gpt-6-lune", "--yes")
     assert rc == qt.EXIT_UNKNOWN_MODEL
     assert "no model called 'openai/gpt-6-lune'" in out and "  openai/gpt-6-luna" in out
@@ -108,13 +109,14 @@ def test_unwritable_folder(fake, monkeypatch, capsys):
     finally:
         d.chmod(0o700)
     assert rc == qt.EXIT_NOT_WRITABLE
-    assert "Cannot write to the results folder" in out and ":Z" in out
+    assert "Cannot write to the results folder" in out
+    assert "-v" not in out, "outside a container there is no -v to talk about"
 
 
 def _planned(monkeypatch):
     """Everything up to the question, with the plan faked (the real plan reads the whole suite)."""
     monkeypatch.setenv("OPENROUTER_API_KEY", "sk-good")
-    monkeypatch.setattr(qt, "load_cfg", lambda: {"providers": {"openrouter": {}}, "models": []})
+    monkeypatch.setattr(qt, "load_cfg", lambda notes=None: {"providers": {"openrouter": {}}, "models": []})
     monkeypatch.setattr(qt, "save_cfg", lambda cfg: None)
     monkeypatch.setattr(qt, "register", lambda *a, **k: "gpt-6-luna")
     plan = ("price (estimate, typical): ~$0.40 expected (a typical model), $0.90 for a model that thinks at length\n"
@@ -196,8 +198,10 @@ def test_ctrl_c_stops_cleanly_and_says_how_to_continue(tmp_path):
 
 def test_diagnose_tells_our_cap_from_the_providers_402():
     ours = ["the API rejected the call (HTTP 402): crucibleforge global spend cap reached: $1.00 booked"]
-    assert "spend cap" in qt.diagnose(ours)[0]
-    assert "out of credit" in qt.diagnose(["HTTP 402: Insufficient credits"])[0]
+    code, lines = qt.diagnose(ours)
+    assert "spend cap" in lines[0] and code == qt.CODES["SPEND_CAP"]
+    code, lines = qt.diagnose(["HTTP 402: Insufficient credits"])
+    assert "out of credit" in lines[0] and code == qt.EXIT_NO_CREDIT
 
 
 def test_summary_overall_is_the_boards_overall_not_the_older_scorecard_sum(tmp_path, monkeypatch):
@@ -240,3 +244,200 @@ def test_plan_reader_takes_the_judge_bound_with_and_without_the_pack_rounds():
     assert (a["judge_usd"], a["judge_max_usd"], a["judge_packs_max_usd"]) == (0.21, 0.55, 0.30)
     b = qt.read_plan("  judge cost (estimate): ~$0.21 expected for ~800 call(s), up to $0.55 (~1 calls: x); billed")
     assert b["judge_packs_max_usd"] is None
+
+
+# ---------------------------------------------------------------- first-run messages (rig report 2026-11-25)
+@pytest.mark.parametrize("raw,code,words", [
+    (None, qt.CODES["NO_KEY"], "No OpenRouter key"),
+    ("   ", qt.CODES["KEY_EMPTY"], "key is empty"),
+    ('"sk-or-v1-abc"', qt.CODES["KEY_QUOTED"], "quote marks"),
+    ("sk-or-v1 abc", qt.CODES["KEY_QUOTED"], "quote marks"),
+    ("sk-ant-api03-x", qt.CODES["KEY_OTHER_PROVIDER"], "Anthropic key"),
+    ("sk-proj-x", qt.CODES["KEY_OTHER_PROVIDER"], "OpenAI key"),
+])
+def test_a_key_that_cannot_work_is_named_before_any_request(raw, code, words):
+    with pytest.raises(qt.Fail) as e:
+        qt.key_format(raw)
+    assert e.value.code == code and words in "\n".join(e.value.lines)
+
+
+def test_an_openrouter_key_passes_the_format_check():
+    assert qt.key_format("  sk-or-v1-abc\n") == "sk-or-v1-abc"
+
+
+def test_network_failures_are_told_apart():
+    import socket as so
+    import ssl as sl
+    import urllib.error as ue
+    dns = qt.net_fail(ue.URLError(so.gaierror(-2, "Name or service not known")), "openrouter.ai")
+    assert dns.code == qt.CODES["DNS"] and "HTTPS_PROXY" in "\n".join(dns.lines)
+    tls = qt.net_fail(ue.URLError(sl.SSLCertVerificationError(1, "certificate verify failed: self-signed")), "x")
+    assert tls.code == qt.CODES["TLS"] and "SSL_CERT_FILE" in "\n".join(tls.lines)
+    clock = qt.net_fail(ue.URLError(sl.SSLCertVerificationError(1, "certificate is not yet valid")), "x")
+    assert clock.code == qt.CODES["CLOCK"]
+    down = qt.net_fail(ue.URLError(ConnectionRefusedError(111, "Connection refused")), "x")
+    assert down.code == qt.CODES["NETWORK"]
+
+
+def test_rate_limit_at_the_key_check_says_nothing_is_lost(fake, monkeypatch, capsys):
+    import urllib.error as ue
+    f = qt.http_fail(ue.HTTPError("u", 429, "Too Many", {}, None), "the key")
+    assert f.code == qt.CODES["RATE_LIMITED"] and "nothing is lost" in "\n".join(f.lines)
+
+
+def test_a_broken_models_yaml_names_the_line_and_shows_a_valid_one(fake, monkeypatch):
+    p = fake / "data" / "models.yaml"
+    p.parent.mkdir(parents=True)
+    p.write_text("providers:\n  openrouter: {type: openai\nmodels: []\n", encoding="utf-8")
+    with pytest.raises(qt.Fail) as e:
+        qt.load_cfg()
+    text = "\n".join(e.value.lines)
+    assert e.value.code == qt.CODES["BAD_CONFIG"] and "line " in text and "model_id:" in text
+
+
+def test_a_models_yaml_the_engine_refuses_is_named_with_the_engines_reason(fake, monkeypatch):
+    p = fake / "data" / "models.yaml"
+    p.parent.mkdir(parents=True)
+    p.write_text("providers: {openrouter: {type: openai, base_url: http://x}}\njudge: {}\ndefaults: {}\n"
+                 "models:\n  - {name: m, provider: nowhere, model_id: a/b}\n", encoding="utf-8")
+    with pytest.raises(qt.Fail) as e:
+        qt.load_cfg()
+    assert e.value.code == qt.CODES["BAD_CONFIG"] and "nowhere" in e.value.lines[0] and "line 5" in e.value.lines[0]
+
+
+def test_a_near_miss_key_is_named_with_the_valid_one():
+    cfg = {"providers": {"openrouter": {"type": "openai", "base_ulr": "http://x"}}, "models": []}
+    notes = qt.unknown_key_notes(cfg, "providers:\n  openrouter:\n    base_ulr: http://x\n", "models.yaml")
+    assert notes and "'base_ulr'" in notes[0] and "'base_url'" in notes[0] and "line 3" in notes[0]
+
+
+def test_context_too_small_is_refused_for_a_local_server_with_the_number_needed():
+    plan = "    code   c1   x2  budget 4096  n/a (ctx: needs 40000)\n    code   c2   x2  budget 4096  n/a (ctx: needs 70000)\n"
+    with pytest.raises(qt.Fail) as e:
+        qt.context_check(plan, 32768, local=True)
+    assert e.value.code == qt.CODES["LOCAL_CONTEXT"] and "70000" in "\n".join(e.value.lines)
+    assert qt.context_check(plan, 32768, local=False)[0].strip().startswith("note:")
+    assert qt.context_check("no such lines", 32768, local=False) == []
+    assert "every question in this suite fits" in qt.context_check("no such lines", 32768, local=True)[0]
+    assert "does not say" in qt.context_check("no such lines", None, local=True)[0]
+
+
+def test_check_prints_pass_and_fix_lines_and_spends_nothing(fake, monkeypatch, capsys):
+    calls = _planned(monkeypatch)
+    ran = []
+    monkeypatch.setattr(qt, "run_engine", lambda *a, **k: ran.append(a) or (0, []))
+    rc, out = _run(capsys, "openai/gpt-6-luna", "--check")
+    assert rc == 0 and not ran and all("--plan" in c for c in calls)
+    for step in ("folder", "key", "config", "model", "plan"):
+        assert re.search(rf"PASS  {step}", out), out
+    assert "balance $4.00" in out and out.rstrip().endswith("test instead of check.")
+
+
+def test_check_collects_every_fix_and_exits_with_the_first_code(fake, monkeypatch, capsys):
+    _planned(monkeypatch)
+    monkeypatch.setenv("OPENROUTER_API_KEY", "sk-rejected")
+    rc, out = _run(capsys, "openai/gpt-6-lune", "--check")
+    assert rc == qt.EXIT_KEY_REJECTED
+    assert "FIX   key" in out and "FIX   model" in out and "SKIP  plan" in out
+
+
+def test_stopped_is_not_called_failed():
+    from crucibleforge import cli
+    from crucibleforge.runner import DRAIN_NOTE
+    assert cli._failed_or_stopped("m", DRAIN_NOTE).startswith("m: stopped")
+    assert cli._failed_or_stopped("m", "HTTP 500").startswith("m: FAILED")
+
+
+def test_test_and_check_are_in_the_cli_help(capsys):
+    from crucibleforge import cli
+    with pytest.raises(SystemExit):
+        cli.main(["--help"])
+    out = capsys.readouterr().out
+    assert re.search(r"^\s+test\s", out, re.M) and re.search(r"^\s+check\s", out, re.M)
+
+
+# ---------------------------------------------------------------- a local server that asks for a key (4.5.1)
+LOCAL_KEY = "local-secret-e2e-0001"
+LOCAL_IDS = ["org/repo-a/model-a-Q8_0.gguf", "org/repo-b/small-Q8_0.gguf"] + [f"org/other-{i}/f.gguf" for i in range(30)]
+
+
+class _Locked(BaseHTTPRequestHandler):
+    def log_message(self, *a):
+        pass
+
+    def do_GET(self):
+        if (self.headers.get("Authorization") or "") != f"Bearer {LOCAL_KEY}":
+            b = b'{"error": "unauthorized"}'
+            self.send_response(401)
+        elif self.path.endswith("/models"):
+            b = json.dumps({"data": [{"id": i, "max_model_len": 65536} for i in LOCAL_IDS]}).encode()
+            self.send_response(200)
+        else:
+            b = b"{}"
+            self.send_response(404)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(b)))
+        self.end_headers()
+        self.wfile.write(b)
+
+
+@pytest.fixture()
+def locked():
+    srv = ThreadingHTTPServer(("127.0.0.1", 0), _Locked)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    yield f"http://127.0.0.1:{srv.server_port}/v1"
+    srv.shutdown()
+
+
+def test_local_server_key_missing_wrong_and_right(locked, monkeypatch):
+    monkeypatch.delenv("LOCAL_API_KEY", raising=False)
+    with pytest.raises(qt.Fail) as e:
+        qt.probe_local(locked, LOCAL_IDS[0], None)
+    assert e.value.code == qt.CODES["LOCAL_KEY_NEEDED"] == 37
+    assert "-e LOCAL_API_KEY=" in "\n".join(e.value.lines)
+    monkeypatch.setenv("LOCAL_API_KEY", "wrong-key-xyz")
+    with pytest.raises(qt.Fail) as e:
+        qt.probe_local(locked, LOCAL_IDS[0], "LOCAL_API_KEY")
+    text = "\n".join(e.value.lines)
+    assert e.value.code == qt.CODES["LOCAL_KEY_REJECTED"] == 38 and "LOCAL_API_KEY" in text and "wrong-key-xyz" not in text
+    monkeypatch.setenv("LOCAL_API_KEY", LOCAL_KEY)
+    assert qt.probe_local(locked, LOCAL_IDS[0], "LOCAL_API_KEY") == 65536
+
+
+def test_judge_key_is_its_own_or_the_model_servers_on_the_same_address(monkeypatch):
+    monkeypatch.delenv("JUDGE_LOCAL_API_KEY", raising=False)
+    monkeypatch.setenv("LOCAL_API_KEY", "k")
+    assert qt.local_key_env("model", "http://h:1234/v1") == "LOCAL_API_KEY"
+    assert qt.local_key_env("judge", "http://h:1234/v1", "http://h:1234/v1") == "LOCAL_API_KEY"
+    assert qt.local_key_env("judge", "http://h:8000/v1", "http://h:1234/v1") is None
+    monkeypatch.setenv("JUDGE_LOCAL_API_KEY", "j")
+    assert qt.local_key_env("judge", "http://h:8000/v1", "http://h:1234/v1") == "JUDGE_LOCAL_API_KEY"
+    monkeypatch.delenv("LOCAL_API_KEY")
+    assert qt.local_key_env("model", "http://h:1234/v1") is None
+
+
+def test_wrong_local_id_lists_the_servers_ids_exactly(locked, monkeypatch):
+    monkeypatch.setenv("LOCAL_API_KEY", LOCAL_KEY)
+    with pytest.raises(qt.Fail) as e:
+        qt.probe_local(locked, "org/repo-a/model-a-Q8_0", "LOCAL_API_KEY")
+    lines = e.value.lines
+    assert e.value.code == qt.CODES["LOCAL_NO_MODEL"]
+    assert "    org/repo-a/model-a-Q8_0.gguf" in lines and lines.index("    org/repo-a/model-a-Q8_0.gguf") < 4
+    assert any("more" in ln for ln in lines) and len([ln for ln in lines if ln.startswith("    org/")]) == 20
+
+
+def test_check_local_with_key_passes_and_writes_only_the_variable_name(locked, fake, monkeypatch, capsys):
+    _planned(monkeypatch)
+    saved = []
+    monkeypatch.setattr(qt, "save_cfg", lambda cfg: saved.append(json.dumps(cfg)))
+    monkeypatch.delenv("JUDGE_LOCAL_API_KEY", raising=False)
+    monkeypatch.setenv("LOCAL_API_KEY", LOCAL_KEY)
+    rc, out = _run(capsys, LOCAL_IDS[0], "--check", "--local", locked, "--judge-local", locked, LOCAL_IDS[1])
+    assert rc == 0, out
+    assert "PASS  model" in out and "65536" in out and "PASS  judge" in out and "fits" in out
+    assert LOCAL_KEY not in out and saved and not any(LOCAL_KEY in s for s in saved)
+    local = [s for s in saved if '"hosted": false' in s]
+    assert len(local) == 2 and all('"api_key_env": "LOCAL_API_KEY"' in s for s in local), saved
+    monkeypatch.delenv("LOCAL_API_KEY")
+    rc, out = _run(capsys, LOCAL_IDS[0], "--check", "--local", locked)
+    assert rc == 37 and "FIX   model" in out and "-e LOCAL_API_KEY=" in out

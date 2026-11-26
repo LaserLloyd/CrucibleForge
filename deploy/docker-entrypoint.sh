@@ -31,63 +31,36 @@ JAIL=/usr/local/libexec/cf-jail
 WORK=/tmp/cfwork
 
 log() { [ -n "${CF_QUIET:-}" ] || printf '%s crucibleforge-entrypoint: %s\n' "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" "$*" >&2; }
+# routine lines (who runs, what was seeded) only with CF_VERBOSE=1: a command's own output comes first
+info() { [ -n "${CF_VERBOSE:-}" ] && log "$@"; return 0; }
 say() { printf '%s\n' "$*" >&2; }
 die() { log "FATAL: $*"; exit 1; }
 
-# `test ...` (the one-command front door) talks to people, not to logs: keep the entrypoint quiet for it.
-[ "${1:-}" = "test" ] && CF_QUIET=1
+CMD="${1:-}"
+# `test` / `check` (the one-command front door and its free pre-flight) talk to people, not to logs.
+{ [ "$CMD" = "test" ] || [ "$CMD" = "check" ]; } && CF_QUIET=1
 
-not_writable() {
-    say ""
-    say "Cannot write to the results folder you gave with -v (it is /data inside the container)."
-    say "  On Fedora, RHEL or another SELinux system add :Z after it:  -v \"\$PWD/makobench:/data:Z\""
-    say "  Otherwise create the folder yourself first (mkdir makobench) so that it belongs to you."
-    exit 24
-}
+# the message is tailored to the mount (crucibleforge/firstrun.py folder_help): exit 24
+not_writable() { exec python -m crucibleforge.firstrun folder-help "$(id -u)"; }
 
 # ---- 1. privileges ----------------------------------------------------------
 # Started as root (the default `docker run`): the benchmark runs as the OWNER OF THE DATA FOLDER, so the files
 # it writes on a bind mount belong to the person who ran the command. Model-written code never runs as that user:
 # it runs through the setuid helper ($JAIL) as uid 65534 with no network (crucibleforge/jail.py).
+# crucibleforge/firstrun.py `prepare` picks the run user, makes sure THAT user can write the folder (chown when
+# really root; it never removes a permission the run user depends on), proves it with a probe file written as that
+# user, and checks that uid 65534 cannot write the folder. It prints RUID=.. RGID=.. CF_FOLDER_SHARED=.. or exits
+# with a message tailored to the mount (Docker Desktop on Windows or Mac, SELinux, a network share, ...).
 if [ "$(id -u)" = "0" ] && [ -z "${CF_DROPPED:-}" ]; then
     mkdir -p "$DATA_DIR" 2>/dev/null || true
-    real_root=0
-    awk 'NR==1 && $1==0 && $2==0 && $3==4294967295 {f=1} END {exit !f}' /proc/self/uid_map 2>/dev/null && real_root=1
-    if [ -n "${PUID:-}" ]; then
-        RUID="$PUID"; RGID="${PGID:-$PUID}"
-        chown "$RUID:$RGID" "$DATA_DIR" 2>/dev/null || true
-    else
-        RUID="$(stat -c %u "$DATA_DIR")"; RGID="$(stat -c %g "$DATA_DIR")"
-        if [ "$RUID" = "0" ]; then
-            if setpriv --reuid=1000 --regid=1000 --clear-groups test -w "$DATA_DIR" 2>/dev/null; then
-                RUID=1000; RGID=1000
-            elif [ "$real_root" = "1" ] && [ -z "$(ls -A "$DATA_DIR" 2>/dev/null)" ]; then
-                # Docker created the folder (as root) because it did not exist: give it to uid 1000, the usual
-                # first desktop user. `mkdir makobench` before `docker run` avoids this guess.
-                chown 1000:1000 "$DATA_DIR" && RUID=1000 && RGID=1000
-                log "note: the data folder was created by Docker as root; it now belongs to uid 1000"
-            fi
-            # else: rootless Podman/Docker, where uid 0 in here IS the person who ran the command
-        fi
+    if [ "$CMD" = "test" ] || [ "$CMD" = "check" ]; then
+        python -m crucibleforge.firstrun has-folder || exec python -m crucibleforge.firstrun no-folder
     fi
-    if [ "$RUID" != "0" ] && ! setpriv --reuid="$RUID" --regid="$RGID" --clear-groups true 2>/dev/null; then
-        # started with --cap-drop ALL (or similar): no way to switch user; carry on as uid 0 with no capabilities
-        if ! { touch "$DATA_DIR/.cf-write-test" 2>/dev/null && rm -f "$DATA_DIR/.cf-write-test"; }; then
-            say "This container cannot switch to the data folder's owner (uid $RUID): its capabilities were dropped."
-            say "  Add --user $RUID:$RGID to the command (or leave out --cap-drop)."
-            exit 24
-        fi
-        log "note: cannot switch to uid $RUID here (capabilities dropped); files are written as uid 0"
-        RUID=0; RGID=0
-    fi
-    touch "$DATA_DIR/.cf-write-test" 2>/dev/null && rm -f "$DATA_DIR/.cf-write-test" || not_writable
+    python -m crucibleforge.firstrun version-check "$DATA_DIR/.image-version" || exit $?
+    plan="$(python -m crucibleforge.firstrun prepare)" || exit $?
+    eval "$plan"
+    export CF_FOLDER_SHARED
     install -d -m 0711 -o "$RUID" -g "$RGID" "$WORK" 2>/dev/null || mkdir -p "$WORK" 2>/dev/null || true
-    for d in "$DATA_DIR/results" "$DATA_DIR/tmp"; do
-        [ -d "$d" ] && [ "$(stat -c %u "$d")" != "$RUID" ] && chown -R "$RUID:$RGID" "$d" 2>/dev/null || true
-    done
-    [ -f "$CFG" ] && { chown "$RUID:$RGID" "$CFG" 2>/dev/null; chmod 0600 "$CFG" 2>/dev/null; } || true
-    # the graded code's user may not look into the folder at all (best effort: some file systems ignore modes)
-    chmod o-rwx "$DATA_DIR" 2>/dev/null || true
     [ -u "$JAIL" ] && export CRUCIBLEFORGE_JAIL="$JAIL"
     export CF_DROPPED=1 TMPDIR="$WORK"
     if [ "$RUID" = "0" ]; then
@@ -116,7 +89,7 @@ fi
 
 # ---- 2. writability --------------------------------------------------------
 if [ ! -w "$DATA_DIR" ]; then
-    log "${DATA_DIR} is not writable by UID $(id -u) (owned by $(stat -c '%u:%g' "$DATA_DIR" 2>/dev/null || echo '?'))."
+    info "${DATA_DIR} is not writable by UID $(id -u) (owned by $(stat -c '%u:%g' "$DATA_DIR" 2>/dev/null || echo '?'))."
     not_writable
 fi
 mkdir -p "$DATA_DIR/results"
@@ -135,8 +108,7 @@ state_files() {
 
 pre_upgrade_backup() {
     marker="$DATA_DIR/.image-version"
-    pkg="$(python -c "import importlib.metadata as m; print(m.version('crucibleforge-bench'))" 2>/dev/null || echo unknown)"
-    new="${pkg}-${IMAGE_VERSION:-dev}"
+    new="${PKG_VERSION}-${IMAGE_VERSION:-dev}"
     old="$(cat "$marker" 2>/dev/null || true)"
     if [ "$old" != "$new" ]; then
         files="$(state_files)"
@@ -150,13 +122,16 @@ pre_upgrade_backup() {
                 mkdir -p "$dest/$(dirname "$rel")"
                 cp -p "$f" "$dest/$rel"
             done
-            log "image version changed (${old:-none} -> ${new}): state files copied to ${dest}"
+            info "image version changed (${old:-none} -> ${new}): state files copied to ${dest}"
             # keep the 5 newest
             ls -1dt "$DATA_DIR"/backups/*/ 2>/dev/null | tail -n +6 | while IFS= read -r d; do rm -rf "$d"; done
         fi
         printf '%s\n' "$new" > "$marker"
     fi
 }
+PKG_VERSION="$(python -m crucibleforge.firstrun version 2>/dev/null || echo unknown)"
+# a folder written by a NEWER image is refused before anything touches it (also when started as a plain user)
+[ -n "${CF_DROPPED:-}" ] || python -m crucibleforge.firstrun version-check "$DATA_DIR/.image-version" || exit $?
 pre_upgrade_backup
 
 # ---- 4. first-start seed -----------------------------------------------------
@@ -183,19 +158,22 @@ if [ ! -f "$CFG" ] && [ -f "$SEED_TEMPLATE" ]; then
         "$SEED_TEMPLATE" > "$CFG.seed.$$"
     mv "$CFG.seed.$$" "$CFG"
     chmod 0600 "$CFG"
-    log "seeded $CFG from ${SEED_TEMPLATE} (local provider -> ${LLM_BASE_URL})"
+    info "seeded $CFG from ${SEED_TEMPLATE} (local provider -> ${LLM_BASE_URL})"
 fi
 
 # ---- 5/6. command + GUI token -------------------------------------------------
 if [ "${1:-}" = "test" ]; then
     shift
     set -- python -m crucibleforge.quicktest "$@"
+elif [ "${1:-}" = "check" ]; then
+    shift
+    set -- python -m crucibleforge.quicktest --check "$@"
 elif [ "$#" -eq 0 ] || [ "${1#-}" != "$1" ] || ! command -v "$1" >/dev/null 2>&1; then
     set -- crucibleforge "$@"
 fi
 # (CRUCIBLEFORGE_GUI_TOKEN is read by the GUI itself; it is NOT appended to argv,
 # where it would show in `ps` and break `gui token show` with an unknown --token.)
 
-log "data=${DATA_DIR} uid=$(id -u) gid=$(id -g) version=${IMAGE_VERSION:-dev}"
+info "data=${DATA_DIR} uid=$(id -u) gid=$(id -g) version=${PKG_VERSION}${IMAGE_VERSION:+ image ${IMAGE_VERSION}}"
 # exec: the app becomes the process that receives SIGTERM.
 exec "$@"
