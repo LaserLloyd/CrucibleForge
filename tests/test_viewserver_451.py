@@ -20,10 +20,10 @@ def folder(tmp_path, monkeypatch):
     data = tmp_path / "data"
     res = data / "results"
     res.mkdir(parents=True)
-    (data / "models.yaml").write_text("secret: keyname\n")
-    (res / "transcripts_m.jsonl").write_text('{"response": "reply text"}\n')
+    (data / "models.yaml").write_text("secret: keyname\n", encoding="utf-8")
+    (res / "transcripts_m.jsonl").write_text('{"response": "reply text"}\n', encoding="utf-8")
     (data / "spend").mkdir()
-    (data / "spend" / "m.jsonl").write_text('{"cost_usd": 0.25}\n{"cost_usd": 0.5}\n')
+    (data / "spend" / "m.jsonl").write_text('{"cost_usd": 0.25}\n{"cost_usd": 0.5}\n', encoding="utf-8")
     monkeypatch.setattr(config, "RESULTS_DIR", res)
     return data
 
@@ -65,7 +65,7 @@ def test_before_the_report_the_running_page_shows_the_run(folder, serve):
 
 def test_once_the_report_exists_it_is_served_with_a_csp_that_lets_only_its_script_run(folder, serve):
     (folder / "results" / "report.html").write_bytes(REPORT)
-    (folder / "results" / "report.md").write_text("# board\n")
+    (folder / "results" / "report.md").write_bytes(b"# board\n")  # bytes: no CRLF on Windows
     port = serve(viewserver.Status(label="m"))
     for path in ("/", "/report.html", "/index.html"):
         code, head, body = get(port, path)
@@ -163,3 +163,10 @@ def test_the_docs_show_the_loopback_form_and_the_compose_file_maps_the_port():
     compose = open(os.path.join(root, "deploy", "compose", "compose.yml"), encoding="utf-8").read()
     assert '"${BIND_ADDR:-127.0.0.1}:${VIEW_PORT:-8377}:8377"' in compose
     assert "EXPOSE 8777 8377" in open(os.path.join(root, "Dockerfile"), encoding="utf-8").read()
+
+
+def test_the_page_answers_while_the_test_gets_ready(folder, serve):
+    st = viewserver.Status(model="fake/fake-model")
+    st.step = viewserver.GETTING_READY
+    code, _, body = get(serve(st), "/")
+    assert code == 200 and b"Getting ready" in body and b"planning the test" in body and b"http-equiv=refresh" in body

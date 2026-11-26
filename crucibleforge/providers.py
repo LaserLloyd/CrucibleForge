@@ -259,6 +259,11 @@ class Provider:
         return self.last_probe_status if self.last_probe_status in (401, 403) else None
 
     def alive(self) -> bool:
+        if not provider_in_use(self.name):
+            # the one-command `test` named the providers its run uses: another configured one (a local server the
+            # seeded models.yaml lists) is not asked anything, and counts as down (4.5.1)
+            self.last_probe_status = None
+            return False
         if self.type == "claude_code":
             import shutil
             return shutil.which("claude") is not None
@@ -1345,6 +1350,20 @@ API_DEFAULT_CONCURRENCY = 8
 #: provider-block keys ending ``_mcp`` that the loader understands; any other
 #: ``*_mcp`` key is a typo or a stale setting and is refused, never ignored
 KNOWN_MCP_KEYS = frozenset({"render_vacate_mcp"})
+
+
+#: 4.5.1: the providers a run uses, comma-separated (the one-command `test` sets it to its model's and its judge's).
+#: Set, every other configured provider is reported down without a request; unset (the default), nothing changes.
+PROVIDERS_IN_USE_ENV = "CRUCIBLEFORGE_PROVIDERS_IN_USE"
+
+
+def provider_in_use(name: str | None) -> bool:
+    raw = os.environ.get(PROVIDERS_IN_USE_ENV, "").strip()
+    if not raw or not name:
+        return True
+    from .config import JUDGE_ALIAS
+    base = name[:-len(JUDGE_ALIAS)] if name.endswith(JUDGE_ALIAS) else name
+    return base in {x.strip() for x in raw.split(",") if x.strip()}
 
 
 def get_provider(cfg: dict, name: str) -> Provider:

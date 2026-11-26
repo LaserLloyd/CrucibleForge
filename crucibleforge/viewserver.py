@@ -50,6 +50,7 @@ def csp_for(body: bytes) -> str:
 ALLOWED = {"/report.html": ("report.html", "text/html; charset=utf-8"),
            "/report.md": ("report.md", "text/markdown; charset=utf-8")}
 REFRESH_S = 15
+GETTING_READY = "getting ready: checking the folder, the key and the model, then planning the test (1 to 3 minutes)"
 
 
 def port_from_env(default: int = DEFAULT_PORT) -> int:
@@ -124,7 +125,8 @@ def running_page(st: Status | None) -> str:
                  if n is not None else "-"),
                 ("Cost so far", f"${st.cost():.4f}" if st.cost() is not None else "-"),
                 ("Started", time.strftime("%Y-%m-%d %H:%M", time.localtime(st.started)) + f" ({mins:.0f} min ago)")]
-        head = "The test is running" if not st.finished else "The test has ended"
+        head = ("The test has ended" if st.finished else "Getting ready" if st.step == GETTING_READY
+                else "The test is running")
     else:
         head = "No report in this folder yet"
     trs = "".join(f"<tr><th>{html.escape(k)}</th><td>{html.escape(str(v))}</td></tr>" for k, v in rows)

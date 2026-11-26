@@ -15,7 +15,10 @@ move (the scorer stamp moves once). Scores made under 4.5.0 and 4.5.1 sit on one
 
 In short:
 - **A hosted run never calls your own machine:** `run`/`all` hand their judge to the rig guard, so a run that uses
-  only hosted models no longer asked a local server (port 1234) for its residents or printed a StudioForge warning.
+  only hosted models no longer asked a local server (port 1234) for its residents or printed a StudioForge warning;
+  and `test` tells the engine which providers its run uses (`CRUCIBLEFORGE_PROVIDERS_IN_USE`), so the judge's
+  candidate scan counts every other configured provider as down without a request. `test --serve` answers on its port
+  from the first second ("Getting ready" during the checks and the plan).
 - **Plain progress instead of the raw log** on the one-command `test`: one line every 30 s (`42 of 279 answers ·
   $0.21 so far · about 14 min left for the answers`, then `judging the answers`), warnings as plain `note:` lines;
   the full log goes to `results/run.log` (`CF_VERBOSE=1` shows it). The page says `--yes` is for scripts.

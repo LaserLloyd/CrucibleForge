@@ -39,6 +39,8 @@ CAP_FACTOR = 2.0            # spend caps: about twice the plan's own figure (lea
 #: the smallest cap: below about $0.50 an estimate is mostly noise (reply lengths vary more than the price of a few
 #: dozen calls), so a cheap run is never cut by it; $1 still stops a runaway early
 MIN_CAP_USD = 1.00
+#: providers.PROVIDERS_IN_USE_ENV (not imported: this module stays light; a test keeps the two equal)
+PROVIDERS_IN_USE_ENV = "CRUCIBLEFORGE_PROVIDERS_IN_USE"
 
 from .firstrun import CODES, HEADLINES, package_version  # noqa: E402 - every message's headline and exit code live there
 
@@ -938,6 +940,16 @@ def results_fingerprint(label: str, args: list[str]) -> str:
     return h.hexdigest()[:24]
 
 
+def providers_in_use(cfg: dict, label: str, judge: str) -> list[str]:
+    """The model's provider and the judge's ("openrouter:qwen/..." names its provider before the colon)."""
+    out = [m.get("provider") for m in cfg.get("models") or [] if m.get("name") == label]
+    jp = judge.split(":", 1)[0] if ":" in judge and judge.split(":", 1)[0] in (cfg.get("providers") or {}) else None
+    if jp is None:
+        jp = next((c.get("provider") for c in (cfg.get("judge") or {}).get("candidates") or []
+                   if judge in (c.get("name"), c.get("model_id"))), None)
+    return sorted({p for p in out + [jp] if p})
+
+
 def owed_nothing(plan: dict) -> bool:
     """The plan of a folder with stored answers says no answer is owed (every 'owed on resume' line is 'none')."""
     owed = [ln.replace("owed on resume:", "").strip() for ln in plan.get("owed") or []]
@@ -1251,6 +1263,21 @@ def _main(a: argparse.Namespace) -> int:
         "the model ...")
     from . import jail
     jail.install()                          # this process holds the key: non-dumpable in the image
+    page = None
+    if a.serve and not a.check:
+        # the page answers from the first second (a link clicked during the checks and the plan finds a page, not
+        # "can't connect"); it shows the report once there is one
+        from . import viewserver
+        port = a.port or viewserver.port_from_env()
+        page = viewserver.Status(model=a.model)
+        page.step = viewserver.GETTING_READY
+        try:
+            page.srv = viewserver.start(port, page)
+        except viewserver.PortTaken:
+            say("", *viewserver.taken_lines(port), "  Nothing was spent.")
+            return CODES["PORT_TAKEN"]
+        page.port = port
+        say(f"  results page: http://localhost:{port} (it shows the progress, then the report)")
     pf = Preflight(collect=a.check)
     data = pf.step("folder", folder_check)
     uses_or = not a.local or not a.judge_local
@@ -1335,6 +1362,9 @@ def _main(a: argparse.Namespace) -> int:
         (["--smoke"] if a.smoke else []) + (["--no-ladder"] if a.no_ladder else [])
     plan: dict = {}
     extra: list[str] = []
+    # the engine asks only these providers: never a local server the folder's models.yaml lists but this run does
+    # not use (a hosted run asked port 1234 for StudioForge residents, rig 2026-11-26)
+    in_use = {PROVIDERS_IN_USE_ENV: ",".join(providers_in_use(load_cfg(), label, judge))} if label and judge else {}
     done = bool(label and judge) and nothing_left(label, common)
     # the last run of this command ended normally and nothing changed since: no plan (1 to 3 minutes of building the
     # questions to price them); every answer is stored, only judging and the board are left
@@ -1348,7 +1378,8 @@ def _main(a: argparse.Namespace) -> int:
             plan = {"owed": ["owed on resume: none"]}
             return True, "every answer is already in this folder (the last run ended normally): nothing to plan"
         say("  ....  plan    working out the questions, the cost and the time (can take a few minutes) ...")
-        rc, out = engine_out("all", *common, "--plan", tick="still planning", phases=True)
+        rc, out = engine_out("all", *common, "--plan", env={**os.environ, **in_use}, tick="still planning",
+                             phases=True)
         if rc != 0:
             raise Fail(EXIT_RUN_FAILED, "The plan failed:", *out.strip().splitlines()[-15:])
         plan = read_plan(out)
@@ -1378,17 +1409,9 @@ def _main(a: argparse.Namespace) -> int:
         say("", "This folder's results were made by an earlier build: it is checked once (that was the plan step); "
             "the same command now says so at once.")
         done = True
-    page = None
-    if a.serve:
-        from . import viewserver
-        port = a.port or viewserver.port_from_env()
-        page = viewserver.Status(model=a.model, label=label, total=int(plan["rows"]) if plan.get("rows") else None)
-        try:
-            page.srv = viewserver.start(port, page)
-        except viewserver.PortTaken:
-            say("", *viewserver.taken_lines(port), "  Nothing was spent.")
-            return CODES["PORT_TAKEN"]
-        page.port = port
+    if page is not None:
+        page.label, page.total = label, int(plan["rows"]) if plan.get("rows") else None
+        page.step = "about to start"
     if done:
         say("", "Nothing left to run: the results are complete (this command made no request).", "",
             *summary_lines(label, judge_desc))
@@ -1428,8 +1451,7 @@ def _main(a: argparse.Namespace) -> int:
             say(f"  still to run: {o}")
     say("  The coding answers run inside this container (see 'Safety' in docs/FIRST-RUN-DOCKER.md).")
     if page is not None:
-        say(f"  results page: http://localhost:{page.port} shows the progress now and the report when it is ready "
-            "(anyone who can reach that port can read it)")
+        say(f"  results page: http://localhost:{page.port} (anyone who can reach that port can read it)")
 
     if not a.yes:
         # no terminal (-it left out): stdin is closed and input() meets end-of-file at once; with -i but no -t
@@ -1445,7 +1467,7 @@ def _main(a: argparse.Namespace) -> int:
         if ans.strip().lower() not in ("y", "yes"):
             raise fail("NOT_CONFIRMED")
 
-    env = dict(os.environ)
+    env = {**os.environ, **in_use}
     if run_cap:
         spend_dir = data / "spend"
         spend_dir.mkdir(exist_ok=True)

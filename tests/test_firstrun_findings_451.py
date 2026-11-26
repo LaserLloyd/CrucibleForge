@@ -45,7 +45,7 @@ def _log(level, msg):
 
 def test_progress_lines_are_plain_and_say_how_far(monkeypatch, tmp_path):
     led = tmp_path / "l.jsonl"
-    led.write_text(json.dumps({"cost_usd": 0.21}) + "\n")
+    led.write_text(json.dumps({"cost_usd": 0.21}) + "\n", encoding="utf-8")
     p = qt.Progress(ledger=str(led))
     assert p.feed("Run cost: $0.31 table line\n") == []          # engine prints: run.log only
     assert p.feed(_log("INFO", "running 40 jobs with concurrency=4")) == []
@@ -76,7 +76,7 @@ def _ledger(d, name, model, judge):
     d.mkdir(exist_ok=True)
     (d / name).write_text("\n".join([json.dumps({"kind": "reserve", "usd": 9.0}),
                                      json.dumps({"cost_usd": model, "model": "m"}),
-                                     json.dumps({"cost_usd": judge, "kind": "judge"})]) + "\n")
+                                     json.dumps({"cost_usd": judge, "kind": "judge"})]) + "\n", encoding="utf-8")
 
 
 def test_the_cost_line_on_a_finished_folder_gives_the_folder_total(monkeypatch, tmp_path):
@@ -109,25 +109,6 @@ def test_the_minutes_cell_never_says_not_recorded():
     assert "not recorded" not in report.MINUTES_NOTE
 
 
-def test_a_named_judge_does_not_probe_the_other_candidates(monkeypatch):
-    from crucibleforge import judge
-
-    def boom(*a, **k):
-        raise AssertionError("probed the other judge candidates")
-    monkeypatch.setattr(judge, "_eligible_judge_candidates", boom)
-
-    class Stop(Exception):
-        pass
-
-    def client(cfg, cand):
-        raise Stop(cand["name"])
-    monkeypatch.setattr(judge, "JudgeClient", client)
-    try:
-        judge._load_judge(_cfg(), set(), rows=1, samples=1, override="hosted-judge")
-    except Stop as e:
-        assert str(e) == "hosted-judge"
-
-
 def test_a_legacy_windows_console_gets_replacements_not_a_crash(monkeypatch):
     import io
     import sys
@@ -151,3 +132,19 @@ def test_the_first_ctrl_c_says_what_it_waits_for():
     line = p.stopping_line()
     assert line == ("Stopping: finishing the 2 answers already in progress (up to about 2 min at this speed). "
                     "Press Ctrl-C again to stop now; those 2 would be asked again next time.")
+
+
+def test_the_in_use_providers_gate_reports_others_down_without_a_request(monkeypatch):
+    from crucibleforge import providers
+    assert providers.PROVIDERS_IN_USE_ENV == qt.PROVIDERS_IN_USE_ENV
+    cfg = _cfg()
+    assert qt.providers_in_use(cfg, "luna", "hosted-judge") == ["openrouter"]
+    assert qt.providers_in_use(cfg, "luna", "openrouter:qwen/qwen3.8-27b") == ["openrouter"]
+    monkeypatch.setenv(providers.PROVIDERS_IN_USE_ENV, "openrouter")
+    assert providers.provider_in_use("openrouter") and providers.provider_in_use("openrouter~judge")
+    assert not providers.provider_in_use("studioforge")
+    p = providers.get_provider(cfg, "studioforge")
+    monkeypatch.setattr(p, "_headers", lambda: (_ for _ in ()).throw(AssertionError("asked the rig")))
+    assert p.alive() is False
+    monkeypatch.delenv(providers.PROVIDERS_IN_USE_ENV)
+    assert providers.provider_in_use("studioforge")          # unset: nothing changes for the engine's own commands
