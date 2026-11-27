@@ -10388,11 +10388,18 @@ def board_view(label: str, cfg: dict | None) -> tuple[list[dict], dict]:
 
 def _forfeit_failed(r: dict, case: dict | None, fix: bool = False) -> dict:
     """A forfeited job's row (forfeit45.py) as the failed answer the graders would have stored for a reply that
-    fixes or answers nothing: _counted_failed, plus, on a Fixes unit, the bug-fix checker's verdict for an empty
+    fixes or answers nothing: _counted_failed (on a judged case every judged element failed), plus, on a Fixes unit,
+    the bug-fix checker's verdict for an empty
     reply (fixrows45.reply_verdict: score 0, grade fail, the current checker stamp). ``fix``: the row is a unit of
     the score tree's Fixes segment (a generated patch case is not in the static case set)."""
     from . import forfeit45 as _ff45
     r = _counted_failed(r, _ff45.ROW_KEY, case)
+    j = r.get("judge")
+    if isinstance(j, dict) and j.get("counted_failed") and (case or {}).get("judge_elements"):
+        # a judged scene or session: the verdict lists every judged element as failed (the long-scene scorers read
+        # only a row whose verdict holds element results), and empty_generation zeroes every item, code checks too
+        r["judge"] = {**j, "elements": {"results": [{"id": e["id"], "pass": False, "detail": "counted as 0 (forfeit)"}
+                                                    for e in case["judge_elements"] if e.get("id")]}}
     from . import fixrows45 as _fr
     if fix or (case and _fr.is_fix_case(case)):
         r["score"] = 0.0

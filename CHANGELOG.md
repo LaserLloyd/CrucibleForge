@@ -18,6 +18,12 @@ No test question, calibration, weight or mark changed and no grader or scorer st
   reason `error`, has at least 3 stored error rows and none of them is a provider policy block. The record, with
   each try's time and error, is `forfeits.json` beside `runs.csv`; stored rows are never changed, and the combined
   board (`scripts/release45.py`) carries every folder's forfeits. A later answer to the job replaces the forfeit.
+- **Forfeits for answers the judge cannot grade.** The same rule now covers a job that stays ungradable: missing
+  with reason `unjudged` or `judge_failed` after one judge re-run. `forfeit ... --after-rejudge` records it (kind
+  `ungradable`, with the job's stored row count and finish reasons); the command still checks that the job is
+  missing for a judge reason now. The job counts as a failed answer in its own part, and the model's row says "1 job
+  counted as 0: <case>, the judge could not grade the answer after a second pass". Records written before carry no
+  kind and are read as `no_answer`.
 
 ## 4.5.1 - 2026-11-26
 

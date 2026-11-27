@@ -4434,7 +4434,7 @@ def cmd_forfeit(args, cfg):
         print("forfeit: --models takes one model label", file=sys.stderr)
         return 2
     rc, line = forfeit45.declare(results_dir(), label, args.case.strip(), args.repeat, args.reason, cfg,
-                                 undo=args.undo)
+                                 undo=args.undo, after_rejudge=args.after_rejudge)
     print(line, file=sys.stderr if rc else sys.stdout)
     return rc
 
@@ -5707,13 +5707,18 @@ def main(argv=None):
                       help="record new/changed values in models.yaml (reasoning_replay: {value, source, ...})")
 
     p_ff = sub.add_parser(
-        "forfeit", help="declare (or --undo) a forfeit: one job the provider never answered after repeated tries "
-                        "counts as a failed answer instead of missing (recorded in <results>/forfeits.json)")
+        "forfeit", help="declare (or --undo) a forfeit: one job the provider never answered after repeated tries, "
+                        "or the judge could not grade after a re-run (--after-rejudge), counts as a failed answer "
+                        "instead of missing (recorded in <results>/forfeits.json)")
     p_ff.add_argument("--models", required=True, metavar="LABEL", help="the model label (one)")
     p_ff.add_argument("--case", required=True, metavar="ID", help="the case id of the job")
     p_ff.add_argument("--repeat", type=int, default=1, help="the job's repeat (default 1)")
     p_ff.add_argument("--reason", default="", help="why, in plain words (required unless --undo)")
     p_ff.add_argument("--undo", action="store_true", help="remove the record: the job is missing again")
+    p_ff.add_argument("--after-rejudge", action="store_true",
+                      help="the job is missing because the judge could not grade it (unjudged / judge_failed) and "
+                           "one judge re-run was made: count it as a failed answer (checked: the job must be "
+                           "missing for that reason now)")
     p_ff.add_argument("--profile", default=None, help="the board's profile (default: bench45)")
 
     args = parser.parse_args(argv)

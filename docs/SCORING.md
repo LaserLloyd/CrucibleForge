@@ -172,7 +172,9 @@ failed answer, zero for that job, in the totals, the ranges and the rank, and th
 (`1 job counted as 0: PATCHFIX-core-4-1, the provider never answered in 5 tries`). It is never automatic: the job must
 be missing because of errors, with at least 3 stored error rows and no provider policy block among them. The record,
 with the time and error of each try, is `forfeits.json` in the results folder; `--undo` removes it, and a later
-answer to the job counts instead.
+answer to the job counts instead. A job the judge still cannot grade after one judge re-run (missing as `unjudged`
+or `judge_failed`) can be declared the same way with `--after-rejudge`: it counts as a failed answer and the row says
+`1 job counted as 0: <case>, the judge could not grade the answer after a second pass`.
 
 **Numbers are never scaled.** A pending part adds nothing and nothing is scaled up over it. The Code and
 Chat cells print measured points out of the measured maximum (for example `6.4 of 7.5`), and a section

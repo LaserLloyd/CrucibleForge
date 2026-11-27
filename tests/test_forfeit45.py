@@ -72,7 +72,7 @@ def test_a_record_scores_the_job_as_a_failed_answer(folder):
     kept, missing = forfeit45.split_missing(_by_t(out))
     assert missing == []                                  # no longer missing: the row is scored as a failed answer
     assert [r["case_id"] for r in kept[1]] == [CASE, "OTHER-1"]      # order kept
-    assert forfeit45.applied("m", kept) == [{"case_id": CASE, "repeat": 1, "reason": "never answered",
+    assert forfeit45.applied("m", kept) == [{"case_id": CASE, "repeat": 1, "kind": "no_answer", "reason": "never answered",
                                              "attempts": 5, "declared": "2026-11-27T00:00:00+00:00"}]
     # every other job is still checked: a second errored job stays missing
     kept, missing = forfeit45.split_missing(_by_t(out + [_err(case_id="OTHER-2")]))
@@ -247,3 +247,127 @@ def test_the_combined_board_carries_each_folders_forfeits(tmp_path, monkeypatch)
     (a / forfeit45.FILENAME).unlink()
     rc, _ = T.go(tmp_path, monkeypatch, ["--only", "c-assemble"])
     assert rc == 0 and not (board / forfeit45.FILENAME).exists()
+
+
+# ------------------------------------------------------------------ ungradable jobs (owner 2026-11-27: standardised)
+
+def _csv_rows(folder, rows):
+    with open(folder / "runs.csv", "w", newline="", encoding="utf-8") as fh:
+        w = csv.DictWriter(fh, fieldnames=["ts", "model_label", "category", "case_id", "repeat", "grade",
+                                           "finish_reason", "grade_detail"])
+        w.writeheader()
+        for i, (fin, grade) in enumerate(rows):
+            w.writerow({"ts": f"2026-11-2{i}T00:00:00+00:00", "model_label": "m", "category": "rp",
+                        "case_id": CASE, "repeat": "2", "grade": grade, "finish_reason": fin, "grade_detail": ""})
+
+
+@pytest.mark.parametrize("why", forfeit45.JUDGE_GAPS)
+def test_an_ungradable_job_is_recorded_with_the_flag(folder, monkeypatch, why):
+    monkeypatch.setattr(forfeit45, "missing_reason", lambda *a, **k: why)
+    _csv_rows(folder, [("stop", ""), ("stop", ""), ("length", "")])
+    rc, line = forfeit45.declare(folder, "m", CASE, 2, "judge could not grade it", None, after_rejudge=True,
+                                 now="2026-11-27T00:00:00+00:00")
+    assert rc == 0 and "forfeit recorded" in line
+    rec = json.loads((folder / forfeit45.FILENAME).read_text(encoding="utf-8"))[0]
+    assert rec["kind"] == forfeit45.UNGRADABLE and rec["missing_reason"] == why and rec["repeat"] == 2
+    assert rec["stored_rows"] == 3 and rec["finish_reasons"] == {"length": 1, "stop": 2}
+    assert rec["attempts"] == []
+    assert set(rec) == {"model", "case_id", "repeat", "kind", "reason", "declared", "missing_reason",
+                        "stored_rows", "finish_reasons", "attempts"}     # status fields only, never a row's text
+
+
+@pytest.mark.parametrize("why", forfeit45.JUDGE_GAPS)
+def test_an_ungradable_job_is_refused_without_the_flag(folder, monkeypatch, why):
+    monkeypatch.setattr(forfeit45, "missing_reason", lambda *a, **k: why)
+    _csv_rows(folder, [("stop", "")])
+    rc, line = forfeit45.declare(folder, "m", CASE, 2, "judge could not grade it", None)
+    assert rc == 1 and "--after-rejudge" in line
+    assert not (folder / forfeit45.FILENAME).exists()
+
+
+@pytest.mark.parametrize("why", [None, "empty", "ctx_short", "content_filter"])
+def test_the_flag_still_needs_a_judge_gap_now(folder, monkeypatch, why):
+    monkeypatch.setattr(forfeit45, "missing_reason", lambda *a, **k: why)
+    _csv_rows(folder, [("stop", "")])
+    rc, line = forfeit45.declare(folder, "m", CASE, 2, "judge could not grade it", None, after_rejudge=True)
+    assert rc == 1 and "refused" in line
+    assert not (folder / forfeit45.FILENAME).exists()
+
+
+def test_the_flag_does_not_loosen_the_no_answer_guard(folder, missing_error):
+    _csv(folder, [DETAIL] * 2)
+    rc, line = forfeit45.declare(folder, "m", CASE, 1, "never answered", None, after_rejudge=True)
+    assert rc == 1 and "2 stored error row(s)" in line
+    _csv(folder, [DETAIL] * 3)
+    assert forfeit45.declare(folder, "m", CASE, 1, "never answered", None, after_rejudge=True)[0] == 0
+    assert json.loads((folder / forfeit45.FILENAME).read_text(encoding="utf-8"))[0]["kind"] == forfeit45.NO_ANSWER
+
+
+def _judged(**kw):
+    r = {"case_id": CASE, "repeat": 2, "turn": None, "category": "rp", "grade": None, "needs_judge": True,
+         "rubric": "rp_deep", "response": "a reply", "finish_reason": "stop", "model_label": "m"}
+    r.update(kw)
+    return r
+
+
+def _record_kind(folder, kind, repeat=2):
+    (folder / forfeit45.FILENAME).write_text(json.dumps([{
+        "model": "m", "case_id": CASE, "repeat": repeat, "kind": kind, "reason": "x",
+        "declared": "2026-11-27T00:00:00+00:00", "attempts": []}]), encoding="utf-8")
+
+
+def test_each_kind_applies_only_to_its_own_reasons(folder):
+    unjudged = _judged()                                                   # needs the judge, has no verdict
+    failed = _judged(judge={"judge_failed": True})
+    assert scoring45.job_missing_reason([unjudged]) == "unjudged"
+    assert scoring45.job_missing_reason([failed]) == "judge_failed"
+    _record_kind(folder, forfeit45.UNGRADABLE)
+    for r in (unjudged, failed):
+        out = forfeit45.apply("m", [r], frozenset(), _fail)
+        assert out[0]["forfeit"] is True
+        assert forfeit45.split_missing(_by_t(out))[1] == []
+    assert forfeit45.apply("m", [_err(repeat=2)], frozenset(), _fail)[0]["grade"] == "error"   # not a judge gap
+    _record_kind(folder, forfeit45.NO_ANSWER)
+    rows = [unjudged]
+    assert forfeit45.apply("m", rows, frozenset(), _fail) is rows                             # not an error job
+    kept = forfeit45.split_missing(_by_t(forfeit45.apply("m", [_err(repeat=2)], frozenset(), _fail)))[0]
+    assert forfeit45.applied("m", kept)[0]["kind"] == forfeit45.NO_ANSWER
+
+
+def test_a_record_without_a_kind_is_a_no_answer_forfeit(folder):
+    _record(folder)
+    assert forfeit45.records_for("m")[(CASE, 1)].get("kind") is None
+    assert forfeit45.apply("m", [_err()], frozenset(), _fail)[0]["forfeit"] is True
+    rows = [_judged(repeat=1)]
+    assert forfeit45.apply("m", rows, frozenset(), _fail) is rows
+
+
+def test_the_ungradable_note():
+    f = {"case_id": "S-1", "repeat": 1, "kind": forfeit45.UNGRADABLE}
+    assert forfeit45.note([f]) == "1 job counted as 0: S-1, the judge could not grade the answer after a second pass"
+    two = forfeit45.note([f, {"case_id": "P-1", "repeat": 1, "attempts": 5}])
+    assert two == ("2 jobs counted as 0: S-1, the judge could not grade the answer after a second pass; "
+                   "P-1, the provider never answered in 5 tries")
+
+
+def test_a_judged_scene_scores_zero_like_a_graded_failure():
+    """The forfeited row of a judged scene is a long-scene unit whose every judged element failed and whose
+    empty-generation verdict zeroes every item: the scene's score is 0, exactly the counted-failed rule."""
+    from crucibleforge import agree, rpdeep
+    from crucibleforge.report import _forfeit_failed
+    case = {"id": CASE, "turns": [{"user": "t1"}], "judge_elements": [{"id": "F1", "fact": "f1"},
+                                                                       {"id": "F2", "fact": "f2", "weight": 2}]}
+    row = _judged(conversation=[{"role": "assistant", "content": "a reply"}])
+    r = _forfeit_failed(row, case)
+    j = r["judge"]
+    assert j["empty_generation"] and j["counted_failed"] == "forfeit"
+    assert [(e["id"], e["pass"]) for e in j["elements"]["results"]] == [("F1", False), ("F2", False)]
+    assert scoring45.job_missing_reason([r]) is None                        # a verdict, not a judge gap
+    sr = rpdeep.score_row(r, case)
+    assert sr["status"] == "ok" and sr["rate"] == 0.0
+    # the graded failure: the judge's own verdict with every element NO
+    graded = {**row, "judge": {"judge_failed": False, "refused": False, "scores": {},
+                               "elements": {"results": [{"id": "F1", "pass": False}, {"id": "F2", "pass": False}]}}}
+    assert rpdeep.score_row(graded, case)["rate"] == sr["rate"] == 0.0
+    monkey_units = {**r, "case_id": "RD4-kettle-saddle"}                       # a long-scene id: ids only
+    assert list(agree.long_units([monkey_units]))                            # the scorer picks the unit up
